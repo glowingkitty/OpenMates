@@ -22,6 +22,7 @@ from typing import Awaitable, Callable, Optional
 import httpx
 
 from backend.core.api.app.utils.server_mode import RuntimeDeploymentMode, resolve_runtime_deployment_mode
+from backend.shared.python_utils.storage_availability import STORAGE_AVAILABLE
 
 
 GLOBAL_DEADLINE_SECONDS = 60
@@ -31,7 +32,20 @@ STRIPE_REQUEST_TIMEOUT_SECONDS = 10
 HTTP_PROBE_TIMEOUT_SECONDS = 4
 BASELINE_HTTP_PROBE_ATTEMPTS = 2
 HTTP_PROBE_RETRY_DELAY_SECONDS = 0.25
+OBJECT_STORAGE_CHECK_TIMEOUT_SECONDS = 8
 CheckRunner = Callable[[], Awaitable[None]]
+
+
+class CheckSkipped(RuntimeError):
+    def __init__(self, failure_class: str) -> None:
+        super().__init__(failure_class)
+        self.failure_class = failure_class
+
+
+class CheckFailed(RuntimeError):
+    def __init__(self, failure_class: str) -> None:
+        super().__init__(failure_class)
+        self.failure_class = failure_class
 
 
 @dataclass(frozen=True)
@@ -94,6 +108,14 @@ def build_check_inventory(role: str, mode: RuntimeDeploymentMode) -> list[CheckD
     if role not in _ROLE_CHECKS:
         raise ValueError(f"unsupported_role:{role}")
     checks = [CheckDefinition(check_id, timeout) for check_id, timeout in _ROLE_CHECKS[role]]
+    if role == "core":
+        checks.append(
+            CheckDefinition(
+                "core.object_storage",
+                OBJECT_STORAGE_CHECK_TIMEOUT_SECONDS,
+                required=False,
+            )
+        )
     if role == "core" and mode.billing_enabled:
         checks.extend(CheckDefinition(check_id, timeout) for check_id, timeout in _BILLING_CHECKS)
     return checks
@@ -109,6 +131,19 @@ async def _execute_one(check: CheckDefinition) -> CheckResult:
         return CheckResult(check.id, "passed", check.required, int((time.monotonic() - started) * 1000), check.id, started_at, int(time.time()))
     except asyncio.CancelledError:
         raise
+    except CheckSkipped as exc:
+        return CheckResult(
+            check.id,
+            "skipped",
+            check.required,
+            int((time.monotonic() - started) * 1000),
+            check.id,
+            started_at,
+            int(time.time()),
+            exc.failure_class,
+            exc.failure_class,
+            "completed",
+        )
     except asyncio.TimeoutError:
         return CheckResult(check.id, "failed", check.required, int((time.monotonic() - started) * 1000), check.id, started_at, int(time.time()), "timeout", "check_timed_out", "completed")
     except Exception as exc:
@@ -351,6 +386,23 @@ async def _check_billing_freshness() -> None:
         await client.aclose()
 
 
+async def _check_object_storage() -> None:
+    secrets_manager = await _initialized_secrets_manager()
+    storage = _storage_service_type()(secrets_manager=secrets_manager)
+    await storage.initialize(configure_buckets=False)
+    status = await storage.check_availability()
+    if status == "not_configured":
+        raise CheckSkipped("not_configured")
+    if status != STORAGE_AVAILABLE:
+        raise CheckFailed("storage_unavailable")
+
+
+def _storage_service_type():
+    from backend.core.api.app.services.s3.service import S3UploadService
+
+    return S3UploadService
+
+
 def _runtime_runners(role: str) -> dict[str, CheckRunner]:
     health_url = {"core": "http://localhost:8000/v1/health", "upload": "http://app-uploads:8000/health", "preview": "http://preview:8080/health"}[role]
     return {
@@ -362,6 +414,7 @@ def _runtime_runners(role: str) -> dict[str, CheckRunner]:
         "core.worker_queue": _check_worker_queue,
         "core.scheduler_freshness": _check_scheduler_freshness,
         "core.chat_plumbing": _check_chat_plumbing,
+        "core.object_storage": _check_object_storage,
         "upload.antivirus": lambda: _check_tcp("clamav", 3310),
         "preview.renderer": lambda: _http_get("http://preview:8080/health"),
         "billing.mode_enabled": _check_billing_mode,

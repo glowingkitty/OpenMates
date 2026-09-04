@@ -491,7 +491,13 @@
   {/snippet}
 
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="recording-preview" data-testid="recording-preview" class:mobile={isMobileSnippet}>
+    <div
+      class="recording-preview"
+      data-testid="recording-preview"
+      data-recording-title={title || ''}
+      data-transcript={activeTranscript ? 'available' : 'unavailable'}
+      class:mobile={isMobileSnippet}
+    >
 
       {#if displayWaveform && status !== 'error'}
         <div

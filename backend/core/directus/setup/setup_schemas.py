@@ -42,6 +42,17 @@ CHAT_RECOVERY_INDEXES = (
     'chat_recovery_jobs_task_uq',
     'chat_recovery_jobs_assistant_message_uq',
 )
+STORAGE_REPLICATION_MIGRATION_PATH = os.getenv(
+    'STORAGE_REPLICATION_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_replication_indexes.sql',
+)
+STORAGE_REPLICATION_INDEXES = (
+    'storage_replication_jobs_identity_uq',
+    'storage_replication_jobs_due_idx',
+    'storage_deletion_tombstones_identity_uq',
+    'storage_deletion_tombstones_due_idx',
+    'storage_region_health_region_uq',
+)
 WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
     'WORKFLOW_RUNTIME_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql',
@@ -74,9 +85,16 @@ USER_TASK_INDEXES = (
     'user_tasks_project_hashes_gin_idx',
     'user_tasks_label_hashes_gin_idx',
     'user_task_key_wrappers_task_owner_idx',
-    'user_task_activity_task_created_idx',
+    'user_task_activity_task_entry_uq',
+    'user_task_activity_personal_created_idx',
+    'user_task_activity_team_created_idx',
     'user_task_archives_owner_archived_idx',
 )
+USER_WORK_CONTROL_MIGRATION_PATH = os.getenv(
+    'USER_WORK_CONTROL_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_user_work_control_indexes.sql',
+)
+USER_WORK_CONTROL_INDEXES = ('user_work_dependencies_source_target_uq',)
 USAGE_OVERVIEW_MIGRATION_PATH = os.getenv(
     'USAGE_OVERVIEW_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_usage_overview_indexes.sql',
@@ -129,6 +147,14 @@ SUB_CHAT_ORCHESTRATION_MIGRATION_PATH = os.getenv(
     'SUB_CHAT_ORCHESTRATION_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_sub_chat_orchestration_indexes.sql',
 )
+USER_CHAT_PREFERENCE_MIGRATION_PATH = os.getenv(
+    'USER_CHAT_PREFERENCE_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql',
+)
+AI_MEMORY_REMOVAL_MIGRATION_PATH = os.getenv(
+    'AI_MEMORY_REMOVAL_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_remove_ai_memories.sql',
+)
 SUB_CHAT_ORCHESTRATION_INDEXES = (
     'sub_chat_orchestrations_owner_root_turn_uq',
     'sub_chat_orchestrations_owner_status_idx',
@@ -146,13 +172,21 @@ SUB_CHAT_ORCHESTRATION_INDEXES = (
     'usage_orchestration_created_idx',
     'billing_charge_identities_charge_uq',
     'billing_charge_identities_user_created_idx',
+    'billing_refund_identities_refund_uq',
+    'billing_settlement_outbox_due_idx',
     'team_credit_events_event_uq',
     'team_usage_events_event_uq',
 )
 EMBED_HASH_INDEXES = ('embeds_hashed_embed_id_idx',)
+USER_CHAT_PREFERENCE_INDEXES = (
+    'user_chat_preferences_owner_chat_uq',
+    'user_chat_preferences_owner_updated_idx',
+)
 EMBED_HASH_BACKFILL_BATCH_SIZE = 500
 
 BACKEND_PERMISSION_COLLECTIONS = (
+    'account_export_jobs',
+    'account_export_parts',
     'anonymous_free_usage_budget',
     'anonymous_free_usage_identity_daily',
     'anonymous_free_usage_reservations',
@@ -160,6 +194,9 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'free_testing_credits_budget',
     'user_plan_key_wrappers',
     'user_task_key_wrappers',
+    'user_chat_preferences',
+    'user_plan_revisions',
+    'user_work_dependencies',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -1098,6 +1135,39 @@ def apply_and_verify_chat_recovery_indexes():
     print(f"Verified {len(CHAT_RECOVERY_INDEXES)} chat recovery indexes")
 
 
+def apply_and_verify_storage_replication_indexes():
+    """Apply durable regional storage identities and bounded due-work indexes."""
+    if not os.path.isfile(STORAGE_REPLICATION_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage replication migration is missing: {STORAGE_REPLICATION_MIGRATION_PATH}"
+        )
+
+    with open(STORAGE_REPLICATION_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_REPLICATION_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(STORAGE_REPLICATION_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage replication index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_REPLICATION_INDEXES)} storage replication indexes")
+
+
 def apply_and_verify_workflow_runtime_indexes():
     """Apply the Workflow runtime migration before its scheduler can be enabled."""
     if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
@@ -1162,6 +1232,27 @@ def apply_and_verify_user_task_indexes():
             + ", ".join(sorted(missing_indexes))
         )
     print(f"Verified {len(USER_TASK_INDEXES)} user task indexes")
+
+
+def apply_and_verify_user_work_control_indexes():
+    """Apply the durable unique edge index before dependency routes are enabled."""
+    if not os.path.isfile(USER_WORK_CONTROL_MIGRATION_PATH):
+        raise RuntimeError(f"Required work-control migration is missing: {USER_WORK_CONTROL_MIGRATION_PATH}")
+    with open(USER_WORK_CONTROL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                "SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = ANY(%s)",
+                (list(USER_WORK_CONTROL_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(USER_WORK_CONTROL_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError("Work-control index verification failed: " + ", ".join(sorted(missing_indexes)))
+    print(f"Verified {len(USER_WORK_CONTROL_INDEXES)} work-control indexes")
 
 
 def apply_and_verify_usage_overview_indexes():
@@ -1294,6 +1385,69 @@ def apply_and_verify_sub_chat_orchestration_indexes():
     print(f"Verified {len(SUB_CHAT_ORCHESTRATION_INDEXES)} sub-chat orchestration indexes")
 
 
+def apply_and_verify_user_chat_preference_indexes():
+    """Apply unique owner/chat indexes for encrypted AI model preferences."""
+    if not os.path.isfile(USER_CHAT_PREFERENCE_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required user chat preference migration is missing: {USER_CHAT_PREFERENCE_MIGRATION_PATH}"
+        )
+
+    with open(USER_CHAT_PREFERENCE_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(USER_CHAT_PREFERENCE_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(USER_CHAT_PREFERENCE_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "User chat preference index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(USER_CHAT_PREFERENCE_INDEXES)} user chat preference indexes")
+
+
+def apply_and_verify_ai_memory_removal():
+    """Delete only obsolete AI-owned memory rows and verify none remain."""
+    if not os.path.isfile(AI_MEMORY_REMOVAL_MIGRATION_PATH):
+        raise RuntimeError(
+            "Required AI-memory removal migration is missing: "
+            f"{AI_MEMORY_REMOVAL_MIGRATION_PATH}"
+        )
+
+    with open(AI_MEMORY_REMOVAL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            deleted_count = cursor.rowcount
+            cursor.execute(
+                "SELECT COUNT(*) FROM public.user_app_settings_and_memories WHERE app_id = %s",
+                ('ai',),
+            )
+            remaining_count = cursor.fetchone()[0]
+
+    if remaining_count:
+        raise RuntimeError(
+            f"AI-memory removal verification failed: {remaining_count} row(s) remain"
+        )
+    print(f"Verified AI-memory removal; deleted {deleted_count} active row(s)")
+    return deleted_count
+
+
 def verify_chat_recovery_endpoint():
     """Require the baked extension to answer an authenticated metadata-only read."""
     if not INTERNAL_API_SHARED_TOKEN:
@@ -1340,6 +1494,27 @@ def verify_sub_chat_orchestration_endpoint():
     if data.get('status') != 'ok' or data.get('protocol_version') != 1:
         raise RuntimeError('Sub-chat orchestration endpoint returned an invalid health response')
     print('Verified sub-chat orchestration Directus endpoint')
+
+
+def verify_anonymous_usage_endpoint():
+    """Require the atomic anonymous usage endpoint to pass its internal health check."""
+    if not INTERNAL_API_SHARED_TOKEN:
+        raise RuntimeError('INTERNAL_API_SHARED_TOKEN is required for Directus setup')
+    response = requests.post(
+        f"{CMS_URL}/anonymous-usage-transaction/",
+        headers={"X-Internal-Service-Token": INTERNAL_API_SHARED_TOKEN},
+        json={"operation": "health_check", "data": {"protocol_version": 1}},
+        timeout=10,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(
+            "Anonymous usage endpoint health check failed: "
+            f"HTTP {response.status_code}"
+        )
+    data = response.json().get('data', {})
+    if data.get('status') != 'ok' or data.get('protocol_version') != 1:
+        raise RuntimeError('Anonymous usage endpoint returned an invalid health response')
+    print('Verified anonymous usage Directus endpoint')
 
 def setup_schemas():
     """Main function to set up schemas."""
@@ -1414,6 +1589,9 @@ def setup_schemas():
         print("\n--- Applying chat recovery database indexes ---")
         apply_and_verify_chat_recovery_indexes()
 
+        print("\n--- Applying storage replication database indexes ---")
+        apply_and_verify_storage_replication_indexes()
+
         print("\n--- Verifying chat recovery Directus endpoint ---")
         verify_chat_recovery_endpoint()
 
@@ -1422,6 +1600,9 @@ def setup_schemas():
 
         print("\n--- Applying user task database indexes ---")
         apply_and_verify_user_task_indexes()
+
+        print("\n--- Applying user work-control database indexes ---")
+        apply_and_verify_user_work_control_indexes()
 
         print("\n--- Applying usage overview database indexes ---")
         apply_and_verify_usage_overview_indexes()
@@ -1435,8 +1616,17 @@ def setup_schemas():
         print("\n--- Applying sub-chat orchestration database indexes ---")
         apply_and_verify_sub_chat_orchestration_indexes()
 
+        print("\n--- Applying user chat preference database indexes ---")
+        apply_and_verify_user_chat_preference_indexes()
+
+        print("\n--- Removing obsolete AI-owned memories ---")
+        apply_and_verify_ai_memory_removal()
+
         print("\n--- Verifying sub-chat orchestration Directus endpoint ---")
         verify_sub_chat_orchestration_endpoint()
+
+        print("\n--- Verifying anonymous usage Directus endpoint ---")
+        verify_anonymous_usage_endpoint()
 
         # Only create the first signup invite code if the 'invite_codes'
         # collection was newly created during this run (i.e., first setup).

@@ -2,6 +2,8 @@
   "fixture_id": "chat_flow_quick_tip",
   "recorded_at": "2026-07-24T21:25:00Z",
   "speed_profile": "instant",
+  "initial_delay_ms": 2500,
+  "chunk_delay_ms": 7000,
   "user_message_snippet": "Kyoto and Osaka quick tip test",
   "preprocessing": {
     "can_proceed": true,

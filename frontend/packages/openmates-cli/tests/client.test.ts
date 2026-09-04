@@ -10,7 +10,7 @@
 
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, webcrypto } from "node:crypto";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
@@ -78,11 +78,13 @@ const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
   createApiKeyCryptoMaterial,
+  derivePairKey,
   encryptBytesWithAesGcm,
   encryptWithAesGcmCombined,
   sealChatCompletionRecoveryPayload,
 } = await import("../src/crypto.ts");
 const {
+  clearSession,
   loadSession: loadStoredSession,
   loadSyncCache,
   saveSyncCache,
@@ -109,6 +111,7 @@ describe("OpenMatesClient session API URL", () => {
     rmSync(serverConfigPath, { force: true });
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps authentication capability discovery out of payment routes", () => {
     const source = readFileSync(new URL("../src/client.ts", import.meta.url), "utf8");
     const methodStart = source.indexOf("async getAuthMethodsStatus");
@@ -120,6 +123,76 @@ describe("OpenMatesClient session API URL", () => {
     assert.doesNotMatch(methodSource, /\/v1\/payments\//);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("keeps a completed pair-login session active for immediate verification", async () => {
+    const token = "PAIR12";
+    const pin = "PIN123";
+    const bundle = {
+      master_key_exported: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      hashed_email: "test-hashed-email",
+      lookup_hash: "test-lookup-hash",
+      user_email_salt: "test-email-salt",
+    };
+    const pairKey = await derivePairKey(pin, token);
+    const iv = new Uint8Array(12);
+    const plaintext = new TextEncoder().encode(JSON.stringify(bundle));
+    const encryptedBundle = await webcrypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      pairKey,
+      plaintext,
+    );
+    const sessionCookies: string[] = [];
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/auth/pair/initiate") {
+        response.end(JSON.stringify({ token }));
+      } else if (request.url === `/v1/auth/pair/complete/${token}`) {
+        response.end(JSON.stringify({
+          success: true,
+          encrypted_bundle: Buffer.from(encryptedBundle).toString("base64"),
+          iv: Buffer.from(iv).toString("base64"),
+        }));
+      } else if (request.url === "/v1/auth/login") {
+        response.setHeader("set-cookie", "auth_refresh_token=test-refresh-token; Path=/; HttpOnly");
+        response.end(JSON.stringify({ success: true, ws_token: "test-ws-token" }));
+      } else if (request.url === "/v1/auth/session") {
+        sessionCookies.push(String(request.headers.cookie ?? ""));
+        response.end(JSON.stringify({ success: true, user: { id: "personal-account-id" } }));
+      } else {
+        response.end(JSON.stringify({ success: false }));
+      }
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    rmSync(sessionPath, { force: true });
+
+    try {
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const interactiveClient = client as unknown as {
+        waitForPairAuthorization: () => Promise<{ authorizerDeviceName: string }>;
+        prompt: () => Promise<string>;
+        renderPairQrCode: () => void;
+      };
+      interactiveClient.waitForPairAuthorization = async () => ({ authorizerDeviceName: "Test Browser" });
+      interactiveClient.prompt = async () => pin;
+      interactiveClient.renderPairQrCode = () => undefined;
+
+      await client.loginWithPairAuth();
+      const user = await client.whoAmI();
+      assert.equal(user.id, "personal-account-id");
+
+      const reloadedClient = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const reloadedUser = await reloadedClient.whoAmI();
+      assert.equal(reloadedUser.id, "personal-account-id");
+      assert.match(sessionCookies.at(-1) ?? "", /auth_refresh_token=test-refresh-token/);
+    } finally {
+      clearSession();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("manages application preview lifecycle through authenticated embed preview endpoints", async () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown>; cookie?: string }> = [];
     const embedId = "12345678-1234-4234-9234-123456789abc";
@@ -181,11 +254,13 @@ describe("OpenMatesClient session API URL", () => {
     assert.ok(requests.every((request) => request.cookie?.includes("auth_refresh_token=test-refresh-token")));
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("uses the persisted session API URL when no override is set", () => {
     const client = OpenMatesClient.load();
     assert.strictEqual(client.apiUrl, sessionApiUrl);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("routes deterministic Project CRUD, children, source removal, and remote requests through one explicit context", async () => {
     const requests: Array<{ method?: string; url?: string; body?: Record<string, unknown> }> = [];
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -252,11 +327,13 @@ describe("OpenMatesClient session API URL", () => {
     assert.equal(requests[7]?.body?.encrypted_envelope, "opaque-request");
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps explicit API URL overrides higher priority than the persisted session", () => {
     const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:8000" });
     assert.strictEqual(client.apiUrl, "http://127.0.0.1:8000");
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("uses installed self-host server API when no override or session exists", () => {
     rmSync(sessionPath, { force: true });
     writeFileSync(serverConfigPath, `${JSON.stringify({
@@ -272,6 +349,7 @@ describe("OpenMatesClient session API URL", () => {
     assert.strictEqual(client.apiUrl, "http://localhost:8000");
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("persists rotated auth cookies and ws tokens after whoami", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       assert.strictEqual(request.url, "/v1/auth/session");
@@ -305,6 +383,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("purges local private data when session refresh is explicitly invalid", async () => {
     const emptyCache = {
       syncedAt: Date.now(),
@@ -340,6 +419,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("uses destructive local purge for manual logout", async () => {
     const emptyCache = {
       syncedAt: Date.now(),
@@ -373,6 +453,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("uses destructive local purge after account deletion", async () => {
     const emptyCache = {
       syncedAt: Date.now(),
@@ -406,6 +487,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("returns the current rotated cookie jar for upload authentication", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       assert.strictEqual(request.url, "/v1/apps?include_unavailable=true");
@@ -434,6 +516,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("includes session_id when refreshing the WebSocket token", async () => {
     let requestBody = "";
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -464,6 +547,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("creates API keys through the audited typed path while generic settings POST stays blocked", async () => {
     let seenBody: Record<string, unknown> | null = null;
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -509,6 +593,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("lists API keys with decrypted display fields and pending device counts", async () => {
     const material = await createApiKeyCryptoMaterial("CLI Listed Key", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
     const server = createServer((_request: IncomingMessage, response: ServerResponse) => {
@@ -545,6 +630,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("sends stable CLI API-key device headers for app-skill execution", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       assert.strictEqual(request.url, "/v1/apps/code/skills/get_docs");
@@ -575,6 +661,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("rejects app-skill responses that carry skill-level errors", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       assert.strictEqual(request.url, "/v1/apps/news/skills/search");
@@ -602,6 +689,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("uses action-code and TOTP endpoints for destructive CLI step-up", async () => {
     const seen: Array<{ method: string | undefined; url: string | undefined; body: unknown }> = [];
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -637,6 +725,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps polling app-skill tasks after transient task status failures", async () => {
     let taskPolls = 0;
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -681,6 +770,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("persists pending AI responses during CLI sync", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {
@@ -770,6 +860,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("refreshes exact chat messages before showing a selected chat", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {
@@ -855,6 +946,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("persists passive task update jobs advertised during CLI reconnect sync", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {
@@ -1006,6 +1098,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("skips passive task update jobs that do not include source chat context", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {
@@ -1088,6 +1181,7 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("skips passive task update jobs already leased by another device", async () => {
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.url === "/v1/auth/session") {
@@ -1165,10 +1259,9 @@ describe("OpenMatesClient session API URL", () => {
 });
 
 describe("memory type registry", () => {
+  // contract-test: direct surface=sdks.npm assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
   it("covers all production memory types needed by CLI memory commands", () => {
     assert.deepEqual(Object.keys(MEMORY_TYPE_REGISTRY).sort(), [
-      "ai/communication_style",
-      "ai/learning_preferences",
       "books/currently_reading",
       "books/favorite_books",
       "books/to_read_list",
@@ -1181,6 +1274,7 @@ describe("memory type registry", () => {
       "health/appointments",
       "health/medical_history",
       "home/saved_listings",
+      "ideabucket/processing_settings",
       "images/preferred_styles",
       "mail/writing_styles",
       "reminder/saved_item_reminder_defaults",
@@ -1202,6 +1296,7 @@ describe("memory type registry", () => {
 });
 
 describe("CLI streamed embed persistence", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("uses the same deterministic parent embed key across version updates", async () => {
     writeLegacySession();
     const client = OpenMatesClient.load();
@@ -1276,6 +1371,7 @@ describe("CLI streamed embed persistence", () => {
 });
 
 describe("connected account payload builders", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("rejects token or plaintext identity fields in the chat-visible directory", () => {
     assert.throws(
       () => buildConnectedAccountDirectoryPayload([
@@ -1292,6 +1388,7 @@ describe("connected account payload builders", () => {
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds token-broker requests without putting refresh tokens in chat payloads", () => {
     const request = buildTurnTokenRefsRequestPayload({
       chatId: "chat-1",
@@ -1324,6 +1421,7 @@ describe("connected account payload builders", () => {
     assert.equal(JSON.stringify(directory).includes("refresh-secret"), false);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("posts connected-account cancel requests without token refs", async () => {
     let requestBody = "";
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -1358,6 +1456,7 @@ describe("connected account payload builders", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("posts connected-account undo requests with only the opaque turn token ref", async () => {
     let requestBody = "";
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
@@ -1413,6 +1512,7 @@ describe("connected account payload builders", () => {
 });
 
 describe("memory request system messages", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds the request artifact without approving memory content", () => {
     const message = buildAppSettingsMemoryRequestSystemMessage({
       userMessageId: "user-message-id",
@@ -1438,6 +1538,7 @@ describe("memory request system messages", () => {
     assert.equal(payload.action, undefined);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds an included response artifact only for explicit approval", () => {
     const message = buildAppSettingsMemoryResponseSystemMessage({
       userMessageId: "user-message-id",
@@ -1463,6 +1564,7 @@ describe("memory request system messages", () => {
 });
 
 describe("task update job helpers", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds encrypted task event system messages without plaintext leakage", async () => {
     const chatKey = new Uint8Array(32).fill(11);
     const systemMessage = await buildTaskEventSystemMessage({
@@ -1490,6 +1592,7 @@ describe("task update job helpers", () => {
     assert.match(decrypted, /Book flights/);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds task update job persist payloads with only encrypted task content", () => {
     const payload = buildTaskUpdateJobPersistPayload({
       jobId: "task-update-job-1",
@@ -1566,6 +1669,7 @@ describe("task update job helpers", () => {
     });
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps task update jobs only when the current response emitted a matching event", () => {
     assert.equal(
       taskUpdateJobBelongsToActiveTurn(
@@ -1622,6 +1726,7 @@ describe("task update job helpers", () => {
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("detects explicit Tasks app-skill messages", () => {
     assert.equal(
       messageExplicitlyRequestsTasksAppSkill("@skill:tasks:create create launch tasks"),
@@ -1644,6 +1749,7 @@ describe("task update job helpers", () => {
 });
 
 describe("CLI saved-chat recovery preflight", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("stops before inference when saved-chat preflight requires a client update", async () => {
     const captured: { frameTypes: string[] } = { frameTypes: [] };
     const wss = new WebSocketServer({ noServer: true });
@@ -1703,6 +1809,7 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("waits for preflight ack and keeps durable transaction content encrypted", async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -1937,6 +2044,7 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("persists streamed embeds when the recovery claim is already terminal", async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -2079,6 +2187,7 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("lazily registers epoch-1 recovery material for an old saved chat", async () => {
     const chatId = "11111111-1111-4111-8111-111111111111";
     const ownerId = "22222222-2222-4222-8222-222222222222";
@@ -2256,6 +2365,7 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("returns after confirmation for saved team messages that do not mention OpenMates", async () => {
     const teamId = "55555555-5555-4555-8555-555555555555";
     const ownerId = "66666666-6666-4666-8666-666666666666";
@@ -2360,6 +2470,7 @@ describe("CLI saved-chat recovery preflight", () => {
 });
 
 describe("CLI incognito chat payloads", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("can include known Learning Mode context without changing incognito state", async () => {
     const captured: { messagePayload?: Record<string, unknown>; frameTypes: string[] } = {
       frameTypes: [],
@@ -2439,6 +2550,7 @@ describe("CLI incognito chat payloads", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("sends current message history with incognito messages", async () => {
     const captured: { messagePayload?: Record<string, unknown> } = {};
     const wss = new WebSocketServer({ noServer: true });
@@ -2516,6 +2628,7 @@ describe("CLI incognito chat payloads", () => {
     }
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("prepends provided benchmark history before the current incognito message", async () => {
     const captured: { messagePayload?: Record<string, unknown> } = {};
     const wss = new WebSocketServer({ noServer: true });
@@ -2586,6 +2699,7 @@ describe("CLI incognito chat payloads", () => {
 });
 
 describe("sub-chat encryption helpers", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("encrypts child first-message metadata with the parent chat key", async () => {
     const parentKey = new Uint8Array(32).fill(7);
     const encryptedChatKey = "wrapped-parent-key";
@@ -2627,6 +2741,7 @@ describe("sub-chat encryption helpers", () => {
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds approval and cancellation payloads only from explicit decisions", () => {
     assert.deepEqual(
       buildSubChatConfirmationPayload({
@@ -2660,6 +2775,7 @@ describe("sub-chat encryption helpers", () => {
 });
 
 describe("sync delta request helpers", () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("forces a message refresh when cached metadata has no local messages", () => {
     assert.equal(
       getClientMessagesVersionForSync({
@@ -2670,6 +2786,7 @@ describe("sync delta request helpers", () => {
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("caps the cached messages version to the local message count", () => {
     assert.equal(
       getClientMessagesVersionForSync({
@@ -2680,6 +2797,7 @@ describe("sync delta request helpers", () => {
     );
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps the cached messages version when it matches the local message count", () => {
     assert.equal(
       getClientMessagesVersionForSync({

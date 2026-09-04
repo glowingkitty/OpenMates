@@ -63,13 +63,6 @@ struct SettingsAIFullView: View {
         var isEnabled: Bool
     }
 
-    struct AIMemoryCategory: Identifiable {
-        let id: String
-        let titleKey: String
-        let descriptionKey: String
-        let icon: String
-    }
-
     enum AIModelSort: String, CaseIterable {
         case performance
         case price
@@ -176,25 +169,6 @@ struct SettingsAIFullView: View {
                         disabled: isSaving
                     )
                     .onChange(of: quickTipsEnabled) { oldValue, _ in saveDefaults(rollbackQuickTipsTo: oldValue) }
-                }
-            }
-
-            if !memoryCategories.isEmpty {
-                OMSettingsSection(LocalizationManager.shared.text("settings.app_store.settings_memories.title"), icon: "settings") {
-                    Text(LocalizationManager.shared.text("settings.app_store.settings_memories.section_description"))
-                        .font(.omSmall.weight(.medium))
-                        .foregroundStyle(Color.fontSecondary)
-                        .padding(.leading, 10)
-                        .padding(.bottom, .spacing2)
-
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: .spacing6) {
-                            ForEach(memoryCategories) { category in
-                                AIMemoryAppStoreCard(category: category)
-                            }
-                        }
-                        .padding(.vertical, .spacing2)
-                    }
                 }
             }
 
@@ -356,29 +330,6 @@ struct SettingsAIFullView: View {
                     return $0.name < $1.name
                 }
                 .map { OMDropdownOption("\($0.provider)/\($0.id)", label: $0.name) }
-    }
-
-    private var memoryCategories: [AIMemoryCategory] {
-        [
-            AIMemoryCategory(
-                id: "communication_style",
-                titleKey: "app_settings_memories.ai.communication_style",
-                descriptionKey: "app_settings_memories.ai.communication_style.description",
-                icon: "chat"
-            ),
-            AIMemoryCategory(
-                id: "learning_preferences",
-                titleKey: "app_settings_memories.ai.learning_preferences",
-                descriptionKey: "app_settings_memories.ai.learning_preferences.description",
-                icon: "library"
-            ),
-            AIMemoryCategory(
-                id: "interaction_preferences",
-                titleKey: "app_settings_memories.ai.interaction_preferences",
-                descriptionKey: "app_settings_memories.ai.interaction_preferences.description",
-                icon: "settings_memories"
-            )
-        ]
     }
 
     private func aiPricingRow(icon: String, label: String, tokens: Int) -> some View {
@@ -662,42 +613,6 @@ private struct ProviderLogo: View {
             .frame(width: 40, height: 40)
             .background(Color.grey10)
             .clipShape(RoundedRectangle(cornerRadius: .radius3))
-    }
-}
-
-private struct AIMemoryAppStoreCard: View {
-    let category: SettingsAIFullView.AIMemoryCategory
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: .spacing5) {
-                Icon(category.icon, size: 26)
-                    .foregroundStyle(Color.fontButton)
-                    .frame(width: 44, height: 44)
-                    .background(LinearGradient.primary)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: .radius4)
-                            .stroke(Color.fontButton.opacity(0.9), lineWidth: 2)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: .radius4))
-
-                Text(LocalizationManager.shared.text(category.titleKey))
-                    .font(.omH4.weight(.bold))
-                    .foregroundStyle(Color.fontButton)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-
-                Text(LocalizationManager.shared.text(category.descriptionKey))
-                    .font(.omSmall.weight(.semibold))
-                    .foregroundStyle(Color.fontButton)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-            }
-            .padding(.spacing8)
-            .frame(width: 250, height: 150, alignment: .topLeading)
-            .background(LinearGradient.primary)
-            .clipShape(RoundedRectangle(cornerRadius: .radius6))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(LocalizationManager.shared.text(category.titleKey))
     }
 }
 

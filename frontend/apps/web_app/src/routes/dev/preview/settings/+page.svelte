@@ -43,7 +43,9 @@
 		SettingsDivider,
 		SettingsSectionHeading,
 		SettingsGradientLink,
-		SettingsPageContainer
+		SettingsPageContainer,
+		SettingsCapabilityScale,
+		SettingsModelPreferenceItem
 	} from '@repo/ui/components/settings/elements';
 
 	// --- State for interactive demos ---
@@ -932,6 +934,29 @@ Y5Z6-A7B8-C9D0`;
 							This content is inside a <code>SettingsPageContainer</code> with <code>maxWidth="narrow"</code>.
 						</p>
 					</SettingsPageContainer>
+				</div>
+			</div>
+
+			<div class="element-block">
+				<div class="element-header">
+					<h3>30. AI Capability Scale</h3>
+					<span class="element-tag new">SettingsCapabilityScale</span>
+				</div>
+				<div class="element-demo">
+					<SettingsCapabilityScale level="low" label="Low capability" />
+					<SettingsCapabilityScale level="medium" label="Medium capability" />
+					<SettingsCapabilityScale level="high" label="High capability" />
+					<SettingsCapabilityScale level="max" label="Maximum capability" />
+				</div>
+			</div>
+
+			<div class="element-block">
+				<div class="element-header">
+					<h3>31. Editable Model Preference</h3>
+					<span class="element-tag new">SettingsModelPreferenceItem</span>
+				</div>
+				<div class="element-demo">
+					<SettingsModelPreferenceItem title="Simple requests" value="Auto select" capability="low" capabilityLabel="Low capability" onEdit={() => alert('Edit model preference')} />
 				</div>
 			</div>
 		</section>

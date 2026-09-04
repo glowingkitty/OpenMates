@@ -1,0 +1,22 @@
+# Bounded immutable part metadata for cold archive generations.
+# Object keys and checksums are safe routing data; bytes remain private in S3
+# and are streamed only after current manifest authorization succeeds.
+cold_archive_parts:
+  type: collection
+  note: "Bounded encrypted cold archive part metadata"
+  fields:
+    id: {type: uuid, primary: true}
+    archive_id: {type: string, length: 64, required: true}
+    part_id: {type: string, length: 64, required: true}
+    part_number: {type: integer, required: true}
+    generation: {type: integer, required: true}
+    logical_bucket: {type: string, length: 64, required: true}
+    object_key: {type: text, required: true}
+    checksum: {type: string, length: 64, required: true}
+    size_bytes: {type: integer, required: true}
+    regional_states: {type: json, required: true}
+    created_at: {type: integer, required: true}
+  indexes:
+    - name: idx_cold_archive_parts_generation
+      fields: [archive_id, generation, part_number]
+      unique: true

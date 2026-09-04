@@ -9,6 +9,7 @@ from backend.core.api.app.services.directus.user_plan_methods import UserPlanMet
 from backend.core.api.app.services.user_plan_service import UserPlanService
 
 
+# contract-test: supporting surface=rest_api assertions=plans.execution.gates-evidence
 @pytest.mark.asyncio
 async def test_required_assumptions_block_implementation_until_resolved() -> None:
     plan_methods = SimpleNamespace(
@@ -21,14 +22,18 @@ async def test_required_assumptions_block_implementation_until_resolved() -> Non
 
     blockers = await UserPlanService(plan_methods).implementation_blockers("plan-1")
 
-    assert blockers == [{"kind": "assumption", "id": "ASM-1", "status": "unchecked"}]
+    assert blockers == [
+        {"kind": "assumption", "id": "ASM-1", "status": "unchecked"},
+        {"kind": "assumption", "id": "ASM-2", "status": "corrected"},
+    ]
 
 
+# contract-test: supporting surface=rest_api assertions=plans.assumptions.investigated-before-work,plans.content.client-encrypted
 @pytest.mark.asyncio
 async def test_assumption_result_merge_persists_corrections_and_sources() -> None:
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(side_effect=[
-        [{"id": "plan-row", "plan_id": "plan-1"}],
+        [{"id": "plan-row", "plan_id": "plan-1", "key_wrappers": []}],
         [{"id": "assumption-row", "version": 1}],
     ])
     directus.update_item = AsyncMock(return_value={"assumption_id": "ASM-1", "status": "corrected", "version": 2})
@@ -53,6 +58,7 @@ async def test_assumption_result_merge_persists_corrections_and_sources() -> Non
     assert patch["encrypted_sources"] == "cipher-sources"
 
 
+# contract-test: supporting surface=rest_api assertions=plans.execution.gates-evidence
 @pytest.mark.asyncio
 async def test_failed_required_check_moves_plan_back_to_blocked_loop() -> None:
     plan_methods = SimpleNamespace()

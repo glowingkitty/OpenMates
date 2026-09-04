@@ -14,7 +14,6 @@ from openmates.sdk import _create_api_key_material, _encrypted_object_slug_metad
 
 PLAN = {
     "plan_id": "plan-1",
-    "encrypted_plan_key": "cipher-key",
     "encrypted_title": "cipher-title",
     "status": "draft",
     "created_at": 100,
@@ -36,11 +35,9 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     encrypted_chat_key = _encrypt_aes_gcm_bytes(chat_key, master_key)
     plan = {
         **PLAN,
-        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "key_wrappers": [{"key_type": "master", "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key)}],
         "encrypted_title": _encrypt_aes_gcm_text("Plan", plan_key),
-        "encrypted_summary": _encrypt_aes_gcm_text("Summary", plan_key),
         "encrypted_goal": _encrypt_aes_gcm_text("Goal", plan_key),
-        "encrypted_current_focus": _encrypt_aes_gcm_text("Focus", plan_key),
         "encrypted_open_questions": _encrypt_aes_gcm_text("Question", plan_key),
         "encrypted_linked_project_ids": _encrypt_aes_gcm_text("[]", plan_key),
         "version": 1,
@@ -124,13 +121,15 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     client = OpenMates(api_key=api_key, device_id="test-device")
     assert client.plans.list(status="draft", chat_id="chat-1")[0]["plan_id"] == "plan-1"
     assert client.plans.show("plan-1")["plan_id"] == "plan-1"
-    assert client.plans.create({"title": "Created plan"})["title"] == "Created plan"
+    assert client.plans.create({"title": "Created plan", "goal": "Deliver the plan"})["title"] == "Created plan"
     assert client.plans.update("plan-1", {"status": "active"})["status"] == "active"
     assert client.plans.attach("plan-1", chat_id="chat-1")["primary_chat_id"] == "chat-1"
     assert client.plans.start("plan-1")["status"] == "executing"
     assert client.plans.resume("plan-1")["status"] == "active"
     assert client.plans.goal.set("plan-1", "Updated goal")["goal"] == "Updated goal"
-    assert client.plans.current_focus.clear("plan-1")["current_focus"] == ""
+    user_flows = [{"flow_id": "FLOW-1", "title": "Publish", "steps": [{"step_id": "STEP-1", "text": "Review"}], "expected_outcome": "Published"}]
+    assert client.plans.user_flows.set("plan-1", user_flows)["user_flows"] == user_flows
+    assert client.plans.user_flows.clear("plan-1")["user_flows"] == []
     assert client.plans.open_questions.answer("plan-1", "Answered")["open_questions"] == "Answered"
     assert client.plans.complete("plan-1")["plan_id"] == "plan-1"
     criterion = client.plans.success_criteria.add("plan-1", {"criterion_id": "AC-1", "text": "Plain AC"})
@@ -168,7 +167,7 @@ def test_pip_sdk_user_plan_methods_use_shared_plans_api(monkeypatch):
     assert client.plans.learnings.create_tasks("plan-1", {"learning_ids": ["LRN-1"]}) == {"tasks": [], "skipped": []}
     assert client.plans.checks.add_evidence("plan-1", "V-1", {"status": "passed", "result_summary": "Passed locally"})["status"] == "passed"
 
-    for marker in ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally"]:
+    for marker in ["Plain AC", "Plain assumption", "Plain pattern", "Plain learning", "Passed locally", "Published"]:
         assert_no_plaintext_marker(requests_seen, marker)
 
     urls = [request["url"].replace("https://api.openmates.org", "") for request in requests_seen]
@@ -188,7 +187,7 @@ def test_pip_sdk_plan_add_to_project_encrypts_linked_project_ids(monkeypatch):
     plan = {
         "plan_id": "plan-1",
         "version": 1,
-        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "key_wrappers": [{"key_type": "master", "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key)}],
         "encrypted_title": _encrypt_aes_gcm_text("Plan", plan_key),
         "encrypted_linked_project_ids": _encrypt_aes_gcm_text("[]", plan_key),
         "linked_project_ids": [],
@@ -258,7 +257,7 @@ def test_pip_sdk_plan_show_resolves_encrypted_slug_from_raw_list(monkeypatch):
     plan = {
         "plan_id": "plan-1",
         "version": 1,
-        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
+        "key_wrappers": [{"key_type": "master", "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key)}],
         "encrypted_slug": slug_metadata["encrypted_slug"],
         "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
         "encrypted_title": _encrypt_aes_gcm_text("Pip Slug Plan", plan_key),

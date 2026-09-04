@@ -87,12 +87,10 @@ class TaskAdmissionService:
         self,
         task_methods: Any,
         *,
-        plan_methods: Any | None = None,
         policy: TaskAdmissionPolicy | None = None,
         on_admitted: Callable[[dict[str, Any], int], Awaitable[bool]] | None = None,
     ):
         self.task_methods = task_methods
-        self.plan_methods = plan_methods or getattr(getattr(task_methods, "directus_service", None), "user_plan", None)
         self.policy = policy or load_task_admission_policy()
         self.on_admitted = on_admitted
 
@@ -177,12 +175,16 @@ class TaskAdmissionService:
             active = [task for task in tasks if self._is_active_ai_task(task)]
             candidates, wait_states = await self._eligible_lane_heads(
                 tasks,
-                user_id=user_id,
-                team_id=team_id,
                 now=current_time,
-                scope=scope,
-                owner_hash=owner_hash,
             )
+            unblocked_candidates: list[dict[str, Any]] = []
+            for task in candidates:
+                task_id = str(task.get("task_id") or "")
+                if scope == "personal" and await self.task_methods.admission_blockers(task, user_id, owner_hash=owner_hash):
+                    wait_states[task_id] = "waiting_for_plan_dependency"
+                    continue
+                unblocked_candidates.append(task)
+            candidates = unblocked_candidates
             candidates = [task for task in candidates if str(task.get("task_id") or "") not in (excluded_task_ids or set())]
             candidates.sort(key=lambda task: self._candidate_sort_key(task, preferred_chat_id=preferred_chat_id))
 
@@ -243,11 +245,7 @@ class TaskAdmissionService:
         self,
         tasks: list[dict[str, Any]],
         *,
-        user_id: str,
-        team_id: str | None,
         now: int,
-        scope: str,
-        owner_hash: str | None,
     ) -> tuple[list[dict[str, Any]], dict[str, str]]:
         candidates: list[dict[str, Any]] = []
         wait_states: dict[str, str] = {}
@@ -271,19 +269,21 @@ class TaskAdmissionService:
                 standalone_tasks.append(task)
 
         plan_chat_ids: set[str] = set()
-        for plan_id, lane_tasks in plan_tasks.items():
-            current_task_id = await self._plan_current_task_id(
-                plan_id,
-                user_id=user_id,
-                team_id=team_id,
-                scope=scope,
-                owner_hash=owner_hash,
-            )
-            for task in lane_tasks:
-                task_id = str(task.get("task_id") or "")
-                if task_id != current_task_id and self._is_waiting_ai_task(task):
-                    wait_states[task_id] = "waiting_for_plan_dependency"
-            current = next((task for task in lane_tasks if str(task.get("task_id") or "") == current_task_id), None)
+        for lane_tasks in plan_tasks.values():
+            ordered = sorted(lane_tasks, key=self._lane_sort_key)
+            active_plan_task = next((task for task in ordered if self._is_active_ai_task(task)), None)
+            if active_plan_task is not None:
+                chat_id = str(active_plan_task.get("primary_chat_id") or "")
+                if chat_id:
+                    plan_chat_ids.add(chat_id)
+                for task in ordered:
+                    if self._is_waiting_ai_task(task):
+                        wait_states[str(task.get("task_id") or "")] = "waiting_for_plan_dependency"
+                continue
+            current = ordered[0] if ordered else None
+            for task in ordered[1:]:
+                if self._is_waiting_ai_task(task):
+                    wait_states[str(task.get("task_id") or "")] = "waiting_for_plan_dependency"
             if current is None:
                 continue
             chat_id = str(current.get("primary_chat_id") or "")
@@ -312,23 +312,6 @@ class TaskAdmissionService:
                 candidates.append(task)
 
         return candidates, wait_states
-
-    async def _plan_current_task_id(
-        self,
-        plan_id: str,
-        *,
-        user_id: str,
-        team_id: str | None,
-        scope: str,
-        owner_hash: str | None,
-    ) -> str:
-        if owner_hash:
-            plan = await self.task_methods.get_plan_for_hashed_admission(plan_id, scope, owner_hash)
-            return str((plan or {}).get("current_task_id") or "")
-        if self.plan_methods is None:
-            return ""
-        plan = await self.plan_methods.get_plan(plan_id, user_id, team_id)
-        return str((plan or {}).get("current_task_id") or "")
 
     def _can_start(self, task: dict[str, Any], now: int) -> bool:
         if not self._is_waiting_ai_task(task):

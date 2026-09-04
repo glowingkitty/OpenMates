@@ -1,4 +1,5 @@
 // tests/mentions.test.ts
+// contract-test-file: infrastructure
 /**
  * Unit tests for CLI mention parsing and resolution.
  *
@@ -13,6 +14,8 @@ import {
   listMentionOptions,
   CHAT_MODELS,
   MODEL_ALIASES,
+  resolveWikipediaMentions,
+  WikipediaMentionResolutionError,
   type MentionContext,
 } from "../src/mentions.ts";
 
@@ -118,6 +121,96 @@ describe("extractMentionTokens", () => {
   });
 });
 
+describe("resolveWikipediaMentions", () => {
+  const result = (overrides: Partial<{
+    page_id: number;
+    key: string;
+    title: string;
+    description: string;
+    disambiguation: boolean;
+    language: string;
+  }> = {}) => ({
+    page_id: 736,
+    key: "Albert_Einstein",
+    title: "Albert Einstein",
+    description: "Theoretical physicist",
+    disambiguation: false,
+    language: "en",
+    ...overrides,
+  });
+
+  // contract-test: direct surface=cli assertions=wikipedia-mentions.syntax.explicit-trigger,wikipedia-mentions.resolution.first-result
+  it("resolves explicit Wiki shorthand to canonical backend syntax", async () => {
+    const calls: Array<[string, string, number]> = [];
+    const parsed = await resolveWikipediaMentions("@wiki:AlbertEinstein explain", "de-DE", async (...args) => {
+      calls.push(args);
+      return [result({ language: "de" })];
+    });
+    assert.deepEqual(calls, [["AlbertEinstein", "de", 5]]);
+    assert.equal(parsed.processedMessage, "@wikipedia:de:Albert_Einstein explain");
+    assert.equal(parsed.resolved[0].type, "wikipedia");
+  });
+
+  // contract-test: direct surface=cli assertions=wikipedia-mentions.syntax.explicit-trigger
+  it("honors an explicit language and never searches generic mentions", async () => {
+    let calls = 0;
+    const parsed = await resolveWikipediaMentions("@Sophia @wiki:en:AlbertEinstein", "de", async (query, language) => {
+      calls += 1;
+      assert.equal(query, "AlbertEinstein");
+      assert.equal(language, "en");
+      return [result()];
+    });
+    assert.equal(calls, 1);
+    assert.equal(parsed.processedMessage, "@Sophia @wikipedia:en:Albert_Einstein");
+  });
+
+  // contract-test: direct surface=cli assertions=wikipedia-mentions.resolution.disambiguation-visible
+  it("blocks disambiguation and returns specific alternatives", async () => {
+    await assert.rejects(
+      resolveWikipediaMentions("@wiki:Mercury explain", "en", async () => [
+        result({ key: "Mercury", title: "Mercury", disambiguation: true }),
+        result({ key: "Mercury_(planet)", title: "Mercury (planet)" }),
+        result({ key: "Mercury_(element)", title: "Mercury (element)" }),
+      ]),
+      (error: unknown) => error instanceof WikipediaMentionResolutionError
+        && error.code === "disambiguation"
+        && error.alternatives.includes("@wiki:en:Mercury_(planet)"),
+    );
+  });
+
+  // contract-test: direct surface=cli assertions=wikipedia-mentions.references.maximum-three
+  it("rejects a fourth Wikipedia reference before searching", async () => {
+    let calls = 0;
+    await assert.rejects(
+      resolveWikipediaMentions("@wiki:One @wiki:Two @wiki:Three @wiki:Four", "en", async () => {
+        calls += 1;
+        return [result()];
+      }),
+      (error: unknown) => error instanceof WikipediaMentionResolutionError
+        && error.code === "too_many_references",
+    );
+    assert.equal(calls, 0);
+  });
+
+  // contract-test: direct surface=cli assertions=wikipedia-mentions.resolution.first-result,wikipedia-mentions.surfaces.semantic-parity
+  it("preserves authored order and percent-encodes canonical titles", async () => {
+    const parsed = await resolveWikipediaMentions("@wiki:One compare @wiki:Two", "en", async (query) => [
+      result({ key: query === "One" ? "C++" : "São_Paulo", title: query }),
+    ]);
+    assert.equal(parsed.processedMessage, "@wikipedia:en:C%2B%2B compare @wikipedia:en:S%C3%A3o_Paulo");
+  });
+
+  it("keeps balanced article parentheses while preserving sentence punctuation", async () => {
+    const parsed = await resolveWikipediaMentions("Read @wiki:en:Mercury_(planet).", "en", async (query, language) => {
+      assert.equal(query, "Mercury_(planet)");
+      assert.equal(language, "en");
+      return [result({ key: "Mercury_(planet)", title: "Mercury (planet)" })];
+    });
+
+    assert.equal(parsed.processedMessage, "Read @wikipedia:en:Mercury_(planet).");
+  });
+});
+
 describe("parseMentions", () => {
   describe("model aliases", () => {
     it("resolves @best to wire syntax", () => {
@@ -166,6 +259,23 @@ describe("parseMentions", () => {
       );
       assert.equal(result.resolved.length, 1);
       assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-5.4");
+    });
+
+    it("resolves GPT-5.6 display names", () => {
+      for (const [mention, modelId] of [
+        ["@GPT-6-Astra", "gpt-6-astra"],
+        ["@GPT-5.6-Luna", "gpt-5.6-luna"],
+        ["@GPT-5.6-Terra", "gpt-5.6-terra"],
+        ["@GPT-5.6-Sol", "gpt-5.6-sol"],
+        ["@GPT-5.6-Sol-Max", "gpt-5.6-sol-max"],
+      ] as const) {
+        const result = parseMentions(`${mention} explain this`, testContext);
+
+        assert.equal(result.unresolved.length, 0);
+        assert.equal(result.resolved.length, 1);
+        assert.equal(result.resolved[0].type, "model");
+        assert.equal(result.resolved[0].wireSyntax, `@ai-model:${modelId}`);
+      }
     });
 
   });

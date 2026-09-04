@@ -28,6 +28,11 @@ def load_sessions_module():
     return module
 
 
+def allow_control_plane_deploy_protocol(monkeypatch, sessions) -> None:
+    monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: "origin-dev")
+    monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", lambda _origin_ref: None)
+
+
 def test_vercel_build_machine_gate_allows_standard_fixed(monkeypatch):
     sessions = load_sessions_module()
 
@@ -283,6 +288,35 @@ def test_wait_lock_times_out_for_active_other_session(monkeypatch, tmp_path):
     assert exc.value.code == 1
 
 
+def test_wait_lock_follow_tracks_owner_transition_and_signals_ready(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps({
+            "locks": {"docker_rebuild": {"status": "NONE"}, "vercel_deploy": {"status": "NONE"}},
+            "sessions": {"current": {"task": "resume after lock"}},
+        }) + "\n",
+        encoding="utf-8",
+    )
+    snapshots = iter([
+        {"claimed_by": "first", "phase": "building"},
+        {"claimed_by": "second", "phase": "verifying"},
+        {},
+    ])
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_active_lock_snapshot", lambda _lock_type: next(snapshots))
+    monkeypatch.setattr(sessions.time, "sleep", lambda _seconds: None)
+
+    sessions.cmd_wait_lock(argparse.Namespace(type="docker", session="current", timeout=None, poll=1, follow=True))
+
+    output = capsys.readouterr().out
+    assert "held by first" in output
+    assert "held by second" in output
+    assert '"signal": "OPENMATES_WAIT_READY"' in output
+    stored = json.loads(sessions_file.read_text(encoding="utf-8"))
+    assert "resource_wait" not in stored["sessions"]["current"]
+
+
 def test_deploy_blocks_before_commit_when_vercel_lock_is_held(monkeypatch, tmp_path, capsys):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
@@ -390,6 +424,7 @@ def test_deploy_releases_vercel_lock_after_successful_push(monkeypatch, tmp_path
     monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -458,6 +493,7 @@ def test_deploy_can_start_verification_handoff_after_successful_push(monkeypatch
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
     monkeypatch.setattr(sessions, "cmd_start", fake_start)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -485,7 +521,7 @@ def test_deploy_can_start_verification_handoff_after_successful_push(monkeypatch
     assert "--expected-commit abc123def456" in output
 
 
-def test_deployed_commit_handoff_prints_full_sha_and_exact_test_command(capsys):
+def test_deployed_commit_handoff_prints_full_sha_and_content_stable_test_command(capsys):
     sessions = load_sessions_module()
     commit = "abcdef1234567890abcdef1234567890abcdef12"
 
@@ -493,10 +529,11 @@ def test_deployed_commit_handoff_prints_full_sha_and_exact_test_command(capsys):
 
     output = capsys.readouterr().out
     assert f"Full commit: {commit}" in output
-    assert f"--gate-deploy --require-exact-commit --expected-commit {commit}" in output
+    assert f"--gate-deploy --expected-commit {commit}" in output
+    assert "--require-exact-commit" not in output
 
 
-def test_use_staged_deploy_uses_staged_files_when_session_tracking_is_empty(monkeypatch, tmp_path):
+def test_use_staged_deploy_rejects_untracked_staged_files(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     sessions_file = tmp_path / "sessions.json"
     sessions_file.write_text(
@@ -528,8 +565,8 @@ def test_use_staged_deploy_uses_staged_files_when_session_tracking_is_empty(monk
         return 0, "", ""
 
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
-    monkeypatch.setattr(sessions, "_get_staged_files", lambda: {"docs/test.md"})
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda *, checkout_root=None: {"docs/test.md"})
     monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
@@ -552,10 +589,11 @@ def test_use_staged_deploy_uses_staged_files_when_session_tracking_is_empty(monk
         lock_poll=1,
     )
 
-    sessions.cmd_deploy(args)
+    with pytest.raises(SystemExit) as exc:
+        sessions.cmd_deploy(args)
 
-    assert ["git", "commit", "-m", "docs: staged fallback"] in commands
-    assert ["git", "push", "origin", "dev"] in commands
+    assert exc.value.code == 1
+    assert ["git", "commit", "-m", "docs: staged fallback"] not in commands
 
 
 def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, capsys):
@@ -591,8 +629,8 @@ def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, c
         return 0, "", ""
 
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
-    monkeypatch.setattr(sessions, "_get_staged_files", lambda: next(staged_snapshots))
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda *, checkout_root=None: next(staged_snapshots))
     monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
@@ -600,6 +638,7 @@ def test_use_staged_deploy_rechecks_index_before_commit(monkeypatch, tmp_path, c
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -655,8 +694,8 @@ def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, 
         return 0, "", ""
 
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["docs/test.md"])
-    monkeypatch.setattr(sessions, "_get_staged_files", lambda: next(staged_snapshots))
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["docs/test.md"])
+    monkeypatch.setattr(sessions, "_get_staged_files", lambda *, checkout_root=None: next(staged_snapshots))
     monkeypatch.setattr(sessions, "_run_test_enforcement_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_pytest_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_enforce_embed_registry_validation", lambda *_args, **_kwargs: None)
@@ -664,6 +703,7 @@ def test_deploy_rechecks_auto_staged_index_before_commit(monkeypatch, tmp_path, 
     monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
+    allow_control_plane_deploy_protocol(monkeypatch, sessions)
 
     args = argparse.Namespace(
         session="current",
@@ -719,7 +759,7 @@ def test_deploy_blocks_sdk_changes_when_cleartext_gate_fails(monkeypatch, tmp_pa
         return 1, "", "parity drift"
 
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
-    monkeypatch.setattr(sessions, "_get_dirty_files", lambda: ["frontend/packages/openmates-cli/src/sdk.ts"])
+    monkeypatch.setattr(sessions, "_get_dirty_files", lambda *, checkout_root=None: ["frontend/packages/openmates-cli/src/sdk.ts"])
     monkeypatch.setattr(sessions, "_run_cmd", fake_run_cmd)
     monkeypatch.setattr(sessions, "_run_translation_build", lambda: (0, "", ""))
     monkeypatch.setattr(sessions, "_run_translation_validation", lambda: (0, "", ""))

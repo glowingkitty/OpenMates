@@ -874,6 +874,67 @@ describe("handleSendEmbedDataImpl", () => {
     );
   });
 
+  // contract-test: direct surface=gui.web assertions=code-run.artifacts.chat-bound-versioned
+  it("persists child embeds with inherited parent deletion indexes", async () => {
+    const chatKey = new Uint8Array([1, 2, 3]);
+    const parentEmbedKey = new Uint8Array([4, 5, 6]);
+    const parentIndexes = {
+      hashed_chat_id: "parent-chat-hash",
+      hashed_message_id: "parent-message-hash",
+      hashed_user_id: "parent-user-hash",
+    };
+    mockChatDB.getChat.mockResolvedValue({
+      chat_id: "chat-1",
+      encrypted_chat_key: "encrypted-chat-key",
+    });
+    mockChatKeyManager.getKeySync.mockReturnValue(chatKey);
+    mockChatKeyManager.getKey.mockResolvedValue(chatKey);
+    mockEmbedStore.getEmbedKey.mockResolvedValue(parentEmbedKey);
+    mockEncryptWithEmbedKey.mockImplementation(async (value: string) =>
+      `encrypted:${value}`,
+    );
+    mockSendStoreEmbed.mockResolvedValue(undefined);
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleSendEmbedDataImpl(service, {
+      type: "send_embed_data",
+      event_for_client: "send_embed_data",
+      payload: {
+        embed_id: "child-1",
+        type: "file-file",
+        content: JSON.stringify({ app_id: "file", skill_id: "file" }),
+        status: "finished",
+        chat_id: "chat-1",
+        message_id: "incorrect-parent-embed-id",
+        user_id: "user-1",
+        parent_embed_id: "parent-1",
+        createdAt: 123,
+        updatedAt: 124,
+      },
+    }, parentIndexes);
+
+    expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+      "embed:child-1",
+      expect.objectContaining({
+        parent_embed_id: "parent-1",
+        ...parentIndexes,
+      }),
+      "file-file",
+      expect.any(String),
+      expect.objectContaining({ app_id: "file", skill_id: "file" }),
+      expect.any(Object),
+    );
+    expect(mockSendStoreEmbed).toHaveBeenCalledWith(
+      service,
+      expect.objectContaining({
+        parent_embed_id: "parent-1",
+        ...parentIndexes,
+      }),
+    );
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
   it("accepts finalized send_embed_data refreshes for existing finished embeds", async () => {
     const chatKey = new Uint8Array([1, 2, 3]);

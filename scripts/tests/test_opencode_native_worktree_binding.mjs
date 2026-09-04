@@ -16,6 +16,7 @@ import test from "node:test";
 import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
 const {
+  bindSessionStart,
   exactCommitDeployedTestForTest,
   isApprovedControlPlaneAuditCommand,
   routeLocalToolArgsForTest,
@@ -77,17 +78,23 @@ test("approved control-plane audits are narrowly parsed", () => {
   ]) assert.equal(isApprovedControlPlaneAuditCommand(command), false);
 });
 
-test("merged verification requires one exact gated spec command", () => {
+test("merged verification accepts commit-aware gated spec commands", () => {
   const commit = "a".repeat(40);
   const command = `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --require-exact-commit --expected-commit ${commit}`;
   assert.deepEqual(exactCommitDeployedTestForTest(command, commit), { commit, spec: "chat-flow.spec.ts" });
+  assert.deepEqual(
+    exactCommitDeployedTestForTest(
+      `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit ${commit}`,
+      commit,
+    ),
+    { commit, spec: "chat-flow.spec.ts" },
+  );
   assert.deepEqual(
     exactCommitDeployedTestForTest(`${command} --proof-video-profile web-phone --detach`, commit),
     { commit, spec: "chat-flow.spec.ts" },
   );
   for (const rejected of [
     `python3 scripts/tests.py run --spec chat-flow.spec.ts --expected-commit ${commit}`,
-    `python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit ${commit}`,
     "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit abc1234",
     `python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit ${commit}`,
     `${command} --proof-video-profile desktop`,
@@ -123,6 +130,58 @@ test("bash always receives the resolved worktree as its real workdir", () => {
   assert.deepEqual(
     routeLocalToolArgsForTest("bash", { command: "pwd", workdir: ROOT }, WORKTREE),
     { command: "pwd", workdir: WORKTREE },
+  );
+});
+
+test("runtime lifecycle commands bypass stale session-local coordinators", () => {
+  const runtime = "/home/superdev/projects/.openmates-runtime/opencode-server";
+  for (const command of [
+    "python3 scripts/sessions.py docker restart --session abcd --service api --build",
+    "python3 scripts/sessions.py wait-health --session abcd --follow --poll 10 --timeout 900",
+    "python3 scripts/sessions.py wait-lock --session abcd --type docker --follow --poll 10",
+  ]) {
+    assert.deepEqual(
+      routeLocalToolArgsForTest("bash", { command, workdir: WORKTREE }, WORKTREE),
+      { command, workdir: runtime },
+    );
+  }
+  assert.equal(
+    routeLocalToolArgsForTest(
+      "bash",
+      { command: "python3 scripts/sessions.py deploy --session abcd --title test --message test", workdir: process.cwd() },
+      process.cwd(),
+    ).workdir,
+    runtime,
+  );
+  assert.throws(
+    () => routeLocalToolArgsForTest(
+      "bash",
+      { command: "python3 scripts/sessions.py status && git checkout -- docs/architecture/compliance/cookies.yml" },
+      WORKTREE,
+    ),
+    /mixed with another shell command/,
+  );
+});
+
+test("unbound session startup is identity-bound and routed through the clean runtime", () => {
+  const output = { args: { command: 'python3 scripts/sessions.py start --mode feature --task "Example"' } };
+  bindSessionStart({ sessionID: "ses_example", args: output.args }, output);
+  assert.equal(
+    output.args.command,
+    'python3 scripts/sessions.py start --mode feature --task "Example" --opencode-session ses_example',
+  );
+  assert.equal(routeLocalToolArgsForTest("bash", output.args, "").workdir, "/home/superdev/projects/.openmates-runtime/opencode-server");
+});
+
+test("unbound session startup rejects mixed shell commands before stale root execution", () => {
+  const output = { args: { command: 'ls scripts && python3 scripts/sessions.py start --mode feature --task "Example"' } };
+  assert.throws(
+    () => bindSessionStart({ sessionID: "ses_example", args: output.args }, output),
+    /standalone command/,
+  );
+  assert.throws(
+    () => routeLocalToolArgsForTest("bash", output.args, ""),
+    /mixed with another shell command/,
   );
 });
 
@@ -262,6 +321,24 @@ test("root absolute paths in shell commands are rejected with an actionable alte
       return true;
     },
   );
+});
+
+test("proof-video rendering can consume its immutable control-plane source artifact", () => {
+  const runtime = "/home/superdev/projects/.openmates-runtime/opencode-server";
+  const source = `${ROOT}/test-results/proof-video-source-artifacts/source-id/artifact.webm`;
+  const command = `python3 scripts/sessions.py proof-video produce-playwright --source-video ${source}`;
+  assert.equal(routeLocalToolArgsForTest("bash", { command }, WORKTREE).workdir, runtime);
+
+  for (const blockedCommand of [
+    `python3 scripts/sessions.py proof-video produce-playwright --source-video ${ROOT}/test-results/other.webm`,
+    `python3 scripts/sessions.py proof-video produce-playwright --source-video ${source} --contract-path ${ROOT}/contract.json`,
+    `python3 scripts/sessions.py status --source-video ${source}`,
+  ]) {
+    assert.throws(
+      () => routeLocalToolArgsForTest("bash", { command: blockedCommand }, WORKTREE),
+      /session isolation/,
+    );
+  }
 });
 
 test("repeated isolation blocks stop identical retries", () => {

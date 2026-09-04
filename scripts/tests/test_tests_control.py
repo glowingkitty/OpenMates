@@ -35,11 +35,13 @@ def load_tests_control(tmp_path, monkeypatch):
     results_dir = tmp_path / "test-results"
     monkeypatch.setattr(module, "RESULTS_DIR", results_dir)
     monkeypatch.setattr(module, "PROOF_SOURCE_DIR", results_dir / "proof-video-sources")
+    monkeypatch.setattr(module, "PROOF_SOURCE_ARTIFACTS_DIR", results_dir / "proof-video-source-artifacts")
     monkeypatch.setattr(module, "STATE_FILE", results_dir / "tests-state.json")
     monkeypatch.setattr(module, "HISTORY_FILE", results_dir / "tests-history.jsonl")
     monkeypatch.setattr(module, "LEASES_FILE", results_dir / "failed-test-leases.json")
     monkeypatch.setattr(module, "TRIAGE_FILE", results_dir / "test-failure-triage.json")
     monkeypatch.setattr(module, "TEST_FILE_INDEX_FILE", results_dir / "test-file-index.json")
+    monkeypatch.setattr(module, "RESPONSE_MEDIA_LATEST_FILE", results_dir / "response-media-latest.json")
     monkeypatch.setattr(module, "RUNS_DIR", results_dir / "runs")
     monkeypatch.setattr(module, "LEASE_LOCK_FILE", tmp_path / "leases.lock")
     monkeypatch.setattr(module, "PROJECT_ROOT", tmp_path)
@@ -205,6 +207,7 @@ def test_status_summary_separates_deterministic_and_live_probe_health(tmp_path, 
     assert summary["global_zero_complete"] is False
 
 
+# contract-test: infrastructure
 def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     raw_report = {
@@ -260,6 +263,7 @@ def test_import_normalizes_raw_playwright_json_report(tmp_path, monkeypatch):
         "dispatch_error": 0,
         "timeout": 0,
         "result_unknown": 0,
+        "infrastructure_incident": 0,
         "skipped": 0,
         "not_started": 0,
     }
@@ -410,6 +414,119 @@ def test_run_options_forward_proof_video_profile(tmp_path, monkeypatch):
     assert options.forwarded_args == ["--spec", "audio-recording.spec.ts", "--proof-video-profile", "web-laptop"]
     assert options.proof_video_profile == "web-laptop"
     assert options.expected_commit == "abc123"
+    assert tests_control.playwright_response_media_run_type(options) == "spec-ts-web-laptop"
+
+
+def test_proof_video_profile_is_part_of_dispatch_identity(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen = []
+
+    class FakeDispatchStore(tests_control.ControlPlaneTestControlStore):
+        def __init__(self):
+            pass
+
+        def request_dispatch(self, **kwargs):
+            seen.append(kwargs)
+            return {"dispatch_key": f"dispatch-{len(seen)}", "status": "queued"}, False
+
+        def record_dispatch_canary(self, dispatch_key, service, *, healthy):
+            return {"dispatch_key": dispatch_key}
+
+        def update_dispatch(self, dispatch_key, status, reason=None):
+            return {"dispatch_key": dispatch_key, "status": status}
+
+    monkeypatch.setattr(tests_control, "TEST_STORE", FakeDispatchStore())
+    laptop = tests_control.parse_control_run_options([
+        "--spec", "embeds-map-view.spec.ts", "--proof-video-profile", "web-laptop",
+    ])
+    phone = tests_control.parse_control_run_options([
+        "--spec", "embeds-map-view.spec.ts", "--proof-video-profile", "web-phone",
+    ])
+
+    tests_control.begin_control_plane_dispatch(laptop, subject_commit="abc123", selected_test_keys=[], resources=set())
+    tests_control.begin_control_plane_dispatch(phone, subject_commit="abc123", selected_test_keys=[], resources=set())
+
+    assert [call["profile"] for call in seen] == ["playwright:web-laptop", "playwright:web-phone"]
+
+
+def test_account_provisioning_slot_is_part_of_dispatch_identity(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen = []
+
+    class FakeDispatchStore(tests_control.ControlPlaneTestControlStore):
+        def __init__(self):
+            pass
+
+        def request_dispatch(self, **kwargs):
+            seen.append(kwargs)
+            return {"dispatch_key": f"dispatch-{len(seen)}", "status": "queued"}, False
+
+        def update_dispatch(self, dispatch_key, status, reason=None):
+            return {"dispatch_key": dispatch_key, "status": status}
+
+    monkeypatch.setattr(tests_control, "TEST_STORE", FakeDispatchStore())
+    slot_15 = tests_control.parse_control_run_options([
+        "--spec", "cli-provision-auth-accounts.spec.ts", "--create-account-slot", "15",
+    ])
+    slot_19 = tests_control.parse_control_run_options([
+        "--spec", "cli-provision-auth-accounts.spec.ts", "--create-account-slot", "19",
+    ])
+
+    tests_control.begin_control_plane_dispatch(
+        slot_15,
+        subject_commit="abc123",
+        selected_test_keys=[],
+        resources=set(),
+        selected_account=2,
+    )
+    tests_control.begin_control_plane_dispatch(
+        slot_19,
+        subject_commit="abc123",
+        selected_test_keys=[],
+        resources=set(),
+        selected_account=3,
+    )
+
+    assert [call["profile"] for call in seen] == [
+        "playwright:create-account-slot-15",
+        "playwright:create-account-slot-19",
+    ]
+    assert [call["account"] for call in seen] == ["2", "3"]
+
+
+def test_force_reopens_only_reused_proof_video_dispatch(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    updates = []
+
+    class FakeDispatchStore(tests_control.ControlPlaneTestControlStore):
+        def __init__(self):
+            pass
+
+        def request_dispatch(self, **kwargs):
+            return {"dispatch_key": "dispatch-proof", "status": "succeeded"}, True
+
+        def record_dispatch_canary(self, dispatch_key, service, *, healthy):
+            return {"dispatch_key": dispatch_key}
+
+        def update_dispatch(self, dispatch_key, status, reason=None):
+            updates.append((dispatch_key, status))
+            return {"dispatch_key": dispatch_key, "status": status}
+
+    monkeypatch.setattr(tests_control, "TEST_STORE", FakeDispatchStore())
+    options = tests_control.parse_control_run_options([
+        "--spec", "embeds-map-view.spec.ts", "--proof-video-profile", "web-phone", "--force",
+    ])
+
+    _, dispatch_key, reused = tests_control.begin_control_plane_dispatch(
+        options,
+        subject_commit="abc123",
+        selected_test_keys=[],
+        resources=set(),
+    )
+
+    assert dispatch_key == "dispatch-proof"
+    assert reused is False
+    assert updates == [("dispatch-proof", "running")]
 
 
 def test_playwright_proof_video_size_also_sets_viewport() -> None:
@@ -577,6 +694,39 @@ def test_subject_commit_rejects_ancestor_when_token_linked_source_changed(tmp_pa
         tests_control.resolve_test_subject_commit(expected, ["--spec", "shared-chat-embed-assets.spec.ts"])
 
 
+def test_subject_commit_accepts_peer_spec_change_with_shared_harness_token(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    expected = "a" * 40
+    current_dev = "b" * 40
+    spec_dir = tests_control.SPEC_DIR
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "task-detail-fullscreen.spec.ts").write_text(
+        "await page.getByTestId('component-preview-canvas');\n",
+        encoding="utf-8",
+    )
+    (spec_dir / "component-message-input.spec.ts").write_text(
+        "await page.getByTestId('component-preview-canvas');\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(tests_control, "current_git_sha", lambda: "c" * 40)
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(
+        tests_control,
+        "git_is_ancestor",
+        lambda ancestor, descendant: (ancestor, descendant) == (expected, current_dev),
+    )
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/apps/web_app/tests/component-message-input.spec.ts"],
+    )
+
+    assert tests_control.resolve_test_subject_commit(
+        expected,
+        ["--spec", "task-detail-fullscreen.spec.ts"],
+    ) == current_dev
+
+
 def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     monkeypatch.setattr(tests_control, "current_git_sha", lambda: "old-worktree-commit")
@@ -585,6 +735,56 @@ def test_subject_commit_rejects_sha_outside_checkout_and_integrated_dev(tmp_path
 
     with pytest.raises(RuntimeError, match="moving target"):
         tests_control.resolve_test_subject_commit("unrelated-commit")
+
+
+def test_post_run_subject_guard_rejects_relevant_daily_change(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    subject = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(tests_control, "git_is_ancestor", lambda base, head: (base, head) == (subject, current_dev))
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["frontend/packages/ui/src/components/ChatHeader.svelte"],
+    )
+
+    with pytest.raises(RuntimeError, match="relevant files changed during the run"):
+        tests_control.validate_test_subject_commit_after_run(subject, ["--daily"])
+
+
+def test_post_run_subject_guard_accepts_irrelevant_focused_spec_change(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    subject = "a" * 40
+    current_dev = "b" * 40
+    monkeypatch.setattr(tests_control, "integrated_dev_sha", lambda: current_dev)
+    monkeypatch.setattr(tests_control, "git_is_ancestor", lambda base, head: (base, head) == (subject, current_dev))
+    monkeypatch.setattr(
+        tests_control,
+        "git_changed_files_between",
+        lambda _base, _head: ["docs/releases/daily/2026-08-27.md"],
+    )
+
+    assert tests_control.validate_test_subject_commit_after_run(
+        subject,
+        ["--spec", "shared-chat-embed-assets.spec.ts"],
+    ) == current_dev
+
+
+def test_post_run_subject_guard_exact_mode_preserves_pinned_evidence(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    subject = "a" * 40
+    monkeypatch.setattr(
+        tests_control,
+        "integrated_dev_sha",
+        lambda: (_ for _ in ()).throw(AssertionError("exact pinned evidence must not consult moving dev")),
+    )
+
+    assert tests_control.validate_test_subject_commit_after_run(
+        subject,
+        ["--spec", "chat-flow.spec.ts"],
+        require_exact=True,
+    ) == subject
 
 
 def test_seeded_only_failed_files_from_non_spec_lease(tmp_path, monkeypatch):
@@ -623,6 +823,29 @@ def test_main_strips_run_passthrough_sentinel(tmp_path, monkeypatch):
 
     assert tests_control.main(["run", "--", "--suite", "vitest"]) == 0
     assert seen_args == [["--suite", "vitest"]]
+
+
+def test_main_delegates_run_help_without_recording_started_run(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    seen_commands = []
+
+    def fail_command_run(_args):
+        raise AssertionError("run --help must not enter command_run")
+
+    def fake_subprocess_run(command, cwd=None):
+        seen_commands.append((command, cwd))
+        return tests_control.subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(tests_control, "command_run", fail_command_run)
+    monkeypatch.setattr(tests_control.subprocess, "run", fake_subprocess_run)
+
+    assert tests_control.main(["run", "--help"]) == 0
+    assert seen_commands == [
+        (
+            [sys.executable, str(tests_control.RUN_TESTS_SCRIPT), "--help"],
+            tests_control.PROJECT_ROOT,
+        )
+    ]
 
 
 def test_commit_prefix_matching_accepts_short_or_long_sha(tmp_path, monkeypatch):
@@ -903,6 +1126,8 @@ def test_record_latest_run_artifact_persists_deploy_gate_metadata(tmp_path, monk
     assert len(attestations) == 1
     attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
     assert attestation["artifact_sha256"].startswith("sha256:")
+    assert Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
+    assert Path(attestation["artifact_path"]).read_bytes() == b"verified-video"
 
 
 def test_record_latest_run_artifact_expands_short_sha_for_proof_source(tmp_path, monkeypatch):
@@ -967,7 +1192,64 @@ def test_record_latest_run_artifact_attests_downloaded_recording_bundle(tmp_path
     attestations = list(tests_control.PROOF_SOURCE_DIR.glob("*.json"))
     assert len(attestations) == 1
     attestation = json.loads(attestations[0].read_text(encoding="utf-8"))
-    assert attestation["artifact_path"] == str(video.resolve())
+    assert Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
+    assert Path(attestation["artifact_path"]).read_bytes() == b"verified-video"
+
+
+def test_record_latest_run_artifact_keeps_cropped_thumbnail_out_of_video_player(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    video = recording_dir / "videos" / "example.webm"
+    video.parent.mkdir(parents=True)
+    video.write_bytes(b"verified-video")
+    thumbnail = recording_dir / "thumbnail.png"
+    thumbnail.write_bytes(b"verified-thumbnail")
+    (recording_dir / "manifest.json").write_text(json.dumps({
+        "spec": "example.spec.ts",
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+        "assets": {"video_key": "latest/example/videos/example.webm"},
+    }), encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+        }]}},
+    }), encoding="utf-8")
+    uploads = []
+
+    def fake_uploader(**kwargs):
+        uploads.append(kwargs)
+        return {
+            "key": "opencode-responses/latest/spec-ts-web-laptop/video.webm",
+            "snippets": {"html": "<video></video>", "markdown": "[video](https://example.invalid/video.webm)"},
+        }
+
+    recorded = tests_control.record_latest_run_artifact(
+        expected_commit=commit,
+        response_media_run_type="spec-ts-web-laptop",
+        response_media_uploader=fake_uploader,
+    )
+
+    assert recorded == commit[:9]
+    assert uploads == [{
+        "path": video.resolve(),
+        "poster_path": None,
+        "run_type": "spec-ts-web-laptop",
+        "alt": "Playwright example.spec.ts latest run video",
+    }]
+    run_data = json.loads(artifact.read_text(encoding="utf-8"))
+    assert run_data["response_media_video"]["response_media_html"] == "<video></video>"
+    latest = json.loads(tests_control.RESPONSE_MEDIA_LATEST_FILE.read_text(encoding="utf-8"))
+    assert latest["playwright_spec"]["response_media_key"] == "opencode-responses/latest/spec-ts-web-laptop/video.webm"
 
 
 def test_record_latest_run_artifact_rejects_stale_downloaded_recording(tmp_path, monkeypatch):
@@ -1008,6 +1290,81 @@ def test_downloaded_recording_paths_do_not_collide_on_spec_basename(tmp_path, mo
     matches = tests_control._downloaded_recording_paths("target/example.spec.ts", {"run-one"}, commit)
 
     assert matches == []
+
+
+def test_response_media_selects_the_failed_test_clip_from_a_multi_test_spec(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "task-activity"
+    fullscreen_video = recording_dir / "videos" / "aaa-fullscreen-task-detail.webm"
+    activity_video = recording_dir / "videos" / "zzz-activity-surface.webm"
+    fullscreen_video.parent.mkdir(parents=True)
+    fullscreen_video.write_bytes(b"fullscreen-task-detail")
+    activity_video.write_bytes(b"activity-surface")
+    manifests = (
+        ("fullscreen", "is the final Task detail section", "passed", fullscreen_video),
+        ("activity", "renders and operates the complete Activity surface", "failed", activity_video),
+    )
+    for slug, title, status, video in manifests:
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"task-activity--{slug}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "task-activity.spec.ts",
+            "title": title,
+            "status": status,
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "assets": {"video_key": f"latest/task-activity/videos/{video.name}"},
+        }), encoding="utf-8")
+
+    candidate = tests_control.latest_playwright_response_media_video({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "suites": {"playwright": {"status": "failed", "tests": [{
+            "file": "task-activity.spec.ts",
+            "status": "failed",
+            "artifact_paths": [str(fullscreen_video), str(activity_video)],
+        }]}},
+    })
+
+    assert candidate == (
+        "task-activity.spec.ts",
+        activity_video.resolve(),
+        None,
+        "renders and operates the complete Activity surface",
+    )
+
+
+def test_response_media_rejects_ambiguous_multi_test_spec_clips(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    videos = [recording_dir / "videos" / f"flow-{index}.webm" for index in (1, 2)]
+    for index, video in enumerate(videos, start=1):
+        video.parent.mkdir(parents=True, exist_ok=True)
+        video.write_bytes(f"flow-{index}".encode())
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"example--flow-{index}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "example.spec.ts",
+            "title": f"flow {index}",
+            "status": "passed",
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "assets": {"video_key": f"latest/example/videos/{video.name}"},
+        }), encoding="utf-8")
+
+    candidate = tests_control.latest_playwright_response_media_video({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "artifact_paths": [str(video) for video in videos],
+        }]}},
+    })
+
+    assert candidate is None
 
 
 def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
@@ -1093,6 +1450,8 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
     commit = "a" * 40
     video = tmp_path / "video.webm"
     video.write_bytes(b"video")
+    timeline = tmp_path / "proof-timeline.json"
+    timeline.write_text('{"device":"web-laptop"}', encoding="utf-8")
     run_data = {
         "run_id": "run-one",
         "git_sha": commit,
@@ -1103,6 +1462,7 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
             "file": "example.spec.ts",
             "status": "passed",
             "artifact_paths": [str(video), str(video)],
+            "proof_timeline_path": str(timeline),
         }]}},
     }
 
@@ -1112,6 +1472,10 @@ def test_duplicate_video_attachments_create_one_proof_source_attestation(tmp_pat
     attestation = json.loads(records[0].read_text(encoding="utf-8"))
     assert attestation["run_id"] == "run-one"
     assert attestation["source_run_id"] == "run-one"
+    assert Path(attestation["artifact_path"]).read_bytes() == b"video"
+    assert Path(attestation["proof_timeline_path"]).read_text(encoding="utf-8") == '{"device":"web-laptop"}'
+    assert Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
+    assert Path(attestation["proof_timeline_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
 
 
 def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, monkeypatch):
@@ -1129,16 +1493,21 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
             "id": "proof-video-web",
             "title": "Proof web",
             "surface": "web",
-            "devices": ["web-laptop"],
-            "domain": "app.dev.openmates.org",
+                "devices": ["web-laptop"],
+                "domain": "app.dev.openmates.org",
+                "tutorial": {"readingWordsPerSecond": 2.5, "minimumHoldMs": 1800, "maximumHoldMs": 5000},
             "transcript": [{"id": "welcome", "text": "Welcome is visible.", "checkpoint": "ready", "devices": ["web-laptop"]}],
-            "assertions": [{"id": "welcome.visible", "visual": "The welcome screen is visible inside browser chrome.", "checkpoint": "ready", "devices": ["web-laptop"]}],
+            "assertions": [
+                {"id": "welcome.visible", "visual": "The welcome screen is visible inside browser chrome.", "checkpoint": "ready", "devices": ["web-laptop"]},
+                {"id": "phone.visible", "visual": "The phone-only state is visible.", "checkpoint": "phone-ready", "devices": ["web-phone"]},
+            ],
         },
         "events": [
+            {"kind": "checkpoint", "id": "setup", "at_ms": 20},
             {"kind": "checkpoint", "id": "ready", "at_ms": 100},
-            {"kind": "checkpoint", "id": "done", "at_ms": 12100},
+            {"kind": "action", "id": "reload-page", "start_ms": 50, "end_ms": 4100},
         ],
-        "assertion_results": [{"id": "welcome.visible", "status": "passed"}],
+        "assertion_results": [{"id": "welcome.visible", "status": "passed", "at_ms": 80}],
         "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": tests_control._file_sha256(frame)}],
     }), encoding="utf-8")
     record_path = tests_control.PROOF_SOURCE_DIR / "record.json"
@@ -1177,6 +1546,7 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
         produce_hook=produce,
         review_hook=review,
         publish_hook=publish,
+        source_duration_hook=lambda _path: 40.0,
     )
 
     assert finalizations == [{
@@ -1190,14 +1560,39 @@ def test_auto_finalize_web_proof_source_renders_reviews_and_publishes(tmp_path, 
         "snippet_html": "<video></video>",
     }]
     produce_kwargs = calls["produce"]
-    assert produce_kwargs["browser_domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["source"]["browser_domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["browser_tutorial_plan"]["request"]["renderer"] == "openmates-remotion-browser-v1"
+    assert produce_kwargs["browser_tutorial_plan"]["request"]["domain"] == "app.dev.openmates.org"
+    assert produce_kwargs["source"]["state_change_timestamps"] == [0.02, 0.1]
+    assert produce_kwargs["source"]["state_change_timestamps_by_id"] == {
+        "setup": 0.02,
+        "ready": 0.1,
+        "welcome.visible": 0.1,
+    }
+    assert produce_kwargs["source"]["source_end_timestamp_seconds"] == 4.1
+    assert produce_kwargs["source"]["action_timestamps"] == [0.05, 4.1]
+    assert produce_kwargs["ready_timestamp_seconds"] == 0.1
+    assert produce_kwargs["playback_rate"] == 1.0
+    assert produce_kwargs["hold_last_frame_seconds"] == 0.0
     assert produce_kwargs["caption_text"] == "Welcome is visible."
     assert produce_kwargs["expected_proof"] == "The welcome screen is visible inside browser chrome."
-    assert produce_kwargs["spec_timeline"]["device"] == "web-laptop"
-    assert produce_kwargs["playback_rate"] == 1.0
-    assert produce_kwargs["ready_timestamp_seconds"] == 0.1
     assert calls["review"]["correction_round"] == 0
     assert calls["publish"]["run_dir"] == produce_kwargs["run_dir"]
+
+
+def test_apple_proof_capture_end_excludes_xcode_teardown_tail(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+
+    assert tests_control.proof_capture_end_timestamp_seconds(
+        surface="apple",
+        source_media_duration_seconds=12.0,
+        proof_end_times=[8.0],
+    ) == 8.0
+    assert tests_control.proof_capture_end_timestamp_seconds(
+        surface="web",
+        source_media_duration_seconds=12.0,
+        proof_end_times=[8.0],
+    ) == 12.0
 
 
 def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, monkeypatch):
@@ -1238,9 +1633,59 @@ def test_record_latest_run_artifact_attests_each_downloaded_recording(tmp_path, 
     assert recorded == commit
     attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
     assert len(attestations) == 2
-    assert {attestation["artifact_path"] for attestation in attestations} == {str(first_video.resolve()), str(second_video.resolve())}
+    assert {Path(attestation["artifact_path"]).read_bytes() for attestation in attestations} == {b"first-video", b"second-video"}
+    assert all(Path(attestation["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR) for attestation in attestations)
     assert all(attestation["source_run_id"] == "12345" for attestation in attestations)
     assert all(attestation["run_id"].startswith("12345:") for attestation in attestations)
+
+
+def test_proof_timeline_attestation_prefers_attached_proof_video(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    artifact = tests_control.RESULTS_DIR / "last-run.json"
+    artifact.parent.mkdir(parents=True)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    first_video = recording_dir / "videos" / "first.webm"
+    second_video = recording_dir / "videos" / "second.webm"
+    first_video.parent.mkdir(parents=True)
+    first_video.write_bytes(b"first-video")
+    second_video.write_bytes(b"second-video")
+    (recording_dir / "artifact-meta.json").write_text(json.dumps({
+        "spec": "example.spec.ts",
+        "proof_timeline_file": "proof-timeline.json",
+        "proof_video_file": "videos/second.webm",
+    }), encoding="utf-8")
+    for name, video in (("first", first_video), ("second", second_video)):
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"example--{name}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "example.spec.ts",
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "github_run_url": "https://github.com/glowingkitty/OpenMates/actions/runs/12345",
+            "assets": {"video_key": f"latest/example/videos/{video.name}"},
+        }), encoding="utf-8")
+    timeline = tmp_path / "proof-timeline.json"
+    timeline.write_text("{}", encoding="utf-8")
+    artifact.write_text(json.dumps({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "environment": "https://app.dev.openmates.org",
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "run_id": 12345,
+            "proof_timeline_path": str(timeline),
+        }]}},
+    }), encoding="utf-8")
+
+    recorded = tests_control.record_latest_run_artifact(expected_commit=commit, deployment_verified=True)
+
+    assert recorded == commit
+    attestations = [json.loads(path.read_text(encoding="utf-8")) for path in tests_control.PROOF_SOURCE_DIR.glob("*.json")]
+    assert len(attestations) == 1
+    assert Path(attestations[0]["artifact_path"]).read_bytes() == b"second-video"
+    assert Path(attestations[0]["artifact_path"]).is_relative_to(tests_control.PROOF_SOURCE_ARTIFACTS_DIR)
 
 
 def test_proof_source_attestation_requires_explicit_deploy_gate(tmp_path, monkeypatch):
@@ -1386,7 +1831,7 @@ def test_require_active_lease_blocks_when_failures_exist(tmp_path, monkeypatch):
     assert tests_control.active_lease_for_session(lease_id=lease["lease_id"])["lease_id"] == lease["lease_id"]
 
 
-def test_e2e_deploy_gate_checks_playwright_targets(tmp_path, monkeypatch):
+def test_e2e_deploy_gate_reports_preflight_not_test_success(tmp_path, monkeypatch, capsys):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     options = tests_control.ControlRunOptions(forwarded_args=["--spec", "chat-flow.spec.ts"], gate_deploy=True)
 
@@ -1395,6 +1840,10 @@ def test_e2e_deploy_gate_checks_playwright_targets(tmp_path, monkeypatch):
     monkeypatch.setattr(tests_control, "check_dev_health_urls", lambda: [])
 
     tests_control.run_e2e_deploy_gate(options)
+
+    output = capsys.readouterr().out
+    assert "E2E deploy preflight: PASSED" in output
+    assert "E2E deploy gate: PASSED" not in output
 
 
 def test_e2e_deploy_gate_blocks_stale_vercel_commit(tmp_path, monkeypatch):
@@ -1504,7 +1953,8 @@ def test_docker_resources_only_cover_dev_stack_dependent_runs(tmp_path, monkeypa
     assert tests_control.docker_resources_for_run(["--suite", "vitest"]) == set()
 
 
-def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, monkeypatch):
+# contract-test: infrastructure
+def test_command_run_does_not_hold_dev_stack_lease_across_cli_runner(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
     monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
@@ -1525,6 +1975,41 @@ def test_command_run_releases_docker_test_lease_after_runner_failure(tmp_path, m
     )
 
     assert tests_control.command_run(["--suite", "cli"]) == 1
-    assert len(acquired) == 1
-    assert acquired[0][2] == {"dev-stack"}
-    assert released == [acquired[0][0]]
+    assert acquired == []
+    assert released == []
+
+
+def test_command_run_marks_externally_held_playwright_account_lease(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    monkeypatch.setattr(tests_control, "RUN_TESTS_SCRIPT", tmp_path / "run_tests.py")
+    monkeypatch.setattr(tests_control, "preflight_test_control_plane", lambda: None)
+    monkeypatch.setattr(tests_control, "mark_running", lambda **_kwargs: None)
+    monkeypatch.setattr(tests_control, "record_latest_run_artifact", lambda **_kwargs: "abc123def")
+    lease = ("playwright-account-25-test", "session-1", {"playwright-account:25"}, "exclusive")
+    captured = {}
+    released = []
+
+    monkeypatch.setattr(
+        tests_control,
+        "acquire_standalone_playwright_account",
+        lambda forwarded_args, *, owner: (forwarded_args, lease, 25),
+    )
+    monkeypatch.setattr(tests_control, "release_docker_test_lease", lambda lease_id: released.append(lease_id))
+
+    def fake_run_with_resource_lease_heartbeats(command, *, env, leases):
+        captured["command"] = command
+        captured["env"] = env
+        captured["leases"] = leases
+        return 0
+
+    monkeypatch.setattr(
+        tests_control,
+        "run_with_resource_lease_heartbeats",
+        fake_run_with_resource_lease_heartbeats,
+    )
+
+    assert tests_control.command_run(["--spec", "chat-flow.spec.ts", "--account", "25"]) == 0
+    assert captured["env"]["OPENMATES_TEST_ACCOUNT"] == "25"
+    assert captured["env"][tests_control.PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV] == "1"
+    assert captured["leases"] == [lease]
+    assert released == ["playwright-account-25-test"]

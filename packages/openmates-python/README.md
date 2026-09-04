@@ -2,6 +2,8 @@
 
 <img src="https://openmates.org/favicon.png" alt="OpenMates" width="72">
 
+**Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first.**
+
 Python SDK for OpenMates: run app skills, create encrypted chats, inspect usage,
 and automate everyday OpenMates tasks from Python.
 
@@ -194,11 +196,11 @@ The SDK raises:
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.16`, in the web app.
+OpenMates shows the short product line, for example `v0.17`, in the web app.
 Python package artifacts use exact release-line versions:
 
-- `0.16.0aN` is an alpha prerelease from the `dev` branch.
-- `0.16.0` is a stable release from `main`.
+- `0.17.0aN` is an alpha prerelease from the `dev` branch.
+- `0.17.0` is a stable release from `main`.
 
 Install stable releases with `pip install openmates`. Install prereleases with
 `pip install --pre openmates`.

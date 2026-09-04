@@ -1,0 +1,437 @@
+schema_version: 2
+id: session-security-isolation
+title: Isolated Multi-Device Session Security
+status: verified
+
+goal: >
+  Make authentication, location-risk checks, token rotation, challenges, expiry,
+  logout, and revocation operate on one logical session at a time so legitimate
+  web, CLI, and Apple sessions in different countries cannot invalidate each
+  other, while preserving step-up verification for a real location change
+  within the affected session.
+
+specifications:
+  - id: feature.auth
+    version: 1
+    fingerprint: 6415aeaeeba3a1c8a991888e7395258c395879cb1cf01adbc7298f1bc14a94d4
+    status: approved
+    assertions:
+      - auth.session.lifecycle
+      - auth.session.isolation
+      - auth.session.risk-reauth
+
+scope:
+  in:
+    - Separate account-wide profile cache state from per-session security state.
+    - Give each refresh-token chain its own server-only country baseline and pending challenge state.
+    - Preserve logical-session metadata across Directus refresh-token rotation and cache-miss recovery.
+    - Keep device identity independent from volatile country/location signals.
+    - Update successful 2FA/passkey device verification only for the affected session.
+    - Preserve targeted session revocation and explicit logout-all behavior.
+    - Migrate legacy sessions safely by initializing a missing per-session baseline after a successful validation.
+    - Verify the original Germany-browser plus Finland-CLI failure against the real dev API.
+  out:
+    - Changing passkey, password, recovery-key, or encryption cryptography.
+    - Precise location tracking or storage below country granularity.
+    - New login or Active Sessions UI.
+    - Weakening new-device or same-session country-change verification.
+    - Adding SDK consumer-login APIs.
+
+clarification:
+  rounds:
+    - question: Should a country change challenge only the affected logical session while sibling sessions remain authenticated?
+      recommendation: Yes; session risk state must not be shared through the account profile cache.
+      answer: Yes.
+    - question: Should the existing feature.auth bundle be strengthened instead of creating a competing session specification?
+      recommendation: Yes; it already owns session lifecycle and risk re-authentication across first-party clients.
+      answer: Yes.
+  vision_summary: >
+    Account, device, logical session, connection, and refresh-token generation
+    are separate identities. A location change may temporarily challenge the
+    one session in which it occurs, but cannot challenge, expire, or log out a
+    sibling session. Explicit logout-all, account deletion, and separately
+    specified severe compromise handling remain the only account-wide paths.
+  approved_by_user: true
+
+context_discovery:
+  incident:
+    - The dev API repeatedly logged a DE to FI country change for the same account when the server-hosted CLI validated alongside a browser session.
+    - The CLI refresh token remained present; POST /session rejected it with passkey re-authentication reason location_change.
+  root_cause:
+    - backend/core/api/app/routes/auth_routes/auth_session.py reads and writes last_session_country on shared user_data.
+    - Login, 2FA verification, and passkey verification also overwrite the same account-wide field.
+    - Per-token metadata already exists under user_tokens and is copied by preserve_rotated_session_metadata.
+    - Client-encrypted display metadata removes plaintext country_code, so the security baseline needs a distinct server-only field.
+    - Device hashes currently include country, conflating stable device identity with a volatile risk signal.
+  docs:
+    - docs/architecture/data/device-sessions.md
+    - docs/architecture/core/signup-and-auth.md
+    - docs/architecture/core/passkeys.md
+  code_patterns:
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/auth_routes/auth_common.py
+    - backend/core/api/app/routes/auth_routes/auth_login.py
+    - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+    - backend/core/api/app/routes/auth_routes/auth_passkey.py
+    - backend/core/api/app/routes/auth_routes/auth_sessions.py
+    - backend/core/api/app/utils/device_fingerprint.py
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+  tests:
+    - backend/tests/test_auth_endpoints.py
+    - backend/tests/test_auth_session_revocation.py
+    - frontend/apps/web_app/tests/location-security-flow.spec.ts
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Country baselines and pending re-authentication belong to a logical refresh-token session, never the shared user profile.
+    reason: Concurrent legitimate sessions can originate in different countries.
+    decided_at: "2026-09-02"
+  - id: D-2
+    status: active
+    decision: Refresh-token rotation preserves logical-session security metadata atomically.
+    reason: Rotation is a credential-generation change, not a new login or device.
+    decided_at: "2026-09-02"
+  - id: D-3
+    status: active
+    decision: Stable device identity excludes country; country remains a separate risk signal.
+    reason: Travel and VPN changes do not turn the same physical client into a different device.
+    decided_at: "2026-09-02"
+  - id: D-4
+    status: active
+    decision: Legacy sessions with no per-session baseline initialize it after successful validation without consulting a sibling session's country.
+    reason: A migration must not trigger a false account-wide challenge.
+    decided_at: "2026-09-02"
+
+scenarios:
+  - id: S-1
+    title: Concurrent sessions in different countries remain valid
+    given:
+      - A browser logical session has country baseline DE.
+      - A CLI logical session has country baseline FI.
+    when:
+      - Both sessions validate normally.
+    then:
+      - Both remain authenticated with independent baselines and no challenge.
+  - id: S-2
+    title: A real country change challenges only the affected session
+    given:
+      - The browser remains in DE and the CLI has baseline FI.
+    when:
+      - The CLI session is observed in US.
+    then:
+      - Only the CLI receives location_change re-authentication.
+      - The browser remains authenticated and unchanged.
+  - id: S-3
+    title: Token rotation keeps session identity and risk state
+    given:
+      - A valid logical session has baseline FI and stored session metadata.
+    when:
+      - Directus rotates its refresh token during normal refresh or cache-miss recovery.
+    then:
+      - The metadata moves atomically to the new token hash.
+      - The old token entry is removed and no new-device or location challenge is created.
+  - id: S-4
+    title: Verification and revocation are targeted
+    given:
+      - An account has multiple active sessions.
+    when:
+      - One session completes 2FA/passkey verification, expires, logs out, or is revoked.
+    then:
+      - Only that session's baseline and authentication state change.
+      - Logout-all remains explicit and account deletion remains account-wide.
+  - id: S-5
+    title: Legacy session migration is safe
+    given:
+      - A valid pre-migration session has no server-only country baseline.
+    when:
+      - It next validates successfully.
+    then:
+      - Its own country becomes its baseline without reading or changing a sibling baseline.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Two valid sessions with DE and FI baselines validate independently without re-authentication.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ISOLATION, T-REST-DEV, T-CLI-DEV]
+  - id: AC-2
+    scenario: S-2
+    text: A same-session country change returns a challenge only to that session and produces no sibling logout event or state mutation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ISOLATION, T-REST-DEV]
+  - id: AC-3
+    scenario: S-3
+    text: Normal refresh and cache-miss token rotation retain all per-session security metadata under the new token hash.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ROTATION, T-REST-DEV, T-CLI-DEV]
+  - id: AC-4
+    scenario: S-4
+    text: Successful verification, expiry, logout, and targeted revocation mutate only the identified session; explicit logout-all remains unchanged.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ISOLATION, T-REST-DEV]
+  - id: AC-5
+    scenario: S-5
+    text: Legacy sessions initialize their own baseline without a false challenge or account-wide migration.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ISOLATION, T-REST-DEV]
+  - id: AC-6
+    scenario: S-1
+    text: Device identity is stable across location changes and location remains an independently evaluated risk signal.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ISOLATION]
+
+contracts:
+  endpoints:
+    - route: POST /v1/auth/session
+      access: first_party_client_only
+      auth: secure HttpOnly refresh-token cookie
+      rate_limits: existing auth-route limits unchanged
+      credit_or_budget_limits: none
+      encrypted_data: no chat or user-content plaintext; returns existing auth/session response
+    - route: POST /v1/auth/device
+      access: first_party_client_only
+      auth: affected session plus OTP verification
+      rate_limits: existing verification limits unchanged
+      credit_or_budget_limits: none
+      encrypted_data: none
+    - route: POST /v1/auth/passkey/verify/device
+      access: first_party_client_only
+      auth: affected session plus origin-bound passkey assertion
+      rate_limits: existing challenge and verification limits unchanged
+      credit_or_budget_limits: none
+      encrypted_data: no content plaintext
+    - route: GET|DELETE /v1/auth/sessions
+      access: first_party_client_only
+      auth: secure HttpOnly refresh-token cookie
+      rate_limits: existing auth-route limits unchanged
+      credit_or_budget_limits: none
+      encrypted_data: client-encrypted display metadata remains opaque to the server
+  data:
+    - Store a server-only country-level security baseline in per-token session metadata under user_tokens.
+    - Preserve server-only security fields when client-encrypted display metadata replaces plaintext display fields.
+    - Copy the complete metadata record during token rotation and remove the prior token hash.
+    - Do not persist precise coordinates or expose the security baseline to clients.
+    - Remove last_session_country as an authentication decision input from shared user profile cache state.
+
+sequencing_gates:
+  - gate: REST_API_FIRST
+    required_before: cli_verification
+    rule: Focused backend tests and the deployed /session behavior must pass before CLI proof.
+    evidence: [T-BACKEND-ISOLATION, T-BACKEND-ROTATION, T-REST-DEV]
+  - gate: CLI_SECOND
+    required_before: completion
+    rule: The existing opencode-personal CLI session must validate against the real dev API without a new pair login after the fix, if its refresh token remains valid.
+    evidence: [T-CLI-DEV]
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple receives the same session-local challenge response and sibling sessions remain unaffected.
+    - No response schema or native UI change is required.
+  verification:
+    - Existing Apple auth/session contract remains source-compatible; backend isolation tests are canonical for this server-side change.
+  intentional_native_differences:
+    - none
+
+tests:
+  - id: T-BACKEND-ISOLATION
+    type: pytest
+    file: backend/tests/test_auth_session_security_isolation.py
+    command: python3 -m pytest backend/tests/test_auth_session_security_isolation.py -q
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6]
+    assertions:
+      - Concurrent sessions compare only against their own security country baseline.
+      - A location challenge changes no sibling token metadata or authentication state.
+      - Legacy sessions initialize a baseline without consulting account-wide location state.
+      - Stable device identity does not include country.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_auth_session_security_isolation.py -q", run_id: "local:red-session-isolation-20260902", subject_commit: "pre-implementation-red-20260902", timestamp: "2026-09-02T23:40:00Z", summary: "Three expected failures proved missing per-session country helpers and country-dependent device identity; rotation metadata preservation already passed."}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_device_fingerprint.py backend/tests/test_auth_session_revocation.py backend/tests/test_auth_session_security_isolation.py -q", run_id: "local:green-session-isolation-20260902", subject_commit: "a700420fe61da8c393c7049d4874fe2377b2ab2b", timestamp: "2026-09-02T23:55:00Z", summary: "10 focused device, revocation, isolation, metadata-preservation, and rotation tests passed."}}
+  - id: T-BACKEND-ROTATION
+    type: pytest
+    file: backend/tests/test_auth_session_security_isolation.py
+    command: python3 -m pytest backend/tests/test_auth_session_security_isolation.py -q -k rotation
+    covers: [AC-3]
+    assertions:
+      - Refresh rotation copies all per-session security metadata to the new token hash.
+      - Cache-miss recovery preserves the same logical session and removes the old token entry.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: not_applicable, command: "python3 -m pytest backend/tests/test_auth_session_security_isolation.py -q", run_id: "local:red-session-isolation-20260902", subject_commit: "pre-implementation-red-20260902", timestamp: "2026-09-02T23:40:00Z", summary: "A failing red phase was not applicable because existing preserve_rotated_session_metadata already copied the full token metadata record; this test locked that required behavior before other changes."}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_auth_session_security_isolation.py -q -k rotation", run_id: "local:green-session-rotation-20260902", subject_commit: "a700420fe61da8c393c7049d4874fe2377b2ab2b", timestamp: "2026-09-02T23:55:00Z", summary: "Rotation retained the complete logical-session metadata record and removed the prior token hash."}}
+  - id: T-REST-DEV
+    type: unit
+    file: scripts/verify_session_security_isolation.py
+    command: python3 scripts/verify_session_security_isolation.py --env dev --scenario all
+    target: https://api.dev.openmates.org
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    assertions:
+      - The real dev API accepts the existing Finland CLI session while a Germany browser baseline exists.
+      - Session-local challenge and migration behavior match the approved contract.
+    red_phase: {required: false, expected: existing_incident_evidence, evidence: {status: observed, run_id: api-log-de-fi-20260902, timestamp: "2026-09-02T21:44:14Z"}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/verify_session_security_isolation.py --env dev --scenario all; docker logs api --since 5m", run_id: "dev:session-isolation-a700420-20260902", subject_commit: "a700420fe61da8c393c7049d4874fe2377b2ab2b", timestamp: "2026-09-02T23:55:15Z", summary: "The existing Finland-hosted CLI token authenticated through the deployed POST /session path, was recognized as a known migrated device, and emitted no location_change or re-authentication event despite the prior shared DE browser state."}}
+  - id: T-CLI-DEV
+    type: unit
+    file: scripts/verify_session_security_isolation.py
+    command: OPENMATES_PROFILE=opencode-personal OPENMATES_ACCOUNT_GUARD=required OPENMATES_API_URL=https://api.dev.openmates.org openmates whoami --json
+    target: https://api.dev.openmates.org
+    covers: [AC-1, AC-3]
+    assertions:
+      - The existing opencode-personal session succeeds without a replacement pair login when its refresh token remains valid.
+      - The CLI receives an actionable session-local challenge if its own location actually changes.
+    red_phase: {required: false, expected: existing_incident_evidence, evidence: {status: observed, run_id: cli-location-change-20260902, timestamp: "2026-09-02T22:04:41Z"}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: passed, command: "python3 scripts/verify_session_security_isolation.py --env dev --scenario all", run_id: "dev:cli-session-a700420-20260902", subject_commit: "a700420fe61da8c393c7049d4874fe2377b2ab2b", timestamp: "2026-09-02T23:55:15Z", summary: "The existing opencode-personal credential authenticated against the real dev API without pair login; a subsequent authenticated Task API list also returned valid JSON."}}
+
+tasks:
+  - id: TASK-1
+    title: Add failing session-isolation and token-rotation tests
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
+    verification_ids: [T-BACKEND-ISOLATION, T-BACKEND-ROTATION]
+    blockers: []
+    ownership: {files: [backend/tests/test_auth_session_security_isolation.py], shared_files: []}
+    follow_up_tasks: [TASK-2]
+    dependencies: []
+    expected_files: [backend/tests/test_auth_session_security_isolation.py]
+    verification: [T-BACKEND-ISOLATION, T-BACKEND-ROTATION]
+    specification_assertions: [auth.session.lifecycle, auth.session.isolation, auth.session.risk-reauth]
+    canonical_surfaces: [rest_api]
+    independently_deployable: false
+  - id: TASK-2
+    title: Move security baselines into per-session metadata
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
+    verification_ids: [T-BACKEND-ISOLATION, T-BACKEND-ROTATION]
+    blockers: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/auth_routes/auth_session.py
+        - backend/core/api/app/routes/auth_routes/auth_common.py
+        - backend/core/api/app/routes/auth_routes/auth_login.py
+        - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+        - backend/core/api/app/routes/auth_routes/auth_passkey.py
+        - backend/core/api/app/routes/auth_routes/auth_sessions.py
+        - backend/core/api/app/utils/device_fingerprint.py
+      shared_files: []
+    follow_up_tasks: [TASK-3]
+    dependencies: [TASK-1]
+    expected_files:
+      - backend/core/api/app/routes/auth_routes/auth_session.py
+      - backend/core/api/app/routes/auth_routes/auth_common.py
+      - backend/core/api/app/routes/auth_routes/auth_login.py
+      - backend/core/api/app/routes/auth_routes/auth_2fa_verify.py
+      - backend/core/api/app/routes/auth_routes/auth_passkey.py
+      - backend/core/api/app/routes/auth_routes/auth_sessions.py
+      - backend/core/api/app/utils/device_fingerprint.py
+    verification: [T-BACKEND-ISOLATION, T-BACKEND-ROTATION]
+    specification_assertions: [auth.session.lifecycle, auth.session.isolation, auth.session.risk-reauth]
+    canonical_surfaces: [rest_api]
+    independently_deployable: false
+  - id: TASK-3
+    title: Update session architecture documentation
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
+    verification_ids: [T-BACKEND-ISOLATION]
+    blockers: []
+    ownership: {files: [docs/architecture/data/device-sessions.md, docs/architecture/core/signup-and-auth.md], shared_files: []}
+    follow_up_tasks: [TASK-4]
+    dependencies: [TASK-2]
+    expected_files:
+      - docs/architecture/data/device-sessions.md
+      - docs/architecture/core/signup-and-auth.md
+    verification: [T-BACKEND-ISOLATION]
+    specification_assertions: [auth.session.lifecycle, auth.session.isolation, auth.session.risk-reauth]
+    canonical_surfaces: [rest_api, cli, gui.web, gui.apple]
+    independently_deployable: false
+  - id: TASK-4
+    title: Deploy API and verify real REST and CLI recovery
+    status: done
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
+    verification_ids: [T-REST-DEV, T-CLI-DEV]
+    blockers: []
+    ownership: {files: [scripts/verify_session_security_isolation.py, docs/plans/session-security-isolation/plan.yml], shared_files: []}
+    follow_up_tasks: []
+    dependencies: [TASK-2, TASK-3]
+    expected_files:
+      - scripts/verify_session_security_isolation.py
+      - docs/plans/session-security-isolation/plan.yml
+    verification: [T-REST-DEV, T-CLI-DEV]
+    specification_assertions: [auth.session.lifecycle, auth.session.isolation, auth.session.risk-reauth]
+    canonical_surfaces: [rest_api, cli]
+    independently_deployable: true
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-02"
+    reason: User explicitly approved fingerprint 6415aeaeeba3a1c8a991888e7395258c395879cb1cf01adbc7298f1bc14a94d4.
+  plan:
+    status: approved
+    approved_at: "2026-09-02"
+    reason: User explicitly approved the executable Plan.
+
+implementation_state:
+  subject_commit: a700420fe61da8c393c7049d4874fe2377b2ab2b
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Trace the location-change response through live API logs, shared cache state, token metadata, clients, and the approved auth Specification before planning implementation.
+    outcome: succeeded
+    recorded_at: "2026-09-02"
+    evidence: The live incident showed account-wide DE to FI contamination while per-token metadata and rotation support already existed.
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Run the broad auth suite locally before deployment.
+    outcome: succeeded
+    recorded_at: "2026-09-02"
+    evidence: The host Python environment lacked email-validator, regex, redis, and aiohttp; 19 collected tests still passed. The dependency-complete API image later ran all 59 auth endpoint and REST tests successfully.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Run all related auth, isolation, revocation, and device tests in the rebuilt API image.
+    outcome: succeeded
+    recorded_at: "2026-09-02"
+    evidence: 67 tests passed. The two async revocation tests could not collect because the API image omits pytest-asyncio; both passed in the local focused suite where that plugin is installed.
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This change is backend authentication state isolation and CLI/API recovery with no new or changed visual interaction; automated contract tests and real authenticated dev API evidence are the canonical proof.
+    classified_at: "2026-09-02T23:55:00Z"
+    verification_ids: [T-BACKEND-ISOLATION, T-BACKEND-ROTATION, T-REST-DEV, T-CLI-DEV]
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Continue the 20-minute OpenCode observer and report only material progress, drift, or blockers in the resumed audio and API-key chats.
+  command: python3 /home/superdev/.codex/skills/opencode-orchestration-observer/scripts/snapshot.py --base-url http://127.0.0.1:4096 --sessions-file /home/superdev/projects/OpenMates/.claude/sessions.json --busy-only --include-excerpts --message-tail 12 --message-max-bytes 65536
+  expected_outcome: The resumed chats use their existing OpenMates Tasks and continue without authentication failures.
+  blocker: null
+  last_verified_commit: cc1f7fc66045c6311efac1c94ddd062d38d68693

@@ -405,6 +405,18 @@ export function parseEmbedNodes(
                 embedAttrs.referenceOnly = true;
               }
 
+              if (embedRef.type === "audio-recording") {
+                if (typeof embedRef.title === "string") embedAttrs.title = embedRef.title;
+                if (typeof embedRef.transcript === "string") embedAttrs.transcript = embedRef.transcript;
+                if (typeof embedRef.transcript_original === "string") embedAttrs.transcriptOriginal = embedRef.transcript_original;
+                if (typeof embedRef.transcript_corrected === "string") embedAttrs.transcriptCorrected = embedRef.transcript_corrected;
+                if (typeof embedRef.use_corrected === "boolean") embedAttrs.useCorrected = embedRef.use_corrected;
+                if (typeof embedRef.correction_model === "string") embedAttrs.correctionModel = embedRef.correction_model;
+                if (typeof embedRef.duration === "string") embedAttrs.duration = embedRef.duration;
+                if (embedRef.waveform != null) embedAttrs.waveform = embedRef.waveform;
+                if (typeof embedRef.model === "string") embedAttrs.model = embedRef.model;
+              }
+
               for (const key of ["receiver", "subject", "content", "footer"] as const) {
                 if (typeof embedRef[key] === "string") {
                   embedAttrs[key] = embedRef[key];

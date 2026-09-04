@@ -28,6 +28,7 @@ const ITEM_TYPE_MIGRATIONS: Record<string, Record<string, string>> = {
     interests: "preferred_activities",
   },
 };
+const REMOVED_APP_MEMORY_APP_IDS = new Set(["ai"]);
 
 /**
  * Apply item_type migration if the entry uses an old/renamed category ID.
@@ -71,7 +72,14 @@ export async function storeAppSettingsMemoriesEntries(
   if (!dbInstance.db)
     throw new Error("[ChatDatabase] Database not initialized");
 
-  if (entries.length === 0) {
+  const supportedEntries = entries.filter(
+    (entry) => !REMOVED_APP_MEMORY_APP_IDS.has(entry.app_id),
+  );
+  if (supportedEntries.length !== entries.length) {
+    console.warn("[ChatDatabase] Ignored removed AI-memory sync entries");
+  }
+
+  if (supportedEntries.length === 0) {
     console.debug("[ChatDatabase] No app settings/memories entries to store");
     return;
   }
@@ -90,7 +98,7 @@ export async function storeAppSettingsMemoriesEntries(
     let skippedCount = 0;
     let conflictResolvedCount = 0;
 
-    for (const entry of entries) {
+    for (const entry of supportedEntries) {
       try {
         // Check if entry already exists for conflict resolution
         const existingRequest = store.get(entry.id);

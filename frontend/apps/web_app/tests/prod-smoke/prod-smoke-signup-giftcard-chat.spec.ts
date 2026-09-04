@@ -224,7 +224,7 @@ test('prod signup + gift card redemption + first chat + account delete', async (
 	const logoutItem = page.getByRole('menuitem', { name: /logout|abmelden/i });
 	await expect(logoutItem).toBeVisible({ timeout: 10000 });
 	await logoutItem.click();
-	await page.waitForFunction(() => window.location.hash.includes('demo-for-everyone'), null, {
+	await page.waitForFunction(() => !window.location.hash.includes('chat-id='), null, {
 		timeout: 60000
 	});
 	logCheckpoint('Logged out successfully.');

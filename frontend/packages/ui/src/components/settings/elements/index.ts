@@ -31,6 +31,7 @@ export { default as SettingsPageContainer } from "./SettingsPageContainer.svelte
 export { default as SettingsPageHeader } from "./SettingsPageHeader.svelte";
 export { default as SettingsDivider } from "./SettingsDivider.svelte";
 export { default as SettingsSectionHeading } from "./SettingsSectionHeading.svelte";
+export { default as SettingsModelPreferenceItem } from "./SettingsModelPreferenceItem.svelte";
 export { default as SettingsGradientLink } from "./SettingsGradientLink.svelte";
 
 // ── Data Display ────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ export { default as SettingsBalanceDisplay } from "./SettingsBalanceDisplay.svel
 export { default as SettingsCodeBlock } from "./SettingsCodeBlock.svelte";
 export { default as SettingsProgressBar } from "./SettingsProgressBar.svelte";
 export { default as SettingsBadge } from "./SettingsBadge.svelte";
+export { default as SettingsCapabilityScale } from "./SettingsCapabilityScale.svelte";
 
 // ── Feedback & Interaction ──────────────────────────────────────────
 export { default as SettingsLoadingState } from "./SettingsLoadingState.svelte";

@@ -5,12 +5,59 @@
  * send follow-up messages. Draft state can point at the active chat, but that
  * must not make ActiveChat treat a normal follow-up as a brand-new chat.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  isDraftOnlyChatMissingDurableKey,
   isUnsupportedTeamIncognitoContext,
   shouldAwaitAITaskStart,
   shouldDispatchDraftChatAsNewChat,
 } from './sendClassification';
+
+vi.mock('../../../utils/platform', () => ({
+  isDesktop: vi.fn(() => true),
+}));
+
+vi.mock('../utils', () => ({
+  hasActualContent: vi.fn(() => true),
+  vibrateMessageField: vi.fn(),
+}));
+
+vi.mock('../../../stores/authStore', () => ({
+  authStore: readableStore({ isAuthenticated: true }),
+}));
+
+vi.mock('../../../stores/demoModeStore', () => ({
+  demoMode: readableStore(false),
+}));
+
+function readableStore<T>(value: T) {
+  return {
+    subscribe(run: (current: T) => void) {
+      run(value);
+      return () => undefined;
+    },
+  };
+}
+
+describe('isDraftOnlyChatMissingDurableKey', () => {
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,assistant-speech.preference.chat-scoped-default-off
+  it('treats an active voice draft with only an in-memory key as a new chat', () => {
+    expect(isDraftOnlyChatMissingDurableKey({
+      draftChatId: 'chat-1',
+      chatIdToUse: 'chat-1',
+      existingChat: { messages_v: 0, encrypted_chat_key: null },
+    })).toBe(true);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,assistant-speech.preference.chat-scoped-default-off
+  it('keeps a draft with a wrapped key on the existing-chat path', () => {
+    expect(isDraftOnlyChatMissingDurableKey({
+      draftChatId: 'chat-1',
+      chatIdToUse: 'chat-1',
+      existingChat: { messages_v: 0, encrypted_chat_key: 'wrapped-chat-key' },
+    })).toBe(false);
+  });
+});
 
 describe('shouldDispatchDraftChatAsNewChat', () => {
   // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chats.message.identity-idempotent
@@ -37,6 +84,17 @@ describe('shouldDispatchDraftChatAsNewChat', () => {
   // contract-test: supporting surface=gui.web assertions=message-input.send.ownership,chat-navigation.draft-only.addressable
   it('dispatches newChat for a draft-only shell with a usable key', () => {
     expect(shouldDispatchDraftChatAsNewChat({
+      draftChatId: 'chat-1',
+      chatIdToUse: 'chat-1',
+      existingChat: { messages_v: 0 },
+      existingChatHasUsableKey: true,
+    })).toBe(true);
+  });
+
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,assistant-speech.preference.chat-scoped-default-off
+  it('dispatches newChat when a voice draft is already the active chat', () => {
+    expect(shouldDispatchDraftChatAsNewChat({
+      currentChatId: 'chat-1',
       draftChatId: 'chat-1',
       chatIdToUse: 'chat-1',
       existingChat: { messages_v: 0 },
@@ -78,6 +136,7 @@ describe('shouldAwaitAITaskStart', () => {
     })).toBe(false);
   });
 
+  // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
   it.each([
     { authenticated: true, teamId: null, invokesTeamAI: false },
     { authenticated: true, teamId: 'team-1', invokesTeamAI: true },
@@ -85,11 +144,39 @@ describe('shouldAwaitAITaskStart', () => {
     expect(shouldAwaitAITaskStart(args)).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
   it('does not wait for an AI task for anonymous sends', () => {
     expect(shouldAwaitAITaskStart({
       authenticated: false,
       teamId: null,
       invokesTeamAI: false,
     })).toBe(false);
+  });
+});
+
+describe('createKeyboardHandlingExtension', () => {
+  // contract-test: direct surface=gui.web assertions=message-input.send.ownership,message-input.drafts.preview-persistence
+  it('lets plain Enter insert a newline instead of dispatching send events', async () => {
+    const { createKeyboardHandlingExtension } = await import('./sendHandlers');
+    const fakeEditor = {
+      view: {
+        dom: { dispatchEvent: vi.fn() },
+        state: {
+          selection: {
+            $anchor: { pos: 1 },
+            $head: { pos: 1 },
+          },
+        },
+      },
+    };
+    const extension = createKeyboardHandlingExtension();
+    const shortcuts = extension.config.addKeyboardShortcuts?.call({
+      editor: fakeEditor,
+    });
+
+    const handled = shortcuts?.Enter({ editor: fakeEditor });
+
+    expect(handled).toBe(false);
+    expect(fakeEditor.view.dom.dispatchEvent).not.toHaveBeenCalled();
   });
 });

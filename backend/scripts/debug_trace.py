@@ -52,10 +52,95 @@ OPENOBSERVE_ORG = "default"
 # Open Question 2. Using "default" as initial assumption.
 TRACE_STREAM = "default"
 
+SAFE_JSON_FIELDS = frozenset({
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "start_time",
+    "end_time",
+    "duration",
+    "service_name",
+    "service",
+    "operation_name",
+    "name",
+    "span_status",
+    "status_code",
+    "ai.phase",
+    "ai.status_class",
+    "ai.model_family",
+    "ai.capability_category",
+    "ai.duration_ms",
+    "ai.ttft_ms",
+    "ai.stream_duration_ms",
+    "ai.token_count_bucket",
+    "ai.character_count_bucket",
+    "ai.message_count_bucket",
+    "ai.request_count_bucket",
+    "ai.result_count_bucket",
+    "ai.retry_count_bucket",
+    "ai.provider_purpose",
+    "ai.terminal_class",
+    "ai.first_token_ms",
+    "ai.final_marker_ms",
+    "ai.worker_tail_ms",
+})
+OPENOBSERVE_FIELD_ALIASES = {
+    field.replace(".", "_"): field
+    for field in SAFE_JSON_FIELDS
+    if "." in field
+}
+
+AI_REQUIRED_PHASES = (
+    "queue",
+    "prepare",
+    "preprocess",
+    "main",
+    "main.iteration",
+    "provider",
+    "finalize.billing",
+    "finalize.persistence",
+    "finalize.validation",
+    "finalize.marker",
+    "postprocess",
+)
+AI_PHASE_DISPLAY_ORDER = (
+    "queue",
+    "prepare",
+    "setup",
+    "compression",
+    "preprocess",
+    "pre_main",
+    "main",
+    "main.iteration",
+    "provider",
+    "tool",
+    "main.response_finalize",
+    "finalize.billing",
+    "finalize.persistence",
+    "finalize.validation",
+    "finalize.marker",
+    "postprocess",
+    "postprocess.delivery",
+    "queue_handoff",
+)
+AI_TERMINAL_REQUIRED_PHASES = {
+    "completed": AI_REQUIRED_PHASES,
+    "failed_before_main": (),
+    "failed_during_main": ("queue", "prepare", "preprocess", "main"),
+    "billing_failed": (
+        "queue", "prepare", "preprocess", "main", "main.iteration", "provider", "finalize.billing",
+    ),
+    "soft_limited": ("queue", "prepare", "preprocess", "main"),
+    "revoked": ("queue", "prepare", "preprocess", "main"),
+    "worker_interrupted": (),
+}
+
 # Maximum results per query
 DEFAULT_QUERY_LIMIT = 50
 SESSION_QUERY_LIMIT = 100
 RECENT_DEFAULT_LIMIT = 25
+TRACE_PAGE_SIZE = 1000
+TRACE_MAX_PAGES = 10
 
 # Error spans are not always marked with span_status=ERROR. FastAPI/ASGI spans
 # often leave span_status=UNSET and store the HTTP outcome separately.
@@ -293,26 +378,35 @@ def _get_full_trace_spans(
         f"WHERE trace_id = '{trace_id}' "
         f"ORDER BY start_time ASC"
     )
-    body = {
-        "query": {
-            "sql": sql,
-            "start_time": start_time_us,
-            "end_time": end_time_us,
-        }
-    }
-
     try:
-        response = httpx.post(url, json=body, auth=auth, timeout=30.0)
-        if response.status_code == 200:
-            data = response.json()
-            return data.get("hits", [])
-        else:
-            print(
-                f"OpenObserve span search failed (status={response.status_code}): "
-                f"{response.text[:300]}",
-                file=sys.stderr,
-            )
-            return []
+        spans: List[Dict[str, Any]] = []
+        for page in range(TRACE_MAX_PAGES):
+            body = {
+                "query": {
+                    "sql": sql,
+                    "start_time": start_time_us,
+                    "end_time": end_time_us,
+                    "from": page * TRACE_PAGE_SIZE,
+                    "size": TRACE_PAGE_SIZE,
+                }
+            }
+            response = httpx.post(url, json=body, auth=auth, timeout=30.0)
+            if response.status_code != 200:
+                print(
+                    f"OpenObserve span search failed (status={response.status_code}): "
+                    f"{response.text[:300]}",
+                    file=sys.stderr,
+                )
+                return []
+            page_spans = response.json().get("hits", [])
+            spans.extend(page_spans)
+            if len(page_spans) < TRACE_PAGE_SIZE:
+                return spans
+        print(
+            f"OpenObserve trace exceeded the bounded {TRACE_MAX_PAGES * TRACE_PAGE_SIZE}-span query limit.",
+            file=sys.stderr,
+        )
+        return spans
     except Exception as exc:
         print(f"Error fetching spans for trace {trace_id}: {exc}", file=sys.stderr)
         return []
@@ -480,6 +574,15 @@ def _collect_full_spans(
 # ── Timeline formatter ──────────────────────────────────────────────────────
 
 
+def _normalize_openobserve_fields(span: Dict[str, Any]) -> Dict[str, Any]:
+    """Restore reviewed dotted attribute names flattened by OpenObserve."""
+    normalized = dict(span)
+    for flattened, canonical in OPENOBSERVE_FIELD_ALIASES.items():
+        if canonical not in normalized and flattened in normalized:
+            normalized[canonical] = normalized[flattened]
+    return normalized
+
+
 def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
     """Format spans into a Unicode tree timeline grouped by trace.
 
@@ -502,6 +605,8 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
     """
     if not spans:
         return "No trace data found."
+
+    spans = [_normalize_openobserve_fields(span) for span in spans]
 
     # Group spans by trace_id
     traces: Dict[str, List[Dict[str, Any]]] = {}
@@ -527,10 +632,9 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
             else:
                 children.setdefault(parent, []).append(sid)
 
-        # Calculate total trace duration from root spans
-        all_starts = [s.get("start_time", 0) for s in trace_spans]
-        all_ends = [s.get("end_time", s.get("start_time", 0)) for s in trace_spans]
-        total_duration_us = max(all_ends) - min(all_starts) if all_starts else 0
+        # OpenObserve normalizes duration to microseconds, while timestamp units
+        # vary across SDK exporters. Use the longest span for a stable header.
+        total_duration_us = max((span.get("duration", 0) for span in trace_spans), default=0)
         total_duration_ms = total_duration_us / 1000.0
 
         # Determine overall status (ERROR if any span has error)
@@ -553,6 +657,54 @@ def format_trace_timeline(spans: List[Dict[str, Any]]) -> str:
             f"Trace {short_trace_id(trace_id)} -- "
             f"{root_operation} ({total_duration_ms:.0f}ms) {overall_status}"
         )
+
+        ai_spans: Dict[str, List[Dict[str, Any]]] = {}
+        for span in trace_spans:
+            operation = str(span.get("operation_name", ""))
+            if operation.startswith("ai."):
+                ai_spans.setdefault(operation[3:], []).append(span)
+        if "turn" in ai_spans:
+            output_lines.append("  AI phase waterfall:")
+            for phase in AI_PHASE_DISPLAY_ORDER:
+                phase_spans = ai_spans.get(phase, [])
+                if not phase_spans:
+                    continue
+                if len(phase_spans) == 1:
+                    span = phase_spans[0]
+                    duration_ms = span.get("duration", 0) / 1000.0
+                    output_lines.append(
+                        f"    {phase}: {duration_ms:.0f}ms {_display_span_status(span)}"
+                    )
+                    continue
+                durations_ms = [span.get("duration", 0) / 1000.0 for span in phase_spans]
+                status = "ERROR" if any(_is_error_span(span) for span in phase_spans) else "OK"
+                parent_operations = sorted({
+                    str(span_map.get(str(span.get("parent_span_id", "")), {}).get("operation_name", "unknown"))
+                    for span in phase_spans
+                })
+                output_lines.append(
+                    f"    {phase}: count={len(phase_spans)} "
+                    f"total={sum(durations_ms):.0f}ms max={max(durations_ms):.0f}ms "
+                    f"{status} parents={','.join(parent_operations)}"
+                )
+            turn_span = ai_spans["turn"][0]
+            terminal_class = str(turn_span.get("ai.terminal_class", "completed"))
+            output_lines.append(f"  Terminal class: {terminal_class}")
+            timing = []
+            for key, label in (
+                ("ai.first_token_ms", "first-token"),
+                ("ai.final_marker_ms", "final-marker"),
+                ("ai.worker_tail_ms", "worker-tail"),
+            ):
+                if key in turn_span:
+                    timing.append(f"{label}={float(turn_span[key]):.0f}ms")
+            if timing:
+                output_lines.append("  Completion timing: " + ", ".join(timing))
+            required_phases = AI_TERMINAL_REQUIRED_PHASES.get(terminal_class, AI_REQUIRED_PHASES)
+            missing = [phase for phase in required_phases if phase not in ai_spans]
+            output_lines.append(
+                "  Missing AI phases: " + (", ".join(missing) if missing else "none")
+            )
 
         # Sort root spans by start_time
         root_ids.sort(key=lambda sid: span_map[sid].get("start_time", 0))
@@ -610,7 +762,15 @@ def format_json(spans: List[Dict[str, Any]]) -> str:
     Returns:
         JSON string.
     """
-    return json.dumps(spans, indent=2, default=str)
+    redacted = [
+        {
+            key: value
+            for key, value in _normalize_openobserve_fields(span).items()
+            if key in SAFE_JSON_FIELDS
+        }
+        for span in spans
+    ]
+    return json.dumps(redacted, indent=2, default=str)
 
 
 # ── Command dispatch ─────────────────────────────────────────────────────────

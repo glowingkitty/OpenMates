@@ -78,6 +78,7 @@ changes to the documentation (to keep the documentation up to date).
     import { baseSettingsViews, AppDetailsWrapper, MateDetailsWrapper, EditPersonalDataEntryWrapper, SettingsProjects, SettingsTeams } from './settings/settingsRoutes';
     import AiModelDetailsWrapper from './settings/AiModelDetailsWrapper.svelte';
     import AiProviderDetailsWrapper from './settings/AiProviderDetailsWrapper.svelte';
+    import AiTierSettings from './settings/AiTierSettings.svelte';
     import ChatSettingsPage from './chats/ChatSettingsPage.svelte';
     import { matesMetadata } from '../data/matesMetadata';
     import { appSkillsStore, featureAvailabilityStore } from '../stores/appSkillsStore';
@@ -99,6 +100,7 @@ changes to the documentation (to keep the documentation up to date).
         getValidIconName,
     } from '../utils/categoryUtils';
     import { resolveIconName } from '../utils/iconNameResolver';
+    import { getAiProviderDisplay } from '../utils/aiModelDisplay';
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { clearSettingsPathFromHash, getSettingsPathFromHash, setSettingsPathInHash } from '../utils/settingsHashUtils';
 
@@ -143,6 +145,43 @@ changes to the documentation (to keep the documentation up to date).
 
         const pathParts = cleanPath.split('/');
         return pathParts.length > 1 ? pathParts[pathParts.length - 1] : pathParts[0];
+    }
+
+    function getAiTierTitle(tier: string): string {
+        if (tier === 'simple') return $text('settings.ai_ask.ai_ask_settings.simple_requests');
+        if (tier === 'complex') return $text('settings.ai_ask.ai_ask_settings.complex_requests');
+        if (tier === 'most-demanding') return $text('settings.ai_ask.ai_ask_settings.most_demanding_requests');
+        return tier;
+    }
+
+    function getAiProviderTitle(providerId: string): string {
+        const model = modelsMetadata.find(candidate => candidate.provider_id === providerId);
+        return getAiProviderDisplay(providerId, model?.provider_name ?? providerId).brandName;
+    }
+
+    function getAiRouteLabel(pathString: string): string | null | undefined {
+        const parts = pathString.split('/');
+        if (parts[0] !== 'ai') return undefined;
+        if (parts.length === 1) return $text('settings.ai');
+
+        if (parts[1] === 'model') {
+            if (parts.length === 2) return null;
+            return modelsMetadata.find(model => model.id === parts[2])?.name ?? parts[2];
+        }
+
+        if (parts[1] === 'provider') {
+            if (parts.length === 2) return null;
+            return getAiProviderTitle(parts[2]);
+        }
+
+        if (parts[1] === 'tier') {
+            if (parts.length === 2) return null;
+            if (parts.length === 3) return getAiTierTitle(parts[2]);
+            if (parts.length === 4 && parts[3] === 'provider') return null;
+            if (parts.length === 5 && parts[3] === 'provider') return getAiProviderTitle(parts[4]);
+        }
+
+        return undefined;
     }
 
     // Variable to store language change event handler
@@ -279,7 +318,7 @@ changes to the documentation (to keep the documentation up to date).
                 }
             }
         }
-        
+
         // Add mates detail routes dynamically (mates/{mateId})
         for (const mate of matesMetadata) {
             views[`mates/${mate.id}`] = MateDetailsWrapper;
@@ -314,6 +353,8 @@ changes to the documentation (to keep the documentation up to date).
                 views[route] = AiModelDetailsWrapper;
             } else if (/^ai\/provider\//.test(route)) {
                 views[route] = AiProviderDetailsWrapper;
+            } else if (/^ai\/tier\//.test(route)) {
+                views[route] = AiTierSettings;
             } else if (/^chats\/[^/]+(?:\/[^/]+)?$/.test(route)) {
                 views[route] = ChatSettingsPage;
             } else if (/^projects\/[^/]+$/.test(route)) {
@@ -858,6 +899,17 @@ changes to the documentation (to keep the documentation up to date).
                     const translationKey = `settings.${translationKeyParts.join('.')}`;
                     pathLabels.push($text(translationKey));
                 }
+            } else if (pathUpToSegment[0] === 'ai') {
+                const aiRouteLabel = getAiRouteLabel(pathString);
+                if (aiRouteLabel === null) {
+                    continue;
+                }
+                if (aiRouteLabel !== undefined) {
+                    pathLabels.push(aiRouteLabel);
+                    continue;
+                }
+                const translationKey = `settings.${pathUpToSegment.map(segment => segment.replace(/-/g, '_')).join('.')}`;
+                pathLabels.push($text(translationKey));
             } else if (pathString === 'chats') {
                 pathLabels.push('Chats');
             } else if (pathString.startsWith('chats/')) {
@@ -1120,9 +1172,27 @@ changes to the documentation (to keep the documentation up to date).
      */
     let activeSubMenuDescription = $derived.by(() => {
         if (!isStandardSubPage) return '';
-        // AI model/provider detail pages show the model/provider name as the
-        // banner title — no inherited description from the parent AI section.
-        if (/^ai\/(model|provider)\//.test(activeSettingsView)) return '';
+        const aiModelMatch = activeSettingsView.match(/^ai\/model\/([^/]+)$/);
+        if (aiModelMatch) {
+            return modelsMetadata.find((model) => model.id === aiModelMatch[1])?.description ?? '';
+        }
+        const aiProviderMatch = activeSettingsView.match(/(?:^ai\/provider\/|^ai\/tier\/[^/]+\/provider\/)([^/]+)$/);
+        if (aiProviderMatch) {
+            const providerId = aiProviderMatch[1];
+            const model = modelsMetadata.find((candidate) => candidate.provider_id === providerId);
+            const display = getAiProviderDisplay(providerId, model?.provider_name ?? providerId);
+            return $text('settings.ai_ask.ai_ask_settings.provider_header_description')
+                .replace('{provider}', display.companyName);
+        }
+        const aiTierMatch = activeSettingsView.match(/^ai\/tier\/(simple|complex|most-demanding)$/);
+        if (aiTierMatch) {
+            const key = aiTierMatch[1] === 'simple'
+                ? 'simple_requests_description'
+                : aiTierMatch[1] === 'complex'
+                    ? 'complex_requests_description'
+                    : 'most_demanding_requests_description';
+            return $text(`settings.ai_ask.ai_ask_settings.${key}`);
+        }
         // Use the top-level path segment for description lookup
         const topSegment = activeSettingsView.split('/')[0];
         const key = settingsPageDescriptionKeys[topSegment];
@@ -1558,6 +1628,12 @@ changes to the documentation (to keep the documentation up to date).
             dynamicEntryRoutes = new Set(dynamicEntryRoutes);
         }
 
+        const aiTierPattern = /^ai\/tier\/(simple|complex|most-demanding)(?:\/provider\/[^/]+)?$/;
+        if (aiTierPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
+            dynamicEntryRoutes.add(settingsPath);
+            dynamicEntryRoutes = new Set(dynamicEntryRoutes);
+        }
+
         const projectSettingsPattern = /^projects\/[^/]+$/;
         if (projectSettingsPattern.test(settingsPath) && !dynamicEntryRoutes.has(settingsPath)) {
             dynamicEntryRoutes.add(settingsPath);
@@ -1715,13 +1791,21 @@ changes to the documentation (to keep the documentation up to date).
             // Top-level AI server-provider detail route: ai/provider/{providerId}
             // Rendered inside the standard settings-banner-shell (AI icon + provider name).
             const aiProviderId = settingsPath.replace('ai/provider/', '');
-            const providerMeta = providersMetadata[aiProviderId];
             activeSubMenuIcon = 'ai';
             activeSubMenuProviderIconSvg = '';
             activeSubMenuTitleKey = '';
             // Prefer the title passed in from SettingsAI (already simplified) over
             // raw providersMetadata which has a different name for some ids.
-            activeSubMenuTitleRaw = detail.title ?? (providerMeta?.name ?? aiProviderId);
+            activeSubMenuTitleRaw = detail.title ?? getAiProviderTitle(aiProviderId);
+        } else if (/^ai\/tier\//.test(settingsPath)) {
+            const tierRouteParts = settingsPath.split('/');
+            activeSubMenuIcon = 'ai';
+            activeSubMenuProviderIconSvg = '';
+            activeSubMenuTitleKey = '';
+            activeSubMenuTitleRaw = detail.title
+                ?? (tierRouteParts[3] === 'provider' && tierRouteParts[4]
+                    ? getAiProviderTitle(tierRouteParts[4])
+                    : getAiTierTitle(tierRouteParts[2]));
         } else if (/^projects\/[^/]+$/.test(settingsPath)) {
             activeSubMenuIcon = 'project';
             activeSubMenuProviderIconSvg = '';
@@ -1943,6 +2027,14 @@ changes to the documentation (to keep the documentation up to date).
                         previousPathSegments = navigationPath.slice(0, -1);
                     }
                 }
+            } else if (/^ai\/tier\/(simple|complex|most-demanding)\/provider\/[^/]+$/.test(currentPath)) {
+                // A provider catalog is nested under one tier. Return to that
+                // tier rather than the non-existent `ai/tier/<tier>/provider` route.
+                previousPathSegments = navigationPath.slice(0, 3);
+                previousPath = previousPathSegments.join('/');
+            } else if (/^ai\/model\/[^/]+$/.test(currentPath) && cameFromPath?.startsWith('ai/')) {
+                previousPath = cameFromPath;
+                previousPathSegments = cameFromPath.split('/');
             } else if (/^ai\/(model|provider)\/[^/]+$/.test(currentPath)) {
                 // AI model/provider detail pages — back always returns to
                 // the top-level AI settings page, not an intermediate 'ai/model'
@@ -2070,11 +2162,16 @@ changes to the documentation (to keep the documentation up to date).
                 // For other nested paths (like account/security), icon is already set to last segment above
                 
                 if (!title) {
-                    // Build the translation key for the previous view's title
-                    const titleKey = getSettingsRouteTitleKey(previousPath) ??
-                        `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
-                    const translatedTitle = $text(titleKey);
-                    title = translatedTitle;
+                    const aiRouteLabel = getAiRouteLabel(previousPath);
+                    if (aiRouteLabel !== undefined && aiRouteLabel !== null) {
+                        title = aiRouteLabel;
+                    } else {
+                        // Build the translation key for the previous view's title
+                        const titleKey = getSettingsRouteTitleKey(previousPath) ??
+                            `settings.${previousPathSegments.map(segment => segment.replace(/-/g, '_')).join('.')}`;
+                        const translatedTitle = $text(titleKey);
+                        title = translatedTitle;
+                    }
                 }
             }
             
@@ -2307,12 +2404,16 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
+    function isSettingsOverlay(): boolean {
+        const settingsMenu = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
+        return settingsMenu !== null && getComputedStyle(settingsMenu).position === 'fixed';
+    }
+
     // Click outside handler
     function handleClickOutside(event: MouseEvent) {
 	    // Close on outside-click only when settings is rendered as an overlay.
-	    // In side-by-side mode (>1100px), outside clicks should not close the panel.
-	    const isOverlayMode = viewportWidth <= 1100;
-	    if (!isMenuVisible || !isOverlayMode) {
+	    // In side-by-side mode, outside clicks should not close the panel.
+	    if (!isMenuVisible || !isSettingsOverlay()) {
 	    	return;
 	    }
 
@@ -2322,7 +2423,7 @@ changes to the documentation (to keep the documentation up to date).
 	    	return;
 	    }
 
-	    const settingsMenu = document.querySelector('.settings-menu');
+	    const settingsMenu = document.querySelector('[data-testid="settings-menu"]');
 	    const profileWrapper = document.querySelector('.profile-container-wrapper');
 	    const closeButton = document.querySelector('.close-icon-container');
 
@@ -2598,20 +2699,13 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Update DOM elements opacity and classes based on menu state
-    // CRITICAL: Settings menu becomes an overlay at 1100px (see CSS @media (max-width: 1100px))
-    // We need to dim the background when settings is an overlay, not just on mobile (< 730px)
-    // So we check if viewport <= 1100px (overlay mode) rather than just $isMobileView (< 730px)
-    // The effect reacts to both isMenuVisible and viewportWidth changes (reactive to resize)
+    // Update DOM elements opacity and classes based on menu state.
     $effect(() => {
         if (typeof window !== 'undefined') {
             const activeChatContainer = document.querySelector('.active-chat-container');
             if (activeChatContainer) {
-                // Check if settings menu is in overlay mode (viewport <= 1100px)
-                // This matches the CSS breakpoint where settings becomes an overlay
-                // Use reactive viewportWidth so effect re-runs on resize
-                const isOverlayMode = viewportWidth <= 1100;
-                if (isOverlayMode && isMenuVisible) {
+                void viewportWidth;
+                if (isSettingsOverlay() && isMenuVisible) {
                     activeChatContainer.classList.add('dimmed');
                 } else {
                     activeChatContainer.classList.remove('dimmed');
@@ -2642,23 +2736,6 @@ changes to the documentation (to keep the documentation up to date).
                 },
                 afterLocalLogout: async () => {
                     // Actions after local state is reset but before server cleanup starts
-                    // CRITICAL: Clear chats and load demo chat BEFORE database deletion
-                    // Dispatch event to clear user chats and load demo chat
-                    // Dispatching userLoggingOut event to clear chats and load demo
-                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
-
-                     // CRITICAL: Force ActiveChat back to the welcome screen by clearing activeChatStore directly.
-                     // Small delay to ensure auth state changes are processed first
-                     // OG image mode (?og=1): skip demo-for-everyone so the welcome screen stays visible
-                     const isOgMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1';
-                     if (!isOgMode) {
-                          await new Promise(resolve => setTimeout(resolve, 50));
-                          const { activeChatStore } = await import('@repo/ui');
-                          activeChatStore.clearActiveChat();
-                      } else {
-                          // Skipping welcome reset during logout - og=1 mode
-                      }
-                    
                     // CRITICAL: Mark phased sync as completed for non-authenticated users
                     // This prevents "Loading chats..." from showing after logout
                     phasedSyncState.markSyncCompleted();
@@ -2836,12 +2913,13 @@ changes to the documentation (to keep the documentation up to date).
                     translationKey = `settings.${translationKeyParts.join('.')}`;
                 }
 
-                // For ai/model/* and ai/provider/* deep links, don't pass a title —
-                // handleOpenSettings resolves the name from modelsMetadata / providersMetadata.
-                // The auto-generated translation key (e.g. settings.ai.model.claude_opus_4_6)
-                // doesn't exist and would show a raw [T:...] placeholder.
-                const isAiDetailRoute = /^ai\/(model|provider)\//.test(cleanPath);
-                const title = isAiDetailRoute ? undefined : $text(translationKey);
+                // For dynamic AI routes, don't pass an auto-generated title.
+                // handleOpenSettings resolves model/provider/tier labels from metadata
+                // or known tier title keys. Auto-generated keys such as
+                // settings.ai.tier.simple.provider.openai do not exist and would
+                // render as raw [T:...] placeholders.
+                const isDynamicAiRoute = /^ai\/(model|provider|tier)\//.test(cleanPath);
+                const title = isDynamicAiRoute ? undefined : $text(translationKey);
 
                 handleOpenSettings(new CustomEvent('openSettings', {
                     detail: {

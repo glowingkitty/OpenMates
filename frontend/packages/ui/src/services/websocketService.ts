@@ -1486,14 +1486,23 @@ class WebSocketService extends EventTarget {
         // Inject W3C traceparent into the message payload for distributed tracing.
         // The backend's ws_trace_context.py extracts it to create correlated spans.
         if (type !== "ping" && message.payload && typeof message.payload === "object") {
-          try {
-            const { injectTraceparent } = await import("./tracing/wsSpans");
-            injectTraceparent(message.payload as Record<string, unknown>);
-          } catch {
-            // Tracing not available -- non-fatal, silently skip
+          const tracing = await import("./tracing/wsSpans").catch(() => null);
+          if (tracing) {
+            await tracing.withActiveWsSpan(`send.${type}`, () => {
+              tracing.injectTraceparent(message.payload as Record<string, unknown>);
+              if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+                throw new Error("WebSocket changed before message dispatch");
+              }
+              this.ws.send(JSON.stringify(message));
+            });
+            return;
           }
+          console.warn("[WebSocketService] Tracing unavailable for WebSocket send.");
         }
-        this.ws?.send(JSON.stringify(message));
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+          throw new Error("WebSocket changed before message dispatch");
+        }
+        this.ws.send(JSON.stringify(message));
       } catch (error) {
         if (type !== "ping") {
           console.error("[WebSocketService] Error sending message:", error);

@@ -48,6 +48,7 @@ describe("chat sync merge", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("reproduces and prevents mixed-key merge when server key differs", async () => {
     const localChat = makeChat({
       candidate_encrypted_keys: ["local-candidate-k0"],
@@ -65,6 +66,7 @@ describe("chat sync merge", () => {
       messages_v: 6,
       title_v: 10,
       draft_v: 0,
+      cleared_draft_v: 4,
       created_at: 100,
       updated_at: 300,
       last_edited_overall_timestamp: 300,
@@ -91,6 +93,7 @@ describe("chat sync merge", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("does not treat different encrypted key blobs as a mismatch when fingerprints match", async () => {
     const localChat = makeChat({
       encrypted_chat_key: "local-wrapped-key-with-random-iv",
@@ -104,6 +107,7 @@ describe("chat sync merge", () => {
       messages_v: 6,
       title_v: 10,
       draft_v: 0,
+      cleared_draft_v: 4,
     };
 
     await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
@@ -119,6 +123,7 @@ describe("chat sync merge", () => {
     expect(merged.messages_v).toBe(6);
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,chats.persistence.client-encrypted
   it("still preserves equal-version local title when the key is unchanged", async () => {
     const localChat = makeChat();
     const serverChat = {
@@ -128,6 +133,7 @@ describe("chat sync merge", () => {
       messages_v: 6,
       title_v: 10,
       draft_v: 0,
+      cleared_draft_v: 4,
     };
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
@@ -138,6 +144,7 @@ describe("chat sync merge", () => {
     expect(merged.messages_v).toBe(6);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("does not treat different encrypted key blobs as a mismatch when raw keys match", async () => {
     const rawKey = new Uint8Array([7, 8, 9]);
     mocks.decryptChatKeyWithMasterKey.mockResolvedValue(rawKey);
@@ -151,6 +158,7 @@ describe("chat sync merge", () => {
       messages_v: 6,
       title_v: 10,
       draft_v: 0,
+      cleared_draft_v: 4,
     };
 
     await expect(hasEncryptedChatKeyMismatch(serverChat, localChat)).resolves.toBe(
@@ -164,6 +172,7 @@ describe("chat sync merge", () => {
     expect(merged.messages_v).toBe(6);
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
   it("clears local draft ciphertext when server metadata explicitly deletes it", async () => {
     const localChat = makeChat();
     const serverChat = {
@@ -174,6 +183,7 @@ describe("chat sync merge", () => {
       messages_v: 6,
       title_v: 10,
       draft_v: 0,
+      cleared_draft_v: 4,
     };
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
@@ -183,6 +193,7 @@ describe("chat sync merge", () => {
     expect(merged.draft_v).toBe(0);
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
   it("clears stale local draft when an IdeaBucket draft becomes a processed chat", async () => {
     const localChat = makeChat({
       ideabucket: true,
@@ -201,6 +212,7 @@ describe("chat sync merge", () => {
       messages_v: 2,
       title_v: 10,
       draft_v: 0,
+      cleared_draft_v: 3,
     };
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
@@ -212,6 +224,7 @@ describe("chat sync merge", () => {
     expect(merged.ideabucket_triggered_at).toBe(1234);
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
   it("clears stale local IdeaBucket draft when durable chat metadata has messages", async () => {
     const localChat = makeChat({
       ideabucket: true,
@@ -226,6 +239,7 @@ describe("chat sync merge", () => {
       messages_v: 2,
       title_v: 0,
       draft_v: 0,
+      cleared_draft_v: 3,
     };
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
@@ -237,7 +251,8 @@ describe("chat sync merge", () => {
     expect(merged.ideabucket).toBe(true);
   });
 
-  it("clears stale local draft shell when server omits draft version but has messages", async () => {
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
+  it("preserves a versioned local draft when server omits deletion evidence", async () => {
     const localChat = makeChat({
       messages_v: 0,
       draft_v: 3,
@@ -253,11 +268,12 @@ describe("chat sync merge", () => {
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
 
     expect(merged.messages_v).toBe(2);
-    expect(merged.encrypted_draft_md).toBeUndefined();
-    expect(merged.encrypted_draft_preview).toBeUndefined();
-    expect(merged.draft_v).toBe(0);
+    expect(merged.encrypted_draft_md).toBe("stale-draft-shell");
+    expect(merged.encrypted_draft_preview).toBe("stale-preview-shell");
+    expect(merged.draft_v).toBe(3);
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
   it("clears stale local draft when server metadata explicitly reports no draft", async () => {
     const localChat = makeChat({
       messages_v: 0,
@@ -270,6 +286,7 @@ describe("chat sync merge", () => {
       messages_v: 2,
       title_v: 0,
       draft_v: 0,
+      cleared_draft_v: 2,
     };
 
     const merged = await mergeServerChatWithLocal(serverChat, localChat, "user-1");
@@ -279,6 +296,7 @@ describe("chat sync merge", () => {
     expect(merged.draft_v).toBe(0);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("preserves local encrypted header metadata when Phase 1a sends partial cache data", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-from-idb",
@@ -306,6 +324,7 @@ describe("chat sync merge", () => {
     expect(merged.title_v).toBe(1);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("preserves anonymous key fields while merging anonymous sync metadata", async () => {
     const serverChat = {
       id: "anonymous-chat-1",
@@ -324,6 +343,7 @@ describe("chat sync merge", () => {
     expect(merged.is_anonymous).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("merges encrypted shared short URL from server for owner share UI restore", async () => {
     const localChat = makeChat({
       encrypted_chat_key: "same-key",
@@ -346,6 +366,7 @@ describe("chat sync merge", () => {
     expect(merged.is_shared).toBe(true);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("uses newer metadata_v for encrypted title and summary as one metadata revision", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-v50",
@@ -376,6 +397,7 @@ describe("chat sync merge", () => {
     expect(merged.title_v).toBe(8);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("uses server metadata fields when metadata_v matches local stale cache", async () => {
     const localChat = makeChat({
       encrypted_title: "local-title-v7",
@@ -402,6 +424,7 @@ describe("chat sync merge", () => {
     expect(merged.title_v).toBe(3);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("falls back to title_v for title and summary when metadata_v is absent", async () => {
     const localChat = makeChat({
       encrypted_title: "local-legacy-title-v12",

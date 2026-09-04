@@ -24,6 +24,12 @@ from backend.core.api.app.services.sub_chat_orchestration_service import SubChat
 from backend.shared.python_utils.chat_completion_recovery_job import build_sealed_recovery_job_data
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.assistant_speech.projection import (
+    build_app_use_announcement,
+    classify_acknowledgement_category,
+    select_prerecorded_acknowledgement,
+)
+from backend.apps.ai.assistant_speech.streaming import ImmutableSpeechBoundaryTracker
 from backend.apps.ai.processing.preprocessor import PreprocessingResult
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -90,6 +96,9 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
     should_disable_learning_mode_application_artifact,
 )
+from backend.shared.python_utils.tracing.ai_observability import AICompletionTiming, ai_phase_span
+from backend.shared.python_utils.finalization_embed_graph import FinalizationEmbedGraph
+from backend.shared.python_utils.stream_content_coalescer import CumulativeContentPublisher
 
 logger = logging.getLogger(__name__)
 ASSISTANT_RESPONSE_TIMESTAMP_OFFSET_SECONDS = 1
@@ -116,6 +125,112 @@ def _recovery_inference_task_id(request_data: AskSkillRequest) -> Optional[str]:
 
 def _assistant_message_id(task_id: str, request_data: AskSkillRequest) -> str:
     return getattr(request_data, "continuation_message_id", None) or task_id
+
+
+async def _dispatch_automatic_assistant_speech_segment(
+    *,
+    segment: dict[str, object],
+    directus_service: Optional[DirectusService],
+    user_id: str,
+    user_vault_key_id: Optional[str],
+    voice_profile: dict[str, object],
+    auto_speak: bool,
+    cache_service: Optional[CacheService],
+    redis_channel_name: str,
+    log_prefix: str,
+    live_mock_mode: Optional[str],
+    live_mock_group: Optional[str],
+) -> None:
+    """Persist and queue one immutable segment outside the authoritative text path."""
+    if directus_service is None:
+        return
+    from backend.apps.audio.assistant_speech.persistence import create_manifest_and_segments
+
+    manifest = await create_manifest_and_segments(
+        directus_service,
+        user_id=user_id,
+        chat_id=str(segment["chat_id"]),
+        assistant_message_id=str(segment["assistant_message_id"]),
+        source_version=int(segment["source_version"]),
+        voice_profile=voice_profile,
+        segments=[segment],
+    )
+    if not auto_speak or str(segment["segment_id"]) not in set(manifest["dispatch_segment_ids"]):
+        return
+    live_mock_context: dict[str, str] = {}
+    if live_mock_mode in {"mock", "record"} and live_mock_group:
+        live_mock_context = {
+            "live_mock_mode": live_mock_mode,
+            "live_mock_group": live_mock_group,
+            "live_mock_required": "true",
+        }
+    celery_config.app.send_task(
+        "apps.audio.tasks.assistant_speech_segment",
+        kwargs={
+            "arguments": {
+                **segment,
+                "user_id": user_id,
+                "user_vault_key_id": user_vault_key_id,
+                "voice_profile_key": voice_profile["key"],
+                "voice_profile_version": voice_profile["version"],
+                **live_mock_context,
+            },
+        },
+        queue="app_music",
+    )
+    await _publish_to_redis(
+        cache_service,
+        redis_channel_name,
+        {
+            "type": "assistant_speech_status",
+            "chat_id": str(segment["chat_id"]),
+            "user_id_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+            "message_id": str(segment["assistant_message_id"]),
+            "payload": {
+                "segment_id": str(segment["segment_id"]),
+                "status": "queued",
+                "sequence": int(segment["sequence"]),
+                "kind": str(segment["kind"]),
+            },
+        },
+        log_prefix,
+        "assistant speech queued status",
+    )
+
+
+async def _invalidate_automatic_assistant_speech_segment(
+    *,
+    segment: dict[str, object],
+    directus_service: Optional[DirectusService],
+) -> None:
+    if directus_service is None:
+        return
+    from backend.apps.audio.assistant_speech.persistence import invalidate_speech_segment
+
+    await invalidate_speech_segment(directus_service, str(segment["segment_id"]))
+
+
+async def _seal_automatic_assistant_speech_manifest(
+    *, metadata: dict[str, object], directus_service: Optional[DirectusService], voice_profile: dict[str, object]
+) -> None:
+    """Seal final membership after detached segment persistence has completed."""
+    if directus_service is None:
+        return
+    from backend.apps.audio.assistant_speech.persistence import manifest_id_for, seal_speech_manifest
+
+    manifest_id = manifest_id_for(
+        chat_id=str(metadata["chat_id"]),
+        assistant_message_id=str(metadata["assistant_message_id"]),
+        source_version=int(metadata["source_version"]),
+        voice_key=str(voice_profile["key"]),
+        voice_version=int(voice_profile["version"]),
+    )
+    if await seal_speech_manifest(directus_service, manifest_id):
+        celery_config.app.send_task(
+            "apps.audio.tasks.assistant_speech_billing",
+            kwargs={"arguments": {"manifest_id": manifest_id}},
+            queue="app_music",
+        )
 
 
 async def _finalize_legacy_cutover_before_final_marker(
@@ -565,7 +680,7 @@ async def _dispatch_sub_chat_parent_continuation(
         mate_id=original_request.mate_id,
         active_focus_id=original_request.active_focus_id,
         continuation_message_id=original_request.continuation_message_id,
-        recovery_inference_task_id=None,
+        recovery_inference_task_id=original_request.recovery_task_id or original_request.recovery_inference_task_id,
         recovery_preflight_id=original_request.recovery_preflight_id,
         recovery_turn_id=original_request.recovery_turn_id,
         recovery_public_key=original_request.recovery_public_key,
@@ -1365,6 +1480,7 @@ async def _verify_and_strip_bad_quotes(
     user_vault_key_id: Optional[str],
     known_valid_refs: Optional[set[str]] = None,
     log_prefix: str = "",
+    embed_graph: Optional[FinalizationEmbedGraph] = None,
 ) -> str:
     """
     Post-streaming quote verification: scan the response for source quotes
@@ -1424,20 +1540,19 @@ async def _verify_and_strip_bad_quotes(
         directus_service=directus_service,
         encryption_service=encryption_service
     )
+    graph = embed_graph or FinalizationEmbedGraph(
+        embed_service,
+        user_vault_key_id,
+        log_prefix,
+    )
 
     for parent_id in all_embed_ids:
         try:
             # Load parent embed to get child_embed_ids
-            parent_toon = await embed_service._get_cached_embed_toon(
-                parent_id, user_vault_key_id, log_prefix
-            )
-            if not parent_toon:
+            parent_node = await graph.get(parent_id)
+            if not parent_node:
                 continue
-
-            from toon_format import decode
-            parent_decoded = decode(parent_toon)
-            if not isinstance(parent_decoded, dict):
-                continue
+            parent_decoded = parent_node.decoded
 
             # Check if parent itself has an embed_ref
             parent_ref = parent_decoded.get("embed_ref")
@@ -1455,16 +1570,12 @@ async def _verify_and_strip_bad_quotes(
             # Load each child embed to get its embed_ref
             for child_id in child_ids:
                 try:
-                    child_toon = await embed_service._get_cached_embed_toon(
-                        child_id, user_vault_key_id, log_prefix
-                    )
-                    if not child_toon:
+                    child_node = await graph.get(child_id)
+                    if not child_node:
                         continue
-                    child_decoded = decode(child_toon)
-                    if isinstance(child_decoded, dict):
-                        child_ref = child_decoded.get("embed_ref")
-                        if child_ref:
-                            embed_ref_to_id[child_ref] = child_id
+                    child_ref = child_node.decoded.get("embed_ref")
+                    if child_ref:
+                        embed_ref_to_id[child_ref] = child_id
                 except Exception:
                     continue
 
@@ -1505,12 +1616,7 @@ async def _verify_and_strip_bad_quotes(
             continue
 
         try:
-            is_valid = await embed_service.verify_quote_in_embed(
-                embed_id=embed_id,
-                quoted_text=quoted_text,
-                user_vault_key_id=user_vault_key_id,
-                log_prefix=log_prefix
-            )
+            is_valid = await graph.verify_quote(embed_id, quoted_text)
             if is_valid:
                 logger.debug(
                     f"{log_prefix} [QUOTE_VERIFY] ✓ Quote verified in embed {embed_ref}: "
@@ -1632,6 +1738,7 @@ async def _fix_bad_embed_display_text(
     encryption_service: Optional[EncryptionService],
     user_vault_key_id: Optional[str],
     log_prefix: str = "",
+    embed_graph: Optional[FinalizationEmbedGraph] = None,
 ) -> str:
     """
     Post-streaming safety check: scan the response for inline embed links
@@ -1736,19 +1843,18 @@ async def _fix_bad_embed_display_text(
                 directus_service=directus_service,
                 encryption_service=encryption_service
             )
-            from toon_format import decode
+            graph = embed_graph or FinalizationEmbedGraph(
+                embed_service,
+                user_vault_key_id,
+                log_prefix,
+            )
 
             for parent_id in all_embed_ids:
                 try:
-                    parent_toon = await embed_service._get_cached_embed_toon(
-                        parent_id, user_vault_key_id, log_prefix
-                    )
-                    if not parent_toon:
+                    parent_node = await graph.get(parent_id)
+                    if not parent_node:
                         continue
-
-                    parent_decoded = decode(parent_toon)
-                    if not isinstance(parent_decoded, dict):
-                        continue
+                    parent_decoded = parent_node.decoded
 
                     # Get child embed IDs
                     child_ids_raw = parent_decoded.get("embed_ids")
@@ -1760,24 +1866,21 @@ async def _fix_bad_embed_display_text(
 
                     for child_id in child_ids:
                         try:
-                            child_toon = await embed_service._get_cached_embed_toon(
-                                child_id, user_vault_key_id, log_prefix
-                            )
-                            if not child_toon:
+                            child_node = await graph.get(child_id)
+                            if not child_node:
                                 continue
-                            child_decoded = decode(child_toon)
-                            if isinstance(child_decoded, dict):
-                                child_ref = child_decoded.get("embed_ref")
-                                if child_ref:
-                                    child_type = child_decoded.get("type")
-                                    if child_type:
-                                        embed_ref_to_type[child_ref] = str(child_type)
-                                    child_title = _derive_embed_display_title(
-                                        child_decoded,
-                                        child_ref,
-                                    )
-                                    if child_title:
-                                        embed_ref_to_title[child_ref] = child_title
+                            child_decoded = child_node.decoded
+                            child_ref = child_decoded.get("embed_ref")
+                            if child_ref:
+                                child_type = child_decoded.get("type")
+                                if child_type:
+                                    embed_ref_to_type[child_ref] = str(child_type)
+                                child_title = _derive_embed_display_title(
+                                    child_decoded,
+                                    child_ref,
+                                )
+                                if child_title:
+                                    embed_ref_to_title[child_ref] = child_title
                         except Exception:
                             continue
 
@@ -1950,6 +2053,7 @@ async def _strip_invalid_inline_embed_links(
     user_vault_key_id: Optional[str],
     known_valid_refs: Optional[set[str]] = None,
     log_prefix: str = "",
+    embed_graph: Optional[FinalizationEmbedGraph] = None,
 ) -> str:
     """Downgrade non-quote inline embed links whose embed_ref is not real."""
     if not aggregated_response or not cache_service or not encryption_service or not user_vault_key_id:
@@ -1986,23 +2090,24 @@ async def _strip_invalid_inline_embed_links(
         return aggregated_response
 
     from backend.core.api.app.services.embed_service import EmbedService
-    from toon_format import decode
-
     embed_service = EmbedService(
         cache_service=cache_service,
         directus_service=directus_service,
         encryption_service=encryption_service,
     )
+    graph = embed_graph or FinalizationEmbedGraph(
+        embed_service,
+        user_vault_key_id,
+        log_prefix,
+    )
 
     valid_refs: set[str] = set(known_valid_refs or set())
     for embed_id in all_embed_ids:
         try:
-            toon = await embed_service._get_cached_embed_toon(embed_id, user_vault_key_id, log_prefix)
-            if not toon:
+            node = await graph.get(embed_id)
+            if not node:
                 continue
-            decoded = decode(toon)
-            if not isinstance(decoded, dict):
-                continue
+            decoded = node.decoded
             ref = decoded.get("embed_ref")
             if isinstance(ref, str) and ref:
                 valid_refs.add(ref)
@@ -2015,14 +2120,12 @@ async def _strip_invalid_inline_embed_links(
                 child_ids = [cid for cid in child_ids_raw if isinstance(cid, str)]
 
             for child_id in child_ids:
-                child_toon = await embed_service._get_cached_embed_toon(child_id, user_vault_key_id, log_prefix)
-                if not child_toon:
+                child_node = await graph.get(child_id)
+                if not child_node:
                     continue
-                child_decoded = decode(child_toon)
-                if isinstance(child_decoded, dict):
-                    child_ref = child_decoded.get("embed_ref")
-                    if isinstance(child_ref, str) and child_ref:
-                        valid_refs.add(child_ref)
+                child_ref = child_node.decoded.get("embed_ref")
+                if isinstance(child_ref, str) and child_ref:
+                    valid_refs.add(child_ref)
         except Exception as e:
             logger.debug(f"{log_prefix} [EMBED_REF_VALIDATE] Could not inspect embed {embed_id}: {e}")
 
@@ -2566,6 +2669,23 @@ async def _charge_credits(
         raise
 
 
+async def _settle_anonymous_ai_credits(task_id: str, request_data: AskSkillRequest, credits: int) -> None:
+    """Settle main-model usage against quotes reserved before each iteration."""
+    if not request_data.anonymous_reservation_id:
+        raise RuntimeError("Anonymous AI settlement is missing its request reservation")
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+    charge_id = f"ai-ask:{task_id}:main"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            f"{INTERNAL_API_BASE_URL}/internal/anonymous-usage/finalize-charge",
+            json={"charge_id": charge_id, "actual_credits": credits},
+            headers=headers,
+        )
+        response.raise_for_status()
+
+
 async def _update_chat_metadata(
     request_data: AskSkillRequest,
     category: str,
@@ -3095,8 +3215,9 @@ async def _handle_normal_billing(
     if getattr(request_data, "is_anonymous", False):
         logger.info(
             f"{log_prefix} Anonymous free-usage request calculated {credits_charged} credits. "
-            "Skipping user-balance charge; caller will finalize the shared anonymous budget."
+            "Settling against the shared anonymous operation budget."
         )
+        await _settle_anonymous_ai_credits(task_id, request_data, credits_charged)
     else:
         await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
     
@@ -4230,6 +4351,13 @@ def _strip_code_file_header_from_content(code_content: str) -> tuple[str, Option
     return stripped, header["language"], header["filename"]
 
 
+def _should_extract_code_file_header(language: Optional[str], filename: Optional[str]) -> bool:
+    return (
+        (not language or not filename)
+        and not _is_application_preview_combined_language(language)
+    )
+
+
 def _parse_application_preview_combined_files(
     language: Optional[str],
     content: str,
@@ -4480,6 +4608,30 @@ def _record_generated_code_file_embed(
         "filename": path,
         "language": language or "",
     })
+
+
+async def _mark_code_embed_assistant_runnable(
+    *,
+    cache_service: Any,
+    request_data: AskSkillRequest,
+    embed_id: Optional[str],
+    action: str,
+    log_prefix: str,
+) -> None:
+    if not cache_service or not embed_id:
+        return
+    try:
+        from backend.apps.code.skills.run_code_skill import mark_assistant_code_run_authorized
+
+        await mark_assistant_code_run_authorized(
+            cache_service,
+            chat_id=request_data.chat_id,
+            message_id=request_data.message_id,
+            target_embed_id=embed_id,
+            action=action,
+        )
+    except Exception as exc:
+        logger.debug("%s Failed to mark code embed %s runnable by assistant: %s", log_prefix, embed_id, exc)
 
 
 async def _create_application_preview_child_code_embeds(
@@ -4770,6 +4922,7 @@ async def _consume_main_processing_stream(
     always_include_skills: Optional[List[str]] = None,  # Skills to ALWAYS include regardless of preprocessing
     user_overrides: Optional[UserOverrides] = None,  # User overrides from @mention syntax
     skill_config_dict: Optional[Dict[str, Any]] = None,
+    completion_timing: Optional[AICompletionTiming] = None,
 ) -> tuple[str, bool, bool, list, Optional[Dict[str, Any]]]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -4909,6 +5062,151 @@ async def _consume_main_processing_stream(
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
     thinking_channel_name = f"chat_stream_thinking::{request_data.chat_id}"  # Separate channel for thinking content
     assistant_message_id = _assistant_message_id(task_id, request_data)
+    content_publisher = CumulativeContentPublisher(
+        lambda payload, action_description: _publish_to_redis(
+            cache_service,
+            redis_channel_name,
+            payload,
+            log_prefix,
+            action_description,
+        ),
+        completion_timing.mark_first_visible_content if completion_timing else None,
+    )
+    speech_tracker: Optional[ImmutableSpeechBoundaryTracker] = None
+    if not request_data.is_external and not request_data.is_incognito:
+        selected_mate = next(
+            (
+                mate
+                for mate in all_mates_configs
+                if mate.id == (preprocessing_result.selected_mate_id or request_data.mate_id)
+            ),
+            None,
+        )
+        if selected_mate is None:
+            logger.error(
+                "%s Assistant speech disabled because the selected mate profile is unavailable",
+                log_prefix,
+            )
+            await _publish_to_redis(
+                cache_service,
+                redis_channel_name,
+                {
+                    "type": "assistant_speech_status",
+                    "chat_id": request_data.chat_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "message_id": assistant_message_id,
+                    "payload": {
+                        "status": "error",
+                        "error": "Speech is temporarily unavailable.",
+                        "retryable": False,
+                    },
+                },
+                log_prefix,
+                "assistant speech status",
+            )
+        else:
+            voice_profile = {
+                "key": selected_mate.voice_profile.key,
+                "version": selected_mate.voice_profile.version,
+            }
+            speech_language = (
+                preprocessing_result.output_language
+                or (request_data.user_preferences or {}).get("language", "en")
+            )
+            if request_data.auto_speak_response:
+                from backend.apps.audio.assistant_speech.acknowledgements import build_acknowledgement_clips
+
+                acknowledgement_category = classify_acknowledgement_category(
+                    relevant_app_skills=preprocessing_result.relevant_app_skills,
+                    complexity=preprocessing_result.complexity,
+                )
+                acknowledgement = select_prerecorded_acknowledgement(
+                    clips=build_acknowledgement_clips(
+                        voice_profile_id=selected_mate.voice_profile.key,
+                        voice_profile_version=selected_mate.voice_profile.version,
+                        language=speech_language,
+                    ),
+                    voice_profile_id=selected_mate.voice_profile.key,
+                    voice_profile_version=selected_mate.voice_profile.version,
+                    language=speech_language,
+                    request_category=acknowledgement_category,
+                    selection_seed=assistant_message_id,
+                )
+                if acknowledgement and acknowledgement.get("asset_url"):
+                    await _publish_to_redis(
+                        cache_service,
+                        redis_channel_name,
+                        {
+                            "type": "assistant_speech_acknowledgement",
+                            "chat_id": request_data.chat_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "message_id": assistant_message_id,
+                            "payload": {
+                                "chat_id": request_data.chat_id,
+                                "message_id": assistant_message_id,
+                                "clip_id": acknowledgement["clip_id"],
+                                "audio_url": acknowledgement["asset_url"],
+                            },
+                        },
+                        log_prefix,
+                        "assistant speech acknowledgement",
+                    )
+            speech_metadata = {
+                "chat_id": request_data.chat_id,
+                "assistant_message_id": assistant_message_id,
+                "source_version": request_data.assistant_response_source_revision,
+                "selected_mate_id": preprocessing_result.selected_mate_id or request_data.mate_id,
+                "language": speech_language,
+            }
+            app_use_announcement = build_app_use_announcement(
+                preprocessing_result.relevant_app_skills,
+                speech_language,
+            )
+            speech_tracker = ImmutableSpeechBoundaryTracker(
+                metadata=speech_metadata,
+                dispatch_speech=lambda segment: _dispatch_automatic_assistant_speech_segment(
+                    segment=segment,
+                    directus_service=directus_service,
+                    user_id=request_data.user_id,
+                    user_vault_key_id=user_vault_key_id,
+                    voice_profile=voice_profile,
+                    auto_speak=request_data.auto_speak_response,
+                    cache_service=cache_service,
+                    redis_channel_name=redis_channel_name,
+                    log_prefix=log_prefix,
+                    live_mock_mode=request_data.live_mock_mode,
+                    live_mock_group=request_data.live_mock_group,
+                ),
+                invalidate_speech=lambda segment: _invalidate_automatic_assistant_speech_segment(
+                    segment=segment,
+                    directus_service=directus_service,
+                ),
+                report_status=lambda status: _publish_to_redis(
+                    cache_service,
+                    redis_channel_name,
+                    {
+                        "type": "assistant_speech_status",
+                        "chat_id": request_data.chat_id,
+                        "user_id_hash": request_data.user_id_hash,
+                        "message_id": assistant_message_id,
+                        "payload": status,
+                    },
+                    log_prefix,
+                    "assistant speech status",
+                ),
+                finalize_speech=lambda metadata: _seal_automatic_assistant_speech_manifest(
+                    metadata=metadata,
+                    directus_service=directus_service,
+                    voice_profile=voice_profile,
+                ),
+                sequence_offset=1 if app_use_announcement else 0,
+            )
+            if app_use_announcement:
+                speech_tracker.dispatch_projected_segment(
+                    sequence=0,
+                    kind="app_use_announcement",
+                    speakable_text=app_use_announcement,
+                )
     tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
     
     # Thinking content tracking for thinking models (Gemini, Anthropic)
@@ -5019,8 +5317,16 @@ async def _consume_main_processing_stream(
     # Yielded early before the LLM call loop and returned to ask_skill_task for debug caching
     debug_metadata: Optional[Dict[str, Any]] = None
     
+    pre_main_scope = ai_phase_span("pre_main")
+    pre_main_scope.__enter__()
+    pre_main_open = True
     try:
         async for chunk in main_processing_stream:
+            if pre_main_open:
+                pre_main_scope.__exit__(None, None, None)
+                pre_main_open = False
+            if not isinstance(chunk, str):
+                await content_publisher.flush()
             # Check for debug metadata marker (system prompt, tools, message history)
             # This is yielded early by main_processor before the LLM call loop,
             # captured here and returned to ask_skill_task for debug cache enrichment.
@@ -5287,6 +5593,7 @@ async def _consume_main_processing_stream(
                             task_id, request_data, current_full_content, stream_chunk_count,
                             is_final=True, interrupted_revoke=True, model_name=stream_model_name
                         )
+                        await content_publisher.flush()
                         await _publish_to_redis(
                             cache_service, redis_channel_name, payload, log_prefix,
                             f"Published final chunk (seq: {stream_chunk_count}) with revocation marker to '{redis_channel_name}'. Length: {len(current_full_content)}"
@@ -5298,7 +5605,8 @@ async def _consume_main_processing_stream(
                 # CRITICAL: Sanitize error messages before adding to response
                 # Replace any [ERROR: ...] messages with the translation key for generic error message
                 # This ensures users never see technical error details
-                if chunk.strip().startswith("[ERROR"):
+                is_error_chunk = chunk.strip().startswith("[ERROR")
+                if is_error_chunk:
                     logger.warning(
                         f"{log_prefix} Detected error marker in stream chunk "
                         f"(chunk_len={len(chunk)}). Replacing with generic error message."
@@ -5396,7 +5704,10 @@ async def _consume_main_processing_stream(
                     # LLMs sometimes put "python:hello_world.py" in content instead of fence
                     # Track if we extracted from first line so we can remove it from code content
                     extracted_from_first_line = False
-                    if (not current_code_language or not current_code_filename) and len(lines) > 1:
+                    if _should_extract_code_file_header(
+                        current_code_language,
+                        current_code_filename,
+                    ) and len(lines) > 1:
                         first_content_line = lines[1].strip()
                         # Check if first line matches language:filename pattern (e.g., "python:hello_world.py")
                         if ':' in first_content_line and not first_content_line.startswith('#'):
@@ -6025,6 +6336,13 @@ async def _consume_main_processing_stream(
                                                         learning_mode_metadata=learning_mode_metadata,
                                                         log_prefix=log_prefix,
                                                     )
+                                                    await _mark_code_embed_assistant_runnable(
+                                                        cache_service=cache_service,
+                                                        request_data=request_data,
+                                                        embed_id=target_embed_id,
+                                                        action="edited",
+                                                        log_prefix=log_prefix,
+                                                    )
                                                     embed_reference_json = json.dumps({
                                                         "type": "code",
                                                         "embed_id": target_embed_id,
@@ -6088,6 +6406,13 @@ async def _consume_main_processing_stream(
                                                         embed_id=current_code_embed_id,
                                                         filename=current_code_filename,
                                                         language=current_code_language,
+                                                    )
+                                                    await _mark_code_embed_assistant_runnable(
+                                                        cache_service=cache_service,
+                                                        request_data=request_data,
+                                                        embed_id=current_code_embed_id,
+                                                        action="created",
+                                                        log_prefix=log_prefix,
                                                     )
 
                                                     # Replace code block with embed reference in chunk
@@ -6548,7 +6873,10 @@ async def _consume_main_processing_stream(
                                     category=preprocessing_result.category or "general_knowledge",
                                 )
                                 log_message = f"Published chunk (seq: {stream_chunk_count}, type=interactive_fenced, chunk_len={len(chunk)}) to '{redis_channel_name}'"
+                                await content_publisher.flush()
                                 await _publish_to_redis(cache_service, redis_channel_name, payload, log_prefix, log_message)
+                                if completion_timing:
+                                    completion_timing.mark_first_visible_content()
                             continue
                         
                         # HARDENING: Check for suspicious languages that indicate fake tool calls
@@ -7080,7 +7408,14 @@ async def _consume_main_processing_stream(
                                             learning_mode_metadata=learning_mode_metadata,
                                             log_prefix=log_prefix
                                         )
-                                        
+                                        await _mark_code_embed_assistant_runnable(
+                                            cache_service=cache_service,
+                                            request_data=request_data,
+                                            embed_id=current_code_embed_id,
+                                            action="created",
+                                            log_prefix=log_prefix,
+                                        )
+                                          
                                         logger.info(
                                             f"{log_prefix} [TOON_RECOVERED] Created and finalized code embed "
                                             f"{current_code_embed_id} for toon block validated as real code "
@@ -7602,6 +7937,13 @@ async def _consume_main_processing_stream(
                                         filename=current_code_filename,
                                         language=current_code_language,
                                     )
+                                    await _mark_code_embed_assistant_runnable(
+                                        cache_service=cache_service,
+                                        request_data=request_data,
+                                        embed_id=current_code_embed_id,
+                                        action="edited" if current_code_replacement_ref else "created",
+                                        log_prefix=log_prefix,
+                                    )
                                       
                                     logger.info(f"{log_prefix} Finalized code embed {current_code_embed_id} with {len(current_code_content)} chars")
 
@@ -7958,11 +8300,17 @@ async def _consume_main_processing_stream(
                         f"chunk_len={len(chunk)}, total_length={len(current_full_content)}) to '{redis_channel_name}'"
                     )
                     
-                    # CRITICAL: Use await to ensure publish completes before continuing
-                    # This ensures chunks are sent in order and immediately
-                    await _publish_to_redis(
-                        cache_service, redis_channel_name, payload, log_prefix, log_message
-                    )
+                    if is_code_block or is_error_chunk:
+                        await content_publisher.flush()
+                        await _publish_to_redis(
+                            cache_service, redis_channel_name, payload, log_prefix, log_message
+                        )
+                        if completion_timing:
+                            completion_timing.mark_first_visible_content()
+                    else:
+                        await content_publisher.publish(payload, log_message)
+                        if stream_chunk_count == 1:
+                            await content_publisher.flush()
                     
                     # URL Validation: Check if this paragraph contains URLs and validate them in background
                     # Skip code blocks (they might contain URLs that are just examples)
@@ -7986,6 +8334,11 @@ async def _consume_main_processing_stream(
                             url_validation_tasks.append(validation_task)
                 elif stream_chunk_count == 1:
                     logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+                if speech_tracker is not None:
+                    speech_snapshot = "".join(final_response_chunks)
+                    if speech_tracker.has_new_boundary(speech_snapshot) and cache_service and redis_channel_name:
+                        await content_publisher.flush()
+                    speech_tracker.observe(speech_snapshot)
             else:
                 # Non-string chunk (shouldn't happen, but handle gracefully)
                 logger.warning(f"{log_prefix} Received unexpected non-string chunk type: {type(chunk)}")
@@ -7998,6 +8351,12 @@ async def _consume_main_processing_stream(
         # Check if revoked after an unexpected error
         if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
+    finally:
+        if pre_main_open:
+            pre_main_scope.__exit__(None, None, None)
+
+    with ai_phase_span("main.response_finalize"):
+        await content_publisher.flush()
     
     # Finalize any open code/document block if stream was interrupted
     if in_code_block and current_code_embed_id and directus_service and encryption_service and user_vault_key_id:
@@ -8336,6 +8695,8 @@ async def _consume_main_processing_stream(
                     log_prefix,
                     f"Published synthetic error chunk (seq: 1) to '{redis_channel_name}'",
                 )
+                if completion_timing:
+                    completion_timing.mark_first_visible_content()
             stream_chunk_count = 1
     
     # Handle the case where we're awaiting app settings/memories permission
@@ -8717,6 +9078,20 @@ async def _consume_main_processing_stream(
                     f"(length: {len(aggregated_response)})"
                 )
 
+    finalization_embed_graph: Optional[FinalizationEmbedGraph] = None
+    if cache_service and encryption_service and user_vault_key_id:
+        from backend.core.api.app.services.embed_service import EmbedService
+
+        finalization_embed_graph = FinalizationEmbedGraph(
+            EmbedService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            ),
+            user_vault_key_id,
+            log_prefix,
+        )
+
     # --- Source Quote Verification ---
     # Verify that quoted text in > [text](embed:ref) blockquotes actually appears
     # in the referenced embed's source content. Strips unverified quotes silently
@@ -8734,6 +9109,7 @@ async def _consume_main_processing_stream(
                 user_vault_key_id=user_vault_key_id,
                 known_valid_refs=set((getattr(request_data, "embed_file_path_index", None) or {}).keys()),
                 log_prefix=log_prefix,
+                embed_graph=finalization_embed_graph,
             )
             if verified_response != aggregated_response:
                 aggregated_response = verified_response
@@ -8773,6 +9149,7 @@ async def _consume_main_processing_stream(
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
                 log_prefix=log_prefix,
+                embed_graph=finalization_embed_graph,
             )
             if display_fixed_response != aggregated_response:
                 aggregated_response = display_fixed_response
@@ -8809,6 +9186,7 @@ async def _consume_main_processing_stream(
                 encryption_service=encryption_service,
                 user_vault_key_id=user_vault_key_id,
                 log_prefix=log_prefix,
+                embed_graph=finalization_embed_graph,
             )
             if ref_validated_response != aggregated_response:
                 aggregated_response = ref_validated_response
@@ -9080,6 +9458,8 @@ async def _consume_main_processing_stream(
             )
     
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
+    if speech_tracker is not None:
+        speech_tracker.observe(aggregated_response, is_final=True)
     stream_error_message_for_log: Optional[str] = None
 
     if was_revoked_during_stream:
@@ -9140,16 +9520,19 @@ async def _consume_main_processing_stream(
     billing_error = None
     if should_bill:
         try:
-            billing_info = await _handle_normal_billing(
-                usage, preprocessing_result, request_data, task_id, log_prefix,
-                cumulative_input_tokens=cumulative_input_tokens,
-                cumulative_output_tokens=cumulative_output_tokens,
-                tool_inference_iterations=tool_inference_iterations,
-            )
+            with ai_phase_span("finalize.billing"):
+                billing_info = await _handle_normal_billing(
+                    usage, preprocessing_result, request_data, task_id, log_prefix,
+                    cumulative_input_tokens=cumulative_input_tokens,
+                    cumulative_output_tokens=cumulative_output_tokens,
+                    tool_inference_iterations=tool_inference_iterations,
+                )
         except Exception as e:
             # CRITICAL: Don't let billing errors prevent the final chunk from being sent
             # This ensures the typing indicator is cleared even if billing fails
             billing_error = e
+            if completion_timing:
+                completion_timing.billing_failed = True
             logger.error(f"{log_prefix} Billing failed but continuing to send final chunk: {e}", exc_info=True)
     elif usage and is_server_error:
         logger.warning(f"{log_prefix} Skipping billing because all providers failed (server error). Usage metadata was present but will not be billed.")
@@ -9180,20 +9563,21 @@ async def _consume_main_processing_stream(
         # This ensures the message exists in history (even if empty) for proper context
         # Empty responses can occur due to errors, interruptions, or harmful content filtering
         try:
-            await _update_chat_metadata(
-                request_data=request_data,
-                category=category,
-                timestamp=timestamp,
-                content_markdown=aggregated_response,  # Store markdown in cache (may be empty)
-                content_tiptap=content_tiptap,  # Send to client (markdown for now)
-                directus_service=directus_service,
-                cache_service=cache_service,
-                encryption_service=encryption_service,
-                user_vault_key_id=user_vault_key_id,
-                task_id=task_id,
-                log_prefix=log_prefix,
-                model_name=stream_model_name
-            )
+            with ai_phase_span("finalize.persistence"):
+                await _update_chat_metadata(
+                    request_data=request_data,
+                    category=category,
+                    timestamp=timestamp,
+                    content_markdown=aggregated_response,  # Store markdown in cache (may be empty)
+                    content_tiptap=content_tiptap,  # Send to client (markdown for now)
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    encryption_service=encryption_service,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix,
+                    model_name=stream_model_name
+                )
             logger.info(
                 f"{log_prefix} Assistant response saved to AI cache for future follow-up context. "
                 f"Response length: {len(aggregated_response)}, "
@@ -9237,13 +9621,14 @@ async def _consume_main_processing_stream(
     elif not user_vault_key_id:
         logger.error(f"{log_prefix} CRITICAL: User vault key ID not available. Assistant response NOT saved to AI cache - follow-ups won't have context!")
 
-    await _finalize_legacy_cutover_before_final_marker(
-        request_data=request_data,
-        billing_error=billing_error,
-        was_revoked_during_stream=was_revoked_during_stream,
-        was_soft_limited_during_stream=was_soft_limited_during_stream,
-        log_prefix=log_prefix,
-    )
+    with ai_phase_span("finalize.validation"):
+        await _finalize_legacy_cutover_before_final_marker(
+            request_data=request_data,
+            billing_error=billing_error,
+            was_revoked_during_stream=was_revoked_during_stream,
+            was_soft_limited_during_stream=was_soft_limited_during_stream,
+            log_prefix=log_prefix,
+        )
 
     # Publish final marker only after the AI cache write has been attempted and
     # legacy recovery admission is authorized. The browser sends
@@ -9266,10 +9651,13 @@ async def _consume_main_processing_stream(
     if recovery_job:
         final_payload["recovery_job_id"] = recovery_job["job_id"]
         final_payload["recovery_protocol_version"] = 1
-    await _publish_to_redis(
-        cache_service, redis_channel_name, final_payload, log_prefix,
-        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
-    )
+    with ai_phase_span("finalize.marker"):
+        await _publish_to_redis(
+            cache_service, redis_channel_name, final_payload, log_prefix,
+            f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
+        )
+        if completion_timing:
+            completion_timing.mark_final_marker()
     
     completion_summary = _sub_chat_completion_summary(
         explicit_summary=explicit_sub_chat_completion_summary,
@@ -9286,9 +9674,11 @@ async def _consume_main_processing_stream(
             secrets_manager=secrets_manager,
         )
 
-    # Re-raise billing errors only after dependent parent orchestration is unblocked.
+    # Retryable conflicts return successfully after BillingService has created
+    # a durable pending settlement. An exception here therefore means no durable
+    # recovery was confirmed and must remain visible to the task runtime.
     if billing_error:
-        logger.error(f"{log_prefix} Re-raising billing error after final chunk was sent: {billing_error}")
+        logger.error(f"{log_prefix} Re-raising non-deferred billing error after final chunk: {billing_error}")
         raise billing_error
     
     # NOTE: Email notifications for offline users are handled in websockets.py

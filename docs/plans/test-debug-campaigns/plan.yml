@@ -1,0 +1,1097 @@
+schema_version: 2
+id: test-debug-campaigns
+title: Durable Test Debug Campaigns
+status: implementing
+
+goal: >
+  Make failed-test debugging a durable, acceptance-driven workflow in which
+  OpenCode selects an explicit failure scope, records expected behavior and
+  attempts per root-cause group, verifies every group member, and resumes from
+  structured evidence or blockers until all campaign groups are green.
+
+scope:
+  in:
+    - Add Directus-backed test debug campaign and root-cause group records.
+    - Keep `test_claims` focused on short-lived ownership while linking claims to durable groups.
+    - Make `fix-tests` automatically create or resume a campaign with an explicit selected failure manifest.
+    - List active and blocked campaigns before starting a new campaign so fresh chats can discover resumable work without duplicating coordinators.
+    - Derive routine acceptance criteria from existing test assertions and failure evidence before source edits.
+    - Persist observed failures, expected behavior, root-cause hypotheses, attempts, blockers, and red/green evidence.
+    - Run exact campaign group members from Directus-backed selection instead of local `last-run.json` state.
+    - Require every member of a group to pass before that group becomes green.
+    - Automatically add newly exposed failures as recorded child groups with a scope-amendment reason.
+    - Keep campaigns active and blocked when required human or external input prevents green verification.
+    - Complete a campaign when every selected and discovered child group is individually green.
+    - Integrate interactive skills, deterministic triage, and the sequential auto-fix controller with the same records.
+    - Dispatch persistent visible worker chats for conflict-safe parallel groups.
+    - Allow an explicitly identified current visible coordinator chat to take over an active or blocked campaign from a stale coordinator session.
+    - Require each worker to submit a bounded fix intent before source edits.
+    - Let the coordinator approve, reject, or request boundary expansion before worker mutation.
+    - Let workers finish with a deterministic checkpoint that the coordinator can harvest, integrate, deploy, and verify serially.
+  out:
+    - Replacing GitHub Actions, Playwright, pytest, Vitest, CLI, or Apple test execution backends.
+    - Rewriting product test suites except for focused control-plane regression coverage.
+    - Requiring a final combined run of every campaign-selected test after each group passed individually.
+    - Adding a user-facing web interface for campaigns.
+    - Automatically changing disputed product behavior or high-risk contracts without clarification.
+    - Letting worker chats commit, deploy, merge, or close campaign groups independently.
+    - Running hidden disposable agents as the primary parallel debugging mechanism.
+    - Storing raw screenshots, traces, private logs, credentials, or unredacted user data in Directus.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP returned 401 Bad Credentials.
+    - "`gh issue list --repo glowingkitty/OpenMates --search \"test debug campaign\"` returned no matching issues."
+    - "`gh issue list --repo glowingkitty/OpenMates --search \"test control plane Directus\"` returned no matching issues."
+  docs:
+    - docs/plans/directus-test-control-plane/plan.yml
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - .claude/rules/testing.md
+  code_patterns:
+    - scripts/tests.py
+    - scripts/run_tests.py
+    - scripts/auto_fix_failed_tests.py
+    - backend/core/directus/schemas/test_claims.yml
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/reproduce-first/SKILL.md
+    - .opencode/agents/test-failure-triager.md
+  tests:
+    - scripts/tests/test_tests_control.py
+    - scripts/tests/test_tests_control_directus_schema.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+  recent_session_evidence:
+    - The 2026-08-03 mass-failure investigation improved several areas but ended with 16 pytest failures and a selected E2E still red because no frozen campaign scope existed.
+    - The embed and app-skill session eventually reached green after several hypotheses, but attempts and descendant-commit evidence required forensic reconstruction.
+    - The billing session ended with unresolved configuration and iframe groups but no durable blocker or exact continuation command.
+    - The 2026-08-10 parallel dispatcher attempt proved visible spawned chats are useful, but lacked a fix-intent gate, boundary expansion contract, finish checkpoint, coordinator harvest loop, and stale-worker rejection.
+    - A leased preflight group became green while newly exposed example-chat failures continued outside any recorded parent campaign.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - The Apple product application is not changed by this developer-tooling architecture.
+    - Apple test failures can be selected as campaign group members and retain their remote verification command and evidence.
+  verification:
+    - Add deterministic control-plane coverage for Apple canonical test keys where campaign selection is suite-agnostic.
+    - No Apple app build or UI parity run is required.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should durable campaigns and root-cause groups use separate Directus collections while claims remain ownership leases?
+      answer: Yes, use separate collections.
+    - question: Should `fix-tests` automatically create or resume a campaign?
+      answer: Yes, auto-create or resume with an explicit selected manifest.
+    - question: Must campaign completion run all selected tests together after their individual group checks pass?
+      answer: No, individual group passes are sufficient.
+    - question: What should happen when a fix exposes a new failure?
+      answer: Add it to the same campaign as a recorded child group.
+    - question: Can routine acceptance criteria be derived from existing test assertions?
+      answer: Yes; ask only when expected product behavior is disputed or high-risk.
+  vision_summary: >
+    Failed-test work should behave like a lightweight executable spec without
+    requiring a full product spec for routine regressions. Directus preserves
+    selected scope, group acceptance, attempts, evidence, child failures, and
+    blockers; OpenCode continues autonomously until every campaign group is
+    individually green, while disputed or high-risk product behavior escalates
+    to clarification or a dedicated product spec.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-03T00:00:00Z"
+  plan:
+    status: not_required
+    reason: The implementation uses the existing Directus adapter and test-control-plane architecture without a new security, privacy, or rollout decision.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Store campaigns and root-cause groups in separate Directus collections.
+    reason: Durable debugging state has a different lifecycle from expiring ownership claims and must remain queryable after leases complete.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: "`fix-tests` automatically creates or resumes a campaign, while explicit CLI commands remain available."
+    reason: The reliable path must also be the lowest-friction path for agents and operators.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Each group must verify all of its members, but campaign closure does not require a final combined selected-set run.
+    reason: The user prefers individual group proof and wants to avoid an additional potentially expensive aggregate run.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Newly exposed failures become child groups with an explicit scope-amendment record.
+    reason: This preserves causality and prevents silent scope drift without abandoning failures exposed by the current fix.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Routine acceptance criteria are derived from existing assertions; ambiguity or high-risk behavior requires clarification.
+    reason: Existing regressions should remain autonomous while product decisions remain protected.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Parallel failed-test debugging uses one persistent visible OpenCode worker chat per leased root-cause group.
+    reason: Keeping research, approved edits, retests, and finish checkpoints in one visible chat preserves continuity while avoiding hidden disposable-agent state.
+    decided_at: "2026-08-11T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Worker chats must submit a structured fix intent and wait for coordinator approval before mutating source files.
+    reason: The coordinator must be able to reject stale work, overlapping write sets, high-risk changes, and boundary expansions before parallel edits collide.
+    decided_at: "2026-08-11T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Parallel workers never deploy or complete campaign groups; the coordinator harvests finished checkpoints and serializes integration plus verification.
+    reason: Deployment, commit, and group-completion evidence are subject-commit-sensitive and must remain centralized.
+    decided_at: "2026-08-11T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Define campaign and group contracts before changing schemas or runner behavior.
+    outcome: succeeded
+    recorded_at: "2026-08-03T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-5
+  next_action: No implementation action remains; use the campaign workflow for the next failed-test debugging request.
+  command: python3 scripts/plan_verify.py docs/plans/test-debug-campaigns/plan.yml --json
+  expected_outcome: The executable spec reports complete.
+  blocker: null
+  last_verified_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+
+scenarios:
+  - id: S-1
+    title: Fix-tests creates a campaign with explicit selected scope
+    given:
+      - Directus current state contains failed tests `playwright::embed-diff-editing.spec.ts` and `pytest_unit::backend/tests/test_embed_diff.py::test_patch`.
+      - No active campaign exists for the requesting session.
+    when:
+      - The workflow starts a test-debug campaign for the current failures.
+    then:
+      - Directus stores one active campaign with an immutable initial selected-test manifest and source run references.
+      - Deterministic triage creates durable groups containing the complete matching member keys.
+      - Repeating the command for the same session resumes the active campaign instead of creating a duplicate.
+  - id: S-2
+    title: Group acceptance is recorded before source edits
+    given:
+      - "`playwright::billing-settings.spec.ts` fails because credit controls and the payment iframe are not visible."
+      - Existing assertions unambiguously state those expected outcomes.
+    when:
+      - The group is prepared for investigation.
+    then:
+      - The group stores the observed failure, expected behavior, and concrete acceptance criteria derived from the assertions.
+      - The group stores red evidence linked to the source run and failed result.
+      - Ambiguous or high-risk expected behavior produces a structured blocker instead of an inferred product change.
+  - id: S-3
+    title: Exact group members are verified from Directus selection
+    given:
+      - One group contains two Playwright specs sharing a root cause.
+      - A stale local `test-results/last-run.json` also lists an unrelated failed spec.
+    when:
+      - The operator runs verification for the campaign group.
+    then:
+      - Only the two durable group member keys are selected.
+      - The unrelated local-artifact failure is not selected.
+      - The completed test run stores the exact requested canonical test keys and campaign/group references.
+  - id: S-4
+    title: Failed attempts remain available to the next agent
+    given:
+      - An embed-diff group has failed hypotheses for tool-count drift and temperature drift.
+    when:
+      - A later session resumes the campaign.
+    then:
+      - Both attempts, outcomes, changed files, verification runs, and latest root-cause hypothesis are returned.
+      - The next action points to the latest failure rather than repeating a rejected approach.
+  - id: S-5
+    title: Newly exposed failure becomes a child group
+    given:
+      - The `account_preflight` group passes after its fix.
+      - Its campaign-bound verification exposes a new `playwright::example-chats-load.spec.ts` failure.
+    when:
+      - The result is imported into the control plane.
+    then:
+      - The preflight group can become green.
+      - The new failure is added as a child group with its discovery run, parent group, and scope-amendment reason.
+      - The campaign remains active until the child group is green.
+  - id: S-6
+    title: Green evidence is required for every group member
+    given:
+      - A group contains two failed test keys and has an active ownership claim.
+      - Only one member has passed since the group was leased.
+    when:
+      - The operator attempts to complete the group.
+    then:
+      - Completion is rejected and the missing member remains visible.
+      - Completion succeeds only after both members have passing result evidence from verification after group selection.
+      - The group records green run/result IDs, tested commits, and timestamps.
+  - id: S-7
+    title: Blocked work remains resumable
+    given:
+      - Three campaign groups are green.
+      - A billing group requires a human decision about disabled dev payment capability.
+    when:
+      - The investigator records the blocker.
+    then:
+      - The campaign status becomes blocked rather than completed or partially successful.
+      - The blocker stores the reason, question, current group, and exact next action.
+      - Resuming the workflow returns that blocker before leasing unrelated work.
+  - id: S-8
+    title: Campaign completes after individual group proof
+    given:
+      - Every selected group and every discovered child group has verified all of its own members green.
+      - No verification is pending and no blocker remains.
+    when:
+      - Campaign completion is evaluated.
+    then:
+      - The campaign becomes completed.
+      - No additional combined selected-set run is required.
+      - The completion summary identifies every group and its green evidence.
+  - id: S-9
+    title: Worker submits bounded fix intent before editing
+    given:
+      - A campaign has a selected low-risk group with a leased visible worker chat.
+      - The worker has read the failure evidence and identified a likely fix.
+    when:
+      - The worker submits its fix intent.
+    then:
+      - The group records the worker chat, lease, base commit, hypothesis, planned write set, expected verification, and intent status.
+      - The worker remains unable to mutate until the coordinator approves that exact intent.
+      - The intent rejects paths outside the deterministic linked-file boundary unless marked as a boundary-expansion request.
+  - id: S-10
+    title: Coordinator approves only current non-overlapping worker intent
+    given:
+      - Two active workers propose fixes for different groups.
+      - One proposed write set overlaps another active approved write set or was based on a stale subject commit.
+    when:
+      - The coordinator reviews worker intents.
+    then:
+      - The non-overlapping current intent becomes approved with an approved write set.
+      - The overlapping or stale intent is rejected with a durable reason and next action.
+      - Rejected workers cannot pass the edit gate for the stale or overlapping write set.
+  - id: S-11
+    title: Worker requests boundary expansion instead of editing shared files
+    given:
+      - A worker discovers that the smallest correct fix requires an unlisted shared file.
+    when:
+      - The worker records a boundary expansion request.
+    then:
+      - The group stores the requested paths, reason, and current hypothesis.
+      - The coordinator can approve the expansion or block/reassign the group.
+      - No source edit is authorized until the approved write set includes the requested paths.
+  - id: S-12
+    title: Worker finish checkpoint is harvestable by coordinator
+    given:
+      - A worker has an approved intent and has completed its local edit/retest cycle.
+    when:
+      - The worker runs the finish command.
+    then:
+      - The command validates the active lease, worker identity, approved intent, base commit, changed files, and no independent deployment.
+      - The group records a finished checkpoint with changed files, summary, recommended verification, patch base, worker chat/session reference, and deterministic harvest commands.
+      - The lease stays active for coordinator review instead of being completed automatically.
+  - id: S-13
+    title: Coordinator dispatch explains and refills worker slots
+    given:
+      - A campaign has active workers, pending safe groups, and skipped high-risk or blocked groups.
+    when:
+      - The coordinator runs dispatch in dry-run or normal mode.
+    then:
+      - Dry-run returns selected/skipped reasons without leasing or spawning chats.
+      - Normal dispatch fills only available worker slots and spawns chats without deploy instructions.
+      - A blocked group does not prevent dispatch from selecting other unblocked, conflict-safe groups in the same campaign.
+      - Status shows enough worker metadata for the coordinator to inspect, harvest, and refill slots after workers finish.
+  - id: S-14
+    title: Current visible coordinator can take over stale campaign ownership
+    given:
+      - An active or blocked campaign is still assigned to an older coordinator session.
+      - The current visible chat is not an active debug worker.
+      - The campaign may have a coordinator-owned lease and separate worker-owned leases.
+    when:
+      - The current visible chat runs the explicit campaign handoff command with the expected old coordinator session and a reason.
+    then:
+      - The campaign coordinator session is rebound to the current visible chat.
+      - The campaign records the handoff reason and timestamp in metadata.
+      - Coordinator-owned leases are rebound to the current visible chat, while worker-owned leases remain assigned to their workers.
+      - Active debug worker sessions are rejected as handoff targets.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Campaign creation persists explicit initial test and group membership and resumes an existing active session campaign idempotently.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+  - id: AC-2
+    scenario: S-2
+    text: Every actionable group stores observed failure, expected behavior, concrete acceptance criteria, and source red evidence before implementation begins.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL, T-WORKFLOW-AUDIT]
+  - id: AC-3
+    scenario: S-3
+    text: Group verification selects exact Directus-backed members, ignores stale local failure artifacts, and records requested canonical keys plus campaign/group references.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-SELECTION]
+  - id: AC-4
+    scenario: S-4
+    text: Root-cause hypotheses and every failed, blocked, or successful attempt persist and are returned when a campaign resumes.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+  - id: AC-5
+    scenario: S-5
+    text: A new failure exposed by campaign-bound verification is persisted as a child group and prevents premature campaign completion.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+  - id: AC-6
+    scenario: S-6
+    text: Group completion requires passing evidence for every durable member after selection and records run, result, commit, and timestamp evidence.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+  - id: AC-7
+    scenario: S-7
+    text: Required unresolved input leaves the campaign blocked with a structured reason, question, and next action rather than partially completed.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+  - id: AC-8
+    scenario: S-8
+    text: A campaign completes when all selected and child groups are individually green without requiring a combined campaign-wide rerun.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+  - id: AC-9
+    scenario: S-1
+    text: Directus schema definitions expose queryable campaign and group lifecycle fields while claims remain ownership records.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CAMPAIGN-SCHEMA]
+  - id: AC-10
+    scenario: S-4
+    text: Interactive skills, triage instructions, and sequential auto-fix all use the same campaign and group workflow rather than independent local state.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WORKFLOW-AUDIT]
+  - id: AC-11
+    scenario: S-9
+    text: A worker fix intent records the worker chat, lease, base commit, hypothesis, planned write set, verification command, and pending or approved status before source edits.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-12
+    scenario: S-10
+    text: Intent approval rejects stale base commits and write sets that overlap active approved worker write sets.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-13
+    scenario: S-11
+    text: Boundary expansion requests are recorded durably and do not authorize edits until explicitly approved by the coordinator.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-14
+    scenario: S-12
+    text: Worker finish validates lease, identity, approved intent, commit freshness, and changed-file boundaries, then records a harvestable checkpoint with worker session reference and checkpoint/diff commands without completing the lease or group.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+  - id: AC-15
+    scenario: S-13
+    text: Parallel dispatch supports dry-run explanation, fills only available slots, reports active worker metadata, skips blocked groups without blocking unrelated safe groups, and spawns worker chats without deploy instructions.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
+  - id: AC-16
+    scenario: S-14
+    text: Explicit coordinator handoff rebinds active or blocked campaigns to the current non-worker chat, records the handoff, updates only coordinator-owned leases, and rejects active workers as new coordinators.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CAMPAIGN-CONTROL]
+
+assumptions:
+  - id: A-1
+    text: Existing Directus JSON fields are sufficient for acceptance criteria, attempts, evidence lists, scope amendments, and blockers in the first version.
+    category: data_model
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/test_claims.yml
+        summary: Existing control-plane schemas already use JSON payloads for variable structured records.
+  - id: A-2
+    text: Canonical test keys and result timestamps can identify whether each member passed after group selection without changing test binaries.
+    category: test_control
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/tests.py
+        summary: Current state and append-only results already carry canonical keys, run keys, statuses, commits, and timestamps.
+  - id: A-3
+    text: No public API, user authentication, credit, billing, encryption, or plaintext product-data boundary is changed.
+    category: access
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/test-orchestration.md
+        summary: The control plane is internal developer tooling backed by service-authenticated Directus access.
+
+contracts:
+  api:
+    - access_model: internal-only
+      surface: scripts/tests.py and service-authenticated Directus collections
+      auth: Existing Directus service token requirements remain unchanged.
+      rate_limits: No new public rate limit; commands remain operator-triggered.
+      credit_budget: No product credits are consumed by persistence operations; selected tests may retain their existing execution costs.
+      encrypted_or_plaintext_data: Store redacted test metadata only; do not store client-side encrypted user material or decrypted product content.
+  data:
+    - collection: test_debug_campaigns
+      purpose: Durable selected scope, lifecycle, blocker, and completion summary for one failed-test effort.
+      required_fields:
+        - campaign_key
+        - status
+        - session_id
+        - source_run_keys
+        - selected_test_keys
+        - selected_group_keys
+        - current_group_key
+        - completion_policy
+        - blocker
+        - created_at
+        - updated_at
+        - completed_at
+    - collection: test_debug_groups
+      purpose: Durable acceptance, diagnosis, attempts, membership, evidence, and child relationships for one root cause.
+      required_fields:
+        - group_key
+        - campaign_key
+        - triage_group_id
+        - parent_group_key
+        - status
+        - member_test_keys
+        - observed_failure
+        - expected_behavior
+        - acceptance_criteria
+        - root_cause
+        - attempts
+        - red_evidence
+        - green_evidence
+        - blocker
+        - verification_command
+        - selected_at_unix
+        - updated_at
+    - collection: test_claims
+      change: Add nullable campaign and durable group keys while preserving lease lifecycle semantics.
+    - collection: test_runs
+      change: Reliably populate requested test keys and campaign/group references for completed runs.
+  cli:
+    - "`python3 scripts/tests.py campaign list --active --overlap-current-failures --json` lists resumable campaigns, owner sessions, current-failure overlap, and status/resume/handoff commands."
+    - "`python3 scripts/tests.py campaign start --session <id> --json` creates or resumes a campaign from Directus failures."
+    - "`python3 scripts/tests.py campaign handoff --campaign <id> --from-session <old> --to-session <current> --reason <why> --json` explicitly rebinds stale campaign coordination to the current non-worker visible chat."
+    - "`python3 scripts/tests.py campaign status --campaign <id> --json` returns groups, attempts, evidence, blockers, and next action."
+    - "`python3 scripts/tests.py campaign next --campaign <id> --lease --session <id> --json` leases the next campaign group."
+    - "`python3 scripts/tests.py campaign attempt --group <id> ...` appends a structured investigation attempt."
+    - "`python3 scripts/tests.py campaign block --group <id> ...` records a resumable blocker."
+    - "`python3 scripts/tests.py campaign complete-group --group <id> --commit <sha>` requires all member evidence green."
+    - "`python3 scripts/tests.py campaign intent --group <id> --lease <id> ...` records a worker fix intent before source edits."
+    - "`python3 scripts/tests.py campaign approve-intent --group <id> --lease <id> ...` approves the current non-overlapping write set."
+    - "`python3 scripts/tests.py campaign boundary --group <id> --lease <id> ...` records an explicit boundary expansion request."
+    - "`python3 scripts/tests.py campaign approve-boundary --group <id> --lease <id> ...` approves an explicit boundary expansion request."
+    - "`python3 scripts/tests.py campaign edit-gate --session <id> --file <path>` enforces approved worker write sets before edits."
+    - "`python3 scripts/tests.py campaign finish-worker --group <id> --lease <id> ...` records a coordinator-harvestable finish checkpoint."
+    - "`python3 scripts/tests.py run --campaign <id> --group <id>` selects exact durable group members."
+  privacy_security:
+    - Persist sanitized summaries and artifact references only.
+    - Never copy raw chat transcripts, screenshots, traces, credentials, cookies, emails, or user identifiers into campaign records.
+    - Directus writes must remain idempotent and visible on failure.
+    - High-risk or disputed product behavior must create a blocker and link to a dedicated approved product spec before implementation.
+
+tests:
+  - id: T-CAMPAIGN-SCHEMA
+    type: pytest
+    file: scripts/tests/test_tests_control_directus_schema.py
+    command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py
+    covers: [AC-9]
+    assertions:
+      - Campaign and group schema files define required lifecycle and evidence fields.
+      - Campaign and group keys are unique.
+      - Claims expose nullable campaign and durable group references.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py -q
+        run_id: local-pytest-red-campaigns-20260803T171606Z
+        subject_commit: 9fa376392170b68577bd4071dd14ae36826a1683
+        timestamp: "2026-08-03T17:16:06Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
+  - id: T-CAMPAIGN-CONTROL
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-8, AC-16]
+    assertions:
+      - Campaign start is idempotent per active session and freezes initial membership.
+      - Campaign listing surfaces active campaign ownership, current-failure overlap, and actionable status/resume commands.
+      - Campaign start rejection for overlapping or foreign-owned campaigns points at the exact campaign status/resume command.
+      - Explicit handoff rebinds campaign ownership to the current non-worker coordinator and preserves worker leases.
+      - Groups persist acceptance, attempts, parent relationships, blockers, and red/green evidence.
+      - Completion rejects missing member evidence and succeeds after all members pass.
+      - Campaign completion waits for selected and child groups and does not require an aggregate rerun.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py -q
+        run_id: local-pytest-red-campaigns-20260803T171606Z
+        subject_commit: 9fa376392170b68577bd4071dd14ae36826a1683
+        timestamp: "2026-08-03T17:16:06Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
+  - id: T-CAMPAIGN-SELECTION
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k selection
+    covers: [AC-3]
+    assertions:
+      - Exact group members are resolved from Directus campaign records.
+      - Local last-run artifacts cannot add unrelated tests.
+      - Completed run metadata preserves requested keys and campaign/group references.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py -q
+        run_id: local-pytest-red-campaigns-20260803T171606Z
+        subject_commit: 9fa376392170b68577bd4071dd14ae36826a1683
+        timestamp: "2026-08-03T17:16:06Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
+  - id: T-WORKFLOW-AUDIT
+    type: pytest
+    file: scripts/tests/test_test_debug_campaign_workflow.py
+    command: python3 -m pytest scripts/tests/test_test_debug_campaign_workflow.py
+    covers: [AC-2, AC-10]
+    assertions:
+      - "`fix-tests` creates or resumes a campaign and processes one durable group at a time until completion or blocker."
+      - "`fix-tests` lists active overlapping campaigns before starting a new campaign."
+      - "`fix-next-test` resumes the next group rather than defining an independent workflow."
+      - Triager output fields map to durable group diagnosis.
+      - Auto-fix uses campaign attempts and does not treat local state as canonical.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py -q
+        run_id: local-pytest-red-campaigns-20260803T171606Z
+        subject_commit: 9fa376392170b68577bd4071dd14ae36826a1683
+        timestamp: "2026-08-03T17:16:06Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_github_sync.py scripts/tests/test_tests_control_apple.py scripts/tests/test_tests_control_directus_auth.py scripts/tests/test_test_debug_campaign_workflow.py scripts/tests/test_ci_workflow_scope.py scripts/tests/test_run_tests_backend_mock_preflight.py -q
+        run_id: local-pytest-green-campaigns-20260803T181438Z
+        subject_commit: e6f0a38bfb5c11b7cfca4b7bcc9f12198fb0deeb
+        timestamp: "2026-08-03T18:14:38Z"
+  - id: T-PARALLEL-WORKER-LIFECYCLE
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch"
+    covers: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    assertions:
+      - Worker intents persist lease, chat, base commit, hypothesis, write set, and verification metadata before source edits.
+      - Intent approval rejects stale base commits, paths outside boundary, and overlapping active approved worker write sets.
+      - Boundary expansion requests are durable and do not authorize source edits until explicitly approved.
+      - Worker edit tools are blocked until the active worker lease has an approved intent containing the target file.
+      - Active worker edit tools cannot satisfy the write-set gate through another registered worktree path.
+      - Active workers cannot prepare or append attempts to leased or unleased groups they do not own.
+      - Worker finish records canonical lease identity and rejects omitted known session modified files.
+      - Finish-worker records a harvestable checkpoint with worker session, inspection, checkpoint, and diff-template commands without completing the lease or group.
+      - Dispatch dry-run explains selected/skipped groups and normal dispatch fills only available worker slots, including when another campaign group is blocked.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+        run_id: local-pytest-red-parallel-worker-lifecycle-20260811T172927Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T17:29:27Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+        run_id: local-pytest-green-parallel-worker-lifecycle-20260811T205232Z
+        subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+        timestamp: "2026-08-11T20:52:32Z"
+  - id: T-SPAWN-NO-DEPLOY
+    type: pytest
+    file: scripts/tests/test_spawn_chat_opencode.py
+    command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+    covers: [AC-15]
+    assertions:
+      - Execute-mode worker chats can opt out of the generic deploy instruction prefix.
+      - Parallel failed-test dispatch uses that no-deploy spawn mode.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+        run_id: local-pytest-red-spawn-no-deploy-20260811T172927Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T17:29:27Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+        run_id: local-pytest-green-spawn-no-deploy-20260811T205232Z
+        subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+        timestamp: "2026-08-11T20:52:32Z"
+  - id: T-HOOK-READONLY-RECOVERY
+    type: pytest
+    file: scripts/tests/test_opencode_hooks_recovery.py
+    command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+    covers: [AC-15]
+    assertions:
+      - Recovery-mode hook checks allow `sessions.py chat read` and `sessions.py chat search` as safe read-only commands when routing has not resolved.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+        run_id: local-pytest-red-hook-readonly-recovery-20260811T172927Z
+        subject_commit: b02a347dfdcbc3d37e13e3edc9736e911babe21c
+        timestamp: "2026-08-11T17:29:27Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+        run_id: local-pytest-green-hook-readonly-recovery-20260811T205232Z
+        subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+        timestamp: "2026-08-11T20:52:32Z"
+
+verifications:
+  - id: V-SPEC-VALIDATE
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16]
+    status: pending
+    evidence:
+      status: passed
+      command: python3 scripts/plan_validate.py docs/plans/test-debug-campaigns/plan.yml
+      run_id: local-spec-validate-20260811T205215Z
+      subject_commit: 18e5b2cba8b7720d3e26ed6b5dca1c423a43ce3e
+      summary: Spec validation passed after the deployed parallel worker orchestration hardening commit.
+      timestamp: "2026-08-11T20:52:15Z"
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: This spec changes internal test-orchestration CLI behavior and persistent worker coordination, with no user-facing browser, CLI product, or native UI surface to demonstrate.
+    classified_at: "2026-08-11T00:00:00Z"
+    verification_ids: [V-SPEC-VALIDATE]
+implementation_notes:
+  plan_path: docs/plans/test-debug-campaigns/plan.yml
+  existing_patterns:
+    - scripts/tests.py DirectusTestControlStore and in-memory test store
+    - backend/core/directus/schemas/test_claims.yml
+    - scripts/tests/test_tests_control.py
+  architecture: >
+    Extend the existing test-control-plane stores with campaign and group CRUD,
+    expose campaign lifecycle commands from `scripts/tests.py`, bind exact group
+    selections and evidence to runs, then make all debugging skills and auto-fix
+    orchestration consume that canonical workflow.
+  data_flow:
+    - Current failed state is deterministically triaged into durable campaign groups.
+    - A claim links temporary ownership to one durable group.
+    - Parallel workers record intent before source edits and wait for coordinator approval.
+    - Finished workers record a checkpoint that the coordinator harvests before serial integration and verification.
+    - Group-bound runs select exact member keys and write requested scope plus result evidence.
+    - Imported new failures become child groups; verified groups update campaign completion state.
+  boundaries:
+    - "`scripts/tests.py` owns persistence, selection, lifecycle transitions, and evidence validation."
+    - "`scripts/run_tests.py` remains the execution engine and receives explicit selected canonical keys."
+    - "`scripts/sessions.py spawn-chat` owns visible worker chat launch and must support no-deploy execute prompts for coordinator-owned workflows."
+    - Skills orchestrate commands but cannot substitute chat-only state for campaign records.
+  impacts:
+    api: Internal operator CLI only; no public or developer API changes.
+    data: Two additive Directus collections and nullable claim/run linkage fields.
+    ui: No user-facing UI impact.
+    privacy_security: Redacted test metadata only; existing Directus service authentication remains mandatory.
+  affected_files:
+    - path: scripts/tests.py
+      reason: Campaign lifecycle, group selection, evidence binding, and CLI commands.
+    - path: backend/core/directus/schemas/test_debug_campaigns.yml
+      reason: Durable campaign records.
+    - path: backend/core/directus/schemas/test_debug_groups.yml
+      reason: Durable root-cause group records.
+    - path: .claude/skills/fix-tests/SKILL.md
+      reason: Canonical campaign-driven debugging workflow.
+    - path: scripts/sessions.py
+      reason: No-deploy worker chat prompt mode.
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Safe read-only chat inspection while routing is unresolved.
+  migration_rollout:
+    - Apply the additive Directus schemas through the existing schema setup path.
+    - Do not backfill historical chats or claims; campaigns start from current Directus failures after deployment.
+    - Preserve existing status, triage, lease, and run commands while campaign-aware skills migrate to the new commands.
+  observability:
+    - Campaign status JSON exposes selected, green, blocked, pending, and verification-pending counts.
+    - Failed Directus writes and invalid lifecycle transitions fail visibly.
+    - Store run/result references instead of raw artifacts so existing test history remains the evidence source.
+  assumptions_before_implementation:
+    - A-1, A-2, and A-3 are confirmed by existing schema and control-plane code.
+  acceptance_coverage:
+    - AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, and AC-8 map to T-CAMPAIGN-CONTROL.
+    - AC-3 maps to T-CAMPAIGN-SELECTION.
+    - AC-9 maps to T-CAMPAIGN-SCHEMA.
+    - AC-10 maps to T-WORKFLOW-AUDIT.
+    - AC-11, AC-12, AC-13, AC-14, and AC-15 map to T-PARALLEL-WORKER-LIFECYCLE.
+    - AC-15 also maps to T-SPAWN-NO-DEPLOY and T-HOOK-READONLY-RECOVERY.
+    - AC-16 maps to T-CAMPAIGN-CONTROL.
+  technical_approval:
+    required: false
+    reason: Separate campaign/group collections and individual-group completion were approved in the product clarification.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/test-debug-campaigns/plan.yml
+    - python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py
+    - python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy
+    - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py
+    - python3 scripts/plan_verify.py docs/plans/test-debug-campaigns/plan.yml
+  verification_order:
+    - Validate schemas and in-memory campaign state transitions.
+    - Verify exact Directus-backed member selection and run metadata.
+    - Verify skills and auto-fix workflow references.
+    - Run existing test-control-plane regression tests.
+    - Verify no-deploy spawned workers and read-only chat recovery hooks.
+
+tasks:
+  - id: TASK-1
+    title: Add red campaign contract tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    expected_files:
+      - scripts/tests/test_tests_control_directus_schema.py
+      - scripts/tests/test_tests_control_campaigns.py
+      - scripts/tests/test_test_debug_campaign_workflow.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py
+    verification_ids: [T-CAMPAIGN-SCHEMA, T-CAMPAIGN-CONTROL, T-CAMPAIGN-SELECTION, T-WORKFLOW-AUDIT]
+    dependencies: []
+    ownership:
+      files:
+        - scripts/tests/test_tests_control_directus_schema.py
+        - scripts/tests/test_tests_control_campaigns.py
+        - scripts/tests/test_test_debug_campaign_workflow.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement campaign persistence and lifecycle
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9]
+    expected_files:
+      - backend/core/directus/schemas/test_debug_campaigns.yml
+      - backend/core/directus/schemas/test_debug_groups.yml
+      - backend/core/directus/schemas/test_claims.yml
+      - scripts/tests.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py
+    verification_ids: [T-CAMPAIGN-SCHEMA, T-CAMPAIGN-CONTROL]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/core/directus/schemas/test_debug_campaigns.yml
+        - backend/core/directus/schemas/test_debug_groups.yml
+        - backend/core/directus/schemas/test_claims.yml
+        - scripts/tests.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement exact group selection and evidence binding
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-5, S-6]
+      acceptance_criteria: [AC-3, AC-5, AC-6]
+    expected_files:
+      - scripts/tests.py
+      - scripts/run_tests.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k selection
+    verification_ids: [T-CAMPAIGN-SELECTION, T-CAMPAIGN-CONTROL]
+    dependencies: [TASK-2]
+    ownership:
+      files:
+        - scripts/tests.py
+        - scripts/run_tests.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Unify test-debugging skills and auto-fix
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-4, S-7, S-8]
+      acceptance_criteria: [AC-2, AC-4, AC-7, AC-8, AC-10]
+    expected_files:
+      - .claude/skills/fix-tests/SKILL.md
+      - .claude/skills/fix-next-test/SKILL.md
+      - .agents/skills/fix-tests/SKILL.md
+      - .agents/skills/fix-next-test/SKILL.md
+      - .claude/agents/test-failure-triager.md
+      - .opencode/agents/test-failure-triager.md
+      - scripts/auto_fix_failed_tests.py
+    verification:
+      - python3 -m pytest scripts/tests/test_test_debug_campaign_workflow.py
+      - python3 scripts/sync_agent_parity.py --check
+    verification_ids: [T-WORKFLOW-AUDIT]
+    dependencies: [TASK-3]
+    ownership:
+      files:
+        - .claude/skills/fix-tests/SKILL.md
+        - .claude/skills/fix-next-test/SKILL.md
+        - .agents/skills/fix-tests/SKILL.md
+        - .agents/skills/fix-next-test/SKILL.md
+        - .claude/agents/test-failure-triager.md
+        - .opencode/agents/test-failure-triager.md
+        - scripts/auto_fix_failed_tests.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Verify and document the completed architecture
+    status: done
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    expected_files:
+      - docs/architecture/test-orchestration.md
+      - docs/contributing/guides/testing.md
+      - .claude/rules/testing.md
+      - docs/plans/test-debug-campaigns/plan.yml
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control.py scripts/tests/test_tests_control_directus_schema.py scripts/tests/test_tests_control_campaigns.py scripts/tests/test_test_debug_campaign_workflow.py
+      - python3 scripts/plan_verify.py docs/plans/test-debug-campaigns/plan.yml
+    verification_ids: [T-CAMPAIGN-SCHEMA, T-CAMPAIGN-CONTROL, T-CAMPAIGN-SELECTION, T-WORKFLOW-AUDIT, V-SPEC-VALIDATE]
+    dependencies: [TASK-4]
+    ownership:
+      files:
+        - docs/architecture/test-orchestration.md
+        - docs/contributing/guides/testing.md
+        - .claude/rules/testing.md
+        - docs/plans/test-debug-campaigns/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Add red worker lifecycle regression tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-10, S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - scripts/tests/test_tests_control_campaigns.py
+      - scripts/tests/test_spawn_chat_opencode.py
+      - scripts/tests/test_opencode_hooks_recovery.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+      - python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+      - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - scripts/tests/test_tests_control_campaigns.py
+        - scripts/tests/test_spawn_chat_opencode.py
+        - scripts/tests/test_opencode_hooks_recovery.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-7
+    title: Implement worker intent, boundary, finish, and dispatch dry-run commands
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-9, S-10, S-11, S-12, S-13]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15]
+    expected_files:
+      - scripts/tests.py
+    verification:
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py -k "worker_intent or boundary or finish or dispatch" -q
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE]
+    dependencies: [TASK-6]
+    ownership:
+      files:
+        - scripts/tests.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-8
+    title: Implement no-deploy worker spawn and chat-read recovery hook
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-13]
+      acceptance_criteria: [AC-15]
+    expected_files:
+      - scripts/sessions.py
+      - .opencode/plugins/openmates-hooks.js
+    verification:
+      - python3 -m pytest scripts/tests/test_spawn_chat_opencode.py -k no_deploy -q
+      - python3 -m pytest scripts/tests/test_opencode_hooks_recovery.py -q
+    verification_ids: [T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY]
+    dependencies: [TASK-6]
+    ownership:
+      files:
+        - scripts/sessions.py
+        - .opencode/plugins/openmates-hooks.js
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-9
+    title: Verify resumed parallel-worker architecture
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-9, S-10, S-11, S-12, S-13, S-14]
+      acceptance_criteria: [AC-11, AC-12, AC-13, AC-14, AC-15, AC-16]
+    expected_files:
+      - docs/plans/test-debug-campaigns/plan.yml
+      - scripts/tests.py
+      - scripts/sessions.py
+      - .opencode/plugins/openmates-hooks.js
+    verification:
+      - python3 scripts/plan_validate.py docs/plans/test-debug-campaigns/plan.yml
+      - python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_spawn_chat_opencode.py scripts/tests/test_opencode_hooks_recovery.py -q
+      - python3 scripts/plan_verify.py docs/plans/test-debug-campaigns/plan.yml
+    verification_ids: [T-PARALLEL-WORKER-LIFECYCLE, T-SPAWN-NO-DEPLOY, T-HOOK-READONLY-RECOVERY, V-SPEC-VALIDATE]
+    dependencies: [TASK-7, TASK-8]
+    ownership:
+      files:
+        - docs/plans/test-debug-campaigns/plan.yml
+        - scripts/tests.py
+        - scripts/sessions.py
+        - .opencode/plugins/openmates-hooks.js
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+risks:
+  - risk: Campaign groups become stale when triage signatures change between runs.
+    mitigation: Persist immutable canonical member keys and source result references; treat later signatures as evidence or child groups rather than identity replacements.
+  - risk: Automatic child-group creation absorbs unrelated failures.
+    mitigation: Only add failures newly observed in a campaign/group-bound run and persist the discovery run plus parent reason.
+  - risk: Large JSON attempt histories become hard to query.
+    mitigation: Keep concise redacted records in the first version and introduce normalized attempt records only if observed size or query needs justify them.
+  - risk: Campaign completion is falsely inferred from current state changed by unrelated runs.
+    mitigation: Require passing result evidence after group selection and bind evidence to explicit run/result identifiers.
+  - risk: Skill text diverges across Claude, Codex, and OpenCode mirrors.
+    mitigation: Update canonical Claude sources, run agent parity sync, and enforce a deterministic workflow audit.
+  - risk: Worker chats receive generic execute-mode instructions to deploy independently.
+    mitigation: Add a no-deploy spawn mode used only by coordinator-owned worker workflows and cover it with deterministic tests.
+  - risk: A stale worker edits after the coordinator has moved the campaign to a newer base commit.
+    mitigation: Persist base commit in worker intent and finish checkpoints; reject stale approval or finish attempts.
+
+open_questions: []

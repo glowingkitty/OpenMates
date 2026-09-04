@@ -141,6 +141,7 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `plans` | `om.plans.createLearningTasks()` | `om.plans.create_learning_tasks()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.createReferencePattern()` | `om.plans.create_reference_pattern()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.createVerification()` | `om.plans.create_verification()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
+| `plans` | `om.plans.delete()` | `om.plans.delete()` | direct | direct |
 | `plans` | `om.plans.deleteAssumption()` | `om.plans.delete_assumption()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.deleteCriterion()` | `om.plans.delete_criterion()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
 | `plans` | `om.plans.deleteLearning()` | `om.plans.delete_learning()` | namespace smoke: sdk-plans.test.ts | namespace smoke: test_plans.py |
@@ -182,19 +183,22 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `settings` | `om.settings.setDarkMode()` | `om.settings.set_dark_mode()` | direct | direct |
 | `settings` | `om.settings.setFont()` | `om.settings.set_font()` | namespace smoke: sdk.test.ts | namespace smoke: test_sdk.py |
 | `settings` | `om.settings.setLanguage()` | `om.settings.set_language()` | namespace smoke: sdk.test.ts | namespace smoke: test_sdk.py |
-| `settings` | `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | namespace smoke: sdk.test.ts | namespace smoke: test_sdk.py |
+| `settings` | `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | direct | direct |
 | `settings` | `om.settings.shareDebugLogs()` | `om.settings.share_debug_logs()` | direct | direct |
+| `tasks` | `om.tasks.addActivityComment()` | `om.tasks.add_activity_comment()` | direct | direct |
 | `tasks` | `om.tasks.addToProject()` | `om.tasks.add_to_project()` | direct | direct |
 | `tasks` | `om.tasks.ask()` | `om.tasks.ask()` | direct | direct |
 | `tasks` | `om.tasks.block()` | `om.tasks.block()` | direct | direct |
 | `tasks` | `om.tasks.complete()` | `om.tasks.complete()` | direct | direct |
 | `tasks` | `om.tasks.create()` | `om.tasks.create()` | direct | direct |
 | `tasks` | `om.tasks.delete()` | `om.tasks.delete()` | direct | direct |
+| `tasks` | `om.tasks.deleteActivityComment()` | `om.tasks.delete_activity_comment()` | direct | direct |
 | `tasks` | `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | namespace smoke: sdk-tasks.test.ts | direct |
 | `tasks` | `om.tasks.done()` | `om.tasks.done()` | direct | direct |
 | `tasks` | `om.tasks.edit()` | `om.tasks.edit()` | direct | direct |
 | `tasks` | `om.tasks.history()` | `om.tasks.history()` | direct | direct |
 | `tasks` | `om.tasks.list()` | `om.tasks.list()` | direct | direct |
+| `tasks` | `om.tasks.listActivity()` | `om.tasks.list_activity()` | direct | direct |
 | `tasks` | `om.tasks.move()` | `om.tasks.move()` | direct | direct |
 | `tasks` | `om.tasks.removeFromProject()` | `om.tasks.remove_from_project()` | direct | direct |
 | `tasks` | `om.tasks.reorder()` | `om.tasks.reorder()` | direct | direct |
@@ -227,6 +231,8 @@ Run `python3 scripts/audit_sdk_test_coverage.py` to verify this file is current 
 | `teams` | `om.teams.update()` | `om.teams.update()` | direct | direct |
 | `teams` | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | direct | direct |
 | `teams` | `om.teams.usage()` | `om.teams.usage()` | direct | direct |
+| `wikipedia` | `om.wikipedia.search()` | `om.wikipedia.search()` | direct | direct |
+| `wikipedia` | `om.wikipedia.summary()` | `om.wikipedia.summary()` | direct | direct |
 | `workflows` | `om.workflows.addToProject()` | `om.workflows.add_to_project()` | direct | direct |
 | `workflows` | `om.workflows.ask()` | `om.workflows.ask()` | direct | direct |
 | `workflows` | `om.workflows.cancelRun()` | `om.workflows.cancel_run()` | direct | direct |

@@ -29,6 +29,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 test.describe('CLI Workflows rain YAML lifecycle', () => {
 	test.setTimeout(360_000);
 
+	// contract-test: direct surface=cli assertions=workflows-ui.identity.automatic-category-icon,workflows.surface.semantic-parity,cli.output.actionable-readable,cli.surface.semantic-parity
 	test('validates, saves, enables, runs, inspects, disables, and deletes a real rain workflow', async ({ page }: { page: any }) => {
 		skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
@@ -75,7 +76,16 @@ steps:
 			const created = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'create', '--file', incompleteYaml], 'create incomplete');
 			workflowId = created.workflow.id;
 			expect(created.workflow.enabled).toBe(false);
+			expect(created.workflow.category).toBe('science');
+			expect(created.workflow.icon).toBe('cloud-rain');
 			expect(created.validation.enable_ready).toBe(false);
+			const identityList = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'list'], 'workflow identity list');
+			const listedIdentity = identityList.find((workflow: any) => workflow.id === workflowId);
+			expect(listedIdentity?.category).toBe('science');
+			expect(listedIdentity?.icon).toBe('cloud-rain');
+			const readableList = await runWorkflowCli(apiUrl, homeDir, ['workflows', 'list'], 30_000);
+			expect(readableList.code).toBe(0);
+			expect(readableList.stdout).toContain('science · icon: cloud-rain');
 
 			const disabledRun = await runWorkflowCli(apiUrl, homeDir, ['workflows', 'run', workflowId, '--idempotency-key', `${workflowId}-disabled`, '--json'], 30_000);
 			expect(disabledRun.code).not.toBe(0);
@@ -116,6 +126,13 @@ steps:
 			const shown = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'show', workflowId], 'show workflow');
 			expect(shown.id).toBe(workflowId);
 			expect(shown.enabled).toBe(true);
+			expect(shown.category).toBe('science');
+			expect(shown.icon).toBe('cloud-rain');
+			const readableDetail = await runWorkflowCli(apiUrl, homeDir, ['workflows', 'show', workflowId], 30_000);
+			expect(readableDetail.code).toBe(0);
+			const readableDetailText = readableDetail.stdout.replaceAll('\u001b[0m', '');
+			expect(readableDetailText).toMatch(/Category\s+science/);
+			expect(readableDetailText).toMatch(/Icon\s+cloud-rain/);
 
 			const acceptedRun = await runWorkflowCliJson(apiUrl, homeDir, ['workflows', 'run', workflowId, '--idempotency-key', `${workflowId}-manual`], 'run workflow');
 			expect(acceptedRun.status).toMatch(/queued|running|completed/);

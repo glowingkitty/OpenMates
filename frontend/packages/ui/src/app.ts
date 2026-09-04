@@ -49,6 +49,11 @@ export async function initializeApp(
 
     // Initialize databases
     await chatDB.init();
+    const removedAiMemoryCount =
+      await chatDB.deleteAppSettingsMemoriesEntriesByApp("ai");
+    if (removedAiMemoryCount > 0) {
+      console.info(`[App] Removed ${removedAiMemoryCount} obsolete AI-memory entries`);
+    }
     await userDB.init();
     await installE2ETestHooks();
 

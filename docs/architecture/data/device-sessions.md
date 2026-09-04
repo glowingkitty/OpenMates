@@ -2,6 +2,9 @@
 status: active
 last_verified: 2026-03-24
 key_files:
+- backend/core/api/app/routes/auth_routes/auth_session.py
+- backend/core/api/app/routes/auth_routes/auth_sessions.py
+- backend/core/api/app/utils/device_fingerprint.py
 - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
 - frontend/packages/ui/src/stores/authSessionActions.ts
 claims:
@@ -63,6 +66,31 @@ Users access OpenMates from personal devices and browser sessions. Session lifet
 - **Refresh:** Automatic background refresh.
 - **Revocation:** On user logout or security event.
 
+Each refresh-token chain is one logical session. Its server-only security
+metadata—including the last validated country—is stored with that token's
+entry in `user_tokens:{user_id}`. Token rotation moves the complete metadata
+record to the new token hash. A browser session, CLI session, and native app
+session therefore keep independent risk baselines even when they belong to the
+same account.
+
+The display metadata shown in Active Sessions is client-encrypted. Replacing
+plaintext display fields must preserve server-only security metadata. Targeted
+logout and revocation remove only the selected token entry; logout-all remains
+the explicit account-wide operation.
+
+### Device, Session, and Connection Identity
+
+- A device hash uses stable client characteristics and the user ID; country is
+  deliberately excluded.
+- Country is a separate, session-local risk signal. A real country change may
+  require 2FA or passkey verification for that session only.
+- A connection hash combines the stable device hash with a tab/session ID for
+  targeted WebSocket delivery.
+- Existing location-coupled device hashes are accepted during migration and
+  replaced by the stable hash after successful validation.
+- A legacy token with no country baseline initializes its own baseline after a
+  successful session check; it never copies one from shared account state.
+
 ## Threat Mitigations
 
 | Threat               | Mitigation                                          |
@@ -70,7 +98,7 @@ Users access OpenMates from personal devices and browser sessions. Session lifet
 | Forget to logout     | Session expiry, explicit logout, and short-lived key storage when Stay Logged In is off |
 | Device theft         | Session auto-expires and master key can remain memory-only |
 | Network eavesdropping| 6-digit codes (1M combinations), 2-min TTL, HTTPS   |
-| Session hijacking    | HTTP-only cookies, auto-expiry, encrypted clearing   |
+| Session hijacking    | HTTP-only cookies, auto-expiry, session-local location re-authentication, targeted revocation |
 
 ## Related Docs
 

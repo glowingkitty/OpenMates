@@ -13,11 +13,14 @@
     import {
         searchMentions,
         searchProjectMentions,
+        parseWikipediaMentionQuery,
+        searchWikipediaMentions,
         getSettingsMemoryEntryResults,
         type AnyMentionResult,
         type MentionType,
         type SettingsMemoryMentionResult,
         type SettingsMemoryEntryMentionResult,
+        type WikipediaMentionResult,
     } from './services/mentionSearchService';
     import type { SkillMentionResult, FocusModeMentionResult, ModelAliasMentionResult } from './services/mentionSearchService';
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
@@ -52,6 +55,10 @@
     let dropdownElement = $state<HTMLElement | null>(null);
     let selectedIndex = $state(0);
     let results = $state<AnyMentionResult[]>([]);
+    let wikipediaLoading = $state(false);
+    let wikipediaError = $state(false);
+    let wikipediaSearched = $state(false);
+    let wikipediaDisambiguation = $state(false);
     
     // --- Expandable Category State ---
     // Tracks which settings/memory categories are expanded (by result.id)
@@ -61,6 +68,7 @@
 
     // --- Computed ---
     let hasResults = $derived(results.length > 0);
+    let wikipediaMode = $derived(parseWikipediaMentionQuery(query) !== null);
 
     // --- Effects ---
 
@@ -87,6 +95,37 @@
         }
 
         const currentQuery = query;
+        const wikipediaQuery = parseWikipediaMentionQuery(currentQuery);
+        if (wikipediaQuery) {
+            const controller = new AbortController();
+            results = [];
+            selectedIndex = 0;
+            wikipediaError = false;
+            wikipediaDisambiguation = false;
+            wikipediaSearched = wikipediaQuery.query.length > 0;
+            wikipediaLoading = wikipediaSearched;
+            if (wikipediaSearched) {
+                void searchWikipediaMentions(currentQuery, controller.signal)
+                    .then((wikipediaResults) => {
+                        if (sequence !== searchSequence) return;
+                        results = wikipediaResults;
+                    })
+                    .catch((error: unknown) => {
+                        if (sequence !== searchSequence || (error instanceof DOMException && error.name === 'AbortError')) return;
+                        console.error('[MentionDropdown] Wikipedia search failed:', error);
+                        wikipediaError = true;
+                    })
+                    .finally(() => {
+                        if (sequence === searchSequence) wikipediaLoading = false;
+                    });
+            }
+            return () => controller.abort();
+        }
+
+        wikipediaLoading = false;
+        wikipediaError = false;
+        wikipediaSearched = false;
+        wikipediaDisambiguation = false;
         const baseResults = searchMentions(currentQuery);
         results = baseResults;
         selectedIndex = 0; // Reset selection when results change
@@ -171,6 +210,10 @@
     // --- Functions ---
 
     function selectResult(result: AnyMentionResult) {
+        if (result.type === 'wikipedia' && result.disambiguation) {
+            wikipediaDisambiguation = true;
+            return;
+        }
         onselect?.(result);
     }
 
@@ -279,6 +322,9 @@
      * Some results have translation keys, others have direct text.
      */
     function getDisplayName(result: AnyMentionResult): string {
+        if (result.type === 'wikipedia' || result.type === 'wikipedia_source') {
+            return result.displayName;
+        }
         // For model aliases, resolve the translation key (e.g., "Best Model", "Fastest Model")
         if (result.type === 'model_alias') {
             const translated = $text(result.displayName);
@@ -308,6 +354,9 @@
      * Get translated subtitle for a result.
      */
     function getSubtitle(result: AnyMentionResult): string {
+        if (result.type === 'wikipedia' || result.type === 'wikipedia_source') {
+            return result.subtitle;
+        }
         // For model aliases, show the resolved model name (e.g., "Claude Opus 4.6")
         if (result.type === 'model_alias') {
             const translated = $text(result.subtitle);
@@ -400,7 +449,7 @@
     }
 </script>
 
-{#if show && hasResults}
+{#if show && (hasResults || wikipediaMode)}
     <div
         bind:this={dropdownElement}
         class="mention-dropdown"
@@ -415,8 +464,10 @@
     >
         <!-- Header text -->
         <div class="mention-dropdown-header">
-            <span class="header-text">
-                {$text('enter_message.mention_dropdown.header')}
+            <span class="header-text" data-testid="mention-dropdown-header">
+                {$text(wikipediaMode
+                    ? 'enter_message.mention_dropdown.wikipedia_header'
+                    : 'enter_message.mention_dropdown.header')}
             </span>
             <button 
                 class="settings-button" 
@@ -432,8 +483,9 @@
             {#each results as result, index (result.id)}
                 <div
                     class="mention-result"
-                    data-testid="mention-result"
+                    data-testid={result.type === 'wikipedia_source' ? 'wikipedia-source-result' : result.type === 'wikipedia' ? 'wikipedia-result' : 'mention-result'}
                     data-mention-type={result.type}
+                    data-disambiguation={result.type === 'wikipedia' ? String(result.disambiguation) : undefined}
                     class:selected={getFlatIndex(index) === selectedIndex}
                     role="option"
                     tabindex="-1"
@@ -444,7 +496,21 @@
                 >
                     <!-- Icon -->
                     <div class="result-icon">
-                        {#if result.type === 'model_alias'}
+                        {#if result.type === 'wikipedia'}
+                            {@const wikipediaResult = result as WikipediaMentionResult}
+                            {#if wikipediaResult.thumbnailUrl}
+                                <img
+                                    src={wikipediaResult.thumbnailUrl}
+                                    alt=""
+                                    class="wikipedia-thumbnail"
+                                    data-testid="wikipedia-thumbnail"
+                                />
+                            {:else}
+                                <div class="wikipedia-icon" aria-hidden="true">W</div>
+                            {/if}
+                        {:else if result.type === 'wikipedia_source'}
+                            <div class="wikipedia-icon" aria-hidden="true">W</div>
+                        {:else if result.type === 'model_alias'}
                             <!-- Model alias icon (crown for best, lightning for fast) -->
                             {@const aliasResult = result as ModelAliasMentionResult}
                             <div class="alias-icon alias-icon-{aliasResult.aliasIcon}">
@@ -484,7 +550,7 @@
                     <!-- Text content -->
                     <div class="result-content">
                         <span class="result-name" data-testid="mention-result-name">{getDisplayName(result)}</span>
-                        <span class="result-subtitle">{getSubtitle(result)}</span>
+                        <span class="result-subtitle" data-testid={result.type === 'wikipedia' ? 'wikipedia-description' : undefined}>{getSubtitle(result)}</span>
                     </div>
 
                     <!-- Expand button for settings/memory categories with entries -->
@@ -506,14 +572,16 @@
                     {/if}
 
                     <!-- Settings icon for each row -->
-                    <button 
-                        class="row-settings-button" 
-                        tabindex="-1"
-                        aria-label={$text('common.settings')}
-                        onclick={(e) => handleSettingsNavigation(result, e)}
-                    >
-                        <span class="clickable-icon icon_settings"></span>
-                    </button>
+                    {#if result.type !== 'wikipedia' && result.type !== 'wikipedia_source'}
+                        <button 
+                            class="row-settings-button" 
+                            tabindex="-1"
+                            aria-label={$text('common.settings')}
+                            onclick={(e) => handleSettingsNavigation(result, e)}
+                        >
+                            <span class="clickable-icon icon_settings"></span>
+                        </button>
+                    {/if}
                 </div>
 
                 <!-- Expanded entries for settings/memory categories -->
@@ -570,6 +638,23 @@
                     {/if}
                 {/if}
             {/each}
+            {#if wikipediaLoading}
+                <div class="wikipedia-status" data-testid="wikipedia-search-loading">
+                    {$text('common.loading')}
+                </div>
+            {:else if wikipediaError}
+                <div class="wikipedia-status wikipedia-status-error" data-testid="wikipedia-search-error">
+                    {$text('common.try_again')}
+                </div>
+            {:else if wikipediaDisambiguation}
+                <div class="wikipedia-status" data-testid="wikipedia-disambiguation-message">
+                    {$text('enter_message.mention_dropdown.wikipedia_disambiguation')}
+                </div>
+            {:else if wikipediaSearched && !hasResults}
+                <div class="wikipedia-status" data-testid="wikipedia-no-results">
+                    {$text('documentation.search.no_results')}
+                </div>
+            {/if}
         </div>
 
         <!-- Footer hint -->
@@ -587,7 +672,7 @@
         z-index: var(--z-index-modal);
         background: var(--color-grey-blue);
         border-radius: var(--radius-7);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        box-shadow: var(--shadow-lg);
         min-width: min(380px, calc(100vw - 10px));
         max-width: calc(100vw - 10px);
         max-height: 420px;
@@ -636,7 +721,7 @@
     }
 
     .settings-button:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         color: var(--color-grey-80);
     }
 
@@ -659,7 +744,7 @@
 
     .mention-result:hover,
     .mention-result.selected {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
 
     /* Indented entry items within expanded categories */
@@ -710,6 +795,40 @@
         object-fit: contain;
         background: var(--color-grey-10);
         padding: var(--spacing-2);
+    }
+
+    .wikipedia-thumbnail,
+    .wikipedia-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-4);
+    }
+
+    .wikipedia-thumbnail {
+        object-fit: cover;
+        background: var(--color-grey-10);
+    }
+
+    .wikipedia-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-grey-20);
+        color: var(--color-font-primary);
+        font-family: Georgia, serif;
+        font-size: var(--font-size-h3);
+        font-weight: 700;
+    }
+
+    .wikipedia-status {
+        padding: var(--spacing-8);
+        color: var(--color-font-secondary);
+        font-size: var(--font-size-p);
+        text-align: center;
+    }
+
+    .wikipedia-status-error {
+        color: var(--color-error);
     }
 
     .mate-profile.mate-profile-small {
@@ -805,7 +924,7 @@
         align-items: center;
         gap: var(--spacing-2);
         padding: var(--spacing-2) var(--spacing-4);
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
         border: none;
         border-radius: var(--radius-2);
         cursor: pointer;
@@ -852,7 +971,7 @@
     }
 
     .show-more-button:hover {
-        background: var(--color-grey-15);
+        background: var(--color-grey-20);
     }
 
     .row-settings-button {
@@ -888,13 +1007,13 @@
         font-size: var(--font-size-p);
         color: var(--color-font-secondary);
         text-align: center;
-        border-top: 1px solid var(--color-grey-15);
+        border-top: 1px solid var(--color-grey-20);
     }
 
     /* Dark mode support */
     :global(.dark) .mention-dropdown {
         background: var(--color-grey-10);
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        box-shadow: var(--shadow-lg);
     }
 
     :global(.dark) .mention-dropdown-header {

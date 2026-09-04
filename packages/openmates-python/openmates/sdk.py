@@ -22,7 +22,7 @@ import re
 import secrets
 import string
 import time
-from typing import Any
+from typing import Any, NotRequired, TypedDict
 import unicodedata
 from urllib.parse import quote, urlencode, urlparse, urlunparse
 import uuid
@@ -35,6 +35,7 @@ import requests
 
 from .generated.app_skills import GeneratedAppSkills
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
+from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
 
 DEFAULT_API_URL = "https://api.openmates.org"
@@ -43,7 +44,20 @@ DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
 SKILL_TASK_POLL_INTERVAL_SECONDS = 2.0
 SKILL_TASK_POLL_TIMEOUT_SECONDS = 1200.0
+
+
+class AiModelDefaults(TypedDict):
+    """Three-tier default model settings; omitted fields remain unchanged."""
+
+    default_ai_model_simple: NotRequired[str | None]
+    default_ai_model_complex: NotRequired[str | None]
+    default_ai_model_most_demanding: NotRequired[str | None]
+
+
 SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500
+CODE_RUN_POLL_INTERVAL_SECONDS = 1.0
+CODE_RUN_POLL_TIMEOUT_SECONDS = 1200.0
+CODE_RUN_TERMINAL_STATUSES = {"finished", "failed", "timeout", "cancelled"}
 PROMPT_INJECTION_DISABLED = "disabled"
 SDK_KDF_ITERATIONS = 100_000
 AES_GCM_IV_LENGTH = 12
@@ -56,6 +70,18 @@ API_KEY_RANDOM_LENGTH = 32
 API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
+EXTERNAL_CHAT_INDEX_INFO = b"openmates-task-external-chat-index-v1"
+EXTERNAL_CHAT_PROVIDER = "opencode"
+BLOCKED_REASON_CODES = (
+    "needs_user_input",
+    "waiting_for_approval",
+    "missing_credentials",
+    "ambiguous_requirement",
+    "external_dependency",
+    "environment_unavailable",
+    "verification_failed",
+    "other",
+)
 SLUG_LOOKUP_HASH_INFO = b"openmates-object-slug-index-v1"
 MAX_OBJECT_SLUG_LENGTH = 80
 DESIGN_ICON_PATH_PATTERN = re.compile(r"^/v1/apps/design/icons/iconify/([a-z0-9][a-z0-9._-]*)/([a-z0-9][a-z0-9._-]*)\.svg$", re.IGNORECASE)
@@ -130,6 +156,23 @@ class ChatResponse:
     plan: dict[str, Any] | None = None
 
 
+def _app_skill_chat_content(value: Any) -> str:
+    if not isinstance(value, dict):
+        return ""
+    for key in ("content", "response", "answer"):
+        if isinstance(value.get(key), str):
+            return value[key]
+    choices = value.get("choices")
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        first = choices[0]
+        message = first.get("message")
+        if isinstance(message, dict) and isinstance(message.get("content"), str):
+            return message["content"]
+        if isinstance(first.get("text"), str):
+            return first["text"]
+    return _app_skill_chat_content(value.get("data"))
+
+
 def _normalize_optional_goal(value: str | None) -> str | None:
     if value is None:
         return None
@@ -161,6 +204,49 @@ def _safe_response_json(response: requests.Response) -> Any:
         return response.json()
     except ValueError:
         return {}
+
+
+class _PlanRevisionsFacade:
+    def __init__(self, plans: Any):
+        self._plans = plans
+
+    def create(self, plan_id: str) -> dict[str, Any]:
+        plan = self._plans.show(plan_id)
+        canonical = json.dumps(plan, sort_keys=True, separators=(",", ":"))
+        raw = self._plans._get_raw_plan(plan_id)
+        master_key = self._plans._client._get_master_key()
+        fingerprint = hmac.new(master_key, canonical.encode("utf-8"), hashlib.sha256).hexdigest()
+        encrypted_snapshot = _encrypt_aes_gcm_text(canonical, _plan_key_from_record(raw, master_key))
+        return self._plans._client._post(
+            f"/v1/user-plans/{_quote(str(raw['plan_id']))}/revisions",
+            {"fingerprint": fingerprint, "encrypted_snapshot": encrypted_snapshot, "created_at": int(time.time())},
+        )
+
+    def list(self, plan_id: str) -> list[dict[str, Any]]:
+        raw = self._plans._get_raw_plan(plan_id)
+        return self._plans._client._get(f"/v1/user-plans/{_quote(str(raw['plan_id']))}/revisions").get("revisions", [])
+
+
+class _PlanReviewFacade:
+    def __init__(self, plans: Any):
+        self._plans = plans
+
+    def submit(self, plan_id: str) -> dict[str, Any]:
+        result = self._plans.revisions.create(plan_id)
+        revision = result.get("revision") if isinstance(result.get("revision"), dict) else None
+        if not revision or not revision.get("revision_id"):
+            raise OpenMatesApiError(500, {"detail": "Plan revision response missing revision"})
+        raw = self._plans._get_raw_plan(plan_id)
+        return {"revision": revision, "review_url": f"{self._plans._client._web_origin()}/plans/{raw['plan_id']}/review?revision={revision['revision_id']}"}
+
+
+class _PlanApprovalFacade:
+    def __init__(self, plans: Any):
+        self._plans = plans
+
+    def status(self, plan_id: str) -> dict[str, Any]:
+        raw = self._plans._get_raw_plan(plan_id)
+        return self._plans._client._get(f"/v1/user-plans/{_quote(str(raw['plan_id']))}/approval-status").get("approval", {})
 
 
 class OpenMates:
@@ -199,6 +285,7 @@ class OpenMates:
         self.tasks = OpenMatesTasks(self)
         self.teams = OpenMatesTeams(self)
         self.workflows = OpenMatesWorkflows(self)
+        self.wikipedia = OpenMatesWikipedia(self)
 
     def _run_app_skill(
         self,
@@ -212,6 +299,8 @@ class OpenMates:
             f"/v1/apps/{app_id}/skills/{skill_id}",
             _with_app_skill_prompt_injection_option(input_data, prompt_injection_protection),
         )
+        if app_id == "code" and skill_id == "run":
+            return self._resolve_code_run_skill_response(response)
         return self._resolve_async_skill_response(response)
 
     def run_connected_account_skill(
@@ -316,6 +405,66 @@ class OpenMates:
             return self._wrap_resolved_skill_result(response_data, self._merge_task_results([task.get("result") for task in tasks]))
         return response_data
 
+    def _resolve_code_run_skill_response(self, response_data: dict[str, Any]) -> dict[str, Any]:
+        data = response_data.get("data") if isinstance(response_data.get("data"), dict) else response_data
+        results = data.get("results") if isinstance(data, dict) else None
+        if not isinstance(results, list):
+            return response_data
+        resolved_results = []
+        for result in results:
+            if not isinstance(result, dict):
+                resolved_results.append(result)
+                continue
+            status_path = result.get("status_path")
+            if not isinstance(status_path, str):
+                resolved_results.append(result)
+                continue
+            resolved_results.append({**result, "final": self._poll_code_run_until_complete(status_path)})
+        resolved_data = {**data, "results": resolved_results}
+        if "success" in response_data:
+            return {**response_data, "data": resolved_data}
+        return resolved_data
+
+    def _poll_code_run_until_complete(self, status_path: str) -> dict[str, Any]:
+        path = self._normalize_code_run_status_path(status_path)
+        started = time.monotonic()
+        last_transient_error: str | None = None
+        while time.monotonic() - started < CODE_RUN_POLL_TIMEOUT_SECONDS:
+            try:
+                response = requests.get(
+                    f"{self._api_url}{path}",
+                    headers=self._headers(has_body=False),
+                    timeout=DEFAULT_TIMEOUT_SECONDS,
+                )
+            except requests.RequestException as exc:
+                last_transient_error = str(exc)
+                time.sleep(CODE_RUN_POLL_INTERVAL_SECONDS)
+                continue
+
+            if not response.ok:
+                if response.status_code >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS:
+                    last_transient_error = f"HTTP {response.status_code}"
+                    time.sleep(CODE_RUN_POLL_INTERVAL_SECONDS)
+                    continue
+                raise OpenMatesApiError(response.status_code, _safe_response_json(response))
+
+            last_transient_error = None
+            status = self._parse_response(response)
+            if status.get("status") in CODE_RUN_TERMINAL_STATUSES:
+                return status
+            time.sleep(CODE_RUN_POLL_INTERVAL_SECONDS)
+
+        if last_transient_error:
+            raise RuntimeError(
+                f"Code Run did not complete within {CODE_RUN_POLL_TIMEOUT_SECONDS:.0f}s; last polling error: {last_transient_error}"
+            )
+        raise RuntimeError(f"Code Run did not complete within {CODE_RUN_POLL_TIMEOUT_SECONDS:.0f}s")
+
+    def _normalize_code_run_status_path(self, status_path: str) -> str:
+        if not status_path.startswith("/v1/code/run/"):
+            raise OpenMatesConfigError("Code Run returned an invalid status path.")
+        return status_path
+
     def _poll_task_until_complete(self, task_id: str) -> dict[str, Any]:
         started = time.monotonic()
         last_transient_error: str | None = None
@@ -384,9 +533,18 @@ class OpenMates:
         }
 
     def _headers(self, *, has_body: bool = True) -> dict[str, str]:
+        parsed_api_url = urlparse(self._api_url)
+        origin = os.getenv("OPENMATES_APP_URL", "").rstrip("/")
+        if not origin and parsed_api_url.hostname == "api.dev.openmates.org":
+            origin = "https://app.dev.openmates.org"
+        elif not origin and parsed_api_url.hostname == "api.openmates.org":
+            origin = "https://openmates.org"
+        elif not origin:
+            origin = f"{parsed_api_url.scheme}://{parsed_api_url.netloc}"
         headers = {
             "Accept": "application/json",
             "Authorization": f"Bearer {self._api_key}",
+            "Origin": origin,
             "X-OpenMates-SDK": "pip",
             "X-OpenMates-Device-Identity": self._device_id,
         }
@@ -1362,6 +1520,13 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
     task_key = os.urandom(32)
     now = int(time.time())
     assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
+    external_chat = _normalize_external_chat_context(
+        payload.get("external_chat", payload.get("externalChat")),
+        title=payload.get("external_chat_title", payload.get("externalChatTitle")),
+    )
+    primary_chat_id = payload.get("chat_id") or payload.get("primary_chat_id") or None
+    if primary_chat_id and external_chat:
+        raise OpenMatesConfigError("A task cannot use both native chat and external chat context")
     project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
     labels = _normalize_task_labels(payload.get("labels") if "labels" in payload else payload.get("tags"))
     status = str(payload.get("status") or "todo")
@@ -1385,7 +1550,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "status": status,
         "assignee_type": assignee_type,
         "assignee_hash": assignee_hash,
-        "primary_chat_id": payload.get("chat_id") or payload.get("primary_chat_id") or None,
+        "primary_chat_id": primary_chat_id,
         "linked_project_ids": project_ids,
         "plan_id": payload.get("plan_id") or payload.get("plan") or None,
         "due_at": payload.get("due_at"),
@@ -1394,6 +1559,13 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
     }
+    if external_chat:
+        task.update({
+            "external_chat_provider": external_chat["provider"],
+            "external_chat_lookup_hash": _external_chat_lookup_hash(master_key, external_chat),
+            "encrypted_external_chat_id": _encrypt_aes_gcm_text(external_chat["id"], task_key),
+            "encrypted_external_chat_title": _encrypt_aes_gcm_text(external_chat["title"], task_key),
+        })
     if assignee_type == "ai":
         task["plaintext_title"] = title
         task["plaintext_description"] = str(payload.get("description") or "")
@@ -1403,6 +1575,8 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
 def _canonicalize_task_payload(client: OpenMates, payload: dict[str, Any], *, team_id: str | None = None) -> dict[str, Any]:
     result = dict(payload)
     chat_value = result.get("chat_id") if "chat_id" in result else result.get("primary_chat_id")
+    if chat_value and result.get("external_chat", result.get("externalChat")) is not None:
+        raise OpenMatesConfigError("A task cannot use both native chat and external chat context")
     if isinstance(chat_value, str) and chat_value:
         resolved_chat_id = _resolve_chat_id(client, chat_value)
         if "chat_id" in result:
@@ -1442,8 +1616,31 @@ def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: d
         assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
         patch["assignee_type"] = assignee_type
         patch["assignee_hash"] = assignee_hash
-    if "chat_id" in payload or "primary_chat_id" in payload:
-        patch["primary_chat_id"] = payload.get("chat_id") if "chat_id" in payload else payload.get("primary_chat_id")
+    external_chat_supplied = "external_chat" in payload or "externalChat" in payload
+    external_chat = _normalize_external_chat_context(
+        payload.get("external_chat", payload.get("externalChat")),
+        title=payload.get("external_chat_title", payload.get("externalChatTitle")),
+    ) if external_chat_supplied else None
+    native_chat_supplied = "chat_id" in payload or "primary_chat_id" in payload
+    native_chat_id = payload.get("chat_id") if "chat_id" in payload else payload.get("primary_chat_id")
+    if native_chat_id and external_chat:
+        raise OpenMatesConfigError("A task cannot use both native chat and external chat context")
+    if native_chat_supplied:
+        patch.update({
+            "primary_chat_id": native_chat_id,
+            "external_chat_provider": None,
+            "external_chat_lookup_hash": None,
+            "encrypted_external_chat_id": None,
+            "encrypted_external_chat_title": None,
+        })
+    if external_chat:
+        patch.update({
+            "primary_chat_id": None,
+            "external_chat_provider": external_chat["provider"],
+            "external_chat_lookup_hash": _external_chat_lookup_hash(master_key, external_chat),
+            "encrypted_external_chat_id": _encrypt_aes_gcm_text(external_chat["id"], task_key),
+            "encrypted_external_chat_title": _encrypt_aes_gcm_text(external_chat["title"], task_key),
+        })
     if "project_ids" in payload or "linked_project_ids" in payload:
         project_ids = _string_list(payload.get("project_ids") or payload.get("linked_project_ids") or [])
         patch["linked_project_ids"] = project_ids
@@ -1482,6 +1679,11 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "assignee_type": record.get("assignee_type"),
         "assignee_hash": record.get("assignee_hash"),
         "primary_chat_id": record.get("primary_chat_id"),
+        "external_chat": {
+            "provider": record["external_chat_provider"],
+            "id": _decrypt_aes_gcm_text(record["encrypted_external_chat_id"], task_key) or "",
+            "title": _decrypt_aes_gcm_text(str(record.get("encrypted_external_chat_title") or ""), task_key) or "",
+        } if record.get("external_chat_provider") and isinstance(record.get("encrypted_external_chat_id"), str) else None,
         "linked_project_ids": linked_project_ids or _string_list(record.get("linked_project_ids") or []),
         "plan_id": record.get("plan_id"),
         "due_at": record.get("due_at"),
@@ -1490,6 +1692,7 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "position": int(record.get("position") or 0),
         "queue_state": record.get("queue_state") or "none",
         "blocked_reason_code": record.get("blocked_reason_code"),
+        "blocked_reason": _decrypt_aes_gcm_text(str(record.get("encrypted_blocked_reason") or ""), task_key) or "",
         "ai_execution_state": record.get("ai_execution_state"),
         "version": int(record.get("version") or 1),
         "encrypted": record,
@@ -1507,10 +1710,77 @@ def _task_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
     return task_key
 
 
+def _build_task_activity_comment_input(task: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
+    message = payload.get("message")
+    if not isinstance(message, str):
+        raise OpenMatesConfigError("Task Activity comment message is required")
+    task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
+    entry_key = os.urandom(32)
+    embed_refs = payload.get("embed_refs", payload.get("embedRefs", []))
+    if not isinstance(embed_refs, list) or not all(isinstance(embed_ref, str) for embed_ref in embed_refs):
+        raise OpenMatesConfigError("Task Activity embed_refs must be a list of strings")
+    result: dict[str, Any] = {
+        "entry_id": str(payload.get("entry_id") or payload.get("entryId") or uuid.uuid4()),
+        "encrypted_entry_key": _encrypt_aes_gcm_bytes(entry_key, task_key),
+        "encrypted_message": _encrypt_aes_gcm_text(message, entry_key),
+        "embed_refs": embed_refs,
+        "created_at": int(payload.get("created_at") or payload.get("createdAt") or time.time()),
+    }
+    embed_key_material = payload.get("embed_key_material", payload.get("embedKeyMaterial"))
+    if embed_key_material is not None:
+        if not isinstance(embed_key_material, str):
+            raise OpenMatesConfigError("Task Activity embed_key_material must be a string")
+        result["encrypted_embed_key_material"] = _encrypt_aes_gcm_text(embed_key_material, task_key)
+    return result
+
+
+def _decrypt_task_activity_entry(task: dict[str, Any], master_key: bytes, record: dict[str, Any]) -> dict[str, Any]:
+    entry = _project_task_activity_entry(record)
+    if record.get("kind") == "tombstone" or record.get("kind") != "comment":
+        return entry
+    encrypted_entry_key = record.get("encrypted_entry_key")
+    encrypted_message = record.get("encrypted_message")
+    if not isinstance(encrypted_entry_key, str) or not isinstance(encrypted_message, str):
+        raise OpenMatesConfigError(f"Task Activity entry {record.get('entry_id')} is missing encrypted content")
+    task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
+    entry_key = _decrypt_aes_gcm_bytes(encrypted_entry_key, task_key)
+    if entry_key is None:
+        raise OpenMatesConfigError(f"Failed to decrypt Task Activity entry key {record.get('entry_id')}")
+    message = _decrypt_aes_gcm_text(encrypted_message, entry_key)
+    if message is None:
+        raise OpenMatesConfigError(f"Failed to decrypt Task Activity entry {record.get('entry_id')}")
+    entry["message"] = message
+    if isinstance(record.get("encrypted_embed_key_material"), str):
+        embed_key_material = _decrypt_aes_gcm_text(record["encrypted_embed_key_material"], task_key)
+        if embed_key_material is None:
+            raise OpenMatesConfigError(f"Failed to decrypt Task Activity embed key material for {record.get('entry_id')}")
+        entry["embed_key_material"] = embed_key_material
+    return entry
+
+
+def _project_task_activity_entry(record: dict[str, Any]) -> dict[str, Any]:
+    allowed = (
+        "entry_id", "task_id", "kind", "actor_type", "actor_hash", "event_type",
+        "actor_display_name", "actor_profile_image_url", "source_surface", "created_at",
+        "deleted_at", "deleted_by_hash", "deleted_by_display_name",
+    )
+    entry = {key: record[key] for key in allowed if key in record}
+    entry["author_hash"] = record.get("author_hash") or record.get("actor_hash")
+    if record.get("kind") == "tombstone":
+        entry["embed_refs"] = []
+    elif isinstance(record.get("embed_refs"), list) and all(isinstance(embed_ref, str) for embed_ref in record["embed_refs"]):
+        entry["embed_refs"] = record["embed_refs"]
+    return entry
+
+
 def _plan_key_from_record(record: dict[str, Any], master_key: bytes) -> bytes:
-    encrypted_plan_key = record.get("encrypted_plan_key")
+    wrappers = record.get("key_wrappers") if isinstance(record.get("key_wrappers"), list) else []
+    encrypted_plan_key = next(
+        (wrapper.get("encrypted_plan_key") for wrapper in wrappers if isinstance(wrapper, dict) and wrapper.get("key_type") == "master" and isinstance(wrapper.get("encrypted_plan_key"), str)),
+        None,
+    )
     if not isinstance(encrypted_plan_key, str):
-        raise OpenMatesConfigError(f"Plan {record.get('plan_id')} is missing encrypted plan key")
+        raise OpenMatesConfigError(f"Plan {record.get('plan_id')} is missing a master plan key wrapper")
     plan_key = _decrypt_aes_gcm_bytes(encrypted_plan_key, master_key)
     if plan_key is None:
         raise OpenMatesConfigError(f"Failed to decrypt plan key for {record.get('plan_id')}")
@@ -1521,6 +1791,9 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     title = str(payload.get("title") or "").strip()
     if not title:
         raise OpenMatesConfigError("Plan title is required")
+    goal = payload.get("goal")
+    if not isinstance(goal, str) or not goal.strip():
+        raise OpenMatesConfigError("Plan goal is required")
     master_key = client._get_master_key()
     plan_key = os.urandom(32)
     now = int(time.time())
@@ -1536,16 +1809,13 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
     return {
         "plan_id": str(payload.get("plan_id") or uuid.uuid4()),
         "version": 1,
-        "encrypted_plan_key": _encrypt_aes_gcm_bytes(plan_key, master_key),
         "encrypted_slug": slug_metadata["encrypted_slug"],
         "slug_lookup_hash": slug_metadata["slug_lookup_hash"],
         "encrypted_title": _encrypt_aes_gcm_text(title, plan_key),
-        "encrypted_summary": _encrypt_aes_gcm_text(str(payload.get("summary") or ""), plan_key),
-        "encrypted_goal": _encrypt_aes_gcm_text(str(payload.get("goal") or ""), plan_key),
+        "encrypted_goal": _encrypt_aes_gcm_text(goal, plan_key),
         "encrypted_scope_in": _encrypt_aes_gcm_text(str(payload.get("scope_in") or payload.get("scopeIn") or ""), plan_key),
         "encrypted_scope_out": _encrypt_aes_gcm_text(str(payload.get("scope_out") or payload.get("scopeOut") or ""), plan_key),
-        "encrypted_user_flows": _encrypt_aes_gcm_text(str(payload.get("user_flows") or payload.get("userFlows") or ""), plan_key),
-        "encrypted_current_focus": _encrypt_aes_gcm_text(str(payload.get("current_focus") or payload.get("currentFocus") or ""), plan_key),
+        "encrypted_user_flows": _encrypt_aes_gcm_text(_serialize_plan_user_flows(payload.get("user_flows") if "user_flows" in payload else payload.get("userFlows")), plan_key) if ("user_flows" in payload or "userFlows" in payload) else None,
         "encrypted_assumptions": _encrypt_aes_gcm_text(str(payload.get("assumptions") or ""), plan_key),
         "encrypted_open_questions": _encrypt_aes_gcm_text(str(payload.get("open_questions") or payload.get("openQuestions") or ""), plan_key),
         "encrypted_constraints": _encrypt_aes_gcm_text(str(payload.get("constraints") or ""), plan_key),
@@ -1557,9 +1827,6 @@ def _build_plan_create_input(client: OpenMates, payload: dict[str, Any]) -> dict
         "status": payload.get("status") or "draft",
         "primary_chat_id": primary_chat_id,
         "linked_project_ids": linked_project_ids,
-        "current_phase_id": payload.get("current_phase_id") or payload.get("currentPhaseId"),
-        "current_step_id": payload.get("current_step_id") or payload.get("currentStepId"),
-        "current_task_id": payload.get("current_task_id") or payload.get("currentTaskId"),
         "planner_focus_id": payload.get("planner_focus_id") or payload.get("plannerFocusId"),
         "created_at": int(payload.get("created_at") or now),
         "updated_at": int(payload.get("updated_at") or now),
@@ -1575,12 +1842,10 @@ def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "short_id": _derive_plan_short_id(record),
         "slug": _decrypt_object_slug(record.get("encrypted_slug"), plan_key),
         "title": _decrypt_aes_gcm_text(str(record.get("encrypted_title") or ""), plan_key) or "(untitled plan)",
-        "summary": _decrypt_aes_gcm_text(str(record.get("encrypted_summary") or ""), plan_key) or "",
         "goal": _decrypt_aes_gcm_text(str(record.get("encrypted_goal") or ""), plan_key) or "",
         "scope_in": _decrypt_aes_gcm_text(str(record.get("encrypted_scope_in") or ""), plan_key) or "",
         "scope_out": _decrypt_aes_gcm_text(str(record.get("encrypted_scope_out") or ""), plan_key) or "",
-        "user_flows": _decrypt_aes_gcm_text(str(record.get("encrypted_user_flows") or ""), plan_key) or "",
-        "current_focus": _decrypt_aes_gcm_text(str(record.get("encrypted_current_focus") or ""), plan_key) or "",
+        "user_flows": _parse_plan_user_flows(_decrypt_aes_gcm_text(str(record.get("encrypted_user_flows") or ""), plan_key) or ""),
         "assumptions": _decrypt_aes_gcm_text(str(record.get("encrypted_assumptions") or ""), plan_key) or "",
         "open_questions": _decrypt_aes_gcm_text(str(record.get("encrypted_open_questions") or ""), plan_key) or "",
         "constraints": _decrypt_aes_gcm_text(str(record.get("encrypted_constraints") or ""), plan_key) or "",
@@ -1591,9 +1856,6 @@ def _decrypt_plan_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "status": record.get("status"),
         "primary_chat_id": record.get("primary_chat_id"),
         "linked_project_ids": linked_project_ids,
-        "current_phase_id": record.get("current_phase_id"),
-        "current_step_id": record.get("current_step_id"),
-        "current_task_id": record.get("current_task_id"),
         "planner_focus_id": record.get("planner_focus_id"),
         "version": int(record.get("version") or 1),
         "created_at": int(record.get("created_at") or 0),
@@ -1610,7 +1872,6 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
     patch: dict[str, Any] = {"version": int(plan.get("version") or source.get("version") or 1), "updated_at": int(time.time())}
     text_fields = {
         "title": "encrypted_title",
-        "summary": "encrypted_summary",
         "goal": "encrypted_goal",
         "scope_in": "encrypted_scope_in",
         "scopeIn": "encrypted_scope_in",
@@ -1618,8 +1879,6 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
         "scopeOut": "encrypted_scope_out",
         "user_flows": "encrypted_user_flows",
         "userFlows": "encrypted_user_flows",
-        "current_focus": "encrypted_current_focus",
-        "currentFocus": "encrypted_current_focus",
         "assumptions": "encrypted_assumptions",
         "open_questions": "encrypted_open_questions",
         "openQuestions": "encrypted_open_questions",
@@ -1632,7 +1891,8 @@ def _build_plan_update_input(plan: dict[str, Any], master_key: bytes, payload: d
     }
     for public_name, storage_name in text_fields.items():
         if public_name in payload:
-            patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
+            value = _serialize_plan_user_flows(payload.get(public_name)) if public_name in {"user_flows", "userFlows"} else str(payload.get(public_name) or "")
+            patch[storage_name] = _encrypt_aes_gcm_text(value, plan_key)
     if "slug" in payload:
         slug_metadata = _encrypted_object_slug_metadata(str(payload.get("slug") or ""), encryption_key=plan_key, lookup_key=master_key)
         patch["encrypted_slug"] = slug_metadata["encrypted_slug"]
@@ -1687,7 +1947,6 @@ def _public_plan_criterion(record: dict[str, Any], plan_key: bytes) -> dict[str,
         "type": record.get("type"),
         "status": record.get("status"),
         "required": record.get("required"),
-        "linked_step_ids": _string_list(record.get("linked_step_ids") or []),
         "linked_task_ids": _string_list(record.get("linked_task_ids") or []),
         "verification_ids": _string_list(record.get("verification_ids") or []),
         "created_at": record.get("created_at"),
@@ -1704,7 +1963,6 @@ def _public_plan_assumption(record: dict[str, Any], plan_key: bytes) -> dict[str
         "required_before": record.get("required_before"),
         "linked_sub_chat_id": record.get("linked_sub_chat_id"),
         "linked_task_id": record.get("linked_task_id"),
-        "linked_step_ids": _string_list(record.get("linked_step_ids") or []),
         "linked_criterion_ids": _string_list(record.get("linked_criterion_ids") or []),
         "source_count": record.get("source_count"),
         "corrected_text": _decrypt_plan_child_text(record, plan_key, "encrypted_corrected_text"),
@@ -1803,7 +2061,6 @@ def _build_plan_criterion_create_input(plan: dict[str, Any], master_key: bytes, 
         "type": _plan_child_value(payload, "type"),
         "status": _plan_child_value(payload, "status"),
         "required": _plan_child_value(payload, "required"),
-        "linked_step_ids": _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or []),
         "linked_task_ids": _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or []),
         "verification_ids": _string_list(_plan_child_value(payload, "verification_ids", "verificationIds") or []),
         "created_at": now,
@@ -1817,8 +2074,6 @@ def _build_plan_criterion_update_input(plan: dict[str, Any], master_key: bytes, 
     for public_name, storage_name in (("status", "status"), ("required", "required")):
         if public_name in payload:
             patch[storage_name] = payload.get(public_name)
-    if "linked_step_ids" in payload or "linkedStepIds" in payload:
-        patch["linked_step_ids"] = _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or [])
     if "linked_task_ids" in payload or "linkedTaskIds" in payload:
         patch["linked_task_ids"] = _string_list(_plan_child_value(payload, "linked_task_ids", "linkedTaskIds") or [])
     if "verification_ids" in payload or "verificationIds" in payload:
@@ -1827,6 +2082,40 @@ def _build_plan_criterion_update_input(plan: dict[str, Any], master_key: bytes, 
         if public_name in payload:
             patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
     return patch
+
+
+def _serialize_assumption_proof_inputs(value: Any) -> str:
+    if not isinstance(value, list) or not value:
+        raise OpenMatesConfigError("proof_inputs must contain at least one typed proof")
+    normalized: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict) or item.get("kind") not in {"embed", "file", "url"}:
+            raise OpenMatesConfigError("proof_inputs entries must use embed, file, or url kinds")
+        kind = str(item["kind"])
+        if kind == "embed":
+            embed_id = str(item.get("embed_id") or item.get("embedId") or "").strip()
+            if not embed_id:
+                raise OpenMatesConfigError("embed proof requires embed_id")
+            normalized.append({"kind": kind, "embed_id": embed_id})
+        elif kind == "url":
+            url = str(item.get("url") or "")
+            if urlparse(url).scheme != "https":
+                raise OpenMatesConfigError("URL proof requires HTTPS")
+            normalized.append({"kind": kind, "url": url})
+        else:
+            path = str(item.get("path") or "")
+            if not path or path.startswith("/") or ".." in path.split("/"):
+                raise OpenMatesConfigError("file proof path must be repository-relative")
+            entry: dict[str, Any] = {"kind": kind, "path": path}
+            for source, target in (("start_line", "start_line"), ("startLine", "start_line"), ("end_line", "end_line"), ("endLine", "end_line")):
+                if source in item:
+                    if not isinstance(item[source], int) or item[source] < 1:
+                        raise OpenMatesConfigError(f"file proof {source} must be a positive integer")
+                    entry[target] = item[source]
+            if entry.get("end_line", 0) < entry.get("start_line", 1):
+                raise OpenMatesConfigError("file proof end_line must not precede start_line")
+            normalized.append(entry)
+    return json.dumps(normalized, separators=(",", ":"), sort_keys=True)
 
 
 def _build_plan_assumption_create_input(plan: dict[str, Any], master_key: bytes, payload: dict[str, Any]) -> dict[str, Any]:
@@ -1840,12 +2129,13 @@ def _build_plan_assumption_create_input(plan: dict[str, Any], master_key: bytes,
         "required_before": _plan_child_value(payload, "required_before", "requiredBefore"),
         "linked_sub_chat_id": _plan_child_value(payload, "linked_sub_chat_id", "linkedSubChatId"),
         "linked_task_id": _plan_child_value(payload, "linked_task_id", "linkedTaskId"),
-        "linked_step_ids": _string_list(_plan_child_value(payload, "linked_step_ids", "linkedStepIds") or []),
         "linked_criterion_ids": _string_list(_plan_child_value(payload, "linked_criterion_ids", "linkedCriterionIds") or []),
         "source_count": _plan_child_value(payload, "source_count", "sourceCount"),
         "created_at": now,
         "updated_at": now,
     }
+    if "proof_inputs" in payload or "proofInputs" in payload:
+        output["encrypted_sources"] = _encrypt_aes_gcm_text(_serialize_assumption_proof_inputs(payload.get("proof_inputs") or payload.get("proofInputs")), plan_key)
     for public_name, storage_name in (("corrected_text", "encrypted_corrected_text"), ("correctedText", "encrypted_corrected_text"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("blocker_reason", "encrypted_blocker_reason"), ("blockerReason", "encrypted_blocker_reason"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason"), ("sources", "encrypted_sources")):
         if public_name in payload:
             output[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
@@ -1858,6 +2148,8 @@ def _build_plan_assumption_update_input(plan: dict[str, Any], master_key: bytes,
     for public_name, storage_name in (("category", "category"), ("status", "status"), ("required_before", "required_before"), ("requiredBefore", "required_before"), ("linked_sub_chat_id", "linked_sub_chat_id"), ("linkedSubChatId", "linked_sub_chat_id"), ("linked_task_id", "linked_task_id"), ("linkedTaskId", "linked_task_id"), ("source_count", "source_count"), ("sourceCount", "source_count")):
         if public_name in payload:
             patch[storage_name] = payload.get(public_name)
+    if "proof_inputs" in payload or "proofInputs" in payload:
+        patch["encrypted_sources"] = _encrypt_aes_gcm_text(_serialize_assumption_proof_inputs(payload.get("proof_inputs") or payload.get("proofInputs")), plan_key)
     for public_name, storage_name in (("corrected_text", "encrypted_corrected_text"), ("correctedText", "encrypted_corrected_text"), ("evidence_summary", "encrypted_evidence_summary"), ("evidenceSummary", "encrypted_evidence_summary"), ("blocker_reason", "encrypted_blocker_reason"), ("blockerReason", "encrypted_blocker_reason"), ("waiver_reason", "encrypted_waiver_reason"), ("waiverReason", "encrypted_waiver_reason"), ("sources", "encrypted_sources")):
         if public_name in payload:
             patch[storage_name] = _encrypt_aes_gcm_text(str(payload.get(public_name) or ""), plan_key)
@@ -2182,6 +2474,49 @@ def _task_label_hashes(master_key: bytes, labels: list[str]) -> list[str]:
     return [hmac.new(index_key, label.encode("utf-8"), hashlib.sha256).hexdigest() for label in _normalize_task_labels(labels)]
 
 
+def _normalize_external_chat_context(value: Any, *, title: Any = None) -> dict[str, str] | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        provider, separator, chat_id = value.partition(":")
+        provider = provider.strip().lower()
+        chat_id = chat_id.strip()
+        if not separator or not provider or not chat_id:
+            raise OpenMatesConfigError("external_chat must use provider:id")
+        context_title = title
+    elif isinstance(value, dict):
+        provider = str(value.get("provider") or "").strip().lower()
+        chat_id = str(value.get("id") or "").strip()
+        context_title = value.get("title") if title is None else title
+        if not provider or not chat_id:
+            raise OpenMatesConfigError("external_chat requires provider and id")
+    else:
+        raise OpenMatesConfigError("external_chat must be provider:id or a mapping")
+    if provider != EXTERNAL_CHAT_PROVIDER:
+        raise OpenMatesConfigError("Only opencode is supported as an external chat provider")
+    return {"provider": EXTERNAL_CHAT_PROVIDER, "id": chat_id, "title": str(context_title or "")}
+
+
+def _external_chat_lookup_hash(master_key: bytes, context: dict[str, str]) -> str:
+    index_key = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=b"",
+        info=EXTERNAL_CHAT_INDEX_INFO,
+    ).derive(master_key)
+    value = f"{context['provider']}\x00{context['id']}".encode("utf-8")
+    return hmac.new(index_key, value, hashlib.sha256).hexdigest()
+
+
+def _normalize_blocked_reason_code(value: str) -> str:
+    normalized = re.sub(r"[\s-]+", "_", value.strip().lower())
+    if normalized not in BLOCKED_REASON_CODES:
+        raise OpenMatesConfigError(
+            f"Unknown blocked reason code '{value}'. Expected one of: {', '.join(BLOCKED_REASON_CODES)}"
+        )
+    return normalized
+
+
 def _normalize_task_priority(value: Any) -> int | None:
     if value is None:
         return None
@@ -2214,6 +2549,55 @@ def _string_list(value: Any) -> list[str]:
 def _json_string_list(value: str | None) -> list[str]:
     parsed = _parse_maybe_json(value)
     return _string_list(parsed)
+
+
+def _serialize_plan_user_flows(value: Any) -> str:
+    if not isinstance(value, list):
+        raise OpenMatesConfigError("Plan user_flows must be a structured array")
+    for flow in value:
+        if not isinstance(flow, dict) or not all(isinstance(flow.get(field), str) and flow[field] for field in ("flow_id", "title", "expected_outcome")):
+            raise OpenMatesConfigError("Each Plan user flow requires flow_id, title, and expected_outcome")
+        steps = flow.get("steps")
+        if not isinstance(steps, list) or any(not isinstance(step, dict) or not isinstance(step.get("step_id"), str) or not isinstance(step.get("text"), str) for step in steps):
+            raise OpenMatesConfigError("Each Plan user flow requires ordered steps with step_id and text")
+        for step in steps:
+            references = step.get("references", [])
+            if not isinstance(references, list):
+                raise OpenMatesConfigError("Plan user flow references must be an array")
+            for reference in references:
+                _validate_plan_evidence_reference(reference)
+    return json.dumps(value, separators=(",", ":"), sort_keys=True)
+
+
+def _validate_plan_evidence_reference(reference: Any) -> None:
+    if not isinstance(reference, dict) or reference.get("kind") not in {"embed", "file", "url"}:
+        raise OpenMatesConfigError("Plan evidence references must be embed, file, or URL records")
+    kind = reference["kind"]
+    if kind == "embed" and not isinstance(reference.get("embed_id"), str):
+        raise OpenMatesConfigError("Plan embed references require embed_id")
+    if kind == "file":
+        path = reference.get("path")
+        if not isinstance(path, str) or not path or path.startswith("/") or ".." in path.split("/"):
+            raise OpenMatesConfigError("Plan file references require a repository-relative path")
+    if kind == "url" and (not isinstance(reference.get("url"), str) or not reference["url"].startswith("https://")):
+        raise OpenMatesConfigError("Plan URL references must use HTTPS")
+    start = reference.get("start_line")
+    end = reference.get("end_line")
+    if start is not None and (not isinstance(start, int) or isinstance(start, bool) or start < 1):
+        raise OpenMatesConfigError("Plan evidence start_line must be a positive integer")
+    if end is not None and (not isinstance(end, int) or isinstance(end, bool) or end < (start or 1)):
+        raise OpenMatesConfigError("Plan evidence end_line must be greater than or equal to start_line")
+
+
+def _parse_plan_user_flows(value: str) -> list[dict[str, Any]]:
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError as exc:
+        raise OpenMatesConfigError("Plan user_flows ciphertext does not contain JSON") from exc
+    _serialize_plan_user_flows(parsed)
+    return parsed
 
 
 def _derive_task_short_id(record: dict[str, Any]) -> str:
@@ -2748,21 +3132,42 @@ class OpenMatesChats:
                 recovery_poll_interval_seconds=recovery_poll_interval_seconds,
                 recovery_timeout_seconds=recovery_timeout_seconds,
             )
-        data = self._client._post(
-            "/v1/sdk/chats",
-            {
-                "message": final_message,
-                "history": normalized_history,
-                "save_to_account": bool(save_to_account),
-                "focus_mode": focus_mode,
-                "memory_ids": memory_ids or [],
-                "model": model,
-                "connected_account_directory": connected_account_directory or [],
-                "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
-            },
-        )
-        response = data.get("response") or {}
-        return ChatResponse(content=response.get("content"), raw=data)
+        try:
+            data = self._client._post(
+                "/v1/sdk/chats",
+                {
+                    "message": final_message,
+                    "history": normalized_history,
+                    "save_to_account": bool(save_to_account),
+                    "focus_mode": focus_mode,
+                    "memory_ids": memory_ids or [],
+                    "model": model,
+                    "connected_account_directory": connected_account_directory or [],
+                    "connected_account_token_ref_inputs": connected_account_token_ref_inputs or [],
+                },
+            )
+            response = data.get("response") or {}
+            if model and "model_name" not in data and "modelName" not in data:
+                data = {**data, "model_name": model}
+            return ChatResponse(content=response.get("content"), raw=data)
+        except OpenMatesApiError as error:
+            if error.status_code != 401:
+                raise
+            result = self._client._run_app_skill(
+                "ai",
+                "ask",
+                {
+                    "messages": [*normalized_history, {"role": "user", "content": final_message}],
+                    "stream": False,
+                    "apps_enabled": True,
+                    "is_incognito": True,
+                    "model": model,
+                },
+            )
+            return ChatResponse(
+                content=_app_skill_chat_content(result),
+                raw={"model_name": model, "result": result},
+            )
 
     def _send_saved(
         self,
@@ -3332,6 +3737,20 @@ class _PlanEncryptedFieldFacade:
         return self.update(plan_id, value)
 
 
+class _PlanUserFlowsFacade:
+    def __init__(self, plans: "OpenMatesPlans"):
+        self._plans = plans
+
+    def set(self, plan_id: str, value: list[dict[str, Any]]) -> dict[str, Any]:
+        return self._plans.update(plan_id, {"user_flows": value})
+
+    def update(self, plan_id: str, value: list[dict[str, Any]]) -> dict[str, Any]:
+        return self.set(plan_id, value)
+
+    def clear(self, plan_id: str) -> dict[str, Any]:
+        return self.set(plan_id, [])
+
+
 class _PlanSuccessCriteriaFacade:
     def __init__(self, plans: "OpenMatesPlans"):
         self._plans = plans
@@ -3459,10 +3878,9 @@ class OpenMatesPlans:
     def __init__(self, client: OpenMates):
         self._client = client
         self.goal = _PlanEncryptedFieldFacade(self, "encrypted_goal")
-        self.current_focus = _PlanEncryptedFieldFacade(self, "encrypted_current_focus")
         self.tasks = _PlanTasksFacade(client)
         self.success_criteria = _PlanSuccessCriteriaFacade(self)
-        self.user_flows = _PlanEncryptedFieldFacade(self, "encrypted_user_flows")
+        self.user_flows = _PlanUserFlowsFacade(self)
         self.checks = _PlanChecksFacade(self)
         self.scope_in = _PlanEncryptedFieldFacade(self, "encrypted_scope_in")
         self.scope_out = _PlanEncryptedFieldFacade(self, "encrypted_scope_out")
@@ -3475,6 +3893,10 @@ class OpenMatesPlans:
         self.learnings = _PlanLearningsFacade(self)
         self.context = type("PlanContextFacade", (), {"artifacts": _PlanEncryptedFieldFacade(self, "encrypted_context")})()
         self.activity = type("PlanActivityFacade", (), {"list": lambda _self, plan_id, limit=None: self.history(plan_id, limit=limit)})()
+        self.dependencies = _WorkDependenciesFacade(client, "plan")
+        self.revisions = _PlanRevisionsFacade(self)
+        self.review = _PlanReviewFacade(self)
+        self.approval = _PlanApprovalFacade(self)
 
     def list(
         self,
@@ -3673,6 +4095,11 @@ class OpenMatesPlans:
             plan = self._get_raw_plan(plan_id)
         return _public_plan(_decrypt_plan_record(plan, self._client._get_master_key()))
 
+    def delete(self, plan_id: str, *, confirmed: bool = False) -> dict[str, Any]:
+        _require_confirmed(confirmed, "Plan deletion")
+        existing = self._get_raw_plan(plan_id)
+        return self._client._delete(f"/v1/user-plans/{_quote(str(existing.get('plan_id')))}?version={_quote(str(existing.get('version')))}")
+
     def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         master_key = self._client._get_master_key()
         plan = _decrypt_plan_record(self._get_raw_plan(plan_id), master_key)
@@ -3799,6 +4226,7 @@ class OpenMatesTasks:
 
     def __init__(self, client: OpenMates):
         self._client = client
+        self.dependencies = _WorkDependenciesFacade(client, "task")
 
     def list(
         self,
@@ -3809,12 +4237,13 @@ class OpenMatesTasks:
         plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
+        external_chat: str | dict[str, Any] | None = None,
         priority: str | int | None = None,
         team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         return [
             _public_task(task)
-            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, priority=priority, team_id=team_id)
+            for task in self._list_internal(status=status, chat_id=chat_id, project_id=project_id, plan_id=plan_id, labels=labels, tags=tags, external_chat=external_chat, priority=priority, team_id=team_id)
         ]
 
     def _list_raw(
@@ -3826,11 +4255,14 @@ class OpenMatesTasks:
         plan_id: str | None = None,
         labels: list[str] | None = None,
         tags: list[str] | None = None,
+        external_chat: str | dict[str, Any] | None = None,
         priority: str | int | None = None,
         team_id: str | None = None,
     ) -> list[dict[str, Any]]:
         label_values = labels if labels is not None else tags
-        label_hashes = _task_label_hashes(self._client._get_master_key(), _normalize_task_labels(label_values)) if label_values else None
+        external_chat_context = _normalize_external_chat_context(external_chat) if external_chat is not None else None
+        master_key = self._client._get_master_key() if label_values or external_chat_context else None
+        label_hashes = _task_label_hashes(master_key, _normalize_task_labels(label_values)) if label_values and master_key else None
         resolved_chat_id = _resolve_chat_id(self._client, chat_id) if isinstance(chat_id, str) and chat_id else chat_id
         resolved_project_id = (
             _resolve_project_id(self._client, project_id, personal=not bool(team_id), team_id=team_id)
@@ -3846,6 +4278,8 @@ class OpenMatesTasks:
                 project_id=resolved_project_id,
                 plan_id=resolved_plan_id,
                 label_hash=label_hashes,
+                external_chat_provider=external_chat_context["provider"] if external_chat_context else None,
+                external_chat_lookup_hash=_external_chat_lookup_hash(master_key, external_chat_context) if external_chat_context and master_key else None,
                 priority=_normalize_task_priority(priority),
                 team_id=team_id,
             )
@@ -3858,6 +4292,47 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         query = f"?limit={limit}" if limit is not None else ""
         return self._client._get(f"/v1/user-tasks/{_quote(str(task['task_id']))}/history{query}").get("entries", [])
+
+    def list_activity(self, task_id: str, **filters: Any) -> list[dict[str, Any]]:
+        task = self._resolve(task_id, {key: value for key, value in filters.items() if key != "limit"})
+        records: list[dict[str, Any]] = []
+        cursor: str | None = None
+        while True:
+            response = self._client._get(_with_query(
+                f"/v1/user-tasks/{_quote(str(task['task_id']))}/activity",
+                team_id=filters.get("team_id"),
+                cursor=cursor,
+                limit=filters.get("limit"),
+            ))
+            records.extend(record for record in response.get("entries", []) if isinstance(record, dict))
+            next_cursor = response.get("next_cursor")
+            if not isinstance(next_cursor, str) or not next_cursor:
+                break
+            if next_cursor == cursor:
+                raise OpenMatesConfigError("Task Activity pagination cursor did not advance")
+            cursor = next_cursor
+        master_key = self._client._get_master_key()
+        return [_decrypt_task_activity_entry(task, master_key, record) for record in records]
+
+    def add_activity_comment(self, task_id: str, payload: dict[str, Any], **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        master_key = self._client._get_master_key()
+        entry = self._client._post(
+            _with_query(
+                f"/v1/user-tasks/{_quote(str(task['task_id']))}/activity",
+                team_id=filters.get("team_id"),
+            ),
+            _build_task_activity_comment_input(task, master_key, payload),
+        ).get("entry", {})
+        return _decrypt_task_activity_entry(task, master_key, entry)
+
+    def delete_activity_comment(self, task_id: str, entry_id: str, **filters: Any) -> dict[str, Any]:
+        task = self._resolve(task_id, filters)
+        entry = self._client._delete(_with_query(
+            f"/v1/user-tasks/{_quote(str(task['task_id']))}/activity/{_quote(entry_id)}",
+            team_id=filters.get("team_id"),
+        )).get("entry", {})
+        return _decrypt_task_activity_entry(task, self._client._get_master_key(), entry)
 
     def restore(self, task_id: str, *, entry_id: str, state: str = "after", **filters: Any) -> dict[str, Any]:
         task = self._resolve(task_id, filters)
@@ -4028,8 +4503,16 @@ class OpenMatesTasks:
     def done(self, task_id: str, **filters: Any) -> dict[str, Any]:
         return self._action_by_id(task_id, "complete", {}, filters)
 
-    def block(self, task_id: str, reason: str, **filters: Any) -> dict[str, Any]:
-        return self._action_by_id(task_id, "block", {"blocked_reason_code": reason}, filters)
+    def block(self, task_id: str, reason: str, *, reason_text: str | None = None, **filters: Any) -> dict[str, Any]:
+        return self._action_by_id(
+            task_id,
+            "block",
+            {
+                "blocked_reason_code": _normalize_blocked_reason_code(reason),
+                "_reason_text": reason_text,
+            },
+            filters,
+        )
 
     def unblock(self, task_id: str, **filters: Any) -> dict[str, Any]:
         return self._action_by_id(task_id, "unblock", {}, filters)
@@ -4064,10 +4547,17 @@ class OpenMatesTasks:
         task = self._resolve(task_id, filters)
         for attempt in range(2):
             try:
+                request_patch = dict(patch)
+                reason_text = request_patch.pop("_reason_text", None)
+                if reason_text is not None:
+                    request_patch["encrypted_blocked_reason"] = _encrypt_aes_gcm_text(
+                        reason_text,
+                        _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, self._client._get_master_key()),
+                    )
                 updated = self._action_raw(
                     str(task["task_id"]),
                     action,
-                    {"version": task["version"], "team_id": filters.get("team_id"), **patch},
+                    {"version": task["version"], "team_id": filters.get("team_id"), **request_patch},
                 )
                 return _public_task(_decrypt_task_record(updated, self._client._get_master_key()))
             except OpenMatesApiError as exc:
@@ -5171,7 +5661,18 @@ class OpenMatesSettings:
     def set_font(self, font: str) -> dict[str, Any]:
         return self._client._post("/v1/sdk/settings/font", {"font": font})
 
-    def set_model_defaults(self, defaults: dict[str, Any]) -> dict[str, Any]:
+    def set_model_defaults(
+        self,
+        *,
+        default_ai_model_simple: str | None = None,
+        default_ai_model_complex: str | None = None,
+        default_ai_model_most_demanding: str | None = None,
+    ) -> dict[str, Any]:
+        defaults: AiModelDefaults = {
+            "default_ai_model_simple": default_ai_model_simple,
+            "default_ai_model_complex": default_ai_model_complex,
+            "default_ai_model_most_demanding": default_ai_model_most_demanding,
+        }
         return self._client._post("/v1/sdk/settings/ai-model-defaults", defaults)
 
     def set_chat_auto_delete(self, period: str) -> dict[str, Any]:
@@ -5391,6 +5892,14 @@ class OpenMatesDocs:
     def search(self, query: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/docs/search", q=query))
     def show(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}")
     def download(self, slug: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/docs/{_quote(slug)}/download")
+
+
+class OpenMatesWikipedia:
+    def __init__(self, client: OpenMates): self._client = client
+    def search(self, query: str, *, language: str | None = "en", limit: int | None = None) -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/search", query=query, language=language or "en", limit=limit))
+    def summary(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/summary", title=title, language=language or "en"))
 
 
 class OpenMatesEmbeds:

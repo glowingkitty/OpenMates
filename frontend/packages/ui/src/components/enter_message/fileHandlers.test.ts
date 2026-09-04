@@ -54,6 +54,7 @@ function flattenInsertedEmbeds(inserted: unknown[]): InsertedEmbed[] {
 }
 
 describe("processFiles", () => {
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
   it("inserts a local PDF placeholder for anonymous uploads", async () => {
     const editor = createEditorStub();
     const file = new File([
@@ -73,6 +74,7 @@ describe("processFiles", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
   it("skips anonymous mind map uploads because they need authenticated embed storage", async () => {
     const editor = createEditorStub();
     const file = new File([

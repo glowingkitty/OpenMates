@@ -1,0 +1,159 @@
+schema_version: 1
+id: architecture.server-management
+version: 1
+status: approved
+title: OpenMates Server Management
+summary: >
+  The OpenMates CLI is the supported host-level control plane for installing,
+  configuring, starting, stopping, updating, observing, backing up, restoring,
+  and continuously maintaining core, upload, and preview server roles.
+
+scope:
+  includes:
+    - Core, upload, and preview server roles with role-specific services and health checks.
+    - Image-mode installation and updates by default, with explicit source-mode support for contributors and registered working trees.
+    - Start, stop, restart, update, status, logs, verify, backup, restore, preflight, Caddy, and continuous-update operations.
+    - Service include/exclude filtering, deployment profiles, packaged runtime templates, and host configuration checks.
+    - Latest pre-update backups for data-bearing updates and explicit operator-created backups.
+    - Runtime verification, monitoring setup, optional authenticated quick tests, and admin completion email before update success.
+    - Durable privacy-safe update status, email idempotency state, and installation-scoped process locking.
+  excludes:
+    - Browser-initiated host mutation; browser surfaces may display read-only version and update status.
+    - Automatic rollback of database migrations or updated containers.
+    - Arbitrary historical backup retention beyond documented rotating and operator-created artifacts.
+    - Moving secrets out of Vault or weakening upload and preview host isolation.
+    - REST, WebSocket, npm SDK, pip SDK, or Apple server-management surfaces.
+
+models:
+  ServerInstallation:
+    role:
+      type: enum
+      values: [core, upload, preview]
+      required: true
+    install_mode:
+      type: enum
+      values: [image, source]
+      required: true
+    profile:
+      type: enum
+      values: [minimal, standard, production]
+      required: false
+    selected_services:
+      type: array
+      required: true
+      constraints: {role_validated: true, explicit_include_exclude: true}
+    deployment_environment:
+      type: enum
+      values: [development, production, self_host]
+      required: true
+
+  ServerUpdateOutcome:
+    installed_version:
+      type: string
+      required: true
+    source_link:
+      type: url
+      required: true
+      constraints: {https_github_openmates_only: true, preference_order: [release, pull_request, commit, source]}
+    status:
+      type: enum
+      values: [success, degraded, failed]
+      required: true
+    runtime_checks:
+      type: object
+      required: true
+      constraints: {role_specific: true, bounded: true, sanitized: true}
+    completion_email_state:
+      type: enum
+      values: [pending, accepted, failed, unavailable]
+      required: true
+    completion_delivery_id:
+      type: uuid
+      required: true
+      constraints: {persist_before_send: true, provider_idempotency_key: true}
+    completion_delivery_attempts:
+      type: integer
+      required: true
+      constraints: {minimum: 0, maximum: 3, durable_across_process_recovery: true}
+
+  ServerBackup:
+    role:
+      type: enum
+      values: [core, upload, preview]
+      required: true
+    kind:
+      type: enum
+      values: [latest_pre_update, operator_created]
+      required: true
+    manifest:
+      type: object
+      required: true
+      constraints: {checksums: required, product_critical_data: required, observability_data: optional, secrets_in_output: forbidden}
+
+assertions:
+  - id: server-management.cli.host-control-plane
+    type: invariant
+    must: Host-level server mutations are performed through the OpenMates CLI or a CLI-installed host service; browser settings remain read-only for version and update status and cannot directly start an update.
+    depends_on: [models.ServerInstallation, examples.control_plane]
+  - id: server-management.roles.services-profiles
+    type: behavior
+    must: Install, lifecycle, status, logs, verification, and update commands validate core, upload, and preview role boundaries, support explicit service inclusion or exclusion, and apply only role-valid deployment profiles and health checks.
+    depends_on: [models.ServerInstallation, examples.roles_and_services]
+  - id: server-management.installation.image-default-source-explicit
+    type: behavior
+    must: Normal installs use packaged image-mode runtime templates without requiring Git or local image builds; source mode is explicit, managed clones update with fast-forward-only Git operations, and registered working-tree updates never alter Git state.
+    depends_on: [models.ServerInstallation.install_mode, examples.installation_modes]
+  - id: server-management.update.safety-sequence
+    type: invariant
+    must: Before replacing data-bearing services, update validates required host configuration and secrets and creates a verified rotating latest pre-update backup; after restart it runs bounded role health checks, runtime verification, monitoring setup, and any operator-accepted quick test before evaluating completion delivery.
+    depends_on: [models.ServerUpdateOutcome.runtime_checks, models.ServerBackup, examples.update_sequence]
+  - id: server-management.update.completion-email-required
+    type: invariant
+    must: After every image or source update passes its required checks, the CLI sends one "Server update complete" email to the configured admin containing the installed version, server role, completion time, and best available release, pull-request, commit, or source link; a documented Brevo acceptance receipt permits success, while missing configuration or exhausted delivery retries leaves updated containers running, records degraded status, and exits non-zero without rollback.
+    depends_on: [models.ServerUpdateOutcome, examples.update_completion]
+  - id: server-management.update.durable-idempotency
+    type: failure
+    must: The CLI persists one opaque completion-delivery identity and attempt count before each send, reuses both across process recovery, never exceeds three total attempts, accepts only a documented provider receipt or exact duplicate-idempotency response, and fails closed when persisted state is malformed or Brevo's idempotency window has expired.
+    depends_on: [models.ServerUpdateOutcome.completion_delivery_id, models.ServerUpdateOutcome.completion_delivery_attempts, examples.delivery_recovery]
+  - id: server-management.update.installation-lock
+    type: invariant
+    must: Only one update process may mutate an installation across all roles; lock ownership cannot be stolen automatically, command failures release the owning lock, and a stale lock requires explicit operator verification and removal.
+    depends_on: [examples.update_locking]
+  - id: server-management.backup.restore-verifiable
+    type: behavior
+    must: Backup and restore cover documented product-critical state, produce checksum manifests, support optional observability data, rotate one latest pre-update artifact per role, and fail visibly rather than claiming success for incomplete artifacts.
+    depends_on: [models.ServerBackup, examples.backup_restore]
+  - id: server-management.host.preflight-caddy-continuous
+    type: behavior
+    must: Preflight reports missing or unverified required configuration without exposing values, Caddy changes are checked and applied through explicit host commands, and unattended updates run through a CLI-installed systemd service using the same update safety contract.
+    depends_on: [examples.host_operations]
+  - id: server-management.status.privacy-boundary
+    type: privacy
+    must: Terminal output, JSON output, logs, manifests, notification content, and durable status contain only required operational metadata and exclude email destinations, credentials, raw provider responses, private repository URLs, user content, and sensitive error details.
+    depends_on: [models.ServerUpdateOutcome, models.ServerBackup, examples.privacy_boundaries]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Server management is a host-local first-party surface, not a public or developer API.
+  cli:
+    required: true
+    parity: canonical
+    role: The OpenMates CLI is the canonical server-management surface and owns host mutation, verification, status, recovery, and automation.
+  sdks:
+    required: false
+    role: Host server lifecycle operations are not npm or pip SDK capabilities.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: Web may expose read-only version and update state; Apple has no server-management surface.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [control_plane, roles_and_services, installation_modes, update_sequence, update_completion, delivery_recovery, update_locking, backup_restore, host_operations, privacy_boundaries]

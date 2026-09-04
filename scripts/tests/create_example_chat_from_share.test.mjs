@@ -8,8 +8,52 @@ import {
   removeInternalTaskEventMessages,
   sanitizeEmbedContent,
   sanitizeExampleMessageContent,
+  attachReviewedPublicSpeech,
   withPromotedAppSkillUseMessages,
 } from '../create-example-chat-from-share.mjs';
+
+test('requires reviewed content-addressed public speech fixtures', () => {
+  const digest = 'a'.repeat(64);
+  const chat = {
+    chat_id: 'source-chat',
+    messages: [{ message_id: 'assistant-1', role: 'assistant', content: 'Hello.' }],
+    embeds: [],
+  };
+  const manifest = {
+    reviewed: true,
+    source_chat_id: 'source-chat',
+    messages: [{
+      assistant_message_id: 'assistant-1',
+      segments: [{
+        segment_id: 'segment-1',
+        public_url: `https://openmates-public-examples.nbg1.your-objectstorage.com/assistant-speech/sha256-${digest}.mp3`,
+        sha256: digest,
+        duration_seconds: 1.2,
+        waveform: [0.1, 0.5, 0.2],
+      }],
+    }],
+  };
+
+  assert.throws(() => attachReviewedPublicSpeech(chat, { ...manifest, reviewed: false }), /reviewed/i);
+  const published = attachReviewedPublicSpeech(chat, manifest);
+  assert.equal(published.public_speech['assistant-1'][0].public_url, manifest.messages[0].segments[0].public_url);
+  assert.doesNotMatch(JSON.stringify(published.public_speech), /source_chat|vault|aes|private|provider|s3_key/i);
+});
+
+test('rejects mutable or non-S3 public speech URLs', () => {
+  const chat = { chat_id: 'source-chat', messages: [{ message_id: 'assistant-1', role: 'assistant', content: 'Hello.' }], embeds: [] };
+  const digest = 'a'.repeat(64);
+  const manifest = (public_url, sha256 = digest) => ({
+    reviewed: true,
+    source_chat_id: 'source-chat',
+    messages: [{ assistant_message_id: 'assistant-1', segments: [{ segment_id: 'segment-1', public_url, sha256, duration_seconds: 1 }] }],
+  });
+  const canonical = `https://openmates-public-examples.nbg1.your-objectstorage.com/assistant-speech/sha256-${digest}.mp3`;
+
+  assert.throws(() => attachReviewedPublicSpeech(chat, manifest('https://example.com/audio.mp3')), /public example S3/i);
+  assert.throws(() => attachReviewedPublicSpeech(chat, manifest(`${canonical}?token=secret`)), /public example S3/i);
+  assert.throws(() => attachReviewedPublicSpeech(chat, manifest(canonical, 'b'.repeat(64))), /public example S3/i);
+});
 
 test('normalizes compact weather rain radar embeds for public example rendering', () => {
   const compactContent = `app_id: weather

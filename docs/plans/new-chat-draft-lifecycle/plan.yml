@@ -1,0 +1,683 @@
+schema_version: 2
+id: new-chat-draft-lifecycle
+title: Navigable New-Chat Draft Lifecycle
+status: approved
+
+goal: >
+  Treat a successfully persisted new-chat draft as an active, navigable draft-only
+  chat with an explicit draft header, while preserving one chat ID through save,
+  navigation, reload, cross-device sync, send, and clear.
+
+scope:
+  in:
+    - Activate a new-chat draft-only shell only after its first non-empty draft save succeeds.
+    - Use the existing #chat-id=<UUID> route for active draft-only chats.
+    - Show a draft-only chat header with the canonical idea/draft icon, Draft badge, saved preview title, and localized relative Last saved time.
+    - Refresh the draft header title and saved time after every successful local or synchronized draft update.
+    - Show the existing New Chat composer control while a draft-only chat is active.
+    - Keep draft-only chats in sidebar, landing resume cards, search, and chronological ChatHeader previous/next navigation.
+    - Preserve the same chat ID and route when the first message is sent and draft presentation transitions to normal new-chat processing.
+    - Delete an emptied draft-only shell, return to the focused blank welcome composer at /, and prevent late saves or sync events from recreating it.
+    - Preserve existing-chat title, icon, summary, timestamp, and header behavior when an established chat has an unsent draft.
+    - Add web unit, deployed Playwright, cross-device, visual-smoke, and Apple parity coverage in the required phase order.
+  out:
+    - Changing Format-D encryption, draft_v conflict resolution, or the update_draft/delete_draft protocol.
+    - Adding #draft-id routing or changing a draft chat ID when it is sent.
+    - Changing the visual header of chats that already contain sent messages.
+    - Persisting whitespace-only or structurally empty editor content as a draft-only chat.
+    - Persisting incognito drafts.
+    - Exposing interactive draft mutation through public CLI or SDK APIs.
+
+context_discovery:
+  github_issues:
+    - "gh issue search for draft chat header navigation returned no matching issue; GitHub MCP authentication returned 401."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/cross-client-draft-apple-parity/plan.yml
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/core/encryption-formats.md
+    - docs/architecture/messaging/message-input-field.md
+  code_patterns:
+    - frontend/packages/ui/src/services/drafts/draftSave.ts persists Format-D draft markdown and preview, creates the UUID draft-only shell, and updates draftEditorUIState.
+    - frontend/packages/ui/src/services/drafts/draftWebsocket.ts applies synchronized draft ciphertext and updated_at without changing message-only sort timestamps.
+    - frontend/packages/ui/src/components/chats/Chat.svelte already renders a dedicated draft-only sidebar row.
+    - frontend/packages/ui/src/components/ActiveChat.svelte already renders draft-only landing resume cards and restores draft-only hash routes.
+    - frontend/packages/ui/src/stores/chatNavigationStore.ts currently excludes inactive draft-only chats after commit fb23f950d.
+    - frontend/packages/ui/src/components/ChatHistory.svelte and ChatHeader.svelte own active header visibility and rendering.
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift exposes synchronized draft previews.
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift is the native compact chat-header counterpart.
+  tests:
+    - frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    - frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    - frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Core/Services/DraftService.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/DraftSyncParityTests.swift
+    - apple/OpenMatesUITests/ChatFlowParityUITests.swift
+  parity_expectations:
+    - After deployed web behavior and user confirmation, Apple draft-only chats use the same stable chat ID, draft preview title, Draft badge, canonical draft icon, and relative saved time.
+    - Existing-chat headers remain unchanged when those chats contain drafts.
+    - Apple continues to store and transmit only Format-D ciphertext outside transient editor memory.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/DraftSyncParityTests"
+    - python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests"
+  intentional_native_differences:
+    - Apple uses its compact native chat-header composition and native relative-date formatting while matching the visible information hierarchy and state transitions.
+
+clarification:
+  rounds:
+    - question: Should draft-only chats remain discoverable outside the active composer?
+      answer: Yes. They already appear in the sidebar and Continue where you left off and must remain there.
+    - question: Should active drafts use #draft-id or the existing chat route?
+      answer: Use #chat-id=<draft UUID> so save, reload, navigation, and send retain one identity.
+    - question: What should the draft-only header show?
+      answer: A canonical idea/draft icon, Draft badge, live saved preview title, and localized relative Last saved time, with no generated category, mate profile, or summary.
+    - question: Does draft presentation apply to established chats with messages?
+      answer: No. Existing-chat headers remain completely unchanged.
+    - question: What happens when the active new-chat draft is cleared?
+      answer: Delete the shell, return to /, hide the header and New Chat control, and preserve composer focus.
+  vision_summary: >
+    A non-empty new-chat composer remains an uncommitted welcome state until its
+    first successful autosave. The acknowledged draft-only shell then becomes a
+    normal navigable chat route with explicit draft presentation. Every successful
+    save updates the preview and saved time; send promotes the same ID, while clear
+    removes it and returns to the focused blank welcome composer.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: aa0f960fd15f540356fcec5f5bc0b39831436e15
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-04T00:00:00Z"
+    reason: User approved the clarified draft lifecycle and requested specification plus implementation.
+  plan:
+    status: approved
+    approved_at: "2026-08-04T00:00:00Z"
+    reason: User approved the ordered plan covering tests, implementation, deployed web verification, and Apple parity.
+
+specification_refs:
+  - contract: architecture.drafts@1
+    path: specifications/architecture/drafts/specification.yml
+    assertions:
+      - drafts.access.first-party-encrypted
+      - drafts.persistence.local-first-encrypted
+      - drafts.sync.version-authoritative
+      - drafts.draft-only.lifecycle
+      - drafts.draft-only.presentation
+      - drafts.navigation.includes-draft-only
+      - drafts.established-chat.presentation-unchanged
+      - drafts.boundaries.session-and-incognito
+    evidence_locations:
+      - frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+      - frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Reuse #chat-id=<UUID> for draft-only and sent states.
+    reason: The persisted draft shell is already a chat identity; a parallel draft route would duplicate routing and restoration logic.
+    decided_at: "2026-08-04T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Activate draft-only UI only after successful persistence, not on focus or raw typing.
+    reason: Header, route, and Last saved must never claim persistence that failed.
+    decided_at: "2026-08-04T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Derive draft-only state from non-empty persisted draft fields plus absence of sent messages/generated metadata.
+    reason: One shared predicate prevents empty shells and established-chat drafts from entering draft-only presentation.
+    decided_at: "2026-08-04T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Use Chat.updated_at as the successful draft-save timestamp while last_edited_overall_timestamp remains message-only sorting state.
+    reason: Existing draft save and sync handlers already update updated_at without perturbing chronological message ordering.
+    decided_at: "2026-08-04T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Keep established-chat headers unchanged even when a draft exists.
+    reason: The user limited the new presentation to chats with no sent messages.
+    decided_at: "2026-08-04T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-2
+    approach: Exclude inactive draft-only chats from ChatHeader navigation and keep only the active draft as an anchor.
+    outcome: rejected
+    recorded_at: "2026-08-04T00:00:00Z"
+    reason: This contradicted the desired ability to navigate from a regular chat to a draft-only chat.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Keep unsent new-chat drafts permanently in the root welcome state with no header.
+    outcome: rejected
+    recorded_at: "2026-08-04T00:00:00Z"
+    reason: The approved product flow promotes a successfully saved draft shell to an explicit active draft-only chat.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Capture and review the laptop proof profile, then publish both approved device videos.
+  command: python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts --proof-video-profile web-laptop --no-mocks --account 1 --gate-deploy --expected-commit <commit>
+  expected_outcome: The revised phone and laptop proof contract is hash-approved and both device captures pass frame review.
+  blocker: null
+  last_verified_commit: 07823578fecdcf5fad717adbb84ec832df19bfc6
+
+scenarios:
+  - id: S-1
+    title: First successful save activates a draft-only chat
+    given:
+      - An authenticated user is on the blank welcome composer at /.
+      - No chat exists for the empty composer.
+    when:
+      - The user types "Plan a weekend cycling route around Berlin" and the first autosave succeeds.
+    then:
+      - One UUID draft-only chat is persisted with encrypted markdown and preview.
+      - The active route becomes #chat-id=<UUID> using history replacement.
+      - The header and New Chat control appear only after persistence succeeds.
+      - Sidebar, landing resume cards, search, reload, and cross-device sync refer to the same UUID.
+
+  - id: S-2
+    title: Draft header reflects acknowledged content and time
+    given:
+      - A draft-only chat is active.
+    when:
+      - The user saves a second revision "Plan a weekend cycling route around Berlin with lakes".
+    then:
+      - The header shows the canonical draft icon and Draft badge.
+      - The header title updates to the saved preview, visually truncated as needed.
+      - Last saved uses the successful updated_at value and a localized relative date.
+      - A failed later save leaves the last successful title and time visible.
+
+  - id: S-3
+    title: Draft-only chats participate in header navigation
+    given:
+      - The sorted user list contains a regular chat, a draft-only chat, and an older regular chat.
+    when:
+      - The user uses ChatHeader previous or next controls from any of those chats.
+    then:
+      - The draft-only chat is a normal chronological target.
+      - Empty metadata-less shells and hidden candidates remain excluded.
+      - Navigation works while the sidebar is closed and after cold boot.
+
+  - id: S-4
+    title: Sending promotes the same draft shell
+    given:
+      - A draft-only chat is active at #chat-id=<UUID>.
+    when:
+      - The user sends the saved draft.
+    then:
+      - The same UUID and route remain active.
+      - Draft badge, draft icon, and Last saved presentation disappear.
+      - Normal Creating new chat processing and generated metadata presentation take over.
+
+  - id: S-5
+    title: Clearing removes an active draft-only shell
+    given:
+      - A draft-only chat is active and contains no sent messages.
+    when:
+      - The user clears the composer and deletion succeeds.
+    then:
+      - The shell is removed locally and through the existing synchronized deletion contract.
+      - The route returns to / using history replacement.
+      - Header and New Chat control disappear.
+      - The blank welcome composer remains focused.
+      - Late save receipts or sync events do not recreate or reopen the deleted shell.
+
+  - id: S-6
+    title: Existing-chat drafts do not alter established headers
+    given:
+      - A chat has sent messages and generated title, icon, category, and summary.
+    when:
+      - The user types or saves an unsent draft in that chat.
+    then:
+      - The established title, icon, category, summary, route, and header timestamp remain unchanged.
+      - Existing sidebar draft preview behavior remains unchanged.
+
+  - id: S-7
+    title: Synchronized draft updates refresh active presentation
+    given:
+      - The same draft-only chat is active in web and edited by another authenticated client.
+    when:
+      - Web receives a newer encrypted draft update.
+    then:
+      - Web decrypts inside the client boundary and updates the header preview and Last saved time.
+      - No draft plaintext enters server logs, analytics, or durable unencrypted storage.
+
+  - id: S-8
+    title: Late first-save activation preserves newer navigation
+    given:
+      - A new-chat draft is being persisted for the first time.
+      - The user explicitly selects a different saved chat before draft activation finishes.
+    when:
+      - The delayed persisted-draft activation signal arrives.
+    then:
+      - The explicitly selected saved chat remains active in the route, sidebar, and rendered chat surface.
+      - The draft-only chat remains persisted and navigable but does not reopen itself.
+
+acceptance_criteria:
+  - { id: AC-1, scenario: S-1, text: "The first successful non-empty autosave activates one draft-only #chat-id route and shows header plus New Chat control; focus, typing, and failed persistence do not.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-VITEST-002, T-E2E-001] }
+  - { id: AC-2, scenario: S-2, text: "A draft-only header shows the canonical draft icon, Draft badge, saved preview title, and localized Last saved relative time from the last successful revision.", required: true, status: pending, coverage_status: covered, verification_scope: ui_visual_smoke, verification_ids: [T-E2E-001, V-UI-VISUAL-SMOKE] }
+  - { id: AC-3, scenario: S-3, text: "Draft-only chats are normal chronological previous/next targets while empty shells and hidden candidates remain excluded with the sidebar closed and after cold boot.", required: true, status: pending, coverage_status: covered, verification_scope: related_frontend, verification_ids: [T-VITEST-001, T-E2E-003] }
+  - { id: AC-4, scenario: S-4, text: "Sending promotes the same UUID and route from draft presentation to normal new-chat processing.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
+  - { id: AC-5, scenario: S-5, text: "Clearing deletes the draft-only shell, returns to a focused blank composer at /, hides draft chrome, and resists late recreation.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-VITEST-002, T-E2E-001, T-E2E-002] }
+  - { id: AC-6, scenario: S-6, text: "Saving a draft in an established chat does not change that chat's existing header presentation.", required: true, status: pending, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
+  - { id: AC-7, scenario: S-7, text: "A synchronized newer draft revision refreshes active draft-only title and saved time without plaintext leaving authenticated client boundaries.", required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [T-E2E-002] }
+  - { id: AC-8, scenario: S-1, text: "Apple implements the confirmed web-visible draft-only header and identity lifecycle after deployed web user confirmation.", required: true, status: pending, coverage_status: covered, verification_scope: apple, verification_ids: [T-APPLE-001, T-APPLE-002, V-USER-CONFIRMATION] }
+  - { id: AC-9, scenario: S-8, text: "A late first-save draft activation cannot override a newer explicit saved-chat selection; the draft remains persisted without reopening.", required: true, status: satisfied, coverage_status: covered, verification_scope: playwright, verification_ids: [T-E2E-001] }
+
+assumptions:
+  - id: A-1
+    text: New-chat draft markdown and preview remain directly encrypted with the account master key using Format D.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/core/encryption-code-inventory.md
+        summary: draftSave.ts uses encryptWithMasterKey for encrypted_draft_md and encrypted_draft_preview with no chat-key involvement.
+  - id: A-2
+    text: Chat.updated_at represents the latest successful local or synchronized draft save without changing message-only ordering.
+    category: data
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/drafts/draftSave.ts
+        summary: Successful draft persistence writes updated_at; draftWebsocket applies synchronized update time while intentionally preserving last_edited_overall_timestamp ordering.
+  - id: A-3
+    text: Existing update_draft, delete_draft, draft_update_receipt, draft_deleted, and draft_v reconciliation already satisfy the encrypted cross-device transport contract.
+    category: sync
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/plans/cross-client-draft-apple-parity/plan.yml
+        summary: The existing protocol and cross-client lifecycle are verified; this spec changes only presentation and activation semantics.
+
+contracts:
+  api:
+    - surface: Existing authenticated draft WebSocket events; no endpoint or payload change.
+      access_model: first-party client surface only
+      auth: Authenticated account/device WebSocket session required.
+      rate_limits: Existing WebSocket and draft autosave limits remain unchanged.
+      credit_budget: No credit charge or inference budget applies to draft save or clear.
+      encryption_boundary: Server receives Format-D ciphertext and version metadata only; draft plaintext remains client-side.
+    - surface: Existing authenticated draft REST read endpoints; no endpoint or payload change.
+      access_model: first-party client surface only
+      auth: Authenticated owner session required.
+      rate_limits: Existing route limits remain unchanged.
+      credit_budget: No credits charged.
+      encryption_boundary: Responses expose ciphertext transport fields; clients decrypt locally.
+  data:
+    - A draft-only chat has non-empty encrypted draft content, no sent messages, and no generated title metadata.
+    - Empty temporary shells are not active, routable, visible, or navigable draft chats.
+    - updated_at is the draft saved-time source; last_edited_overall_timestamp remains message-only ordering state.
+    - Draft-only header plaintext exists only in transient decrypted UI/cache state.
+    - The same UUID survives first autosave, navigation, reload, sync, and first send.
+  ui_states:
+    - Blank welcome composer at / with no header and no active-draft New Chat control.
+    - Persisting first draft with no saved-state claim until success.
+    - Active draft-only header with icon, badge, preview title, and Last saved.
+    - Failed update retaining last successful header values.
+    - Normal new-chat processing after send on the same route.
+    - Cleared draft returning to focused blank welcome state.
+    - Established chat with draft and unchanged established header.
+  privacy_security:
+    - Never log draft plaintext, preview plaintext, master keys, chat keys, or encrypted payload bodies.
+    - Route and test diagnostics may record only UUIDs, versions, lengths, timestamps, and boolean state.
+    - Existing owner-scoped first-party draft access remains unchanged.
+    - Incognito drafts remain outside durable persistence and cross-device sync.
+
+phase_gates:
+  api_websocket:
+    status: not_applicable
+    reason: No backend endpoint, event, auth, rate-limit, budget, or encryption-boundary behavior changes; existing verified protocol is reused unchanged.
+  cli:
+    status: not_applicable
+    reason: No CLI command or mutation contract changes; CLI-created drafts already use the shared UUID and encrypted protocol.
+  sdk:
+    status: not_applicable
+    reason: npm and pip remain read-only for draft transport and require no API change.
+  web:
+    status: pending
+    reason: This is the authoritative implementation surface for activation, routing, header, navigation, and clear behavior.
+  visual_smoke:
+    status: pending
+    reason: Draft header and composer control visibility require reviewed laptop and mobile screenshots.
+  user_confirmation:
+    status: pending
+    reason: User confirmation of deployed web behavior is required before Apple parity.
+  apple:
+    status: pending
+    reason: Native draft-only header parity follows confirmed deployed web behavior.
+
+tests:
+  - id: T-VITEST-001
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-3]
+    assertions:
+      - inactive draft-only chats remain chronological header navigation targets
+      - active draft-only chats navigate to adjacent regular chats
+      - empty shells and hidden candidates remain excluded
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-VITEST-002
+    type: vitest
+    file: frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-1, AC-5]
+    assertions:
+      - successful first draft save publishes its UUID for activation only after persistence
+      - failed or empty save does not activate a draft-only route
+      - clear resets activation state and cannot be overwritten by an older in-flight save
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-E2E-001
+    type: playwright
+    file: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts
+    command: python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-9]
+    assertions:
+      - first successful autosave activates #chat-id and shows draft header plus New Chat control
+      - draft header shows icon, badge, preview, and Last saved and updates after a second save
+      - sending preserves the UUID and transitions to normal processing
+      - Stop restores draft-only presentation on the same UUID
+      - clearing returns to focused / welcome state without a header
+      - an established-chat draft leaves its generated header unchanged
+      - a late first-save activation cannot override a newer explicit saved-chat selection
+    red_phase: { required: true, expected: fail, evidence: { status: failed_as_expected, command: "python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts --gate-deploy --require-exact-commit --expected-commit e9adac071f02d396f78b888be1459912f102710c", run_id: "32922696086", subject_commit: "e9adac071f02d396f78b888be1459912f102710c", timestamp: "2026-08-26T02:31:05Z", target: app.dev.openmates.org, summary: "Both activation consumers reached the deterministic asynchronous commit gate, then zero rejected the stale activation after navigation changed." } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: passed, command: "python3 scripts/tests.py run --spec stop-new-chat-draft.spec.ts --gate-deploy --require-exact-commit --expected-commit aa0f960fd15f540356fcec5f5bc0b39831436e15", run_id: "32927066050", subject_commit: "aa0f960fd15f540356fcec5f5bc0b39831436e15", timestamp: "2026-08-26T03:42:06Z", target: app.dev.openmates.org, deployment_reference: "https://app.dev.openmates.org", summary: "Legacy draft restoration and the deterministic late-activation navigation-authority regression both passed." } }
+  - id: T-E2E-002
+    type: playwright
+    file: frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts
+    command: python3 scripts/tests.py run --spec cross-client-draft-sync.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-5, AC-7]
+    assertions:
+      - a newer synchronized draft revision updates active header preview and saved time
+      - synchronized deletion removes draft header and route without late recreation
+      - diagnostics contain no draft plaintext outside authenticated browser assertions
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: "" } }
+  - id: T-E2E-003
+    type: playwright
+    file: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts
+    command: python3 scripts/tests.py run --spec chat-header-navigation-order.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-3]
+    assertions:
+      - previous and next controls can open draft-only and regular chats in chronological order with sidebar closed
+      - dismissing the mobile keyboard preserves the active draft text, route, and header
+      - the persisted draft appears in the sidebar and Continue carousel under the same chat ID
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org } }
+    green_phase: { required: true, expected: pass_after_deploy, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "", target: app.dev.openmates.org, deployment_reference: "" } }
+  - id: T-APPLE-001
+    type: unit
+    file: apple/OpenMatesTests/DraftSyncParityTests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesTests/DraftSyncParityTests"
+    covers: [AC-8]
+    assertions:
+      - new draft-only chat retains one UUID through save and send
+      - synchronized preview and updated time reach native presentation state
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+  - id: T-APPLE-002
+    type: unit
+    file: apple/OpenMatesUITests/ChatFlowParityUITests.swift
+    command: python3 scripts/apple_remote.py test-ios --simulator "iPhone 17" --only-testing "OpenMatesUITests/ChatFlowParityUITests"
+    covers: [AC-8]
+    assertions:
+      - draft-only native header exposes draft icon, badge, preview title, and relative saved time
+      - established-chat draft keeps established header presentation
+    red_phase: { required: true, expected: fail, evidence: { status: pending, run_id: "", timestamp: "" } }
+    green_phase: { required: true, expected: pass, evidence: { status: pending, command: "", run_id: "", subject_commit: "", timestamp: "" } }
+
+verifications:
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-2]
+    status: pending
+    routes:
+      - https://app.dev.openmates.org/
+      - https://app.dev.openmates.org/#chat-id=<DRAFT_CHAT_ID>
+    viewports: [laptop, mobile]
+    evidence: { status: pending, method: playwright, run_id: "", subject_commit: "", screenshots: [], summary: "", timestamp: "" }
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-8]
+    status: pending
+    evidence: { status: pending, actor: user, summary: "", timestamp: "", next_action: "Ask the user to confirm deployed web behavior and visuals before Apple parity." }
+  - id: V-SPEC-VERIFY
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    status: pending
+    evidence: { status: pending, command: "python3 scripts/plan_verify.py docs/plans/new-chat-draft-lifecycle/plan.yml", run_id: "", subject_commit: "", summary: "", timestamp: "" }
+
+implementation_notes:
+  plan_path: docs/plans/new-chat-draft-lifecycle/plan.yml
+  existing_patterns:
+    - draftSave.ts already creates and persists the UUID shell before publishing draft UI state.
+    - draftWebsocket.ts already applies newer encrypted revisions and updated_at without changing message-only ordering.
+    - ActiveChat already restores draft-only hash routes and supplies decrypted draft preview data for landing resume cards.
+    - Chat.svelte already defines the sidebar draft-only visual hierarchy and canonical Draft translation.
+    - ChatHeader already supports badge, icon, title, relative timestamp, and previous/next composition for other chat kinds.
+    - chatNavigationStore already filters empty/hidden shells and only needs draft fields restored to the normal eligibility predicate.
+    - The verified cross-client draft spec remains the transport and encryption source of truth.
+  architecture: >
+    Add one reusable draft-only predicate over persisted Chat fields and pass an
+    explicit draft presentation model from ActiveChat through ChatHistory into
+    ChatHeader. Keep save, sync, and clear side effects in existing draft services;
+    publish the newly persisted shell ID through draftEditorUIState only after a
+    successful first save so ActiveChat can select the normal chat route. Use
+    updated_at as presentation time, preserve last_edited_overall_timestamp for
+    existing ordering, and guard asynchronous save/delete results with the current
+    chat ID/revision so stale completions cannot reopen a cleared shell.
+  data_flow:
+    - The blank composer receives non-empty canonical content but remains at / until draftSave persists encrypted markdown/preview for UUID 11111111-1111-4111-8111-111111111111.
+    - After local persistence succeeds, draftEditorUIState publishes that UUID; ActiveChat loads the persisted shell and replaces the hash with #chat-id=11111111-1111-4111-8111-111111111111.
+    - ActiveChat derives draft-only state, decrypts/caches preview inside the client, and passes preview plus updated_at to ChatHistory and ChatHeader.
+    - A later successful local or synchronized revision updates encrypted fields, draft_v, updated_at, cache preview, and active header presentation.
+    - Header navigation includes the shell in the existing sorted list and selects it through the same chatHeaderNavigation event as regular chats.
+    - Send reuses the UUID and changes the derived predicate once a user message exists, allowing the normal processing header to replace draft presentation.
+    - Clear/delete invalidates the shell generation, removes local/cache/server discovery, replaces the hash with /, and focuses the blank composer; stale completions are ignored.
+  affected_files:
+    - { path: frontend/packages/ui/src/utils/chatDraftState.ts, reason: Shared persisted draft-only predicate and presentation helpers if no existing reusable utility fits }
+    - { path: frontend/packages/ui/src/services/drafts/draftSave.ts, reason: Publish activation only after successful persistence and guard stale save completion }
+    - { path: frontend/packages/ui/src/services/drafts/draftState.ts, reason: Carry saved shell ID/revision presentation state without a parallel route type }
+    - { path: frontend/packages/ui/src/services/drafts/draftWebsocket.ts, reason: Refresh active draft presentation timestamp/preview from synchronized revisions }
+    - { path: frontend/packages/ui/src/stores/chatNavigationStore.ts, reason: Restore draft-only chats as normal chronological targets }
+    - { path: frontend/packages/ui/src/components/ActiveChat.svelte, reason: Select persisted draft route, derive draft-only presentation, and reset route/focus on clear }
+    - { path: frontend/packages/ui/src/components/ChatHistory.svelte, reason: Show the header for draft-only chats and pass explicit draft props }
+    - { path: frontend/packages/ui/src/components/ChatHeader.svelte, reason: Render canonical draft icon, badge, preview title, and Last saved time }
+    - { path: frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts, reason: Test successful activation and stale-clear guards }
+    - { path: frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts, reason: Test draft-only chronological navigation }
+    - { path: frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts, reason: Focused new-chat draft activation/send/clear/established-header lifecycle }
+    - { path: frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts, reason: Synchronized header update and deletion behavior }
+    - { path: frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts, reason: Deployed sidebar-closed regular-to-draft navigation }
+    - { path: apple/OpenMates/Sources/Core/Services/DraftService.swift, reason: Expose native presentation revision time after web confirmation }
+    - { path: apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift, reason: Native draft-only header parity after web confirmation }
+  api_data_ui_privacy_impact:
+    - API/WebSocket payloads, access control, rate limits, and credit behavior are unchanged.
+    - Data uses existing encrypted fields, draft_v, UUID, and updated_at; no migration or backfill is required.
+    - UI adds an explicit draft-only header state and restores draft navigation; established chats are unchanged.
+    - Plaintext preview remains transient inside authenticated clients and is excluded from diagnostics.
+  migration_rollout:
+    - No schema migration or backfill.
+    - Existing persisted draft-only shells become navigable and gain header presentation immediately after deployment.
+    - Roll out web first, inspect deployed laptop/mobile behavior, obtain user confirmation, then implement Apple parity.
+  observability:
+    - Reuse existing draft service logs with chat ID, draft_v, timestamp, and boolean fields only.
+    - Do not add plaintext preview/title logging.
+    - Playwright diagnostics may record route, test IDs, timestamp attributes, and encrypted-field presence only.
+  assumptions_to_verify:
+    - A-1 is confirmed by encryption inventory and must remain unchanged.
+    - A-2 is confirmed by draftSave/draftWebsocket and will be protected by tests.
+    - A-3 is confirmed by the verified cross-client spec; no backend phase is required.
+  acceptance_coverage:
+    - { acceptance_criterion: AC-1, verification_ids: [T-VITEST-002, T-E2E-001] }
+    - { acceptance_criterion: AC-2, verification_ids: [T-E2E-001, V-UI-VISUAL-SMOKE] }
+    - { acceptance_criterion: AC-3, verification_ids: [T-VITEST-001, T-E2E-003] }
+    - { acceptance_criterion: AC-4, verification_ids: [T-E2E-001] }
+    - { acceptance_criterion: AC-5, verification_ids: [T-VITEST-002, T-E2E-001, T-E2E-002] }
+    - { acceptance_criterion: AC-6, verification_ids: [T-E2E-001] }
+    - { acceptance_criterion: AC-7, verification_ids: [T-E2E-002] }
+    - { acceptance_criterion: AC-8, verification_ids: [V-USER-CONFIRMATION, T-APPLE-001, T-APPLE-002] }
+  verification_strategy:
+    - Validate the spec before test or source edits.
+    - Change unit and deployed Playwright assertions first and record expected red evidence against pre-implementation dev.
+    - Run Vitest only through python3 scripts/tests.py run --suite vitest.
+    - Deploy scoped web changes before commit-pinned Playwright green runs.
+    - Run stop-new-chat-draft, chat-header-navigation-order, then cross-client-draft-sync.
+    - Capture and inspect laptop/mobile Playwright visual smoke for / and the active draft route.
+    - Obtain user confirmation of deployed web behavior and visuals.
+    - Implement and remotely verify Apple parity only after user confirmation.
+    - Run spec_verify after all required evidence is recorded.
+  verification_order:
+    - Spec validation and red unit contracts
+    - Deployed web Playwright red evidence
+    - Web implementation and Vitest green
+    - Deployed focused lifecycle and navigation Playwright green
+    - Deployed cross-client Playwright green
+    - Reviewed laptop/mobile visual smoke
+    - User confirmation
+    - Apple unit/UI parity and remote verification
+    - Final spec verification
+  separate_technical_approval_required: false
+  separate_technical_approval_reason: The plan reuses approved existing persistence, routing, encryption, and sync architecture without a new security, migration, rollout, or dependency decision.
+
+tasks:
+  - id: TASK-1
+    title: Add red draft activation navigation and header contracts
+    status: in_progress
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7] }
+    expected_files: [frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts, frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts, frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts, frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts, frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts, docs/plans/new-chat-draft-lifecycle/plan.yml]
+    verification: [T-VITEST-001, T-VITEST-002, T-E2E-001, T-E2E-002, T-E2E-003]
+    verification_ids: [T-VITEST-001, T-VITEST-002, T-E2E-001, T-E2E-002, T-E2E-003]
+    dependencies: []
+    ownership: { files: [frontend/packages/ui/src/services/drafts/__tests__/draftSave.test.ts, frontend/packages/ui/src/stores/__tests__/chatNavigationStore.spec.ts, frontend/apps/web_app/tests/stop-new-chat-draft.spec.ts, frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts, frontend/apps/web_app/tests/chat-header-navigation-order.spec.ts, docs/plans/new-chat-draft-lifecycle/plan.yml], shared_files: [frontend/apps/web_app/tests/cross-client-draft-sync.spec.ts] }
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4]
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement persisted draft activation and chronological navigation
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-3], acceptance_criteria: [AC-1, AC-3] }
+    expected_files: [frontend/packages/ui/src/utils/chatDraftState.ts, frontend/packages/ui/src/services/drafts/draftSave.ts, frontend/packages/ui/src/services/drafts/draftState.ts, frontend/packages/ui/src/stores/chatNavigationStore.ts, frontend/packages/ui/src/components/ActiveChat.svelte]
+    verification: [T-VITEST-001, T-VITEST-002, T-E2E-003]
+    verification_ids: [T-VITEST-001, T-VITEST-002, T-E2E-003]
+    dependencies: [TASK-1]
+    ownership: { files: [frontend/packages/ui/src/utils/chatDraftState.ts, frontend/packages/ui/src/services/drafts/draftSave.ts, frontend/packages/ui/src/services/drafts/draftState.ts, frontend/packages/ui/src/stores/chatNavigationStore.ts], shared_files: [frontend/packages/ui/src/components/ActiveChat.svelte] }
+    blockers: []
+    follow_up_tasks: [TASK-3, TASK-4]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement draft-only header presentation and synchronized updates
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-2, S-6, S-7], acceptance_criteria: [AC-2, AC-6, AC-7] }
+    expected_files: [frontend/packages/ui/src/services/drafts/draftWebsocket.ts, frontend/packages/ui/src/components/ActiveChat.svelte, frontend/packages/ui/src/components/ChatHistory.svelte, frontend/packages/ui/src/components/ChatHeader.svelte, frontend/packages/ui/src/i18n/locales/en.yml, frontend/packages/ui/src/i18n/locales/de.yml]
+    verification: [T-E2E-001, T-E2E-002]
+    verification_ids: [T-E2E-001, T-E2E-002]
+    dependencies: [TASK-2]
+    ownership: { files: [frontend/packages/ui/src/services/drafts/draftWebsocket.ts, frontend/packages/ui/src/components/ChatHistory.svelte, frontend/packages/ui/src/components/ChatHeader.svelte, frontend/packages/ui/src/i18n/locales/en.yml, frontend/packages/ui/src/i18n/locales/de.yml], shared_files: [frontend/packages/ui/src/components/ActiveChat.svelte] }
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement stable send clear and late-event transitions
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5] }
+    expected_files: [frontend/packages/ui/src/services/drafts/draftSave.ts, frontend/packages/ui/src/components/ActiveChat.svelte, frontend/packages/ui/src/components/enter_message/MessageInput.svelte]
+    verification: [T-VITEST-002, T-E2E-001, T-E2E-002]
+    verification_ids: [T-VITEST-002, T-E2E-001, T-E2E-002]
+    dependencies: [TASK-2, TASK-3]
+    ownership: { files: [frontend/packages/ui/src/components/enter_message/MessageInput.svelte], shared_files: [frontend/packages/ui/src/services/drafts/draftSave.ts, frontend/packages/ui/src/components/ActiveChat.svelte] }
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Deploy and prove web lifecycle navigation sync and visuals
+    status: pending
+    phase: running_checks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7] }
+    expected_files: [docs/plans/new-chat-draft-lifecycle/plan.yml]
+    verification: [T-VITEST-001, T-VITEST-002, T-E2E-001, T-E2E-002, T-E2E-003, V-UI-VISUAL-SMOKE]
+    verification_ids: [T-VITEST-001, T-VITEST-002, T-E2E-001, T-E2E-002, T-E2E-003, V-UI-VISUAL-SMOKE]
+    dependencies: [TASK-4]
+    ownership: { files: [docs/plans/new-chat-draft-lifecycle/plan.yml], shared_files: [] }
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+  - id: TASK-6
+    title: Confirm deployed web draft behavior and visuals
+    status: pending
+    phase: awaiting_approval
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8] }
+    expected_files: [docs/plans/new-chat-draft-lifecycle/plan.yml]
+    verification: [V-USER-CONFIRMATION]
+    verification_ids: [V-USER-CONFIRMATION]
+    dependencies: [TASK-5]
+    ownership: { files: [docs/plans/new-chat-draft-lifecycle/plan.yml], shared_files: [] }
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+  - id: TASK-7
+    title: Implement and verify Apple draft-only header parity
+    status: pending
+    phase: working_tasks
+    covers: { scenarios: [S-1, S-2, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-8] }
+    expected_files: [apple/OpenMates/Sources/Core/Services/DraftService.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift, apple/OpenMatesTests/DraftSyncParityTests.swift, apple/OpenMatesUITests/ChatFlowParityUITests.swift]
+    verification: [T-APPLE-001, T-APPLE-002]
+    verification_ids: [T-APPLE-001, T-APPLE-002]
+    dependencies: [TASK-6]
+    ownership: { files: [apple/OpenMates/Sources/Core/Services/DraftService.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatHeaderView.swift, apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift, apple/OpenMatesTests/DraftSyncParityTests.swift, apple/OpenMatesUITests/ChatFlowParityUITests.swift], shared_files: [] }
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: true
+  - id: TASK-8
+    title: Finalize evidence and verify the executable spec
+    status: pending
+    phase: running_checks
+    covers: { scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8] }
+    expected_files: [docs/plans/new-chat-draft-lifecycle/plan.yml]
+    verification: [V-SPEC-VERIFY]
+    verification_ids: [V-SPEC-VERIFY]
+    dependencies: [TASK-7]
+    ownership: { files: [docs/plans/new-chat-draft-lifecycle/plan.yml], shared_files: [] }
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+risks:
+  - id: R-1
+    risk: A late autosave acknowledgement recreates a draft shell after the user cleared it.
+    mitigation: Bind save results to the active draft revision/generation and test clear during an in-flight save.
+  - id: R-2
+    risk: Existing-chat drafts accidentally enter draft-only header mode.
+    mitigation: Use one predicate requiring no sent messages and no generated title metadata, with explicit regression coverage.
+  - id: R-3
+    risk: Route activation before persistence reports a draft that cannot be restored.
+    mitigation: Publish active chat ID and replace history only after local persistence succeeds.
+  - id: R-4
+    risk: Relative time or preview updates cause broad render/decrypt churn.
+    mitigation: Reuse decrypted preview cache and update only the active draft header from local/sync draft events.
+
+open_questions: []

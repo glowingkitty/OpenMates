@@ -14,6 +14,12 @@
         <mj-image src="cid:operational-report" alt="CPU, memory and disk usage over the preceding 24 hours" padding="0 0 18px 0" />
         <mj-text font-size="16px"><strong>Activity:</strong> {{ activity.chats }} chats · {{ activity.messages }} messages · {{ activity.embeds }} embeds · {{ activity.usage_entries }} usage entries</mj-text>
         <mj-text font-size="16px"><strong>AI response recovery jobs:</strong> {{ processing.created }} created · {{ processing.completed }} completed · {{ processing.invalidated }} invalidated · {{ processing.non_terminal_over_15m }} non-terminal &gt;15m</mj-text>
+        {% if provider_health %}
+        <mj-text font-size="16px"><strong>Providers:</strong> {{ provider_health.healthy_count }} healthy · {{ provider_health.status }}</mj-text>
+        {% endif %}
+        {% if billing_readiness %}
+        <mj-text font-size="16px"><strong>Payment readiness:</strong> EU {{ billing_readiness.eu_card }} · Managed {{ billing_readiness.managed }} · {{ billing_readiness.status }}</mj-text>
+        {% endif %}
         {% if cloud %}
         <mj-text font-size="16px"><strong>Cloud credit purchases ({{ cloud.purchase_window_label }}):</strong> {{ cloud.purchase_count }} purchases · {{ cloud.credits_sold }} credits sold · {{ cloud.status }}</mj-text>
         <mj-text font-size="16px"><strong>Usage charging:</strong> {{ cloud.usage_committed }} committed · {{ cloud.usage_failed }} failed</mj-text>

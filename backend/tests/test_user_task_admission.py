@@ -36,12 +36,13 @@ def _task(task_id: str, **overrides):
 def _service(tasks, *, policy=None, plans=None):
     methods = AsyncMock()
     methods.list_open_tasks_for_admission.return_value = tasks
+    methods.admission_blockers.return_value = []
     methods.acquire_admission_lock.return_value = "lock-token"
     methods.claim_ai_task.side_effect = lambda task, now: {**task, "status": "in_progress", "ai_execution_state": "queued"}
     methods.set_ai_task_waiting.side_effect = lambda task, state, now: {**task, "ai_execution_state": state}
     plan_methods = AsyncMock()
     plan_methods.get_plan.side_effect = lambda plan_id, _user_id, _team_id=None: (plans or {}).get(plan_id)
-    return TaskAdmissionService(methods, plan_methods=plan_methods, policy=policy), methods, plan_methods
+    return TaskAdmissionService(methods, policy=policy), methods, plan_methods
 
 
 # contract-test: direct surface=rest_api assertions=tasks.execution.capacity-scoped
@@ -146,18 +147,75 @@ async def test_user_reorder_changes_next_chat_task_without_preemption() -> None:
 
 # contract-test: direct surface=rest_api assertions=tasks.execution.order-preserved
 @pytest.mark.asyncio
-async def test_plan_current_task_is_only_eligible_plan_lane_head() -> None:
+async def test_plan_lane_uses_first_open_task_without_plan_pointer_lookup() -> None:
     tasks = [
-        _task("plan-earlier", plan_id="plan-1", plan_step_id="step-1", position=10),
-        _task("plan-current", plan_id="plan-1", plan_step_id="step-2", position=20, priority=4),
+        _task("plan-first", plan_id="plan-1", position=10),
+        _task("plan-later", plan_id="plan-1", position=20, priority=4),
     ]
-    service, methods, plans = _service(tasks, plans={"plan-1": {"plan_id": "plan-1", "current_task_id": "plan-current"}})
+    service, methods, plans = _service(tasks)
 
     result = await service.admit_available("user-1", now=200)
 
-    assert result["admitted_task_ids"] == ["plan-current"]
-    assert methods.claim_ai_task.await_args.args[0]["task_id"] == "plan-current"
-    plans.get_plan.assert_awaited_once_with("plan-1", "user-1", None)
+    assert result["admitted_task_ids"] == ["plan-first"]
+    assert result["waiting_task_ids"] == ["plan-later"]
+    assert methods.claim_ai_task.await_args.args[0]["task_id"] == "plan-first"
+    plans.get_plan.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.dependencies.done-only,tasks.execution.order-preserved
+@pytest.mark.asyncio
+async def test_unsatisfied_dependency_blocks_automatic_admission() -> None:
+    service, methods, _plans = _service([_task("blocked")])
+    methods.admission_blockers.return_value = [{"ref": "task:prerequisite", "status": "todo"}]
+
+    result = await service.admit_available("user-1", now=200)
+
+    assert result["admitted_task_ids"] == []
+    assert result["waiting_task_ids"] == ["blocked"]
+    methods.claim_ai_task.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=tasks.execution.order-preserved
+@pytest.mark.asyncio
+async def test_active_plan_task_prevents_another_plan_task_after_reorder() -> None:
+    tasks = [
+        _task("reordered-todo", plan_id="plan-1", position=10),
+        _task("active", plan_id="plan-1", position=20, status="in_progress"),
+    ]
+    service, methods, _plans = _service(tasks)
+
+    result = await service.admit_available("user-1", now=200)
+
+    assert result["admitted_task_ids"] == []
+    assert result["waiting_task_ids"] == ["reordered-todo"]
+    methods.claim_ai_task.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=plans.approval.human-web-revision-bound,plans.assumptions.investigated-before-work,tasks.execution.order-preserved
+@pytest.mark.asyncio
+async def test_plan_gate_blockers_prevent_automatic_admission() -> None:
+    service, methods, _plans = _service([_task("blocked", plan_id="plan-1")])
+    methods.admission_blockers.return_value = [{"kind": "approval", "id": "plan-1", "status": "unapproved"}]
+
+    result = await service.admit_available("user-1", now=200)
+
+    assert result["admitted_task_ids"] == []
+    assert result["waiting_task_ids"] == ["blocked"]
+
+
+# contract-test: direct surface=rest_api assertions=plans.dependencies.done-only,plans.approval.human-web-revision-bound,tasks.execution.capacity-scoped
+@pytest.mark.asyncio
+async def test_hashed_scheduler_admission_uses_owner_hash_for_work_control_gates() -> None:
+    service, methods, _plans = _service([])
+    task = _task("scheduled", hashed_user_id="owner-hash")
+    methods.list_open_tasks_for_hashed_admission.return_value = [task]
+    methods.admission_blockers.return_value = [{"ref": "task:prerequisite", "status": "todo"}]
+    methods.acquire_hashed_admission_lock.return_value = "lock-token"
+
+    result = await service.admit_hashed_scope("personal", "owner-hash", now=200)
+
+    assert result["admitted_task_ids"] == []
+    methods.admission_blockers.assert_awaited_once_with(task, "", owner_hash="owner-hash")
 
 
 # contract-test: direct surface=rest_api assertions=tasks.execution.order-preserved

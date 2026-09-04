@@ -26,10 +26,6 @@ struct ChatListRow: View {
 
     private var publicIconDescriptor: PublicIconDescriptor? {
         switch chat.id {
-        case "demo-for-everyone":
-            return .init(icon: "ai", gradient: CategoryMapping.gradient(for: "openmates_official"), usesAssetIcon: true)
-        case "demo-for-developers":
-            return .init(icon: "code", gradient: CategoryMapping.gradient(for: "openmates_official"))
         case "demo-who-develops-openmates":
             return .init(icon: "user", gradient: CategoryMapping.gradient(for: "openmates_official"))
         case "announcements-introducing-openmates-v09":
@@ -65,6 +61,14 @@ struct ChatListRow: View {
             return "public-chat"
         }
         return "user-chat"
+    }
+
+    private var accessibilityValue: String {
+        guard accessibilityScope == "user-chat",
+              ProcessInfo.processInfo.arguments.contains("--ui-test-expose-chat-ids") else {
+            return accessibilityScope
+        }
+        return "user-chat:\(chat.id)"
     }
 
     private var isSubChatRow: Bool {
@@ -167,7 +171,7 @@ struct ChatListRow: View {
         .padding(.trailing, .spacing6)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(isSubChatRow ? "sub-chat-item" : "chat-item-wrapper")
-        .accessibilityValue(accessibilityScope)
+        .accessibilityValue(accessibilityValue)
         .accessibilityLabel("\(titleForDisplay)\(isSubChatRow ? ", sub-chat" : "")\(chat.isPinned == true ? ", pinned" : "")")
         .accessibilityHint("Double tap to open, long press for options")
     }

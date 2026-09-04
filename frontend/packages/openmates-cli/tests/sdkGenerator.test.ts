@@ -30,6 +30,9 @@ describe("generated npm SDK app skills", () => {
     const designSearchIcons = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "design" && skill.skill_id === "search_icons",
     );
+    const codeRun = APP_SKILL_METADATA.find(
+      (skill) => skill.app_id === "code" && skill.skill_id === "run",
+    );
     const models3dGenerate = APP_SKILL_METADATA.find(
       (skill) => skill.app_id === "models3d" && skill.skill_id === "generate",
     );
@@ -63,9 +66,9 @@ describe("generated npm SDK app skills", () => {
     );
     assert.deepEqual(
       audioSpeak.schema.properties.requests.items.properties.model.enum,
-      ["eleven_multilingual_v2", "eleven_flash_v2_5"],
+      ["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"],
     );
-    assert.equal(audioSpeak.schema.properties.requests.items.properties.model.default, "eleven_multilingual_v2");
+    assert.equal(audioSpeak.schema.properties.requests.items.properties.model.default, "eleven_v3");
 
     assert.ok(webSearch);
     assert.equal(webSearch.app_namespace_ts, "web");
@@ -81,6 +84,16 @@ describe("generated npm SDK app skills", () => {
     assert.equal(designSearchIcons.app_namespace_ts, "design");
     assert.equal(designSearchIcons.skill_method_ts, "searchIcons");
     assert.ok(designSearchIcons.schema.properties.requests);
+
+    assert.ok(codeRun);
+    assert.equal(codeRun.app_namespace_ts, "code");
+    assert.equal(codeRun.skill_method_ts, "run");
+    assert.equal(codeRun.schema.properties.requests.items.properties.mode.default, "direct");
+    assert.ok(codeRun.schema.properties.requests.items.properties.files.items.properties.content_base64);
+    assert.equal(
+      codeRun.output_schema.properties.results.items.properties.final.properties.artifacts.items.properties.download_url.type,
+      "string",
+    );
 
     assert.equal(models3dGenerate, undefined);
 
@@ -117,6 +130,7 @@ describe("generated npm SDK app skills", () => {
     const audioResult = await apps.audio.generate({ requests: [{ prompt: "soft tick", provider: "elevenlabs" }] });
     const speechResult = await apps.audio.speak({ requests: [{ text: "Welcome back.", provider: "elevenlabs" }] });
     const iconResult = await apps.design.searchIcons({ requests: [{ query: "home" }] });
+    const codeRunResult = await apps.code.run({ requests: [{ mode: "direct", entry_path: "main.py", files: [] }] });
     const fitnessResult = await apps.fitness.searchClasses({ requests: [{ address: "Sorauer Str. 12" }] });
     const modelSearchResult = await apps.models3d.search({ requests: [{ query: "benchy" }] });
     const businessResult = await apps.business.companyFinancials(
@@ -127,6 +141,7 @@ describe("generated npm SDK app skills", () => {
     assert.deepEqual(audioResult, { ok: true });
     assert.deepEqual(speechResult, { ok: true });
     assert.deepEqual(iconResult, { ok: true });
+    assert.deepEqual(codeRunResult, { ok: true });
     assert.deepEqual(fitnessResult, { ok: true });
     assert.deepEqual(modelSearchResult, { ok: true });
     assert.deepEqual(businessResult, { ok: true });
@@ -135,6 +150,7 @@ describe("generated npm SDK app skills", () => {
       { appId: "audio", skillId: "generate", input: { requests: [{ prompt: "soft tick", provider: "elevenlabs" }] }, options: undefined },
       { appId: "audio", skillId: "speak", input: { requests: [{ text: "Welcome back.", provider: "elevenlabs" }] }, options: undefined },
       { appId: "design", skillId: "search_icons", input: { requests: [{ query: "home" }] }, options: undefined },
+      { appId: "code", skillId: "run", input: { requests: [{ mode: "direct", entry_path: "main.py", files: [] }] }, options: undefined },
       { appId: "fitness", skillId: "search_classes", input: { requests: [{ address: "Sorauer Str. 12" }] }, options: undefined },
       { appId: "models3d", skillId: "search", input: { requests: [{ query: "benchy" }] }, options: undefined },
       {

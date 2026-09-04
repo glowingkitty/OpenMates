@@ -2,10 +2,10 @@
 """
 User tier resolution for OpenTelemetry privacy filtering.
 
-Determines the privacy tier (1-3) for a span based on its attributes:
-- Tier 3 (full visibility): Admin users or users who opted into debug logging
-- Tier 2 (operational): Error spans from regular users (need debugging context)
-- Tier 1 (minimal): Normal spans from regular users (privacy-preserving)
+Determines diagnostic eligibility (tiers 1-3) from span attributes. The privacy
+exporter always applies a strict structural allowlist; tier 3 only permits an
+additional reviewed non-content allowlist when a separate audited scope is
+active and time bounded.
 
 Note: The actual user attributes (is_admin, debug_opted_in) are injected
 by WebSocket handlers and middleware in Plan 03. This module only reads
@@ -35,11 +35,11 @@ def determine_user_tier(span_attributes: Dict[str, Any]) -> int:
 
     Returns:
         int: Privacy tier level (1, 2, or 3).
-            - 3: Admin or debug-opted-in user (full attribute visibility)
-            - 2: Error span from regular user (operational debugging attrs)
-            - 1: Normal span from regular user (minimal, privacy-preserving)
+            - 3: Admin or debug-opted-in user eligible for bounded diagnostics
+            - 2: Error span eligible for normalized operational metadata
+            - 1: Normal span with the default structural allowlist
     """
-    # Admin users always get full visibility
+    # Admin/debug flags establish eligibility only; exporter scope still gates fields.
     if span_attributes.get("enduser.is_admin") is True:
         return TIER_FULL_VISIBILITY
 

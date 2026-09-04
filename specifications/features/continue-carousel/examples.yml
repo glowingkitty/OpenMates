@@ -1,0 +1,37 @@
+schema_version: 1
+specification: feature.continue-carousel@1
+
+saved_item_window:
+  - id: early-reminder-does-not-promote-appointment
+    given:
+      item_kind: health_appointment
+      item_starts_in_hours: 46
+      linked_reminder_triggers_in_hours: 22
+    expect:
+      priority_card_visible: false
+  - id: appointment-enters-own-window
+    given:
+      item_kind: health_appointment
+      item_starts_in_hours: 23
+      linked_reminder_triggers_in_hours: 2
+    expect:
+      priority_card_visible: true
+      priority_reason: upcoming_saved_item
+      priority_label: Appointment in 23h
+  - id: event-reminder-cannot-override-event-window
+    given:
+      item_kind: event
+      item_starts_in_hours: 30
+      linked_reminder_triggers_in_hours: 6
+    expect:
+      priority_card_visible: false
+
+chat_reminder_window:
+  - id: chat-reminder-promotes-chat
+    given:
+      item_kind: chat
+      linked_reminder_triggers_in_hours: 22
+    expect:
+      priority_card_visible: true
+      priority_reason: reminder_soon
+      priority_label: Reminder in 22h

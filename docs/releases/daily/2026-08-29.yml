@@ -1,0 +1,1872 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-29'
+generated_at: '2026-08-31T17:17:42+00:00'
+range:
+  since: '2026-08-29T00:00:00+00:00'
+  until: '2026-08-30T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 32
+  section_counts:
+    features: 2
+    bug_fixes: 17
+    improvements: 0
+    docs: 0
+    tests: 13
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 18
+  dev_only_items: 32
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: simplify Plan execution model'
+    section: features
+    commits:
+    - 4292a23cb
+    authored_at: '2026-08-29T15:13:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/user_plan_share_bundle.py
+    - backend/core/api/app/services/user_task_admission_service.py
+    - backend/core/api/app/services/user_task_share_bundle.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/core/api/app/services/user_work_control_service.py
+    - backend/core/api/app/services/workspace_change_history_service.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_work_control_indexes.sql
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_plan_assumption_workflow.py
+    - backend/tests/test_task_update_jobs.py
+    - backend/tests/test_unified_detail_metadata.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_plans_route_detail.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_user_task_archive_dependencies.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - backend/tests/test_user_work_control.py
+    - backend/tests/test_user_work_control_migration.py
+    - backend/tests/test_user_work_control_routes.py
+    - contracts/features/plans/contract.yml
+    - contracts/features/projects/contract.yml
+    - contracts/features/tasks/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/surfaces/cli/contract.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/workRecovery.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/work-control.test.ts
+    - frontend/packages/openmates-cli/tests/work-recovery.test.ts
+    - frontend/packages/openmates-cli/tests/workspace-history.test.ts
+    - frontend/packages/ui/src/components/workspace/detailMetadataAdapters.ts
+    - frontend/packages/ui/src/services/sharedChatDetailsService.ts
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_work_control.py
+    - scripts/tests/test_verify_user_work_control_api.py
+    - scripts/verify_account_cleartext_import.py
+    - scripts/verify_user_work_control_api.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add encrypted plan and task work control'
+    section: features
+    commits:
+    - fe061cf1e
+    authored_at: '2026-08-29T13:43:13+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/routes/workspace_history.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/user_task_archive_service.py
+    - backend/core/api/app/services/user_work_control_service.py
+    - backend/core/api/app/services/workspace_change_history_service.py
+    - backend/core/api/app/tasks/user_task_archive_task.py
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_work_control_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/workRecovery.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/openmates/work_control.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/verify_user_work_control_api.py
+    - scripts/verify_user_work_control_cli.py
+    - scripts/verify_user_work_control_sdks.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans, platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: hydrate Plan after material edits'
+    section: bug_fixes
+    commits:
+    - f451e6749
+    authored_at: '2026-08-29T16:39:45+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/tests/test_user_plans_route_detail.py
+    - contracts/generated/assertion-index.yml
+    - scripts/verify_user_work_control_cli.py
+    - scripts/verify_user_work_control_sdks.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:plans'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore Project-scoped work lists'
+    section: bug_fixes
+    commits:
+    - 33fcb9a77
+    authored_at: '2026-08-29T16:15:44+00:00'
+    changed_paths:
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_tasks_api.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - scripts/tests/test_verify_user_work_control_api.py
+    - scripts/verify_user_work_control_api.py
+    - scripts/verify_user_work_control_cli.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clean retired Directus Plan metadata'
+    section: bug_fixes
+    commits:
+    - ce4d92303
+    authored_at: '2026-08-29T15:35:37+00:00'
+    changed_paths:
+    - backend/core/directus/setup/migrate_user_work_control_indexes.sql
+    - backend/tests/test_user_work_control_migration.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: accept Plan-scoped Task wrappers'
+    section: bug_fixes
+    commits:
+    - df0ab9db5
+    authored_at: '2026-08-29T15:20:31+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - scripts/tests/test_verify_user_work_control_api.py
+    - scripts/verify_user_work_control_api.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: let landing intro cover composer'
+    section: bug_fixes
+    commits:
+    - ef997ad9a
+    authored_at: '2026-08-29T14:20:15+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore composer model selection wiring'
+    section: bug_fixes
+    commits:
+    - 84187a1e4
+    authored_at: '2026-08-29T14:00:05+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore composer reset on logout'
+    section: bug_fixes
+    commits:
+    - 1a9879a86
+    authored_at: '2026-08-29T13:25:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve native composer popup clicks'
+    section: bug_fixes
+    commits:
+    - 3a23d00a0
+    authored_at: '2026-08-29T13:22:15+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix AI provider settings navigation
+    section: bug_fixes
+    commits:
+    - 7f32b8699
+    authored_at: '2026-08-29T13:07:26+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore landing intro after forced logout'
+    section: bug_fixes
+    commits:
+    - 941a2c2d8
+    authored_at: '2026-08-29T13:00:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep composer popup actions clickable'
+    section: bug_fixes
+    commits:
+    - 8cdb02ad7
+    authored_at: '2026-08-29T12:55:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pre-register AI settings routes'
+    section: bug_fixes
+    commits:
+    - 4b5ffc273
+    authored_at: '2026-08-29T12:40:19+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve concurrent composer focus handling'
+    section: bug_fixes
+    commits:
+    - 3c09693ca
+    authored_at: '2026-08-29T11:58:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: settle dynamic settings routes'
+    section: bug_fixes
+    commits:
+    - 9de8920b2
+    authored_at: '2026-08-29T11:49:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: highlight Wikipedia composer mentions'
+    section: bug_fixes
+    commits:
+    - 1dba91fd6
+    authored_at: '2026-08-29T11:45:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate dynamic settings routes'
+    section: bug_fixes
+    commits:
+    - e5e2cf379
+    authored_at: '2026-08-29T11:35:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve composer focus across popup actions'
+    section: bug_fixes
+    commits:
+    - 16eab68ae
+    authored_at: '2026-08-29T11:28:54+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: stabilize Plans proof states'
+    section: tests
+    commits:
+    - 62799024d
+    authored_at: '2026-08-29T17:18:37+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: capture Plans proof profiles'
+    section: tests
+    commits:
+    - 2ab9a2a49
+    authored_at: '2026-08-29T16:57:33+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: follow active composer across rerenders'
+    section: tests
+    commits:
+    - 77c7d129d
+    authored_at: '2026-08-29T14:52:35+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: refocus composer after model details'
+    section: tests
+    commits:
+    - 872b19714
+    authored_at: '2026-08-29T14:29:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bind model picker proof to chat context'
+    section: tests
+    commits:
+    - f35bc7bbb
+    authored_at: '2026-08-29T14:14:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require logout intro to hide composer'
+    section: tests
+    commits:
+    - 8e865197d
+    authored_at: '2026-08-29T14:06:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: preserve session readiness in proof capture'
+    section: tests
+    commits:
+    - 9a2fd411f
+    authored_at: '2026-08-29T13:49:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require expanded landing after forced logout'
+    section: tests
+    commits:
+    - e365dc2f6
+    authored_at: '2026-08-29T13:03:26+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize composer popup focus coverage'
+    section: tests
+    commits:
+    - 2536531a2
+    authored_at: '2026-08-29T12:37:12+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate Wikipedia mention styling'
+    section: tests
+    commits:
+    - 5c9691c52
+    authored_at: '2026-08-29T11:30:00+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce dynamic AI route leak'
+    section: tests
+    commits:
+    - ddcd79b62
+    authored_at: '2026-08-29T11:20:01+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require Study gradient for Wikipedia mentions'
+    section: tests
+    commits:
+    - 45676e5ad
+    authored_at: '2026-08-29T11:18:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce AI settings body leak'
+    section: tests
+    commits:
+    - dec198652
+    authored_at: '2026-08-29T11:09:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'test: stabilize Plans proof states'
+    commits:
+    - 62799024d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: capture Plans proof profiles'
+    commits:
+    - 2ab9a2a49
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate Plan after material edits'
+    commits:
+    - f451e6749
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore Project-scoped work lists'
+    commits:
+    - 33fcb9a77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: clean retired Directus Plan metadata'
+    commits:
+    - ce4d92303
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: accept Plan-scoped Task wrappers'
+    commits:
+    - df0ab9db5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'feat: simplify Plan execution model'
+    commits:
+    - 4292a23cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: follow active composer across rerenders'
+    commits:
+    - 77c7d129d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: refocus composer after model details'
+    commits:
+    - 872b19714
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: let landing intro cover composer'
+    commits:
+    - ef997ad9a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: bind model picker proof to chat context'
+    commits:
+    - f35bc7bbb
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require logout intro to hide composer'
+    commits:
+    - 8e865197d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore composer model selection wiring'
+    commits:
+    - 84187a1e4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: preserve session readiness in proof capture'
+    commits:
+    - 9a2fd411f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add encrypted plan and task work control'
+    commits:
+    - fe061cf1e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: restore composer reset on logout'
+    commits:
+    - 1a9879a86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve native composer popup clicks'
+    commits:
+    - 3a23d00a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix AI provider settings navigation
+    commits:
+    - 7f32b8699
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: require expanded landing after forced logout'
+    commits:
+    - e365dc2f6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore landing intro after forced logout'
+    commits:
+    - 941a2c2d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep composer popup actions clickable'
+    commits:
+    - 8cdb02ad7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: pre-register AI settings routes'
+    commits:
+    - 4b5ffc273
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: stabilize composer popup focus coverage'
+    commits:
+    - 2536531a2
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve concurrent composer focus handling'
+    commits:
+    - 3c09693ca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: settle dynamic settings routes'
+    commits:
+    - 9de8920b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: highlight Wikipedia composer mentions'
+    commits:
+    - 1dba91fd6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate dynamic settings routes'
+    commits:
+    - e5e2cf379
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: isolate Wikipedia mention styling'
+    commits:
+    - 5c9691c52
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve composer focus across popup actions'
+    commits:
+    - 16eab68ae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reproduce dynamic AI route leak'
+    commits:
+    - ddcd79b62
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require Study gradient for Wikipedia mentions'
+    commits:
+    - 45676e5ad
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reproduce AI settings body leak'
+    commits:
+    - dec198652
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: simplify Plan execution model'
+    commits:
+    - 4292a23cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Fix AI provider settings navigation
+    commits:
+    - 7f32b8699
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: hydrate Plan after material edits'
+    commits:
+    - f451e6749
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore Project-scoped work lists'
+    commits:
+    - 33fcb9a77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: accept Plan-scoped Task wrappers'
+    commits:
+    - df0ab9db5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: simplify Plan execution model'
+    commits:
+    - 4292a23cb
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: let landing intro cover composer'
+    commits:
+    - ef997ad9a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore composer model selection wiring'
+    commits:
+    - 84187a1e4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add encrypted plan and task work control'
+    commits:
+    - fe061cf1e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:plans
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: restore composer reset on logout'
+    commits:
+    - 1a9879a86
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve native composer popup clicks'
+    commits:
+    - 3a23d00a0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix AI provider settings navigation
+    commits:
+    - 7f32b8699
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore landing intro after forced logout'
+    commits:
+    - 941a2c2d8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep composer popup actions clickable'
+    commits:
+    - 8cdb02ad7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: pre-register AI settings routes'
+    commits:
+    - 4b5ffc273
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve concurrent composer focus handling'
+    commits:
+    - 3c09693ca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: settle dynamic settings routes'
+    commits:
+    - 9de8920b2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: highlight Wikipedia composer mentions'
+    commits:
+    - 1dba91fd6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: isolate dynamic settings routes'
+    commits:
+    - e5e2cf379
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve composer focus across popup actions'
+    commits:
+    - 16eab68ae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 62799024d6267e729bf72354ad53aa7b9bdfa739
+    short_sha: 62799024d
+    authored_at: '2026-08-29T17:18:37+00:00'
+    subject: 'test: stabilize Plans proof states'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    related_feature_ids: []
+  - sha: 2ab9a2a4974496c611bcaeb04464559e65c27796
+    short_sha: 2ab9a2a49
+    authored_at: '2026-08-29T16:57:33+00:00'
+    subject: 'test: capture Plans proof profiles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    related_feature_ids: []
+  - sha: f451e6749379e79b7b152fbc2e241c057456f769
+    short_sha: f451e6749
+    authored_at: '2026-08-29T16:39:45+00:00'
+    subject: 'fix: hydrate Plan after material edits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/tests/test_user_plans_route_detail.py
+    - contracts/generated/assertion-index.yml
+    - scripts/verify_user_work_control_cli.py
+    - scripts/verify_user_work_control_sdks.py
+    related_feature_ids:
+    - platform:plans
+  - sha: 33fcb9a771c435faf0658e29963ee3d46a33429b
+    short_sha: 33fcb9a77
+    authored_at: '2026-08-29T16:15:44+00:00'
+    subject: 'fix: restore Project-scoped work lists'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_tasks_api.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - scripts/tests/test_verify_user_work_control_api.py
+    - scripts/verify_user_work_control_api.py
+    - scripts/verify_user_work_control_cli.py
+    related_feature_ids: []
+  - sha: ce4d9230384a7dc9f1e7b806cc87b727cae5dd99
+    short_sha: ce4d92303
+    authored_at: '2026-08-29T15:35:37+00:00'
+    subject: 'fix: clean retired Directus Plan metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/setup/migrate_user_work_control_indexes.sql
+    - backend/tests/test_user_work_control_migration.py
+    related_feature_ids: []
+  - sha: df0ab9db58b84eb808855d46795a40c95359e0d2
+    short_sha: df0ab9db5
+    authored_at: '2026-08-29T15:20:31+00:00'
+    subject: 'fix: accept Plan-scoped Task wrappers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - scripts/tests/test_verify_user_work_control_api.py
+    - scripts/verify_user_work_control_api.py
+    related_feature_ids:
+    - platform:tasks
+  - sha: 4292a23cbc59b190c44d254c8117003fb44921e1
+    short_sha: 4292a23cb
+    authored_at: '2026-08-29T15:13:10+00:00'
+    subject: 'feat: simplify Plan execution model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/task_update_job_handlers.py
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/user_plan_share_bundle.py
+    - backend/core/api/app/services/user_task_admission_service.py
+    - backend/core/api/app/services/user_task_share_bundle.py
+    - backend/core/api/app/services/user_task_update_job_service.py
+    - backend/core/api/app/services/user_work_control_service.py
+    - backend/core/api/app/services/workspace_change_history_service.py
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_work_control_indexes.sql
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/tests/test_plan_assumption_workflow.py
+    - backend/tests/test_task_update_jobs.py
+    - backend/tests/test_unified_detail_metadata.py
+    - backend/tests/test_user_plans_api.py
+    - backend/tests/test_user_plans_route_detail.py
+    - backend/tests/test_user_task_admission.py
+    - backend/tests/test_user_task_archive_dependencies.py
+    - backend/tests/test_user_tasks_scheduler.py
+    - backend/tests/test_user_work_control.py
+    - backend/tests/test_user_work_control_migration.py
+    - backend/tests/test_user_work_control_routes.py
+    - contracts/features/plans/contract.yml
+    - contracts/features/projects/contract.yml
+    - contracts/features/tasks/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - contracts/surfaces/cli/contract.yml
+    - docs/specs/plans-v1/spec.yml
+    - docs/specs/tasks-v1/spec.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/workRecovery.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - frontend/packages/openmates-cli/tests/work-control.test.ts
+    - frontend/packages/openmates-cli/tests/work-recovery.test.ts
+    - frontend/packages/openmates-cli/tests/workspace-history.test.ts
+    - frontend/packages/ui/src/components/workspace/detailMetadataAdapters.ts
+    - frontend/packages/ui/src/services/sharedChatDetailsService.ts
+    - frontend/packages/ui/src/services/userPlanService.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_plans.py
+    - packages/openmates-python/tests/test_work_control.py
+    - scripts/tests/test_verify_user_work_control_api.py
+    - scripts/verify_account_cleartext_import.py
+    - scripts/verify_user_work_control_api.py
+    related_feature_ids:
+    - platform:plans
+    - platform:tasks
+  - sha: 77c7d129d02f4c96495c28d66d12ff1aea567b46
+    short_sha: 77c7d129d
+    authored_at: '2026-08-29T14:52:35+00:00'
+    subject: 'test: follow active composer across rerenders'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: 872b19714eaf2c3e94b0862f22ac3a63402d9a18
+    short_sha: 872b19714
+    authored_at: '2026-08-29T14:29:06+00:00'
+    subject: 'test: refocus composer after model details'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: ef997ad9a822cbec0f2b4fea6513f40214a1edd5
+    short_sha: ef997ad9a
+    authored_at: '2026-08-29T14:20:15+00:00'
+    subject: 'fix: let landing intro cover composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: f35bc7bbb7533941cc8761db3cc7b4c93cbf3935
+    short_sha: f35bc7bbb
+    authored_at: '2026-08-29T14:14:03+00:00'
+    subject: 'test: bind model picker proof to chat context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: 8e865197d22960cfa6f30e2c3d3b26b4adc1fb98
+    short_sha: 8e865197d
+    authored_at: '2026-08-29T14:06:11+00:00'
+    subject: 'test: require logout intro to hide composer'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 84187a1e4200aebbe1353e48772ecf7537a5b472
+    short_sha: 84187a1e4
+    authored_at: '2026-08-29T14:00:05+00:00'
+    subject: 'fix: restore composer model selection wiring'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 9a2fd411f03b2b7e361bdc98e373a0ef5560ce58
+    short_sha: 9a2fd411f
+    authored_at: '2026-08-29T13:49:21+00:00'
+    subject: 'test: preserve session readiness in proof capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: fe061cf1ecb8f3e9a031fa172077ad57c1de6fdb
+    short_sha: fe061cf1e
+    authored_at: '2026-08-29T13:43:13+00:00'
+    subject: 'feat: add encrypted plan and task work control'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_plans.py
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/routes/workspace_history.py
+    - backend/core/api/app/services/directus/directus.py
+    - backend/core/api/app/services/directus/user_plan_methods.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/core/api/app/services/user_task_archive_service.py
+    - backend/core/api/app/services/user_work_control_service.py
+    - backend/core/api/app/services/workspace_change_history_service.py
+    - backend/core/api/app/tasks/user_task_archive_task.py
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/core/directus/schemas/user_plans.yml
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_work_control_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/plansCli.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/src/workRecovery.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/openmates/work_control.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/verify_user_work_control_api.py
+    - scripts/verify_user_work_control_cli.py
+    - scripts/verify_user_work_control_sdks.py
+    related_feature_ids:
+    - platform:plans
+    - platform:tasks
+  - sha: 1a9879a86b5e02386ce00139f970d45506d71da2
+    short_sha: 1a9879a86
+    authored_at: '2026-08-29T13:25:08+00:00'
+    subject: 'fix: restore composer reset on logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 3a23d00a009595597f331bb12dd4f5305215b885
+    short_sha: 3a23d00a0
+    authored_at: '2026-08-29T13:22:15+00:00'
+    subject: 'fix: preserve native composer popup clicks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 7f32b86994b045f40b499109201095ca8abae496
+    short_sha: 7f32b8699
+    authored_at: '2026-08-29T13:07:26+00:00'
+    subject: Fix AI provider settings navigation
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/scripts/generate-models-metadata.js
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/utils/__tests__/aiModelDisplay.test.ts
+    related_feature_ids: []
+  - sha: e365dc2f68c901e39e828441e99fcb450f307c96
+    short_sha: e365dc2f6
+    authored_at: '2026-08-29T13:03:26+00:00'
+    subject: 'test: require expanded landing after forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    related_feature_ids: []
+  - sha: 941a2c2d82ca760d2db9d04dbe515422dad4bf64
+    short_sha: 941a2c2d8
+    authored_at: '2026-08-29T13:00:08+00:00'
+    subject: 'fix: restore landing intro after forced logout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    related_feature_ids: []
+  - sha: 8cdb02ad786697feede97e258f13f7d4871a2303
+    short_sha: 8cdb02ad7
+    authored_at: '2026-08-29T12:55:32+00:00'
+    subject: 'fix: keep composer popup actions clickable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 4b5ffc273f32d9b35d78c22deeb37453faed0689
+    short_sha: 4b5ffc273
+    authored_at: '2026-08-29T12:40:19+00:00'
+    subject: 'fix: pre-register AI settings routes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 2536531a219d135e97448d6af7b7927c5b688331
+    short_sha: 2536531a2
+    authored_at: '2026-08-29T12:37:12+00:00'
+    subject: 'test: stabilize composer popup focus coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    related_feature_ids: []
+  - sha: 3c09693cac5ebdb5fbf1a3c78875d64be5ed87c5
+    short_sha: 3c09693ca
+    authored_at: '2026-08-29T11:58:22+00:00'
+    subject: 'fix: preserve concurrent composer focus handling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 9de8920b205f65598aa069c03b1cb922b825debe
+    short_sha: 9de8920b2
+    authored_at: '2026-08-29T11:49:46+00:00'
+    subject: 'fix: settle dynamic settings routes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Settings.svelte
+    related_feature_ids: []
+  - sha: 1dba91fd66d4bb56907df4f314bd5e10d99ace3b
+    short_sha: 1dba91fd6
+    authored_at: '2026-08-29T11:45:11+00:00'
+    subject: 'fix: highlight Wikipedia composer mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/extensions/GenericMentionNode.ts
+    related_feature_ids: []
+  - sha: e5e2cf37979ec22ccaeb27e07d21d00f404ab280
+    short_sha: e5e2cf379
+    authored_at: '2026-08-29T11:35:08+00:00'
+    subject: 'fix: isolate dynamic settings routes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    related_feature_ids: []
+  - sha: 5c9691c5260bed9d6c585b6f059c16814bfd9c5a
+    short_sha: 5c9691c52
+    authored_at: '2026-08-29T11:30:00+00:00'
+    subject: 'test: isolate Wikipedia mention styling'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: 16eab68ae9aaf854f0e9b173b7ff742047bf4c7e
+    short_sha: 16eab68ae
+    authored_at: '2026-08-29T11:28:54+00:00'
+    subject: 'fix: preserve composer focus across popup actions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: ddcd79b6260bd4a44e66fa0abd564afc8e2ad036
+    short_sha: ddcd79b62
+    authored_at: '2026-08-29T11:20:01+00:00'
+    subject: 'test: reproduce dynamic AI route leak'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 45676e5ad550e27b154d04c523cbe4fba2fbdf2f
+    short_sha: 45676e5ad
+    authored_at: '2026-08-29T11:18:50+00:00'
+    subject: 'test: require Study gradient for Wikipedia mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/wikipedia-mentions.spec.ts
+    related_feature_ids: []
+  - sha: dec198652c099ff506beb0071514a21b55b1d437
+    short_sha: dec198652
+    authored_at: '2026-08-29T11:09:55+00:00'
+    subject: 'test: reproduce AI settings body leak'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the underlying execution model for Plans and Tasks while addressing several UI regressions
+    in the message composer and settings navigation. Significant work was also dedicated to expanding automated test coverage
+    for session management and composer interactions.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates simplified the Plan execution model and introduced encrypted work control for both plans and tasks.
+    evidence:
+      commits:
+      - 4292a23cb
+      - fe061cf1e
+    release_status: dev_only
+  - text: Refinements were made to work list scoping, metadata hydration, and database index migrations for Plans and Projects.
+    evidence:
+      commits:
+      - f451e6749
+      - 33fcb9a77
+      - ce4d92303
+      - df0ab9db5
+    release_status: dev_only
+  - text: The message composer received multiple stability fixes, including improved focus handling during popup actions,
+      model selection wiring, and Wikipedia mention highlighting.
+    evidence:
+      commits:
+      - 84187a1e4
+      - 3a23d00a0
+      - 8cdb02ad7
+      - 3c09693ca
+      - 1dba91fd6
+      - 16eab68ae
+    release_status: dev_only
+  - text: Navigation within AI provider settings was stabilized to prevent route leaks and ensure correct page rendering.
+    evidence:
+      commits:
+      - 7f32b8699
+      - 4b5ffc273
+      - 9de8920b2
+      - e5e2cf379
+    release_status: dev_only
+  - text: Session management was improved to ensure the landing interface correctly covers the composer after logout or session
+      revocation.
+    evidence:
+      commits:
+      - ef997ad9a
+      - 1a9879a86
+      - 941a2c2d8
+    release_status: dev_only
+  - text: Extensive test coverage was added for Plans workflows, composer model routing, and session revocation flows.
+    evidence:
+      commits:
+      - 62799024d
+      - 2ab9a2a49
+      - 77c7d129d
+      - 872b19714
+      - f35bc7bbb
+      - 8e865197d
+      - 9a2fd411f
+      - e365dc2f6
+      - 2536531a2
+      - 5c9691c52
+      - ddcd79b62
+      - 45676e5ad
+      - dec198652
+    release_status: dev_only
+  internal_progress: []
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Simplified Plan execution model and encrypted work control.
+      evidence:
+        commits:
+        - 4292a23cb
+        - fe061cf1e
+        - f451e6749
+        - 33fcb9a77
+        - df0ab9db5
+      reason: These features are related to Plans, Tasks, and Projects, which are currently disabled in the platform configuration.
+    - text: Composer stability and AI settings navigation fixes.
+      evidence:
+        commits:
+        - 84187a1e4
+        - 3a23d00a0
+        - 8cdb02ad7
+        - 3c09693ca
+        - 1dba91fd6
+        - 16eab68ae
+        - 7f32b8699
+        - 4b5ffc273
+        - 9de8920b2
+        - e5e2cf379
+      reason: These UI and navigation refinements are currently in development and marked as dev-only.
+    rationale: No changes from this period are marked as released to the main branch with a status of ready for public communication.
+      All work is currently categorized as development-only or pertains to disabled features.
+  social_video_recommendations: []
+  quality_notes:
+  - Extensive automated testing was added to verify composer focus behavior and model routing logic.
+  - Session revocation and logout flows were hardened with new regression tests.
+  validation_warnings: []

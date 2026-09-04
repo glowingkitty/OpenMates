@@ -1,0 +1,1998 @@
+schema_version: 2
+id: narrated-spec-demonstration-videos
+title: Strict Narrated Proof Videos For OpenCode Work
+status: implementing
+goal: 'Make completed OpenCode implementation work visibly understandable by requiring planned narration points, real execution
+  recordings, optional narration audio, canonical player-toggleable captions, and an AI-reviewed proof video before eligible specs
+  or plans are considered complete, then publish the reviewed result to Discord when a destination is configured.
+
+  '
+scope:
+  in:
+  - Require every new feature implementation to produce a reviewed proof video when it changes product-observable behavior.
+  - Require every new hardcoded example chat to produce reviewed phone and laptop proof videos.
+  - Require every nightly, daily, or CI failed Playwright E2E that is actively debugged in a chat and turns green to produce
+    a reviewed proof video.
+  - Define narration bullets during specification or planning, but write exact narration and captions only after the implementation's
+    normal tests are green.
+  - Reuse real deployed Playwright recordings for browser flows and real pseudo-terminal command/output capture for CLI flows.
+  - Permit a Remotion terminal reconstruction only when direct recording is impractical, the displayed input/output exactly
+    matches a real transcript, and the video labels the segment as reconstructed.
+  - Generate ElevenLabs narration audio with the fast, low-cost eleven_flash_v2_5 model and render that audio track into
+    every final video.
+  - Generate canonical timestamped WebVTT captions as a hash-bound sidecar without shrinking or obscuring the video frame.
+  - Scope every assertion and caption cue to the device profiles where it applies.
+  - Reuse the same narration transcript and ElevenLabs audio across viewport recordings unless the narration must change.
+  - Keep web/spec/example-chat proof as separate phone and laptop videos, Apple proof as separate iPhone portrait and iPad
+    landscape videos, and CLI proof as one terminal video.
+  - 'Render each proof-video surface at its exact device-profile dimensions: phone web 390x844, laptop web 1440x900,
+    iPhone portrait 393x852, iPad landscape 1366x1024, and CLI terminal 1280x720.'
+  - Reject black bars, letterboxing, pillarboxing, and generic 16:9 or 16:10 wrapper canvases around phone, iPad, or web
+    recordings.
+  - Require exact narration to describe specific visible UI, terminal output, controls, playback state, messages, or reversible
+    actions; generic success narration is not accepted.
+  - Support source retiming, final-frame holds, and quiet product-audio mixing when a real recording moves too quickly or audio
+    playback is itself part of the claim.
+  - Review the finished video indirectly using the full device-applicable narration transcript, synchronized captions, clean sampled frames at the
+    default three-second cadence plus exact requested timestamps, recording metadata, and linked acceptance criteria without
+    placing the full video in model context.
+  - Classify review failures as implementation, test coverage, recording, narration, composition, or environment defects and
+    return to the responsible stage.
+  - Retry failed demonstration review automatically at most three times before recording a structured user-input blocker.
+  - Prevent eligible session/spec completion until required proof-video review passes and caption plus optional-audio provenance is recorded;
+    only the approved non-visual not-applicable classification may bypass video production.
+  - Post the reviewed video and implementation summary to Discord when a webhook is configured, and treat confirmed
+    Discord delivery as a hard completion gate for configured destinations.
+  - Add deterministic workflow audits, fixtures, and proof-privacy state checks for the demonstration contract and completion gate.
+  out:
+  - User-facing OpenMates Plans product persistence, API, playback UI, or status expansion.
+  - Marketing videos, release trailers, polished promotional editing, or changes to the external openmates-marketing Remotion
+    workflow.
+  - Self-hosted Kokoro-82M text-to-speech; ElevenLabs is the required proof-video narration provider for this workflow.
+  - Requiring videos for Tier 0 work, non-visual work, broad bug fixes without a failed-to-green E2E proof requirement, or
+    legacy completed specs that are not materially resumed.
+  - Treating reconstructed UI or terminal output as automated verification evidence.
+  - Publishing raw test logs, credentials, user data, private URLs, reasoning traces, or unrelated terminal history to Discord.
+context_discovery:
+  github_issues:
+  - GitHub MCP authentication returned 401 Bad credentials during discovery.
+  - The gh CLI fallback returned no matching issue for narrated spec implementation videos or Discord demonstration evidence.
+  docs:
+  - docs/contributing/guides/spec-driven-development.md
+  - docs/contributing/guides/agent-workflow-core.md
+  - docs/contributing/guides/planning.md
+  - docs/plans/sdd-v2/plan.yml
+  - docs/plans/agent-workflow-quality-parity/plan.yml
+  - docs/plans/remotion-video-create-embeds/plan.yml
+  - .claude/rules/testing.md
+  - .claude/rules/privacy.md
+  code_patterns:
+  - scripts/plan_validate.py
+  - scripts/plan_verify.py
+  - scripts/spec_evidence.py
+  - scripts/audit_opencode_spec_workflow.py
+  - scripts/run_tests.py
+  - frontend/apps/web_app/playwright.config.ts
+  - .claude/skills/create-plan/SKILL.md
+  - .claude/skills/create-plan/SKILL.md
+  - .claude/skills/tasks-from-plan/SKILL.md
+  - .claude/skills/verify-plan/SKILL.md
+  - .agents/skills/create-video/SKILL.md
+  tests:
+  - scripts/tests/test_spec_workflow_validation.py
+  - scripts/tests/test_opencode_spec_workflow_audit.py
+  - scripts/tests/test_run_tests_discord_summary.py
+  current_findings:
+  - Playwright currently records every deployed spec run through video mode on and preserves recordings under test-results/test-recordings
+    after artifact download.
+  - scripts/run_tests.py already contains multipart Discord attachment support and configured development webhook patterns
+    that can be reused rather than duplicated.
+  - The existing create-video skill targets external marketing production and must not become the engineering evidence source
+    of truth.
+  - The official hexgrad/Kokoro-82M model is an Apache-2.0 open-weight 82M parameter model suitable for later self-hosting,
+    but audio is not part of this first slice.
+  - The official Kokoro model card warns that kokorottsai.com is unaffiliated; this workflow must not use that site.
+apple_impact:
+  affected_files:
+  - none
+  parity_expectations:
+  - This change affects repository-local OpenCode planning, verification, media evidence, and Discord reporting only.
+  verification:
+  - Apple not affected.
+  intentional_native_differences:
+  - none
+clarification:
+  rounds:
+  - question: Which completed work should require a narrated proof video?
+    answer: Require it for new feature implementations, new hardcoded example chats, and actively debugged failed-to-green
+      nightly, daily, or CI E2E work; allow explicit not-applicable evidence for non-visual work.
+  - question: Should successful Discord delivery be required before work is considered complete?
+    answer: Discord delivery is a hard completion gate when a destination is configured; a passed frame review alone is insufficient
+      for configured destinations.
+  - question: Should proof videos require captions, audio, or both?
+    answer: Every proof video requires player-toggleable WebVTT captions; narration audio is optional.
+  - question: How autonomous should the post-render mismatch loop be?
+    answer: Classify the mismatch, repair the responsible stage, and retry up to three times before asking the user.
+  - question: Should the user-facing OpenMates Plans product be included?
+    answer: Focus on the OpenCode spec-driven development flow; discuss the Plans product expansion only after this workflow
+      is implemented and tested.
+  - question: Which work categories require proof videos now?
+    answer: Require proof videos for every new feature implementation, every new hardcoded example chat, and every nightly,
+      daily, or CI failed E2E that is actively debugged in a chat and turns green; do not require them for every user-visible
+      bug fix by default.
+  vision_summary: 'Eligible OpenCode work declares concise narration bullets before implementation, completes its normal test
+    ladder, and then turns real execution evidence into a captioned demonstration video. A multimodal reviewer compares timestamped
+    captions and expected proof with the rendered result, routes mismatches to the correct stage, and blocks completion until
+    the review passes; Discord is the delivery destination, not the canonical evidence store.
+
+    '
+  approved_by_user: true
+demonstration:
+  eligibility:
+    status: required
+    surface: cli
+    reason: The workflow adds user-observable OpenCode commands, evidence artifacts, review behavior, and Discord publication.
+    classified_at: '2026-08-06T01:12:50Z'
+  narration_outline:
+  - id: NARR-1
+    purpose: Explain the new post-verification demonstration gate.
+    expected_proof: A completed implementation remains active until its current-commit captioned demonstration review passes.
+    scenario_ids:
+    - S-1
+    - S-5
+    acceptance_criteria:
+    - AC-1
+    - AC-5
+    - AC-6
+  - id: NARR-2
+    purpose: Show that CLI input and output come from a real execution.
+    expected_proof: The terminal segment displays the captured command, exact output, exit status, and matching
+      transcript provenance.
+    scenario_ids:
+    - S-4
+    acceptance_criteria:
+    - AC-4
+  - id: NARR-3
+    purpose: Show frame-only review without loading the full video into agent context.
+    expected_proof: The review bundle contains periodic and event frames, and an exact-timestamp frame request adds only the
+      requested image.
+    scenario_ids:
+    - S-6
+    acceptance_criteria:
+    - AC-7
+    - AC-8
+  - id: NARR-4
+    purpose: Show bounded mismatch repair.
+    expected_proof: A seeded mismatch routes to the responsible stage with retry accounting.
+    scenario_ids:
+    - S-6
+    - S-7
+    acceptance_criteria:
+    - AC-8
+    - AC-9
+    - AC-10
+  - id: NARR-5
+    purpose: Show Discord delivery and disk cleanup behavior.
+    expected_proof: Confirmed Discord delivery removes generated video while retaining transcript and manifest evidence.
+    scenario_ids:
+    - S-8
+    acceptance_criteria:
+    - AC-11
+    - AC-12
+  evidence:
+    status: passed
+    subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    manifest_path: test-results/proof-videos/d465/plans-create-tutorial-final/manifest.json
+    manifest_hash: sha256:a020d2d2f67611a71f7a554c113dd5187f6a3aece580bc0be3d36c536f401fda
+    privacy_status: passed
+    audio_status: passed
+    review_status: passed
+    review_run_id: review-plans-create-tutorial-final
+    review_attempts: 1
+    timestamp: '2026-08-06T10:07:38Z'
+    publication_status: delivered
+    command: python3 scripts/sessions.py proof-video produce, review, and publish
+    run_id: plans-create-tutorial-final
+implementation_state:
+  subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-08-06T01:11:41Z'
+  plan:
+    status: approved
+    approved_at: '2026-08-15T00:00:00Z'
+    reason: The user explicitly approved device-specific assertions, clean caption-free review frames, player-toggleable captions, and removal of caption-reserved video scaling on 2026-08-15.
+decisions:
+- id: D-1
+  status: active
+  decision: Require proof videos for new feature implementations, new hardcoded example chats, and failed-to-green E2E debug
+    sessions, with explicit non-visual not-applicable records where appropriate.
+  reason: This preserves useful evidence for substantial visible work without imposing video cost on every user-visible bug fix
+    or mechanical task.
+  decided_at: '2026-08-06T00:00:00Z'
+- id: D-2
+  status: active
+  decision: Store narration intent as bullets before implementation and generate exact timestamped captions only from the
+    final green behavior.
+  reason: Early bullets protect product intent while late exact wording avoids stale narration that describes an implementation
+    which changed during development.
+  decided_at: '2026-08-06T00:00:00Z'
+- id: D-3
+  status: superseded
+  decision: Require both burned-in captions and ElevenLabs eleven_flash_v2_5 narration audio for every proof video.
+  reason: Captions provide deterministic, accessible, machine-reviewable text, while the audio track makes the proof video
+    self-contained for human review and Discord delivery.
+  decided_at: '2026-08-06T00:00:00Z'
+- id: D-4
+  status: active
+  decision: Use real Playwright and terminal recordings as evidence sources; label any exact terminal reconstruction and never
+    let it replace raw verification evidence.
+  reason: Demonstrations must remain truthful while allowing readable terminal composition when direct capture is impractical.
+  decided_at: '2026-08-06T00:00:00Z'
+- id: D-5
+  status: active
+  decision: Permit at most three classified automatic review-repair attempts before requiring user input.
+  reason: Bounded retries preserve autonomy without creating an unbounded render and multimodal-review loop.
+  decided_at: '2026-08-06T00:00:00Z'
+- id: D-6
+  status: active
+  decision: Let reviewed proof-video evidence and confirmed Discord delivery gate completion whenever the Discord destination is configured.
+  reason: The user explicitly made Discord delivery part of the completion contract for configured proof-video destinations.
+  decided_at: '2026-08-06T00:00:00Z'
+- id: D-7
+  status: active
+  decision: Keep the full video out of agent context and review a default three-second frame interval plus event-driven frames,
+    with bounded on-demand extraction at specific timestamps.
+  reason: Frame bundles provide sufficient visual evidence at substantially lower context cost while preserving a targeted
+    path to inspect uncertain moments.
+  decided_at: '2026-08-06T01:12:50Z'
+- id: D-8
+  status: superseded
+  decision: Use local FFmpeg and ffprobe for caption composition and frame extraction, plus a stdlib pseudo-terminal recorder
+    for exact CLI events; use local Tesseract OCR for complete-frame text privacy scanning.
+  reason: FFmpeg and ffprobe are already installed, pseudo-terminal capture needs no new runtime service, and local OCR keeps
+    full video frames out of remote model context.
+  decided_at: '2026-08-06T01:12:50Z'
+- id: D-9
+  status: active
+  decision: Use the active OpenCode agent as the reviewer through local frame attachments and structured review evidence rather
+    than adding a separate multimodal review API.
+  reason: The user explicitly requested frame-based agent review, and avoiding a second provider keeps the first slice smaller
+    and prevents full-video upload.
+  decided_at: '2026-08-06T01:12:50Z'
+- id: D-10
+  status: active
+  decision: Retain transcripts, captions, manifests, hashes, and review results; delete generated video after confirmed
+    Discord delivery or after 24 hours if delivery remains unsuccessful.
+  reason: The user wants the transcript retained but does not want video files accumulating on disk.
+  decided_at: '2026-08-06T01:12:50Z'
+- id: D-11
+  status: superseded
+  decision: Expose CLI proof production, frame review, and dev-smoke publication through sessions.py; preserve exact CLI input and output unless the canonical scanner replaces detected sensitive values with conspicuous typed placeholders.
+  reason: Superseded by D-18; proof videos no longer run proof-specific PII/sensitive-data detection or replacement.
+  decided_at: '2026-08-06T04:20:00Z'
+- id: D-12
+  status: superseded
+  decision: Remove OCR and decoded-frame privacy scanning; scan command arguments, transcripts, captions, metadata, filenames, and publication text with the canonical scanner instead.
+  reason: Superseded by D-18; proof videos no longer run proof-specific PII/sensitive-data detection or replacement.
+  decided_at: '2026-08-06T09:20:00Z'
+- id: D-13
+  status: active
+  decision: CLI demonstrations use a readable 1280x720 terminal tutorial composition with large text, visible command typing, captured output timing, only command/output in the terminal, and narration that explains the feature and visible evidence.
+  reason: User review found the static 1920x1080 snapshot too small, too brief, and insufficiently instructional to validate obvious visual mismatches.
+  decided_at: '2026-08-06T10:00:00Z'
+- id: D-14
+  status: active
+  decision: Provide a reusable create-demo-video skill and a sessions.py produce-playwright action that accepts only passing deployed Playwright case recordings.
+  reason: The user wants repeatable narrated examples for both CLI interactions and product feature specs without re-deriving the evidence, review, and Discord workflow.
+  decided_at: '2026-08-06T10:30:00Z'
+- id: D-15
+  status: active
+  decision: Proof videos use declared device profiles with exact output dimensions, no black bars, realistic visible-state narration, optional retiming or end-state holds, and quiet product-audio mixing when playback is part of the claim.
+  reason: Mobile and iPad proofs must not be hidden inside landscape wrappers, and reviewers need concrete narration plus readable timing to catch mismatches instead of accepting generic success videos.
+  decided_at: '2026-08-12T00:00:00Z'
+- id: D-16
+  status: active
+  decision: Keep proof-video pixels free of tutorial captions and any caption-reserved scaling; publish canonical WebVTT as a hash-bound player track that defaults on and can be disabled.
+  reason: Burned-in captions obscured product evidence and caused the renderer to reduce usable video area. A sidecar preserves accessibility while allowing clean full-frame inspection and viewer control.
+  decided_at: '2026-08-15T00:00:00Z'
+- id: D-17
+  status: active
+  decision: Every proof assertion and caption cue declares the exact device profiles where it applies, and each device review receives only its applicable claims and text.
+  reason: Applying every assertion to every device incorrectly required laptop recordings to prove phone-only behavior and vice versa.
+  decided_at: '2026-08-15T00:00:00Z'
+- id: D-18
+  status: active
+  decision: Do not run proof-video-specific PII or sensitive-data detection, anonymization, replacement, or publication scans; review captured proof media and approved captions as-is.
+  reason: The user confirmed this workflow added latency, token cost, and agent cycles without enough proof-review value.
+  decided_at: '2026-08-15T13:05:00Z'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  approach: Define the narration, capture, review, proof-privacy state, and publication contract before selecting the concrete media pipeline.
+  outcome: planned
+  recorded_at: '2026-08-06T00:00:00Z'
+- id: ATTEMPT-2
+  task_id: TASK-5
+  approach: Prepare the first verification deploy after focused tests passed.
+  outcome: rejected
+  recorded_at: '2026-08-06T01:50:55Z'
+  reason: Pre-deploy review found incomplete claim validation, missing known-secret text scans, unbounded PTY execution, and
+    unsafe cleanup/publication boundaries.
+- id: ATTEMPT-3
+  task_id: TASK-5
+  approach: Add deterministic regression coverage and close every pre-deploy proof-privacy state, process-boundary, review, cleanup, and
+    publication finding.
+  outcome: succeeded
+  recorded_at: '2026-08-06T02:10:20Z'
+  reason: The expanded 94-test workflow suite, schema validation, Python compilation, media doctor, and OpenCode/tooling audits
+    all passed.
+- id: ATTEMPT-4
+  task_id: TASK-14
+  approach: Add the reusable create-demo-video skill, accept only a passing Playwright case recording, and publish the reviewed signup-passkey tutorial to Discord dev-smoke.
+  outcome: succeeded
+  recorded_at: '2026-08-06T11:49:05Z'
+  reason: Skill parity, tooling parity, workflow audit, lint, and 68 focused tests passed; the stay-logged-in-enabled signup case from GitHub Actions run 31094417221 passed, its 31.04-second tutorial review passed, and Discord confirmed delivery.
+- id: ATTEMPT-5
+  task_id: TASK-15
+  approach: Add device-scope, clean-frame, WebVTT, and paired-publication assertions before changing the implementation.
+  outcome: failed_as_expected
+  recorded_at: '2026-08-15T00:00:00Z'
+  reason: Eight focused tests failed because multi-device scope, clean rendering, WebVTT sidecars, and caption-track publication were not implemented.
+- id: ATTEMPT-6
+  task_id: TASK-17
+  approach: Implement schema-v2 device filtering, clean full-frame rendering, strict WebVTT integrity, caption-aware review caching, and paired response-media publication.
+  outcome: succeeded
+  recorded_at: '2026-08-15T00:00:00Z'
+  reason: The focused 119-test suite, broader 249-test workflow suite, lint, Python compilation, spec validation, workflow audit, output-quality audit, tooling parity audit, and agent parity check passed.
+handoff:
+  current_task_id: TASK-15
+  next_action: Add red tests for device-scoped proof contracts, clean full-size rendering, WebVTT integrity, and paired publication.
+  command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py
+  expected_outcome: New focused assertions fail before implementation while existing proof-video regressions remain isolated.
+  blocker: null
+  last_verified_commit: 59a5468e9
+scenarios:
+- id: S-1
+  title: Full spec declares what its final demonstration must prove
+  given:
+  - An author starts a new feature implementation, new example-chat implementation, or failed-to-green E2E debug workflow.
+  when:
+  - The product contract is prepared for approval.
+  then:
+  - The spec contains ordered narration bullets linked to scenarios or acceptance criteria.
+  - Each bullet states its purpose and the visual or terminal proof expected while it is presented.
+  - Exact narration sentences and timestamps remain unset until final implementation evidence is green.
+- id: S-2
+  title: Non-visual work records why a demonstration adds no useful proof
+  given:
+  - A task changes only non-visual repository tooling or documentation behavior.
+  when:
+  - The author classifies demonstration eligibility.
+  then:
+  - The work may declare the demonstration not applicable with a concrete reason and verification reference.
+  - The classification cannot be used for user-visible browser, native, or CLI behavior.
+  - The verifier rejects an unreasoned or ineligible not-applicable declaration.
+- id: S-3
+  title: Browser implementation uses the real deployed Playwright recording
+  given:
+  - A user-visible web implementation has passed its required deployed Playwright test and visual-smoke gates.
+  - The passing run produced video, screenshots, step metadata, and an exact subject commit.
+  when:
+  - The demonstration pipeline builds the browser segment.
+  then:
+  - It selects the passing recording for the approved subject commit rather than replaying a mocked or local substitute.
+  - It preserves a reference to the raw run and uses editing only for trimming, highlighting, captions, and explanatory composition.
+  - It does not record login, signup, verification codes, credentials, unrelated account content, or private identifiers.
+- id: S-4
+  title: CLI implementation shows exact real command input and output
+  given:
+  - A CLI requirement has passed against the required real dev API or local deterministic environment.
+  when:
+  - The demonstration pipeline builds the CLI segment.
+  then:
+  - It captures the actual pseudo-terminal input, output, timing, and exit status without proof-specific anonymization.
+  - If direct video capture is impractical, a Remotion reconstruction uses the exact transcript and is visibly labeled
+    as reconstructed.
+  - The raw transcript hash and run identifier remain linked to the rendered segment.
+- id: S-5
+  title: Green implementation evidence becomes a captioned demonstration
+  given:
+  - All normal implementation gates that apply to the work are complete; non-applicable product API, user-confirmation, and
+    platform-parity gates have recorded reasons.
+  - Narration bullets identify the claims and expected visible proof.
+  when:
+  - The demonstration renderer runs.
+  then:
+  - It writes exact narration text based only on verified behavior.
+  - It rejects generic narration that fails to name visible UI, terminal output, controls, playback state, messages, or follow-up
+    actions.
+  - It may create ElevenLabs eleven_flash_v2_5 audio for that narration when audio is requested.
+  - It creates canonical timestamped WebVTT captions alongside a clean full-frame video.
+  - Every factual caption claim maps to an acceptance criterion and a visible or terminal evidence interval.
+  - The raw recording remains separate from the derived narrated demonstration artifact.
+  - Browser and Apple recordings declare a device profile, preserve exact profile dimensions in the raw and rendered video,
+    and fail when black bars, letterboxing, pillarboxing, or generic landscape wrappers are detected.
+  - Fast flows may be slowed or held on the final state, and product audio may be mixed quietly under narration when audio
+    playback is part of the proof.
+- id: S-6
+  title: Multimodal review detects and routes a mismatch
+  given:
+  - A final video, timestamped captions, expected proof, raw evidence references, and subject commit are available.
+  when:
+  - The AI demonstration review runs.
+  then:
+  - It does not receive the full video file, video bytes, or a full-video model attachment.
+  - It inspects frames at scene boundaries, before and after important actions, caption boundaries, and a default three-second
+    periodic interval.
+  - It may request additional individual frames at specific timestamps when the default review bundle leaves a claim uncertain.
+  - It marks each caption claim supported, contradicted, not visible, ambiguous, or visible at the wrong time.
+  - It classifies each failure as an implementation, test coverage, recording, narration, composition, or environment defect.
+  - It returns to only the responsible stage and invalidates implementation evidence only for an implementation or material
+    test-contract defect.
+- id: S-7
+  title: Failed demonstration review retries safely and remains active
+  given:
+  - A required demonstration review fails.
+  when:
+  - The OpenCode workflow continues the active implementation.
+  then:
+  - It records the attempt, classification, evidence, responsible stage, and next action.
+  - After the initial failed review, it performs at most three classified repair-and-review retries.
+  - Every retry records one approved defect class and responsible return stage.
+  - After a fourth unresolved review result, comprising the initial review plus three retries, it records a structured current-task
+    blocker requiring user input.
+  - It does not weaken acceptance criteria, alter captions to hide a real implementation defect, or mark the work complete.
+- id: S-8
+  title: Reviewed demonstration is published safely to Discord
+  given:
+  - The required demonstration review passed and a Discord webhook is configured.
+  when:
+  - The publication step runs.
+  then:
+  - It scans the command arguments, video metadata, captions, transcript, filenames, and message text before upload.
+  - It posts the video as an attachment when within configured limits or uses an approved non-public artifact link when direct
+    attachment is unavailable.
+  - The message identifies the spec or plan, subject commit, covered scenarios, review result, and canonical evidence location
+    without exposing private data.
+  - A delivery failure records publication_pending with retry details, keeps the session incomplete while the destination is
+    configured, and does not change a passed implementation or demonstration review back to failed.
+- id: S-9
+  title: Each device uses clean full-frame evidence with optional player captions
+  given:
+  - An approved proof contract targets more than one device profile.
+  - Some assertions or tutorial sentences apply to only one target device.
+  when:
+  - The renderer, frame reviewer, and response-media publisher process each device.
+  then:
+  - Every assertion and caption cue declares a non-empty subset of the approved device profiles.
+  - Each device review receives only its applicable assertions and the complete applicable timed caption text.
+  - Review frames contain the clean product or terminal composition without burned-in tutorial captions.
+  - The rendered video retains the full source dimensions and uses the complete frame without caption-reserved scaling, borders, or padding.
+  - Publication uploads a hash-bound WebVTT sidecar and emits a caption track that defaults on and can be disabled by the viewer.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Eligible specs and plans define ordered narration bullets with purpose, expected proof, and acceptance-criterion traceability
+    before implementation begins.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: plan
+  verification_ids:
+  - T-DEMO-SCHEMA
+- id: AC-2
+  scenario: S-2
+  text: Demonstration not-applicable status is accepted only for concretely justified non-visual work and is rejected for
+    user-visible browser, native, or CLI behavior.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-SCHEMA
+  - T-DEMO-VERIFY
+- id: AC-3
+  scenario: S-3
+  text: Browser demonstrations derive from the passing deployed Playwright recording for the recorded subject commit and retain
+    raw run provenance.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-DEMO-PIPELINE
+  - V-PLAYWRIGHT-DEMO
+- id: AC-4
+  scenario: S-4
+  text: CLI demonstrations visibly type the exact captured command, preserve the captured delay and output timing, render only
+    command and output at a readable scale, and retain exit status, transcript hash, and run provenance in evidence rather than
+    adding them to the visible terminal; reconstructions are labeled and never replace verification evidence.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-DEMO-PIPELINE
+  - V-CLI-DEMO
+- id: AC-5
+  scenario: S-5
+  text: Exact narration is generated only after normal required implementation gates pass, names concrete visible UI, terminal
+    output, controls, playback state, messages, or follow-up actions, and keeps canonical timestamped captions synchronized
+    and readable in the final video.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-PIPELINE
+  - V-PLAYWRIGHT-DEMO
+  - V-CLI-DEMO
+- id: AC-6
+  scenario: S-5
+  text: Every factual caption claim links to an acceptance criterion and a visible or terminal evidence interval in a machine-readable
+    demonstration manifest, including declared device profile, exact rendered dimensions, retiming or hold metadata when used,
+    and product-audio mixing metadata when playback is part of the proof.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-PIPELINE
+- id: AC-7
+  scenario: S-6
+  text: Multimodal review keeps the full video out of model context, compares synchronized captions and expected proof with
+    scene, action, caption-boundary, and default three-second frames, verifies exact device-profile dimensions plus no
+    letterbox/pillarbox black bars, permits bounded exact-timestamp frame requests, and returns a structured verdict for
+    every claim.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-REVIEW
+  - V-PLAYWRIGHT-DEMO
+  - V-CLI-DEMO
+- id: AC-8
+  scenario: S-6
+  text: Review failures are classified and routed to the responsible implementation, test coverage, recording, narration,
+    composition, or environment stage without reopening unrelated completed work.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-REVIEW
+- id: AC-9
+  scenario: S-7
+  text: Required review failure keeps eligible work incomplete, permits at most three automatic repair attempts, and requires
+    a structured user blocker after the retry limit.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-VERIFY
+  - T-DEMO-REVIEW
+- id: AC-10
+  scenario: S-8
+  text: Proof-video privacy state is explicitly recorded as not_applicable because proof-specific secret and private-data checks
+    do not run before review or publication.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-PIPELINE
+  - V-PRIVACY-REVIEW
+- id: AC-11
+  scenario: S-8
+  text: The workflow publishes the reviewed video or approved non-public artifact link to a configured Discord destination
+    and requires delivered status before configured-destination completion.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-DISCORD
+  - V-DISCORD-DELIVERY
+- id: AC-12
+  scenario: S-8
+  text: Discord delivery failure records a retryable publication_pending state without invalidating passed implementation
+    tests or demonstration review evidence, but configured-destination completion remains blocked until delivered.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-DISCORD
+  - T-DEMO-VERIFY
+- id: AC-13
+  scenario: S-7
+  text: OpenCode specification, planning, task, verification, deployment, and completion instructions consistently enforce
+    the demonstration lifecycle and remain synchronized across canonical and generated agent skills.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-OPENCODE-WORKFLOW
+- id: AC-14
+  scenario: S-9
+  text: Multi-device proof contracts require device-scoped assertions and caption cues, and each device review contains exactly the applicable claim and cue IDs.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-PROOF-CONTRACT-V2
+- id: AC-15
+  scenario: S-9
+  text: Proof rendering preserves the exact device-profile dimensions and complete frame area without burned-in tutorial captions or caption-reserved scaling, borders, or padding.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DEMO-PIPELINE
+- id: AC-16
+  scenario: S-9
+  text: Publication validates and uploads a hash-bound WebVTT sidecar and emits a cross-origin caption track that defaults on and remains viewer-toggleable.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-RESPONSE-MEDIA-CAPTIONS
+assumptions:
+- id: A-1
+  text: Passing Playwright runs already retain usable browser recordings and step artifacts for demonstration composition.
+  category: evidence_source
+  required_before: implementation
+  status: confirmed
+  evidence:
+  - source: frontend/apps/web_app/playwright.config.ts
+    summary: Playwright video mode defaults to on for every deployed spec run.
+  - source: scripts/run_tests.py
+    summary: The test artifact pipeline copies MP4 or WebM recordings, screenshots, step logs, and Playwright metadata into
+      test-results/test-recordings.
+- id: A-2
+  text: Existing Discord multipart attachment and webhook configuration patterns can be reused without introducing a new external
+    provider or embedding webhook secrets in evidence.
+  category: publication
+  required_before: implementation
+  status: confirmed
+  evidence:
+  - source: scripts/run_tests.py
+    summary: Existing stdlib multipart support posts attachments through environment-configured Discord webhooks.
+- id: A-3
+  text: A local deterministic media toolchain can render captions, extract review frames, and inspect media metadata without
+    sending implementation recordings to a third-party rendering provider.
+  category: media_tooling
+  required_before: implementation
+  status: confirmed
+  evidence:
+  - source: local tool discovery on 2026-08-06
+    summary: FFmpeg and ffprobe 6.1.1 are installed with libass, fontconfig, and common MP4/WebM codecs; DejaVu Sans Mono
+      is available for terminal rendering.
+- id: A-4
+  text: An explicitly approved multimodal reviewer can inspect only the bounded frame-and-caption bundle under documented
+    authorization, retention, and no-training requirements without receiving raw private logs or the full recording.
+  category: ai_review
+  required_before: task_execution
+  status: confirmed
+  evidence:
+  - source: user instruction on 2026-08-06
+    summary: The active agent should receive periodic and targeted frames rather than the full video.
+  - source: approved technical plan
+    summary: Review is performed by the already-active OpenCode session through local image attachments; no separate review
+      API or full-video upload is introduced.
+- id: A-5
+  text: No product REST API, CLI public API, npm SDK, pip SDK, web UI, or Apple product phase gate is required because this
+    first slice changes repository-local developer tooling only.
+  category: verification_scope
+  required_before: implementation
+  status: confirmed
+  evidence:
+  - source: user clarification
+    summary: The user explicitly deferred the OpenMates Plans product expansion until after this workflow is implemented and
+      tested.
+- id: A-6
+  text: Raw capture and reviewed-video storage locations have approved access controls, deletion behavior, and retention periods
+    before any non-synthetic recording is processed.
+  category: retention
+  required_before: task_execution
+  status: confirmed
+  evidence:
+  - source: user decisions on 2026-08-06
+    summary: Keep transcripts, delete video after confirmed Discord delivery, and delete an undelivered video after
+      24 hours.
+  - source: .gitignore
+    summary: test-results is excluded from git and is the established local evidence-artifact root.
+contracts:
+  eligibility:
+  - New feature implementations require a proof-video contract when they change product-observable behavior.
+  - New hardcoded example chats require separate phone and laptop proof videos.
+  - Nightly, daily, or CI failed E2E tests actively debugged in a chat require proof video after they turn green.
+  - Tier 0, non-visual work, and ordinary bug fixes without the failed-to-green E2E trigger are outside the mandatory gate.
+  - Existing completed specs are not retroactively processed unless materially resumed.
+  demonstration_manifest:
+  - The manifest identifies spec or plan ID, subject commit, eligibility decision, narration bullets, source runs, segments,
+    captions, ElevenLabs audio provenance, claim-to-acceptance-criterion mappings, raw and derived artifacts, review attempts,
+    proof privacy state, and publication status.
+  - Each narration bullet has a stable ID, purpose, expected proof, and linked scenario or acceptance criterion.
+  - Each final caption segment has start and end timestamps, exact text, target device profiles, visible claims, linked acceptance criteria, and evidence interval references.
+  - Each assertion has a non-empty target-device list that is a subset of the proof contract devices.
+  - Artifact records include path or approved URL, media hash, source run ID, subject commit, creation timestamp, and whether
+    the artifact is raw, edited, or reconstructed.
+  - A Playwright source record includes test command or spec, deployed target, deployment reference, run ID, subject commit,
+    artifact hash, and synthetic or approved test-account provenance.
+  - A CLI source record includes exact command, target environment, run ID, subject commit when repository-backed, exit status,
+    transcript hash, artifact hash, and synthetic or approved test-account provenance.
+  capture:
+  - Browser capture uses the passing deployed Playwright recording for the required subject commit.
+  - CLI capture uses a real pseudo-terminal and records input, output, timing, and exit status before rendering.
+  - Raw sensitive capture is short-lived and must not be committed, uploaded, or included in model review bundles.
+  - A reconstructed terminal segment must match the transcript hash and carry a persistent visible reconstruction
+    label.
+  - Reconstructed output is demonstration material only and cannot satisfy a test or verification gate.
+  captions:
+  - Exact narration and captions are written only after existing required implementation gates are green.
+  - Captions are the canonical text source and are published as WebVTT; ElevenLabs eleven_flash_v2_5 speech audio is optional.
+  - Captions default to showing in the response-media player and remain viewer-toggleable.
+  - Tutorial captions are never burned into video pixels and never reserve frame area through scaling, borders, or padding.
+  - Each caption cue declares the device profiles where it applies and remains synchronized to the evidence it describes.
+  - Claims cannot exceed what the linked acceptance criteria and visible evidence prove.
+  review:
+  - The review bundle contains final video metadata, captions, narration bullets, expected proof, acceptance-criterion links,
+    raw run references, and bounded frames, but never the full video file or bytes.
+  - Frame selection includes scene boundaries, action boundaries, caption boundaries, before and after state changes, and
+    a default three-second periodic interval that may be configured to a shorter interval.
+  - The reviewer may request bounded additional individual frames by exact timestamp; the local extractor returns only those
+    frames and records each request in review evidence.
+  - Each device review contains only device-applicable claims and complete device-applicable caption cues.
+  - Claim verdicts are supported, contradicted, not_visible, ambiguous, or wrong_time.
+  - Defect classes are implementation, test_coverage, recording, narration, composition, or environment.
+  - Only implementation defects and material test-contract defects invalidate linked implementation evidence; all other defects
+    return to their own stage.
+  - One initial review plus at most three classified repair-and-review retries are allowed; a fourth unresolved result requires
+    a structured user-input blocker.
+  - Every failed result and retry records one approved defect class, the responsible return stage, and the affected claim
+    IDs.
+  - The reviewer receives only the bounded review bundle and must use an implementation-approved provider or local
+    model with documented authorization, retention, and training-use policy.
+  completion:
+  - spec_verify rejects completion when a required demonstration is missing, stale for the subject commit,
+    missing hash-bound captions, has invalid requested audio, is not review-passed, or is not delivered when publication is required.
+  - A valid not-applicable classification satisfies the demonstration gate only for eligible non-visual work.
+  - Visual browser, native, and CLI demonstrations have no general waiver path; only a valid pre-implementation non-visual
+    not-applicable classification can satisfy the gate without video review.
+  - Discord publication status cannot turn passed implementation or review evidence back to failed, but delivered status is
+    required for configured proof-video completion.
+  discord:
+  - Use a dedicated configured webhook when available and fall back to the existing development notification webhook only
+    when explicitly configured by repository policy.
+  - Prefer direct video attachment within configured limits; otherwise use an approved access-controlled artifact URL rather
+    than a public temporary marketing URL.
+  - Message content includes spec or plan ID, subject commit, covered scenarios, review result, duration, and canonical
+    evidence reference.
+  - Webhook URLs and response bodies containing identifiers are never stored in spec evidence.
+  - Confirm delivery through a wait-for-response webhook request before deleting generated video or ending configured proof-video
+    work; a request write without a confirmed Discord message is not delivery evidence.
+  - Retry failed delivery for at most 24 hours, then delete the undelivered video and record expired_deleted while retaining
+    text evidence and hashes.
+  privacy_security:
+  - Do not intentionally capture or publish login, signup, verification codes, passkeys, credentials, account emails, unrelated
+    chats, share URL keys, API keys, webhook URLs, private infrastructure identifiers, or agent reasoning.
+  - Do not run proof-video-specific PII or sensitive-data detection, anonymization, replacement, or publication scans.
+  - Use synthetic or approved test-account data and placeholders in demonstrations.
+  - Keep raw recordings and transcripts out of git; specs store only metadata, hashes, run IDs, and artifact references.
+  - Never send a raw or final full video to a multimodal provider or place it in agent context; only a bounded frame-and-caption
+    review bundle may leave the local evidence store after the reviewer authorization and retention assumptions are confirmed.
+  - Raw and derived artifacts use owner-only gitignored storage. Retain transcripts and manifests; delete generated
+    video after confirmed Discord delivery or after 24 hours of unsuccessful delivery.
+  - Proof-video privacy status is recorded as not_applicable because this workflow intentionally keeps captured proof evidence as-is.
+  no_product_api_change:
+  - No REST API or WebSocket endpoint is added or changed.
+  - Endpoint access model, auth, rate limits, credit budgets, and encrypted-data boundaries are not applicable to this repo-local
+    first slice.
+tests:
+- id: T-DEMO-SCHEMA
+  type: pytest
+  file: scripts/tests/test_spec_demonstration_workflow.py
+  command: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py
+  covers:
+  - AC-1
+  - AC-2
+  - AC-6
+  assertions:
+  - eligible proof-video fixture with narration bullets, expected proof, and acceptance-criterion links passes validation
+  - missing narration outline fails with a field-specific error
+  - non-visual not-applicable fixture with reason and verification reference passes
+  - user-visible or CLI fixture using not-applicable fails validation
+  - caption claim without acceptance-criterion and evidence-interval traceability fails validation
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py
+      run_id: local-2026-08-06-demo-workflow-red
+      subject_commit: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:25:56Z'
+      summary: Seven focused fixtures failed because demonstration schema and completion enforcement were not implemented;
+        three positive compatibility fixtures passed.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py scripts/tests/test_spec_workflow_validation.py
+      run_id: local-2026-08-06-demo-workflow-green
+      subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:28:57Z'
+      summary: Ten new demonstration fixtures and twenty existing schema/verifier regression fixtures passed.
+- id: T-DEMO-VERIFY
+  type: pytest
+  file: scripts/tests/test_spec_demonstration_workflow.py
+  command: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py
+  covers:
+  - AC-2
+  - AC-9
+  - AC-12
+  assertions:
+  - required demonstration with missing or stale review evidence keeps spec completion false
+  - passed review for the current subject commit satisfies the completion gate
+  - unfinished proof privacy state keeps completion false
+  - initial review plus three classified retries are allowed and the fourth unresolved result requires a structured user-input
+    blocker
+  - Discord publication_pending blocks configured completion without invalidating passed implementation or review evidence
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py
+      run_id: local-2026-08-06-demo-workflow-red
+      subject_commit: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:25:56Z'
+      summary: Missing, stale, and retry-limit demonstration evidence was accepted before verifier support, producing the
+        expected red failures.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_workflow.py scripts/tests/test_spec_workflow_validation.py
+      run_id: local-2026-08-06-demo-workflow-green
+      subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:28:57Z'
+      summary: Required demonstration completion, stale-evidence, retry-limit, and publication-independence fixtures passed.
+- id: T-DEMO-PIPELINE
+  type: pytest
+  file: scripts/tests/test_spec_demonstration_pipeline.py
+  command: python3 -m pytest scripts/tests/test_spec_demonstration_pipeline.py
+  covers:
+  - AC-3
+  - AC-4
+  - AC-5
+  - AC-6
+  - AC-10
+  assertions:
+  - Playwright adapter selects a passing recording whose run and subject commit match the manifest
+  - Playwright source record requires command or spec, deployed target, deployment reference, run ID, subject commit, artifact
+    hash, and test-account provenance
+  - CLI adapter records exact pseudo-terminal input, output, timing, exit status, and transcript hash
+  - CLI source record requires command, target environment, run ID, exit status, transcript and artifact hashes, and test-account
+    provenance
+  - reconstructed terminal fixture is visibly and structurally labeled and matches the transcript
+  - caption renderer preserves exact text and timing in the output media
+  - raw and derived artifacts remain distinct and hash-addressed
+  - proof-video privacy status is recorded as not_applicable without running proof-specific detection or replacement
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_pipeline.py
+      run_id: local-2026-08-06-demo-pipeline-red
+      subject_commit: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:30:46Z'
+      summary: Eight pipeline fixtures failed because scripts/spec_demo.py did not exist yet.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_spec_demonstration_workflow.py
+        scripts/tests/test_spec_workflow_validation.py
+      run_id: local-2026-08-06-demo-pipeline-green
+      subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:38:24Z'
+      summary: Eight PTY, Playwright provenance, FFmpeg, reconstruction, proof-privacy state, and artifact fixtures passed within
+        a 38-test focused regression run.
+- id: T-DEMO-REVIEW
+  type: pytest
+  file: scripts/tests/test_spec_demonstration_review.py
+  command: python3 -m pytest scripts/tests/test_spec_demonstration_review.py
+  covers:
+  - AC-7
+  - AC-8
+  - AC-9
+  assertions:
+  - deterministic review-bundle builder samples scene, action, caption, before-after, and periodic frames
+  - default periodic sampling uses three-second intervals and can be configured only to a shorter interval
+  - review request never contains the full video path as an attachment, video bytes, or encoded video content
+  - reviewer can request bounded additional frames at exact timestamps and every request is recorded
+  - structured supported fixture passes every caption claim
+  - contradiction, not-visible, ambiguity, and wrong-time fixtures fail with the expected verdict
+  - each failure maps to exactly one approved defect class and responsible return stage
+  - each of the three repair retries records a defect class and affected claim IDs
+  - implementation evidence is invalidated only for implementation or material test-contract defects
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_review.py
+      run_id: local-2026-08-06-demo-review-red
+      subject_commit: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:39:57Z'
+      summary: Fifteen review fixtures failed because frame indexing, frame-only request guards, exact-timestamp requests,
+        verdict classification, and retry routing were not implemented.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_review.py scripts/tests/test_spec_demonstration_pipeline.py
+      run_id: local-2026-08-06-demo-review-green
+      subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:41:33Z'
+      summary: Fifteen frame-only sampling, request guard, exact-timestamp, defect-routing, and retry fixtures passed alongside
+        eight media pipeline fixtures.
+- id: T-DEMO-DISCORD
+  type: pytest
+  file: scripts/tests/test_spec_demonstration_discord.py
+  command: python3 -m pytest scripts/tests/test_spec_demonstration_discord.py
+  covers:
+  - AC-11
+  - AC-12
+  assertions:
+  - configured webhook receives multipart video attachment and metadata
+  - oversized video uses only an approved access-controlled artifact reference
+  - missing webhook records not_configured without exposing environment values
+  - network or webhook failure records publication_pending and retry metadata
+  - no webhook URL, private response body, or private identifier enters spec evidence
+  - confirmed delivery deletes generated video and frames but retains transcript, captions, manifest, hashes, and
+    delivery identifiers
+  - unsuccessful delivery retries for 24 hours and then deletes video with expired_deleted status while retaining the
+    failure record
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_discord.py
+      run_id: local-2026-08-06-demo-discord-red
+      subject_commit: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:43:06Z'
+      summary: Six delivery and cleanup fixtures failed because the shared Discord helper, confirmation handling, safe deletion,
+        and 24-hour expiry behavior did not exist.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_run_tests_discord_summary.py
+      run_id: local-2026-08-06-demo-discord-green
+      subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:45:43Z'
+      summary: Six demonstration delivery and cleanup fixtures plus thirteen existing Discord summary regressions passed.
+- id: T-OPENCODE-WORKFLOW
+  type: pytest
+  file: scripts/tests/test_opencode_spec_workflow_audit.py
+  command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+  covers:
+  - AC-13
+  assertions:
+  - canonical SDD guide and skills require narration outline before implementation and demonstration review after normal green
+    gates
+  - verify-plan and deploy workflows cannot declare eligible work complete without demonstration evidence
+  - canonical Claude skills and Agent Skill mirrors remain synchronized
+  - OpenCode Plan Mode prompt contains the demonstration eligibility and completion contract without gaining broader edit
+    access
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py
+      run_id: local-2026-08-06-demo-opencode-red
+      subject_commit: 2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:47:03Z'
+      summary: Three new workflow audit fixtures failed because Plan Mode, canonical skills, and core SDD instructions did
+        not require the demonstration lifecycle.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_opencode_spec_workflow_audit.py && python3 scripts/audit_opencode_spec_workflow.py
+        && python3 scripts/audit_opencode_output_quality.py && python3 scripts/audit_agent_tooling_parity.py && python3 scripts/sync_agent_parity.py
+        --check
+      run_id: local-2026-08-06-demo-opencode-green
+      subject_commit: working-tree@2976f1ab1667d335c379f9945d3e9eb36ef1b404
+      timestamp: '2026-08-06T01:50:55Z'
+      summary: Fourteen workflow fixtures, direct spec workflow audit, output-quality audit, tooling parity audit, and generated
+        mirror sync check passed.
+- id: T-PROOF-CONTRACT-V2
+  type: pytest
+  file: scripts/tests/test_proof_video_workflow.py
+  command: python3 -m pytest scripts/tests/test_proof_video_workflow.py
+  covers: [AC-14]
+  assertions:
+  - multi-device contracts reject assertions or caption cues without target devices
+  - target devices must be known members of the approved contract device list
+  - each device receives exactly its applicable assertions and caption text
+  - single-device legacy contracts remain unambiguous while multi-device legacy contracts require re-approval
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py
+      run_id: local-2026-08-15-proof-captions-red
+      subject_commit: working-tree@59a5468e9
+      timestamp: '2026-08-15T00:00:00Z'
+      summary: Eight focused assertions failed before device-scoped contracts, clean rendering, and WebVTT publication existed.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_proof_video_workflow.py scripts/tests/test_spec_demonstration_pipeline.py scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
+      run_id: local-2026-08-15-proof-captions-green-e270eb8
+      subject_commit: e270eb84900dd54d05028648166a0367d0d3ddde
+      timestamp: '2026-08-15T11:30:00Z'
+      summary: All 123 device filtering, cache identity, clean rendering, WebVTT generation, publication, and session integration tests passed.
+- id: T-RESPONSE-MEDIA-CAPTIONS
+  type: pytest
+  file: scripts/tests/test_opencode_response_media.py
+  command: python3 -m pytest scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
+  covers: [AC-16]
+  assertions:
+  - WebVTT is uploaded with text/vtt and the same expiry as its video
+  - generated video HTML includes crossorigin anonymous and a default captions track
+  - publication records both hashes and refuses missing or changed caption files
+  - cleanup retains canonical captions while deleting disposable video and review frames
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest scripts/tests/test_opencode_response_media.py
+      run_id: local-2026-08-15-response-captions-red
+      subject_commit: working-tree@59a5468e9
+      timestamp: '2026-08-15T00:00:00Z'
+      summary: Full-width player and paired WebVTT assertions failed before implementation.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      command: python3 -m pytest scripts/tests/test_opencode_response_media.py scripts/tests/test_spec_demonstration_discord.py scripts/tests/test_sessions_proof_video.py
+      run_id: local-2026-08-15-response-captions-green-e270eb8
+      subject_commit: e270eb84900dd54d05028648166a0367d0d3ddde
+      timestamp: '2026-08-15T11:30:00Z'
+      summary: All 123 strict WebVTT upload, paired hash verification, toggleable track HTML, cleanup, and session integration tests passed.
+verifications:
+- id: V-PLAYWRIGHT-DEMO
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-3
+  - AC-5
+  - AC-7
+  status: passed
+  evidence:
+    command_or_spec: docs-links.spec.ts
+    target: https://app.dev.openmates.org/docs
+    deployment_reference: dpl_74KsgsZy33cyLFJff9oQspEEdTmH
+    run_id: run_31068572540
+    subject_commit: e0d3738d737b8c06d207424c9d71406d1b2b38f0
+    artifact_hash: sha256:5f648bcf93cf67c432ea86bb359118ec80416fef233acea255e253b89fd8c88c
+    test_account_provenance: GitHub Actions reserved test account slot 1
+    review_run_id: review-playwright-e0d3738
+    review_status: passed
+    privacy_status: passed
+    manifest_path: test-results/spec-demos/narrated-spec-demonstration-videos/playwright-e0d3738/manifest.json
+    timestamp: '2026-08-06T03:55:34Z'
+  evidence_requirements:
+  - command_or_spec
+  - target
+  - deployment_reference
+  - run_id
+  - subject_commit
+  - artifact_hash
+  - test_account_provenance
+- id: V-CLI-DEMO
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-4
+  - AC-5
+  - AC-7
+  status: passed
+  evidence:
+    command: openmates plans create --title 'Discord CLI tutorial plan' --goal 'Demonstrate timed CLI plan creation' --summary 'Created by the tutorial proof workflow' --status draft
+    target_environment: https://api.dev.openmates.org
+    run_id: plans-create-tutorial-final
+    subject_commit_when_repository_backed: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    exit_status: 0
+    transcript_hash: sha256:ffc1cc8e77624437501e1b82aa7a4105a82b6e54ff0173f30bd8124ff4e681f0
+    artifact_hash: sha256:dfdfb14d1a5f87d3f37fc17055e30e4b72f196ab97c2595a32d5d3fb066bc995
+    test_account_provenance: OpenMates CLI stored session; authentication credentials are not rendered
+    review_run_id: review-plans-create-tutorial-final
+    review_status: passed
+    timestamp: '2026-08-06T10:07:38Z'
+  evidence_requirements:
+  - command
+  - target_environment
+  - run_id
+  - subject_commit_when_repository_backed
+  - exit_status
+  - transcript_hash
+  - artifact_hash
+  - test_account_provenance
+- id: V-PRIVACY-REVIEW
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-10
+  status: passed
+  evidence:
+    command: python3 scripts/sessions.py proof-video produce --session d465
+    run_id: plans-create-tutorial-final
+    subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    timestamp: '2026-08-06T10:07:38Z'
+    reason: The manifest records proof privacy as not_applicable because proof-video-specific detection and replacement are disabled.
+    privacy_status: not_applicable
+    scan: disabled
+    status: passed
+- id: V-DISCORD-DELIVERY
+  kind: manual_check
+  phase: final
+  required_for_done: false
+  covers:
+  - AC-11
+  status: passed
+  evidence:
+    command: python3 scripts/sessions.py proof-video publish --session d465 --run-dir test-results/proof-videos/d465/plans-create-tutorial-final
+    run_id: plans-create-tutorial-final
+    subject_commit: d24e5bfbb06e54aac1edc3d9a1f9d6b1a3cd4f37
+    timestamp: '2026-08-06T10:07:38Z'
+    publication_status: delivered
+    summary: Discord confirmed the dev-smoke message and attachment; generated video and review frames were deleted while text evidence was retained.
+- id: V-CAPTION-PLAYER-SMOKE
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-14
+  - AC-15
+  - AC-16
+  status: passed
+  evidence:
+    command: python3 test-results/proof-caption-smoke/verify_player.py
+    run_id: proof-caption-player-smoke-2026-08-15
+    subject_commit: e270eb84900dd54d05028648166a0367d0d3ddde
+    timestamp: '2026-08-15T11:25:00Z'
+    video_hash: sha256:3735be5ff6ff4b489f46e72c5d7d5cc463e1076a15d377b175e5cb1f146801bc
+    captions_hash: sha256:1189b3f23868ca016e0fcf87d38c4aff8bda66b12a68d89f4763f47b4139ff3c
+    summary: Chromium loaded the real uploaded 1440x900 clean-frame WebM at full 1000px container width, loaded the default WebVTT cue, and toggled captions from showing to disabled and back to showing.
+implementation_notes:
+  plan_path: docs/plans/narrated-spec-demonstration-videos/plan.yml
+  first_slice: 'Add failing contract and renderer tests that prove each device receives only applicable claims and cues, clean video retains exact profile dimensions and full frame area, and publication emits a hash-bound WebVTT track.
+
+    '
+  existing_patterns:
+  - scripts/plan_validate.py and scripts/plan_verify.py enforce Schema V2 structure and completion evidence.
+  - scripts/run_tests.py downloads Playwright videos, screenshots, step logs, and metadata and already supports Discord multipart
+    attachments.
+  - frontend/apps/web_app/playwright.config.ts records every deployed Playwright run by default.
+  - scripts/audit_opencode_spec_workflow.py audits OpenCode Plan Mode, canonical skills, generated mirrors, and workflow instructions.
+  - frontend/packages/secret-scanner remains product tooling and is not part of proof-video capture, render, review, or publication.
+  - test-results is gitignored and existing Playwright recording bundles already use run IDs, commit SHAs, videos, screenshots,
+    and manifest metadata.
+  - The external create-video skill separates polished marketing production from product verification recordings.
+  architecture: 'Keep scripts/spec_demo.py as the repository-local orchestration CLI around a versioned JSON manifest in test-results/spec-demos/<spec>/<run-id>/.
+    Use ffmpeg/ffprobe subprocesses for media metadata, full-frame retiming, terminal rendering, compression, and clean frame extraction;
+    generate canonical WebVTT as a separate hash-bound artifact; filter approved assertions and cues by exact device profile;
+    use a Python stdlib PTY recorder for exact argv/output/timing/exit events; record proof-video privacy as not_applicable without
+    scanning or replacing captured proof text before creating the bounded frame bundle read by the active OpenCode agent. The agent records structured claim verdicts through the CLI. Discord publication reuses
+    a small shared webhook helper extracted from run_tests.py. Raw test artifacts remain immutable, generated videos are deleted
+    after confirmed delivery or 24 hours, and text evidence remains.
+
+    '
+  boundaries:
+  - No product backend, REST API, SDK, web UI, Apple app, Directus collection, or encrypted user-data contract changes.
+  - No generated video bytes or full-video path is passed to the agent or a multimodal API.
+  - No external marketing Remotion workspace or E2B Remotion renderer is used for engineering evidence.
+  - No shell interpolation is used for CLI capture; the PTY recorder launches an explicit argv list and records combined terminal
+    events.
+  - No implementation video is committed to git; only the YAML ledger stores hashes, run IDs, statuses, and references.
+  data_flow:
+  - A spec records `NARR-1` with purpose `Show persisted completion`, expected proof `checked item after reload`, and link
+    `AC-5`; exact caption text remains empty during implementation.
+  - Existing tests pass for subject commit `abc1234`; the browser adapter resolves run `30999`, target `app.dev.openmates.org`,
+    deployment `abc1234`, and the matching WebM hash without copying or modifying the source bundle.
+  - For CLI evidence, the PTY adapter runs argv such as `[openmates, plans, show, demo-plan, --json]`, records timestamped
+    input/output events and exit code 0, strips ANSI control sequences for the transcript, and hashes both event
+    and transcript artifacts.
+  - The post-green caption step writes an exact WebVTT cue such as `After reload, the first item remains complete.` from 12.4
+    to 17.1 seconds and links it to `NARR-1`, `AC-5`, the matching evidence interval, and applicable device profiles.
+  - FFmpeg retimes the browser video without scale, crop, overlay, border, or padding filters; terminal state events remain content on a fixed DejaVu Sans Mono canvas. ffprobe records duration, dimensions, codecs, and final SHA-256.
+  - The proof-video privacy state is recorded as not_applicable without scanning or replacing captured proof text.
+  - The review-bundle builder extracts default three-second frames plus scene, action, caption-boundary, and before-after
+    frames. The active agent reads only those images and may request a bounded exact timestamp such as 14.8 seconds.
+  - The agent records supported, contradicted, not_visible, ambiguous, or wrong_time for each claim and one defect class for
+    each failure. One initial review plus three classified repair retries are allowed.
+  - spec_verify accepts completion only after the current-commit privacy state and review records are finalized, or after a valid pre-implementation
+    non-visual not-applicable classification.
+  - Discord publication uses `wait=true`, records the returned message and attachment identifiers without the webhook URL,
+    then deletes generated MP4/WebM files after confirmed delivery. Failed delivery retries for 24 hours, then deletes video
+    while retaining transcripts, captions, manifest, hashes, review result, and publication failure.
+  artifact_contract:
+  - Root: test-results/spec-demos/<spec-or-plan-slug>/<run-id>/ with owner-only directory and file permissions.
+  - manifest.json is versioned and stores eligibility, subject commit, source evidence, narration outline, caption segments,
+    artifact hashes, privacy state, frame index, review attempts, publication state, and deletion timestamps.
+  - transcript.txt, captions.vtt, review.json, and publication.json are retained text artifacts;
+    raw PTY event logs stay private and are deleted after the transcript is written.
+  - demo.mp4 or demo.webm and extracted frame files are disposable; frames are deleted after review and video is deleted after
+    confirmed Discord delivery or the 24-hour undelivered limit.
+  - Browser source recordings remain governed by the existing Playwright artifact and test-recording retention rather than
+    being duplicated into the spec-demo directory.
+  privacy_security_impact:
+  - Proof-video-specific PII and sensitive-data scanning is disabled; manifests record privacy status as not_applicable.
+  - The canonical secret-scanner patterns remain product tooling and are not called by proof-video capture, review, or publication.
+  - Environment values, webhook URLs, raw Discord response bodies, login/setup flows, and unrelated terminal events never
+    enter retained manifests or agent context.
+  - The active OpenCode session sees approved captions and selected image frames only; it never receives the complete video.
+  - Cleanup is idempotent and hash-aware so it cannot delete the original Playwright artifact or files outside the manifest-owned
+    run directory.
+  migration_rollout:
+  - Add proof-video fields as optional for parsing while already-completed historical specs remain loadable.
+  - Require passed audio, review, and configured Discord delivery in spec/session completion gates for newly eligible work.
+  - Apply the feature, example-chat, and failed-to-green E2E gates through planning/session instructions rather than backfilling
+    historical inline plans.
+  - Roll out in fixture mode first, then one synthetic CLI proof, then one real deployed Playwright proof, and only then enable
+    completion enforcement by default.
+  observability:
+  - Every spec_demo command prints one structured JSON result with manifest path, stage, status, run ID, subject commit, and
+    next action.
+  - Manifest attempts record stage duration, source and output hashes, frame counts, retry count, defect class,
+    and deletion timestamps without text bodies or private values.
+  - Publication records `not_configured`, `pending`, `delivered`, `publication_pending`, or `expired_deleted`; only delivered
+    includes Discord message and attachment IDs.
+  - The doctor command reports missing ffmpeg, ffprobe, font, and webhook configuration
+    without printing paths containing credentials or secret values.
+  affected_files:
+  - path: docs/contributing/guides/spec-driven-development.md
+    reason: Define demonstration eligibility, narration-outline timing, post-green rendering, review, retry, and completion
+      ordering.
+  - path: docs/contributing/guides/planning.md
+    reason: Require eligible feature, example-chat, and failed-to-green E2E work to declare narration bullets and expected proof.
+  - path: docs/contributing/guides/agent-workflow-core.md
+    reason: Add concise final demonstration and Discord evidence guidance to the active OpenCode workflow.
+  - path: .claude/rules/testing.md
+    reason: Define Playwright and CLI recording provenance and keep demonstration editing separate from verification evidence.
+  - path: .claude/rules/session-lifecycle.md
+    reason: Keep eligible work active until demonstration review passes, a valid non-visual not-applicable classification
+      applies, or a structured user-input blocker exists.
+  - path: .claude/skills/create-plan/SKILL.md
+    reason: Add demonstration eligibility and narration-outline fields to full-spec authoring.
+  - path: .claude/skills/create-plan/SKILL.md
+    reason: Select capture sources and review requirements without prematurely writing exact narration.
+  - path: .claude/skills/tasks-from-plan/SKILL.md
+    reason: Place capture, captions, review, repair, and publication after normal implementation verification.
+  - path: .claude/skills/verify-plan/SKILL.md
+    reason: Require current-commit proof-video audio, review, and configured Discord delivery evidence.
+  - path: .claude/skills/deploy/SKILL.md
+    reason: Prevent eligible session completion before the post-green demonstration gate.
+  - path: opencode.json
+    reason: Keep Plan Mode aware of demonstration eligibility and narration outlines while preserving spec-only edit access.
+  - path: scripts/plan_validate.py
+    reason: Validate the demonstration contract, eligibility, narration bullets, manifests, and references.
+  - path: scripts/plan_verify.py
+    reason: Enforce current-commit proof privacy state, audio, review, and configured Discord delivery evidence.
+  - path: scripts/spec_evidence.py
+    reason: Record structured demonstration and publication evidence without hand-editing YAML.
+  - path: scripts/spec_demo.py
+    reason: Provide the focused capture, caption, render, review-bundle, proof-privacy state, retry, and publication orchestration entry
+      point.
+  - path: scripts/discord_webhook.py
+    reason: Extract the existing multipart webhook request logic into a small reusable helper with wait-for-confirmation support
+      and structured results.
+  - path: scripts/audit_opencode_spec_workflow.py
+    reason: Deterministically audit demonstration workflow wiring and mirrored skills.
+  - path: scripts/tests/test_spec_demonstration_workflow.py
+    reason: Test eligibility, schema, verifier completion, retries, audio, and configured Discord delivery.
+  - path: scripts/tests/test_spec_demonstration_pipeline.py
+    reason: Test exact Playwright and pseudo-terminal provenance, captions, reconstruction labels, hashes, and proof-privacy state.
+  - path: scripts/tests/test_spec_demonstration_review.py
+    reason: Test frame selection, claim verdicts, mismatch classification, and evidence invalidation routing.
+  - path: scripts/tests/test_spec_demonstration_discord.py
+    reason: Test attachment/link publication, delivered gating, and retryable failures.
+  - path: scripts/tests/test_opencode_spec_workflow_audit.py
+    reason: Test workflow instructions, Plan Mode prompt, completion gates, and skill parity.
+  verification_strategy:
+  - Run python3 scripts/plan_validate.py docs/plans/narrated-spec-demonstration-videos/plan.yml after every spec edit.
+  - Write and run the listed pytest red phases before workflow implementation.
+  - Run python3 scripts/sync_agent_parity.py after canonical skill edits and verify with --check.
+  - Run python3 scripts/audit_opencode_spec_workflow.py and the focused demonstration workflow tests.
+  - Produce and review one real deployed Playwright demonstration and one real pseudo-terminal demonstration using synthetic
+    data.
+  - Run a fixture confirming proof-video privacy status is not_applicable without proof-specific detection or replacement.
+  - Exercise one Discord delivery when configured; keep completion blocked with publication_pending until delivered.
+  - Verify delivered cleanup removes only generated video and frames while retaining transcripts and manifests;
+    verify failed delivery deletes video at the 24-hour boundary.
+  - Run python3 scripts/plan_verify.py docs/plans/narrated-spec-demonstration-videos/plan.yml only after all required evidence
+    is recorded.
+  verification_order:
+  - Validate the approved spec and implementation plan.
+  - Add red schema, verifier, pipeline, review, Discord, and workflow-audit tests.
+  - Implement manifest validation and completion enforcement.
+  - Implement real Playwright and pseudo-terminal capture plus caption rendering.
+  - Implement review bundles, classification, bounded retries, and not_applicable proof privacy state.
+  - Implement Discord publication and retry state independently of completion.
+  - Synchronize agent skill mirrors and run deterministic audits.
+  - Run real Playwright and CLI demonstration artifact reviews and optional configured Discord
+    delivery.
+  - No product REST/API, SDK, web UI, user-confirmation, or Apple phase is required for this repo-local first slice.
+  required_assumption_checks:
+  - A-1 is proven by the existing Playwright config and recording publisher and rechecked by a manifest fixture with run and
+    commit provenance.
+  - A-2 is proven by existing multipart Discord code and rechecked after extraction into scripts/discord_webhook.py.
+  - A-3 runs `python3 scripts/spec_demo.py doctor` before any non-synthetic video review.
+  - A-4 is enforced by review-request fixtures that reject video bytes, encoded video, and full-video attachments while permitting
+    bounded local frame paths.
+  - A-5 keeps product/API/SDK/Apple files outside task ownership and verification scope.
+  - A-6 is enforced by cleanup clock fixtures for delivered and 24-hour undelivered videos.
+  acceptance_criteria_mapping:
+  - AC-1 and AC-2 map to T-DEMO-SCHEMA and T-DEMO-VERIFY.
+  - AC-3 maps to T-DEMO-PIPELINE and V-PLAYWRIGHT-DEMO.
+  - AC-4 maps to T-DEMO-PIPELINE and V-CLI-DEMO.
+  - AC-5 and AC-6 map to T-DEMO-PIPELINE plus both real artifact reviews.
+  - AC-7, AC-8, and AC-9 map to T-DEMO-REVIEW, T-DEMO-VERIFY, V-PLAYWRIGHT-DEMO, and V-CLI-DEMO.
+  - AC-10 maps to T-DEMO-PIPELINE and V-PRIVACY-REVIEW as a not_applicable proof-privacy state check.
+  - AC-11 and AC-12 map to T-DEMO-DISCORD, T-DEMO-VERIFY, and required live V-DISCORD-DELIVERY evidence when configured.
+  - AC-13 maps to T-OPENCODE-WORKFLOW and agent parity sync evidence.
+  approval_boundary:
+  - Product-contract approval is already recorded.
+  - The user explicitly approved frame-only review, ElevenLabs audio, retained transcripts, deletion after confirmed Discord
+    delivery, and deletion after 24 hours of failed delivery.
+  - FFmpeg, stdlib PTY capture, and reuse of existing Discord patterns are minimal implementation
+    choices and introduce no additional material approval gate.
+  open_questions:
+  - After this workflow is implemented and tested, discuss user-facing OpenMates Plans persistence, playback, and status integration.
+  - If ElevenLabs cost, latency, or policy changes materially, evaluate a pinned self-hosted official Kokoro-82M runtime;
+    never use kokorottsai.com for proof-video narration.
+tasks:
+- id: TASK-1
+  title: Approve and technically plan the demonstration workflow
+  status: done
+  phase: complete
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    - S-7
+    - S-8
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-7
+    - AC-8
+    - AC-9
+    - AC-10
+    - AC-11
+    - AC-12
+    - AC-13
+  expected_files:
+  - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  verification_ids:
+  - T-DEMO-SCHEMA
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+    shared_files: []
+  independently_deployable: false
+- id: TASK-2
+  title: Add red demonstration schema and completion fixtures
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-7
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-6
+    - AC-9
+    - AC-12
+  expected_files:
+  - scripts/tests/test_spec_demonstration_workflow.py
+  verification_ids:
+  - T-DEMO-SCHEMA
+  - T-DEMO-VERIFY
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks:
+  - TASK-3 implements the contracts exposed by these expected failures.
+  ownership:
+    files:
+    - scripts/tests/test_spec_demonstration_workflow.py
+    shared_files: []
+  independently_deployable: false
+- id: TASK-3
+  title: Implement manifest validation and completion enforcement
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-7
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-6
+    - AC-9
+    - AC-12
+  expected_files:
+  - scripts/plan_validate.py
+  - scripts/plan_verify.py
+  - scripts/spec_evidence.py
+  - scripts/tests/test_spec_demonstration_workflow.py
+  verification_ids:
+  - T-DEMO-SCHEMA
+  - T-DEMO-VERIFY
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/plan_validate.py
+    - scripts/plan_verify.py
+    - scripts/spec_evidence.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    shared_files:
+    - scripts/plan_validate.py
+    - scripts/plan_verify.py
+  independently_deployable: false
+- id: TASK-4
+  title: Add red PTY media and proof privacy state fixtures
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-3
+    - S-4
+    - S-5
+    - S-8
+    acceptance_criteria:
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-10
+  expected_files:
+  - scripts/tests/test_spec_demonstration_pipeline.py
+  verification_ids:
+  - T-DEMO-PIPELINE
+  dependencies:
+  - TASK-3
+  blockers: []
+  follow_up_tasks:
+  - TASK-5 implements the capture, render, and review contracts exposed by these expected failures.
+  ownership:
+    files:
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    shared_files: []
+  independently_deployable: false
+- id: TASK-5
+  title: Implement PTY capture FFmpeg rendering and bounded frame review
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-3
+    - S-4
+    - S-5
+    - S-8
+    acceptance_criteria:
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-10
+  expected_files:
+  - scripts/spec_demo.py
+  - scripts/tests/test_spec_demonstration_pipeline.py
+  verification_ids:
+  - T-DEMO-PIPELINE
+  dependencies:
+  - TASK-4
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    shared_files:
+    - scripts/spec_demo.py
+  independently_deployable: false
+- id: TASK-6
+  title: Add red frame-only review and retry fixtures
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-6
+    - S-7
+    acceptance_criteria:
+    - AC-7
+    - AC-8
+    - AC-9
+  expected_files:
+  - scripts/tests/test_spec_demonstration_review.py
+  verification_ids:
+  - T-DEMO-REVIEW
+  dependencies:
+  - TASK-5
+  blockers: []
+  follow_up_tasks:
+  - TASK-7 implements the frame-only review and retry contracts exposed by these expected failures.
+  ownership:
+    files:
+    - scripts/tests/test_spec_demonstration_review.py
+    shared_files: []
+  independently_deployable: false
+- id: TASK-7
+  title: Implement frame bundle review recording and bounded repair routing
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-6
+    - S-7
+    acceptance_criteria:
+    - AC-7
+    - AC-8
+    - AC-9
+  expected_files:
+  - scripts/spec_demo.py
+  - scripts/tests/test_spec_demonstration_review.py
+  verification_ids:
+  - T-DEMO-REVIEW
+  dependencies:
+  - TASK-6
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_review.py
+    shared_files:
+    - scripts/spec_demo.py
+  independently_deployable: false
+- id: TASK-8
+  title: Add red Discord delivery and video cleanup fixtures
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-8
+    acceptance_criteria:
+    - AC-10
+    - AC-11
+    - AC-12
+  expected_files:
+  - scripts/tests/test_spec_demonstration_discord.py
+  verification_ids:
+  - T-DEMO-DISCORD
+  dependencies:
+  - TASK-7
+  blockers: []
+  follow_up_tasks:
+  - TASK-9 implements confirmed delivery, retry, and cleanup contracts exposed by these expected failures.
+  ownership:
+    files:
+    - scripts/tests/test_spec_demonstration_discord.py
+    shared_files: []
+  independently_deployable: false
+- id: TASK-9
+  title: Implement confirmed Discord delivery retry and 24-hour cleanup
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-8
+    acceptance_criteria:
+    - AC-10
+    - AC-11
+    - AC-12
+  expected_files:
+  - scripts/spec_demo.py
+  - scripts/discord_webhook.py
+  - scripts/run_tests.py
+  - scripts/tests/test_spec_demonstration_discord.py
+  - scripts/tests/test_run_tests_discord_summary.py
+  verification_ids:
+  - T-DEMO-DISCORD
+  dependencies:
+  - TASK-8
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/spec_demo.py
+    - scripts/discord_webhook.py
+    - scripts/run_tests.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    shared_files:
+    - scripts/spec_demo.py
+    - scripts/run_tests.py
+  independently_deployable: false
+- id: TASK-10
+  title: Add red OpenCode demonstration workflow audit fixtures
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-7
+    - S-8
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-9
+    - AC-12
+    - AC-13
+  expected_files:
+  - scripts/tests/test_opencode_spec_workflow_audit.py
+  verification_ids:
+  - T-OPENCODE-WORKFLOW
+  dependencies:
+  - TASK-3
+  - TASK-9
+  blockers: []
+  follow_up_tasks:
+  - TASK-11 updates the canonical workflow sources and mirrors to satisfy these expected failures.
+  ownership:
+    files:
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    shared_files:
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+  independently_deployable: false
+- id: TASK-11
+  title: Align canonical SDD skills instructions and deterministic audit
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-7
+    - S-8
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-9
+    - AC-12
+    - AC-13
+  expected_files:
+  - docs/contributing/guides/spec-driven-development.md
+  - docs/contributing/guides/planning.md
+  - docs/contributing/guides/agent-workflow-core.md
+  - .claude/rules/testing.md
+  - .claude/rules/session-lifecycle.md
+  - .claude/skills/create-plan/SKILL.md
+  - .claude/skills/create-plan/SKILL.md
+  - .claude/skills/tasks-from-plan/SKILL.md
+  - .claude/skills/verify-plan/SKILL.md
+  - .claude/skills/deploy/SKILL.md
+  - .agents/skills/create-plan/SKILL.md
+  - .agents/skills/create-plan/SKILL.md
+  - .agents/skills/tasks-from-plan/SKILL.md
+  - .agents/skills/verify-plan/SKILL.md
+  - .agents/skills/deploy/SKILL.md
+  - opencode.json
+  - scripts/audit_opencode_spec_workflow.py
+  - scripts/tests/test_opencode_spec_workflow_audit.py
+  verification_ids:
+  - T-OPENCODE-WORKFLOW
+  dependencies:
+  - TASK-10
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/planning.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - .claude/rules/testing.md
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/create-plan/SKILL.md
+    - .claude/skills/create-plan/SKILL.md
+    - .claude/skills/tasks-from-plan/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/tasks-from-plan/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    shared_files:
+    - docs/contributing/guides/agent-workflow-core.md
+    - opencode.json
+    - scripts/audit_opencode_spec_workflow.py
+  independently_deployable: false
+- id: TASK-12
+  title: Run real CLI and Playwright demonstrations and finalize evidence
+  status: done
+  phase: running_checks
+  covers:
+    scenarios:
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    - S-7
+    - S-8
+    acceptance_criteria:
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-7
+    - AC-8
+    - AC-9
+    - AC-10
+    - AC-11
+    - AC-12
+    - AC-13
+  expected_files:
+  - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  - test-results/spec-demos
+  verification_ids:
+  - T-DEMO-SCHEMA
+  - T-DEMO-VERIFY
+  - T-DEMO-PIPELINE
+  - T-DEMO-REVIEW
+  - T-DEMO-DISCORD
+  - T-OPENCODE-WORKFLOW
+  - V-PLAYWRIGHT-DEMO
+  - V-CLI-DEMO
+  - V-PRIVACY-REVIEW
+  - V-DISCORD-DELIVERY
+  dependencies:
+  - TASK-5
+  - TASK-7
+  - TASK-9
+  - TASK-11
+  blockers: []
+  follow_up_tasks:
+  - Discuss a follow-up spec for OpenMates Plans product integration after this workflow is implemented and tested.
+  - Re-evaluate self-hosted official Kokoro-82M only if ElevenLabs proof-video narration becomes unsuitable.
+  ownership:
+    files:
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+    - test-results/spec-demos
+    shared_files:
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  independently_deployable: true
+- id: TASK-13
+  title: Add session proof-video orchestration and publish a real Plans CLI recording
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-4, S-6, S-8]
+    acceptance_criteria: [AC-4, AC-7, AC-10, AC-11, AC-12]
+  expected_files:
+  - scripts/sessions.py
+  - scripts/spec_demo.py
+  - frontend/packages/secret-scanner/src/cli.ts
+  - scripts/tests/test_sessions_proof_video.py
+  - scripts/tests/test_spec_demonstration_pipeline.py
+  - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  - test-results/proof-videos
+  verification_ids: [T-DEMO-PIPELINE, T-DEMO-REVIEW, T-DEMO-DISCORD, V-CLI-DEMO, V-PRIVACY-REVIEW, V-DISCORD-DELIVERY]
+  dependencies: [TASK-12]
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - frontend/packages/secret-scanner/src/cli.ts
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+    - test-results/proof-videos
+    shared_files:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  independently_deployable: true
+- id: TASK-14
+  title: Add reusable demo-video skill and publish narrated signup Playwright proof
+  status: done
+  phase: complete
+  covers:
+    scenarios: [S-3, S-5, S-6, S-8]
+    acceptance_criteria: [AC-3, AC-5, AC-6, AC-7, AC-10, AC-11, AC-12, AC-13]
+  expected_files:
+  - .claude/skills/create-demo-video/SKILL.md
+  - .agents/skills/create-demo-video/SKILL.md
+  - scripts/sessions.py
+  - scripts/spec_demo.py
+  - scripts/tests/test_sessions_proof_video.py
+  - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  - test-results/proof-videos
+  verification_ids: [T-DEMO-PIPELINE, T-DEMO-REVIEW, T-DEMO-DISCORD, T-OPENCODE-WORKFLOW, V-PLAYWRIGHT-DEMO, V-PRIVACY-REVIEW, V-DISCORD-DELIVERY]
+  dependencies: [TASK-13]
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - .claude/skills/create-demo-video/SKILL.md
+    - .agents/skills/create-demo-video/SKILL.md
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_sessions_proof_video.py
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+    - test-results/proof-videos
+    shared_files:
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  independently_deployable: true
+- id: TASK-15
+  title: Add red device-scope clean-frame and WebVTT publication tests
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios: [S-9]
+    acceptance_criteria: [AC-14, AC-15, AC-16]
+  expected_files:
+  - scripts/tests/test_proof_video_workflow.py
+  - scripts/tests/test_spec_demonstration_pipeline.py
+  - scripts/tests/test_opencode_response_media.py
+  - scripts/tests/test_spec_demonstration_discord.py
+  - scripts/tests/test_sessions_proof_video.py
+  verification_ids: [T-PROOF-CONTRACT-V2, T-DEMO-PIPELINE, T-RESPONSE-MEDIA-CAPTIONS]
+  dependencies: [TASK-14]
+  blockers: []
+  follow_up_tasks: [TASK-16]
+  ownership:
+    files:
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_sessions_proof_video.py
+    shared_files: []
+  independently_deployable: false
+- id: TASK-16
+  title: Implement device filtering clean full-frame render and WebVTT integrity
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios: [S-5, S-6, S-9]
+    acceptance_criteria: [AC-5, AC-6, AC-7, AC-14, AC-15]
+  expected_files:
+  - scripts/proof_video_workflow.py
+  - scripts/spec_demo.py
+  - scripts/sessions.py
+  - .claude/agents/proof-video-reviewer.md
+  verification_ids: [T-PROOF-CONTRACT-V2, T-DEMO-PIPELINE, T-DEMO-REVIEW, T-DEMO-VERIFY]
+  dependencies: [TASK-15]
+  blockers: []
+  follow_up_tasks: [TASK-17]
+  ownership:
+    files:
+    - scripts/proof_video_workflow.py
+    - scripts/spec_demo.py
+    - scripts/sessions.py
+    - .claude/agents/proof-video-reviewer.md
+    shared_files: [scripts/spec_demo.py, scripts/sessions.py]
+  independently_deployable: false
+- id: TASK-17
+  title: Publish paired video and toggleable captions and align workflow instructions
+  status: done
+  phase: working_tasks
+  covers:
+    scenarios: [S-8, S-9]
+    acceptance_criteria: [AC-10, AC-11, AC-12, AC-13, AC-16]
+  expected_files:
+  - scripts/opencode_response_media.py
+  - scripts/spec_demo.py
+  - .claude/skills/create-demo-video/SKILL.md
+  - docs/contributing/guides/agent-workflow-core.md
+  - docs/contributing/guides/spec-driven-development.md
+  - .claude/rules/testing.md
+  verification_ids: [T-RESPONSE-MEDIA-CAPTIONS, T-OPENCODE-WORKFLOW]
+  dependencies: [TASK-16]
+  blockers: []
+  follow_up_tasks: [TASK-18]
+  ownership:
+    files:
+    - scripts/opencode_response_media.py
+    - scripts/spec_demo.py
+    - .claude/skills/create-demo-video/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - .claude/rules/testing.md
+    shared_files: [scripts/spec_demo.py, docs/contributing/guides/agent-workflow-core.md]
+  independently_deployable: false
+- id: TASK-18
+  title: Verify synthetic full-size caption toggle and clean-frame reviewer bundle
+  status: done
+  phase: running_checks
+  covers:
+    scenarios: [S-9]
+    acceptance_criteria: [AC-14, AC-15, AC-16]
+  expected_files:
+  - docs/plans/narrated-spec-demonstration-videos/plan.yml
+  - test-results/proof-videos
+  verification_ids: [T-PROOF-CONTRACT-V2, T-DEMO-PIPELINE, T-DEMO-REVIEW, T-RESPONSE-MEDIA-CAPTIONS, T-OPENCODE-WORKFLOW]
+  dependencies: [TASK-17]
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - docs/plans/narrated-spec-demonstration-videos/plan.yml
+    - test-results/proof-videos
+    shared_files: [docs/plans/narrated-spec-demonstration-videos/plan.yml]
+  independently_deployable: true
+risks:
+- Video rendering and multimodal review can add material completion latency and compute cost; bounded retries and eligibility
+  rules limit the impact.
+- Recordings can expose credentials or private account content that text-only test evidence does not; proof-video-specific detection is disabled, so use controlled dev accounts and avoid sensitive screens during capture.
+- Visual-only sensitive content in browser recordings is not scanned because decoded-frame OCR and proof-video text scanning were removed by explicit user decision to reduce calculation and latency.
+- Fixed-interval frames can miss brief errors or state changes; action, scene, and caption-boundary sampling plus bounded
+  exact-timestamp follow-up requests are required in addition to periodic frames.
+- An AI reviewer may misclassify a video-production defect as an implementation defect; structured categories and evidence-invalidation
+  rules must prevent unrelated code churn.
+- Discord attachment limits and outages can disrupt delivery; publication state remains independent and retryable, and public
+  temporary links are disallowed by default.
+  - Caption wording can overclaim security, privacy, performance, or completeness; every factual claim must trace to acceptance
+  criteria and visible evidence.
+- Reusing the marketing video workflow would mix promotional conventions with engineering evidence and may create public artifacts;
+  the engineering pipeline must remain separate.

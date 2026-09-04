@@ -118,6 +118,7 @@ struct MainAppView: View {
     @State private var pendingAssistantResponseFlushTask: Task<Void, Never>?
     @State private var isBackgroundSyncFlushInProgress = false
     @State private var pendingBackgroundSyncContent = PendingSyncedContent()
+    @State private var pendingTypingMetadata = TypingMetadataReplayBuffer()
     @State private var lastForegroundInteractionAt = Date.distantPast
     @State private var queuedNotificationReplies: [NotificationReplyRequest] = []
     @State private var pendingExternalEmbedOpen: PendingExternalEmbedOpen?
@@ -299,9 +300,7 @@ struct MainAppView: View {
     }
 
     private let publicChatOrder: [String: Int] = [
-        "demo-for-everyone": 0,
-        "demo-for-developers": 1,
-        "demo-who-develops-openmates": 2,
+        "demo-who-develops-openmates": 0,
         "example-gigantic-airplanes": 10,
         "example-artemis-ii-mission": 11,
         "example-beautiful-single-page-html": 12,
@@ -688,6 +687,11 @@ struct MainAppView: View {
             authFlowState.reset()
             Task {
                 await bootstrapAuthenticatedSession()
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat") {
+                    openNewChatScreen()
+                }
+                #endif
                 await flushQueuedNotificationReplies()
             }
         } else if newState == .unauthenticated {
@@ -970,13 +974,14 @@ struct MainAppView: View {
         pendingAssistantResponseFlushTask = nil
         isBackgroundSyncFlushInProgress = false
         pendingBackgroundSyncContent = PendingSyncedContent()
+        pendingTypingMetadata.removeAll()
         appSession.resetTransientRuntime()
         totalChatCount = 0
         accountInterestTagIds = []
         selectedChatId = nil
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
-        loadDemoChats(selectDefault: false)
+        loadDemoChats()
         Task { @MainActor in
             await anonymousFreeUsage.loadAnonymousChats(into: chatStore) { !isAuthenticated }
         }
@@ -989,12 +994,18 @@ struct MainAppView: View {
         #if DEBUG
         let shouldStartNewChatForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
         let shouldStartRecordingForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-start-recording")
+        let shouldOpenLoginForUITest = ProcessInfo.processInfo.arguments.contains("--ui-test-open-login")
         #else
         let shouldStartNewChatForUITest = false
         let shouldStartRecordingForUITest = false
+        let shouldOpenLoginForUITest = false
         #endif
 
-        if shouldStartRecordingForUITest {
+        if shouldOpenLoginForUITest && !isAuthenticated {
+            authFlowState.reset()
+            authFlowState.authMode = .login
+            showAuthSheet = true
+        } else if shouldStartRecordingForUITest {
             openNewChatRecordingScreen()
         } else if launchCommand?.action == .newChat || shouldStartNewChatForUITest {
             openNewChatScreen()
@@ -1013,7 +1024,7 @@ struct MainAppView: View {
             await loadAccountTopicPreferences()
         } else {
             // Unauthenticated: populate the sidebar, but keep the welcome/new-chat surface active.
-            loadDemoChats(selectDefault: false)
+            loadDemoChats()
             seedWelcomeRecentOverflowUITestStateIfNeeded()
             seedShellPerformanceUITestStateIfNeeded()
             openNewChatScreen()
@@ -1039,7 +1050,12 @@ struct MainAppView: View {
             wsManager: wsManager,
             userId: authManager.currentUser?.id
         )
-        if let first = promoted.first {
+        #if DEBUG
+        let shouldPreserveNewChat = ProcessInfo.processInfo.arguments.contains("--ui-test-start-new-chat")
+        #else
+        let shouldPreserveNewChat = false
+        #endif
+        if let first = promoted.first, !shouldPreserveNewChat {
             selectedChatId = first
             showNewChat = false
         }
@@ -2010,19 +2026,11 @@ struct MainAppView: View {
 
     /// Populates the sidebar with all public chats while the main surface stays on new chat by default.
     /// Mirrors: INTRO_CHATS + LEGAL_CHATS + announcements + example chats from demo_chats/index.ts
-    private func loadDemoChats(selectDefault: Bool = true) {
+    private func loadDemoChats() {
         let now = ISO8601DateFormatter().string(from: Date())
         // All strings via AppStrings → LocalizationManager → i18n JSON (never hardcoded English)
         let demoChats: [Chat] = [
             // INTRO_CHATS
-            Chat(id: "demo-for-everyone", title: AppStrings.demoForEveryoneTitle,
-                 lastMessageAt: now, createdAt: now, updatedAt: now,
-                 isArchived: false, isPinned: false,
-                 appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
-            Chat(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle,
-                 lastMessageAt: now, createdAt: now, updatedAt: now,
-                 isArchived: false, isPinned: false,
-                 appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
             Chat(id: "demo-who-develops-openmates", title: AppStrings.demoWhoDevTitle,
                  lastMessageAt: now, createdAt: now, updatedAt: now,
                  isArchived: false, isPinned: false,
@@ -2072,9 +2080,6 @@ struct MainAppView: View {
                  appId: "openmates", encryptedTitle: nil, encryptedChatKey: nil),
         ]
         chatStore.upsertChats(demoChats)
-        if selectDefault {
-            selectedChatId = "demo-for-everyone"
-        }
     }
 
     private func seedWelcomeRecentOverflowUITestStateIfNeeded() {
@@ -2279,12 +2284,6 @@ struct MainAppView: View {
     private func demoBannerState(for chatId: String) -> ChatBannerState? {
         switch chatId {
         // INTRO_CHATS
-        case "demo-for-everyone":
-            return .loaded(title: AppStrings.demoForEveryoneTitle, appId: "openmates_official",
-                           summary: AppStrings.demoForEveryoneDescription)
-        case "demo-for-developers":
-            return .loaded(title: AppStrings.demoForDevelopersTitle, appId: "openmates_official",
-                           summary: AppStrings.demoForDevelopersDescription)
         case "demo-who-develops-openmates":
             return .loaded(title: AppStrings.demoWhoDevTitle, appId: "openmates_official",
                            summary: AppStrings.demoWhoDevDescription)
@@ -2343,7 +2342,7 @@ struct MainAppView: View {
         selectedChatId = nil
         showNewChat = false
         visibleUserChatLimit = Self.initialUserChatLimit
-        loadDemoChats(selectDefault: false)
+        loadDemoChats()
 
         if isChatNavigationUITestEnabled {
             seedChatNavigationUITestState()
@@ -2670,6 +2669,11 @@ struct MainAppView: View {
     // MARK: - WebSocket
 
     private func connectWebSocket() {
+        wsManager.configureSyncStateProvider {
+            chatStore.makeSyncClientState(
+                clientSuggestionsCount: syncedNewChatSuggestions.count
+            )
+        }
         wsManager.connect(
             sessionId: AuthManager.nativeSessionId,
             token: authManager.webSocketToken,
@@ -2769,10 +2773,6 @@ struct MainAppView: View {
         Task { @MainActor in
             await DraftService.shared.handleSyncEvent(type: type, raw: raw)
             if Self.draftSyncEventTypes.contains(type) {
-                if let selectedChatId, chatStore.chat(for: selectedChatId) == nil {
-                    self.selectedChatId = nil
-                    showNewChat = true
-                }
                 return
             }
             await processChatUpdate(type: type, raw: raw)
@@ -2827,7 +2827,12 @@ struct MainAppView: View {
                 guard let payload = envelope.payload ?? envelope.data else { return }
                 chatStore.removeChat(payload.chatId)
                 ChatKeyManager.shared.removeKey(for: payload.chatId)
-                if selectedChatId == payload.chatId {
+                pendingTypingMetadata.remove(chatId: payload.chatId)
+                if ChatSelectionSyncPolicy.shouldClearSelection(
+                    selectedChatId: selectedChatId,
+                    eventType: type,
+                    eventChatId: payload.chatId
+                ) {
                     selectedChatId = nil
                     showNewChat = true
                 }
@@ -2895,6 +2900,9 @@ struct MainAppView: View {
             encryptedPIIMappings: payload.encryptedPiiMappings
         )
         chatStore.appendMessage(message, to: payload.chatId)
+        if let pendingTyping = pendingTypingMetadata.take(for: payload.messageId) {
+            await applyTypingStartedMetadata(pendingTyping)
+        }
         NativeSyncPerfLog.info("phase=newChatMessageSync chat=\(payload.chatId.prefix(8)) message=\(payload.messageId.prefix(8))")
     }
 
@@ -2930,6 +2938,15 @@ struct MainAppView: View {
             activeFocusId: existing?.activeFocusId
         )
         chatStore.upsertChat(chat)
+        if pendingTypingMetadata.deferIfMessageMissing(
+            payload,
+            messageExists: payload.userMessageId.map {
+                userMessageId in chatStore.messages(for: payload.chatId).contains { $0.id == userMessageId }
+            } ?? true
+        ) {
+            NativeSyncPerfLog.info("phase=typingStartedMetadataDeferred chat=\(payload.chatId.prefix(8))")
+            return
+        }
         chat = await persistEncryptedUserStorage(payload: payload, initialChat: chat)
         chat = await decryptChatMetadata(chat)
         chatStore.upsertChat(chat)
@@ -3157,7 +3174,8 @@ struct MainAppView: View {
     }
 
     private func loadChatKeyIfNeeded(chatId: String, encryptedChatKey: String?) async {
-        guard let encryptedChatKey, !ChatKeyManager.shared.hasKey(for: chatId),
+        guard let encryptedChatKey,
+              ChatKeyManager.shared.shouldLoadServerKey(chatId: chatId, encryptedChatKey: encryptedChatKey),
               let userId = authManager.currentUser?.id,
               let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) else {
             return
@@ -3182,12 +3200,6 @@ struct MainAppView: View {
             await previousTask?.value
             let start = NativeSyncPerfLog.now()
             await DraftService.shared.handleSyncEvent(type: type, raw: raw)
-            if let selectedChatId,
-               ChatStore.isServerSyncChatId(selectedChatId),
-               chatStore.chat(for: selectedChatId) == nil {
-                self.selectedChatId = nil
-                showNewChat = true
-            }
             await processSyncEvent(type: type, raw: raw)
             NativeSyncPerfLog.info(
                 "phase=wsSyncEvent type=\(type) rawBytes=\(raw.count) elapsedMs=\(NativeSyncPerfLog.ms(since: start))"
@@ -3880,7 +3892,7 @@ private struct NewChatMessagePayload: Decodable {
     let isSubChat: Bool?
 }
 
-private struct AITypingStartedSyncPayload: Decodable {
+struct AITypingStartedSyncPayload: Decodable {
     let chatId: String
     let messageId: String?
     let title: String?
@@ -3891,6 +3903,61 @@ private struct AITypingStartedSyncPayload: Decodable {
     let serverRegion: String?
     let userMessageId: String?
     let encryptedChatKey: String?
+}
+
+struct TypingMetadataReplayBuffer {
+    private static let maximumCount = 20
+    private var payloadByUserMessageId: [String: AITypingStartedSyncPayload] = [:]
+    private var insertionOrder: [String] = []
+
+    mutating func deferIfMessageMissing(
+        _ payload: AITypingStartedSyncPayload,
+        messageExists: Bool
+    ) -> Bool {
+        guard !messageExists,
+              let userMessageId = payload.userMessageId,
+              !userMessageId.isEmpty else {
+            return false
+        }
+        if payloadByUserMessageId[userMessageId] == nil {
+            insertionOrder.append(userMessageId)
+        }
+        payloadByUserMessageId[userMessageId] = payload
+        while insertionOrder.count > Self.maximumCount {
+            payloadByUserMessageId.removeValue(forKey: insertionOrder.removeFirst())
+        }
+        return true
+    }
+
+    mutating func take(for userMessageId: String) -> AITypingStartedSyncPayload? {
+        insertionOrder.removeAll { $0 == userMessageId }
+        return payloadByUserMessageId.removeValue(forKey: userMessageId)
+    }
+
+    mutating func remove(chatId: String) {
+        let removedIds = payloadByUserMessageId.compactMap { userMessageId, payload in
+            payload.chatId == chatId ? userMessageId : nil
+        }
+        for userMessageId in removedIds {
+            payloadByUserMessageId.removeValue(forKey: userMessageId)
+        }
+        insertionOrder.removeAll { removedIds.contains($0) }
+    }
+
+    mutating func removeAll() {
+        payloadByUserMessageId.removeAll()
+        insertionOrder.removeAll()
+    }
+}
+
+enum ChatSelectionSyncPolicy {
+    static func shouldClearSelection(
+        selectedChatId: String?,
+        eventType: String,
+        eventChatId: String?
+    ) -> Bool {
+        eventType == "chat_deleted" && selectedChatId != nil && selectedChatId == eventChatId
+    }
 }
 
 private struct AIBackgroundResponseCompletedPayload: Decodable {
@@ -4760,9 +4827,7 @@ enum WelcomeScreenState {
 
     private static func category(for chat: Chat) -> String {
         switch chat.id {
-        case "demo-for-everyone",
-             "demo-for-developers",
-             "demo-who-develops-openmates",
+        case "demo-who-develops-openmates",
              "announcements-introducing-openmates-v09":
             return "openmates_official"
         case "example-beautiful-single-page-html":
@@ -4782,10 +4847,6 @@ enum WelcomeScreenState {
 
     private static func cardIconName(for chat: Chat) -> String {
         switch chat.id {
-        case "demo-for-everyone":
-            return "hand"
-        case "demo-for-developers":
-            return "code"
         case "demo-who-develops-openmates",
              "announcements-introducing-openmates-v09":
             return "shield-check"
@@ -4807,10 +4868,6 @@ enum WelcomeScreenState {
 
     private static func summary(for chatId: String) -> String? {
         switch chatId {
-        case "demo-for-everyone":
-            return AppStrings.demoForEveryoneDescription
-        case "demo-for-developers":
-            return AppStrings.demoForDevelopersDescription
         case "demo-who-develops-openmates":
             return AppStrings.demoWhoDevDescription
         case "announcements-introducing-openmates-v09":
@@ -4947,7 +5004,7 @@ struct NewChatWelcomeView: View {
         GuestLandingStory(
             id: "openmates-intro",
             kind: .intro,
-            phrase: "Simply ask your AI team mates.",
+            phrase: "Your AI team for getting things done",
             title: "OpenMates for Everyone",
             assistantResponse: "Ask naturally and OpenMates routes the work to specialized mates and apps inside one chat workspace.",
             icon: "sparkles",
@@ -5067,13 +5124,11 @@ struct NewChatWelcomeView: View {
             return publicChats.map { WelcomeScreenState.cardData(for: $0) }
         }
 
-        let ids = publicChats.map(\.id)
-        let rankedRest = InterestTagRanking.rankIds(
-            ids.filter { $0 != "demo-for-everyone" },
+        let rankedIds = InterestTagRanking.rankIds(
+            publicChats.map(\.id),
             selected: effectiveInterestTagIds,
             keyPath: \.exampleChats
         )
-        let rankedIds = ["demo-for-everyone"] + rankedRest
         let chatById = Dictionary(uniqueKeysWithValues: publicChats.map { ($0.id, $0) })
         return rankedIds.compactMap { chatById[$0] }.map { WelcomeScreenState.cardData(for: $0) }
     }
@@ -6385,7 +6440,7 @@ private struct GuestLandingStoryCard: View {
                 .overlay(Circle().stroke(.white.opacity(0.55), lineWidth: 2))
                 .accessibilityIdentifier("guest-intro-ai-icon")
 
-            Text("Simply ask your\nAI team mates")
+            Text("Your AI team for getting things done")
                 .font(.custom("Lexend Deca", size: isCompact ? 34 : 44).weight(.semibold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)

@@ -41,8 +41,8 @@ OpenMates/
 
 ## Contract-Driven Development
 
-- Approved bundles under `contracts/` define durable product truth. New features use `define-contract` before full specs or implementation.
-- Contract edits stay in the session worktree and require exact user approval: quote the full new `contract.yml` or every explicit existing bundle change, then record the approved bundle hash. Later edits invalidate approval and deploy blocks.
+- Approved bundles under `specifications/` define durable truth. New reusable behavior uses `define-specification` before a Plan or implementation.
+- Specification edits stay in the session worktree and require exact user approval through the generated approval PDF, then record the approved bundle hash. Later edits invalidate approval and deploy blocks.
 - Full specs remain complete implementation/evidence ledgers. New or changed behavioral tests link stable contract assertions and surfaces; touched unmapped tests trigger backfill.
 - Reference contracts from specs, tests, commits, and releases, not product source headers.
 
@@ -92,11 +92,14 @@ For each observed preventable process problem or inefficiency, check the relevan
 
 ## OpenCode Response Media
 
-- To embed generated images or videos in an OpenCode assistant response, run `python3 scripts/opencode_response_media.py <path> --alt "Description"` and paste the returned Markdown or HTML snippet.
+- To embed generated images, videos, or PDFs in an OpenCode assistant response, run `python3 scripts/opencode_response_media.py <path> --alt "Description"` and paste the returned Markdown or HTML snippet.
 - The helper uploads plaintext media to a private Hetzner S3 bucket with 48-hour object expiry and a 48-hour presigned URL; treat the URL as a temporary bearer token.
 - Use this only for intentionally shareable screenshots, diagrams, synthetic test media, or demo clips. Do not upload secrets, private user data, raw logs, production evidence, or anything that must remain available after 48 hours.
+- Every assistant message that embeds a video as test evidence must also show the video's filename or repository-relative artifact path next to the embedded player. For UI component test videos, the same message must also include a clickable link to that component's exact deployed `https://app.dev.openmates.org/dev/preview/{component-path}` page. These references are required metadata and never replace the embedded video.
+- Every visual inspection, focused test, screenshot, and recording of a `/dev/preview/{component-path}` page must use a bare URL containing `chrome=0`; never inspect or record its configuration UI. Use the `.preview.ts` default fixture for the standard state, and encode every non-default input or configuration in URL query parameters such as `variant`, `props`, `theme`, `background`, and `width`.
 - External video playback in OpenCode Web requires the `code.dev.openmates.org` CSP to allow `media-src https:`; if video controls render but playback fails, verify Caddy applied `deployment/dev_server/Caddyfile`.
 - When a screenshot or short clip materially helps explain a visual UI state, bug fix, visual-smoke result, proof-video, or implementation defect, include the uploaded media directly in the chat response instead of only naming an artifact path.
+- Before asking the user to approve a new or modified Specification, run `python3 scripts/sessions.py specification approval-pdf --session <session-id> --bundle <bundle> --baseline-ref HEAD` and paste the returned PDF Markdown link in the same response. This canonical wrapper runs `scripts/specification_approval_pdf.py` against the routed session worktree. The exact-fingerprint PDF must show the complete Specification and examples with changed-text-only diffs: inline green `+` insertions, inline red `-` deletions, and neutral unchanged text. After explicit approval, pass the generated JSON review artifact to `scripts/specifications.py approve --review-artifact <path>` so the receipt cannot bind a different fingerprint or PDF. Never request or record Specification approval from a fingerprint or summary alone; repair PDF generation or upload first if it fails.
 
 ---
 

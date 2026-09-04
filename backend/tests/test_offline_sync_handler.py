@@ -7,10 +7,32 @@ tombstone/idempotent cleanup instead of a user-visible sync error.
 """
 
 from types import SimpleNamespace
+import importlib
+from pathlib import Path
+import sys
+import types
 
 import pytest
 
-from backend.core.api.app.routes.handlers.websocket_handlers.offline_sync_handler import (
+if "backend.core.api.app.tasks.celery_config" not in sys.modules:
+    tasks_package = types.ModuleType("backend.core.api.app.tasks")
+    tasks_package.__path__ = [str(Path(__file__).resolve().parents[1] / "core" / "api" / "app" / "tasks")]
+
+    class _CeleryAppStub:
+        def send_task(self, *_args, **_kwargs):
+            return None
+
+        def task(self, *_args, **_kwargs):
+            return lambda func: func
+
+    celery_config_module = types.ModuleType("backend.core.api.app.tasks.celery_config")
+    celery_config_module.app = _CeleryAppStub()
+    sys.modules.setdefault("backend.core.api.app.tasks", tasks_package)
+    sys.modules["backend.core.api.app.tasks.celery_config"] = celery_config_module
+    setattr(tasks_package, "celery_config", celery_config_module)
+    setattr(importlib.import_module("backend.core.api.app"), "tasks", tasks_package)
+
+from backend.core.api.app.routes.handlers.websocket_handlers.offline_sync_handler import (  # noqa: E402
     handle_sync_offline_changes,
 )
 
@@ -40,6 +62,7 @@ class _LocalDraftChat:
         return None
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
 @pytest.mark.anyio
 async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_chat() -> None:
     manager = _Manager()
@@ -104,6 +127,7 @@ async def test_offline_draft_sync_initializes_missing_versions_for_local_draft_c
     }
 
 
+# contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative
 @pytest.mark.anyio
 async def test_offline_delete_draft_missing_versions_is_idempotent_tombstone() -> None:
     manager = _Manager()
@@ -152,7 +176,10 @@ async def test_offline_delete_draft_missing_versions_is_idempotent_tombstone() -
     assert removed == [("user-1", "33333333-3333-4333-8333-333333333333")]
     assert manager.broadcasts[-1] == {
         "type": "draft_deleted",
-        "payload": {"chat_id": "33333333-3333-4333-8333-333333333333"},
+        "payload": {
+            "chat_id": "33333333-3333-4333-8333-333333333333",
+            "draft_v": 3,
+        },
     }
     assert manager.sent[-1] == {
         "type": "offline_sync_complete",

@@ -9,6 +9,14 @@ import XCTest
 
 @MainActor
 enum RealAccountUITestSupport {
+    struct ProgressiveResponseProof {
+        let firstChunkVisibleAt: Date
+        let completedAt: Date
+    }
+
+    private static let streamingAccessibilitySettleInterval: TimeInterval = 20
+    private static let proofResponseSettleInterval: TimeInterval = 35
+
     static func launchApp(
         preferPasswordLogin: Bool = true,
         disableAuthCache: Bool = false,
@@ -45,34 +53,36 @@ enum RealAccountUITestSupport {
 
     static func logIn(app: XCUIApplication, credentials: RealAccountTestCredentials) {
         let loginSignupButton = app.buttons["header-login-signup-btn"]
-        if !loginSignupButton.waitForExistence(timeout: 6), waitForMessageEditor(in: app, timeout: 2) != nil {
+        let loginTab = app.buttons["auth-login-tab"]
+        if !loginTab.waitForExistence(timeout: 2),
+           !loginSignupButton.waitForExistence(timeout: 3),
+           let editor = waitForMessageEditor(in: app, timeout: 2),
+           editor.isHittable {
             return
         }
-
-        XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
-        loginSignupButton.tap()
-
-        let loginTab = app.buttons["auth-login-tab"]
+        if !loginTab.exists {
+            XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
+            loginSignupButton.tap()
+        }
         XCTAssertTrue(loginTab.waitForExistence(timeout: 10))
         loginTab.tap()
 
         let emailInput = app.textFields["email-input"]
         XCTAssertTrue(emailInput.waitForExistence(timeout: 10))
-        emailInput.tap()
-        emailInput.typeText(credentials.email)
+        guard focusForTextEntry(emailInput, in: app, identifier: "email-input") else { return }
+        app.typeText(credentials.email)
 
         let continueButton = app.buttons["continue-button"]
         XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
         continueButton.tap()
 
         let passwordInput = waitForPasswordInput(app: app)
-        passwordInput.tap()
-        passwordInput.typeText(credentials.password)
+        guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+        app.typeText(credentials.password)
 
         submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
 
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
-        app.tap()
     }
 
     static func sendWelcomePrompt(app: XCUIApplication, prompt: String) {
@@ -100,22 +110,110 @@ enum RealAccountUITestSupport {
     }
 
     static func assertAssistantResponds(app: XCUIApplication, timeout: TimeInterval = 90) {
-        let streamingStarted = app.otherElements["streaming-banner"].waitForExistence(timeout: 30)
-            || app.otherElements["streaming-indicator"].waitForExistence(timeout: 2)
+        let streamingBanner = accessibilityElement(in: app, identifier: "streaming-banner")
+        let streamingIndicator = accessibilityElement(in: app, identifier: "streaming-indicator")
+        let streamingStarted = streamingBanner.waitForExistence(timeout: 30)
+            || streamingIndicator.waitForExistence(timeout: 2)
 
-        let assistantMessage = accessibilityElement(in: app, identifier: "message-assistant")
+        let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
         XCTAssertTrue(
             streamingStarted || assistantMessage.waitForExistence(timeout: 10),
             "Expected assistant streaming or an assistant message to appear"
         )
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
-        XCTAssertGreaterThan(assistantMessage.label.count, 8)
+        RunLoop.current.run(until: Date().addingTimeInterval(streamingAccessibilitySettleInterval))
+        let completionMarker = app.otherElements["assistant-response-feedback"]
+        XCTAssertTrue(
+            completionMarker.waitForExistence(timeout: timeout),
+            "Assistant response did not finish streaming"
+        )
+
+        let completedLabel = assistantMessage.label
+        XCTAssertGreaterThan(completedLabel.count, 8)
+        XCTAssertFalse(completedLabel.contains("app_skill_use"), "Assistant response exposed protocol metadata")
+    }
+
+    static func awaitAssistantResponseForProof(app: XCUIApplication, timeout: TimeInterval = 90) -> Date {
+        let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(
+            assistantMessage.waitForExistence(timeout: timeout),
+            "Expected an assistant response to appear"
+        )
+        let responseVisibleAt = Date()
+        RunLoop.current.run(until: Date().addingTimeInterval(proofResponseSettleInterval))
+        return responseVisibleAt
+    }
+
+    static func awaitProgressiveAssistantResponseForProof(
+        app: XCUIApplication,
+        timeout: TimeInterval = 90
+    ) -> ProgressiveResponseProof {
+        let assistantMessage = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(
+            assistantMessage.waitForExistence(timeout: timeout),
+            "Expected the first assistant response chunk to appear"
+        )
+        let firstChunkVisibleAt = Date()
+        let firstChunkLabel = assistantMessage.label
+        XCTAssertFalse(firstChunkLabel.isEmpty, "First assistant response chunk was empty")
+
+        let completionMarker = app.otherElements["assistant-response-feedback"]
+        let deadline = Date().addingTimeInterval(timeout)
+        var observedLongerContent = false
+        while Date() < deadline, !completionMarker.exists {
+            if assistantMessage.label.count > firstChunkLabel.count {
+                observedLongerContent = true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        XCTAssertTrue(completionMarker.exists, "Assistant response did not finish streaming")
+        XCTAssertTrue(observedLongerContent, "Assistant response did not visibly grow after its first chunk")
+        return ProgressiveResponseProof(firstChunkVisibleAt: firstChunkVisibleAt, completedAt: Date())
+    }
+
+    static func revealLatestAssistantResponse(app: XCUIApplication) {
+        let assistantMessages = accessibilityElements(in: app, identifier: "message-assistant")
+        let assistantTails = accessibilityElements(in: app, identifier: "message-assistant-tail")
+        let history = accessibilityElement(in: app, identifier: "chat-history-container")
+        let composer = accessibilityElement(in: app, identifier: "message-editor")
+        let assistantMessage = assistantMessages.firstMatch
+        let assistantTail = assistantTails.firstMatch
+        let visibilityDeadline = Date().addingTimeInterval(10)
+        var tailIsVisible = false
+        repeat {
+            let tailFrame = assistantTail.frame
+            tailIsVisible = assistantTail.exists
+                && !tailFrame.isEmpty
+                && history.frame.intersects(tailFrame)
+                && tailFrame.maxY <= composer.frame.minY + 1
+            if !tailIsVisible {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+            }
+        } while !tailIsVisible && Date() < visibilityDeadline
+
+        XCTAssertTrue(assistantMessage.exists, "Completed assistant response was missing from the proof chat")
+        XCTAssertTrue(
+            tailIsVisible,
+            "Completed assistant response tail did not become visible without manual scrolling. "
+                + "Tail: \(assistantTail.frame), history: \(history.frame), composer: \(composer.frame)"
+        )
+        XCTAssertLessThanOrEqual(
+            assistantTail.frame.maxY,
+            history.frame.maxY + 1,
+            "Completed assistant response extended below the visible chat history"
+        )
+        XCTAssertLessThanOrEqual(
+            assistantTail.frame.maxY,
+            composer.frame.minY + 1,
+            "Completed assistant response was covered by the composer"
+        )
     }
 
     static func waitForMessageEditor(in app: XCUIApplication, timeout: TimeInterval) -> XCUIElement? {
+        let editor = accessibilityElement(in: app, identifier: "message-editor")
         let deadline = Date().addingTimeInterval(timeout)
         repeat {
-            if let editor = messageEditorCandidates(in: app).first(where: { $0.exists }) {
+            if editor.exists {
                 return editor
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
@@ -124,9 +222,12 @@ enum RealAccountUITestSupport {
     }
 
     static func accessibilityElement(in app: XCUIApplication, identifier: String) -> XCUIElement {
+        accessibilityElements(in: app, identifier: identifier).firstMatch
+    }
+
+    private static func accessibilityElements(in app: XCUIApplication, identifier: String) -> XCUIElementQuery {
         app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier == %@", identifier))
-            .firstMatch
     }
 
     static func accessibilityElement(
@@ -135,7 +236,7 @@ enum RealAccountUITestSupport {
         labelContaining label: String
     ) -> XCUIElement {
         app.descendants(matching: .any)
-            .matching(NSPredicate(format: "identifier == %@ AND label CONTAINS %@", identifier, label))
+            .matching(NSPredicate(format: "identifier == %@ AND label CONTAINS[cd] %@", identifier, label))
             .firstMatch
     }
 
@@ -145,16 +246,25 @@ enum RealAccountUITestSupport {
         loginButton.tap()
 
         let tfaInput = app.textFields["tfa-code-input"]
-        if !tfaInput.waitForExistence(timeout: 15) {
+        let authenticationDeadline = Date().addingTimeInterval(15)
+        repeat {
+            if waitForMessageEditor(in: app, timeout: 0.2) != nil {
+                return
+            }
+            if tfaInput.exists {
+                break
+            }
+        } while Date() < authenticationDeadline
+        if !tfaInput.exists {
             return
         }
 
         let offsets = [0, -1, 1, 0, -1]
         for (index, offset) in offsets.enumerated() {
             waitPastTotpBoundaryIfNeeded()
-            tfaInput.tap()
-            clearOtpCode(in: tfaInput)
-            tfaInput.typeText(TOTP.generate(secret: credentials.otpKey, windowOffset: offset))
+            guard focusForTextEntry(tfaInput, in: app, identifier: "tfa-code-input") else { return }
+            clearOtpCode(in: tfaInput, app: app)
+            app.typeText(TOTP.generate(secret: credentials.otpKey, windowOffset: offset))
             loginButton.tap()
 
             if waitForMessageEditor(in: app, timeout: 12) != nil {
@@ -170,17 +280,13 @@ enum RealAccountUITestSupport {
     }
 
     private static func openNewChatIfNeeded(app: XCUIApplication) {
+        if waitForMessageEditor(in: app, timeout: 1) != nil {
+            return
+        }
         let newChatButton = accessibilityElement(in: app, identifier: "new-chat-button")
         guard newChatButton.waitForExistence(timeout: 2) else { return }
         newChatButton.tap()
         XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 10))
-    }
-
-    private static func messageEditorCandidates(in app: XCUIApplication) -> [XCUIElement] {
-        [
-            app.textFields.matching(identifier: "message-editor").firstMatch,
-            app.textViews.matching(identifier: "message-editor").firstMatch,
-        ]
     }
 
     private static func waitForPasswordInput(app: XCUIApplication) -> XCUIElement {
@@ -229,11 +335,29 @@ enum RealAccountUITestSupport {
         sleep(UInt32(30 - secondsIntoWindow + 2))
     }
 
-    private static func clearOtpCode(in element: XCUIElement) {
+    private static func focusForTextEntry(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        identifier: String
+    ) -> Bool {
+        let focusedElement = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier == %@ AND hasKeyboardFocus == true", identifier))
+            .firstMatch
+        for _ in 0..<3 {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            if focusedElement.waitForExistence(timeout: 1) {
+                return true
+            }
+        }
+        XCTFail("Expected \(identifier) to receive keyboard focus")
+        return false
+    }
+
+    private static func clearOtpCode(in element: XCUIElement, app: XCUIApplication) {
         guard let value = element.value as? String else { return }
         let digitCount = value.filter(\.isNumber).count
         guard digitCount > 0 else { return }
-        element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: min(max(digitCount, 6), 12)))
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: min(max(digitCount, 6), 12)))
     }
 }
 

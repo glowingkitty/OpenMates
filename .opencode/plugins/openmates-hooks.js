@@ -6,8 +6,16 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+
+let openCodeTool = null;
+try {
+  ({ tool: openCodeTool } = await import("@opencode-ai/plugin"));
+} catch {
+  // Node-only contract tests do not install the OpenCode plugin package. The
+  // verified OpenCode runtime provides it when loading the live plugin.
+}
 
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const READ_TOOLS = new Set(["read", "Read"]);
@@ -34,6 +42,10 @@ const READ_ONLY_SUBAGENTS = new Set([
 ]);
 const WRITABLE_SUBAGENTS = new Set(["general"]);
 const PROJECT_ROOT = process.env.OPENMATES_PROJECT_ROOT || "/home/superdev/projects/OpenMates";
+const CONTROL_PLANE_RUNTIME = process.env.OPENMATES_CONTROL_PLANE_RUNTIME || "/home/superdev/projects/.openmates-runtime/opencode-server";
+const CURRENT_CONTROL_PLANE_ROOT = existsSync(resolve(CONTROL_PLANE_RUNTIME, "scripts/sessions.py"))
+  ? CONTROL_PLANE_RUNTIME
+  : PROJECT_ROOT;
 const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.openmates-agent-worktrees`,
   `${PROJECT_ROOT}/.agent-worktrees`,
@@ -46,12 +58,20 @@ const OPENCODE_NOTIFIER = `${PROJECT_ROOT}/scripts/opencode_progress_notifier.py
 const OPENCODE_NOTIFIER_LOG = `${PROJECT_ROOT}/logs/opencode-event-notifier.log`;
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
+const PRESENCE_READ_CACHE_MS = 1_000;
+const PRESENCE_ABSENT_STATUS_GRACE_MS = 5_000;
 const PRESENCE_LIVE_EXECUTION = new Set(["busy", "retrying"]);
 const REPO_RELATIVE_PREFIXES = ["frontend/", "backend/", "scripts/", "docs/", "apple/", ".opencode/", ".claude/"];
 const SOURCE_FILE_EXTENSION = /\.(?:py|js|mjs|ts|tsx|svelte|swift|md|ya?ml|json)$/;
-const CLI_LOGIN_HINT_MARKER = "[OpenMates CLI login hint]";
 const COMMAND_DOCTOR_MARKER = "[OpenMates command doctor]";
 const FAILED_TEST_LEASE_MARKER = "[OpenMates failed-test lease hint]";
+const TEMPORARY_LOCK_WAIT_MARKER = "[OpenMates temporary lock continuation]";
+const OPAQUE_LONG_SLEEP_MARKER = "[OpenMates opaque long sleep guard]";
+const API_HEALTH_WAIT_MARKER = "[OpenMates API health coordination]";
+const RESPONSE_MEDIA_EMBED_MARKER = "[OpenMates response-media embed required]";
+const FIGMA_REFERENCE_EMBED_MARKER = "[OpenMates Figma reference embed required]";
+const CONTROL_PLANE_GUARD_MARKER = "[OpenMates control-plane guard]";
+const GITHUB_MCP_GUARD_MARKER = "[OpenMates GitHub MCP guard]";
 const ROUTING_GUARD_MARKER = "[OpenMates worktree routing]";
 const ROOT_GUARD_MARKER = "[OpenMates worktree guard]";
 const DOCKER_LIFECYCLE_MARKER = "[OpenMates server lifecycle guard]";
@@ -67,6 +87,33 @@ const CLI_AUTH_ERROR_PATTERNS = [
   /Requires login \(run [`']openmates login[`'] first\)\./i,
 ];
 const HOOK_SOURCE_URL = new URL(import.meta.url);
+const PROTECTED_CONTROL_PLANE_PATHS = [
+  ".opencode/",
+  "backend/engineering_control_plane/",
+  "opencode.json",
+  "scripts/opencode_credential_migration.py",
+  "scripts/opencode_permission_watcher.py",
+  "scripts/opencode_runtime_release.py",
+  "scripts/sync_opencode_runtime_hook.py",
+  "scripts/patches/opencode-",
+  "scripts/server-restart.sh",
+  "scripts/sessions.py",
+  "scripts/start-opencode-server.sh",
+];
+const SECRET_CONFIG_PATHS = [
+  "/home/superdev/.config/opencode/",
+  "/home/superdev/opencode/.opencode/opencode.jsonc",
+];
+const SECRET_ENV_KEYS = [
+  "BRAVE_API_KEY",
+  "CONTEXT7_API_KEY",
+  "FIRECRAWL_API_KEY",
+  "GITHUB_PERSONAL_ACCESS_TOKEN",
+  "PENPOT_ACCESS_TOKEN",
+];
+const HOOK_SUBPROCESS_TIMEOUT_MS = Number(process.env.OPENMATES_HOOK_SUBPROCESS_TIMEOUT_MS || 15_000);
+const PRE_TOOL_HOOK_TIMEOUT_MS = Number(process.env.OPENMATES_PRE_TOOL_HOOK_TIMEOUT_MS || 45_000);
+const TASK_CONTEXT_MARKER = "[OpenMates authoritative Task context]";
 
 function hashHookSource() {
   try {
@@ -77,9 +124,57 @@ function hashHookSource() {
 }
 
 const HOOK_RUNTIME_HASH = hashHookSource();
+const GITHUB_MCP_TOOL_PATTERN = /^(?:github|mcp__github)(?:[_\-.]|$)/i;
+const HOOK_WARNING_DEDUPE_TTL_MS = Number(process.env.OPENMATES_HOOK_WARNING_DEDUPE_TTL_MS || 10 * 60 * 1000);
+const hookWarningDedupe = new Map();
 
 function actionable(marker, reason, next) {
   return `${marker} Reason: ${reason} Next: ${next}`;
+}
+
+async function withHookDeadlineForTest(label, sessionID, operation, timeoutMs = PRE_TOOL_HOOK_TIMEOUT_MS) {
+  let timeout;
+  try {
+    return await Promise.race([
+      Promise.resolve().then(operation),
+      new Promise((_, reject) => {
+        timeout = setTimeout(() => reject(new Error(actionable(
+          "[OpenMates hook deadline]",
+          `${label} did not settle within ${timeoutMs}ms for ${sessionID || "unknown session"}.`,
+          "retry the tool once; if it repeats, the orchestration monitor must inspect the named hook stage rather than leaving the chat busy.",
+        ))), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
+
+function warningReasonForTest(message) {
+  const match = /Reason:\s*(.*?)(?:\s+Next:|$)/s.exec(String(message || ""));
+  return (match?.[1] || String(message || "")).trim();
+}
+
+function warnOnceForTest(
+  message,
+  { sessionID = "", head = "", now = Date.now(), ttlMs = HOOK_WARNING_DEDUPE_TTL_MS } = {},
+  warn = console.warn,
+) {
+  if (!message) return false;
+  const ttl = Number.isFinite(Number(ttlMs)) ? Number(ttlMs) : HOOK_WARNING_DEDUPE_TTL_MS;
+  if (ttl <= 0) {
+    warn(message);
+    return true;
+  }
+  const reason = warningReasonForTest(message);
+  const key = JSON.stringify([HOOK_RUNTIME_HASH, sessionID || "", head || "", reason]);
+  for (const [cachedKey, cachedAt] of hookWarningDedupe.entries()) {
+    if (now - cachedAt > ttl) hookWarningDedupe.delete(cachedKey);
+  }
+  if (hookWarningDedupe.has(key)) return false;
+  hookWarningDedupe.set(key, now);
+  warn(message);
+  return true;
 }
 
 function normalizeToolName(tool) {
@@ -303,15 +398,19 @@ function extractWriteTargets(command) {
 function bindSessionStart(input, output) {
   const command = bashCommand(output?.args || input?.args);
   if (!input?.sessionID || !/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) return;
-  const separatorIndex = firstUnquotedShellSeparatorIndex(command);
-  const startCommand = (separatorIndex >= 0 ? command.slice(0, separatorIndex) : command).trim();
-  if (!/^python3\s+scripts\/sessions\.py\s+start\b/.test(startCommand) || /--opencode-session\b/.test(startCommand)) return;
-  const boundStart = `${startCommand} --opencode-session ${input.sessionID}`;
-  if (separatorIndex >= 0) {
-    output.args.command = `${boundStart} ${command.slice(separatorIndex).trimStart()}`;
-  } else {
-    output.args.command = boundStart;
+  const startCommand = command.trim();
+  if (
+    !/^python3\s+scripts\/sessions\.py\s+start\b/.test(startCommand)
+    || firstUnquotedShellSeparatorIndex(startCommand) >= 0
+  ) {
+    throw new Error(actionable(
+      ROUTING_GUARD_MARKER,
+      "sessions.py start must be a standalone command so its OpenCode identity and worktree are created atomically.",
+      "run python3 scripts/sessions.py start --mode <mode> --task \"brief description\" in its own tool call.",
+    ));
   }
+  if (/--opencode-session\b/.test(startCommand)) return;
+  output.args.command = `${startCommand} --opencode-session ${input.sessionID}`;
 }
 
 function sessionsData() {
@@ -382,6 +481,18 @@ function repeatedRoutingFailureMessageForTest(message, count, diagnostic = hookR
     ? "restart the OpenCode runtime once so it loads the current hook, then retry once."
     : "run python3 scripts/sessions.py status --json and return the routing diagnostics to the parent.";
   return `${message} Circuit breaker: Do not retry the same tool call. ${hashes}. Next: ${next}`;
+}
+
+function githubMcpGuardDecisionForTest(tool) {
+  if (!GITHUB_MCP_TOOL_PATTERN.test(tool || "")) return { decision: "allow", message: "" };
+  return {
+    decision: "block",
+    message: actionable(
+      GITHUB_MCP_GUARD_MARKER,
+      `GitHub MCP tool '${tool}' is not the canonical OpenMates GitHub access path and can use stale credentials.`,
+      "use the authenticated local gh CLI from a sessions.py worktree, for example `gh pr list`, `gh run view`, or `gh api`.",
+    ),
+  };
 }
 
 function eventSessionID(event) {
@@ -524,7 +635,7 @@ function createPresenceSchedulerForTest({
 function persistPresence(record) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn("python3", ["scripts/sessions.py", "presence", "update", "--json-stdin"], {
-      cwd: PROJECT_ROOT,
+      cwd: CURRENT_CONTROL_PLANE_ROOT,
       env: process.env,
       stdio: ["pipe", "ignore", "pipe"],
     });
@@ -539,12 +650,24 @@ function persistPresence(record) {
   });
 }
 
+let presenceReadCache = { value: null, time: 0 };
+
 function presenceData() {
+  const now = Date.now();
+  if (presenceReadCache.value && now - presenceReadCache.time < PRESENCE_READ_CACHE_MS) {
+    return presenceReadCache.value;
+  }
   try {
     const parsed = JSON.parse(readFileSync(PRESENCE_FILE, "utf8"));
-    return parsed?.project_root === PROJECT_ROOT && parsed?.sessions ? parsed : { sessions: {}, task_claims: {}, child_roles: {} };
+    const value = parsed?.project_root === PROJECT_ROOT && parsed?.sessions
+      ? parsed
+      : { sessions: {}, task_claims: {}, child_roles: {} };
+    presenceReadCache = { value, time: now };
+    return value;
   } catch {
-    return { sessions: {}, task_claims: {}, child_roles: {} };
+    const value = { sessions: {}, task_claims: {}, child_roles: {} };
+    presenceReadCache = { value, time: now };
+    return value;
   }
 }
 
@@ -981,7 +1104,10 @@ function exactCommitDeployedTestForTest(command, expectedCommit = "") {
     values[option] = options[++index];
   }
   const commit = values["--expected-commit"] || "";
-  if (!booleans.has("--gate-deploy") || !booleans.has("--require-exact-commit")) return null;
+  // The deployment gate plus a full expected SHA is safe for merged-worktree
+  // routing even without strict HEAD equality. tests.py then accepts a newer
+  // dev subject only when the requested spec's known inputs are unchanged.
+  if (!booleans.has("--gate-deploy")) return null;
   if (!/^(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9][A-Za-z0-9._\/-]*\.spec\.ts$/.test(values["--spec"] || "")) return null;
   if (!/^[0-9a-f]{40}$/i.test(commit)) return null;
   if (expectedCommit && commit.toLowerCase() !== String(expectedCommit).toLowerCase()) return null;
@@ -1088,9 +1214,60 @@ function isSharedSecretRuntimePath(candidate, worktreePath) {
   return [resolve(worktreePath), resolve(PROJECT_ROOT)].some((base) => relative(base, absolute) === ".env");
 }
 
+function isApprovedControlPlaneRuntimeSearchPath(candidate) {
+  if (!candidate || !isAbsolute(candidate)) return false;
+  const relativePath = relative(resolve(CURRENT_CONTROL_PLANE_ROOT), resolve(candidate));
+  return relativePath === "test-results" || relativePath.startsWith(`test-results${sep}`);
+}
+
+function approvedProofVideoSourceTokenForTest(command) {
+  if (hasUnsafeLocalShellExpansionOrRedirection(command)) return "";
+  const segments = commandSegmentTokens(String(command || ""));
+  if (segments.length !== 1) return "";
+  const tokens = segments[0].map(shellUnescape);
+  let index = 0;
+  while (index < tokens.length && isAssignment(tokens[index])) index += 1;
+  if (!["python", "python3"].includes(tokens[index] || "")) return "";
+  if ((tokens[index + 1] || "").replace(/^\.\//, "") !== "scripts/sessions.py") return "";
+  if (tokens[index + 2] !== "proof-video" || tokens[index + 3] !== "produce-playwright") return "";
+
+  let source = "";
+  for (let cursor = index + 4; cursor < tokens.length; cursor += 1) {
+    const token = tokens[cursor];
+    if (token === "--source-video") {
+      if (source || cursor + 1 >= tokens.length) return "";
+      source = tokens[++cursor];
+      continue;
+    }
+    if (token.startsWith("--source-video=")) {
+      if (source) return "";
+      source = token.slice("--source-video=".length);
+    }
+  }
+  if (!source || !isAbsolute(source)) return "";
+  const artifactRoot = resolve(PROJECT_ROOT, "test-results/proof-video-source-artifacts");
+  const resolvedSource = resolve(source);
+  const artifactRelative = relative(artifactRoot, resolvedSource);
+  if (!artifactRelative || artifactRelative.startsWith("..") || isAbsolute(artifactRelative)) return "";
+  return source;
+}
+
 function routeLocalToolArgsForTest(tool, args, worktreePath) {
   const input = toolInput(args);
-  if (!worktreePath) return input;
+  if (!worktreePath && BASH_TOOLS.has(tool)) {
+    const command = bashCommand(input);
+    const commandSegments = commandSegmentTokens(command);
+    const hasControlPlaneScript = commandSegments.some(isCanonicalControlPlaneScriptSegment);
+    const controlPlaneScriptRuntime = commandSegments.length > 0
+      && commandSegments.every(isCanonicalControlPlaneScriptSegment);
+    if (hasControlPlaneScript && !controlPlaneScriptRuntime) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: a canonical sessions.py/tests.py command is mixed with another shell command. Next: run the canonical control-plane command in its own tool call so it can use the clean runtime.`);
+    }
+    if (controlPlaneScriptRuntime) return { ...input, command, workdir: CURRENT_CONTROL_PLANE_ROOT };
+  }
+  // Callers replace the live tool-argument object in place, so never return
+  // that same object even when no routing rewrite is necessary.
+  if (!worktreePath) return { ...input };
   if (BASH_TOOLS.has(tool)) {
     const command = bashCommand(input);
     if (command.includes("$'")) {
@@ -1160,18 +1337,22 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (improvementReviewSegment >= 0 && !improvementReviewControlPlane) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: OpenCode improvement review generation is root control-plane work and only the report-only dry-run form is allowed. Next: run python3 scripts/opencode_chat_improvement_review.py --hours 72 --dry-run-notify.`);
     }
-    const sessionsPySegment = commandSegments.findIndex((tokens) => (
-      ["python", "python3"].includes(shellUnescape(tokens[0]))
-      && shellUnescape(tokens[1]) === "scripts/sessions.py"
-    ));
-    const sessionsPyControlPlane = sessionsPySegment === 0
-      && commandSegments.length === 1
-      && !hasTopLevelSeparator
-      && !unsafeControlSyntax
-      && !existsSync(resolve(worktreePath, "scripts/sessions.py"));
+    // Session lifecycle and test dispatch are shared control-plane operations,
+    // not source-worktree operations. Never route a mixed compound expression
+    // into the clean runtime: a trailing generator, git command, or redirect
+    // could otherwise mutate that immutable checkout.
+    const hasControlPlaneScript = commandSegments.some(isCanonicalControlPlaneScriptSegment);
+    const controlPlaneScriptRuntime = commandSegments.length > 0
+      && commandSegments.every(isCanonicalControlPlaneScriptSegment);
+    if (hasControlPlaneScript && !controlPlaneScriptRuntime) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: a canonical sessions.py/tests.py command is mixed with another shell command, which could mutate the shared runtime checkout. Next: run the canonical control-plane command in its own tool call, then run any source-worktree command separately.`);
+    }
     const normalizedTokens = tokenizeCommand(command).map(shellUnescape);
     const tokensWithoutOwnWorktree = normalizedTokens.map((token) => token.split(routedWorktree).join(""));
-    const rootReferences = tokensWithoutOwnWorktree.filter((token) => token.includes(PROJECT_ROOT));
+    const approvedProofSource = approvedProofVideoSourceTokenForTest(command);
+    const rootReferences = tokensWithoutOwnWorktree.filter((token) => (
+      token.includes(PROJECT_ROOT) && token !== approvedProofSource && token !== `--source-video=${approvedProofSource}`
+    ));
     const rootHelperInvocations = commandSegmentTokens(command).filter((tokens) => {
       let index = 0;
       while (index < tokens.length && isAssignment(tokens[index])) index += 1;
@@ -1191,7 +1372,13 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     if (traversal) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the shell command contains relative traversal (${traversal}) that could escape the routed worktree. Next: use paths inside ${worktreePath}.`);
     }
-    return { ...input, command, workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || sessionsPyControlPlane) ? PROJECT_ROOT : worktreePath };
+    return {
+      ...input,
+      command,
+      workdir: (prodSshControlPlane || staleCodeReportControlPlane || improvementReviewControlPlane || controlPlaneScriptRuntime)
+        ? (controlPlaneScriptRuntime ? CURRENT_CONTROL_PLANE_ROOT : PROJECT_ROOT)
+        : worktreePath,
+    };
   }
   if (SEARCH_TOOLS.has(tool)) {
     const routed = { ...input };
@@ -1200,6 +1387,15 @@ function routeLocalToolArgsForTest(tool, args, worktreePath) {
     }
     if (typeof routed.path === "string" && targetsDifferentWorktree(routed.path, worktreePath)) {
       throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute search path targets another managed worktree. Next: use a repository-relative path inside ${worktreePath}.`);
+    }
+    if (
+      typeof routed.path === "string"
+      && isAbsolute(routed.path)
+      && pathEscapesWorktree(routed.path, worktreePath)
+      && !pathInProjectRoot(routed.path)
+      && !isApprovedControlPlaneRuntimeSearchPath(routed.path)
+    ) {
+      throw new Error(`${ROUTING_GUARD_MARKER} Reason: the absolute search path is outside the routed worktree and approved test-results runtime. Next: search a repository-relative path inside ${worktreePath}, or use the exact artifact path under ${CURRENT_CONTROL_PLANE_ROOT}/test-results.`);
     }
     if (typeof routed.path === "string" && !isAbsolute(routed.path)) {
       const target = resolve(worktreePath, routed.path);
@@ -1268,47 +1464,105 @@ function routeLocalToolArgsWithCircuitBreakerForTest(
   }
 }
 
-function recordWorktreeRouting(opencodeSessionID) {
+async function recordWorktreeRouting(opencodeSessionID) {
   if (!opencodeSessionID) return false;
-  const result = spawnSync(
+  const result = await runProcess(
     "python3",
     ["scripts/sessions.py", "worktree", "repair", "--opencode-session", opencodeSessionID],
-    { cwd: PROJECT_ROOT, encoding: "utf8" },
+    { cwd: PROJECT_ROOT },
   );
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "routing repair failed").trim();
-    console.warn(`${ROUTING_GUARD_MARKER} Reason: sessions.py could not record worktree routing. Next: run python3 scripts/sessions.py worktree repair --opencode-session ${opencodeSessionID}. Detail: ${detail}`);
+    warnOnceForTest(
+      `${ROUTING_GUARD_MARKER} Reason: sessions.py could not record worktree routing. Next: run python3 scripts/sessions.py worktree repair --opencode-session ${opencodeSessionID}. Detail: ${detail}`,
+      { sessionID: opencodeSessionID },
+    );
     return false;
   }
   return true;
 }
 
-function scheduleWorktreeCheckpoint(opencodeSessionID, event) {
-  if (!opencodeSessionID || !["idle", "closed"].includes(event)) return;
-  // Root checkout is the OpenMates control plane; sessions.py resolves the routed source worktree.
-  const child = spawn(
-    "python3",
-    [
-      "scripts/sessions.py",
-      "worktree",
-      "checkpoint",
-      "--opencode-session",
-      opencodeSessionID,
-      "--event",
-      event,
-    ],
-    { cwd: PROJECT_ROOT, env: process.env, detached: true, stdio: "ignore" },
-  );
-  child.on("error", (error) => {
-    console.warn(`${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`);
-  });
-  child.on("close", (code) => {
-    if (code !== 0) {
-      console.warn(`${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`);
-    }
-  });
-  child.unref();
+function createWorktreeCheckpointSchedulerForTest({ spawnProcess = spawn, warn = warnOnceForTest } = {}) {
+  const inFlight = new Map();
+  return (opencodeSessionID, event) => {
+    if (!opencodeSessionID || !["idle", "closed"].includes(event)) return false;
+    if (inFlight.has(opencodeSessionID)) return false;
+    // Use the pinned clean control plane; sessions.py resolves shared state and the routed source worktree.
+    const child = spawnProcess(
+      "python3",
+      [
+        "scripts/sessions.py",
+        "worktree",
+        "checkpoint",
+        "--opencode-session",
+        opencodeSessionID,
+        "--event",
+        event,
+      ],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT, env: process.env, detached: true, stdio: "ignore" },
+    );
+    inFlight.set(opencodeSessionID, child);
+    const clear = () => {
+      if (inFlight.get(opencodeSessionID) === child) inFlight.delete(opencodeSessionID);
+    };
+    child.on("error", (error) => {
+      clear();
+      warn(
+        `${ROUTING_GUARD_MARKER} Reason: could not schedule ${event} checkpoint for ${opencodeSessionID}. The periodic reconciliation worker will retry. Detail: ${error.message}`,
+        { sessionID: opencodeSessionID },
+      );
+    });
+    child.on("close", (code) => {
+      clear();
+      if (code !== 0) {
+        warn(
+          `${ROUTING_GUARD_MARKER} Reason: ${event} checkpoint for ${opencodeSessionID} exited with status ${code}. The periodic reconciliation worker will retry.`,
+          { sessionID: opencodeSessionID },
+        );
+      }
+    });
+    child.unref();
+    return true;
+  };
 }
+
+const scheduleWorktreeCheckpoint = createWorktreeCheckpointSchedulerForTest();
+
+function createWorktreeActivationSchedulerForTest({ spawnProcess = spawn, warn = warnOnceForTest } = {}) {
+  const inFlight = new Map();
+  return (opencodeSessionID) => {
+    if (!opencodeSessionID || inFlight.has(opencodeSessionID)) return false;
+    const child = spawnProcess(
+      "python3",
+      ["scripts/sessions.py", "worktree", "activate", "--opencode-session", opencodeSessionID],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT, env: process.env, detached: true, stdio: "ignore" },
+    );
+    inFlight.set(opencodeSessionID, child);
+    const clear = () => {
+      if (inFlight.get(opencodeSessionID) === child) inFlight.delete(opencodeSessionID);
+    };
+    child.on("error", (error) => {
+      clear();
+      warn(
+        `${ROUTING_GUARD_MARKER} Reason: could not mark ${opencodeSessionID} active after a user message. Automatic integration remains protected by live presence. Detail: ${error.message}`,
+        { sessionID: opencodeSessionID },
+      );
+    });
+    child.on("close", (code) => {
+      clear();
+      if (code !== 0) {
+        warn(
+          `${ROUTING_GUARD_MARKER} Reason: worktree activation for ${opencodeSessionID} exited with status ${code}. Automatic integration remains protected by live presence.`,
+          { sessionID: opencodeSessionID },
+        );
+      }
+    });
+    child.unref();
+    return true;
+  };
+}
+
+const scheduleWorktreeActivation = createWorktreeActivationSchedulerForTest();
 
 function pathInProjectRoot(file) {
   if (!file) return false;
@@ -1399,14 +1653,35 @@ function dockerComposeMutation(command) {
   return false;
 }
 
+function openMatesServerLifecycleMutation(command) {
+  for (const tokens of commandSegmentTokens(command.replace(/\\\s*\n/g, " "))) {
+    const invocation = normalizedInvocation(tokens);
+    const { command: commandName, args } = invocation;
+    if (commandName !== "openmates") continue;
+    if (args[0] !== "server") continue;
+    if (["restart", "start", "stop", "update"].includes(args[1])) return true;
+  }
+  return false;
+}
+
 function dockerMutationDecisionForTest({ command = "" } = {}) {
-  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker Compose mutation" };
+  if (openMatesServerLifecycleMutation(command)) {
+    return {
+      decision: "block",
+      message: actionable(
+        DOCKER_LIFECYCLE_MARKER,
+        "OpenMates server lifecycle commands spawn Docker Compose and bypass the shared restart coordinator in agent sessions.",
+        "use python3 scripts/sessions.py docker restart --session <repository-session-id> --service <service> [--build], or wait with python3 scripts/sessions.py wait-lock --session <repository-session-id> --type docker --follow --poll 10.",
+      ),
+    };
+  }
+  if (!dockerComposeMutation(command)) return { decision: "allow", message: "not a Docker lifecycle mutation" };
   return {
     decision: "block",
     message: actionable(
       DOCKER_LIFECYCLE_MARKER,
       "Direct Docker Compose lifecycle mutations bypass the registered OpenMates source and service policy.",
-      "use openmates server start, stop, restart, or update; use openmates server restart --rebuild [--services <service>] for rebuilds.",
+      "use python3 scripts/sessions.py docker restart --session <repository-session-id> --service <service> [--build], or wait with python3 scripts/sessions.py wait-lock --session <repository-session-id> --type docker --follow --poll 10.",
     ),
   };
 }
@@ -1571,6 +1846,14 @@ function hasOpenCodeSessionEnvironmentChange(tokens) {
   return false;
 }
 
+function isCanonicalControlPlaneScriptSegment(tokens) {
+  let index = 0;
+  while (index < tokens.length && isAssignment(shellUnescape(tokens[index] || ""))) index += 1;
+  if (!["python", "python3"].includes(shellUnescape(tokens[index] || ""))) return false;
+  const script = shellUnescape(tokens[index + 1] || "").replace(/^\.\//, "");
+  return script === "scripts/sessions.py" || script === "scripts/tests.py";
+}
+
 function isTestsScriptToken(token) {
   const script = shellUnescape(token || "").replace(/^\.\//, "");
   return script === "scripts/tests.py" || script.endsWith("/scripts/tests.py");
@@ -1616,16 +1899,6 @@ function isCliAuthFailure(command, outputText) {
   return CLI_AUTH_ERROR_PATTERNS.some((pattern) => pattern.test(outputText));
 }
 
-function appendCliLoginHint(output) {
-  if (!output || typeof output.output !== "string" || output.output.includes(CLI_LOGIN_HINT_MARKER)) return;
-  output.output += `
-
-${CLI_LOGIN_HINT_MARKER}
-The OpenMates CLI session is missing or invalid. Do not ask the user for test-account credentials.
-Run this from the repo root to log the CLI into the dev test account automatically:
-  node scripts/openmates_cli_test_account.mjs login`;
-}
-
 function appendCommandDoctorHint(command, output) {
   if (!output || typeof output.output !== "string" || output.output.includes(COMMAND_DOCTOR_MARKER)) return;
   const text = output.output;
@@ -1651,13 +1924,35 @@ ${suggestions.map((suggestion) => `- ${suggestion}`).join("\n")}`;
 
 function taskChildClassificationForTest(input, output) {
   if (!TASK_TOOLS.has(input?.tool || "")) return null;
-  const metadata = output?.metadata || {};
-  const parentID = String(metadata.parentSessionId || "");
-  const sessionID = String(metadata.sessionId || "");
+  const metadata = output?.metadata || output?.state?.metadata || {};
+  const outputText = String(output?.output || output?.state?.output || "");
+  const parentID = String(metadata.parentSessionId || input?.sessionID || "");
+  const sessionID = String(
+    metadata.sessionId
+    || outputText.match(/<task\s+id=["'](ses_[A-Za-z0-9]+)["']/)?.[1]
+    || "",
+  );
   const subagentType = String((input?.args || {}).subagent_type || "");
   if (!parentID || parentID !== input?.sessionID || !sessionID) return null;
   const role = childRoleFromAgent(subagentType);
   return role === "unknown" ? null : { sessionID, parentID, role };
+}
+
+function reviewerSpawnDecisionForTest({ agent = "", generation = 0, lastReviewedGeneration } = {}) {
+  if (!REVIEWER_SUBAGENTS.has(String(agent))) {
+    return { decision: "allow", message: "task is not a reviewer" };
+  }
+  if (lastReviewedGeneration === generation) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates reviewer loop guard]",
+        "this source revision already has a completed code-reviewer pass.",
+        "address the existing findings or continue verification; spawn another reviewer only after a source edit creates a new revision.",
+      ),
+    };
+  }
+  return { decision: "allow", message: "source changed since the previous reviewer" };
 }
 
 function toolNameMatches(tool, expected) {
@@ -1697,25 +1992,29 @@ function notifierEventArgsForTest({ eventType = "", sessionID = "", messageID = 
 }
 
 function scheduleNotifierEvent(args) {
-  if (!args.length) return;
+  if (!args.length || !existsSync(OPENCODE_NOTIFIER)) return;
   mkdirSync(`${PROJECT_ROOT}/logs`, { recursive: true });
   const logFd = openSync(OPENCODE_NOTIFIER_LOG, "a");
-  const child = spawn("python3", args, {
-    cwd: PROJECT_ROOT,
-    env: process.env,
-    detached: true,
-    stdio: ["ignore", logFd, logFd],
-  });
-  child.on("error", (error) => {
-    console.warn(`[OpenMates event notifier] failed to spawn: ${error?.message || error}`);
-  });
-  child.unref();
+  try {
+    const child = spawn("python3", args, {
+      cwd: PROJECT_ROOT,
+      env: process.env,
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+    });
+    child.on("error", (error) => {
+      console.warn(`[OpenMates event notifier] failed to spawn: ${error?.message || error}`);
+    });
+    child.unref();
+  } finally {
+    closeSync(logFd);
+  }
 }
 
-function recordTaskChildRole(input, output) {
+async function recordTaskChildRole(input, output) {
   const classification = taskChildClassificationForTest(input, output);
   if (!classification) return;
-  const result = spawnSync(
+  const result = await runProcess(
     "python3",
     [
       "scripts/sessions.py",
@@ -1729,7 +2028,7 @@ function recordTaskChildRole(input, output) {
       classification.role,
       "--if-unset",
     ],
-    { cwd: PROJECT_ROOT, encoding: "utf8" },
+    { cwd: PROJECT_ROOT },
   );
   if (result.status !== 0) {
     const detail = (result.stderr || result.stdout || "unknown error").trim();
@@ -1749,16 +2048,507 @@ Parallel failed-test work should be leased before edits:
 Use --lease-required --lease-id <lease> on follow-up test runs when debugging that group.`;
 }
 
+function temporaryLockWaitTypesForTest(text) {
+  const lockTypes = new Set();
+  const value = String(text || "");
+  if (/active lock\(s\):[^\n]*\bdocker_rebuild\b|BLOCKED:[^\n]*\bdocker_rebuild\b[^\n]*lock held|\bdocker_rebuild:\s*IN_PROGRESS/i.test(value)) {
+    lockTypes.add("docker");
+  }
+  if (/active lock\(s\):[^\n]*\bvercel_deploy\b|BLOCKED:[^\n]*\bvercel_deploy\b[^\n]*lock held|\bvercel_deploy:\s*IN_PROGRESS/i.test(value)) {
+    lockTypes.add("vercel");
+  }
+  return [...lockTypes];
+}
+
+function appendTemporaryLockWaitHint(output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(TEMPORARY_LOCK_WAIT_MARKER)) return;
+  const lockTypes = temporaryLockWaitTypesForTest(output.output);
+  if (!lockTypes.length) return;
+  const commands = lockTypes.map(
+    (lockType) => `  python3 scripts/sessions.py wait-lock --session \${OPENCODE_SESSION_ID:-manual} --type ${lockType} --follow --poll 10`,
+  );
+  output.output += `
+
+${TEMPORARY_LOCK_WAIT_MARKER}
+This is temporary resource contention, not a terminal blocker. Do not finish this response as blocked.
+Run the matching deterministic waiter with a sufficiently long Bash timeout, wait for OPENMATES_WAIT_READY, then continue the interrupted operation in this same response:
+${commands.join("\n")}`;
+}
+
+function apiHealthWaitUrlForTest(text) {
+  const value = String(text || "");
+  if (!/(?:\b502\b|Bad Gateway|health returned|health check|ECONNREFUSED|connection refused|upstream connect error)/i.test(value)) {
+    return "";
+  }
+  const match = value.match(/https:\/\/api\.dev\.openmates\.org\/health\b/i);
+  if (match) return match[0];
+  if (/api\.dev\.openmates\.org/i.test(value) && /health|502|Bad Gateway/i.test(value)) {
+    return "https://api.dev.openmates.org/health";
+  }
+  return "";
+}
+
+function appendApiHealthWaitHint(output) {
+  if (!output || typeof output.output !== "string" || output.output.includes(API_HEALTH_WAIT_MARKER)) return;
+  const url = apiHealthWaitUrlForTest(output.output);
+  if (!url) return;
+  output.output += `
+
+${API_HEALTH_WAIT_MARKER}
+Shared dev API health is a coordinated runtime resource, not something every chat should investigate independently.
+Run the deterministic waiter with a sufficiently long Bash timeout:
+  python3 scripts/sessions.py wait-health --session \${OPENCODE_SESSION_ID:-manual} --url ${url} --follow --poll 10
+If it prints OPENMATES_HEALTH_READY, continue the interrupted proof/test. If it prints OPENMATES_HEALTH_INVESTIGATE, this chat is the single incident owner; diagnose/restart via sessions.py docker only. Other chats should keep waiting.`;
+}
+
+function sleepDurationSecondsForTest(value) {
+  const match = String(value || "").trim().match(/^(\d+(?:\.\d+)?)([smhd]?)$/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return null;
+  const unit = match[2].toLowerCase();
+  if (unit === "d") return amount * 86_400;
+  if (unit === "h") return amount * 3_600;
+  if (unit === "m") return amount * 60;
+  return amount;
+}
+
+function opaqueLongSleepDecisionForTest(command) {
+  const tokens = tokenizeCommand(command);
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (basename(tokens[index]) !== "sleep") continue;
+    const durations = collectCommandArguments(tokens, index)
+      .filter((arg) => !isOption(arg))
+      .map((arg) => sleepDurationSecondsForTest(arg))
+      .filter((seconds) => seconds !== null);
+    if (durations.some((seconds) => seconds >= 10)) {
+      return {
+        decision: "block",
+        message: actionable(
+          OPAQUE_LONG_SLEEP_MARKER,
+          "direct sleep commands of 10 seconds or longer create redundant assistant-side polling even when the real test, deploy, lock, health, or detached process already has a deterministic completion signal",
+          "block on the real operation with a long tool timeout: use `python3 scripts/sessions.py wait-lock ...`, `python3 scripts/sessions.py wait-health ...`, `gh run watch <id> --exit-status`, or `tail --pid=<pid> -f /dev/null`; then read the final result once",
+        ),
+      };
+    }
+  }
+  return { decision: "allow", message: "" };
+}
+
+function firstResponseMediaVideoSnippetForTest(text) {
+  const match = String(text || "").match(/<video\b[\s\S]*?<\/video>/i);
+  return match ? match[0] : "";
+}
+
+function responseMediaVideoProducerCommandForTest(command) {
+  const value = String(command || "");
+  if (/scripts\/(?:tests\.py\s+run|cli_video_capture\.py)\b/.test(value)) return true;
+  return /\b(?:python3?|uv\s+run\s+python3?)\s+scripts\/opencode_response_media\.py\b/.test(value);
+}
+
+function validResponseMediaVideoSnippetForTest(snippet) {
+  return /<source\b[^>]*\bsrc=(['"])https?:\/\/[^'"]+\1[^>]*>/i.test(String(snippet || ""));
+}
+
+function firstResponseMediaImageSnippetForTest(text) {
+  const match = String(text || "").match(/!\[[^\]]*\]\(https?:\/\/[^\s)]+\)/i);
+  return match ? match[0] : "";
+}
+
+function canonicalResponseMediaKeySourceForTest(value) {
+  return String(value || "")
+    .replace(/\\"/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function existingPathCandidateForTest(candidate) {
+  if (!candidate) return "";
+  try {
+    if (!existsSync(candidate)) return "";
+    return realpathSync(candidate);
+  } catch {
+    return "";
+  }
+}
+
+function resolveExistingFigmaExportPathForTest(
+  figmaPath,
+  { cwd = "", worktreePath = "", projectRoot = PROJECT_ROOT, controlPlaneRoot = CURRENT_CONTROL_PLANE_ROOT } = {},
+) {
+  const raw = String(figmaPath || "").trim();
+  if (!raw || raw.includes("\0")) return "";
+  const candidates = [];
+  if (isAbsolute(raw)) {
+    candidates.push(raw);
+  } else {
+    for (const base of [cwd, worktreePath, projectRoot, controlPlaneRoot, activeCwd()].filter(Boolean)) {
+      candidates.push(resolve(base, raw));
+    }
+  }
+  const seen = new Set();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    const existing = existingPathCandidateForTest(candidate);
+    if (existing) return existing;
+  }
+  return "";
+}
+
+function responseMediaAutomationEnabledForTest(env = process.env) {
+  return String(env?.OPENMATES_OPENCODE_RESPONSE_MEDIA_AUTOMATION || "").trim() === "1";
+}
+
+function responseMediaArtifactForTest({
+  command = "",
+  output = "",
+  cwd = "",
+  worktreePath = "",
+  requireExistingFigmaExport = false,
+  automationEnabled = responseMediaAutomationEnabledForTest(),
+} = {}) {
+  if (!automationEnabled) return null;
+  const video = firstResponseMediaVideoSnippetForTest(output);
+  if (
+    video
+    && responseMediaVideoProducerCommandForTest(command)
+    && validResponseMediaVideoSnippetForTest(video)
+  ) {
+    const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(video)).digest("hex").slice(0, 24);
+    return { artifact_type: "video", artifact_key: key, snippet: video };
+  }
+  const combined = `${command}\n${output}`;
+  const figmaPath = figmaExportPathForTest(combined);
+  const resolvedFigmaPath = figmaPath
+    ? resolveExistingFigmaExportPathForTest(figmaPath, { cwd, worktreePath })
+    : "";
+  const image = firstResponseMediaImageSnippetForTest(output);
+  if (image && /figma/i.test(combined)) {
+    const keySource = resolvedFigmaPath || figmaPath || image;
+    const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(keySource)).digest("hex").slice(0, 24);
+    return { artifact_type: "figma_image", artifact_key: key, snippet: image };
+  }
+  if (figmaPath) {
+    if (requireExistingFigmaExport && !resolvedFigmaPath) return null;
+    const uploadPath = resolvedFigmaPath || figmaPath;
+    const key = createHash("sha256").update(canonicalResponseMediaKeySourceForTest(uploadPath)).digest("hex").slice(0, 24);
+    return {
+      artifact_type: "figma_export",
+      artifact_key: key,
+      artifact_path: resolvedFigmaPath,
+      snippet: `Figma export pending upload: ${uploadPath}`,
+    };
+  }
+  return null;
+}
+
+function mediaDeliveryPromptForTest(record, { automationEnabled = responseMediaAutomationEnabledForTest() } = {}) {
+  if (!automationEnabled) return "";
+  if (!record?.snippet) return "";
+  if (record.artifact_type === "figma_export") return "";
+  const label = record.artifact_type === "video" ? "video" : "Figma reference";
+  return `A required ${label} artifact from the previous tool result is still pending. Include this exact snippet in your next progress response, even when the result is visibly broken or further debugging remains:\n${record.snippet}\nDo not redo completed tests merely to regenerate it.`;
+}
+
+function responseContainsMediaForTest(text, record) {
+  if (!record?.snippet) return false;
+  const content = String(text || "");
+  if (content.includes(record.snippet)) return true;
+  if (record.artifact_type === "video") {
+    return canonicalResponseMediaKeySourceForTest(content).includes(canonicalResponseMediaKeySourceForTest(record.snippet));
+  }
+  return false;
+}
+
+function figmaExportPathFromRecordForTest(record) {
+  const explicit = String(record?.artifact_path || "").trim();
+  if (explicit) return explicit;
+  const snippet = String(record?.snippet || "");
+  const pending = snippet.match(/^Figma export pending upload:\s*(.+)$/i);
+  if (pending) return pending[1].trim();
+  const legacy = snippet.match(/opencode_response_media\.py\s+([^\s]+\.png)\b/i);
+  return legacy ? legacy[1] : "";
+}
+
+function assistantTextPartForTest(event) {
+  if (event?.type !== "message.part.updated") return null;
+  const part = event?.properties?.part;
+  if (part?.type !== "text" || typeof part.text !== "string") return null;
+  const messageID = part.messageID || part.message_id || event?.properties?.messageID || "";
+  if (!messageID) return null;
+  return { messageID, partID: part.id || "text", text: part.text };
+}
+
+function appendResponseMediaEmbedHint(command, output) {
+  if (!responseMediaAutomationEnabledForTest()) return;
+  if (!output || typeof output.output !== "string" || output.output.includes(RESPONSE_MEDIA_EMBED_MARKER)) return;
+  if (!/scripts\/(?:tests\.py\s+run|cli_video_capture\.py)\b/.test(command)) return;
+  const snippet = firstResponseMediaVideoSnippetForTest(output.output);
+  if (!snippet) return;
+  output.output += `
+
+${RESPONSE_MEDIA_EMBED_MARKER}
+This E2E run generated an OpenCode response-media video. Paste this exact <video> HTML in the next assistant progress response, even if the run/proof is still broken or still being debugged:
+${snippet}`;
+}
+
+function figmaExportPathForTest(text) {
+  const match = String(text || "").match(/(?:^|[\s"'])(\.?\/?(?:[\w.-]+\/)*test-results\/figma\/[^\s"'<>]+\.png)\b/i);
+  return match ? match[1] : "";
+}
+
+function appendFigmaReferenceEmbedHint({ tool = "", command = "", cwd = "", worktreePath = "" } = {}, output) {
+  if (!responseMediaAutomationEnabledForTest()) return;
+  if (!output || typeof output.output !== "string" || output.output.includes(FIGMA_REFERENCE_EMBED_MARKER)) return;
+  const value = `${tool} ${command} ${output.output}`;
+  if (!/figma/i.test(value)) return;
+  if (!/download_figma_images|test-results\/figma\/[^\s"'<>]+\.png|figma-[^\s"'<>]+\.png/i.test(value)) return;
+  const exportPath = figmaExportPathForTest(output.output);
+  const resolvedPath = exportPath ? resolveExistingFigmaExportPathForTest(exportPath, { cwd, worktreePath }) : "";
+  const pathHint = exportPath ? `\nDetected reference export: ${exportPath}` : "";
+  const deliveryHint = exportPath && !resolvedPath
+    ? `\nAutomatic response-media delivery was not queued because the PNG was not found from this session's routed checkout. Re-run the Figma export in the active worktree before reporting implementation progress for that frame.`
+    : "";
+  output.output += `
+
+${FIGMA_REFERENCE_EMBED_MARKER}
+For Figma-based UI work, embed the exported Figma screenshot for the screen/frame currently being implemented in the next assistant progress response, and repeat when switching target frames. Upload it with:
+  python3 scripts/opencode_response_media.py <exported-figma-png> --alt "Figma reference: <screen/frame>"
+Then paste the returned image Markdown before summarizing implementation progress.${pathHint}${deliveryHint}`;
+}
+
+function continuationSignalForTest(text) {
+  for (const line of String(text || "").split(/\r?\n/)) {
+    if (!line.includes("OPENMATES_") || !line.trim().startsWith("{")) continue;
+    try {
+      const payload = JSON.parse(line);
+      if (
+        ["OPENMATES_WAIT_READY", "OPENMATES_HEALTH_READY", "OPENMATES_CONTINUATION_READY"].includes(payload.signal)
+        && payload.operation_type
+        && payload.operation_key
+        && payload.next_action
+      ) return payload;
+    } catch {
+      // Only typed JSON signal lines are continuation records.
+    }
+  }
+  return null;
+}
+
+function continuationSuppressedForTest(state) {
+  return Boolean(
+    ["aborted", "failed"].includes(state?.turn)
+    || ["stopped", "error", "closed"].includes(state?.execution)
+    || (state?.pending_permission_ids || []).length
+    || (state?.pending_question_ids || []).length
+  );
+}
+
+function taskBridgeSuppressedForTest(state) {
+  return continuationSuppressedForTest(state) || state?.execution !== "idle";
+}
+
+function taskBridgeCompletionForTest(event, { topLevelSessionID = "" } = {}) {
+  const messageID = completedAssistantMessageID(event);
+  const sessionID = eventSessionID(event);
+  if (!messageID || !sessionID || !topLevelSessionID || sessionID !== topLevelSessionID) return null;
+  return { sessionID, messageID };
+}
+
+function taskContextSystemTextForTest(snapshot) {
+  if (!snapshot || snapshot.decision === "unbound") return "";
+  if (snapshot.decision === "failed_closed") {
+    const loginRequired = snapshot.recovery === "login_required" || /openmates login|passkey verification/i.test(String(snapshot.error || ""));
+    return [
+      TASK_CONTEXT_MARKER,
+      "The OpenMates Task bridge is temporarily unavailable. Do not retry openmates_task in this response and do not create another Task.",
+      loginRequired
+        ? "Preserve the completed work and report that `openmates login` must complete before Task state can be reconciled."
+        : "Preserve the completed work and report the bridge failure once so it can be reconciled later.",
+    ].join("\n");
+  }
+  const active = snapshot.active;
+  const remaining = Array.isArray(snapshot.remaining) ? snapshot.remaining : [];
+  const lines = [
+    TASK_CONTEXT_MARKER,
+    "This request-only snapshot is authoritative. Use the openmates_task tool for Task mutations; native OpenCode todos are unavailable.",
+  ];
+  if (active) {
+    lines.push(
+      "Active Task:",
+      `- ID: ${active.task_id || ""}`,
+      `- Short ID: ${active.short_id || ""}`,
+      `- Title: ${active.title || ""}`,
+      `- Status: ${active.status || ""}`,
+      `- Version: ${active.version ?? ""}`,
+      `- Description: ${active.description || ""}`,
+      `- Latest instruction: ${active.latest_instruction || ""}`,
+    );
+    if (active.blocked_reason_code) lines.push(`- Blocked reason code: ${active.blocked_reason_code}`);
+    if (active.blocked_reason) lines.push(`- Blocked explanation: ${active.blocked_reason}`);
+  } else {
+    lines.push(
+      "Active Task: none",
+      "For non-trivial multi-step implementation, debugging, or investigation work, create an AI-assigned record with openmates_task action=create before the first product mutation, even when the user did not explicitly mention Tasks or todos.",
+      "After creating it, carry out the work and explicitly mark it done or block it with an allowlisted reason before ending the response.",
+      "For simple informational requests or trivial single-action work, do not create a record.",
+    );
+  }
+  lines.push("Ordered remaining Tasks (short id, title, status only):");
+  if (remaining.length === 0) lines.push("- none");
+  else {
+    for (const task of remaining) {
+      lines.push(`- ${task.short_id || ""} | ${task.title || ""} | ${task.status || ""}`);
+    }
+  }
+  lines.push(
+    "Before ending work, explicitly mark the active Task done or block it with an allowlisted reason. Do not infer Task state from prose.",
+  );
+  return lines.join("\n");
+}
+
+function implicitTaskMutationPayloadForTest(snapshot, { tool = "", command = "", sessionTitle = "" } = {}) {
+  if (!snapshot || snapshot.active || (Array.isArray(snapshot.remaining) && snapshot.remaining.length > 0)) return null;
+  // Repository source writes are required to use routed edit tools; mutating
+  // Bash is separately guarded and may legitimately write only temporary data.
+  if (!EDIT_TOOLS.has(tool)) return null;
+  const title = String(sessionTitle || "Complete requested OpenCode work").trim().slice(0, 500)
+    || "Complete requested OpenCode work";
+  return {
+    action: "create",
+    title,
+    description: "Automatically created before the first repository mutation in this OpenCode chat.",
+    status: "in_progress",
+  };
+}
+
+function taskContinuationPromptForTest(record) {
+  if (record?.operation_type !== "task_ready") return String(record?.next_action || "");
+  return String(record.next_action || "Continue the active OpenMates Task from request-only context.");
+}
+
+async function runTaskBridgeCommand(action, sessionID, { messageID = "", payload = null } = {}) {
+  const args = ["scripts/sessions.py", "task-bridge", action, "--session", sessionID];
+  if (action === "stage") args.push("--message-id", messageID);
+  if (action === "tool") args.push("--json-stdin");
+  const result = await runProcess("python3", args, {
+    cwd: CURRENT_CONTROL_PLANE_ROOT,
+    input: action === "tool" ? JSON.stringify(payload || {}) : "",
+  });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || `task-bridge ${action} failed`);
+  return JSON.parse(result.stdout || "{}").task_bridge || null;
+}
+
+function reconcilePresenceStatesForTest(
+  states,
+  authoritativeStatuses,
+  { now = isoNow(), authoritativePending = null } = {},
+) {
+  const reconciled = [];
+  for (const originalState of states) {
+    const state = authoritativePending
+      ? {
+          ...originalState,
+          pending_permission_ids: authoritativePending.permissionIDs instanceof Set
+            ? (originalState.pending_permission_ids || []).filter((id) => authoritativePending.permissionIDs.has(id))
+            : (originalState.pending_permission_ids || []),
+          pending_question_ids: authoritativePending.questionIDs instanceof Set
+            ? (originalState.pending_question_ids || []).filter((id) => authoritativePending.questionIDs.has(id))
+            : (originalState.pending_question_ids || []),
+        }
+      : originalState;
+    if (authoritativePending) state.attention = attentionFromPending(state);
+    if (!PRESENCE_LIVE_EXECUTION.has(state?.execution) && state?.turn !== "streaming") continue;
+    const status = authoritativeStatuses?.[state.session_id];
+    const type = status?.type || status?.status?.type || "idle";
+    if (type === "busy" || type === "retry") {
+      reconciled.push({
+        ...state,
+        execution: type === "retry" ? "retrying" : "busy",
+        heartbeat_at: now,
+        updated_at: now,
+      });
+      continue;
+    }
+    const activityAt = Date.parse(state.heartbeat_at || state.updated_at || "");
+    const snapshotAt = Date.parse(now);
+    if (
+      !status
+      && Number.isFinite(activityAt)
+      && Number.isFinite(snapshotAt)
+      && snapshotAt - activityAt >= -1_000
+      && snapshotAt - activityAt < PRESENCE_ABSENT_STATUS_GRACE_MS
+    ) {
+      // A status request can start just before a generation event and finish
+      // just after it. Do not let that older absent snapshot erase fresh tool
+      // or streaming activity; the next 30s reconciliation clears real stale
+      // state if OpenCode still reports no generation.
+      continue;
+    }
+    const idle = { ...state, execution: "idle", updated_at: now };
+    if (idle.turn === "streaming") idle.turn = "none";
+    idle.attention = attentionFromPending(idle);
+    reconciled.push(idle);
+  }
+  return reconciled;
+}
+
 function activeCwd() {
   return process.cwd() || PROJECT_ROOT;
 }
 
-function runBridge(event, payload, sessionID, cwd = activeCwd()) {
-  const result = spawnSync("bash", [BRIDGE, event], {
+function runProcess(command, args, {
+  cwd = PROJECT_ROOT,
+  env = process.env,
+  input = "",
+  timeoutMs = HOOK_SUBPROCESS_TIMEOUT_MS,
+} = {}) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(command, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
+    const stdout = [];
+    const stderr = [];
+    const timeout = timeoutMs > 0
+      ? setTimeout(() => {
+        child.kill("SIGTERM");
+        finish(null, `timed out after ${timeoutMs}ms`);
+      }, timeoutMs)
+      : null;
+    let settled = false;
+    const finish = (status, error = "") => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      resolvePromise({
+        status,
+        stdout: Buffer.concat(stdout).toString(),
+        stderr: `${Buffer.concat(stderr).toString()}${error}`,
+      });
+    };
+    child.stdout.on("data", (chunk) => stdout.push(chunk));
+    child.stderr.on("data", (chunk) => stderr.push(chunk));
+    child.on("error", (error) => finish(null, error.message));
+    child.on("close", (code) => finish(code));
+    child.stdin.end(input);
+  });
+}
+
+async function sessionsCommandSupportedForTest(command, run = runProcess) {
+  if (!/^[a-z][a-z0-9-]*$/.test(String(command || ""))) return false;
+  const result = await run(
+    "python3",
+    ["scripts/sessions.py", command, "--help"],
+    { cwd: CURRENT_CONTROL_PLANE_ROOT, timeoutMs: 10_000 },
+  );
+  return result.status === 0;
+}
+
+async function runBridge(event, payload, sessionID, cwd = activeCwd()) {
+  const result = await runProcess("bash", [BRIDGE, event], {
     cwd,
     env: sessionID ? { ...process.env, OPENCODE_SESSION_ID: sessionID } : process.env,
     input: JSON.stringify(payload),
-    encoding: "utf8",
   });
   const stdout = (result.stdout || "").trim();
   const stderr = (result.stderr || "").trim();
@@ -1797,7 +2587,7 @@ function worktreeGuardMessage(sessionID, worktreePath = "") {
   return actionable(
     ROOT_GUARD_MARKER,
     `the target is in the root control-plane checkout.${target}`,
-    `use a repository-relative path; if routing is missing, run python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}.`,
+    `use a repository-relative path; if the user explicitly needs existing root-dirty work, list it with python3 scripts/sessions.py worktree root-dirty and import only an exact reviewed file with python3 scripts/sessions.py worktree import-root --session ${sessionID || "<id>"} --file <path>; if routing is missing, run python3 scripts/sessions.py worktree ensure --session ${sessionID || "<id>"}.`,
   );
 }
 
@@ -1809,6 +2599,101 @@ function rootGuardDecisionForTest({ mode = "strict", cwd = PROJECT_ROOT, target 
   const message = worktreeGuardMessage(sessionID || mappedSessionID, worktreePath);
   if (worktreePath) return { decision: "block", message };
   return { decision: normalized === "strict" ? "block" : "warn", message };
+}
+
+function normalizedGuardPathForTest(value, cwd = activeCwd()) {
+  const raw = String(value || "").replaceAll("\\", "/");
+  if (!raw) return "";
+  const absolute = isAbsolute(raw) ? resolve(raw) : resolve(cwd, raw);
+  const normalized = absolute.replaceAll("\\", "/");
+  const rootRelative = relative(PROJECT_ROOT, absolute).replaceAll("\\", "/");
+  if (rootRelative && !rootRelative.startsWith("../") && rootRelative !== "..") return rootRelative;
+  for (const root of WORKTREE_ROOTS) {
+    const prefix = `${root.replace(/\/$/, "")}/`;
+    if (!normalized.startsWith(prefix)) continue;
+    const worktreeRelative = normalized.slice(prefix.length).split("/").slice(1).join("/");
+    if (worktreeRelative) return worktreeRelative;
+  }
+  return normalized;
+}
+
+function protectedControlPlanePathForTest(value, cwd = activeCwd()) {
+  const normalized = normalizedGuardPathForTest(value, cwd).replace(/^\.\//, "");
+  return PROTECTED_CONTROL_PLANE_PATHS.some((protectedPath) => (
+    protectedPath.endsWith("/") || protectedPath.endsWith("-")
+      ? normalized.startsWith(protectedPath)
+      : normalized === protectedPath
+  ));
+}
+
+function secretConfigPathForTest(value, cwd = activeCwd()) {
+  const normalized = (isAbsolute(String(value || "")) ? resolve(String(value)) : resolve(cwd, String(value || "")))
+    .replaceAll("\\", "/");
+  return SECRET_CONFIG_PATHS.some((protectedPath) => (
+    protectedPath.endsWith("/") ? normalized.startsWith(protectedPath) : normalized === protectedPath
+  ));
+}
+
+function commandReferencesProtectedControlPlaneForTest(command) {
+  const value = String(command || "").replaceAll("\\", "/");
+  return /(?:^|[\s'"/])(?:\.opencode\/|backend\/engineering_control_plane\/|opencode\.json\b|scripts\/(?:sessions\.py\b|server-restart\.sh\b|start-opencode-server\.sh\b|sync_opencode_runtime_hook\.py\b|opencode_(?:permission_watcher|credential_migration|runtime_release)\.py\b|patches\/opencode-))/.test(value);
+}
+
+function commandReferencesSecretConfigForTest(command) {
+  const value = String(command || "").replaceAll("\\", "/");
+  return /(?:\/home\/superdev|\$HOME|\$\{HOME\}|~)?\/?(?:\.config\/opencode(?:\/|\b)|opencode\/\.opencode\/opencode\.jsonc\b)|\bsecrets\.env\b/.test(value);
+}
+
+function commandMutatesFilesForTest(command) {
+  const value = String(command || "");
+  return /(?:^|[;&|]\s*|\s)(?:apply_patch|chmod|chown|cp|install|mv|perl\s+-[^\n]*i|rm|sed\s+-[^\n]*i|tee|truncate)(?:\s|$)|(?:^|[^<])>{1,2}(?!>)/.test(value);
+}
+
+function directSessionsSpawnChatCommandForTest(command) {
+  const args = directPythonScriptArgs(String(command || ""));
+  return Boolean(args && args[0] === "scripts/sessions.py" && args[1] === "spawn-chat");
+}
+
+function controlPlaneToolDecisionForTest({ tool = "", args = {}, cwd = activeCwd() } = {}) {
+  const files = EDIT_TOOLS.has(tool)
+    ? editedFilesForTest(args, cwd)
+    : explicitFilesForTest(args, cwd);
+  if ((READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool) || EDIT_TOOLS.has(tool)) && files.some((file) => secretConfigPathForTest(file, cwd))) {
+    return {
+      decision: "block",
+      message: actionable(CONTROL_PLANE_GUARD_MARKER, "OpenCode credential configuration is outside the product-agent trust boundary.", "use the dedicated Codex control-plane workflow; do not expose or copy credential values."),
+    };
+  }
+  if (EDIT_TOOLS.has(tool) && files.some((file) => protectedControlPlanePathForTest(file, cwd))) {
+    return {
+      decision: "block",
+      message: actionable(CONTROL_PLANE_GUARD_MARKER, "ordinary product chats cannot edit shared OpenCode or sessions.py orchestration files.", "preserve the product worktree and move this control-plane change to the dedicated Codex recovery branch."),
+    };
+  }
+  if (BASH_TOOLS.has(tool)) {
+    const command = bashCommand(args);
+    // spawn-chat receives a quoted prompt as opaque data. Inspecting that
+    // payload as shell syntax creates false positives when the handoff names a
+    // protected path or embeds HTML such as `<audio controls>`. Only exempt a
+    // single, directly parsed sessions.py invocation; chained shell commands,
+    // substitutions, and redirections still fail directPythonScriptArgs().
+    if (directSessionsSpawnChatCommandForTest(command)) {
+      return { decision: "allow", message: "canonical spawn-chat prompt is opaque data" };
+    }
+    if (commandReferencesSecretConfigForTest(command)) {
+      return {
+        decision: "block",
+        message: actionable(CONTROL_PLANE_GUARD_MARKER, "shell access to OpenCode credential configuration is forbidden.", "use the dedicated Codex control-plane workflow without printing credential values."),
+      };
+    }
+    if (commandReferencesProtectedControlPlaneForTest(command) && commandMutatesFilesForTest(command)) {
+      return {
+        decision: "block",
+        message: actionable(CONTROL_PLANE_GUARD_MARKER, "the shell command would mutate shared OpenCode or sessions.py orchestration files.", "move this change to the dedicated Codex recovery branch."),
+      };
+    }
+  }
+  return { decision: "allow", message: "" };
 }
 
 function guardRootEdit(files, sessionID, worktreePath = "") {
@@ -1823,7 +2708,7 @@ function guardRootEdit(files, sessionID, worktreePath = "") {
       worktreePath,
     });
     if (decision.decision === "block") throw new Error(decision.message);
-    if (decision.decision === "warn") console.warn(decision.message);
+    if (decision.decision === "warn") warnOnceForTest(decision.message, { sessionID });
   }
 }
 
@@ -1851,12 +2736,11 @@ function explicitFilesForTest(args, cwd = activeCwd()) {
   return explicit ? [toAbsPath(explicit, cwd)] : [];
 }
 
-function runStaleRead(action, files, sessionID) {
+async function runStaleRead(action, files, sessionID) {
   if (!sessionID) return;
   for (const file of files) {
-    const result = spawnSync("python3", ["scripts/sessions.py", "stale-read", action, "--opencode-session", sessionID, "--file", file], {
+    const result = await runProcess("python3", ["scripts/sessions.py", "stale-read", action, "--opencode-session", sessionID, "--file", file], {
       cwd: PROJECT_ROOT,
-      encoding: "utf8",
     });
     const stdout = (result.stdout || "").trim();
     const stderr = (result.stderr || "").trim();
@@ -1869,11 +2753,10 @@ function runStaleRead(action, files, sessionID) {
   }
 }
 
-function runEditLease(action, files, sessionID) {
+async function runEditLease(action, files, sessionID) {
   if (!sessionID || !files.length) return;
-  const result = spawnSync("python3", ["scripts/sessions.py", "edit-lease", action, "--opencode-session", sessionID, "--file", ...files], {
+  const result = await runProcess("python3", ["scripts/sessions.py", "edit-lease", action, "--opencode-session", sessionID, "--file", ...files], {
     cwd: PROJECT_ROOT,
-    encoding: "utf8",
   });
   const stdout = (result.stdout || "").trim();
   const stderr = (result.stderr || "").trim();
@@ -1922,14 +2805,29 @@ function workerEditPathDecisionForTest({ sessionID = "", files = [], relativePat
   };
 }
 
-function guardWorkerEditPaths(files, relativePaths, sessionID) {
-  const decision = workerEditPathDecisionForTest({ sessionID, files, relativePaths });
-  if (decision.decision === "block") throw new Error(decision.message);
+async function guardWorkerEditPaths(files, relativePaths, sessionID) {
+  if (!sessionID || !files.length || relativePaths.length === files.length) return;
+  const state = await workerSessionState(sessionID);
+  if (!state?.active_worker) return;
+  throw new Error(actionable(
+    "[OpenMates worker edit gate]",
+    "active debug workers may edit only paths that resolve inside the repository or assigned worktree.",
+    "retry with repository-relative paths inside the approved write set.",
+  ));
 }
 
-function guardWorkerEditGate(files, sessionID) {
-  const decision = workerEditGateDecisionForTest({ sessionID, files });
-  if (decision.decision === "block") throw new Error(decision.message);
+async function guardWorkerEditGate(files, sessionID) {
+  if (!sessionID || !files.length) return;
+  const args = ["scripts/tests.py", "campaign", "edit-gate", "--session", sessionID];
+  for (const file of files) args.push("--file", file);
+  const result = await runProcess("python3", args);
+  if (result.status === 0) return;
+  const detail = (result.stderr || result.stdout || `worker edit gate exited ${result.status}`).trim();
+  throw new Error(actionable(
+    "[OpenMates worker edit gate]",
+    detail,
+    "submit `campaign intent`, wait for coordinator `approve-intent`, then edit only files in the approved write set.",
+  ));
 }
 
 function workerCampaignCommandIsAllowed(command) {
@@ -2018,6 +2916,144 @@ function workerServerRecoveryCommandIsAllowed(command) {
     && args[4] === "cms";
 }
 
+function invocationRunsOpenMatesCli(tokens, depth = 0) {
+  const invocation = normalizedInvocation(tokens.map(shellUnescape));
+  let { command, args } = invocation;
+  while (["command", "builtin"].includes(command) && args.length) {
+    command = basename(args[0]);
+    args = args.slice(1);
+  }
+  if (command === "exec" && args.length) {
+    return invocationRunsOpenMatesCli(args, depth);
+  }
+  if (command === "openmates") return true;
+  if (["npx", "bunx", "pnpm", "yarn"].includes(command) && args.some((arg) => basename(arg) === "openmates")) return true;
+  if (command === "node" && args.some((arg) => /(?:^|\/)openmates-cli\/(?:dist\/)?cli\.js$/.test(arg) || /(?:^|\/)dist\/cli\.js$/.test(arg))) return true;
+  if (depth < 2 && command === "eval" && args.length) {
+    return commandSegmentTokens(args.join(" ")).some((segment) => invocationRunsOpenMatesCli(segment, depth + 1));
+  }
+  if (depth < 2 && ["bash", "sh"].includes(command)) {
+    const evaluationIndex = args.findIndex((arg) => arg === "--command" || /^-[^-]*c/.test(arg));
+    if (evaluationIndex >= 0 && args[evaluationIndex + 1]) {
+      return commandSegmentTokens(args[evaluationIndex + 1]).some((segment) => invocationRunsOpenMatesCli(segment, depth + 1));
+    }
+  }
+  return false;
+}
+
+const PROTECTED_OPENMATES_ENVIRONMENT = new Set([
+  "OPENMATES_PROFILE",
+  "OPENMATES_ACCOUNT_GUARD",
+  "OPENMATES_API_URL",
+  "OPENMATES_STATE_DIR",
+]);
+
+function protectedOpenMatesAssignment(token) {
+  const match = String(token || "").match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\+?=|:=)/);
+  return Boolean(match && PROTECTED_OPENMATES_ENVIRONMENT.has(match[1]));
+}
+
+function mutatesProtectedOpenMatesEnvironment(tokens, depth = 0) {
+  const args = tokens.map(shellUnescape);
+  let index = 0;
+  while (index < args.length && (isAssignment(args[index]) || protectedOpenMatesAssignment(args[index]))) {
+    if (protectedOpenMatesAssignment(args[index])) return true;
+    index += 1;
+  }
+  if (index >= args.length) return false;
+
+  let command = basename(args[index]);
+  let commandArgs = args.slice(index + 1);
+  while (["command", "builtin"].includes(command) && commandArgs.length) {
+    command = basename(commandArgs[0]);
+    commandArgs = commandArgs.slice(1);
+  }
+  if (command === "exec") return mutatesProtectedOpenMatesEnvironment(commandArgs, depth);
+
+  if (["export", "readonly", "declare", "typeset"].includes(command)) {
+    if (command === "export" && commandArgs.includes("-n")) {
+      return commandArgs.some((arg) => PROTECTED_OPENMATES_ENVIRONMENT.has(arg));
+    }
+    return commandArgs.some(protectedOpenMatesAssignment);
+  }
+  if (command === "unset") {
+    return commandArgs.some((arg) => PROTECTED_OPENMATES_ENVIRONMENT.has(arg));
+  }
+  if (command === "env") {
+    let resetsEnvironment = false;
+    let envIndex = 0;
+    while (envIndex < commandArgs.length) {
+      const arg = commandArgs[envIndex];
+      if (arg === "--") {
+        envIndex += 1;
+        break;
+      }
+      if (protectedOpenMatesAssignment(arg)) return true;
+      if (arg === "-i" || arg === "--ignore-environment") {
+        resetsEnvironment = true;
+        envIndex += 1;
+        continue;
+      }
+      if (arg === "-u" || arg === "--unset") {
+        if (PROTECTED_OPENMATES_ENVIRONMENT.has(commandArgs[envIndex + 1])) return true;
+        envIndex += 2;
+        continue;
+      }
+      if (arg.startsWith("--unset=")) {
+        if (PROTECTED_OPENMATES_ENVIRONMENT.has(arg.slice("--unset=".length))) return true;
+        envIndex += 1;
+        continue;
+      }
+      if (["-C", "--chdir", "-S", "--split-string"].includes(arg)) {
+        envIndex += 2;
+        continue;
+      }
+      if (isAssignment(arg) || isOption(arg)) {
+        envIndex += 1;
+        continue;
+      }
+      break;
+    }
+    const nested = commandArgs.slice(envIndex);
+    if (resetsEnvironment && invocationRunsOpenMatesCli(nested, depth + 1)) return true;
+    return depth < 2 && nested.length
+      ? mutatesProtectedOpenMatesEnvironment(nested, depth + 1)
+      : false;
+  }
+  if (depth < 2 && command === "eval" && commandArgs.length) {
+    return commandSegmentTokens(commandArgs.join(" "))
+      .some((segment) => mutatesProtectedOpenMatesEnvironment(segment, depth + 1));
+  }
+  if (depth < 2 && ["bash", "sh"].includes(command)) {
+    const evaluationIndex = commandArgs.findIndex((arg) => arg === "--command" || /^-[^-]*c/.test(arg));
+    if (evaluationIndex >= 0 && commandArgs[evaluationIndex + 1]) {
+      return commandSegmentTokens(commandArgs[evaluationIndex + 1])
+        .some((segment) => mutatesProtectedOpenMatesEnvironment(segment, depth + 1));
+    }
+  }
+  return false;
+}
+
+function openMatesCliIsolationDecisionForTest(command = "") {
+  const text = String(command);
+  const segments = commandSegmentTokens(text.replace(/\\\s*\n/g, " "));
+  const protectedEnvironmentOverride = segments
+    .some((segment) => mutatesProtectedOpenMatesEnvironment(segment));
+  const invokesCli = segments.some((segment) => invocationRunsOpenMatesCli(segment));
+  if (!protectedEnvironmentOverride && !invokesCli) return { decision: "allow", message: "not an OpenMates CLI command" };
+  if (protectedEnvironmentOverride || (invokesCli && /(?:^|\s)--api-url(?:=|\s|$)/.test(text))) {
+    return {
+      decision: "block",
+      message: actionable(
+        "[OpenMates CLI isolation]",
+        "OpenCode CLI commands may not override or remove the trusted profile, account guard, state directory, or dev API endpoint.",
+        "run the openmates command directly without OPENMATES_* overrides, env resets, or --api-url.",
+      ),
+    };
+  }
+  return { decision: "allow", message: "trusted OpenMates CLI environment preserved" };
+}
+
 function workerSessionStateForTest({ sessionID = "", run = spawnSync } = {}) {
   if (!sessionID) return { active_worker: false };
   const result = run("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID], { cwd: PROJECT_ROOT, encoding: "utf8" });
@@ -2068,17 +3104,71 @@ function workerBashGateDecisionForTest({ sessionID = "", command = "", run = spa
   };
 }
 
-function guardWorkerBashGate(command, sessionID) {
-  const decision = workerBashGateDecisionForTest({ sessionID, command });
-  if (decision.decision === "block") throw new Error(decision.message);
+async function workerSessionState(sessionID) {
+  if (!sessionID) return { active_worker: false };
+  const result = await runProcess("python3", ["scripts/tests.py", "campaign", "worker-state", "--session", sessionID]);
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout || `worker-state exited ${result.status}`).trim();
+    throw new Error(actionable("[OpenMates worker edit gate]", detail, "resolve the test-control-plane worker-state error, then retry."));
+  }
+  try {
+    return JSON.parse(result.stdout || "{}");
+  } catch {
+    throw new Error(actionable("[OpenMates worker edit gate]", "worker-state returned invalid JSON", "run python3 scripts/tests.py campaign worker-state --session <id> manually and fix the reported issue."));
+  }
 }
 
-export const OpenMatesHooks = async ({ client, directory, routingData, recordRouting = true, editLease = runEditLease } = {}) => {
+async function guardWorkerBashGate(command, sessionID) {
+  const staticDecision = workerBashGateDecisionForTest({
+    sessionID,
+    command,
+    run: () => ({ status: 0, stdout: '{"active_worker":false}' }),
+  });
+  if (staticDecision.decision === "block") throw new Error(staticDecision.message);
+  if (staticDecision.message !== "session is not an active debug worker") return;
+  const state = await workerSessionState(sessionID);
+  if (!state?.active_worker) return;
+  throw new Error(actionable(
+    "[OpenMates worker edit gate]",
+    "active failed-test workers may not run arbitrary shell commands outside the coordinator-approved campaign protocol.",
+    "use read-only inspection or the approved tests.py campaign commands, or ask the coordinator to perform the mutation.",
+  ));
+}
+
+export const OpenMatesHooks = async ({
+  client,
+  directory,
+  routingData,
+  recordRouting = true,
+  editLease = runEditLease,
+  taskBridge = runTaskBridgeCommand,
+} = {}) => {
   const instanceDirectory = directory || activeCwd();
   const recordedRoutes = new Set();
   const presenceStates = new Map();
   const notifierLiveSessions = new Set();
   const routingBlockCounts = new Map();
+  const sourceGenerations = new Map();
+  const reviewedGenerations = new Map();
+  const readyContinuationSessions = new Set();
+  const taskContextCache = new Map();
+  // OpenCode emits session.idle while a synchronous prompt submission is
+  // unwinding. Keep delivery single-flight per session even if an SDK or
+  // transport regression makes prompt_async behave synchronously again.
+  const automaticDeliverySessions = new Set();
+  const recordedChildRoles = new Set();
+  const pendingMediaBySession = new Map();
+  const claimedMediaBySession = new Map();
+  // Queue automation and sessions.py are deployed independently. Feature-gate
+  // each optional queue by executing its help command once; unsupported
+  // argparse commands must not be retried from every lifecycle event.
+  const [continuationQueueEnabled, mediaQueueEnabled] = await Promise.all([
+    sessionsCommandSupportedForTest("continuation"),
+    responseMediaAutomationEnabledForTest()
+      ? sessionsCommandSupportedForTest("media")
+      : Promise.resolve(false),
+  ]);
+  const assistantTextParts = new Map();
   const presenceSourceID = randomUUID();
   const presenceGeneration = Date.now();
   let presenceSequence = 0;
@@ -2122,6 +3212,8 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       questionCapability: "unsupported",
       childRole: marker?.role || "unknown",
     });
+    const persistedRecord = persisted.sessions?.[sessionID];
+    if (persistedRecord && typeof persistedRecord === "object") Object.assign(initial, persistedRecord);
     if (marker?.parent_id) {
       initial.parent_id = marker.parent_id;
       initial.top_level_session_id = marker.parent_id;
@@ -2149,22 +3241,369 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       updated_at: now,
     });
   };
-  const heartbeatTimer = setInterval(() => {
-    const now = isoNow();
-    for (const state of presenceStates.values()) {
-      if (PRESENCE_LIVE_EXECUTION.has(state.execution)) schedulePresence({ ...state, heartbeat_at: now, updated_at: now });
+  const recordResolvedChildRole = async (route) => {
+    if (
+      !route?.inheritedParentRoute
+      || !route.requestingOpenCodeSessionID
+      || !route.topLevelOpenCodeSessionID
+      || !["read_only", "reviewer", "writable"].includes(route.childRole)
+      || recordedChildRoles.has(route.requestingOpenCodeSessionID)
+    ) return;
+    const result = await runProcess(
+      "python3",
+      [
+        "scripts/sessions.py", "presence", "child-role",
+        "--session", route.requestingOpenCodeSessionID,
+        "--parent", route.topLevelOpenCodeSessionID,
+        "--role", route.childRole,
+        "--if-unset",
+      ],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT },
+    );
+    if (result.status !== 0) {
+      throw new Error(`Could not persist authoritative child role: ${result.stderr || result.stdout}`);
     }
+    recordedChildRoles.add(route.requestingOpenCodeSessionID);
+  };
+  const continuationCommand = async (action, sessionID, signal = null) => {
+    if (!continuationQueueEnabled) return null;
+    const args = ["scripts/sessions.py", "continuation", action, "--session", sessionID];
+    if (action === "record" && signal) {
+      args.push(
+        "--operation-type", signal.operation_type,
+        "--operation-key", signal.operation_key,
+        "--next-action", signal.next_action,
+      );
+    }
+    const result = await runProcess("python3", args, { cwd: CURRENT_CONTROL_PLANE_ROOT });
+    if (result.status !== 0) throw new Error(result.stderr || result.stdout || `continuation ${action} failed`);
+    return JSON.parse(result.stdout || "{}").continuation || null;
+  };
+  const taskContextForSession = async (sessionID, { refresh = false } = {}) => {
+    if (!sessionID) return null;
+    if (!refresh && taskContextCache.has(sessionID)) return taskContextCache.get(sessionID);
+    try {
+      const snapshot = await taskBridge("context", sessionID);
+      taskContextCache.set(sessionID, snapshot);
+      return snapshot;
+    } catch (error) {
+      console.warn(`[OpenMates Task bridge diagnostic] context failed: ${error?.message || error}`);
+      const message = String(error?.message || error || "");
+      const failed = {
+        decision: "failed_closed",
+        active: null,
+        remaining: [],
+        recovery: /openmates login|passkey verification/i.test(message) ? "login_required" : "bridge_unavailable",
+      };
+      taskContextCache.set(sessionID, failed);
+      return failed;
+    }
+  };
+  const reconcileTasksAtIdle = async (sessionID) => {
+    const current = currentPresence(sessionID);
+    if (taskBridgeSuppressedForTest(current)) return null;
+    try {
+      const result = await taskBridge("reconcile", sessionID);
+      taskContextCache.delete(sessionID);
+      if (result?.continuation) readyContinuationSessions.add(sessionID);
+      return result;
+    } catch (error) {
+      console.warn(`[OpenMates Task bridge diagnostic] reconciliation failed closed: ${error?.message || error}`);
+      return null;
+    }
+  };
+  const openMatesTaskTool = openCodeTool ? openCodeTool({
+    description: "Read or mutate encrypted OpenMates Tasks associated with this top-level OpenCode chat.",
+    args: {
+      action: openCodeTool.schema.enum(["context", "show", "create", "start", "edit", "block", "unblock", "done"]),
+      task_id: openCodeTool.schema.string().optional(),
+      title: openCodeTool.schema.string().optional(),
+      description: openCodeTool.schema.string().optional(),
+      status: openCodeTool.schema.enum(["backlog", "todo", "in_progress", "blocked", "done"]).optional(),
+      reason_code: openCodeTool.schema.enum([
+        "needs_user_input", "waiting_for_approval", "missing_credentials", "ambiguous_requirement",
+        "external_dependency", "environment_unavailable", "verification_failed", "other",
+      ]).optional(),
+      reason_text: openCodeTool.schema.string().optional(),
+    },
+    async execute(args, context) {
+      const route = await resolveWorktreeRoute(client, context.sessionID, routingData || sessionsData());
+      const topLevelSessionID = route.topLevelOpenCodeSessionID || context.sessionID;
+      const result = await taskBridge("tool", topLevelSessionID, { payload: args });
+      taskContextCache.delete(topLevelSessionID);
+      taskContextCache.delete(context.sessionID);
+      return JSON.stringify(result);
+    },
+  }) : null;
+  const ensureImplicitTaskBeforeMutation = async ({ sessionID, tool, command = "" }) => {
+    if (!EDIT_TOOLS.has(tool)) return null;
+    const snapshot = await taskContextForSession(sessionID, { refresh: true });
+    const session = await openCodeSession(client, sessionID);
+    const payload = implicitTaskMutationPayloadForTest(snapshot, {
+      tool,
+      command,
+      sessionTitle: session?.title || "",
+    });
+    if (!payload) return null;
+    const created = await taskBridge("tool", sessionID, { payload });
+    taskContextCache.delete(sessionID);
+    return created;
+  };
+  const mediaCommand = async (action, sessionID, artifact = null) => {
+    if (!mediaQueueEnabled) return null;
+    const args = ["scripts/sessions.py", "media", action, "--session", sessionID];
+    if (action === "record" && artifact) {
+      args.push(
+        "--artifact-type", artifact.artifact_type,
+        "--artifact-key", artifact.artifact_key,
+        "--snippet", artifact.snippet,
+      );
+      if (artifact.artifact_path) args.push("--artifact-path", artifact.artifact_path);
+    } else if (["ack", "release"].includes(action) && artifact?.artifact_key) {
+      args.push("--artifact-key", artifact.artifact_key);
+    } else if (action === "fail" && artifact?.artifact_key) {
+      args.push("--artifact-key", artifact.artifact_key);
+      if (artifact.failure_reason) args.push("--reason", artifact.failure_reason);
+    }
+    const result = await runProcess("python3", args, { cwd: CURRENT_CONTROL_PLANE_ROOT });
+    if (result.status !== 0) throw new Error(result.stderr || result.stdout || `media ${action} failed`);
+    return JSON.parse(result.stdout || "{}").media || null;
+  };
+  const failMediaRecord = async (sessionID, record, reason) => {
+    await mediaCommand("fail", sessionID, { ...record, failure_reason: reason });
+    console.warn(`[OpenMates response-media diagnostic] ${reason}`);
+  };
+  const uploadPendingFigmaExport = async (sessionID, record) => {
+    if (record?.artifact_type !== "figma_export") return record;
+    const route = await resolveWorktreeRoute(client, sessionID, routingData || sessionsData());
+    const rawPath = figmaExportPathFromRecordForTest(record);
+    const resolvedPath = resolveExistingFigmaExportPathForTest(rawPath, {
+      cwd: route.worktreePath || instanceDirectory,
+      worktreePath: route.worktreePath || "",
+    });
+    if (!resolvedPath) {
+      await failMediaRecord(
+        sessionID,
+        record,
+        `Figma export delivery skipped because the PNG is missing: ${rawPath || record.artifact_key}`,
+      );
+      return null;
+    }
+    const upload = await runProcess(
+      "python3",
+      [
+        "scripts/opencode_response_media.py",
+        resolvedPath,
+        "--alt",
+        "Figma reference: current screen/frame",
+        "--output",
+        "markdown",
+      ],
+      { cwd: CURRENT_CONTROL_PLANE_ROOT, timeoutMs: 120_000 },
+    );
+    if (upload.status !== 0) {
+      await failMediaRecord(
+        sessionID,
+        record,
+        `Figma export upload failed for ${resolvedPath}: ${(upload.stderr || upload.stdout || "").trim()}`,
+      );
+      return null;
+    }
+    const markdown = firstResponseMediaImageSnippetForTest(upload.stdout);
+    if (!markdown) {
+      await failMediaRecord(
+        sessionID,
+        record,
+        `Figma export upload returned no image Markdown for ${resolvedPath}`,
+      );
+      return null;
+    }
+    return await mediaCommand("record", sessionID, {
+      artifact_type: "figma_image",
+      artifact_key: record.artifact_key,
+      artifact_path: resolvedPath,
+      snippet: markdown,
+    });
+  };
+  const deliverPendingMedia = async (sessionID) => {
+    if (!mediaQueueEnabled) return false;
+    const current = currentPresence(sessionID);
+    if (continuationSuppressedForTest(current) || automaticDeliverySessions.has(sessionID)) return false;
+    automaticDeliverySessions.add(sessionID);
+    let record = null;
+    try {
+      record = await mediaCommand("claim", sessionID);
+      if (!record) return false;
+      record = await uploadPendingFigmaExport(sessionID, record);
+      if (!record) return false;
+      const prompt = mediaDeliveryPromptForTest(record);
+      if (!prompt) {
+        await mediaCommand("fail", sessionID, { ...record, failure_reason: "media record had no deliverable prompt" });
+        return false;
+      }
+      claimedMediaBySession.set(sessionID, record);
+      const response = await client.session.promptAsync({
+        path: { id: sessionID },
+        body: {
+          messageID: record.message_id,
+          parts: [{ type: "text", text: prompt }],
+        },
+      });
+      if (response?.error) throw new Error(String(response.error?.message || response.error));
+      return true;
+    } catch (error) {
+      claimedMediaBySession.delete(sessionID);
+      if (record) await mediaCommand("release", sessionID, record);
+      console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+      return false;
+    } finally {
+      automaticDeliverySessions.delete(sessionID);
+    }
+  };
+  const deliverReadyContinuation = async (sessionID) => {
+    if (!continuationQueueEnabled) return false;
+    const current = currentPresence(sessionID);
+    if (continuationSuppressedForTest(current) || automaticDeliverySessions.has(sessionID)) return false;
+    automaticDeliverySessions.add(sessionID);
+    let record = null;
+    try {
+      record = await continuationCommand("claim", sessionID);
+      if (!record) return false;
+      readyContinuationSessions.delete(sessionID);
+      const response = await client.session.promptAsync({
+        path: { id: sessionID },
+        body: {
+          messageID: record.message_id,
+          parts: [{ type: "text", text: taskContinuationPromptForTest(record) }],
+        },
+      });
+      if (response?.error) throw new Error(String(response.error?.message || response.error));
+      await continuationCommand("ack", sessionID);
+      return true;
+    } catch (error) {
+      if (record) await continuationCommand("release", sessionID);
+      console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+      return false;
+    } finally {
+      automaticDeliverySessions.delete(sessionID);
+    }
+  };
+  const reconcileAuthoritativePresence = async () => {
+    if (typeof client?.session?.status !== "function") return;
+    const response = await client.session.status();
+    const statuses = response?.data || response || {};
+    const authoritativePending = {};
+    const pendingQueries = [];
+    if (typeof client?.permission?.list === "function") {
+      pendingQueries.push(client.permission.list().then((response) => {
+        const items = response?.data || response || [];
+        if (Array.isArray(items)) authoritativePending.permissionIDs = new Set(items.map((item) => item?.id).filter(Boolean));
+      }));
+    }
+    if (typeof client?.question?.list === "function") {
+      pendingQueries.push(client.question.list().then((response) => {
+        const items = response?.data || response || [];
+        if (Array.isArray(items)) authoritativePending.questionIDs = new Set(items.map((item) => item?.id).filter(Boolean));
+      }));
+    }
+    if (pendingQueries.length) await Promise.allSettled(pendingQueries);
+    const reconciledPending = Object.keys(authoritativePending).length ? authoritativePending : null;
+    const persistedSessions = presenceData().sessions || {};
+    for (const [sessionID, record] of Object.entries(persistedSessions)) {
+      if (!presenceStates.has(sessionID)) presenceStates.set(sessionID, record);
+    }
+    for (const record of reconcilePresenceStatesForTest(
+      [...presenceStates.values()],
+      statuses,
+      { authoritativePending: reconciledPending },
+    )) {
+      schedulePresence(record);
+    }
+  };
+  const reconciliationTimer = setInterval(() => {
+    reconcileAuthoritativePresence().catch((error) => {
+      console.warn(`[OpenMates presence reconciliation diagnostic] ${error?.message || error}`);
+    });
   }, PRESENCE_HEARTBEAT_MS);
-  heartbeatTimer.unref?.();
+  reconciliationTimer.unref?.();
+  reconcileAuthoritativePresence().catch(() => {});
 
   return {
+    ...(openMatesTaskTool ? { tool: { openmates_task: openMatesTaskTool } } : {}),
+    "experimental.chat.system.transform": async (input, output) => {
+      if (!input?.sessionID) return;
+      const snapshot = await taskContextForSession(input.sessionID);
+      const context = taskContextSystemTextForTest(snapshot);
+      if (context) output.system.push(context);
+    },
+    "experimental.session.compacting": async (input, output) => {
+      if (!input?.sessionID) return;
+      const snapshot = await taskContextForSession(input.sessionID, { refresh: true });
+      const context = taskContextSystemTextForTest(snapshot);
+      if (context) output.context.push(context);
+    },
     event: async ({ event }) => {
-      recordLifecycleEvent(event);
-      if (event.type === "session.idle") scheduleWorktreeCheckpoint(eventSessionID(event), "idle");
+      // Streaming part updates are extremely frequent and session.status already
+      // carries the busy/idle lifecycle needed by presence tracking.
+      if (event.type !== "message.part.updated") recordLifecycleEvent(event);
+      const textPart = assistantTextPartForTest(event);
+      if (textPart) {
+        const parts = assistantTextParts.get(textPart.messageID) || new Map();
+        parts.set(textPart.partID, textPart.text);
+        assistantTextParts.set(textPart.messageID, parts);
+      }
+      if (event.type === "message.updated" && event.properties?.info?.role === "user") {
+        const userSessionID = eventSessionID(event);
+        taskContextCache.delete(userSessionID);
+        scheduleWorktreeActivation(userSessionID);
+        try {
+          await continuationCommand("cancel", userSessionID);
+          readyContinuationSessions.delete(userSessionID);
+        } catch (error) {
+          console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+        }
+      }
+      if (event.type === "session.idle") {
+        const idleSessionID = eventSessionID(event);
+        scheduleWorktreeCheckpoint(idleSessionID, "idle");
+        await reconcileTasksAtIdle(idleSessionID);
+        if (!(await deliverPendingMedia(idleSessionID))) await deliverReadyContinuation(idleSessionID);
+      }
       if (event.type === "session.deleted") scheduleWorktreeCheckpoint(eventSessionID(event), "closed");
       const completedMessageID = completedAssistantMessageID(event);
       if (completedMessageID) {
         const completedSessionID = eventSessionID(event);
+        const completedRoute = await resolveWorktreeRoute(client, completedSessionID, routingData || sessionsData());
+        const taskCompletion = taskBridgeCompletionForTest(event, {
+          topLevelSessionID: completedRoute.topLevelOpenCodeSessionID || completedSessionID,
+        });
+        if (taskCompletion) {
+          try {
+            await taskBridge("stage", taskCompletion.sessionID, { messageID: taskCompletion.messageID });
+            taskContextCache.delete(taskCompletion.sessionID);
+          } catch (error) {
+            console.warn(`[OpenMates Task bridge diagnostic] stage failed closed: ${error?.message || error}`);
+          }
+        }
+        const completedText = [...(assistantTextParts.get(completedMessageID)?.values() || [])].join("\n");
+        assistantTextParts.delete(completedMessageID);
+        const requiredMedia = claimedMediaBySession.get(completedSessionID) || pendingMediaBySession.get(completedSessionID);
+        if (requiredMedia && responseContainsMediaForTest(completedText, requiredMedia)) {
+          try {
+            await mediaCommand("ack", completedSessionID, requiredMedia);
+            claimedMediaBySession.delete(completedSessionID);
+            pendingMediaBySession.delete(completedSessionID);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        } else if (claimedMediaBySession.has(completedSessionID)) {
+          try {
+            await mediaCommand("release", completedSessionID, requiredMedia);
+            claimedMediaBySession.delete(completedSessionID);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        }
         const current = currentPresence(completedSessionID);
         const notifierSessionID = current.top_level_session_id || current.parent_id || completedSessionID;
         if (notifierLiveSessions.has(notifierSessionID)) {
@@ -2179,17 +3618,52 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       output.env ||= {};
       output.env.OPENCODE_SESSION_ID = route.topLevelOpenCodeSessionID || input.sessionID;
       if (route.worktreePath) output.env.OPENMATES_SESSION_WORKTREE = route.worktreePath;
+      output.env.OPENMATES_PROFILE = "opencode-personal";
+      output.env.OPENMATES_ACCOUNT_GUARD = "required";
+      output.env.OPENMATES_API_URL = "https://api.dev.openmates.org";
+      output.env.OPENMATES_STATE_DIR = "";
+      for (const key of SECRET_ENV_KEYS) output.env[key] = "";
     },
-    "tool.execute.before": async (input, output) => {
+    "tool.execute.before": async (input, output) => withHookDeadlineForTest(
+      "tool.execute.before",
+      input?.sessionID,
+      async () => {
       const tool = input.tool || "";
+      const githubMcpGuard = githubMcpGuardDecisionForTest(tool);
+      if (githubMcpGuard.decision === "block") throw new Error(githubMcpGuard.message);
       if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !SEARCH_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
 
-      if (BASH_TOOLS.has(tool)) guardBash(bashCommand(output?.args || input?.args), input.sessionID);
-      bindSessionStart(input, output);
+      const controlPlaneDecision = controlPlaneToolDecisionForTest({
+        tool,
+        args: output?.args || input?.args || {},
+        cwd: instanceDirectory,
+      });
+      if (controlPlaneDecision.decision === "block") throw new Error(controlPlaneDecision.message);
 
+      if (BASH_TOOLS.has(tool)) {
+        const command = bashCommand(output?.args || input?.args);
+        const cliIsolation = openMatesCliIsolationDecisionForTest(command);
+        if (cliIsolation.decision === "block") throw new Error(cliIsolation.message);
+        guardBash(command, input.sessionID);
+        const longSleep = opaqueLongSleepDecisionForTest(command);
+        if (longSleep.decision === "block") throw new Error(longSleep.message);
+      }
+      if (
+        (BASH_TOOLS.has(tool) || EDIT_TOOLS.has(tool) || TASK_TOOLS.has(tool))
+        && readyContinuationSessions.has(input.sessionID)
+        && !/scripts\/sessions\.py\s+continuation\b/.test(bashCommand(output?.args || input?.args))
+      ) {
+        try {
+          await continuationCommand("cancel", input.sessionID);
+          readyContinuationSessions.delete(input.sessionID);
+        } catch (error) {
+          console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+        }
+      }
       const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
-      if (BASH_TOOLS.has(tool)) guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
+      await recordResolvedChildRole(route);
+      if (BASH_TOOLS.has(tool)) await guardWorkerBashGate(bashCommand(output?.args || input?.args), routedOpenCodeSessionID);
       const childMutation = childMutationDecisionForTest(route, tool, bashCommand(output?.args || input?.args));
       if (childMutation.decision === "block") {
         const key = `child:${input.sessionID}:${tool}:${bashCommand(output?.args || input?.args)}`;
@@ -2197,15 +3671,24 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
         routingBlockCounts.set(key, count);
         throw new Error(repeatedRoutingFailureMessageForTest(childMutation.message, count));
       }
-      if (
-        recordRouting
-        &&
-        route.decision === "worktree_routed"
+      bindSessionStart(input, output);
+      const routeRecorded = recordRouting
+        && route.decision === "worktree_routed"
         && route.topLevelOpenCodeSessionID
         && !recordedRoutes.has(route.topLevelOpenCodeSessionID)
-        && recordWorktreeRouting(route.topLevelOpenCodeSessionID)
+        && await recordWorktreeRouting(route.topLevelOpenCodeSessionID);
+      if (
+        recordRouting
+        && routeRecorded
       ) {
         recordedRoutes.add(route.topLevelOpenCodeSessionID);
+      }
+      if (input.sessionID === routedOpenCodeSessionID) {
+        await ensureImplicitTaskBeforeMutation({
+          sessionID: routedOpenCodeSessionID,
+          tool,
+          command: BASH_TOOLS.has(tool) ? bashCommand(output?.args || input?.args) : "",
+        });
       }
       if (route.decision !== "worktree_routed") {
         const currentArgs = output?.args || input?.args;
@@ -2250,10 +3733,24 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       }
 
       if (TASK_TOOLS.has(tool)) {
+        const agent = String(toolInput(output?.args || input?.args).subagent_type || "");
+        const generation = sourceGenerations.get(routedOpenCodeSessionID) || 0;
+        const reviewDecision = reviewerSpawnDecisionForTest({
+          agent,
+          generation,
+          lastReviewedGeneration: reviewedGenerations.get(routedOpenCodeSessionID),
+        });
+        if (reviewDecision.decision === "block") throw new Error(reviewDecision.message);
         return;
       }
 
-      if (route.worktreePath) {
+      // Bootstrap commands must pass through the same router before a session
+      // worktree exists. The router leaves ordinary unbound shell commands
+      // unchanged, but forces standalone sessions.py/tests.py invocations onto
+      // the verified control-plane runtime. Without this call, sessions.py
+      // start can execute from a stale dirty canonical checkout and create the
+      // very first worktree from the wrong commit.
+      if (route.worktreePath || BASH_TOOLS.has(tool)) {
         const currentArgs = output?.args || input?.args;
         const routedArgs = routeLocalToolArgsWithCircuitBreakerForTest(
           tool,
@@ -2266,39 +3763,96 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       if (EDIT_TOOLS.has(tool)) {
         const files = editedFilesForTest(output?.args || input?.args, route.worktreePath || instanceDirectory);
         const relativePaths = files.map((file) => routedEditRelativePathForTest(file, route.worktreePath || "")).filter(Boolean);
-        guardWorkerEditPaths(files, relativePaths, routedOpenCodeSessionID);
+        await guardWorkerEditPaths(files, relativePaths, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, relativePaths);
-        guardWorkerEditGate(relativePaths, routedOpenCodeSessionID);
-        runStaleRead("check", files, routedOpenCodeSessionID);
+        await guardWorkerEditGate(relativePaths, routedOpenCodeSessionID);
+        await runStaleRead("check", files, routedOpenCodeSessionID);
         guardRootEdit(files, routedOpenCodeSessionID, route.worktreePath);
         const routedDirectory = route.worktreePath || instanceDirectory;
-        runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-        editLease("acquire", files, routedOpenCodeSessionID);
+        await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
+        await editLease("acquire", files, routedOpenCodeSessionID);
         return;
       }
       const routedDirectory = route.worktreePath || instanceDirectory;
-      runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
-    },
+        await runBridge("PreToolUse", bridgePayload("PreToolUse", tool, output?.args, routedDirectory), routedOpenCodeSessionID, routedDirectory);
+      },
+    ),
     "tool.execute.after": async (input, output) => {
       const tool = input.tool || "";
       if (TASK_TOOLS.has(tool)) {
-        recordTaskChildRole(input, output);
+        await recordTaskChildRole(input, output);
+        const agent = String(toolInput(toolArgs(input, output)).subagent_type || "");
+        if (REVIEWER_SUBAGENTS.has(agent)) {
+          const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+          const topLevelSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
+          reviewedGenerations.set(topLevelSessionID, sourceGenerations.get(topLevelSessionID) || 0);
+        }
         return;
       }
       if (BASH_TOOLS.has(tool)) {
         const command = bashCommand(toolArgs(input, output));
-        if (isCliAuthFailure(command, output?.output || "")) appendCliLoginHint(output);
+        const mediaRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+        const mediaCwd = output?.args?.workdir || mediaRoute.worktreePath || instanceDirectory;
+        if (isCliAuthFailure(command, output?.output || "")) {
+          output.output += "\n\n[OpenMates personal CLI login required]\nRun `openmates login` and approve the intended personal dev account.";
+        }
         appendCommandDoctorHint(command, output);
         appendFailedTestLeaseHint(command, output);
+        appendTemporaryLockWaitHint(output);
+        appendApiHealthWaitHint(output);
+        appendResponseMediaEmbedHint(command, output);
+        appendFigmaReferenceEmbedHint({ tool, command, cwd: mediaCwd, worktreePath: mediaRoute.worktreePath || "" }, output);
+        const mediaArtifact = responseMediaArtifactForTest({
+          command,
+          output: output?.output || "",
+          cwd: mediaCwd,
+          worktreePath: mediaRoute.worktreePath || "",
+          requireExistingFigmaExport: true,
+        });
+        if (mediaArtifact) {
+          try {
+            const record = await mediaCommand("record", input.sessionID, mediaArtifact);
+            if (record) pendingMediaBySession.set(input.sessionID, record);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
+        }
+        const continuationSignal = continuationSignalForTest(output?.output || "");
+        if (continuationSignal) {
+          try {
+            await continuationCommand("record", input.sessionID, continuationSignal);
+            readyContinuationSessions.add(input.sessionID);
+          } catch (error) {
+            console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
+          }
+        }
         if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
-          recordWorktreeRouting(input.sessionID);
+          await recordWorktreeRouting(input.sessionID);
+        }
+      } else {
+        const mediaRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+        const mediaCwd = mediaRoute.worktreePath || instanceDirectory;
+        appendFigmaReferenceEmbedHint({ tool, cwd: mediaCwd, worktreePath: mediaRoute.worktreePath || "" }, output);
+        const mediaArtifact = responseMediaArtifactForTest({
+          output: output?.output || "",
+          cwd: mediaCwd,
+          worktreePath: mediaRoute.worktreePath || "",
+          requireExistingFigmaExport: true,
+        });
+        if (mediaArtifact) {
+          try {
+            const record = await mediaCommand("record", input.sessionID, mediaArtifact);
+            if (record) pendingMediaBySession.set(input.sessionID, record);
+          } catch (error) {
+            console.warn(`[OpenMates response-media diagnostic] ${error?.message || error}`);
+          }
         }
       }
       if (READ_TOOLS.has(tool) || SEARCH_TOOLS.has(tool)) {
         const route = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
         const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
         const files = explicitFilesForTest(toolArgs(input, output), route.worktreePath || instanceDirectory);
-        runStaleRead("record", files, routedOpenCodeSessionID);
+        await runStaleRead("record", files, routedOpenCodeSessionID);
         if (READ_TOOLS.has(tool) && output && typeof output.output === "string") {
           for (const file of files) {
             const warning = readConflictWarningForTest({
@@ -2317,10 +3871,14 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
       const routedOpenCodeSessionID = route.topLevelOpenCodeSessionID || input.sessionID;
       const files = editedFilesForTest(toolArgs(input, output), routedDirectory);
       try {
-        runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
-        runStaleRead("sync", files, routedOpenCodeSessionID);
+        await runBridge("PostToolUse", bridgePayload("PostToolUse", tool, toolArgs(input, output), routedDirectory), routedOpenCodeSessionID, routedDirectory);
+        await runStaleRead("sync", files, routedOpenCodeSessionID);
       } finally {
-        editLease("release", files, routedOpenCodeSessionID);
+        sourceGenerations.set(
+          routedOpenCodeSessionID,
+          (sourceGenerations.get(routedOpenCodeSessionID) || 0) + 1,
+        );
+        await editLease("release", files, routedOpenCodeSessionID);
         markToolState(routedOpenCodeSessionID, [], true);
       }
     },
@@ -2328,24 +3886,62 @@ export const OpenMatesHooks = async ({ client, directory, routingData, recordRou
 };
 
 OpenMatesHooks.test = Object.freeze({
+  bindSessionStart,
   childRoleFromAgent,
   childMutationDecisionForTest,
+  reviewerSpawnDecisionForTest,
+  continuationSignalForTest,
+  continuationSuppressedForTest,
+  taskBridgeCompletionForTest,
+  taskBridgeSuppressedForTest,
+  taskContextSystemTextForTest,
+  implicitTaskMutationPayloadForTest,
+  taskContinuationPromptForTest,
+  controlPlaneToolDecisionForTest,
+  directSessionsSpawnChatCommandForTest,
+  createWorktreeActivationSchedulerForTest,
+  createWorktreeCheckpointSchedulerForTest,
   createPresenceSchedulerForTest,
   dockerMutationDecisionForTest,
   editedFilesForBindingForTest,
   editedFilesForTest,
   hookRuntimeDiagnosticForTest,
+  githubMcpGuardDecisionForTest,
   initialPresenceForTest,
   exactCommitDeployedTestForTest,
   isApprovedControlPlaneAuditCommand,
   isReadOnlyChildBash,
   isTodoWriteTool,
+  opaqueLongSleepDecisionForTest,
+  openMatesCliIsolationDecisionForTest,
   presenceIsLive,
   readConflictWarningForTest,
   repeatedRoutingFailureMessageForTest,
   completedAssistantMessageID,
+  apiHealthWaitUrlForTest,
+  approvedProofVideoSourceTokenForTest,
+  appendFigmaReferenceEmbedHint,
+  appendResponseMediaEmbedHint,
+  figmaExportPathForTest,
+  figmaExportPathFromRecordForTest,
+  firstResponseMediaImageSnippetForTest,
+  firstResponseMediaVideoSnippetForTest,
+  canonicalResponseMediaKeySourceForTest,
+  resolveExistingFigmaExportPathForTest,
+  responseMediaArtifactForTest,
+  responseMediaAutomationEnabledForTest,
+  responseMediaVideoProducerCommandForTest,
+  sessionsCommandSupportedForTest,
+  validResponseMediaVideoSnippetForTest,
+  mediaDeliveryPromptForTest,
+  responseContainsMediaForTest,
+  assistantTextPartForTest,
+  sleepDurationSecondsForTest,
   notifierEventArgsForTest,
+  temporaryLockWaitTypesForTest,
   reducePresenceEventForTest,
+  reconcilePresenceStatesForTest,
+  runProcessForTest: runProcess,
   resolveWorktreeRouteForTest,
   routeLocalToolArgsWithCircuitBreakerForTest,
   rewriteEditArgsForTest,
@@ -2358,4 +3954,7 @@ OpenMatesHooks.test = Object.freeze({
   workerBashGateDecisionForTest,
   workerEditGateDecisionForTest,
   workerEditPathDecisionForTest,
+  warnOnceForTest,
+  warningReasonForTest,
+  withHookDeadlineForTest,
 });

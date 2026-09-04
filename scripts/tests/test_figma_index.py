@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# contract-test-file: tooling
 """Regression tests for the local private Figma design index.
 
 The index keeps Figma discovery deterministic without treating designs as an
@@ -148,6 +149,29 @@ def test_index_freshness_uses_generation_timestamp():
 
     assert module.is_index_fresh(index, max_age_hours=24, now=now) is True
     assert module.is_index_fresh(index, max_age_hours=12, now=now) is False
+
+
+def test_control_plane_root_resolves_managed_worktrees(tmp_path):
+    module = load_module()
+    root = tmp_path / "OpenMates"
+
+    assert module.resolve_control_plane_root(root) == root
+    assert module.resolve_control_plane_root(
+        root / ".openmates-agent-worktrees" / "agent-abcd"
+    ) == root
+    assert module.resolve_control_plane_root(
+        root / ".agent-worktrees" / "agent-abcd"
+    ) == root
+
+
+def test_private_index_and_tokens_use_control_plane_root():
+    module = load_module()
+
+    assert module.DEFAULT_INDEX_PATH == module.CONTROL_PLANE_ROOT / "scripts" / ".figma-index.json"
+    assert module.TOKEN_FILES == (
+        module.CONTROL_PLANE_ROOT / ".env.figma.local",
+        module.CONTROL_PLANE_ROOT / ".env",
+    )
 
 
 def test_written_index_is_owner_readable_only(tmp_path):

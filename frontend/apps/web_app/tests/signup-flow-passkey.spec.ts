@@ -369,7 +369,7 @@ test(`completes passkey signup and account deletion with stay logged in ${stayLo
 		logSignupCheckpoint('Account deletion confirmed via passkey.');
 
 		// Confirm logout after deletion. Logged-out home now clears the chat hash instead of
-		// forcing #chat-id=demo-for-everyone. The settings/profile button remains visible
+		// forcing a public-chat hash. The settings/profile button remains visible
 		// as guest chrome, so the Login CTA is the unauthenticated-shell proof.
 		await expect(page.getByRole('button', { name: /login/i })).toBeVisible({ timeout: 30000 });
 		await expect(page.getByTestId('profile-container')).toBeVisible({ timeout: 30000 });

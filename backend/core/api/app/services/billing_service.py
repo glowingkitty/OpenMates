@@ -1,9 +1,13 @@
+import hashlib
+import json
 import logging
-from fastapi import HTTPException
-import time
 import asyncio
+import random
+import time
 import uuid
 from typing import Dict, Any, Optional
+
+from fastapi import HTTPException
 
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
@@ -13,11 +17,13 @@ from backend.core.api.app.services.sub_chat_orchestration_service import (
     SubChatOrchestrationProtocolError,
     SubChatOrchestrationService,
 )
+from backend.core.api.app.services.billing_settlement_service import BillingSettlementLock
 from backend.core.api.app.routes.websockets import manager as websocket_manager
 from backend.shared.python_utils.e2e_user_detection import is_non_production_e2e_user_profile
 
 logger = logging.getLogger(__name__)
 MAX_BALANCE_CAS_RETRIES = 3
+BALANCE_CAS_RETRY_BASE_SECONDS = 0.05
 
 class BillingService:
     def __init__(
@@ -32,11 +38,83 @@ class BillingService:
         self.encryption_service = encryption_service
         self.server_stats_service = server_stats_service
         self.websocket_manager = websocket_manager
+        self.settlement_lock = BillingSettlementLock(cache_service)
         # Strong references to in-flight auto top-up tasks.
         # asyncio discards unreferenced tasks before completion — keeping a set
         # prevents GC mid-payment and ensures exception callbacks fire.
         # Tasks remove themselves via add_done_callback.
         self._pending_topup_tasks: set[asyncio.Task] = set()
+
+    async def _create_or_reuse_pending_settlement(
+        self,
+        *,
+        user_id: str,
+        user_id_hash: str,
+        vault_key_id: str,
+        credits_to_deduct: int,
+        app_id: str,
+        skill_id: str,
+        idempotency_key: str,
+        usage_details: Optional[Dict[str, Any]],
+        api_key_hash: Optional[str],
+        device_hash: Optional[str],
+        retryable_error_code: str,
+    ) -> Dict[str, Any]:
+        settlement_payload = json.dumps(
+            {
+                "credits_to_deduct": credits_to_deduct,
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "idempotency_key": idempotency_key,
+                "usage_details": usage_details,
+                "api_key_hash": api_key_hash,
+                "device_hash": device_hash,
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        encrypted_payload, _ = await self.encryption_service.encrypt_with_user_key(
+            plaintext=settlement_payload,
+            key_id=vault_key_id,
+        )
+        pending = await SubChatOrchestrationService(self.directus_service).execute(
+            "create_or_reuse_pending_settlement",
+            {
+                "protocol_version": 1,
+                "charge_id": idempotency_key,
+                "user_id": user_id,
+                "hashed_user_id": user_id_hash,
+                "vault_key_id": vault_key_id,
+                "encrypted_settlement_payload": encrypted_payload,
+                "settlement_payload_hash": hashlib.sha256(settlement_payload.encode("utf-8")).hexdigest(),
+                "retryable_error_code": retryable_error_code,
+            },
+        )
+        if pending.get("state") != "committed":
+            self._dispatch_pending_settlement(
+                outbox_id=pending["outbox_id"],
+                charge_id=idempotency_key,
+                user_id_hash=user_id_hash,
+            )
+        return pending
+
+    @staticmethod
+    def _dispatch_pending_settlement(*, outbox_id: str, charge_id: str, user_id_hash: str) -> None:
+        try:
+            from backend.core.api.app.tasks.billing_settlement_tasks import retry_personal_billing_settlement
+
+            retry_personal_billing_settlement.apply_async(
+                kwargs={
+                    "outbox_id": outbox_id,
+                    "charge_id": charge_id,
+                    "user_id_hash": user_id_hash,
+                },
+                queue="persistence",
+            )
+        except Exception:
+            # The durable row is also swept periodically, so broker dispatch
+            # failure does not lose settlement work.
+            logger.exception("Failed to dispatch durable billing settlement retry")
 
     async def charge_user_credits(
         self,
@@ -50,7 +128,10 @@ class BillingService:
         api_key_hash: Optional[str] = None,  # SHA-256 hash of API key for tracking
         device_hash: Optional[str] = None,  # SHA-256 hash of device for tracking
         _cas_retry_count: int = 0,
-    ) -> None:
+        _settlement_locked: bool = False,
+        _force_balance_refresh: bool = False,
+        _defer_exhausted_conflict: bool = True,
+    ) -> Dict[str, Any]:
         """
         Deducts credits and records the usage entry.
         
@@ -86,6 +167,31 @@ class BillingService:
             logger.error(f"Invalid skill_id provided for credit charge: {skill_id}. Cannot create usage entry.")
             raise HTTPException(status_code=400, detail="skill_id is required and must not be empty.")
 
+        if not _settlement_locked:
+            billing_subject = user_id_hash
+            async with self.settlement_lock.hold(billing_subject) as lease:
+                result = await self.charge_user_credits(
+                    user_id=user_id,
+                    credits_to_deduct=credits_to_deduct,
+                    user_id_hash=user_id_hash,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    idempotency_key=idempotency_key,
+                    usage_details=usage_details,
+                    api_key_hash=api_key_hash,
+                    device_hash=device_hash,
+                    _cas_retry_count=_cas_retry_count,
+                    _settlement_locked=True,
+                    _force_balance_refresh=_force_balance_refresh,
+                    _defer_exhausted_conflict=_defer_exhausted_conflict,
+                )
+            if lease.lock_lost:
+                logger.warning(
+                    "Billing settlement lock was lost for subject %s; durable charge identity and CAS protected the commit",
+                    billing_subject[:12],
+                )
+            return result
+
         from backend.core.api.app.utils.server_mode import is_payment_enabled
         payment_enabled = is_payment_enabled()
         expected_encrypted_balance: str | None = None
@@ -95,6 +201,7 @@ class BillingService:
             "charged_credits": credits_to_deduct,
             "idempotent": False,
         }
+        durable_charge_result: Optional[Dict[str, Any]] = None
 
         try:
             # 1. Get user profile using the cache service
@@ -121,55 +228,52 @@ class BillingService:
                 logger.info(f"Successfully fetched and cached user {user_id} from Directus")
 
             if payment_enabled:
-                billing_rows = await self.directus_service.get_items(
-                    "directus_users",
-                    params={
-                        "filter[id][_eq]": user_id,
-                        "fields": "id,vault_key_id,encrypted_credit_balance",
-                        "limit": 1,
-                    },
-                    no_cache=True,
-                    admin_required=True,
-                )
-                if not isinstance(billing_rows, list) or not billing_rows:
-                    raise HTTPException(status_code=404, detail="Billing profile not found.")
-                billing_profile = billing_rows[0]
-                vault_key_id = billing_profile.get("vault_key_id")
-                expected_encrypted_balance = billing_profile.get("encrypted_credit_balance")
-                if not vault_key_id or not expected_encrypted_balance:
-                    raise HTTPException(status_code=409, detail="Billing profile is incomplete.")
-                decrypted_balance = await self.encryption_service.decrypt_with_user_key(
-                    expected_encrypted_balance,
-                    vault_key_id,
-                )
-                if decrypted_balance is None:
-                    raise HTTPException(status_code=500, detail="Billing balance could not be decrypted.")
-                try:
-                    authoritative_credits = int(decrypted_balance)
-                except (TypeError, ValueError) as exc:
-                    raise HTTPException(status_code=500, detail="Billing balance is invalid.") from exc
-                user["credits"] = authoritative_credits
-                user["vault_key_id"] = vault_key_id
-
-                existing_charge = await SubChatOrchestrationService(self.directus_service).execute(
-                    "get_personal_charge",
-                    {
-                        "protocol_version": 1,
-                        "charge_id": idempotency_key,
-                        "hashed_user_id": user_id_hash,
-                        "app_id": app_id.strip(),
-                        "skill_id": skill_id.strip(),
-                        "requested_credits": requested_credits,
-                    },
-                )
-                if existing_charge.get("found"):
-                    committed_balance = await self.encryption_service.decrypt_with_user_key(
-                        existing_charge["encrypted_balance_after"],
+                projection = None if _force_balance_refresh else await self.cache_service.get_billing_projection(user_id)
+                if projection is not None:
+                    user = projection["user"]
+                    vault_key_id = projection["vault_key_id"]
+                    expected_encrypted_balance = projection["encrypted_balance"]
+                    authoritative_credits = projection["credits"]
+                else:
+                    # Cache loss or a stale legacy profile performs one bounded
+                    # durable recovery read, then restores the projection.
+                    billing_rows = await self.directus_service.get_items(
+                        "directus_users",
+                        params={
+                            "filter[id][_eq]": user_id,
+                            "fields": "id,vault_key_id,encrypted_credit_balance",
+                            "limit": 1,
+                        },
+                        no_cache=True,
+                        admin_required=True,
+                    )
+                    if not isinstance(billing_rows, list) or not billing_rows:
+                        raise HTTPException(status_code=404, detail="Billing profile not found.")
+                    billing_profile = billing_rows[0]
+                    vault_key_id = billing_profile.get("vault_key_id")
+                    expected_encrypted_balance = billing_profile.get("encrypted_credit_balance")
+                    if not vault_key_id or not expected_encrypted_balance:
+                        raise HTTPException(status_code=409, detail="Billing profile is incomplete.")
+                    decrypted_balance = await self.encryption_service.decrypt_with_user_key(
+                        expected_encrypted_balance,
                         vault_key_id,
                     )
-                    user["credits"] = int(committed_balance)
-                    await self.cache_service.set_user(user, user_id=user_id)
-                    return {**existing_charge, "idempotent": True}
+                    if decrypted_balance is None:
+                        raise HTTPException(status_code=500, detail="Billing balance could not be decrypted.")
+                    try:
+                        authoritative_credits = int(decrypted_balance)
+                    except (TypeError, ValueError) as exc:
+                        raise HTTPException(status_code=500, detail="Billing balance is invalid.") from exc
+                    await self.cache_service.set_billing_projection(
+                        user_id,
+                        credits=authoritative_credits,
+                        encrypted_balance=expected_encrypted_balance,
+                        vault_key_id=vault_key_id,
+                    )
+
+                user["credits"] = authoritative_credits
+                user["vault_key_id"] = vault_key_id
+                user["encrypted_credit_balance"] = expected_encrypted_balance
 
             # Resolve vault_key_id: the cached profile may be stale (e.g., after an account
             # recovery reset which re-generates the Vault key). If the key is absent, re-fetch
@@ -337,13 +441,19 @@ class BillingService:
                         "usage_entry": transaction_usage_payload,
                     },
                 )
+                durable_charge_result = charge_result
                 if charge_result.get("idempotent"):
                     committed_balance = await self.encryption_service.decrypt_with_user_key(
                         charge_result["encrypted_balance_after"],
                         vault_key_id,
                     )
                     user["credits"] = int(committed_balance)
-                    await self.cache_service.set_user(user, user_id=user_id)
+                    await self.cache_service.set_billing_projection(
+                        user_id,
+                        credits=user["credits"],
+                        encrypted_balance=charge_result["encrypted_balance_after"],
+                        vault_key_id=vault_key_id,
+                    )
                     return charge_result
             else:
                 logger.debug(f"Payment disabled (self-hosted mode). Skipping Directus credit balance update for user {user_id}.")
@@ -352,7 +462,15 @@ class BillingService:
             if self.server_stats_service:
                 await self.server_stats_service.increment_stat("credits_used", credits_to_deduct)
                 await self.server_stats_service.update_liability(-credits_to_deduct)
-            await self.cache_service.set_user(user, user_id=user_id)
+            if payment_enabled:
+                await self.cache_service.set_billing_projection(
+                    user_id,
+                    credits=new_credits,
+                    encrypted_balance=encrypted_new_credits,
+                    vault_key_id=vault_key_id,
+                )
+            else:
+                await self.cache_service.set_user(user, user_id=user_id)
             if payment_enabled:
                 await self._check_and_trigger_low_balance_topup(user_id, user, new_credits)
             
@@ -520,7 +638,15 @@ class BillingService:
             return charge_result
 
         except SubChatOrchestrationProtocolError as e:
+            if durable_charge_result is not None:
+                logger.exception(
+                    "Post-commit billing projection failed; durable charge remains committed: charge_id=%s",
+                    idempotency_key,
+                )
+                return durable_charge_result
             if e.code == "stale_credit_balance" and _cas_retry_count < MAX_BALANCE_CAS_RETRIES:
+                retry_delay = BALANCE_CAS_RETRY_BASE_SECONDS * (2 ** _cas_retry_count)
+                await asyncio.sleep(retry_delay + random.uniform(0, retry_delay))
                 return await self.charge_user_credits(
                     user_id=user_id,
                     credits_to_deduct=requested_credits,
@@ -532,12 +658,64 @@ class BillingService:
                     api_key_hash=api_key_hash,
                     device_hash=device_hash,
                     _cas_retry_count=_cas_retry_count + 1,
+                    _settlement_locked=True,
+                    _force_balance_refresh=True,
+                    _defer_exhausted_conflict=_defer_exhausted_conflict,
                 )
+            if e.code == "stale_credit_balance" and _defer_exhausted_conflict:
+                pending = await self._create_or_reuse_pending_settlement(
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    vault_key_id=user.get("vault_key_id"),
+                    credits_to_deduct=requested_credits,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    idempotency_key=idempotency_key,
+                    usage_details=usage_details,
+                    api_key_hash=api_key_hash,
+                    device_hash=device_hash,
+                    retryable_error_code=e.code,
+                )
+                if pending.get("state") == "committed":
+                    committed_balance = await self.encryption_service.decrypt_with_user_key(
+                        pending["encrypted_balance_after"],
+                        user["vault_key_id"],
+                    )
+                    await self.cache_service.set_billing_projection(
+                        user_id,
+                        credits=int(committed_balance),
+                        encrypted_balance=pending["encrypted_balance_after"],
+                        vault_key_id=user["vault_key_id"],
+                    )
+                    return pending
+                logger.warning(
+                    "Personal billing settlement deferred after stale balance retries: charge_id=%s outbox_id=%s",
+                    idempotency_key,
+                    pending.get("outbox_id"),
+                )
+                return {
+                    "charge_id": idempotency_key,
+                    "charged_credits": requested_credits,
+                    "state": "retry_scheduled",
+                    "outbox_id": pending.get("outbox_id"),
+                    "idempotent": bool(pending.get("idempotent")),
+                }
             raise HTTPException(status_code=e.status_code, detail=e.code) from e
         except HTTPException as e:
-            # Re-raise HTTPExceptions to be handled by FastAPI
+            if durable_charge_result is not None:
+                logger.exception(
+                    "Post-commit billing projection failed; durable charge remains committed: charge_id=%s",
+                    idempotency_key,
+                )
+                return durable_charge_result
             raise e
         except Exception as e:
+            if durable_charge_result is not None:
+                logger.exception(
+                    "Post-commit billing projection failed; durable charge remains committed: charge_id=%s",
+                    idempotency_key,
+                )
+                return durable_charge_result
             logger.error(f"An unexpected error occurred while charging credits for user {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal error occurred during credit deduction.")
 
@@ -548,40 +726,51 @@ class BillingService:
         user_id_hash: str,
         app_id: str,
         skill_id: str,
+        idempotency_key: str,
         reason: str = "",
+        _cas_retry_count: int = 0,
+        _settlement_locked: bool = False,
+        _force_balance_refresh: bool = False,
     ) -> None:
-        """
-        Refund (add back) credits to a user after a failed task.
-
-        Mirrors charge_user_credits but in the reverse direction:
-        - Adds credits to the cached user balance.
-        - Updates Directus with the new encrypted balance.
-        - Broadcasts the new balance to all user devices.
-
-        No usage entry is created — a refund is not a skill execution.
-
-        Args:
-            user_id:          Actual user ID for cache lookup.
-            credits_to_refund: Number of credits to restore (must be > 0).
-            user_id_hash:     Hashed user ID for logging.
-            app_id:           App that originally charged the credits.
-            skill_id:         Skill that originally charged the credits.
-            reason:           Human-readable description of why the refund was issued.
-        """
+        """Refund credits under the same subject lock and durable CAS as charges."""
         if not isinstance(credits_to_refund, int) or credits_to_refund <= 0:
             raise HTTPException(
                 status_code=400,
                 detail="Credits to refund must be a positive integer.",
             )
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise HTTPException(status_code=400, detail="idempotency_key is required for credit refunds.")
+
+        if not _settlement_locked:
+            async with self.settlement_lock.hold(user_id_hash) as lease:
+                await self.refund_user_credits(
+                    user_id=user_id,
+                    credits_to_refund=credits_to_refund,
+                    user_id_hash=user_id_hash,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    idempotency_key=idempotency_key,
+                    reason=reason,
+                    _cas_retry_count=_cas_retry_count,
+                    _settlement_locked=True,
+                    _force_balance_refresh=_force_balance_refresh,
+                )
+            if lease.lock_lost:
+                logger.warning(
+                    "Refund settlement lock was lost for subject %s; durable CAS protected the mutation",
+                    user_id_hash[:12],
+                )
+            return
 
         from backend.core.api.app.utils.server_mode import is_payment_enabled
-        payment_enabled = is_payment_enabled()
+        if not is_payment_enabled():
+            logger.info("[Refund] Payment disabled. Skipping refund for user %s.", user_id)
+            return
 
+        durable_refund_committed = False
         try:
-            # 1. Get user from cache (fall back to Directus on miss)
             user = await self.cache_service.get_user_by_id(user_id)
             if not user:
-                logger.info(f"[Refund] User {user_id} not in cache — fetching from Directus")
                 profile_success, user_profile, profile_message = (
                     await self.directus_service.get_user_profile(user_id)
                 )
@@ -597,90 +786,130 @@ class BillingService:
                 await self.cache_service.set_user(user_profile, user_id=user_id)
                 user = user_profile
 
-            current_credits = user.get("credits", 0)
-            if not isinstance(current_credits, int):
-                current_credits = 0
-
-            if payment_enabled:
-                new_credits = current_credits + credits_to_refund
+            projection = None if _force_balance_refresh else await self.cache_service.get_billing_projection(user_id)
+            if projection is not None:
+                vault_key_id = projection["vault_key_id"]
+                expected_encrypted_balance = projection["encrypted_balance"]
+                current_credits = projection["credits"]
             else:
-                # Self-hosted mode: credit balance is not tracked, skip actual update.
-                logger.info(
-                    f"[Refund] Payment disabled (self-hosted mode). Skipping refund for user {user_id}."
+                billing_rows = await self.directus_service.get_items(
+                    "directus_users",
+                    params={
+                        "filter[id][_eq]": user_id,
+                        "fields": "id,vault_key_id,encrypted_credit_balance",
+                        "limit": 1,
+                    },
+                    no_cache=True,
+                    admin_required=True,
+                    raise_on_error=True,
                 )
+                if not isinstance(billing_rows, list) or not billing_rows:
+                    raise HTTPException(status_code=404, detail="Billing profile not found.")
+                billing_profile = billing_rows[0]
+                vault_key_id = billing_profile.get("vault_key_id")
+                expected_encrypted_balance = billing_profile.get("encrypted_credit_balance")
+                if not vault_key_id or not expected_encrypted_balance:
+                    raise HTTPException(status_code=409, detail="Billing profile is incomplete.")
+                decrypted_balance = await self.encryption_service.decrypt_with_user_key(
+                    expected_encrypted_balance,
+                    vault_key_id,
+                )
+                if decrypted_balance is None:
+                    raise HTTPException(status_code=500, detail="Billing balance could not be decrypted.")
+                current_credits = int(decrypted_balance)
+
+            new_credits = int(current_credits) + credits_to_refund
+            encrypted_new_credits, _ = await self.encryption_service.encrypt_with_user_key(
+                plaintext=str(new_credits),
+                key_id=vault_key_id,
+            )
+            refund_result = await SubChatOrchestrationService(self.directus_service).execute(
+                "commit_personal_refund",
+                {
+                    "protocol_version": 1,
+                    "refund_id": idempotency_key,
+                    "user_id": user_id,
+                    "hashed_user_id": user_id_hash,
+                    "app_id": app_id,
+                    "skill_id": skill_id,
+                    "credits_to_refund": credits_to_refund,
+                    "expected_encrypted_balance": expected_encrypted_balance,
+                    "new_encrypted_balance": encrypted_new_credits,
+                },
+            )
+            durable_refund_committed = True
+            committed_balance = await self.encryption_service.decrypt_with_user_key(
+                refund_result["encrypted_balance_after"],
+                vault_key_id,
+            )
+            if committed_balance is None:
+                raise HTTPException(status_code=500, detail="Committed refund balance could not be decrypted.")
+            new_credits = int(committed_balance)
+            await self.cache_service.set_billing_projection(
+                user_id,
+                credits=new_credits,
+                encrypted_balance=refund_result["encrypted_balance_after"],
+                vault_key_id=vault_key_id,
+            )
+
+            if refund_result.get("idempotent"):
                 return
 
-            user["credits"] = new_credits
-
-            # 2. Update server stats (reverse of charge)
             if self.server_stats_service:
                 await self.server_stats_service.increment_stat("credits_used", -credits_to_refund)
                 await self.server_stats_service.update_liability(credits_to_refund)
-
-            # 3. Update cache
-            await self.cache_service.set_user(user, user_id=user_id)
-
-            # 4. Persist to Directus with retry
-            _refund_vault_key_id = user.get("vault_key_id")
-            if not _refund_vault_key_id:
-                logger.error(
-                    f"[Refund] vault_key_id unavailable for user_id={user_id}. "
-                    "Cache balance updated but Directus update skipped (will self-heal on login)."
-                )
-                # Skip Directus update — fall through to broadcast/stats below
-            else:
-                encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
-                    plaintext=str(new_credits),
-                    key_id=_refund_vault_key_id,
-                )
-                encrypted_new_credits = encrypted_new_credits_tuple[0]
-
-                max_retries = 3
-                retry_delay = 5
-                for attempt in range(max_retries):
-                    update_successful = await self.directus_service.update_user(
-                        user_id, {"encrypted_credit_balance": encrypted_new_credits}
-                    )
-                    if update_successful:
-                        logger.info(
-                            f"[Refund] Updated credits in Directus on attempt {attempt + 1}."
-                        )
-                        break
-                    logger.warning(
-                        f"[Refund] Attempt {attempt + 1} to update Directus failed. "
-                        f"Retrying in {retry_delay}s…"
-                    )
-                    if attempt < max_retries - 1:
-                        await asyncio.sleep(retry_delay)
-                else:
-                    logger.critical(
-                        f"[Refund] CRITICAL: Failed to persist refund for user {user_id} "
-                        f"after {max_retries} attempts. Cache updated but DB is stale."
-                    )
-                    # Do not raise — the user's in-memory balance is correct; the DB
-                    # will self-heal on next login when the cache is rebuilt from Directus.
-
-            # 5. Update global stats cache
             await self.cache_service.increment_stat("credits_used", -credits_to_refund)
             await self.cache_service.update_liability(credits_to_refund)
-
-            # 6. Broadcast new balance to all devices
             await self.websocket_manager.broadcast_to_user(
                 user_id=user_id,
-                message={
-                    "type": "user_credits_updated",
-                    "payload": {"credits": new_credits},
-                },
+                message={"type": "user_credits_updated", "payload": {"credits": new_credits}},
             )
-
             logger.info(
-                f"[Refund] Refunded {credits_to_refund} credits to user {user_id[:8]}… "
-                f"({app_id}/{skill_id}). New balance: {new_credits}. Reason: {reason[:200]}"
+                "[Refund] Refunded %s credits to user %s (%s/%s). Reason: %s",
+                credits_to_refund,
+                user_id[:8],
+                app_id,
+                skill_id,
+                reason[:200],
             )
-
+        except SubChatOrchestrationProtocolError as exc:
+            if durable_refund_committed:
+                logger.exception(
+                    "Post-commit refund projection failed; durable refund remains committed: refund_id=%s",
+                    idempotency_key,
+                )
+                return
+            if exc.code == "stale_credit_balance" and _cas_retry_count < MAX_BALANCE_CAS_RETRIES:
+                retry_delay = BALANCE_CAS_RETRY_BASE_SECONDS * (2 ** _cas_retry_count)
+                await asyncio.sleep(retry_delay + random.uniform(0, retry_delay))
+                return await self.refund_user_credits(
+                    user_id=user_id,
+                    credits_to_refund=credits_to_refund,
+                    user_id_hash=user_id_hash,
+                    app_id=app_id,
+                    skill_id=skill_id,
+                    idempotency_key=idempotency_key,
+                    reason=reason,
+                    _cas_retry_count=_cas_retry_count + 1,
+                    _settlement_locked=True,
+                    _force_balance_refresh=True,
+                )
+            raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
         except HTTPException:
+            if durable_refund_committed:
+                logger.exception(
+                    "Post-commit refund projection failed; durable refund remains committed: refund_id=%s",
+                    idempotency_key,
+                )
+                return
             raise
         except Exception as e:
+            if durable_refund_committed:
+                logger.exception(
+                    "Post-commit refund projection failed; durable refund remains committed: refund_id=%s",
+                    idempotency_key,
+                )
+                return
             logger.error(
                 f"[Refund] Unexpected error refunding credits for user {user_id}: {e}",
                 exc_info=True,

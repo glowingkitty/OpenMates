@@ -5,8 +5,10 @@
 // If decryption fails, the safe fallback body remains unchanged.
 
 import UserNotifications
+import OSLog
 
 final class NotificationService: UNNotificationServiceExtension {
+    private static let logger = Logger(subsystem: "org.openmates.app", category: "notification_service")
     private var contentHandler: ((UNNotificationContent) -> Void)?
     private var bestAttemptContent: UNMutableNotificationContent?
 
@@ -24,6 +26,8 @@ final class NotificationService: UNNotificationServiceExtension {
         self.bestAttemptContent = bestAttemptContent
         if let preview = NotificationPreviewCrypto.decryptPreview(userInfo: request.content.userInfo) {
             bestAttemptContent.body = preview
+        } else if request.content.userInfo["encrypted_notification"] != nil {
+            Self.logger.warning("Encrypted notification preview could not be decrypted; using safe fallback")
         }
         contentHandler(bestAttemptContent)
     }

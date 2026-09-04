@@ -1,0 +1,1316 @@
+schema_version: 2
+id: post-update-runtime-health-alerting
+title: Post-Update Runtime Health And Essential-Service Alerting
+status: approved
+
+goal: >
+  Make every CLI-managed OpenMates server prove that its essential runtime
+  services work after an update, and notify operators when essential services
+  become unhealthy, without creating payment transactions or paid AI/provider
+  requests. Official OpenMates cloud additionally verifies billing readiness;
+  self-hosted servers never run billing checks or send billing alerts.
+
+scope:
+  in:
+    - Run a role-aware runtime verification checklist after containers become reachable during openmates server update.
+    - Show each post-update check as pending, running, passed, failed, skipped, or not applicable in human and JSON output with deterministic exit codes.
+    - Mark the update failed or degraded when a required check fails, keep the updated deployment running, and print the exact restore command when a verified backup exists.
+    - Run ongoing essential-service checks every five minutes after startup.
+    - Run an independent host watchdog that detects stale application-scheduler health state even when the application scheduler is stopped.
+    - Provision and enable the periodic verifier and independent watchdog idempotently during server install and update.
+    - Alert after two consecutive failures, immediately for credential or required-configuration failures, and when checks are stale for more than fifteen minutes.
+    - Send deduplicated firing, recovery, daily-heartbeat, and post-update failure notifications through email, Discord, and a signed generic webhook.
+    - Add a safe CLI notification-delivery test.
+    - Verify official-cloud billing configuration, Stripe account connectivity, billing routes, required workers, webhook configuration, and health freshness without creating or confirming a payment.
+    - Verify deterministic chat transport, queue, persistence, and completion plumbing without invoking an LLM or paid provider.
+    - Prove all behavior on the current dev server before any production rollout.
+  out:
+    - Running the complete unit-test suite on a production server after every update.
+    - Packaging general development test dependencies or repository test sources in production images.
+    - Creating, confirming, refunding, or otherwise mutating Stripe payments for health verification.
+    - Calling paid LLM, search, media, or other provider APIs from deterministic chat verification.
+    - Automatically restoring backups, rolling back images, or rolling back database migrations after failed checks.
+    - Sending billing checks, billing status, or billing notifications from self-hosted servers.
+    - Changing Apple, web, npm SDK, or pip SDK product behavior.
+
+context_discovery:
+  github_issues:
+    - No matching issue found for server update health tests, billing alerts, chat monitoring, or essential-service notifications.
+    - GitHub MCP authentication returned 401; the authenticated gh CLI issue search completed and returned no matches.
+  docs:
+    - docs/plans/unified-server-cli-management/plan.yml
+    - docs/plans/provider-requirements-update-preflight/plan.yml
+    - docs/architecture/infrastructure/health-checks.md
+    - docs/user-guide/cli/server-management.md
+    - docs/contributing/guides/testing.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/monitoring/prometheus/alert_rules.yml
+    - backend/core/monitoring/alertmanager/alertmanager.yml
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/services/degraded_services_report.py
+    - scripts/run_tests.py
+  tests:
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_degraded_services_discord_report.py
+    - frontend/apps/web_app/tests/selfhost-smoke.spec.ts
+    - .github/workflows/selfhost-smoke.yml
+  verified_facts:
+    - openmates server update currently waits for role-specific HTTP health checks before recording success.
+    - Image-mode updates create one rotating pre-update backup for data-bearing roles.
+    - A failed health wait leaves updated containers running and prints Docker Compose status; automatic rollback is not implemented.
+    - Official-cloud Stripe health uses stripe.Account.retrieve without creating a transaction.
+    - General Prometheus alerts cover API, Celery, container, and scrape health but do not alert directly on stale or unhealthy cached Stripe health.
+    - The CLI has no update-specific notification hook or post-update runtime contract checklist today.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - Apple apps are not affected because this changes host CLI and server operations only.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - Native clients do not update or monitor server hosts.
+
+clarification:
+  rounds:
+    - question: What should happen when required post-update runtime checks fail after containers are reachable?
+      answer: Keep the updated deployment running, mark the update failed or degraded, notify operators, and show the exact restore command.
+    - question: Should the server run unit tests or runtime contracts after an update?
+      answer: Run fast deterministic runtime contracts; keep conventional unit tests in CI.
+    - question: Should this apply only to official production or every CLI-managed server?
+      answer: Every CLI-managed server runs the checklist; official production requires notifications and self-host notifications are configurable.
+    - question: Which notification channels should v1 support?
+      answer: Email, Discord, and a signed generic webhook, plus a delivery test and daily heartbeat.
+    - question: When should ongoing monitoring alert?
+      answer: Alert after two consecutive five-minute failures, immediately for credential or required-configuration failures, on stale checks over fifteen minutes, and on recovery.
+    - question: How should billing behave on self-hosted servers?
+      answer: Self-hosting omits every billing field, section, check, status, and notification without mentioning billing in operator output.
+  vision_summary: >
+    Every CLI-managed server should display and persist a deterministic
+    post-update runtime checklist. Required failures leave the new deployment
+    running but make the update fail, trigger configured notifications, and show
+    a restore command. Ongoing monitoring uses two-failure thresholds, immediate
+    configuration alerts, stale-check detection, recovery messages, and daily
+    heartbeats. Billing monitoring exists only on official OpenMates cloud and
+    must never spend money; self-hosted servers omit billing entirely.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 0234d717caca75835ec8c9f424b013f62c370b43
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-06T00:00:00Z"
+  plan:
+    status: approved
+    approved_at: "2026-08-06T00:00:00Z"
+    reason: The user approved implementation after the product contract; the plan adds no product-visible behavior beyond that contract.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use deterministic runtime contracts after updates instead of a packaged production unit-test suite.
+    reason: Runtime contracts prove the deployed containers and dependencies while avoiding development test dependencies and image bloat.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Failed post-update checks do not automatically roll back containers or data.
+    reason: Automatic rollback is unsafe across migrations and partial writes; the existing backup and explicit restore command preserve operator control.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Self-hosted runtimes omit billing checks and billing notifications entirely.
+    reason: Self-hosting does not expose OpenMates cloud billing or payment processing.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: External notifications support email, Discord, and signed generic webhooks with deduplication, recovery, heartbeat, and delivery-test events.
+    reason: Multiple independent channels reduce silent alert loss and make the feature useful to self-hosted operators.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Production rollout is blocked until the same verifier and failure notifications pass on dev.
+    reason: Monitoring and alert delivery must be proven without risking production billing or update availability.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: The host CLI owns periodic scheduling, incident state, and notification delivery; a packaged in-container verifier only returns sanitized check results.
+    reason: Host ownership remains functional when API, Redis, or Celery are unhealthy and avoids a new HTTP endpoint or Directus dependency for alert state.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: OPENMATES_DEPLOYMENT_MODE is the local billing-authority enum and official_cloud requires agreeing overlay, environment, and encrypted-domain witnesses.
+    reason: Request headers, generic dev-domain matching, and server.json are not safe authority before Stripe secret resolution.
+    decided_at: "2026-08-06T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Deterministic chat plumbing uses a provider-free Celery probe on the app_ai queue plus Redis event/result transport; database connectivity is verified separately with non-user operational data.
+    reason: The normal chat path necessarily reaches model inference, while the dedicated probe validates dispatch, worker execution, transport, and completion without paid calls or user-visible records.
+    decided_at: "2026-08-06T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Define the product contract and dev-first verification ladder before implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-06T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-6
+    approach: Run the packaged verifier against rebuilt dev API, worker, scheduler, cache, Vault, and Directus containers.
+    outcome: succeeded
+    recorded_at: "2026-08-06T12:01:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-6
+    approach: Run official-cloud billing no-spend verification in the dev API container.
+    outcome: blocked
+    reason: The dev API container has no openmatescloud package or overlay mount and resolves explicitly to self_host.
+    recorded_at: "2026-08-06T12:01:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-6
+    approach: Publish and install the current alpha CLI, then run standalone server verification against the rebuilt dev stack.
+    outcome: succeeded
+    reason: Publish CLI run 31104093074 passed; openmates 0.15.0-alpha.107 ran all eight self-host core checks successfully.
+    recorded_at: "2026-08-06T13:06:00Z"
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Send independently labeled dev notification tests through Discord, email, and a signed generic webhook fixture.
+    outcome: blocked
+    reason: Discord delivered and the generic webhook validated HMAC, timestamp, and event ID; host-level Brevo credentials are not configured, so the corrected verifier fails the requested email channel.
+    recorded_at: "2026-08-06T13:08:00Z"
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Install system-level periodic monitor and independent watchdog units from the current CLI.
+    outcome: blocked
+    reason: The host requires an interactive sudo password to write /etc/systemd/system; dry-run unit generation passed.
+    recorded_at: "2026-08-06T13:08:00Z"
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Complete the three operator-owned dev prerequisites, then rerun billing, notification, monitor, and same-tag update gates.
+  command: sudo openmates server monitoring install-service --role core --path /home/superdev/projects/OpenMates
+  expected_outcome: System monitor and watchdog timers are installed and active; the overlay and host email prerequisites then unblock the remaining scripts.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: true
+    reason: Dev still needs an operator-entered sudo password for systemd, host-level Brevo credentials for independent email, and an OpenMatesCloud overlay mount that this repository-isolated session cannot perform.
+    question: After the sudo unit install, overlay mount, and host Brevo configuration are completed, rerun the remaining live gates.
+    next_action: Run T-DEV-BILLING-001, T-DEV-NOTIFY-001, T-DEV-CLI-001, and confirm monitoring status is fresh.
+  last_verified_commit: 0234d717caca75835ec8c9f424b013f62c370b43
+
+scenarios:
+  - id: S-1
+    title: Successful core update displays a passing runtime checklist
+    given:
+      - A CLI-managed core server has completed container startup after an update.
+    when:
+      - The CLI runs the role-aware post-update verifier.
+    then:
+      - The CLI displays every required check and its status.
+      - Required container, API, database, cache, Vault, queue, scheduler, and deterministic chat-plumbing checks pass.
+      - The periodic verifier and independent watchdog are installed, enabled, and fresh.
+      - The update is recorded as successful only after all required checks pass.
+
+  - id: S-2
+    title: Failed post-update verification preserves operator control
+    given:
+      - Updated containers are reachable.
+      - The task-worker cannot complete the deterministic queue probe.
+    when:
+      - The post-update verifier reaches the task-worker check.
+    then:
+      - The check fails with a sanitized actionable reason.
+      - The updated deployment remains running.
+      - The update status is failed or degraded rather than successful.
+      - Configured notification channels receive one failure event.
+      - The CLI prints the exact openmates server restore command for the pre-update backup.
+      - If no verified backup exists, the CLI reports restore_unavailable and its reason instead of an unusable restore command.
+
+  - id: S-3
+    title: Official cloud verifies billing readiness without a transaction
+    given:
+      - The server is the official OpenMates cloud runtime and payment_enabled is true.
+    when:
+      - Post-update or periodic billing verification runs.
+    then:
+      - It verifies production Stripe account access, billing route registration, required worker availability, webhook configuration, and a fresh billing-health timestamp.
+      - It does not create, confirm, capture, refund, or mutate a payment, customer, invoice, or subscription.
+      - A credential or required-configuration failure alerts immediately.
+
+  - id: S-4
+    title: Self-hosted server never evaluates or alerts on billing
+    given:
+      - A CLI-managed server reports is_self_hosted true and omits cloud payment state.
+    when:
+      - Post-update and periodic verification run.
+    then:
+      - No Stripe secret is read and no Stripe request is made.
+      - Billing fields, sections, check IDs, statuses, and messages are entirely absent.
+      - No billing event is stored or sent to email, Discord, or webhook destinations.
+
+  - id: S-5
+    title: Ongoing monitoring detects sustained and stale failures
+    given:
+      - Essential runtime checks run every five minutes.
+    when:
+      - A transient check fails once and recovers on the next run.
+      - Another check fails twice consecutively.
+      - A scheduler stops updating health state for more than fifteen minutes.
+    then:
+      - The transient one-off failure does not page operators.
+      - The second consecutive failure sends one deduplicated firing alert.
+      - An independent host watchdog sends a distinct stale-monitor alert even though the application scheduler is stopped.
+      - Recovery sends one recovery event and clears the active incident state.
+
+  - id: S-6
+    title: Operator verifies notification delivery safely
+    given:
+      - One or more email, Discord, or signed webhook destinations are configured.
+    when:
+      - The operator runs the CLI notification test command.
+    then:
+      - Each configured destination receives a clearly labeled test event.
+      - Human and JSON output report each destination independently.
+      - Secret values, webhook URLs, tokens, user data, and chat content are never printed or included in payloads.
+
+  - id: S-7
+    title: Dev verification gates production rollout
+    given:
+      - The verifier and notification changes are implemented but not deployed to production.
+    when:
+      - Dev post-update success, injected failure, billing no-spend, self-host no-billing, and all notification channel tests run.
+    then:
+      - Production rollout remains blocked until all required dev evidence passes.
+      - Production rollout starts with no-spend checks and a controlled notification test before ongoing alerts are enabled.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: openmates server install and update idempotently provision monitoring, and update runs and displays a role-aware runtime checklist after container readiness and before recording success.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UNIT-001, T-DEV-UPDATE-001, T-DEV-CLI-001]
+  - id: AC-2
+    scenario: S-2
+    text: A required check failure leaves updated services running, records failed or degraded update status, sends notifications, and prints an exact restore command only when a verified backup exists, otherwise restore_unavailable.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UNIT-001, T-DEV-FAILURE-001]
+  - id: AC-3
+    scenario: S-1
+    text: Core verification covers live API, database, cache, Vault, worker queue, scheduler freshness, and deterministic chat plumbing without paid provider calls.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-001, T-DEV-UPDATE-001, T-CONTRACT-AUDIT-001]
+  - id: AC-4
+    scenario: S-3
+    text: Official-cloud billing verification proves Stripe account access and billing plumbing without creating or mutating payment-provider resources.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-001, T-DEV-BILLING-001, T-CONTRACT-AUDIT-001]
+  - id: AC-5
+    scenario: S-4
+    text: Self-hosted verification performs no billing checks, reads no Stripe secret, makes no Stripe request, and emits no billing notification.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PYTEST-001, T-SELFHOST-001, T-CONTRACT-AUDIT-001]
+  - id: AC-6
+    scenario: S-5
+    text: Ongoing checks run every five minutes, alert after two consecutive failures, alert immediately on required configuration failures, and an independent host watchdog detects health state stale for more than fifteen minutes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-ALERTS-001, T-DEV-FAILURE-001, T-CONTRACT-AUDIT-001]
+  - id: AC-7
+    scenario: S-5
+    text: Alert incidents are deduplicated and produce one recovery event plus a daily green heartbeat.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PYTEST-ALERTS-001, T-DEV-NOTIFY-001]
+  - id: AC-8
+    scenario: S-6
+    text: Email, Discord, and signed generic webhook delivery can be tested independently through the CLI with redacted output and payloads.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UNIT-001, T-DEV-NOTIFY-001, T-DEV-CLI-001, T-SDK-CLI-AUDIT-001, T-CONTRACT-AUDIT-001]
+  - id: AC-9
+    scenario: S-7
+    text: Production enablement is blocked until success and injected-failure paths, no-spend billing, self-host no-billing, and notification delivery pass on dev.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-DEV-ROLLOUT-GATE, T-PROD-BILLING-001, V-PROD-ROLLOUT]
+  - id: AC-10
+    scenario: S-1
+    text: Post-update verification completes within a bounded target of sixty seconds after container readiness or fails with the specific timed-out check.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-UNIT-001, T-DEV-UPDATE-001]
+
+assumptions:
+  - id: A-1
+    text: Production images can expose a small packaged runtime verifier without including repository test sources or general development dependencies.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/server.ts
+        summary: The host CLI already orchestrates post-start HTTP health checks and can call a packaged verifier.
+      - source: backend/core/api/Dockerfile.selfhost
+        summary: The API image packages backend modules and scripts; the verifier can ship without adding any new development dependency or test source requirement.
+  - id: A-2
+    text: Deterministic chat plumbing can validate transport, queue, persistence, and completion without an LLM/provider request or persistent user-visible chat.
+    category: cost_and_privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/tasks/health_check_tasks.py
+        summary: Existing health tasks, Celery routing, and Redis event transport support a dedicated provider-free app_ai queue probe; database connectivity is verified separately without user-visible chat records.
+  - id: A-3
+    text: A locally authoritative deployment-mode enum can distinguish official_cloud from self_host before billing verification is selected.
+    category: billing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/settings.py
+        summary: Server status currently omits cloud payment state for self-hosting, but planning must identify a locally authoritative mode source used before secret resolution.
+      - source: frontend/packages/openmates-cli/src/serverPlanning.ts
+        summary: The CLI already models self_host and official_cloud; implementation will persist the exact enum into runtime .env and remove advisory server.json fallback for billing authority.
+
+contracts:
+  api:
+    access_model: internal-only
+    auth: Host-local CLI execution or existing internal service authentication; no new public or developer endpoint is approved.
+    rate_limits: Periodic checks run at most once per five minutes per server role; CLI post-update and explicit notification tests are operator initiated.
+    credit_budget: Zero OpenMates credits and zero paid provider requests are allowed for deterministic checks.
+    encryption_boundary: Checks must not read, decrypt, return, or transmit user chat, memory, file, key, share, or billing content.
+  cli:
+    - openmates server install and update idempotently install, enable, and verify the periodic runtime-check schedule plus independent host watchdog.
+    - openmates server update automatically runs the required role-aware post-update verification phase.
+    - openmates server verify [--role core|upload|preview] [--json] runs the same verifier without updating.
+    - openmates server monitoring install-service [--role core|upload|preview] repairs or explicitly reprovisions the automatically managed host watchdog and periodic verifier schedule.
+    - openmates server monitoring status [--json] reports application-check freshness, watchdog freshness, and notification delivery state.
+    - openmates server notifications test [--channel email|discord|webhook|all] [--json] sends clearly labeled test events.
+    - openmates server update status --json includes per-check results, timestamps, duration, failure class, notification delivery state, and restore command when applicable.
+  runtime_check_result:
+    fields:
+      - id
+      - label
+      - status: pending|running|passed|failed|skipped|not_applicable
+      - required
+      - started_at
+      - completed_at
+      - duration_ms
+      - sanitized_reason
+      - failure_class
+      - cleanup_status
+    persistence:
+      - Store only operational metadata needed for current status, failure counting, deduplication, recovery, and heartbeat state.
+      - Never store secrets, raw provider responses, user identifiers, chat content, payment data, or notification destination URLs.
+  essential_checks:
+    selection:
+      - Read one locally authoritative deployment_mode value before resolving secrets or building the check inventory.
+      - The only billing-capable value is official_cloud.
+      - Missing, malformed, conflicting, or unavailable mode state selects self_host and the no-billing inventory.
+    core_all_modes:
+      - {id: compose.required_services, required: true, timeout_seconds: 15, applies_to: [core, upload, preview]}
+      - {id: http.role_health, required: true, timeout_seconds: 10, applies_to: [core, upload, preview]}
+      - {id: core.database, required: true, timeout_seconds: 10, applies_to: [core]}
+      - {id: core.cache, required: true, timeout_seconds: 10, applies_to: [core]}
+      - {id: core.vault, required: true, timeout_seconds: 10, applies_to: [core, upload]}
+      - {id: core.worker_queue, required: true, timeout_seconds: 15, applies_to: [core]}
+      - {id: core.scheduler_freshness, required: true, timeout_seconds: 5, applies_to: [core]}
+      - id: core.chat_plumbing
+        required: true
+        timeout_seconds: 20
+        applies_to: [core]
+        cleanup: Synthetic IDs are idempotent; timeout, duplicate execution, persistence failure, and cleanup failure are explicit failure classes, and cleanup retries never touch user records.
+      - {id: upload.antivirus, required: true, timeout_seconds: 10, applies_to: [upload]}
+      - {id: preview.renderer, required: true, timeout_seconds: 15, applies_to: [preview]}
+    official_cloud_only:
+      - {id: billing.mode_enabled, required: true, timeout_seconds: 5}
+      - {id: billing.stripe_account_read, required: true, timeout_seconds: 15}
+      - {id: billing.routes_registered, required: true, timeout_seconds: 5}
+      - {id: billing.workers_registered, required: true, timeout_seconds: 10}
+      - {id: billing.webhook_configured, required: true, timeout_seconds: 5}
+      - {id: billing.health_freshness, required: true, timeout_seconds: 5}
+    self_hosted:
+      - Billing fields, sections, check IDs, statuses, and messages are omitted entirely.
+      - No billing incident state or notification can be created.
+    execution:
+      - Apply one sixty-second global deadline after container readiness.
+      - Run independent checks concurrently after compose.required_services and http.role_health satisfy their dependencies.
+      - Run only dependency-linked checks serially and document those dependencies in the implementation plan.
+      - On the global deadline, cancel unfinished work, mark each unfinished required check failed with failure_class timeout, run bounded cleanup, and report every specific unfinished check.
+  notifications:
+    channels: [email, discord, signed_webhook]
+    event_types: [post_update_failed, service_unhealthy, monitor_stale, recovered, daily_heartbeat, delivery_test]
+    threshold: Two consecutive failures except immediate required-configuration or credential failures.
+    deduplication: One active incident per server role and check ID; reminders occur no more than once every four hours while firing.
+    heartbeat: One green delivery-health heartbeat per UTC day after runtime checks and at least one configured notification channel succeed.
+    retries: Each channel receives three bounded attempts with exponential backoff; delivery state is persisted as pending, delivered, retrying, or exhausted.
+    no_destination: Self-host records notification_not_configured without failing runtime health; official_cloud treats no configured destination as an immediate required-configuration failure.
+    all_channels_failed: Official cloud writes host-local critical state and uses an independently configured host-watchdog fallback destination; self-host records exhausted delivery state for operator inspection.
+    webhook_security:
+      - Sign payload bytes with HMAC-SHA256 using an operator-configured secret.
+      - Include timestamp and event ID for replay protection.
+      - Never include the destination URL or signing secret in logs or status output.
+      - Require HTTPS outside explicitly marked local development fixtures.
+      - Reject loopback, private, link-local, multicast, and otherwise non-public destination addresses in official cloud.
+      - Resolve and validate every DNS result, disable redirects, and enforce bounded connection timeout, response timeout, request size, and response size.
+      - Route official-cloud delivery through the approved egress policy or allowlist.
+  update_failure:
+    - Keep updated containers running.
+    - Record update status as failed or degraded.
+    - Send configured notifications independently so one channel failure does not suppress others.
+    - Print and persist the exact role-scoped restore command only when a verified backup manifest exists; otherwise persist restore_unavailable with a reason.
+    - Never automatically restore data, images, or migrations.
+
+privacy_security:
+  - Runtime verification uses only synthetic, ephemeral, non-user data and cleans up any temporary state.
+  - Billing verification is read-only and must not create provider objects or transactions.
+  - Notification payloads contain service/check IDs, sanitized failure classes, timestamps, server role, version/digest, and source links only.
+  - Generic webhooks are signed and replay-bounded.
+  - Generic webhook delivery enforces SSRF-safe destination validation and redirect handling.
+  - Notification channel failures are independently visible and do not mask the original health failure.
+  - Self-host mode selection fails closed to no billing checks.
+  - Missing, malformed, conflicting, or unavailable deployment mode is tested as self-host/no-billing before secret resolution.
+
+tests:
+  - id: T-CLI-UNIT-001
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: pnpm --filter openmates test -- server.test.ts
+    covers: [AC-1, AC-2, AC-8, AC-10]
+    assertions:
+      - Checklist state transitions and JSON output are deterministic.
+      - Required failures prevent update success while preserving the running deployment contract.
+      - Restore commands are exact and role scoped when a verified backup exists; skipped or missing backups produce restore_unavailable.
+      - Notification test output redacts destinations and secrets.
+      - The post-readiness verification timeout is bounded.
+      - Check status values, requiredness, role inventory, and process exit codes match the CLI contract.
+      - Install and update idempotently provision and verify the periodic schedule and independent watchdog.
+      - The sixty-second global deadline cancels and identifies unfinished checks while running bounded cleanup.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        run_id: local CLI test command blocked by repository hook before execution
+        timestamp: "2026-08-06T10:15:58Z"
+        reason: CLI tests must run through the repository test dispatcher; source imports currently reference missing planned exports and serverHealth.ts.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts
+        run_id: local-node-test-68-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
+
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_runtime_health_verifier.py
+    command: python3 -m pytest backend/tests/test_runtime_health_verifier.py
+    covers: [AC-3, AC-4, AC-5]
+    assertions:
+      - Essential runtime checks execute without paid provider calls.
+      - Official-cloud billing uses read-only Stripe account retrieval and validates billing plumbing.
+      - Self-host mode never resolves Stripe secrets, calls Stripe, stores billing state, or emits billing events.
+      - Missing, malformed, conflicting, and unavailable deployment mode all select self-host/no-billing before secret resolution.
+      - Synthetic chat state is ephemeral and contains no user data.
+      - Synthetic chat timeout, duplicate execution, persistence failure, and cleanup failure are idempotent and visible.
+    red_phase:
+      required: true
+      expected: missing_test
+      evidence:
+        status: failed_as_expected
+        run_id: python3 -m pytest backend/tests/test_runtime_health_verifier.py
+        timestamp: "2026-08-06T10:15:58Z"
+        summary: Collection failed because resolve_runtime_deployment_mode is not implemented.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_runtime_health_verifier.py
+        run_id: local-pytest-9-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
+
+  - id: T-PYTEST-ALERTS-001
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: pnpm --filter openmates test:unit:server
+    covers: [AC-6, AC-7]
+    assertions:
+      - One transient failure does not alert and two consecutive failures do.
+      - Credential and required-configuration failures alert immediately.
+      - Health older than fifteen minutes emits a stale-monitor event.
+      - An independent host watchdog emits stale-monitor events when the application scheduler is stopped.
+      - Firing events deduplicate and recovery clears incident state.
+      - Daily heartbeat and independent channel delivery semantics are enforced.
+      - Retry exhaustion, missing destinations, and all-channel failure follow the official-cloud and self-host policies.
+    red_phase:
+      required: true
+      expected: missing_test
+      evidence:
+        status: skipped_with_reason
+        run_id: local CLI test command blocked by repository hook before execution
+        timestamp: "2026-08-06T10:15:58Z"
+        reason: Host alerting tests import the not-yet-created serverHealth.ts and must run through the approved dispatcher.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/server.test.ts
+        run_id: local-node-test-runtime-alerts-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
+
+  - id: T-DEV-UPDATE-001
+    type: manual
+    file: scripts/verify_post_update_runtime_health.py
+    command: python3 scripts/verify_post_update_runtime_health.py --target dev --scenario success
+    target: https://api.dev.openmates.org
+    covers: [AC-1, AC-3, AC-10]
+    assertions:
+      - The real dev API and Docker-backed services pass the complete required checklist.
+      - No paid provider or payment transaction is invoked.
+      - The verifier completes within the bounded target.
+      - The periodic verifier and independent host watchdog are enabled and report fresh state.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-DEV-FAILURE-001
+    type: manual
+    file: scripts/verify_post_update_runtime_health.py
+    command: python3 scripts/verify_post_update_runtime_health.py --target dev --scenario injected-worker-failure
+    target: https://api.dev.openmates.org
+    covers: [AC-2, AC-6]
+    assertions:
+      - A controlled dev-only failure makes verification fail without stopping the updated deployment.
+      - The failure threshold, update status, sanitized reason, notification event, and restore command are correct.
+      - The service is restored and a recovery event is observed before the test exits.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-DEV-BILLING-001
+    type: manual
+    file: scripts/verify_post_update_runtime_health.py
+    command: python3 scripts/verify_post_update_runtime_health.py --target dev --scenario billing-no-spend
+    target: https://api.dev.openmates.org
+    covers: [AC-4]
+    assertions:
+      - Dev cloud-mode billing readiness passes using sandbox/read-only configuration.
+      - No PaymentIntent, Checkout Session, charge, invoice, subscription, customer, or refund is created or mutated.
+      - A controlled invalid-credential response produces the immediate-alert classification without exposing the credential.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-DEV-NOTIFY-001
+    type: manual
+    file: scripts/verify_post_update_notifications.py
+    command: python3 scripts/verify_post_update_notifications.py --target dev --channels email,discord,webhook
+    target: https://api.dev.openmates.org
+    covers: [AC-7, AC-8]
+    assertions:
+      - Email, Discord, and signed webhook test events are delivered independently.
+      - Webhook signatures and replay timestamps validate.
+      - Failure of one test destination does not suppress the others.
+      - Output and payloads contain no secrets or private user data.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-DEV-CLI-001
+    type: manual
+    file: frontend/packages/openmates-cli/src/server.ts
+    command: openmates server update --role core --image-tag <CURRENT_DEV_TAG> --yes --json && openmates server verify --role core --json && openmates server notifications test --channel all --json
+    target: https://api.dev.openmates.org
+    covers: [AC-1, AC-8]
+    assertions:
+      - A controlled same-tag dev update executes the verifier before update success, and the standalone command executes the same verifier.
+      - Structured output contains the stable check IDs and no secret or destination values.
+      - The real CLI notification command reports each dev destination independently.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-SDK-CLI-AUDIT-001
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-8]
+    assertions:
+      - The new host-only CLI commands do not create an undocumented SDK parity gap.
+      - Any intentional SDK non-applicability is encoded in the deterministic audit.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: sdk-cli-parity-89-commands
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
+
+  - id: T-CONTRACT-AUDIT-001
+    type: lint
+    file: scripts/audit_runtime_health_contract.py
+    command: python3 scripts/audit_runtime_health_contract.py
+    covers: [AC-3, AC-4, AC-5, AC-6, AC-8]
+    assertions:
+      - Every role/profile check has a stable ID, timeout, requiredness, and cleanup policy where applicable.
+      - Unknown deployment mode selects no-billing before Stripe secret or client access.
+      - Paid-provider call deny rules and billing mutation deny rules cover every runtime verifier path.
+      - Notification schemas redact private data and generic webhook destinations satisfy the egress policy.
+      - An independent stale-watchdog path exists outside the application scheduler.
+    red_phase:
+      required: true
+      expected: missing_test
+      evidence:
+        status: failed_as_expected
+        run_id: python3 scripts/audit_runtime_health_contract.py
+        timestamp: "2026-08-06T10:15:58Z"
+        summary: Audit reported missing strict mode resolver, verifier, serverHealth module, and runtime monitor planner.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_runtime_health_contract.py
+        run_id: runtime-health-contract-audit-passed
+        subject_commit: e5a907ea3fce468196e87e7121ba3cf2d9023336
+        timestamp: "2026-08-06T11:55:00Z"
+
+  - id: T-PROD-BILLING-001
+    type: manual
+    file: frontend/packages/openmates-cli/src/server.ts
+    command: openmates server verify --role core --checks billing --json
+    target: https://api.openmates.org
+    covers: [AC-9]
+    assertions:
+      - The operator-approved production run verifies live-mode account identity, billing routes, workers, webhook configuration, and health freshness without exposing account identifiers.
+      - No provider resource is created, mutated, confirmed, captured, refunded, or deleted.
+      - The production notification delivery test is controlled and separately approved after all dev gates pass.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {status: not_applicable, run_id: "pre-production gate", timestamp: "2026-08-06T00:00:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+  - id: T-SELFHOST-001
+    type: build
+    file: .github/workflows/selfhost-smoke.yml
+    command: gh workflow run selfhost-smoke.yml
+    covers: [AC-5]
+    assertions:
+      - Image-mode post-update verification passes without provider keys.
+      - Billing fields, sections, checks, events, and notifications are absent from all output.
+      - Existing self-host startup and browser smoke remain green.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: "", run_id: "", timestamp: ""}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: "", command: "", run_id: "", subject_commit: "", timestamp: ""}
+
+verifications:
+  - id: V-SPEC-VALIDATION
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: ""}
+  - id: V-DEV-ROLLOUT-GATE
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers: [AC-9]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: ""}
+  - id: V-PROD-ROLLOUT
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-9]
+    status: pending
+    evidence:
+      status: ""
+      summary: Production rollout may begin only after dev evidence, operator approval, no-spend production verification, and controlled notification delivery testing.
+      timestamp: ""
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-8]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: ""}
+  - id: V-DEMO-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-4, AC-5]
+    status: pending
+    evidence: {status: "", summary: "", timestamp: ""}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: cli
+    reason: The OpenMates CLI is the product surface for runtime verification and recovery evidence.
+    classified_at: "2026-08-06T11:55:00Z"
+  status: pending
+  narration_outline:
+    - id: NARR-1
+      purpose: Show a successful update checklist.
+      expected_proof: Every required runtime check transitions to passed before update success.
+      scenario_ids: [S-1]
+      acceptance_criteria: [AC-1, AC-3, AC-10]
+    - id: NARR-2
+      purpose: Show a controlled required-check failure.
+      expected_proof: The deployment stays running, update status fails, notifications dispatch, and the restore command is shown.
+      scenario_ids: [S-2]
+      acceptance_criteria: [AC-2]
+    - id: NARR-3
+      purpose: Show cloud versus self-host billing separation.
+      expected_proof: Cloud runs a no-spend billing check while self-host output contains no billing check or alert.
+      scenario_ids: [S-3, S-4]
+      acceptance_criteria: [AC-4, AC-5]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: pending
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+risks:
+  - id: R-1
+    risk: A verifier mutates production data or incurs provider costs.
+    mitigation: Enforce read-only billing calls, deterministic chat plumbing, explicit call-deny tests, and dev evidence before production.
+  - id: R-2
+    risk: Monitoring depends on the same failed service as its notification path.
+    mitigation: Keep host CLI status local, run freshness checks in an independent host watchdog, deliver channels independently, and configure an official-cloud fallback destination outside the application scheduler.
+  - id: R-3
+    risk: Update verification extends maintenance windows or creates false failures during startup.
+    mitigation: Run only after readiness, use a sixty-second target, classify startup retries separately, and require two failures for ongoing alerts.
+  - id: R-4
+    risk: Self-hosted servers accidentally read cloud billing secrets or emit billing incidents.
+    mitigation: Select check inventory from fail-closed server mode before secret resolution and test that Stripe functions are never called.
+  - id: R-5
+    risk: Notification destinations leak secrets or private operational data.
+    mitigation: Use bounded schemas, HMAC signing, SSRF-safe egress validation, output redaction, and deterministic sensitive-logging tests.
+
+open_questions: []
+
+implementation_notes:
+  plan_path: docs/plans/post-update-runtime-health-alerting/plan.yml
+  status: approved
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/server.ts post-readiness update status handling
+    - frontend/packages/openmates-cli/src/serverPlanning.ts pure role, update, and systemd planning helpers
+    - backend/core/api/app/tasks/health_check_tasks.py provider-free task registration, cache transport, and Stripe account-read pattern
+    - backend/core/api/app/utils/server_mode.py domain and cloud-overlay witnesses
+    - backend/shared/python_utils/discord_webhook.py bounded Discord delivery behavior
+    - scripts/run_tests.py independent Discord and email channel semantics
+  architecture: >
+    Keep verification internal and host controlled. A packaged Python verifier
+    runs inside the API container through docker compose exec and returns a
+    bounded JSON checklist; it adds no HTTP route. The CLI runs that verifier
+    after readiness and every five minutes from an idempotently installed
+    systemd timer, persists sanitized role state under
+    <install>/.openmates/runtime-health, evaluates incidents, and delivers
+    email, Discord, and signed-webhook events independently. A dedicated
+    provider-free Celery task routed to app_ai proves dispatch, Redis event
+    transport, worker execution, and completion. Database, cache, Vault, and
+    scheduler checks are separate and non-user-facing. A strict backend resolver
+    accepts billing only when OPENMATES_DEPLOYMENT_MODE=official_cloud and all
+    local overlay/domain/environment witnesses agree; every missing or conflicting
+    state selects self_host before Stripe secret resolution.
+  data_flow:
+    - CLI writes OPENMATES_DEPLOYMENT_MODE and creates the mode-0700 host runtime-health directory before Compose starts.
+    - Install/update idempotently renders and enables openmates-<role>-runtime-monitor.service and .timer using the existing continuous-updater systemd pattern.
+    - After HTTP readiness, CLI runs docker compose exec -T api python /app/backend/scripts/runtime_health_verifier.py --role core --json.
+    - The verifier resolves deployment mode before constructing its inventory or resolving secrets.
+    - Compose and HTTP checks complete first; independent DB, cache, Vault, worker, scheduler, chat-probe, and official-cloud billing checks then run concurrently under one sixty-second deadline.
+    - The provider-free Celery probe publishes a synthetic event and completion marker in a runtime-health Redis namespace, then deletes probe keys; it never enters inference or writes user chat data.
+    - CLI validates the bounded verifier schema, atomically replaces <role>.json with mode 0600, renders the checklist, and records update success or failure plus restore availability.
+    - The host timer invokes openmates server monitoring run every five minutes, updates consecutive failure and freshness state, and sends firing, reminder, recovery, heartbeat, or delivery-test events.
+    - Host monitoring treats malformed, missing, or older-than-fifteen-minute verifier state as monitor_stale without depending on API/Celery notification code.
+    - Each notification channel records delivered, retrying, or exhausted independently; official cloud requires at least one fallback destination.
+  boundaries:
+    - No new public, developer, first-party, or internal HTTP endpoint.
+    - No Directus schema migration and no user/chat/payment persistence for verifier state.
+    - No SDK, web, or Apple product surface change.
+    - The verifier module adds no development-test dependency; current image hygiene outside this change is not expanded.
+  deployment_mode:
+    - Persist exact OPENMATES_DEPLOYMENT_MODE=self_host|official_cloud in runtime .env and pass it to API, workers, and scheduler.
+    - server.json remains display metadata and never authorizes billing.
+    - official_cloud also requires exact OPENMATES_CLOUD_OVERLAY_ENABLED=true, OpenMatesCloud package witness, importable billing overlay, loaded encrypted official-domain policy, and matching SERVER_ENVIRONMENT/domain class.
+    - Any missing, duplicate, malformed, conflicting, or unavailable witness returns effective self_host and a sanitized reason before billing imports, secrets, state, or notifications.
+  state:
+    path: <install>/.openmates/runtime-health/<role>.json
+    permissions: Directory 0700 and files 0600, written atomically.
+    fields:
+      - Current bounded checklist and last_completed_at
+      - Consecutive failure counters and active incident IDs by check ID
+      - Last reminder, recovery, and daily heartbeat timestamps
+      - Per-channel delivery status without destinations or credentials
+      - Version/image digest, role, effective deployment mode, and sanitized mode status
+    retention: Current state only; notification logs remain in normal redacted operational logs.
+  notification_delivery:
+    email: Use configured Brevo API credentials directly from the host monitor so API downtime does not suppress delivery.
+    discord: Reuse Discord payload limits and independently record delivery outcome.
+    webhook: Canonical JSON with HMAC-SHA256 timestamp/event headers, redirects disabled, bounded I/O, and DNS/IP validation before connection.
+    watchdog: Host systemd timer and service have bounded runtime, Persistent=true, startup grace, and official-cloud fallback configuration outside application Vault.
+  rollout:
+    - Add tests and deterministic audit first and record red evidence.
+    - Implement pure deployment-mode, check-inventory, state-transition, webhook-policy, and systemd-plan helpers before integration.
+    - Prove the packaged verifier against current dev Docker services without notifications.
+    - Integrate CLI standalone verify, monitoring status/run, notification test, and post-update checklist.
+    - Prove injected dev failure/recovery and three-channel delivery before enabling the dev timer.
+    - Extend self-host smoke only after local self-host/no-billing proof passes.
+    - Run the same-tag real dev update and V-DEV-ROLLOUT-GATE before requesting production rollout.
+    - Production rollout remains a separate operator-approved task and begins with no-spend verify plus controlled delivery test.
+  observability:
+    - Log stable check IDs, failure classes, durations, incident transitions, and channel delivery status.
+    - Never log mode witnesses, secrets, destination URLs, Stripe responses, synthetic payload contents, or user identifiers.
+    - Emit one daily heartbeat only after all required checks pass and at least one configured channel delivers.
+  demonstration:
+    capture_source: Sanitized PTY recording of real dev CLI commands after all normal green gates.
+    caption_renderer: Repository implementation-demonstration caption pipeline with exact captions authored from verified behavior.
+    privacy_scan: Run complete-frame local privacy scanning before selecting review frames.
+    frame_sampling: Three-second intervals plus command, checklist transition, failure, notification, and recovery boundaries; full video never enters model context.
+    retention: Keep raw evidence and edited demonstration artifacts separate under the repository test-result retention policy.
+    delivery: Review the bounded caption/frame bundle first; Discord publication is separately retryable and does not replace review evidence.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/server.ts
+      reason: Run/render verifier, manage runtime state, expose monitoring/notification commands, and provision systemd services.
+    - path: frontend/packages/openmates-cli/src/serverPlanning.ts
+      reason: Define role check inventory, deployment-mode parsing, and pure systemd plans.
+    - path: frontend/packages/openmates-cli/src/serverHealth.ts
+      reason: New host-state, incident transition, and independent notification adapters shared by update and timer commands.
+    - path: frontend/packages/openmates-cli/src/serverConfig.ts
+      reason: Persist deployment mode as metadata without using it as runtime billing authority.
+    - path: backend/core/api/app/utils/server_mode.py
+      reason: Resolve strict fail-closed runtime deployment mode before billing boundaries.
+    - path: backend/core/api/app/tasks/health_check_tasks.py
+      reason: Register provider-free app_ai queue probe and scheduler heartbeat task.
+    - path: backend/core/api/app/tasks/celery_config.py
+      reason: Route the chat probe and schedule a lightweight scheduler heartbeat.
+    - path: backend/scripts/runtime_health_verifier.py
+      reason: New packaged no-spend verifier invoked only through host-local Docker exec.
+    - path: backend/core/docker-compose.yml
+      reason: Propagate deployment mode and runtime-health host path to official source-mode services.
+    - path: backend/core/docker-compose.selfhost.yml
+      reason: Default deployment mode to self_host and propagate verifier inputs.
+    - path: frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+      reason: Keep packaged image-mode template aligned with self-host fail-closed defaults.
+    - path: frontend/packages/openmates-cli/tests/server.test.ts
+      reason: CLI checklist, mode, state, notification, and systemd behavior contracts.
+    - path: backend/tests/test_runtime_health_verifier.py
+      reason: Runtime and no-spend billing/self-host contracts.
+    - path: frontend/packages/openmates-cli/tests/server.test.ts
+      reason: Host-state, threshold, delivery, mode, checklist, and CLI lifecycle contracts.
+    - path: scripts/audit_runtime_health_contract.py
+      reason: Deterministically prevent paid-call, billing-mode, watchdog, and webhook-policy drift.
+    - path: scripts/verify_post_update_runtime_health.py
+      reason: Real dev success, injected failure/recovery, and no-spend billing evidence.
+    - path: scripts/verify_post_update_notifications.py
+      reason: Real dev email, Discord, and signed-webhook delivery evidence.
+    - path: .github/workflows/selfhost-smoke.yml
+      reason: Retain self-host no-provider/no-billing update verification after local proof.
+  migrations:
+    - No database or Directus migration.
+    - Existing installs gain OPENMATES_DEPLOYMENT_MODE=self_host unless the CLI can prove all official-cloud witnesses; official deployment configuration explicitly sets official_cloud.
+    - Existing monitoring service files are replaced idempotently; uninstall/repair remains available through CLI commands.
+  assumptions_checked:
+    - A-1 confirmed by API image packaging; implementation adds no test dependency.
+    - A-2 confirmed with a dedicated provider-free Celery/Redis probe and separate database check.
+    - A-3 confirmed by adding the strict runtime enum and witness resolver before billing selection.
+  acceptance_mapping:
+    AC-1: [T-CLI-UNIT-001, T-DEV-UPDATE-001, T-DEV-CLI-001]
+    AC-2: [T-CLI-UNIT-001, T-DEV-FAILURE-001]
+    AC-3: [T-PYTEST-001, T-DEV-UPDATE-001, T-CONTRACT-AUDIT-001]
+    AC-4: [T-PYTEST-001, T-DEV-BILLING-001, T-CONTRACT-AUDIT-001]
+    AC-5: [T-PYTEST-001, T-SELFHOST-001, T-CONTRACT-AUDIT-001]
+    AC-6: [T-PYTEST-ALERTS-001, T-DEV-FAILURE-001, T-CONTRACT-AUDIT-001]
+    AC-7: [T-PYTEST-ALERTS-001, T-DEV-NOTIFY-001]
+    AC-8: [T-CLI-UNIT-001, T-DEV-NOTIFY-001, T-DEV-CLI-001, T-SDK-CLI-AUDIT-001, T-CONTRACT-AUDIT-001]
+    AC-9: [V-DEV-ROLLOUT-GATE, T-PROD-BILLING-001, V-PROD-ROLLOUT]
+    AC-10: [T-CLI-UNIT-001, T-DEV-UPDATE-001]
+  verification_strategy:
+    - Tests first with red evidence.
+    - Backend verifier unit and deterministic policy checks before live execution.
+    - Packaged backend verifier against dev Docker services before CLI integration proof.
+    - Real CLI verify, monitoring, notification, and same-tag update commands against dev.
+    - Self-host workflow proves billing is absent.
+    - Production rollout only after V-DEV-ROLLOUT-GATE passes and the operator approves V-PROD-ROLLOUT.
+  verification_order:
+    - Backend/internal runtime verifier contracts on the real dev server
+    - OpenMates CLI verification and post-update behavior against dev
+    - npm SDK and pip SDK not applicable because no SDK surface changes
+    - GitHub Actions self-host reproduction after local dev proof
+    - Web and Playwright not applicable because no web UI changes
+    - User confirms CLI output and dev notification behavior
+    - Apple not affected
+  material_plan_approval:
+    required: false
+    reason: The strict local mode enum, host-owned watchdog, no-new-endpoint boundary, and no-spend probe directly implement security and availability requirements already approved in the product contract.
+
+tasks:
+  - id: TASK-1
+    title: Write red runtime-health contracts and deterministic audit
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]
+    expected_files:
+      - frontend/packages/openmates-cli/tests/server.test.ts
+      - backend/tests/test_runtime_health_verifier.py
+      - scripts/audit_runtime_health_contract.py
+    verification:
+      - pnpm --filter openmates test -- server.test.ts
+      - python3 -m pytest backend/tests/test_runtime_health_verifier.py
+      - python3 scripts/audit_runtime_health_contract.py
+    verification_ids:
+      - T-CLI-UNIT-001
+      - T-PYTEST-001
+      - T-PYTEST-ALERTS-001
+      - T-CONTRACT-AUDIT-001
+    dependencies: []
+    ownership:
+      files:
+        - backend/tests/test_runtime_health_verifier.py
+        - scripts/audit_runtime_health_contract.py
+      shared_files:
+        - frontend/packages/openmates-cli/tests/server.test.ts
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4]
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Enforce fail-closed runtime deployment mode
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-3, S-4]
+      acceptance_criteria: [AC-4, AC-5]
+    expected_files:
+      - backend/core/api/app/utils/server_mode.py
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/src/serverPlanning.ts
+      - frontend/packages/openmates-cli/src/serverConfig.ts
+      - backend/core/docker-compose.yml
+      - backend/core/docker-compose.selfhost.yml
+      - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+      - backend/tests/test_openmatescloud_overlay_packaging.py
+    verification:
+      - python3 -m pytest backend/tests/test_runtime_health_verifier.py backend/tests/test_openmatescloud_overlay_packaging.py
+      - pnpm --filter openmates test -- server.test.ts
+      - python3 scripts/audit_runtime_health_contract.py
+    verification_ids: [T-PYTEST-001, T-CLI-UNIT-001, T-CONTRACT-AUDIT-001]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - backend/core/api/app/utils/server_mode.py
+        - frontend/packages/openmates-cli/src/serverConfig.ts
+      shared_files:
+        - frontend/packages/openmates-cli/src/server.ts
+        - frontend/packages/openmates-cli/src/serverPlanning.ts
+        - backend/core/docker-compose.yml
+        - backend/core/docker-compose.selfhost.yml
+        - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+        - backend/tests/test_openmatescloud_overlay_packaging.py
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement packaged no-spend runtime verifier
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-3, S-4, S-5]
+      acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-10]
+    expected_files:
+      - backend/scripts/runtime_health_verifier.py
+      - backend/core/api/app/tasks/health_check_tasks.py
+      - backend/core/api/app/tasks/celery_config.py
+      - backend/tests/test_runtime_health_verifier.py
+      - backend/tests/test_task_smoke.py
+    verification:
+      - python3 -m pytest backend/tests/test_runtime_health_verifier.py backend/tests/test_task_smoke.py
+      - python3 scripts/audit_runtime_health_contract.py
+    verification_ids: [T-PYTEST-001, T-PYTEST-ALERTS-001, T-CONTRACT-AUDIT-001]
+    dependencies: [TASK-1, TASK-2]
+    ownership:
+      files:
+        - backend/scripts/runtime_health_verifier.py
+      shared_files:
+        - backend/core/api/app/tasks/health_check_tasks.py
+        - backend/core/api/app/tasks/celery_config.py
+        - backend/tests/test_runtime_health_verifier.py
+        - backend/tests/test_task_smoke.py
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Implement host incident state and safe notification adapters
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-2, S-5, S-6]
+      acceptance_criteria: [AC-2, AC-6, AC-7, AC-8]
+    expected_files:
+      - frontend/packages/openmates-cli/src/serverHealth.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+      - scripts/audit_runtime_health_contract.py
+    verification:
+      - pnpm --filter openmates test -- server.test.ts
+      - pnpm --filter openmates test:unit:server
+      - python3 scripts/audit_runtime_health_contract.py
+    verification_ids: [T-CLI-UNIT-001, T-PYTEST-ALERTS-001, T-CONTRACT-AUDIT-001]
+    dependencies: [TASK-1]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/serverHealth.ts
+      shared_files:
+        - frontend/packages/openmates-cli/tests/server.test.ts
+        - scripts/audit_runtime_health_contract.py
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Integrate checklist and watchdog into server CLI lifecycle
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-5, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-6, AC-7, AC-8, AC-10]
+    expected_files:
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/src/serverPlanning.ts
+      - frontend/packages/openmates-cli/src/serverHealth.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification:
+      - pnpm --filter openmates test -- server.test.ts
+      - pnpm --filter openmates build
+      - python3 scripts/audit_sdk_cli_parity.py
+    verification_ids: [T-CLI-UNIT-001, T-SDK-CLI-AUDIT-001, T-CONTRACT-AUDIT-001]
+    dependencies: [TASK-3, TASK-4]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/server.ts
+        - frontend/packages/openmates-cli/src/serverPlanning.ts
+      shared_files:
+        - frontend/packages/openmates-cli/src/serverHealth.ts
+        - frontend/packages/openmates-cli/tests/server.test.ts
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: true
+
+  - id: TASK-6
+    title: Prove all dev runtime and notification paths
+    status: blocked
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-5, S-6, S-7]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-6, AC-7, AC-8, AC-9, AC-10]
+    expected_files:
+      - scripts/verify_post_update_runtime_health.py
+      - scripts/verify_post_update_notifications.py
+      - docs/plans/post-update-runtime-health-alerting/plan.yml
+    verification:
+      - python3 scripts/verify_post_update_runtime_health.py --target dev --scenario success
+      - python3 scripts/verify_post_update_runtime_health.py --target dev --scenario injected-worker-failure
+      - python3 scripts/verify_post_update_runtime_health.py --target dev --scenario billing-no-spend
+      - python3 scripts/verify_post_update_notifications.py --target dev --channels email,discord,webhook
+      - openmates server update --role core --image-tag <CURRENT_DEV_TAG> --yes --json
+      - openmates server verify --role core --json
+      - openmates server notifications test --channel all --json
+    verification_ids: [T-DEV-UPDATE-001, T-DEV-FAILURE-001, T-DEV-BILLING-001, T-DEV-NOTIFY-001, T-DEV-CLI-001, V-DEV-ROLLOUT-GATE]
+    dependencies: [TASK-5]
+    ownership:
+      files:
+        - scripts/verify_post_update_runtime_health.py
+        - scripts/verify_post_update_notifications.py
+      shared_files:
+        - docs/plans/post-update-runtime-health-alerting/plan.yml
+    blockers:
+      - Dev official-cloud overlay is not mounted and cross-repository access is blocked in this session.
+      - Systemd installation requires an interactive sudo password.
+      - Independent email delivery lacks host-level Brevo credentials; Discord and signed generic webhook delivery pass.
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Retain self-host and CI parity after local dev proof
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-4, S-7]
+      acceptance_criteria: [AC-5, AC-8, AC-9]
+    expected_files:
+      - .github/workflows/selfhost-smoke.yml
+      - scripts/audit_sdk_cli_parity.py
+      - docs/plans/post-update-runtime-health-alerting/plan.yml
+    verification:
+      - gh workflow run selfhost-smoke.yml
+      - python3 scripts/audit_sdk_cli_parity.py
+      - python3 scripts/plan_verify.py docs/plans/post-update-runtime-health-alerting/plan.yml --phase green
+    verification_ids: [T-SELFHOST-001, T-SDK-CLI-AUDIT-001, V-DEV-ROLLOUT-GATE]
+    dependencies: [TASK-6]
+    ownership:
+      files:
+        - .github/workflows/selfhost-smoke.yml
+      shared_files:
+        - scripts/audit_sdk_cli_parity.py
+        - docs/plans/post-update-runtime-health-alerting/plan.yml
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: false
+
+  - id: TASK-8
+    title: Review dev CLI behavior with user
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2, S-6]
+      acceptance_criteria: [AC-1, AC-2, AC-8]
+    expected_files:
+      - docs/plans/post-update-runtime-health-alerting/plan.yml
+    verification:
+      - User reviews successful checklist, controlled failure, restore availability, and test notifications on dev.
+    verification_ids: [V-USER-CONFIRMATION]
+    dependencies: [TASK-7]
+    ownership:
+      files:
+        - docs/plans/post-update-runtime-health-alerting/plan.yml
+      shared_files:
+        - test-results/
+    blockers: []
+    follow_up_tasks: [TASK-9]
+    independently_deployable: false
+
+  - id: TASK-9
+    title: Capture and review implementation demonstration
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4]
+      acceptance_criteria: [AC-1, AC-2, AC-4, AC-5]
+    expected_files:
+      - docs/plans/post-update-runtime-health-alerting/plan.yml
+      - test-results/implementation-demonstrations/
+    verification:
+      - Capture sanitized PTY evidence, author exact captions, run complete-frame privacy scan, review bounded frames, and separately attempt Discord publication.
+    verification_ids: [V-DEMO-REVIEW]
+    dependencies: [TASK-8]
+    ownership:
+      files:
+        - docs/plans/post-update-runtime-health-alerting/plan.yml
+      shared_files:
+        - test-results/implementation-demonstrations/
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    independently_deployable: false
+
+  - id: TASK-10
+    title: Roll out and verify production without spend
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-3, S-7]
+      acceptance_criteria: [AC-4, AC-9]
+    expected_files:
+      - docs/plans/post-update-runtime-health-alerting/plan.yml
+    verification:
+      - openmates server verify --role core --checks billing --json
+      - Controlled production notification delivery test after explicit operator approval.
+      - python3 scripts/plan_verify.py docs/plans/post-update-runtime-health-alerting/plan.yml
+    verification_ids: [T-PROD-BILLING-001, V-PROD-ROLLOUT]
+    dependencies: [TASK-9]
+    ownership:
+      files:
+        - docs/plans/post-update-runtime-health-alerting/plan.yml
+      shared_files:
+        - test-results/
+    blockers:
+      - Explicit production rollout approval is required immediately before deployment.
+    follow_up_tasks: []
+    independently_deployable: true

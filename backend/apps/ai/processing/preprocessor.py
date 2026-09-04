@@ -44,6 +44,13 @@ from backend.apps.ai.processing.audio_recording_guard import (
 from backend.apps.ai.processing.focus_mode_routing import (
     resolve_subchat_enablement,
 )
+from backend.apps.ai.processing.model_routing import (
+    MOST_DEMANDING_TIER,
+    APPROVED_REQUEST_TIERS,
+    default_profile_for_tier,
+    normalize_request_tier,
+    tier_preference_key,
+)
 
 # Import comprehensive ASCII smuggling sanitization
 # This module protects against invisible Unicode characters used to embed hidden instructions
@@ -342,6 +349,7 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
                 skill_resolver_map[f"{app_variant}-{skill_variant}"] = valid_skill
                 skill_resolver_map[f"{app_variant}_{skill_variant}"] = valid_skill
                 skill_resolver_map[f"{app_variant}.{skill_variant}"] = valid_skill
+                skill_resolver_map[f"{app_variant}/{skill_variant}"] = valid_skill
 
         # Handle duplicated segment pattern: app-skill-skill -> app-skill.
         # Example: web-search-search -> web-search.
@@ -352,6 +360,61 @@ def _build_skill_resolver_map(available_skill_ids: List[str]) -> Dict[str, str]:
                 skill_resolver_map[f"{base_variant}_{last_segment}"] = valid_skill
 
     return skill_resolver_map
+
+
+EXPLICIT_SKILL_DIRECTIVE_PATTERN = re.compile(
+    r"\b(?:use|using|call|run|execute|invoke|trigger|with|via)\s+(?:the\s+)?(?:app\s+skill\s+)?$",
+    re.IGNORECASE,
+)
+
+
+def _latest_user_text_from_history(message_history: List[Any]) -> str:
+    """Return the latest string user message from mixed dict/model history."""
+    for msg in reversed(message_history or []):
+        if isinstance(msg, dict):
+            role = msg.get("role")
+            content = msg.get("content")
+        else:
+            role = getattr(msg, "role", None)
+            content = getattr(msg, "content", None)
+
+        if role == USER_ROLE and isinstance(content, str):
+            return content
+    return ""
+
+
+def _resolve_explicit_skill_mentions_from_latest_user_text(
+    message_history: List[Any],
+    available_skill_ids: List[str],
+) -> List[str]:
+    """Resolve visible direct skill requests like "use events.search".
+
+    This is intentionally narrower than @skill overrides: it only adds known
+    skills to the candidate set when the latest user-authored text contains a
+    directive immediately before a valid visible skill identifier.
+    """
+    latest_user_text = _latest_user_text_from_history(message_history)
+    if not latest_user_text or not available_skill_ids:
+        return []
+
+    resolver_map = _build_skill_resolver_map(available_skill_ids)
+    resolved_mentions: List[str] = []
+
+    for alias, skill_id in sorted(resolver_map.items(), key=lambda item: len(item[0]), reverse=True):
+        if len(alias) < 3:
+            continue
+        alias_pattern = re.compile(
+            rf"(?<![\w-]){re.escape(alias)}(?![\w-])",
+            re.IGNORECASE,
+        )
+        for match in alias_pattern.finditer(latest_user_text):
+            before = latest_user_text[max(0, match.start() - 48):match.start()]
+            if not EXPLICIT_SKILL_DIRECTIVE_PATTERN.search(before):
+                continue
+            if skill_id not in resolved_mentions:
+                resolved_mentions.append(skill_id)
+
+    return resolved_mentions
 
 
 def _build_topic_areas_list() -> List[str]:
@@ -1086,7 +1149,7 @@ class PreprocessingResult(BaseModel):
     topic_area: Optional[str] = Field(None, description="Granular topic area used for deterministic mate routing.")
     topic_shift: Optional[str] = Field(None, description="Whether the latest message continues or changes the chat topic.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
-    complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
+    complexity: Optional[str] = Field(None, description="Assessed complexity of the request (simple, complex, or most_demanding).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app memories keys to load (e.g., ['app_id:item_key']).")
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
@@ -2307,16 +2370,16 @@ async def handle_preprocessing(
     else:
         logger.info(f"{log_prefix} Request passed harmful content and misuse risk checks. Scores: Harmful={harmful_or_illegal_val}, Misuse={misuse_risk_val}.")
     
-    # --- Validate complexity field (enum: ["simple", "complex"]) ---
+    # --- Validate complexity field (enum: ["simple", "complex", "most_demanding"]) ---
     # CRITICAL: Invalid complexity values could break model selection logic
     complexity_val = llm_analysis_args.get("complexity", "simple")
-    valid_complexity_values = ["simple", "complex"]
+    valid_complexity_values = list(APPROVED_REQUEST_TIERS)
     if complexity_val not in valid_complexity_values:
         logger.warning(
             f"{log_prefix} LLM returned invalid complexity value '{complexity_val}'. "
             f"Valid values are: {valid_complexity_values}. Defaulting to 'complex' (safer default)."
         )
-        complexity_val = "complex"  # Use 'complex' as safer default (better model, more capable)
+        complexity_val = normalize_request_tier(complexity_val)
         # Update llm_analysis_args for consistency
         llm_analysis_args["complexity"] = complexity_val
     
@@ -2347,8 +2410,8 @@ async def handle_preprocessing(
     # Validate enable_subchats (boolean)
     enable_subchats_val = llm_analysis_args.get("enable_subchats")
     if enable_subchats_val is None:
-        # Default to True if complexity is complex as an intelligent heuristic
-        enable_subchats_val = (complexity_val == "complex")
+        # Default to True if complexity needs stronger multi-step planning.
+        enable_subchats_val = (complexity_val in {"complex", MOST_DEMANDING_TIER})
     elif not isinstance(enable_subchats_val, bool):
         enable_subchats_val = bool(enable_subchats_val)
     llm_analysis_args["enable_subchats"] = enable_subchats_val
@@ -2399,7 +2462,7 @@ async def handle_preprocessing(
     # Plan: later derive these dynamically from tokens_per_second in provider YAMLs.
     # See docs/architecture/model-aliases.md for design rationale.
     MODEL_ALIAS_TO_MODEL_ID = {
-        "best": "claude-fable-5",
+        "best": "gpt-6-astra",
         "fast": "qwen3-235b-a22b-2507",
     }
     if user_overrides and user_overrides.best_model_category and not user_overrides.model_id:
@@ -2538,7 +2601,7 @@ async def handle_preprocessing(
     # This runs after @mention override check but before ModelSelector auto-selection.
     # Priority: @mention override > user default model > auto-selection via ModelSelector.
     if not model_override_applied:
-        user_default_key = "default_ai_model_complex" if complexity_val == "complex" else "default_ai_model_simple"
+        user_default_key = tier_preference_key(complexity_val)
         user_default_model = (request_data.user_preferences or {}).get(user_default_key)
         if user_default_model and "/" in user_default_model:
             # Resolve human-readable display name from provider config
@@ -2621,7 +2684,12 @@ async def handle_preprocessing(
                     f"Falling back to skill_config defaults."
                 )
                 # Use skill_config defaults as fallback
-                if complexity_val == "complex":
+                if complexity_val == MOST_DEMANDING_TIER:
+                    profile = default_profile_for_tier(MOST_DEMANDING_TIER)
+                    selected_llm_for_main_id = profile["model"]
+                    provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                    selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
+                elif complexity_val == "complex":
                     selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                     selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
                 else:
@@ -2639,7 +2707,12 @@ async def handle_preprocessing(
                 f"{log_prefix} MODEL_SELECTION: Auto-selection disabled (enable_auto_model_selection=false). "
                 f"Using hardcoded models from skill_config."
             )
-            if complexity_val == "complex":
+            if complexity_val == MOST_DEMANDING_TIER:
+                profile = default_profile_for_tier(MOST_DEMANDING_TIER)
+                selected_llm_for_main_id = profile["model"]
+                provider_part, model_id_part = selected_llm_for_main_id.split("/", 1)
+                selected_llm_for_main_name = config_manager.get_model_display_name(model_id_part, provider_part) or model_id_part
+            elif complexity_val == "complex":
                 selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
                 selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
             else:
@@ -3076,6 +3149,23 @@ async def handle_preprocessing(
             validated_relevant_skills = []  # Keep as empty list, not None - this ensures only preselected skills are forwarded
             logger.info(f"{log_prefix} No skill preselection from preprocessing. No skills will be provided to main processing (architecture: only preselected skills are forwarded).")
 
+        explicit_skill_mentions = _resolve_explicit_skill_mentions_from_latest_user_text(
+            request_data.message_history,
+            available_skill_ids,
+        )
+        if explicit_skill_mentions:
+            forced_mentions = [
+                skill_id
+                for skill_id in explicit_skill_mentions
+                if skill_id not in validated_relevant_skills
+            ]
+            if forced_mentions:
+                validated_relevant_skills = forced_mentions + validated_relevant_skills
+                logger.info(
+                    f"{log_prefix} [RULE_BASED] Forced {forced_mentions} into preselected skills: "
+                    "latest user message explicitly requested known app skill identifier(s)."
+                )
+
     # --- User override: explicit @focus mentions ---
     # When the user specifies focus mode(s) via @focus:app_id:focus_id, use only those and skip LLM selection.
     validated_relevant_focus_modes: List[str] = []
@@ -3483,7 +3573,7 @@ async def handle_preprocessing(
         topic_area=_normalize_topic_area(llm_analysis_args.get("topic_area")),
         topic_shift=llm_analysis_args.get("topic_shift") if isinstance(llm_analysis_args.get("topic_shift"), str) else None,
         llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
-        complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
+        complexity=complexity_val,  # Use validated complexity (enum: approved request tiers)
         misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=load_app_settings_and_memories_val,  # Use validated keys (filtered against available metadata)
         relevant_embedded_previews=relevant_embedded_previews_val,  # Use relevant embedded preview types for main LLM instruction

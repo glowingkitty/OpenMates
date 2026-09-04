@@ -9,11 +9,33 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { createHmac, hkdfSync } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
-import { OpenMatesClient, type UserTaskCreateInput } from "../src/client.ts";
+import {
+  OpenMatesClient,
+  type UserTaskActivityCreateInput,
+  type UserTaskActivityRecord,
+  type UserTaskCreateInput,
+} from "../src/client.ts";
 import { formatEmbedPreviewLines } from "../src/embedRenderers.ts";
-import { decryptUserTask, findTask, type DecryptedUserTask, workflowProjectionDeleteGuidance } from "../src/tasksCli.ts";
+import {
+  buildBlockUserTaskInput,
+  buildCreateTaskActivityInput,
+  buildCreateUserTaskInput,
+  buildUpdateUserTaskInput,
+  decryptTaskActivityEntry,
+  decryptUserTask,
+  externalChatLookupHash,
+  findTask,
+  normalizeBlockedReasonCode,
+  parseExternalChatRef,
+  renderTaskActivityList,
+  taskEditLookupScope,
+  taskLookupScopes,
+  type DecryptedUserTask,
+  workflowProjectionDeleteGuidance,
+} from "../src/tasksCli.ts";
 import type { OpenMatesSession } from "../src/storage.ts";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
@@ -77,6 +99,73 @@ async function withServer(
 }
 
 describe("OpenMatesClient user tasks", () => {
+  // contract-test: direct surface=cli assertions=tasks.activity.client-encrypted,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
+  it("encrypts, transports, decrypts, and tombstones Task Activity", async () => {
+    const masterKey = Buffer.alloc(32, 11);
+    const encryptedTask = await buildCreateUserTaskInput(masterKey, { title: "Activity task" });
+    const task = await decryptUserTask(encryptedTask, masterKey);
+    const activityInput = await buildCreateTaskActivityInput(task, masterKey, {
+      entryId: "activity-1",
+      message: "First line\nSecond line",
+      createdAt: 100,
+    });
+    assert.doesNotMatch(JSON.stringify(activityInput), /First line|Second line/);
+    assert.ok(activityInput.encrypted_entry_key);
+    assert.ok(activityInput.encrypted_message);
+
+    const stored: UserTaskActivityRecord = {
+      ...activityInput,
+      task_id: task.taskId,
+      kind: "comment",
+      actor_type: "user",
+      actor_hash: "author-hash",
+      event_type: "comment_added",
+      source_surface: "cli",
+    };
+    const decrypted = await decryptTaskActivityEntry(task, masterKey, stored);
+    assert.equal(decrypted.message, "First line\nSecond line");
+
+    const tombstone: UserTaskActivityRecord = {
+      entry_id: "activity-1",
+      task_id: task.taskId,
+      kind: "tombstone",
+      actor_type: "user",
+      actor_hash: "author-hash",
+      author_hash: "author-hash",
+      event_type: "comment_deleted",
+      source_surface: "cli",
+      created_at: 100,
+      deleted_at: 101,
+      deleted_by_hash: "deleter-hash",
+      encrypted_entry_key: null,
+      encrypted_message: null,
+      encrypted_embed_key_material: null,
+      embed_refs: [],
+    };
+    assert.match(renderTaskActivityList([await decryptTaskActivityEntry(task, masterKey, tombstone)]), /deleted/i);
+
+    await withServer(
+      (request, body) => request.method === "GET"
+        ? { entries: [stored] }
+        : request.method === "POST"
+          ? { entry: { ...stored, ...(body as UserTaskActivityCreateInput) } }
+          : { entry: tombstone },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        await client.listUserTaskActivity(task.taskId, { teamId: "team-1" });
+        await client.createUserTaskActivity(task.taskId, activityInput, { teamId: "team-1" });
+        await client.deleteUserTaskActivity(task.taskId, "activity-1", { teamId: "team-1" });
+
+        assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["GET", `/v1/user-tasks/${task.taskId}/activity?team_id=team-1`],
+          ["POST", `/v1/user-tasks/${task.taskId}/activity?team_id=team-1`],
+          ["DELETE", `/v1/user-tasks/${task.taskId}/activity/activity-1?team_id=team-1`],
+        ]);
+        assert.deepEqual(seen[1]?.body, activityInput);
+      },
+    );
+  });
+
   // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity
   it("lists, creates, updates, and starts encrypted user tasks", async () => {
     const task = encryptedTaskInput();
@@ -90,6 +179,10 @@ describe("OpenMatesClient user tasks", () => {
         assert.equal((await client.listUserTasks({ status: "todo", chatId: "chat-1", projectId: "project-1", limit: 1000 }))[0]?.task_id, "task-1");
         assert.equal((await client.createUserTask(task)).encrypted_title, "cipher-title");
         assert.equal((await client.updateUserTask("task-1", { status: "done", version: 1 })).status, "done");
+        assert.equal((await client.updateUserTask("team-task", { status: "done", version: 1 }, { teamId: "team-1" })).status, "done");
+        const activeTeamClient = new OpenMatesClient({ apiUrl, session: { ...testSession(), activeTeamId: "team-active" } });
+        assert.equal((await activeTeamClient.updateUserTask("active-team-task", { status: "done", version: 1 })).status, "done");
+        assert.equal((await activeTeamClient.updateUserTask("personal-task", { status: "done", version: 1 }, { personal: true })).status, "done");
         assert.equal((await client.startUserTaskWithAI("task-1", {
           version: 2,
           plaintext_title: "Draft launch plan",
@@ -100,11 +193,17 @@ describe("OpenMatesClient user tasks", () => {
           ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=1000"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
+          ["PATCH", "/v1/user-tasks/team-task?team_id=team-1"],
+          ["PATCH", "/v1/user-tasks/active-team-task?team_id=team-active"],
+          ["PATCH", "/v1/user-tasks/personal-task"],
           ["POST", "/v1/user-tasks/task-1/start-ai"],
         ]);
         assert.deepEqual(seen[1]?.body, task);
         assert.deepEqual(seen[2]?.body, { status: "done", version: 1 });
-        assert.deepEqual(seen[3]?.body, {
+        assert.deepEqual(seen[3]?.body, { status: "done", version: 1 });
+        assert.deepEqual(seen[4]?.body, { status: "done", version: 1 });
+        assert.deepEqual(seen[5]?.body, { status: "done", version: 1 });
+        assert.deepEqual(seen[6]?.body, {
           version: 2,
           plaintext_title: "Draft launch plan",
           plaintext_description: "Use project context",
@@ -122,6 +221,149 @@ describe("OpenMatesClient user tasks", () => {
 
     assert.throws(() => findTask(tasks, "TASK-1234"), /ambiguous/);
     assert.equal(findTask(tasks, "task-2").taskId, "task-2");
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+  it("resolves task IDs across statuses without filtering on edited values", () => {
+    const scopes = taskLookupScopes({ status: "todo", priority: 2, teamId: null, personal: true });
+    assert.deepEqual(scopes.map((scope) => scope.status), ["backlog", "todo", "in_progress", "blocked", "done"]);
+    assert.ok(scopes.every((scope) => scope.priority === 2 && scope.personal === true));
+
+    assert.deepEqual(taskEditLookupScope({
+      status: "done",
+      chatId: "new-chat",
+      projectId: "new-project",
+      planId: "new-plan",
+      labelHashes: ["new-label"],
+      priority: 4,
+      teamId: "team-1",
+      personal: false,
+    }), { teamId: "team-1", personal: false });
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("encrypts and filters an allowlisted external chat locally", async () => {
+    const masterKey = Buffer.alloc(32, 7);
+    const context = parseExternalChatRef("opencode:ses_external_123");
+    const lookupHash = externalChatLookupHash(masterKey, context);
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: "Implement task bridge",
+      externalChat: { ...context, title: "OpenCode task bridge" },
+    });
+
+    assert.deepEqual(context, { provider: "opencode", id: "ses_external_123" });
+    assert.match(lookupHash, /^[0-9a-f]{64}$/);
+    assert.equal(input.primary_chat_id, null);
+    assert.equal("key_wrappers" in input, false, "personal external tasks retain the master-wrapped encrypted_task_key only");
+    assert.equal(input.external_chat_provider, "opencode");
+    assert.equal(input.external_chat_lookup_hash, lookupHash);
+    assert.ok(input.encrypted_external_chat_id);
+    assert.ok(input.encrypted_external_chat_title);
+    assert.doesNotMatch(JSON.stringify(input), /ses_external_123|OpenCode task bridge/);
+
+    const decrypted = await decryptUserTask(input, masterKey);
+    assert.deepEqual(decrypted.externalChat, {
+      provider: "opencode",
+      id: "ses_external_123",
+      title: "OpenCode task bridge",
+    });
+    assert.throws(() => parseExternalChatRef("unknown:session"), /Unsupported external chat provider/);
+    await assert.rejects(
+      buildCreateUserTaskInput(masterKey, {
+        title: "Invalid mixed context",
+        chatId: "chat-1",
+        externalChat: context,
+      }),
+      /both native chat and external chat context/,
+    );
+  });
+
+  // contract-test: supporting surface=cli assertions=tasks.external-chat.encrypted-context
+  it("derives the external-chat lookup hash with the shared HKDF info literal", () => {
+    const masterKey = Buffer.from([...Array(32).keys()]);
+    const context = { provider: "opencode" as const, id: "ses_known_derivation" };
+    const indexKey = hkdfSync(
+      "sha256",
+      masterKey,
+      Buffer.alloc(0),
+      "openmates-task-external-chat-index-v1",
+      32,
+    );
+    const expected = createHmac("sha256", indexKey)
+      .update(`${context.provider}\u0000${context.id}`)
+      .digest("hex");
+
+    assert.equal(externalChatLookupHash(masterKey, context), expected);
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("clears external context when assigning a native chat", async () => {
+    const masterKey = Buffer.alloc(32, 7);
+    const encrypted = await buildCreateUserTaskInput(masterKey, {
+      title: "Move task context",
+      externalChat: { provider: "opencode", id: "ses_external_123" },
+    });
+    const task = await decryptUserTask(encrypted, masterKey);
+    const patch = await buildUpdateUserTaskInput(task, masterKey, { chatId: "chat-native-1" });
+
+    assert.deepEqual(patch, {
+      version: task.version,
+      updated_at: patch.updated_at,
+      primary_chat_id: "chat-native-1",
+      external_chat_provider: null,
+      external_chat_lookup_hash: null,
+      encrypted_external_chat_id: null,
+      encrypted_external_chat_title: null,
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.external-chat.encrypted-context,tasks.surface.semantic-parity
+  it("sends only the external provider and blind lookup hash when filtering", async () => {
+    const masterKey = Buffer.alloc(32, 5);
+    const context = parseExternalChatRef("opencode:ses_private_456");
+    const lookupHash = externalChatLookupHash(masterKey, context);
+    await withServer(
+      () => ({ tasks: [] }),
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        await client.listUserTasks({
+          externalChatProvider: context.provider,
+          externalChatLookupHash: lookupHash,
+        });
+
+        assert.equal(
+          seen[0]?.url,
+          `/v1/user-tasks?external_chat_provider=opencode&external_chat_lookup_hash=${lookupHash}`,
+        );
+        assert.doesNotMatch(seen[0]?.url ?? "", /ses_private_456/);
+      },
+    );
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.lifecycle.visible,tasks.blocking.encrypted-reason,tasks.surface.semantic-parity
+  it("encrypts blocked explanation while preserving a safe reason code", async () => {
+    const masterKey = Buffer.alloc(32, 9);
+    const encrypted = await buildCreateUserTaskInput(masterKey, { title: "Publish changes" });
+    const task = await decryptUserTask(encrypted, masterKey);
+    const action = await buildBlockUserTaskInput(task, masterKey, {
+      reasonCode: "missing_credentials",
+      reasonText: "A repository write token is required.",
+    });
+
+    assert.equal(normalizeBlockedReasonCode("missing_credentials"), "missing_credentials");
+    assert.throws(() => normalizeBlockedReasonCode("secret token missing"), /Unknown blocked reason code/);
+    assert.equal(action.version, task.version);
+    assert.equal(action.blocked_reason_code, "missing_credentials");
+    assert.ok(action.encrypted_blocked_reason);
+    assert.doesNotMatch(JSON.stringify(action), /repository write token/);
+
+    const blocked = await decryptUserTask({
+      ...encrypted,
+      status: "blocked",
+      blocked_reason_code: "missing_credentials",
+      encrypted_blocked_reason: action.encrypted_blocked_reason,
+    }, masterKey);
+    assert.equal(blocked.blockedReason, "A repository write token is required.");
   });
 
   // contract-test: direct surface=cli assertions=tasks.workflow-projections.read-only,tasks.surface.semantic-parity

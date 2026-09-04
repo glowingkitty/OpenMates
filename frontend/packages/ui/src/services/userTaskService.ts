@@ -11,21 +11,32 @@ import {
   encryptChatKeyWithMasterKey,
   encryptWithEmbedKey,
   generateEmbedKey,
+  unwrapEmbedKeyWithChatKey,
   wrapEmbedKeyWithChatKey,
 } from "./cryptoService";
+import { getMasterKey } from "./cryptoKeyStorage";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "ai" | "user";
-export type UserTaskKeyWrapperType = "master" | "chat" | "project";
+export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan";
 export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
+export type ExternalChatProvider = "opencode";
+export type BlockedReasonCode = "needs_user_input" | "waiting_for_approval" | "missing_credentials" | "ambiguous_requirement" | "external_dependency" | "environment_unavailable" | "verification_failed" | "other";
+
+export interface ExternalChatContext {
+  provider: ExternalChatProvider;
+  id: string;
+  title: string;
+}
 
 export interface UserTaskKeyWrapperRecord {
   key_type: UserTaskKeyWrapperType;
   encrypted_task_key: string;
   hashed_chat_id?: string | null;
   hashed_project_id?: string | null;
+  hashed_plan_id?: string | null;
   created_at: number;
   expires_at?: number | null;
 }
@@ -58,10 +69,15 @@ export interface EncryptedUserTaskRecord {
   assignee_type: UserTaskAssigneeType;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
+  external_chat_provider?: ExternalChatProvider | null;
+  external_chat_lookup_hash?: string | null;
+  encrypted_external_chat_id?: string | null;
+  encrypted_external_chat_title?: string | null;
   linked_project_ids?: string[] | null;
   linked_project_hashes?: string[] | null;
   encrypted_linked_project_ids?: string | null;
   parent_task_id?: string | null;
+  plan_id?: string | null;
   due_at?: number | null;
   priority?: number;
   position?: number;
@@ -71,6 +87,7 @@ export interface EncryptedUserTaskRecord {
   started_at?: number | null;
   completed_at?: number | null;
   blocked_reason_code?: string | null;
+  encrypted_blocked_reason?: string | null;
   ai_execution_state?: string | null;
   key_wrappers?: UserTaskKeyWrapperRecord[];
 }
@@ -106,12 +123,86 @@ export interface UserTaskViewModel {
   status: UserTaskStatus;
   assigneeType: UserTaskAssigneeType;
   primaryChatId: string | null;
+  externalChat: ExternalChatContext | null;
   linkedProjectIds: string[];
+  planId: string | null;
   dueAt: number | null;
   priority: number;
   position: number;
   version: number;
+  createdAt: number;
+  updatedAt: number;
+  blockedReasonCode: BlockedReasonCode | null;
+  blockedReason: string;
+  aiExecutionState: string | null;
   encrypted: EncryptedUserTaskRecord;
+}
+
+export interface UserTaskDependencyViewModel {
+  edgeId: string;
+  targetRef: string;
+  targetKind: "plan" | "task";
+  targetId: string;
+  targetStatus: string;
+  satisfied: boolean;
+}
+
+export type UserTaskActivityKind = "comment" | "lifecycle_update" | "tombstone";
+export type UserTaskActivitySourceSurface = "web" | "apple" | "cli" | "sdk_npm" | "sdk_pip" | "system";
+
+export interface UserTaskActivityRecord {
+  entry_id: string;
+  task_id: string;
+  kind: UserTaskActivityKind;
+  actor_type: "user" | "ai" | "system";
+  actor_hash?: string | null;
+  actor_display_name?: string | null;
+  actor_profile_image_url?: string | null;
+  author_hash?: string | null;
+  event_type: string;
+  source_surface: UserTaskActivitySourceSurface;
+  created_at: number;
+  deleted_at?: number | null;
+  deleted_by_hash?: string | null;
+  deleted_by_display_name?: string | null;
+  encrypted_entry_key?: string | null;
+  encrypted_message?: string | null;
+  encrypted_embed_key_material?: string | null;
+  embed_refs: string[];
+}
+
+export interface UserTaskActivityEntry {
+  entryId: string;
+  taskId: string;
+  kind: UserTaskActivityKind;
+  actorType: "user" | "ai" | "system";
+  actorHash: string | null;
+  actorDisplayName: string | null;
+  actorProfileImageUrl: string | null;
+  authorHash: string | null;
+  eventType: string;
+  sourceSurface: UserTaskActivitySourceSurface;
+  createdAt: number;
+  deletedAt: number | null;
+  deletedByHash: string | null;
+  deletedByDisplayName: string | null;
+  message?: string;
+  embedKeyMaterial?: string;
+  embedRefs: string[];
+}
+
+export interface CreateUserTaskActivityInput {
+  message: string;
+  embedRefs?: string[];
+  embedKeyMaterial?: string;
+  entryId?: string;
+  createdAt?: number;
+  teamId?: string;
+}
+
+export function canSubmitUserTaskActivity(message: string, embedStatuses: string[]): boolean {
+  return message.trim().length > 0
+    && !embedStatuses.some((status) => status === "uploading" || status === "transcribing" || status === "error");
 }
 
 export interface WorkflowRunTaskProjectionViewModel {
@@ -148,6 +239,7 @@ export interface CreateUserTaskInput {
   assigneeType?: UserTaskAssigneeType;
   assigneeHash?: string | null;
   primaryChatId?: string | null;
+  externalChat?: ExternalChatContext;
   linkedProjectIds?: string[];
   dueAt?: number | null;
   priority?: number;
@@ -156,6 +248,7 @@ export interface CreateUserTaskInput {
 export interface ListUserTasksFilters {
   status?: UserTaskStatus;
   chatId?: string;
+  externalChat?: ExternalChatContext;
   projectId?: string;
 }
 
@@ -194,11 +287,50 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
   return (await response.json()) as T;
 }
 
-function buildQuery(filters: ListUserTasksFilters): string {
+const EXTERNAL_CHAT_INDEX_INFO = "openmates-task-external-chat-index-v1";
+const EXTERNAL_CHAT_PROVIDER: ExternalChatProvider = "opencode";
+
+function assertExternalChatContext(context: ExternalChatContext): void {
+  if (context.provider !== EXTERNAL_CHAT_PROVIDER) {
+    throw new Error(`Unsupported external chat provider '${context.provider}'. Only opencode is allowed.`);
+  }
+  if (!context.id) throw new Error("External chat id is required.");
+}
+
+function hex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function externalChatLookupHash(context: ExternalChatContext): Promise<string> {
+  assertExternalChatContext(context);
+  const masterKey = await getMasterKey();
+  if (!masterKey) throw new Error("Could not access master key for external chat lookup.");
+  const rawMasterKey = new Uint8Array(await crypto.subtle.exportKey("raw", masterKey));
+  try {
+    const hkdfKey = await crypto.subtle.importKey("raw", rawMasterKey, "HKDF", false, ["deriveBits"]);
+    const indexKey = await crypto.subtle.deriveBits({
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: new Uint8Array(),
+      info: new TextEncoder().encode(EXTERNAL_CHAT_INDEX_INFO),
+    }, hkdfKey, 256);
+    const hmacKey = await crypto.subtle.importKey("raw", indexKey, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign("HMAC", hmacKey, new TextEncoder().encode(`${context.provider}\u0000${context.id}`));
+    return hex(new Uint8Array(signature));
+  } finally {
+    rawMasterKey.fill(0);
+  }
+}
+
+async function buildQuery(filters: ListUserTasksFilters): Promise<string> {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
   if (filters.chatId) params.set("chat_id", filters.chatId);
   if (filters.projectId) params.set("project_id", filters.projectId);
+  if (filters.externalChat) {
+    params.set("external_chat_provider", filters.externalChat.provider);
+    params.set("external_chat_lookup_hash", await externalChatLookupHash(filters.externalChat));
+  }
   const query = params.toString();
   return query ? `?${query}` : "";
 }
@@ -236,11 +368,22 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     status: record.status,
     assigneeType: record.assignee_type,
     primaryChatId: record.primary_chat_id ?? null,
+    externalChat: record.external_chat_provider && record.encrypted_external_chat_id ? {
+      provider: record.external_chat_provider,
+      id: await decryptOptional(record.encrypted_external_chat_id, taskKey),
+      title: await decryptOptional(record.encrypted_external_chat_title, taskKey),
+    } : null,
     linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, taskKey),
+    planId: record.plan_id ?? null,
     dueAt: record.due_at ?? null,
     priority: record.priority ?? 0,
     position: record.position ?? 0,
     version: record.version,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+    blockedReasonCode: (record.blocked_reason_code as BlockedReasonCode | null | undefined) ?? null,
+    blockedReason: await decryptOptional(record.encrypted_blocked_reason, taskKey),
+    aiExecutionState: record.ai_execution_state ?? null,
     encrypted: record,
   };
 }
@@ -316,7 +459,7 @@ async function buildTaskKeyWrappers(
 }
 
 export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Promise<TasksBoardItem[]> {
-  const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord> }>(`/v1/user-tasks${buildQuery(filters)}`);
+  const data = await requestJson<{ tasks: Array<EncryptedUserTaskRecord | WorkflowRunTaskProjectionRecord> }>(`/v1/user-tasks${await buildQuery(filters)}`);
   const decrypted = await Promise.all(data.tasks.map(async (task) => {
     if (isWorkflowRunTaskProjection(task)) return workflowRunTaskProjection(task);
     return decryptTask(task);
@@ -326,6 +469,96 @@ export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Pr
 
 export async function listUserTasks(filters: ListUserTasksFilters = {}): Promise<UserTaskViewModel[]> {
   return (await listTaskBoardItems(filters)).filter((task): task is UserTaskViewModel => !isWorkflowRunTaskProjectionViewModel(task));
+}
+
+function taskActivityPath(taskId: string, teamId?: string, cursor?: string): string {
+  const params = new URLSearchParams({ limit: "200" });
+  if (teamId) params.set("team_id", teamId);
+  if (cursor) params.set("cursor", cursor);
+  return `/v1/user-tasks/${encodeURIComponent(taskId)}/activity?${params.toString()}`;
+}
+
+async function taskKeyForActivity(task: UserTaskViewModel): Promise<Uint8Array> {
+  const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
+  if (!taskKey) throw new Error(`Could not decrypt Task Activity key for ${task.task_id}`);
+  return taskKey;
+}
+
+async function decryptTaskActivityEntry(task: UserTaskViewModel, record: UserTaskActivityRecord): Promise<UserTaskActivityEntry> {
+  const entry: UserTaskActivityEntry = {
+    entryId: record.entry_id,
+    taskId: record.task_id,
+    kind: record.kind,
+    actorType: record.actor_type,
+    actorHash: record.actor_hash ?? null,
+    actorDisplayName: record.actor_display_name ?? null,
+    actorProfileImageUrl: record.actor_profile_image_url ?? null,
+    authorHash: record.author_hash ?? record.actor_hash ?? null,
+    eventType: record.event_type,
+    sourceSurface: record.source_surface,
+    createdAt: record.created_at,
+    deletedAt: record.deleted_at ?? null,
+    deletedByHash: record.deleted_by_hash ?? null,
+    deletedByDisplayName: record.deleted_by_display_name ?? null,
+    embedRefs: record.kind === "tombstone" ? [] : record.embed_refs,
+  };
+  if (record.kind === "tombstone" || record.kind !== "comment") return entry;
+  if (!record.encrypted_entry_key || !record.encrypted_message) {
+    throw new Error(`Task Activity entry ${record.entry_id} is missing encrypted content`);
+  }
+  const taskKey = await taskKeyForActivity(task);
+  const entryKey = await unwrapEmbedKeyWithChatKey(record.encrypted_entry_key, taskKey);
+  if (!entryKey) throw new Error(`Could not decrypt Task Activity entry key ${record.entry_id}`);
+  const message = await decryptWithEmbedKey(record.encrypted_message, entryKey);
+  if (message === null) throw new Error(`Could not decrypt Task Activity entry ${record.entry_id}`);
+  const embedKeyMaterial = record.encrypted_embed_key_material
+    ? await decryptWithEmbedKey(record.encrypted_embed_key_material, taskKey)
+    : null;
+  if (record.encrypted_embed_key_material && embedKeyMaterial === null) {
+    throw new Error(`Could not decrypt Task Activity embed keys ${record.entry_id}`);
+  }
+  return { ...entry, message, ...(embedKeyMaterial !== null ? { embedKeyMaterial } : {}) };
+}
+
+export async function listUserTaskActivity(task: UserTaskViewModel, teamId?: string): Promise<UserTaskActivityEntry[]> {
+  const entries: UserTaskActivityEntry[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await requestJson<{ entries: UserTaskActivityRecord[]; next_cursor: string | null }>(taskActivityPath(task.task_id, teamId, cursor));
+    entries.push(...await Promise.all(page.entries.map((record) => decryptTaskActivityEntry(task, record))));
+    cursor = page.next_cursor ?? undefined;
+  } while (cursor);
+  return entries;
+}
+
+export async function createUserTaskActivity(task: UserTaskViewModel, input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {
+  const taskKey = await taskKeyForActivity(task);
+  const entryKey = generateEmbedKey();
+  const body = {
+    entry_id: input.entryId ?? crypto.randomUUID(),
+    encrypted_entry_key: await wrapEmbedKeyWithChatKey(entryKey, taskKey),
+    encrypted_message: await encryptWithEmbedKey(input.message, entryKey),
+    ...(input.embedKeyMaterial ? { encrypted_embed_key_material: await encryptWithEmbedKey(input.embedKeyMaterial, taskKey) } : {}),
+    embed_refs: input.embedRefs ?? [],
+    created_at: input.createdAt ?? nowSeconds(),
+  };
+  const data = await requestJson<{ entry: UserTaskActivityRecord }>(taskActivityPath(task.task_id, input.teamId), {
+    method: "POST",
+    headers: { "X-OpenMates-Client": "web" },
+    body: JSON.stringify(body),
+  });
+  return decryptTaskActivityEntry(task, data.entry);
+}
+
+export async function deleteUserTaskActivity(task: UserTaskViewModel, entryId: string, teamId?: string): Promise<UserTaskActivityEntry> {
+  const params = new URLSearchParams();
+  if (teamId) params.set("team_id", teamId);
+  const query = params.toString();
+  const data = await requestJson<{ entry: UserTaskActivityRecord }>(
+    `/v1/user-tasks/${encodeURIComponent(task.task_id)}/activity/${encodeURIComponent(entryId)}${query ? `?${query}` : ""}`,
+    { method: "DELETE", headers: { "X-OpenMates-Client": "web" } },
+  );
+  return decryptTaskActivityEntry(task, data.entry);
 }
 
 export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task is WorkflowRunTaskProjectionViewModel {
@@ -340,6 +573,8 @@ export async function cancelWorkflowRunTaskProjection(task: WorkflowRunTaskProje
 }
 
 export async function createUserTask(input: CreateUserTaskInput): Promise<UserTaskViewModel> {
+  if (input.primaryChatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
+  if (input.externalChat) assertExternalChatContext(input.externalChat);
   const taskKey = generateEmbedKey();
   const encryptedTaskKey = await encryptChatKeyWithMasterKey(taskKey);
   if (!encryptedTaskKey) throw new Error("Could not wrap task key with master key");
@@ -357,6 +592,12 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
     assignee_type: input.assigneeType ?? "user",
     assignee_hash: input.assigneeHash ?? null,
     primary_chat_id: primaryChatId,
+    ...(input.externalChat ? {
+      external_chat_provider: input.externalChat.provider,
+      external_chat_lookup_hash: await externalChatLookupHash(input.externalChat),
+      encrypted_external_chat_id: await encryptWithEmbedKey(input.externalChat.id, taskKey),
+      encrypted_external_chat_title: await encryptWithEmbedKey(input.externalChat.title, taskKey),
+    } : {}),
     linked_project_ids: linkedProjectIds,
     due_at: input.dueAt ?? null,
     priority: input.priority ?? 0,
@@ -378,6 +619,27 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
 export async function listUserTaskKeyWrappers(taskId: string): Promise<UserTaskKeyWrapperRecord[]> {
   const data = await requestJson<{ key_wrappers: UserTaskKeyWrapperRecord[] }>(`/v1/user-tasks/${taskId}/key-wrappers`);
   return data.key_wrappers;
+}
+
+export async function listUserTaskDependencies(taskId: string): Promise<UserTaskDependencyViewModel[]> {
+  const data = await requestJson<{
+    dependencies: Array<{
+      edge_id?: string | null;
+      target_ref: string;
+      target_kind: "plan" | "task";
+      target_id: string;
+      target_status?: string | null;
+      satisfied: boolean;
+    }>;
+  }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`);
+  return data.dependencies.map((dependency) => ({
+    edgeId: dependency.edge_id ?? dependency.target_ref,
+    targetRef: dependency.target_ref,
+    targetKind: dependency.target_kind,
+    targetId: dependency.target_id,
+    targetStatus: dependency.target_status ?? "unknown",
+    satisfied: dependency.satisfied,
+  }));
 }
 
 export async function addUserTaskKeyWrappers(taskId: string, version: number, keyWrappers: UserTaskKeyWrapperRecord[]): Promise<UserTaskKeyWrapperRecord[]> {
@@ -402,6 +664,8 @@ export async function extractUserTaskProposals(input: ExtractUserTaskProposalsIn
 }
 
 export async function updateUserTask(task: UserTaskViewModel, patch: Partial<CreateUserTaskInput> & { status?: UserTaskStatus }): Promise<UserTaskViewModel> {
+  if (patch.primaryChatId && patch.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
+  if (patch.externalChat) assertExternalChatContext(patch.externalChat);
   const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
   if (!taskKey) throw new Error("Could not decrypt task key");
   const encryptedTaskKey = task.encrypted.encrypted_task_key;
@@ -414,10 +678,23 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   if (patch.status !== undefined) body.status = patch.status;
   if (patch.assigneeType !== undefined) body.assignee_type = patch.assigneeType;
   if (patch.assigneeHash !== undefined) body.assignee_hash = patch.assigneeHash;
-  if (patch.primaryChatId !== undefined) body.primary_chat_id = patch.primaryChatId;
+  if (patch.primaryChatId !== undefined) {
+    body.primary_chat_id = patch.primaryChatId;
+    body.external_chat_provider = null;
+    body.external_chat_lookup_hash = null;
+    body.encrypted_external_chat_id = null;
+    body.encrypted_external_chat_title = null;
+  }
+  if (patch.externalChat) {
+    body.primary_chat_id = null;
+    body.external_chat_provider = patch.externalChat.provider;
+    body.external_chat_lookup_hash = await externalChatLookupHash(patch.externalChat);
+    body.encrypted_external_chat_id = await encryptWithEmbedKey(patch.externalChat.id, taskKey);
+    body.encrypted_external_chat_title = await encryptWithEmbedKey(patch.externalChat.title, taskKey);
+  }
   if (patch.linkedProjectIds !== undefined) body.linked_project_ids = patch.linkedProjectIds;
-  if (patch.linkedProjectIds !== undefined || patch.primaryChatId !== undefined) {
-    const updatedPrimaryChatId = patch.primaryChatId !== undefined ? patch.primaryChatId : task.primaryChatId;
+  if (patch.linkedProjectIds !== undefined || patch.primaryChatId !== undefined || patch.externalChat !== undefined) {
+    const updatedPrimaryChatId = patch.externalChat ? null : (patch.primaryChatId !== undefined ? patch.primaryChatId : task.primaryChatId);
     const updatedLinkedProjectIds = patch.linkedProjectIds !== undefined ? patch.linkedProjectIds : task.linkedProjectIds;
     body.key_wrappers = await buildTaskKeyWrappers(taskKey, encryptedTaskKey, nowSeconds(), updatedPrimaryChatId ?? null, updatedLinkedProjectIds);
   }
@@ -445,10 +722,20 @@ export async function completeUserTask(task: UserTaskViewModel): Promise<UserTas
   }));
 }
 
-export async function blockUserTask(task: UserTaskViewModel, blockedReasonCode = "needs_user_input"): Promise<UserTaskViewModel> {
+export async function blockUserTask(
+  task: UserTaskViewModel,
+  blockedReasonCode: BlockedReasonCode = "needs_user_input",
+  blockedReason = "",
+): Promise<UserTaskViewModel> {
+  const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
+  if (!taskKey) throw new Error("Could not decrypt task key");
   return decryptTaskActionResponse(await requestJson<{ task: EncryptedUserTaskRecord }>(`/v1/user-tasks/${task.task_id}/block`, {
     method: "POST",
-    body: JSON.stringify({ version: task.version, blocked_reason_code: blockedReasonCode }),
+    body: JSON.stringify({
+      version: task.version,
+      blocked_reason_code: blockedReasonCode,
+      ...(blockedReason ? { encrypted_blocked_reason: await encryptWithEmbedKey(blockedReason, taskKey) } : {}),
+    }),
   }));
 }
 

@@ -57,6 +57,9 @@ Local authentication lives in the gitignored `.env.figma.local` file:
 FIGMA_ACCESS_TOKEN=<PERSONAL_ACCESS_TOKEN>
 ```
 
+Managed agent worktrees reuse this file and `scripts/.figma-index.json` from the
+root control-plane checkout. Do not copy either private file into a worktree.
+
 The local OpenCode configuration starts the pinned Figma MCP through
 `scripts/run_figma_mcp.sh`, which reads this file without putting the token in
 configuration or command arguments. This private MCP registration belongs in the
@@ -83,6 +86,13 @@ Use the **Figma MCP** to get structured design data from the provided Figma link
 1. Call get_figma_data with fileKey (and nodeId if provided)
 2. Call download_figma_images to capture PNG screenshots of target frames
 ```
+
+After exporting a Figma reference PNG, upload it with
+`python3 scripts/opencode_response_media.py <path> --alt "Figma reference: <screen/frame>"`
+and paste the returned image Markdown in the next assistant progress response
+before editing or summarizing that screen. Repeat this whenever you switch to a
+different Figma frame/screen so the operator can see which design is currently
+being implemented.
 
 If structured node inspection returns `429 Too Many Requests`, do not invent
 layer details. Run `python3 scripts/figma_access_doctor.py --node-id <node-id>`,
@@ -117,7 +127,7 @@ If only one breakpoint is provided in Figma, **note this explicitly** — it wil
 ### Step 3 — Write The Design Brief
 
 Before editing code, capture the design contract in the session, issue, or
-`docs/specs/<slug>/spec.yml` for Tier 2 work:
+`docs/plans/<slug>/plan.yml` for Tier 2 Plan work:
 
 - Figma file key, node IDs, frame names, dimensions, and file version.
 - Whether each frame is an exact target, directional reference, future concept,
@@ -128,6 +138,7 @@ Before editing code, capture the design contract in the session, issue, or
   drift, current product behavior, unavailable states, and platform chrome.
 - Existing components to reuse or extend, with file paths.
 - Evidence paths for reference PNGs and planned rendered screenshots.
+- The response-media image embed already posted for the current Figma frame.
 
 For Figma-referenced UI work, final completion must cite the reference PNGs,
 rendered web screenshots or Playwright artifact, and accepted differences. This
@@ -136,6 +147,10 @@ requires all three evidence classes, or an explicit `figma-visual-proof:
 not-required` reason. Do not treat intentional carousel clipping, viewport crops,
 or token drift as defects unless the task's approved design brief says they are
 in scope.
+
+For component proof, do not add screenshot galleries or browser-side screenshot
+calls. When a still image is needed for a failure, explicit request, or ambiguous
+visual-intent decision, derive it from the completed focused component video.
 
 ### Step 4 — Map to Existing Design System
 
@@ -305,8 +320,9 @@ Follow `docs/contributing/standards/frontend.md` strictly. Key reminders:
 
 ### Preview Files (for the Component Preview System)
 
-When creating a new component, also create a `.preview.ts` companion file with mock
-props so the component can be previewed at `/dev/preview/`:
+When creating or materially changing a component, also create or update a
+`.preview.ts` companion file with mock props so the component can be previewed at
+`/dev/preview/{component-path}`:
 
 ```typescript
 // ComponentName.preview.ts (same directory as ComponentName.svelte)
@@ -369,7 +385,7 @@ Recommended contents:
 - `notes.md` or spec evidence that lists node IDs, file version, viewport sizes,
   inspected states, accepted differences, and blocked Figma endpoints.
 
-If the work uses a full executable spec, record a `kind: artifact_review`
+If the work uses a Plan, record a `kind: artifact_review`
 verification such as `V-FIGMA-ARTIFACT-REVIEW`. If the work is a smaller inline
 task, include the same evidence summary in the final response.
 
@@ -379,23 +395,24 @@ OpenMates includes a built-in component preview system at `/dev/preview/`.
 It is accessible on dev environments (localhost and `app.dev.openmates.org`) but
 blocked on production.
 
-- **Dev deployment**: `https://app.dev.openmates.org/dev/preview/`
-- **Local dev server**: `http://localhost:5173/dev/preview/` (if running `pnpm dev`)
+- **Dev deployment**: `https://app.dev.openmates.org/dev/preview/{component-path}`
+- **Local dev server**: `http://localhost:5173/dev/preview/{component-path}` (if running `pnpm dev`)
 
-1. Navigate to the preview URL to browse all components
-2. Find the component you implemented in the component tree
-3. Compare the approved design aspects against the Figma screenshot and preserve unrelated current behavior
+1. Navigate directly to the component preview URL for the changed component or screen.
+2. Confirm the `.preview.ts` default export renders one semantically valid state.
+3. Compare the approved design aspects against the Figma screenshot and preserve unrelated current behavior.
 
-### Using Playwright MCP for Automated Validation
+### Using Playwright For Automated Validation
 
-For precise validation, use the **Playwright MCP** browser tools:
+For precise validation, create a focused component Playwright spec before any
+broader flow spec:
 
 ```
-1. Navigate to the component preview URL or the page containing the component
-2. Resize to match Figma frame dimensions (browser_resize)
-3. Take a screenshot (browser_take_screenshot)
-4. Compare the task's approved design aspects against the Figma screenshot from Phase 1
-5. Use browser_evaluate to verify computed CSS properties:
+1. Navigate to https://app.dev.openmates.org/dev/preview/{component-path}
+2. Assert the semantically valid default state rendered from .preview.ts
+3. Drive meaningful hover, focus, click, expanded/collapsed, and on/off states
+4. Add assertions before named proof checkpoints
+5. Use browser_evaluate to verify computed CSS properties only when needed
 ```
 
 Example computed style verification:
@@ -420,6 +437,12 @@ Example computed style verification:
 Compare these computed values only where the approved task uses the Figma node as
 an implementation target. For Apple parity, the rendered web result remains the
 source of truth after the web change is approved.
+
+Embed the completed focused component proof video for every modified UI
+component. Use separate phone and laptop proof profiles only when responsive
+behavior differs. Do not create a screenshot gallery or add browser-side
+screenshot calls. If a still image is needed for a failure, explicit request, or
+ambiguous visual-intent decision, derive it from the completed video.
 
 ### Validation Checklist
 

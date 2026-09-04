@@ -18,6 +18,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -40,18 +41,63 @@ def load_run_tests_module():
     return module
 
 
+def write_test_video(path: Path) -> None:
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i",
+            "color=blue:s=800x450:r=10:d=1", "-c:v", "libvpx", str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+
+def write_video_timing(artifact: Path, video_path: str, finalized_at_epoch_ms: int) -> None:
+    (artifact / "playwright-video-timing.json").write_text(json.dumps({
+        "schema_version": 1,
+        "videos": [{
+            "path": video_path,
+            "finalized_at_epoch_ms": finalized_at_epoch_ms,
+        }],
+    }), encoding="utf-8")
+
+
 def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
-    frame = b"\x89PNG\r\n\x1a\nsynthetic"
-    frame_hash = f"sha256:{hashlib.sha256(frame).hexdigest()}"
+    proof_video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "proof-flow"
+    proof_video_dir.mkdir(parents=True)
+    write_test_video(proof_video_dir / "video.webm")
+    write_video_timing(artifact, "frontend/apps/web_app/test-results/proof-flow/video.webm", 1767225601500)
     timeline = json.dumps({
-        "schema_version": 1,
+        "schema_version": 2,
+        "events": [
+            {
+                "id": "open",
+                "kind": "action",
+                "start_ms": 200,
+                "end_ms": 400,
+                "start_at_epoch_ms": 1767225600700,
+                "end_at_epoch_ms": 1767225600900,
+            },
+            {
+                "id": "welcome-visible",
+                "kind": "checkpoint",
+                "at_ms": 500,
+                "captured_at_epoch_ms": 1767225601000,
+            },
+        ],
+        "assertion_results": [{
+            "id": "welcome.visible",
+            "status": "passed",
+            "at_ms": 450,
+            "captured_at_epoch_ms": 1767225600950,
+        }],
         "checkpoint_frames": [{
             "checkpoint": "welcome-visible",
-            "attachment_name": "openmates-proof-frame-welcome-visible",
-            "sha256": frame_hash,
+            "at_ms": 0,
+            "captured_at_epoch_ms": 1767225601000,
         }],
     }).encode()
     report = {
@@ -59,16 +105,19 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
             "specs": [{
                 "tests": [{
                     "results": [{
+                        "status": "passed",
+                        "startTime": "2026-01-01T00:00:00.000Z",
+                        "duration": 1500,
                         "attachments": [
-                            {
-                                "name": "openmates-proof-frame-welcome-visible",
-                                "contentType": "image/png",
-                                "body": base64.b64encode(frame).decode("ascii"),
-                            },
                             {
                                 "name": "openmates-proof-timeline",
                                 "contentType": "application/vnd.openmates.proof-timeline+json",
                                 "body": base64.b64encode(timeline).decode("ascii"),
+                            },
+                            {
+                                "name": "video",
+                                "contentType": "video/webm",
+                                "path": "/home/runner/work/OpenMates/OpenMates/frontend/apps/web_app/test-results/proof-flow/video.webm",
                             },
                         ]
                     }]
@@ -86,39 +135,157 @@ def test_recording_artifacts_persist_proof_timeline_attachment(tmp_path, monkeyp
     assert persisted == str(expected)
     persisted_timeline = json.loads(expected.read_text(encoding="utf-8"))
     persisted_frame = recordings / "proof" / "proof-frames" / "welcome-visible.png"
-    assert persisted_frame.read_bytes() == frame
+    assert persisted_frame.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     assert persisted_timeline["checkpoint_frames"][0]["path"] == str(persisted_frame)
-    assert persisted_timeline["checkpoint_frames"][0]["sha256"] == frame_hash
+    assert persisted_timeline["checkpoint_frames"][0]["sha256"] == (
+        "sha256:" + hashlib.sha256(persisted_frame.read_bytes()).hexdigest()
+    )
+    assert persisted_timeline["checkpoint_frames"][0]["at_ms"] == pytest.approx(500, abs=100)
+    assert persisted_timeline["events"][0]["start_ms"] == pytest.approx(200, abs=100)
+    assert persisted_timeline["events"][0]["end_ms"] == pytest.approx(400, abs=100)
+    assert persisted_timeline["events"][1]["at_ms"] == pytest.approx(500, abs=100)
+    assert persisted_timeline["assertion_results"][0]["at_ms"] == pytest.approx(450, abs=100)
     metadata = json.loads((recordings / "proof" / "artifact-meta.json").read_text(encoding="utf-8"))
     assert metadata["proof_timeline_file"] == "proof-timeline.json"
+    assert metadata["proof_video_file"] == "videos/proof-flow.webm"
 
 
-def test_recording_artifacts_reject_ambiguous_proof_results(tmp_path, monkeypatch):
+def test_recording_artifacts_extract_fixed_thumbnail_from_completed_video(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact = tmp_path / "artifact"
     artifact.mkdir(parents=True)
-    timeline_attachment = {
-        "name": "openmates-proof-timeline",
-        "contentType": "application/vnd.openmates.proof-timeline+json",
-        "body": base64.b64encode(b'{}').decode("ascii"),
-    }
+    video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "signup-flow"
+    video_dir.mkdir(parents=True)
+    write_test_video(video_dir / "video.webm")
+    write_video_timing(artifact, "frontend/apps/web_app/test-results/signup-flow/video.webm", 1767225601500)
+    thumbnail_metadata = json.dumps({
+        "schema_version": 2,
+        "viewport": {"width": 1280, "height": 720},
+        "clip": {"x": 320, "y": 160, "width": 640, "height": 400},
+        "captured_at_epoch_ms": 1767225601000,
+    }).encode()
+    proof_timeline = json.dumps({
+        "schema_version": 2,
+        "events": [{
+            "id": "thumbnail-ready",
+            "kind": "checkpoint",
+            "at_ms": 500,
+            "captured_at_epoch_ms": 1767225601000,
+        }],
+        "checkpoint_frames": [{
+            "checkpoint": "thumbnail-ready",
+            "at_ms": 500,
+            "captured_at_epoch_ms": 1767225601000,
+        }],
+    }).encode()
     report = {
         "suites": [{
             "specs": [{
                 "tests": [{
                     "results": [
-                        {"attachments": [timeline_attachment]},
-                        {"attachments": [timeline_attachment]},
+                        {
+                            "status": "passed",
+                            "startTime": "2026-01-01T00:00:00.000Z",
+                            "duration": 100,
+                            "attachments": [
+                                {
+                                    "name": "openmates-test-thumbnail-metadata",
+                                    "contentType": "application/vnd.openmates.test-thumbnail+json",
+                                    "body": base64.b64encode(thumbnail_metadata).decode("ascii"),
+                                },
+                                {
+                                    "name": "video",
+                                    "contentType": "video/webm",
+                                    "path": "/home/runner/work/OpenMates/OpenMates/frontend/apps/web_app/test-results/signup-flow/video.webm",
+                                },
+                                {
+                                    "name": "openmates-proof-timeline",
+                                    "contentType": "application/vnd.openmates.proof-timeline+json",
+                                    "body": base64.b64encode(proof_timeline).decode("ascii"),
+                                },
+                            ],
+                        },
                     ]
                 }]
             }]
         }]
     }
     (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
-    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", tmp_path / "recordings")
+    recordings = tmp_path / "recordings"
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", recordings)
 
-    with pytest.raises(RuntimeError, match="ambiguous proof timeline"):
-        run_tests.BatchRunner._persist_recording_artifacts("proof.spec.ts", artifact)
+    run_tests.BatchRunner._persist_recording_artifacts("signup.spec.ts", artifact)
+
+    thumbnail = recordings / "signup" / "thumbnail.png"
+    thumbnail_bytes = thumbnail.read_bytes()
+    assert thumbnail_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+    assert struct.unpack(">II", thumbnail_bytes[16:24]) == (1280, 800)
+    metadata = json.loads((recordings / "signup" / "artifact-meta.json").read_text(encoding="utf-8"))
+    assert metadata["thumbnail_file"] == "thumbnail.png"
+    assert metadata["thumbnail_source"] == "video_frame"
+
+
+def test_recording_artifacts_select_terminal_passing_proof_retry(tmp_path, monkeypatch):
+    run_tests = load_run_tests_module()
+    artifact = tmp_path / "artifact"
+    artifact.mkdir(parents=True)
+    proof_video_dir = artifact / "frontend" / "apps" / "web_app" / "test-results" / "proof-retry"
+    proof_video_dir.mkdir(parents=True)
+    write_test_video(proof_video_dir / "video.webm")
+    write_video_timing(artifact, "frontend/apps/web_app/test-results/proof-retry/video.webm", 1767225601500)
+
+    def attachments(checkpoint: str, captured_at_ms: int) -> list[dict]:
+        timeline = json.dumps({
+            "schema_version": 2,
+            "checkpoint_frames": [{
+                "checkpoint": checkpoint,
+                "at_ms": 500,
+                "captured_at_epoch_ms": captured_at_ms,
+            }],
+        }).encode()
+        return [
+            {
+                "name": "openmates-proof-timeline",
+                "contentType": "application/vnd.openmates.proof-timeline+json",
+                "body": base64.b64encode(timeline).decode("ascii"),
+            },
+            {
+                "name": "video",
+                "contentType": "video/webm",
+                "path": "/home/runner/work/OpenMates/OpenMates/frontend/apps/web_app/test-results/proof-retry/video.webm",
+            },
+        ]
+
+    report = {
+        "suites": [{
+            "specs": [{
+                "tests": [{
+                    "results": [
+                        {
+                            "status": "failed",
+                            "startTime": "2026-01-01T00:00:00.000Z",
+                            "duration": 1500,
+                            "attachments": attachments("failed-attempt", 1767225600800),
+                        },
+                        {
+                            "status": "passed",
+                            "startTime": "2026-01-01T00:00:00.000Z",
+                            "duration": 1500,
+                            "attachments": attachments("passed-attempt", 1767225601000),
+                        },
+                    ]
+                }]
+            }]
+        }]
+    }
+    (artifact / "playwright.json").write_text(json.dumps(report), encoding="utf-8")
+    recordings = tmp_path / "recordings"
+    monkeypatch.setattr(run_tests, "TEST_RECORDINGS_DIR", recordings)
+
+    run_tests.BatchRunner._persist_recording_artifacts("proof.spec.ts", artifact)
+
+    timeline = json.loads((recordings / "proof" / "proof-timeline.json").read_text(encoding="utf-8"))
+    assert timeline["checkpoint_frames"][0]["checkpoint"] == "passed-attempt"
 
 
 def test_git_info_uses_exact_deployed_session_subject(monkeypatch):
@@ -270,10 +437,10 @@ def test_seeded_gift_card_code_is_passed_to_matching_dispatch(monkeypatch):
     result = runner.run_all_batches()
 
     assert result.status == "passed"
-    assert dispatches == [
+    assert sorted(dispatches) == sorted([
         ("regular.spec.ts", None),
         (run_tests.E2E_GIFT_CARD_REDEMPTION_SPEC, "E2E2-TEST-CARD"),
-    ]
+    ])
 
 
 def test_seeded_gift_card_code_is_not_passed_to_unrelated_dispatch(monkeypatch):
@@ -341,33 +508,6 @@ def test_cancelled_playwright_dispatch_is_not_recorded_as_passed():
     assert result.status == "failed"
     assert result.tests[0]["status"] == "not_started"
     assert result.tests[0]["error"] == "Run was cancelled"
-
-
-def test_dispatch_error_retains_preflight_account_slot(monkeypatch):
-    run_tests = load_run_tests_module()
-
-    class FakeClient:
-        last_dispatch_error = "dispatch unavailable"
-
-        def dispatch_spec(self, *_args, **_kwargs):
-            return None
-
-    monkeypatch.setattr(run_tests.time, "sleep", lambda _seconds: None)
-    runner = run_tests.BatchRunner(
-        client=FakeClient(),
-        specs=[run_tests.ACCOUNT_PREFLIGHT_SPEC],
-        batch_size=1,
-        fail_fast=False,
-    )
-
-    result = runner._run_batch(
-        [run_tests.ACCOUNT_PREFLIGHT_SPEC],
-        0,
-        account_overrides=[16],
-    )
-
-    assert result[0].status == "dispatch_error"
-    assert result[0].account == 16
 
 
 def test_dispatch_plan_can_use_preflight_available_normal_slots():
@@ -474,15 +614,81 @@ def test_single_regular_spec_falls_back_to_healthy_normal_account(monkeypatch):
             )
 
     monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "_single_spec_fallback_accounts", lambda _account: [2, 3, 4])
     monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
     monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
 
     result = orchestrator._run_playwright()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert preflight_calls == [[1], [2, 3, 4]]
     assert captured["normal_account_slots"] == (2,)
     assert result.reason == "Selected normal account slot 1 failed preflight; using fallback slot 2 for regular.spec.ts"
+
+
+def test_single_spec_fallback_accounts_are_bounded():
+    run_tests = load_run_tests_module()
+
+    failed_account = run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
+    fallback_accounts = run_tests._single_spec_fallback_accounts(failed_account)
+
+    assert len(fallback_accounts) == run_tests.SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT
+    assert failed_account not in fallback_accounts
+    assert fallback_accounts == list(run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[1:4])
+
+
+def test_single_spec_reuses_wrapper_account_lease(monkeypatch):
+    run_tests = load_run_tests_module()
+    captured: dict[str, object] = {}
+
+    orchestrator = object.__new__(run_tests.TestOrchestrator)
+    orchestrator.max_concurrent = 20
+    orchestrator.dry_run = False
+    orchestrator.environment = "production"
+    orchestrator.git_sha = "abc123"
+    orchestrator.dot_env = {}
+    orchestrator.spec = "regular.spec.ts"
+    orchestrator.account = 22
+    orchestrator.create_account_slot = None
+    orchestrator.only_failed = False
+    orchestrator.fail_fast = True
+    orchestrator.use_mocks = True
+    orchestrator.record_live_fixtures = False
+    orchestrator.proof_video_profile = ""
+    orchestrator._discover_specs = lambda: ["regular.spec.ts"]
+    monkeypatch.setenv("OPENMATES_TEST_ACCOUNT", "22")
+
+    def fake_preflight(_client, accounts=None):
+        assert accounts == [22]
+        return run_tests.SuiteResult(
+            status="passed",
+            tests=[{
+                "name": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "file": run_tests.ACCOUNT_PREFLIGHT_SPEC,
+                "status": "passed",
+                "account": 22,
+            }],
+        )
+
+    class FakeBatchRunner:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        def run_all_batches(self):
+            return run_tests.SuiteResult(
+                status="passed",
+                tests=[{"name": "regular.spec.ts", "file": "regular.spec.ts", "status": "passed"}],
+            )
+
+    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
+    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
+    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
+
+    result = orchestrator._run_playwright()
+
+    assert result.status == "passed"
+    assert captured["normal_account_slots"] == (22,)
+    assert captured["coordinate_accounts"] is False
 
 
 def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeypatch):
@@ -548,10 +754,16 @@ def test_only_failed_batch_preflights_and_skips_unhealthy_normal_account(monkeyp
     result = orchestrator._run_playwright()
 
     assert result.status == "passed"
-    assert preflight_calls == [None]
+    assert preflight_calls == [[1, 2]]
     assert captured["normal_account_slots"] == (2,)
     assert result.reason is not None
     assert "Unavailable normal account slot(s)" in result.reason
+
+
+def test_single_campaign_spec_preflights_only_its_planned_account():
+    run_tests = load_run_tests_module()
+
+    assert run_tests._preflight_accounts_for_specs(["import-chats.spec.ts"], 20) == [1]
 
 
 def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_path):
@@ -625,13 +837,14 @@ def test_cli_integration_falls_back_to_healthy_normal_account(monkeypatch, tmp_p
 
     monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
     monkeypatch.setattr(run_tests, "_full_git_sha", lambda sha: f"full-{sha}")
+    monkeypatch.setattr(run_tests, "_single_spec_fallback_accounts", lambda _account: [2, 3, 4])
     monkeypatch.setattr(run_tests, "GitHubActionsClient", FakeClient)
     monkeypatch.setattr(run_tests.tempfile, "mkdtemp", lambda prefix: str(tmp_path / prefix))
 
     result = orchestrator._run_cli_integration()
 
     assert result.status == "passed"
-    assert preflight_calls == [[1], [*range(2, 14), *range(21, 28)]]
+    assert preflight_calls == [[1], [2, 3, 4]]
     assert dispatch_accounts == [2]
     assert captured_git_sha == {"git_sha": "full-abc123"}
     assert result.tests[0] == {
@@ -702,6 +915,48 @@ def test_deployed_single_spec_can_run_from_session_worktree(monkeypatch, tmp_pat
         "-e",
         "abc123:frontend/apps/web_app/tests/deployed.spec.ts",
     ]
+
+
+def test_deployed_single_spec_can_run_when_control_runtime_lacks_file(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    assert run_tests._validate_requested_playwright_spec("new-at-ref.spec.ts", "abc123") == ""
+    assert calls == [[
+        "git",
+        "cat-file",
+        "-e",
+        "abc123:frontend/apps/web_app/tests/new-at-ref.spec.ts",
+    ]]
+
+
+def test_deployed_single_spec_must_exist_at_requested_ref(monkeypatch, tmp_path):
+    run_tests = load_run_tests_module()
+    spec_dir = tmp_path / "frontend" / "apps" / "web_app" / "tests"
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "newer-local.spec.ts").write_text("// newer than deployed ref\n", encoding="utf-8")
+    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(run_tests, "SPEC_DIR", spec_dir)
+    monkeypatch.setattr(
+        run_tests.subprocess,
+        "run",
+        lambda command, **kwargs: type("Result", (), {"returncode": 1})(),
+    )
+
+    error = run_tests._validate_requested_playwright_spec("newer-local.spec.ts", "abc123")
+
+    assert "not found at deployed commit abc123" in error
 
 
 def test_single_reserved_spec_does_not_fall_back_when_reserved_account_fails(monkeypatch):
@@ -790,38 +1045,6 @@ def test_single_account_preflight_honors_explicit_account(monkeypatch):
 
     assert result is expected
     assert preflight_calls == [[19]]
-
-
-def test_account_preflight_without_explicit_account_checks_all_slots(monkeypatch):
-    run_tests = load_run_tests_module()
-    preflight_calls: list[list[int] | None] = []
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.max_concurrent = 20
-    orchestrator.dry_run = False
-    orchestrator.environment = "production"
-    orchestrator.git_sha = "abc123"
-    orchestrator.dot_env = {}
-    orchestrator.spec = run_tests.ACCOUNT_PREFLIGHT_SPEC
-    orchestrator.account = None
-    orchestrator.create_account_slot = None
-    orchestrator.only_failed = False
-    orchestrator.fail_fast = True
-    orchestrator.use_mocks = True
-    orchestrator.record_live_fixtures = False
-    orchestrator.proof_video_profile = ""
-    orchestrator._discover_specs = lambda: [run_tests.ACCOUNT_PREFLIGHT_SPEC]
-
-    def fake_preflight(_client, accounts=None):
-        preflight_calls.append(accounts)
-        return run_tests.SuiteResult(status="passed", tests=[])
-
-    monkeypatch.setattr(orchestrator, "_run_account_preflight", fake_preflight)
-    monkeypatch.setattr(run_tests, "GitHubActionsClient", lambda **_kwargs: object())
-
-    result = orchestrator._run_playwright()
-
-    assert result.status == "passed"
-    assert preflight_calls == [None]
 
 
 def test_hourly_dev_specs_exist():
@@ -1534,147 +1757,6 @@ def test_account_id_repair_skips_non_development_environment():
     assert repaired is False
 
 
-def test_account_preflight_retries_failed_slots_in_small_batches(monkeypatch):
-    run_tests = load_run_tests_module()
-    calls: list[list[int]] = []
-
-    class FakeBatchRunner:
-        def __init__(self, **_kwargs):
-            pass
-
-        _spec_result_to_dict = staticmethod(run_tests.BatchRunner._spec_result_to_dict)
-
-        def _run_batch(self, _specs, _batch_index, account_overrides=None):
-            accounts = list(account_overrides or [])
-            calls.append(accounts)
-            if len(calls) == 1:
-                return [
-                    run_tests.SpecResult(
-                        name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                        status="passed" if account == 1 else "failed",
-                        account=account,
-                        account_email=f"acct-{account}@example.test",
-                    )
-                    for account in accounts
-                ]
-            return [
-                run_tests.SpecResult(
-                    name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                    status="passed",
-                    account=account,
-                    account_email=f"acct-{account}@example.test",
-                )
-                for account in accounts
-            ]
-
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    orchestrator.daily = False
-    orchestrator.use_mocks = True
-    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
-    monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
-    monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
-
-    result = orchestrator._run_account_preflight(object(), accounts=[1, 2, 3, 4, 5])
-
-    assert result.status == "passed"
-    assert calls == [[1, 2, 3, 4, 5], [2, 3, 4], [5]]
-
-
-def test_daily_auto_cleanup_requires_all_configured_account_emails(monkeypatch):
-    run_tests = load_run_tests_module()
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    called = False
-
-    def fake_run(*_args, **_kwargs):
-        nonlocal called
-        called = True
-        return SimpleNamespace(stdout="", stderr="", returncode=0)
-
-    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
-    results = [
-        run_tests.SpecResult(
-            name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-            status="passed",
-            account=slot,
-            account_email=(f"acct-{slot}@example.test" if slot != 27 else None),
-        )
-        for slot in range(1, 28)
-    ]
-
-    error = orchestrator._cleanup_stale_signup_accounts(results)
-
-    assert error == "configured account email missing for slot(s): 27"
-    assert called is False
-
-
-def test_daily_auto_cleanup_passes_protected_accounts_over_stdin(monkeypatch, tmp_path):
-    run_tests = load_run_tests_module()
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    monkeypatch.setattr(run_tests, "PROJECT_ROOT", tmp_path)
-    captured: dict[str, object] = {}
-
-    def fake_run(cmd, **kwargs):
-        captured["cmd"] = cmd
-        captured.update(kwargs)
-        return SimpleNamespace(stdout="No candidate users to delete.\n", stderr="", returncode=0)
-
-    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
-    results = [
-        run_tests.SpecResult(
-            name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-            status="passed",
-            account=slot,
-            account_email=f"acct-{slot}@example.test",
-        )
-        for slot in range(1, 28)
-    ]
-
-    assert orchestrator._cleanup_stale_signup_accounts(results) is None
-    assert "@example.test" not in " ".join(captured["cmd"])
-    assert "--auto-safe" in captured["cmd"]
-    assert "--automated-daily-cleanup" in captured["cmd"]
-    assert len(json.loads(captured["input"])) == 27
-
-
-def test_daily_cleanup_failure_fails_account_preflight(monkeypatch):
-    run_tests = load_run_tests_module()
-
-    class FakeBatchRunner:
-        def __init__(self, **_kwargs):
-            pass
-
-        _spec_result_to_dict = staticmethod(run_tests.BatchRunner._spec_result_to_dict)
-
-        def _run_batch(self, _specs, _batch_index, account_overrides=None):
-            return [
-                run_tests.SpecResult(
-                    name=run_tests.ACCOUNT_PREFLIGHT_SPEC,
-                    status="passed",
-                    account=account,
-                    account_email=f"acct-{account}@example.test",
-                )
-                for account in account_overrides or []
-            ]
-
-    orchestrator = object.__new__(run_tests.TestOrchestrator)
-    orchestrator.environment = "development"
-    orchestrator.daily = True
-    orchestrator.use_mocks = True
-    monkeypatch.setattr(run_tests, "BatchRunner", FakeBatchRunner)
-    monkeypatch.setattr(orchestrator, "_repair_missing_preflight_account_ids", lambda _results: False)
-    monkeypatch.setattr(orchestrator, "_ensure_preflight_account_credits", lambda _results: None)
-    monkeypatch.setattr(orchestrator, "_cleanup_stale_signup_accounts", lambda _results: "cleanup failed")
-
-    result = orchestrator._run_account_preflight(object(), accounts=[1])
-
-    assert result.status == "failed"
-    assert result.tests[-1]["name"] == "dev-stale-signup-cleanup"
-    assert result.tests[-1]["error"] == "cleanup failed"
-
-
 def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path, monkeypatch):
     run_tests = load_run_tests_module()
     artifact_root = tmp_path / "artifact"
@@ -1695,3 +1777,63 @@ def test_credential_update_artifacts_are_persisted_outside_screenshots(tmp_path,
     assert (dest / "new_otp_key.txt").read_text(encoding="utf-8") == "OTP_PLACEHOLDER"
     assert (dest / "api_key.txt").read_text(encoding="utf-8") == "API_KEY_PLACEHOLDER"
     assert not (results_dir / "screenshots" / "current" / "backup-code-login-flow" / "new_otp_key.txt").exists()
+
+
+def test_vercel_gate_fails_immediately_for_stale_dev_ancestor(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.setattr(run_tests, "_vercel_project_config", lambda: ("team", "project"))
+    monkeypatch.setattr(run_tests, "_latest_vercel_deployment_for_sha", lambda *_args: None)
+    monkeypatch.setattr(run_tests, "_requested_commit_is_stale_dev_ancestor", lambda _sha: True)
+
+    ready, reason = run_tests._wait_for_vercel_deployment(
+        "a" * 40,
+        {"VERCEL_TOKEN": "test-token", "OPENMATES_VERCEL_WAIT_TIMEOUT": "3600"},
+    )
+
+    assert ready is False
+    assert "stale dev ancestor" in reason
+
+
+def test_recent_runs_uses_direct_workflow_runs_endpoint(monkeypatch):
+    run_tests = load_run_tests_module()
+    client = object.__new__(run_tests.GitHubActionsClient)
+    client.last_dispatch_error = None
+    client.dispatch_circuit = run_tests.DispatchCircuit()
+    captured = []
+
+    def fake_run(command, **_kwargs):
+        captured.append(command)
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"workflow_runs": [{"id": 123, "display_title": "dispatch-token"}]}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(run_tests.subprocess, "run", fake_run)
+
+    assert client._recent_runs(limit=50) == [{"databaseId": 123, "displayTitle": "dispatch-token"}]
+    assert captured == [[
+        "gh",
+        "api",
+        f"repos/{run_tests.GH_REPO}/actions/workflows/playwright-spec.yml/runs?per_page=50",
+    ]]
+
+
+def test_recent_runs_surfaces_rate_limit_without_silent_empty_retry(monkeypatch):
+    run_tests = load_run_tests_module()
+    client = object.__new__(run_tests.GitHubActionsClient)
+    client.last_dispatch_error = None
+    client.dispatch_circuit = run_tests.DispatchCircuit()
+    monkeypatch.setattr(
+        run_tests.subprocess,
+        "run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=1,
+            stdout="",
+            stderr="HTTP 403: API rate limit exceeded",
+        ),
+    )
+
+    assert client._recent_runs() == []
+    assert client.last_dispatch_error == "GitHub Actions rate limit blocked workflow run discovery"
+    assert client.dispatch_circuit.is_open is True

@@ -1,0 +1,3031 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-31'
+generated_at: '2026-09-01T00:20:19+00:00'
+range:
+  since: '2026-08-31T00:00:00+00:00'
+  until: '2026-09-01T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 55
+  section_counts:
+    features: 8
+    bug_fixes: 28
+    improvements: 0
+    docs: 2
+    tests: 16
+    infrastructure: 0
+    internal: 0
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 22
+  dev_only_items: 55
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add assistant response speech UI'
+    section: features
+    commits:
+    - abb666314
+    authored_at: '2026-08-31T23:54:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechPreference.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add assistant speech playback queue'
+    section: features
+    commits:
+    - 6c45ca079
+    authored_at: '2026-08-31T23:12:31+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: improve Contract PDF exports'
+    section: features
+    commits:
+    - c0f45ee82
+    authored_at: '2026-08-31T22:38:05+00:00'
+    changed_paths:
+    - .agents/skills/define-contract/SKILL.md
+    - .claude/skills/define-contract/SKILL.md
+    - .github/workflows/contract-approval-pdf.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - contracts/README.md
+    - contracts/features/teams/contract.yml
+    - contracts/features/teams/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/contract_approval_pdf.py
+    - scripts/contract_readable_pdf.py
+    - scripts/contracts.py
+    - scripts/tests/test_contract_approval_pdf.py
+    - scripts/tests/test_contract_readable_pdf.py
+    - scripts/tests/test_contracts_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Eleven v3 assistant speech backend'
+    section: features
+    commits:
+    - 565162b78
+    authored_at: '2026-08-31T20:50:09+00:00'
+    changed_paths:
+    - backend/apps/ai/assistant_speech/projection.py
+    - backend/apps/ai/assistant_speech/streaming.py
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/assistant_speech/delete_task.py
+    - backend/apps/audio/assistant_speech/persistence.py
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/apps/audio/assistant_speech/worker.py
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/apps/audio/tasks/common.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/apps/audio/voice_presets.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/assistant_speech.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_assistant_speech_api.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_assistant_speech_worker.py
+    - backend/tests/test_rest_api_audio.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/features/assistant-response-speech/contract.yml
+    - contracts/features/assistant-response-speech/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/assistant-response-speech/spec.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/verify_audio_sdk_cli_live_smoke.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, embed:audio:speak, skill:ai:ask, skill:audio:speak'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: refine contract presentation workflow'
+    section: features
+    commits:
+    - 091ffad72
+    authored_at: '2026-08-31T12:26:05+00:00'
+    changed_paths:
+    - .agents/skills/define-contract/SKILL.md
+    - .claude/skills/define-contract/SKILL.md
+    - .github/workflows/contract-approval-pdf.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - contracts/README.md
+    - contracts/features/contracts/contract.yml
+    - contracts/features/contracts/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/contract_approval_pdf.py
+    - scripts/contracts.py
+    - scripts/opencode_response_media.py
+    - scripts/tests/test_contract_approval_pdf.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_sessions_contract_gate.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: reorder OpenMates webinars'
+    section: features
+    commits:
+    - d1a793e9e
+    authored_at: '2026-08-31T11:05:20+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-11-11.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/spec-driven-development-webinar-2026-10-28.jpg
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - shared/events/openmates_events.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: update OpenMates event schedule'
+    section: features
+    commits:
+    - 8fd382309
+    authored_at: '2026-08-31T10:36:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-10-28.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/everyday-workflows-webinar-2026-09-30.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-berlin-meetup-2026-09-26.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-09-29.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-teams-webinar-2026-10-14.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/self-hosting-webinar-2026-11-25.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/spec-driven-development-webinar-2026-11-11.jpg
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - shared/events/openmates_events.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: automate bounded daily cache backfill'
+    section: features
+    commits:
+    - bbf467fd1
+    authored_at: '2026-08-31T01:18:56+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/docker-compose.yml
+    - backend/shared/testing/api_response_cache.py
+    - backend/shared/testing/caching_http_transport.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_caching_http_transport.py
+    - backend/tests/test_daily_ai_test_budget.py
+    - contracts/architecture/daily-ai-test-inference/contract.yml
+    - contracts/architecture/daily-ai-test-inference/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/live-mock-testing.md
+    - docs/specs/cost-safe-daily-ai-tests/spec.yml
+    - frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
+    - frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/contracts.py
+    - scripts/daily_ai_cache_backfill.py
+    - scripts/daily_ai_test_manifest.json
+    - scripts/daily_ai_test_policy.py
+    - scripts/run_tests.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_daily_ai_cache_backfill.py
+    - scripts/tests/test_daily_ai_test_policy.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: confirm assistant speech finalization'
+    section: bug_fixes
+    commits:
+    - 0b14d8145
+    authored_at: '2026-08-31T22:52:14+00:00'
+    changed_paths:
+    - backend/apps/audio/assistant_speech/persistence.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:audio'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: auto-start generated application previews'
+    section: bug_fixes
+    commits:
+    - 665bba7ee
+    authored_at: '2026-08-31T22:25:17+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: persist application preview thumbnails'
+    section: bug_fixes
+    commits:
+    - 07291e943
+    authored_at: '2026-08-31T20:58:20+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_generated_media_provenance.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_run_application_preview_task.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code, embed:code:application'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hydrate user id across login methods'
+    section: bug_fixes
+    commits:
+    - 18ebc54df
+    authored_at: '2026-08-31T19:39:48+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/EnterBackupCode.svelte
+    - frontend/packages/ui/src/components/EnterRecoveryKey.svelte
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/components/signup/loginProfileHydration.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate paid cache backfill on web readiness'
+    section: bug_fixes
+    commits:
+    - 67cff4778
+    authored_at: '2026-08-31T19:19:45+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_daily_ai_cache_backfill.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish persisted model selections locally'
+    section: bug_fixes
+    commits:
+    - ce0098475
+    authored_at: '2026-08-31T17:44:06+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: decouple changelog credentials from checkout state'
+    section: bug_fixes
+    commits:
+    - 08039375f
+    authored_at: '2026-08-31T17:29:35+00:00'
+    changed_paths:
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish changelogs across concurrent dev updates'
+    section: bug_fixes
+    commits:
+    - c47713e84
+    authored_at: '2026-08-31T17:14:15+00:00'
+    changed_paths:
+    - scripts/release-intelligence-cron.sh
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: apply model sync atomically'
+    section: bug_fixes
+    commits:
+    - de50d7e21
+    authored_at: '2026-08-31T17:05:57+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore release intelligence cron credentials'
+    section: bug_fixes
+    commits:
+    - 7b2998f58
+    authored_at: '2026-08-31T16:53:48+00:00'
+    changed_paths:
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject stale model preference sync'
+    section: bug_fixes
+    commits:
+    - 43fc523c7
+    authored_at: '2026-08-31T16:45:12+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry fresh-device model selection'
+    section: bug_fixes
+    commits:
+    - 2966de993
+    authored_at: '2026-08-31T16:15:07+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: silence shared preference reads'
+    section: bug_fixes
+    commits:
+    - f3ed1b6ed
+    authored_at: '2026-08-31T16:03:51+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_model_preference_handler.py
+    - backend/tests/test_chat_model_preference_handler.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: await model preference persistence'
+    section: bug_fixes
+    commits:
+    - 9ec57b0a5
+    authored_at: '2026-08-31T15:42:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve active model preference restores'
+    section: bug_fixes
+    commits:
+    - d8ba6372a
+    authored_at: '2026-08-31T15:21:48+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve shared child embed keys'
+    section: bug_fixes
+    commits:
+    - 94d2098da
+    authored_at: '2026-08-31T15:04:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.test.ts
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete delayed model preference restore'
+    section: bug_fixes
+    commits:
+    - 514ccfc9f
+    authored_at: '2026-08-31T14:51:14+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for shared application files'
+    section: bug_fixes
+    commits:
+    - a67fd6f02
+    authored_at: '2026-08-31T14:30:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry delayed embed hydration'
+    section: bug_fixes
+    commits:
+    - 5897073c6
+    authored_at: '2026-08-31T13:46:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover delayed embed previews'
+    section: bug_fixes
+    commits:
+    - a9b2edc30
+    authored_at: '2026-08-31T13:31:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedReferencePreview.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve application preview file headers'
+    section: bug_fixes
+    commits:
+    - 5dd249afc
+    authored_at: '2026-08-31T12:27:15+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_application_preview_streaming.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore chat model preference websocket routing'
+    section: bug_fixes
+    commits:
+    - 328b8cd43
+    authored_at: '2026-08-31T12:22:58+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: refresh backfill promotion source pin'
+    section: bug_fixes
+    commits:
+    - 5bb13b250
+    authored_at: '2026-08-31T11:03:00+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make nightly cache backfill safely testable'
+    section: bug_fixes
+    commits:
+    - '925680878'
+    authored_at: '2026-08-31T10:45:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: transport live test markers out of band'
+    section: bug_fixes
+    commits:
+    - f3fc7c184
+    authored_at: '2026-08-31T02:30:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - scripts/audit_daily_ai_test_inference.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate host cache backfill claims'
+    section: bug_fixes
+    commits:
+    - 97eb931d9
+    authored_at: '2026-08-31T02:06:00+00:00'
+    changed_paths:
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pin cache backfill to full commit sha'
+    section: bug_fixes
+    commits:
+    - '418313188'
+    authored_at: '2026-08-31T01:58:25+00:00'
+    changed_paths:
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: run nightly cache backfill before playwright'
+    section: bug_fixes
+    commits:
+    - 2258a68fe
+    authored_at: '2026-08-31T01:38:50+00:00'
+    changed_paths:
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: preserve scheduled release intelligence artifacts'
+    section: docs
+    commits:
+    - 651c15beb
+    authored_at: '2026-08-31T21:34:47+00:00'
+    changed_paths:
+    - docs/releases/daily/2026-08-22.md
+    - docs/releases/daily/2026-08-22.yml
+    - docs/releases/daily/2026-08-23.md
+    - docs/releases/daily/2026-08-23.yml
+    - docs/releases/daily/2026-08-24.md
+    - docs/releases/daily/2026-08-24.yml
+    - docs/releases/weekly/2026-W34.md
+    - docs/releases/weekly/2026-W34.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: refine contract capability models'
+    section: docs
+    commits:
+    - 444af2237
+    authored_at: '2026-08-31T19:51:23+00:00'
+    changed_paths:
+    - contracts/features/checks/contract.yml
+    - contracts/features/checks/examples.yml
+    - contracts/features/contracts/contract.yml
+    - contracts/features/contracts/examples.yml
+    - contracts/features/plans/contract.yml
+    - contracts/features/plans/examples.yml
+    - contracts/features/projects/contract.yml
+    - contracts/features/projects/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: assert application preview thumbnail contract'
+    section: tests
+    commits:
+    - 0f56abb3a
+    authored_at: '2026-08-31T21:40:19+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize application preview share assertion'
+    section: tests
+    commits:
+    - b66b2fd08
+    authored_at: '2026-08-31T21:20:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: await model preference acknowledgement'
+    section: tests
+    commits:
+    - 6ba2c5e3c
+    authored_at: '2026-08-31T18:31:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: create owned model preference chat'
+    section: tests
+    commits:
+    - f784694f3
+    authored_at: '2026-08-31T18:15:47+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: persist models on owned chats'
+    section: tests
+    commits:
+    - ef214b45d
+    authored_at: '2026-08-31T18:02:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: match application fixture prose'
+    section: tests
+    commits:
+    - c0c983da8
+    authored_at: '2026-08-31T17:28:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for model sync setup'
+    section: tests
+    commits:
+    - a26d45ada
+    authored_at: '2026-08-31T17:19:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert application response prose'
+    section: tests
+    commits:
+    - 18ec71d3e
+    authored_at: '2026-08-31T17:10:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require complete application previews'
+    section: tests
+    commits:
+    - f35cc27e7
+    authored_at: '2026-08-31T16:49:14+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use anyio for preference authorization'
+    section: tests
+    commits:
+    - 9754d6cdd
+    authored_at: '2026-08-31T16:11:04+00:00'
+    changed_paths:
+    - backend/tests/test_chat_model_preference_handler.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: await model persistence transition'
+    section: tests
+    commits:
+    - 724f4554d
+    authored_at: '2026-08-31T15:59:01+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert isolated preview gateway'
+    section: tests
+    commits:
+    - 14b364cfd
+    authored_at: '2026-08-31T15:16:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce delayed model preference restore'
+    section: tests
+    commits:
+    - 1a436d606
+    authored_at: '2026-08-31T14:33:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align short share URL assertion'
+    section: tests
+    commits:
+    - a15b0c15b
+    authored_at: '2026-08-31T14:05:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: open persisted chat for model loading check'
+    section: tests
+    commits:
+    - e85f865a0
+    authored_at: '2026-08-31T13:49:28+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify personal account model loading'
+    section: tests
+    commits:
+    - 0b1d44871
+    authored_at: '2026-08-31T12:58:18+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other:
+  - title: Auto-start application previews from embed updates
+    section: other
+    commits:
+    - 472426fd6
+    authored_at: '2026-08-31T23:16:58+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'feat: add assistant response speech UI'
+    commits:
+    - abb666314
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Auto-start application previews from embed updates
+    commits:
+    - 472426fd6
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add assistant speech playback queue'
+    commits:
+    - 6c45ca079
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: confirm assistant speech finalization'
+    commits:
+    - 0b14d8145
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+  - title: 'feat: improve Contract PDF exports'
+    commits:
+    - c0f45ee82
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: auto-start generated application previews'
+    commits:
+    - 665bba7ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert application preview thumbnail contract'
+    commits:
+    - 0f56abb3a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: preserve scheduled release intelligence artifacts'
+    commits:
+    - 651c15beb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize application preview share assertion'
+    commits:
+    - b66b2fd08
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist application preview thumbnails'
+    commits:
+    - 07291e943
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'feat: add Eleven v3 assistant speech backend'
+    commits:
+    - 565162b78
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'docs: refine contract capability models'
+    commits:
+    - 444af2237
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hydrate user id across login methods'
+    commits:
+    - 18ebc54df
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: gate paid cache backfill on web readiness'
+    commits:
+    - 67cff4778
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: await model preference acknowledgement'
+    commits:
+    - 6ba2c5e3c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: create owned model preference chat'
+    commits:
+    - f784694f3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: persist models on owned chats'
+    commits:
+    - ef214b45d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: publish persisted model selections locally'
+    commits:
+    - ce0098475
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: decouple changelog credentials from checkout state'
+    commits:
+    - 08039375f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: match application fixture prose'
+    commits:
+    - c0c983da8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for model sync setup'
+    commits:
+    - a26d45ada
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: publish changelogs across concurrent dev updates'
+    commits:
+    - c47713e84
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert application response prose'
+    commits:
+    - 18ec71d3e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: apply model sync atomically'
+    commits:
+    - de50d7e21
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore release intelligence cron credentials'
+    commits:
+    - 7b2998f58
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require complete application previews'
+    commits:
+    - f35cc27e7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reject stale model preference sync'
+    commits:
+    - 43fc523c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: retry fresh-device model selection'
+    commits:
+    - 2966de993
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use anyio for preference authorization'
+    commits:
+    - 9754d6cdd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: silence shared preference reads'
+    commits:
+    - f3ed1b6ed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: await model persistence transition'
+    commits:
+    - 724f4554d
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: await model preference persistence'
+    commits:
+    - 9ec57b0a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: preserve active model preference restores'
+    commits:
+    - d8ba6372a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: assert isolated preview gateway'
+    commits:
+    - 14b364cfd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve shared child embed keys'
+    commits:
+    - 94d2098da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete delayed model preference restore'
+    commits:
+    - 514ccfc9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: reproduce delayed model preference restore'
+    commits:
+    - 1a436d606
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for shared application files'
+    commits:
+    - a67fd6f02
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align short share URL assertion'
+    commits:
+    - a15b0c15b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: open persisted chat for model loading check'
+    commits:
+    - e85f865a0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: retry delayed embed hydration'
+    commits:
+    - 5897073c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: recover delayed embed previews'
+    commits:
+    - a9b2edc30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: verify personal account model loading'
+    commits:
+    - 0b1d44871
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve application preview file headers'
+    commits:
+    - 5dd249afc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: refine contract presentation workflow'
+    commits:
+    - 091ffad72
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore chat model preference websocket routing'
+    commits:
+    - 328b8cd43
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: reorder OpenMates webinars'
+    commits:
+    - d1a793e9e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: refresh backfill promotion source pin'
+    commits:
+    - 5bb13b250
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make nightly cache backfill safely testable'
+    commits:
+    - '925680878'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: update OpenMates event schedule'
+    commits:
+    - 8fd382309
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: transport live test markers out of band'
+    commits:
+    - f3fc7c184
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: isolate host cache backfill claims'
+    commits:
+    - 97eb931d9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: pin cache backfill to full commit sha'
+    commits:
+    - '418313188'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: run nightly cache backfill before playwright'
+    commits:
+    - 2258a68fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: automate bounded daily cache backfill'
+    commits:
+    - bbf467fd1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'feat: add Eleven v3 assistant speech backend'
+    commits:
+    - 565162b78
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add assistant response speech UI'
+    commits:
+    - abb666314
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Auto-start application previews from embed updates
+    commits:
+    - 472426fd6
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: confirm assistant speech finalization'
+    commits:
+    - 0b14d8145
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: persist application preview thumbnails'
+    commits:
+    - 07291e943
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:application
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat: add Eleven v3 assistant speech backend'
+    commits:
+    - 565162b78
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: embed:audio:speak
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    - id: skill:audio:speak
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: hydrate user id across login methods'
+    commits:
+    - 18ebc54df
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: publish persisted model selections locally'
+    commits:
+    - ce0098475
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: reject stale model preference sync'
+    commits:
+    - 43fc523c7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: silence shared preference reads'
+    commits:
+    - f3ed1b6ed
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: await model preference persistence'
+    commits:
+    - 9ec57b0a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve active model preference restores'
+    commits:
+    - d8ba6372a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve shared child embed keys'
+    commits:
+    - 94d2098da
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete delayed model preference restore'
+    commits:
+    - 514ccfc9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: retry delayed embed hydration'
+    commits:
+    - 5897073c6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: recover delayed embed previews'
+    commits:
+    - a9b2edc30
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve application preview file headers'
+    commits:
+    - 5dd249afc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: restore chat model preference websocket routing'
+    commits:
+    - 328b8cd43
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: reorder OpenMates webinars'
+    commits:
+    - d1a793e9e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: make nightly cache backfill safely testable'
+    commits:
+    - '925680878'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: update OpenMates event schedule'
+    commits:
+    - 8fd382309
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: transport live test markers out of band'
+    commits:
+    - f3fc7c184
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: automate bounded daily cache backfill'
+    commits:
+    - bbf467fd1
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: abb666314d442a3f5972b043337707f22ae5bb62
+    short_sha: abb666314
+    authored_at: '2026-08-31T23:54:54+00:00'
+    subject: 'feat: add assistant response speech UI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/AssistantSpeechPlayer.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/assistantSpeechController.ts
+    - frontend/packages/ui/src/services/assistantSpeechPreference.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 472426fd6980f1e0a6eb4fdd1505ab9a85da34ee
+    short_sha: 472426fd6
+    authored_at: '2026-08-31T23:16:58+00:00'
+    subject: Auto-start application previews from embed updates
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    related_feature_ids: []
+  - sha: 6c45ca0795c8980b89cd250ed3ff6b67feabc5da
+    short_sha: 6c45ca079
+    authored_at: '2026-08-31T23:12:31+00:00'
+    subject: 'feat: add assistant speech playback queue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    - frontend/packages/ui/src/services/assistantSpeechQueue.ts
+    related_feature_ids: []
+  - sha: 0b14d8145239f0b04452f53d5567f8b011109424
+    short_sha: 0b14d8145
+    authored_at: '2026-08-31T22:52:14+00:00'
+    subject: 'fix: confirm assistant speech finalization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/assistant_speech/persistence.py
+    related_feature_ids:
+    - app:audio
+  - sha: c0f45ee823a1ab6b0af817315752100e42faab1b
+    short_sha: c0f45ee82
+    authored_at: '2026-08-31T22:38:05+00:00'
+    subject: 'feat: improve Contract PDF exports'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/define-contract/SKILL.md
+    - .claude/skills/define-contract/SKILL.md
+    - .github/workflows/contract-approval-pdf.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - contracts/README.md
+    - contracts/features/teams/contract.yml
+    - contracts/features/teams/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/contract_approval_pdf.py
+    - scripts/contract_readable_pdf.py
+    - scripts/contracts.py
+    - scripts/tests/test_contract_approval_pdf.py
+    - scripts/tests/test_contract_readable_pdf.py
+    - scripts/tests/test_contracts_workflow.py
+    related_feature_ids: []
+  - sha: 665bba7ee6bb0954c5ab21e0b54d28e61bb7ea17
+    short_sha: 665bba7ee
+    authored_at: '2026-08-31T22:25:17+00:00'
+    subject: 'fix: auto-start generated application previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    related_feature_ids: []
+  - sha: 0f56abb3aaa413846a859ea727dbd919455dd01c
+    short_sha: 0f56abb3a
+    authored_at: '2026-08-31T21:40:19+00:00'
+    subject: 'test: assert application preview thumbnail contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: 651c15bebedf35c310105a1b6e05f292ce17f7e4
+    short_sha: 651c15beb
+    authored_at: '2026-08-31T21:34:47+00:00'
+    subject: 'docs: preserve scheduled release intelligence artifacts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-08-22.md
+    - docs/releases/daily/2026-08-22.yml
+    - docs/releases/daily/2026-08-23.md
+    - docs/releases/daily/2026-08-23.yml
+    - docs/releases/daily/2026-08-24.md
+    - docs/releases/daily/2026-08-24.yml
+    - docs/releases/weekly/2026-W34.md
+    - docs/releases/weekly/2026-W34.yml
+    related_feature_ids: []
+  - sha: b66b2fd085078927cd524752c7cbe39a18c53c4e
+    short_sha: b66b2fd08
+    authored_at: '2026-08-31T21:20:49+00:00'
+    subject: 'test: stabilize application preview share assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: 07291e943ff60ddeeff48519be0a42234b4fbcab
+    short_sha: 07291e943
+    authored_at: '2026-08-31T20:58:20+00:00'
+    subject: 'fix: persist application preview thumbnails'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_application_preview_task.py
+    - backend/core/api/app/services/embed_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/tests/test_application_preview_config.py
+    - backend/tests/test_embed_service_versioned_updates.py
+    - backend/tests/test_generated_media_provenance.py
+    - backend/tests/test_persistence_tasks.py
+    - backend/tests/test_run_application_preview_task.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/code/ApplicationEmbedPreview.svelte
+    related_feature_ids:
+    - app:code
+    - embed:code:application
+  - sha: 565162b789ce51aa9ff53f43e5ade965430a2897
+    short_sha: 565162b78
+    authored_at: '2026-08-31T20:50:09+00:00'
+    subject: 'feat: add Eleven v3 assistant speech backend'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/assistant_speech/projection.py
+    - backend/apps/ai/assistant_speech/streaming.py
+    - backend/apps/ai/mates/activism.md
+    - backend/apps/ai/mates/business_development.md
+    - backend/apps/ai/mates/cooking_food.md
+    - backend/apps/ai/mates/design.md
+    - backend/apps/ai/mates/electrical_engineering.md
+    - backend/apps/ai/mates/finance.md
+    - backend/apps/ai/mates/general_knowledge.md
+    - backend/apps/ai/mates/history.md
+    - backend/apps/ai/mates/legal_law.md
+    - backend/apps/ai/mates/life_coach_psychology.md
+    - backend/apps/ai/mates/maker_prototyping.md
+    - backend/apps/ai/mates/marketing_sales.md
+    - backend/apps/ai/mates/medical_health.md
+    - backend/apps/ai/mates/movies_tv.md
+    - backend/apps/ai/mates/onboarding_support.md
+    - backend/apps/ai/mates/science.md
+    - backend/apps/ai/mates/software_development.md
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/mate_utils.py
+    - backend/apps/audio/app.yml
+    - backend/apps/audio/assistant_speech/delete_task.py
+    - backend/apps/audio/assistant_speech/persistence.py
+    - backend/apps/audio/assistant_speech/segment_task.py
+    - backend/apps/audio/assistant_speech/voice_profiles.py
+    - backend/apps/audio/assistant_speech/worker.py
+    - backend/apps/audio/pricing.py
+    - backend/apps/audio/skills/speak_skill.py
+    - backend/apps/audio/tasks/common.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/apps/audio/voice_presets.py
+    - backend/core/api/app/routes/chats.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/assistant_speech_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/schemas/assistant_speech.yml
+    - backend/core/directus/schemas/chats.yml
+    - backend/providers/elevenlabs.yml
+    - backend/shared/providers/elevenlabs/client.py
+    - backend/shared/python_utils/chat_ciphertext_fingerprint.py
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_assistant_speech_api.py
+    - backend/tests/test_assistant_speech_projection.py
+    - backend/tests/test_assistant_speech_streaming.py
+    - backend/tests/test_assistant_speech_worker.py
+    - backend/tests/test_rest_api_audio.py
+    - backend/tests/test_websocket_metadata_dispatch.py
+    - contracts/features/app-skills/audio-speak/contract.yml
+    - contracts/features/app-skills/audio-speak/examples.yml
+    - contracts/features/assistant-response-speech/contract.yml
+    - contracts/features/assistant-response-speech/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/assistant-response-speech/spec.yml
+    - docs/specs/elevenlabs-audio-skills/spec.yml
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/verify_audio_sdk_cli_live_smoke.py
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - embed:audio:speak
+    - skill:ai:ask
+    - skill:audio:speak
+  - sha: 444af22374ea089341c112a00a5ca373234386e5
+    short_sha: 444af2237
+    authored_at: '2026-08-31T19:51:23+00:00'
+    subject: 'docs: refine contract capability models'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/checks/contract.yml
+    - contracts/features/checks/examples.yml
+    - contracts/features/contracts/contract.yml
+    - contracts/features/contracts/examples.yml
+    - contracts/features/plans/contract.yml
+    - contracts/features/plans/examples.yml
+    - contracts/features/projects/contract.yml
+    - contracts/features/projects/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 18ebc54df1982820a82b3e26cf7c6a864aa589c3
+    short_sha: 18ebc54df
+    authored_at: '2026-08-31T19:39:48+00:00'
+    subject: 'fix: hydrate user id across login methods'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/EnterBackupCode.svelte
+    - frontend/packages/ui/src/components/EnterRecoveryKey.svelte
+    - frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte
+    - frontend/packages/ui/src/components/signup/loginProfileHydration.test.ts
+    related_feature_ids: []
+  - sha: 67cff47788194ef84c5ccd25844cf6f6b5b7fb06
+    short_sha: 67cff4778
+    authored_at: '2026-08-31T19:19:45+00:00'
+    subject: 'fix: gate paid cache backfill on web readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_daily_ai_cache_backfill.py
+    related_feature_ids: []
+  - sha: 6ba2c5e3c4f2d95bb830e77b161f606932f37cf5
+    short_sha: 6ba2c5e3c
+    authored_at: '2026-08-31T18:31:43+00:00'
+    subject: 'test: await model preference acknowledgement'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: f784694f34b24fd2bbc0e829629d27c5fcc1643c
+    short_sha: f784694f3
+    authored_at: '2026-08-31T18:15:47+00:00'
+    subject: 'test: create owned model preference chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: ef214b45d60366c7c1b8e7c4b35c15eb1a316529
+    short_sha: ef214b45d
+    authored_at: '2026-08-31T18:02:14+00:00'
+    subject: 'test: persist models on owned chats'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: ce0098475ab394f75bd866cfb48c7a212681c95c
+    short_sha: ce0098475
+    authored_at: '2026-08-31T17:44:06+00:00'
+    subject: 'fix: publish persisted model selections locally'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    related_feature_ids: []
+  - sha: 08039375f5696e0dd3bd589c0ce3fad62cdfd0ee
+    short_sha: 08039375f
+    authored_at: '2026-08-31T17:29:35+00:00'
+    subject: 'fix: decouple changelog credentials from checkout state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: c0c983da87c1f5f12e9b27f910a7a9e863bd05b5
+    short_sha: c0c983da8
+    authored_at: '2026-08-31T17:28:18+00:00'
+    subject: 'test: match application fixture prose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: a26d45adaac4e5e8d9e7d650a98a186dbfb4503b
+    short_sha: a26d45ada
+    authored_at: '2026-08-31T17:19:41+00:00'
+    subject: 'test: wait for model sync setup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: c47713e840367299596f4c27eb5e72d67e952688
+    short_sha: c47713e84
+    authored_at: '2026-08-31T17:14:15+00:00'
+    subject: 'fix: publish changelogs across concurrent dev updates'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/release-intelligence-cron.sh
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: 18ec71d3e153fceca83dcf11797c958dde96e764
+    short_sha: 18ec71d3e
+    authored_at: '2026-08-31T17:10:49+00:00'
+    subject: 'test: assert application response prose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: de50d7e21eab87818dc9dc5a3dadfb5f819bac07
+    short_sha: de50d7e21
+    authored_at: '2026-08-31T17:05:57+00:00'
+    subject: 'fix: apply model sync atomically'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    related_feature_ids: []
+  - sha: 7b2998f58ee6613f12731a5af436817a265ad7c8
+    short_sha: 7b2998f58
+    authored_at: '2026-08-31T16:53:48+00:00'
+    subject: 'fix: restore release intelligence cron credentials'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: f35cc27e73d74d58d63103f161d00de921153737
+    short_sha: f35cc27e7
+    authored_at: '2026-08-31T16:49:14+00:00'
+    subject: 'test: require complete application previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: 43fc523c704539a0c424d3e9d26f73f793191545
+    short_sha: 43fc523c7
+    authored_at: '2026-08-31T16:45:12+00:00'
+    subject: 'fix: reject stale model preference sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte
+    - frontend/packages/ui/src/components/enter_message/ComposerModelSelector.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    related_feature_ids: []
+  - sha: 2966de993194399c3f896582cf9ea6cf1d0e45db
+    short_sha: 2966de993
+    authored_at: '2026-08-31T16:15:07+00:00'
+    subject: 'fix: retry fresh-device model selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    - frontend/packages/ui/src/services/chatModelSelection.ts
+    related_feature_ids: []
+  - sha: 9754d6cdda1b0b47a24eea21c9aed971eec810d9
+    short_sha: 9754d6cdd
+    authored_at: '2026-08-31T16:11:04+00:00'
+    subject: 'test: use anyio for preference authorization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_chat_model_preference_handler.py
+    related_feature_ids: []
+  - sha: f3ed1b6edea652d02aceb08a4c9658fe4feafa80
+    short_sha: f3ed1b6ed
+    authored_at: '2026-08-31T16:03:51+00:00'
+    subject: 'fix: silence shared preference reads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_model_preference_handler.py
+    - backend/tests/test_chat_model_preference_handler.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 724f4554da5419c863dea19e9b490c4b4c185e7b
+    short_sha: 724f4554d
+    authored_at: '2026-08-31T15:59:01+00:00'
+    subject: 'test: await model persistence transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: 9ec57b0a5ed984c22d452cbae8a92cacf1ca6519
+    short_sha: 9ec57b0a5
+    authored_at: '2026-08-31T15:42:24+00:00'
+    subject: 'fix: await model preference persistence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: d8ba6372a72537ffd60b15fdd2dc2fe61e76a238
+    short_sha: d8ba6372a
+    authored_at: '2026-08-31T15:21:48+00:00'
+    subject: 'fix: preserve active model preference restores'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 14b364cfd0838af7e7a0fb6cd5d23812bd57b774
+    short_sha: 14b364cfd
+    authored_at: '2026-08-31T15:16:36+00:00'
+    subject: 'test: assert isolated preview gateway'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: 94d2098da37816ba6a6accfa03304a17023ba577
+    short_sha: 94d2098da
+    authored_at: '2026-08-31T15:04:43+00:00'
+    subject: 'fix: preserve shared child embed keys'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/src/routes/share/chat/[chatId]/+page.svelte
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.test.ts
+    - frontend/apps/web_app/src/routes/share/chat/shareChatEmbedUtils.ts
+    related_feature_ids: []
+  - sha: 514ccfc9f14e30e69563b0fa60ed56ad786b6234
+    short_sha: 514ccfc9f
+    authored_at: '2026-08-31T14:51:14+00:00'
+    subject: 'fix: complete delayed model preference restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 1a436d6062d351674ac23e40ebede7991e3dcb30
+    short_sha: 1a436d606
+    authored_at: '2026-08-31T14:33:26+00:00'
+    subject: 'test: reproduce delayed model preference restore'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: a67fd6f026093ede3d521c7eefaf774810cbaa24
+    short_sha: a67fd6f02
+    authored_at: '2026-08-31T14:30:50+00:00'
+    subject: 'fix: wait for shared application files'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/applicationPreviewService.test.ts
+    - frontend/packages/ui/src/services/applicationPreviewService.ts
+    related_feature_ids: []
+  - sha: a15b0c15bf283b2d441d70def46239619247d899
+    short_sha: a15b0c15b
+    authored_at: '2026-08-31T14:05:41+00:00'
+    subject: 'test: align short share URL assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/application-preview-share.spec.ts
+    related_feature_ids: []
+  - sha: e85f865a03b115246b842013a4bde493f46fbd28
+    short_sha: e85f865a0
+    authored_at: '2026-08-31T13:49:28+00:00'
+    subject: 'test: open persisted chat for model loading check'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: 5897073c6ae0c07837980184fd3c458bf8ea5157
+    short_sha: 5897073c6
+    authored_at: '2026-08-31T13:46:22+00:00'
+    subject: 'fix: retry delayed embed hydration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
+    related_feature_ids: []
+  - sha: a9b2edc306f6278f2ba7807bd758402943012314
+    short_sha: a9b2edc30
+    authored_at: '2026-08-31T13:31:43+00:00'
+    subject: 'fix: recover delayed embed previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedReferencePreview.test.ts
+    related_feature_ids: []
+  - sha: 0b1d4487123f139d048013d0a5be6f9ffd344a77
+    short_sha: 0b1d44871
+    authored_at: '2026-08-31T12:58:18+00:00'
+    subject: 'test: verify personal account model loading'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    related_feature_ids: []
+  - sha: 5dd249afccc812e73c969f310227c1de0dd14410
+    short_sha: 5dd249afc
+    authored_at: '2026-08-31T12:27:15+00:00'
+    subject: 'fix: preserve application preview file headers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_application_preview_streaming.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 091ffad72f1e50d2b826d51117b78b0bfd20c3ee
+    short_sha: 091ffad72
+    authored_at: '2026-08-31T12:26:05+00:00'
+    subject: 'feat: refine contract presentation workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/define-contract/SKILL.md
+    - .claude/skills/define-contract/SKILL.md
+    - .github/workflows/contract-approval-pdf.yml
+    - AGENTS.md
+    - CLAUDE.md
+    - contracts/README.md
+    - contracts/features/contracts/contract.yml
+    - contracts/features/contracts/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - scripts/audit_opencode_output_quality.py
+    - scripts/contract_approval_pdf.py
+    - scripts/contracts.py
+    - scripts/opencode_response_media.py
+    - scripts/tests/test_contract_approval_pdf.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_opencode_output_quality_audit.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_sessions_contract_gate.py
+    related_feature_ids: []
+  - sha: 328b8cd43120e40020879d9ab039cfdef74db0b3
+    short_sha: 328b8cd43
+    authored_at: '2026-08-31T12:22:58+00:00'
+    subject: 'fix: restore chat model preference websocket routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/websockets.py
+    related_feature_ids: []
+  - sha: d1a793e9eb5ce783650be767f6fe0fa6742bdc2a
+    short_sha: d1a793e9e
+    authored_at: '2026-08-31T11:05:20+00:00'
+    subject: 'feat: reorder OpenMates webinars'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-11-11.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/spec-driven-development-webinar-2026-10-28.jpg
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - shared/events/openmates_events.yml
+    related_feature_ids: []
+  - sha: 5bb13b25055f8bfc7bf5bed4bccb5bf5a77f5116
+    short_sha: 5bb13b250
+    authored_at: '2026-08-31T11:03:00+00:00'
+    subject: 'fix: refresh backfill promotion source pin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 9256808788af198ba684753eb2d5cf65bdd85fa0
+    short_sha: '925680878'
+    authored_at: '2026-08-31T10:45:53+00:00'
+    subject: 'fix: make nightly cache backfill safely testable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/playwright.config.ts
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 8fd38230910967b53b18e2aeb729941a3b8cd260
+    short_sha: 8fd382309
+    authored_at: '2026-08-31T10:36:34+00:00'
+    subject: 'feat: update OpenMates event schedule'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/event-assets/openmates/cli-sdk-webinar-2026-10-28.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/everyday-workflows-webinar-2026-09-30.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-berlin-meetup-2026-09-26.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-community-hour-2026-09-29.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/openmates-teams-webinar-2026-10-14.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/self-hosting-webinar-2026-11-25.jpg
+    - frontend/apps/web_app/static/event-assets/openmates/spec-driven-development-webinar-2026-11-11.jpg
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - shared/events/openmates_events.yml
+    related_feature_ids: []
+  - sha: f3fc7c1847e62e804871c914087b4cd7de8d84d7
+    short_sha: f3fc7c184
+    authored_at: '2026-08-31T02:30:03+00:00'
+    subject: 'fix: transport live test markers out of band'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - scripts/audit_daily_ai_test_inference.py
+    related_feature_ids: []
+  - sha: 97eb931d9fa527d083153387a3e0e6f4c7920525
+    short_sha: 97eb931d9
+    authored_at: '2026-08-31T02:06:00+00:00'
+    subject: 'fix: isolate host cache backfill claims'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 41831318863673e452df8786ba7717f8fdd8dc0a
+    short_sha: '418313188'
+    authored_at: '2026-08-31T01:58:25+00:00'
+    subject: 'fix: pin cache backfill to full commit sha'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: 2258a68fef30f67845f01327add8128841bba466
+    short_sha: 2258a68fe
+    authored_at: '2026-08-31T01:38:50+00:00'
+    subject: 'fix: run nightly cache backfill before playwright'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/run_tests.py
+    related_feature_ids: []
+  - sha: bbf467fd1b91edfb858942f50debafbf45dd3909
+    short_sha: bbf467fd1
+    authored_at: '2026-08-31T01:18:56+00:00'
+    subject: 'feat: automate bounded daily cache backfill'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/docker-compose.yml
+    - backend/shared/testing/api_response_cache.py
+    - backend/shared/testing/caching_http_transport.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_caching_http_transport.py
+    - backend/tests/test_daily_ai_test_budget.py
+    - contracts/architecture/daily-ai-test-inference/contract.yml
+    - contracts/architecture/daily-ai-test-inference/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/live-mock-testing.md
+    - docs/specs/cost-safe-daily-ai-tests/spec.yml
+    - frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
+    - frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/contracts.py
+    - scripts/daily_ai_cache_backfill.py
+    - scripts/daily_ai_test_manifest.json
+    - scripts/daily_ai_test_policy.py
+    - scripts/run_tests.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_daily_ai_cache_backfill.py
+    - scripts/tests/test_daily_ai_test_policy.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    related_feature_ids:
+    - app:ai
+llm_summary:
+  overview: 'Development focused on two major areas: the introduction of assistant speech capabilities using ElevenLabs v3
+    and the refinement of application preview synchronization. Significant work was also completed on the CI infrastructure
+    to automate AI test caching and manage inference costs.'
+  released_changes: []
+  bug_fixes:
+  - text: A series of fixes addressed chat model preference synchronization, including restoring websocket routing, ensuring
+      atomic sync application, rejecting stale updates, and completing delayed restores.
+    evidence:
+      commits:
+      - 328b8cd43
+      - 9ec57b0a5
+      - 43fc523c7
+      - ce0098475
+      - de50d7e21
+      - 2966de993
+      - f3ed1b6ed
+      - d8ba6372a
+      - 514ccfc9f
+    release_status: dev_only
+  - text: Application preview and embed stability was improved by fixing thumbnail persistence, preserving file headers during
+      streaming, and recovering delayed previews.
+    evidence:
+      commits:
+      - 07291e943
+      - 5dd249afc
+      - 94d2098da
+      - 5897073c6
+      - a9b2edc30
+      - 665bba7ee
+      - a67fd6f02
+    release_status: dev_only
+  - text: User ID hydration was corrected to ensure consistency across different login methods.
+    evidence:
+      commits:
+      - 18ebc54df
+    release_status: dev_only
+  - text: Assistant speech finalization is now explicitly confirmed in the backend persistence layer.
+    evidence:
+      commits:
+      - 0b14d8145
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates is developing assistant speech features, including an ElevenLabs v3 backend integration, a playback queue,
+      and a dedicated speech player UI.
+    evidence:
+      commits:
+      - abb666314
+      - 565162b78
+      - 6c45ca079
+    release_status: dev_only
+  - text: Application previews now support auto-starting when triggered by embed updates.
+    evidence:
+      commits:
+      - 472426fd6
+    release_status: dev_only
+  - text: The community event schedule was updated, including new dates for webinars on CLI SDKs, spec-driven development,
+      and the Berlin meetup.
+    evidence:
+      commits:
+      - 8fd382309
+      - d1a793e9e
+    release_status: dev_only
+  internal_progress:
+  - text: The CI pipeline now includes automated bounded daily cache backfills for AI tests to manage inference budgets and
+      improve test reliability.
+    evidence:
+      commits:
+      - bbf467fd1
+      - 67cff4778
+      - 5bb13b250
+      - '925680878'
+      - f3fc7c184
+      - 97eb931d9
+      - '418313188'
+      - 2258a68fe
+    release_status: dev_only
+  - text: Contract management workflows were refined with improved PDF exports and updated capability models.
+    evidence:
+      commits:
+      - c0f45ee82
+      - 091ffad72
+      - 444af2237
+    release_status: dev_only
+  - text: Release intelligence automation was updated to handle concurrent updates and preserve historical artifacts.
+    evidence:
+      commits:
+      - 08039375f
+      - c47713e84
+      - 7b2998f58
+      - 651c15beb
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Assistant speech UI and ElevenLabs v3 backend integration.
+      evidence:
+        commits:
+        - abb666314
+        - 565162b78
+        - 6c45ca079
+      reason: Assistant speech features are currently dev_only and not ready for public communication.
+    - text: Auto-starting application previews and thumbnail persistence.
+      evidence:
+        commits:
+        - 472426fd6
+        - 07291e943
+      reason: Application preview enhancements are dev_only.
+    - text: Updated OpenMates webinar and meetup schedule.
+      evidence:
+        commits:
+        - 8fd382309
+        - d1a793e9e
+      reason: Event schedule updates are dev_only.
+    rationale: All user-facing changes from this period are currently in dev_only status and have not been merged to the main
+      branch for public release.
+  social_video_recommendations:
+  - idea: Demonstrate the new assistant speech capabilities, showing the UI controls and the low-latency response from the
+      ElevenLabs v3 backend.
+    priority: high
+    reason: Voice interaction is a high-impact feature that provides a strong visual and auditory product story.
+    evidence:
+      commits:
+      - abb666314
+      - 565162b78
+  - idea: Showcase the seamless transition from code generation to an auto-starting application preview within the chat.
+    priority: medium
+    reason: This highlights the project's 'spec-driven development' workflow and immediate feedback loop.
+    evidence:
+      commits:
+      - 472426fd6
+  quality_notes:
+  - Extensive test coverage was added for chat model preferences and application preview sharing logic.
+  - The introduction of bounded cache backfills for AI tests suggests a focus on cost-controlled quality assurance.
+  validation_warnings: []

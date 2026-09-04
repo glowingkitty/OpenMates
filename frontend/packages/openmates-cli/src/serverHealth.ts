@@ -10,18 +10,24 @@ import dnsModule, { promises as dns } from "node:dns";
 import { createHmac, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { isIP } from "node:net";
-import { request as httpsRequest } from "node:https";
+import { request as httpsRequest, type RequestOptions } from "node:https";
 import { request as httpRequest } from "node:http";
 import path from "node:path";
 import type { ServerRole } from "./serverPlanning.js";
 
 const INCIDENT_FAILURE_THRESHOLD = 2;
+const STORAGE_CRITICAL_AFTER_MS = 60 * 60 * 1000;
 const STALE_AFTER_MS = 15 * 60 * 1000;
 const HEARTBEAT_AFTER_MS = 24 * 60 * 60 * 1000;
 const OPERATIONAL_REPORT_STALE_AFTER_MS = 26 * 60 * 60 * 1000;
 const ALLOWED_WEBHOOK_PORTS = new Set([443]);
 const IMMEDIATE_FAILURE_CLASSES = new Set(["credential", "configuration", "config", "critical_availability"]);
 const WEBHOOK_EGRESS_POLICY = { followRedirects: false, denyAddressClasses: ["private", "linkLocal"] } as const;
+const BREVO_API_HOST = "api.brevo.com";
+const BREVO_REQUEST_TIMEOUT_MS = 10_000;
+const BREVO_IDEMPOTENCY_TTL_MS = 30 * 60 * 1000;
+const DELIVERY_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const OPENMATES_REPOSITORY_PATH = "/glowingkitty/OpenMates/";
 
 export type RuntimeIncidentState = {
   consecutiveFailures: number;
@@ -32,6 +38,7 @@ export type RuntimeIncidentState = {
   lastNotificationAt?: string;
   lastHeartbeatAt?: string;
   lastFailureClass?: string;
+  criticalEscalatedAt?: string;
   checks?: Record<string, {
     consecutiveFailures: number;
     incidentOpen: boolean;
@@ -39,6 +46,7 @@ export type RuntimeIncidentState = {
     lastCheckAt?: string;
     lastSuccessAt?: string;
     lastFailureClass?: string;
+    criticalEscalatedAt?: string;
   }>;
 };
 
@@ -55,7 +63,7 @@ export type RuntimeCheckOutcome = {
 
 export type RuntimeNotificationPayload = {
   role: ServerRole;
-  kind: RuntimeNotificationDecision["kind"] | "post_update_failed" | "service_unhealthy" | "monitor_stale" | "recovered" | "daily_heartbeat" | "delivery_test";
+  kind: RuntimeNotificationDecision["kind"] | "post_update_failed" | "service_unhealthy" | "critical" | "monitor_stale" | "recovered" | "daily_heartbeat" | "delivery_test";
   occurredAt: string;
   checkIds: string[];
   sanitizedReason: string;
@@ -73,6 +81,37 @@ export type RuntimeNotificationConfig = {
   discordWebhookUrl?: string;
   genericWebhook?: { url: string; secret: string; allowLocalDevelopmentFixture?: boolean };
 };
+
+export type UpdateSourceLink = {
+  kind: "release" | "pull_request" | "commit" | "source";
+  url: string;
+};
+
+export type UpdateCompletionPayload = {
+  deliveryId: string;
+  updateMode: "image" | "source";
+  installedVersion: string;
+  role: ServerRole;
+  completedAt: string;
+  source: UpdateSourceLink;
+};
+
+export type UpdateCompletionEmailDelivery = {
+  status: "accepted" | "failed" | "unavailable";
+  attempts: number;
+  sanitizedReason?: string;
+};
+
+export type UpdateCompletionOutcome = {
+  updateStatus: "success" | "degraded";
+  exitCode: 0 | 1;
+  delivery: UpdateCompletionEmailDelivery;
+};
+
+export type UpdateCompletionDeliveryPlan =
+  | { action: "send"; deliveryId?: string; pendingAt?: string; previousAttempts?: number }
+  | { action: "reuse_accepted"; deliveryId: string; attempts: number }
+  | { action: "blocked"; deliveryId?: string; pendingAt?: string; reason: "update_status_unreadable" | "delivery_identity_invalid" | "idempotency_window_expired" | "retry_budget_exhausted" };
 
 export type OperationalEnvironment = "development" | "production" | "self_host";
 
@@ -113,6 +152,8 @@ export type OperationalDeliveryReceipt = {
   attemptCount: number;
   occurredAt: string;
   sanitizedFailureClass?: string;
+  destinationSource?: string;
+  fallbackUsed?: boolean;
 };
 
 export function planOperationalMonitoring(options: {
@@ -223,23 +264,202 @@ export function buildOperationalDeliveryReceipt(input: OperationalDeliveryReceip
     attemptCount: input.attemptCount,
     occurredAt: input.occurredAt,
     ...(input.sanitizedFailureClass ? { sanitizedFailureClass: input.sanitizedFailureClass } : {}),
+    ...(input.destinationSource ? { destinationSource: input.destinationSource } : {}),
+    ...(input.fallbackUsed !== undefined ? { fallbackUsed: input.fallbackUsed } : {}),
   };
+}
+
+function safePublicUpdateSourceLink(kind: UpdateSourceLink["kind"], rawUrl?: string | null): UpdateSourceLink | null {
+  if (!rawUrl) return null;
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== "https:" || url.hostname !== "github.com" || !url.pathname.startsWith(OPENMATES_REPOSITORY_PATH)) {
+      return null;
+    }
+    return { kind, url: url.toString() };
+  } catch {
+    return null;
+  }
+}
+
+export function selectUpdateSourceLink(links: {
+  releaseUrl?: string | null;
+  pullRequestUrl?: string | null;
+  commitUrl?: string | null;
+  sourceUrl?: string | null;
+}): UpdateSourceLink | null {
+  return safePublicUpdateSourceLink("release", links.releaseUrl)
+    ?? safePublicUpdateSourceLink("pull_request", links.pullRequestUrl)
+    ?? safePublicUpdateSourceLink("commit", links.commitUrl)
+    ?? safePublicUpdateSourceLink("source", links.sourceUrl);
+}
+
+export function buildUpdateCompletionEmail(payload: UpdateCompletionPayload): { subject: string; textContent: string; headers: { idempotencyKey: string } } {
+  return {
+    subject: "Server update complete",
+    headers: { idempotencyKey: payload.deliveryId },
+    textContent: [
+      "OpenMates server update completed successfully.",
+      `Mode: ${payload.updateMode}`,
+      `Version: ${payload.installedVersion}`,
+      `Role: ${payload.role}`,
+      `Completed: ${payload.completedAt}`,
+      `Source (${payload.source.kind}): ${payload.source.url}`,
+    ].join("\n"),
+  };
+}
+
+export function buildUpdateCompletionOutcome(delivery: UpdateCompletionEmailDelivery): UpdateCompletionOutcome {
+  return {
+    updateStatus: delivery.status === "accepted" ? "success" : "degraded",
+    exitCode: delivery.status === "accepted" ? 0 : 1,
+    delivery,
+  };
+}
+
+export function isBrevoIdempotencyDuplicate(status: number, responseBody: string, payload?: Record<string, unknown>): boolean {
+  if (status !== 400 || !payload?.headers || typeof payload.headers !== "object" || !("idempotencyKey" in payload.headers)) {
+    return false;
+  }
+  try {
+    return (JSON.parse(responseBody) as { code?: unknown }).code === "duplicate_parameter";
+  } catch {
+    return false;
+  }
+}
+
+export function planUpdateCompletionDelivery(input: {
+  previousStatus: Record<string, unknown>;
+  updateMode: UpdateCompletionPayload["updateMode"];
+  installedVersion: string;
+  continuousUpdate: boolean;
+  now: Date;
+}): UpdateCompletionDeliveryPlan {
+  if (input.previousStatus.statusReadError === "invalid_update_status") {
+    return { action: "blocked", reason: "update_status_unreadable" };
+  }
+  const rawPreviousDelivery = input.previousStatus.completionEmailDelivery;
+  const previousDelivery = rawPreviousDelivery && typeof rawPreviousDelivery === "object" && !Array.isArray(rawPreviousDelivery)
+    ? rawPreviousDelivery as Record<string, unknown>
+    : undefined;
+  const sameInstalledArtifact = input.previousStatus.updateMode === input.updateMode
+    && input.previousStatus.installedVersion === input.installedVersion;
+  const deliveryId = typeof input.previousStatus.completionEmailDeliveryId === "string"
+    && DELIVERY_ID_PATTERN.test(input.previousStatus.completionEmailDeliveryId)
+    ? input.previousStatus.completionEmailDeliveryId
+    : undefined;
+  if (input.continuousUpdate && sameInstalledArtifact && previousDelivery?.status === "accepted") {
+    const attempts = previousDelivery.attempts;
+    const completedAt = typeof input.previousStatus.completedAt === "string"
+      ? Date.parse(input.previousStatus.completedAt)
+      : Number.NaN;
+    const sourceLink = typeof input.previousStatus.sourceLink === "string"
+      ? safePublicUpdateSourceLink("source", input.previousStatus.sourceLink)
+      : null;
+    if (!deliveryId || !Number.isInteger(attempts) || Number(attempts) < 1 || Number(attempts) > 3
+      || !Number.isFinite(completedAt) || !sourceLink) {
+      return { action: "blocked", reason: "delivery_identity_invalid" };
+    }
+    return { action: "reuse_accepted", deliveryId, attempts: Number(attempts) };
+  }
+  const hasAttemptedUnavailableDelivery = previousDelivery?.status === "unavailable"
+    && Number.isInteger(previousDelivery.attempts)
+    && Number(previousDelivery.attempts) > 0;
+  if (sameInstalledArtifact && (previousDelivery?.status === "pending" || previousDelivery?.status === "failed" || hasAttemptedUnavailableDelivery)) {
+    const previousAttempts = previousDelivery.attempts;
+    const pendingAtValue = typeof input.previousStatus.completionEmailPendingAt === "string"
+      ? input.previousStatus.completionEmailPendingAt
+      : undefined;
+    const pendingAt = pendingAtValue
+      ? Date.parse(pendingAtValue)
+      : Number.NaN;
+    if (!deliveryId || !Number.isInteger(previousAttempts) || Number(previousAttempts) < 0 || Number(previousAttempts) > 3) {
+      return { action: "blocked", reason: "delivery_identity_invalid" };
+    }
+    if (!Number.isFinite(pendingAt) || input.now.getTime() - pendingAt >= BREVO_IDEMPOTENCY_TTL_MS) {
+      return { action: "blocked", deliveryId, pendingAt: pendingAtValue, reason: "idempotency_window_expired" };
+    }
+    if (Number(previousAttempts) >= 3) {
+      return { action: "blocked", deliveryId, pendingAt: pendingAtValue, reason: "retry_budget_exhausted" };
+    }
+    return { action: "send", deliveryId, pendingAt: pendingAtValue, previousAttempts: Number(previousAttempts) };
+  }
+  return { action: "send" };
 }
 
 export async function probeRuntimeEmailService(
   config: NonNullable<RuntimeNotificationConfig["email"]>,
 ): Promise<boolean> {
   try {
-    const response = await fetch("https://api.brevo.com/v3/account", {
-      method: "GET",
-      redirect: "error",
-      headers: { "api-key": config.apiKey },
-      signal: AbortSignal.timeout(10_000),
-    });
-    return response.ok;
+    await requestBrevo("/v3/account", "GET", config.apiKey);
+    return true;
   } catch {
     return false;
   }
+}
+
+export function buildBrevoRequestOptions(
+  pathName: string,
+  method: "GET" | "POST",
+  apiKey: string,
+  body?: string,
+): RequestOptions {
+  return {
+    protocol: "https:",
+    hostname: BREVO_API_HOST,
+    servername: BREVO_API_HOST,
+    port: 443,
+    path: pathName,
+    method,
+    family: 4,
+    lookup: (hostname, options, callback) => dnsModule.lookup(hostname, { ...options, family: 4 }, callback),
+    headers: {
+      "api-key": apiKey,
+      ...(body ? { "content-type": "application/json", "Content-Length": Buffer.byteLength(body) } : {}),
+    },
+    timeout: BREVO_REQUEST_TIMEOUT_MS,
+  };
+}
+
+export function isBrevoAcceptedResponse(pathName: string, method: "GET" | "POST", status: number, responseBody: string): boolean {
+  if (status < 200 || status >= 300) return false;
+  if (method !== "POST" || pathName !== "/v3/smtp/email") return true;
+  try {
+    const messageId = (JSON.parse(responseBody) as { messageId?: unknown }).messageId;
+    return typeof messageId === "string" && messageId.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function requestBrevo(
+  pathName: string,
+  method: "GET" | "POST",
+  apiKey: string,
+  payload?: Record<string, unknown>,
+): Promise<void> {
+  const body = payload ? JSON.stringify(payload) : undefined;
+  await new Promise<void>((resolve, reject) => {
+    const request = httpsRequest(buildBrevoRequestOptions(pathName, method, apiKey, body), (response) => {
+      let responseBytes = 0;
+      const chunks: Buffer[] = [];
+      response.on("data", (chunk: Buffer) => {
+        responseBytes += chunk.length;
+        if (responseBytes > 64 * 1024) request.destroy(new Error("brevo_response_too_large"));
+        else chunks.push(chunk);
+      });
+      response.on("end", () => {
+        const status = response.statusCode ?? 0;
+        const responseBody = Buffer.concat(chunks).toString("utf8");
+        if (isBrevoAcceptedResponse(pathName, method, status, responseBody)) resolve();
+        else if (isBrevoIdempotencyDuplicate(status, responseBody, payload)) resolve();
+        else reject(new Error(`brevo_delivery_failed:${status}`));
+      });
+    });
+    request.on("timeout", () => request.destroy(new Error("brevo_delivery_timeout")));
+    request.on("error", reject);
+    request.end(body);
+  });
 }
 
 export async function readOperationalReportState(installDir: string, role: ServerRole): Promise<OperationalReportState> {
@@ -278,7 +498,15 @@ export function evaluateRuntimeIncident(
   const timestamp = now.toISOString();
   if (outcome.status === "passed") {
     const wasOpen = state.incidentOpen;
-    const next = { ...state, consecutiveFailures: 0, incidentOpen: false, lastCheckAt: timestamp, lastSuccessAt: timestamp };
+    const next = {
+      ...state,
+      consecutiveFailures: 0,
+      incidentOpen: false,
+      incidentOpenedAt: undefined,
+      criticalEscalatedAt: undefined,
+      lastCheckAt: timestamp,
+      lastSuccessAt: timestamp,
+    };
     if (wasOpen) {
       next.lastNotificationAt = timestamp;
       return { state: next, notification: { kind: "recovery", send: true, reason: "required_checks_recovered" } };
@@ -468,19 +696,26 @@ export async function sendRuntimeEmail(
   config: NonNullable<RuntimeNotificationConfig["email"]>,
   payload: RuntimeNotificationPayload,
 ): Promise<void> {
-  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-    method: "POST",
-    redirect: "error",
-    headers: { "api-key": config.apiKey, "content-type": "application/json" },
-    body: JSON.stringify({
-      sender: { email: config.from },
-      to: [{ email: config.to }],
-      subject: `[OpenMates ${payload.role}] ${payload.kind}`,
-      textContent: `${payload.sanitizedReason}\nChecks: ${payload.checkIds.join(", ")}\nTime: ${payload.occurredAt}`,
-    }),
-    signal: AbortSignal.timeout(10_000),
+  await requestBrevo("/v3/smtp/email", "POST", config.apiKey, {
+    sender: { email: config.from },
+    to: [{ email: config.to }],
+    subject: `[OpenMates ${payload.role}] ${payload.kind}`,
+    textContent: `${payload.sanitizedReason}\nChecks: ${payload.checkIds.join(", ")}\nTime: ${payload.occurredAt}`,
   });
-  if (!response.ok) throw new Error(`email_delivery_failed:${response.status}`);
+}
+
+export async function sendUpdateCompletionEmail(
+  config: NonNullable<RuntimeNotificationConfig["email"]>,
+  payload: UpdateCompletionPayload,
+): Promise<void> {
+  const email = buildUpdateCompletionEmail(payload);
+  await requestBrevo("/v3/smtp/email", "POST", config.apiKey, {
+    sender: { email: config.from },
+    to: [{ email: config.to }],
+    subject: email.subject,
+    textContent: email.textContent,
+    headers: email.headers,
+  });
 }
 
 async function deliverWithRetries(channel: RuntimeNotificationDelivery["channel"], send: () => Promise<void>): Promise<RuntimeNotificationDelivery> {
@@ -493,6 +728,26 @@ async function deliverWithRetries(channel: RuntimeNotificationDelivery["channel"
     }
   }
   return { channel, status: "exhausted", attempts: 3, sanitizedReason: "delivery_failed" };
+}
+
+export async function deliverUpdateCompletionEmail(
+  config: RuntimeNotificationConfig["email"],
+  payload: UpdateCompletionPayload,
+  send: (config: NonNullable<RuntimeNotificationConfig["email"]>, payload: UpdateCompletionPayload) => Promise<void> = sendUpdateCompletionEmail,
+  previousAttempts = 0,
+  onAttempt?: (attempts: number) => void,
+): Promise<UpdateCompletionEmailDelivery> {
+  if (!config) return { status: "unavailable", attempts: previousAttempts, sanitizedReason: "email_not_configured" };
+  for (let attempts = previousAttempts + 1; attempts <= 3; attempts += 1) {
+    onAttempt?.(attempts);
+    try {
+      await send(config, payload);
+      return { status: "accepted", attempts };
+    } catch {
+      if (attempts < 3) await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempts - 1)));
+    }
+  }
+  return { status: "failed", attempts: Math.max(previousAttempts, 3), sanitizedReason: "delivery_failed" };
 }
 
 export async function deliverRuntimeNotification(
@@ -513,8 +768,8 @@ export async function deliverRuntimeNotification(
   return Promise.all(deliveries);
 }
 
-export type RuntimeCheckResult = { id: string; status: "passed" | "failed" | "skipped"; failureClass?: string };
-export type RuntimeHealthEvent = { type: "service_unhealthy" | "recovered"; checkId: string };
+export type RuntimeCheckResult = { id: string; status: "passed" | "failed" | "skipped"; failureClass?: string; required?: boolean };
+export type RuntimeHealthEvent = { type: "service_unhealthy" | "service_critical" | "recovered"; checkId: string };
 
 export function applyRuntimeCheckResults(
   state: RuntimeIncidentState | undefined,
@@ -526,19 +781,44 @@ export function applyRuntimeCheckResults(
   const events: RuntimeHealthEvent[] = [];
   for (const result of results) {
     const checkState = checks[result.id] ?? { consecutiveFailures: 0, incidentOpen: false };
+    if (result.status === "skipped" && result.failureClass === "not_configured") {
+      checks[result.id] = {
+        consecutiveFailures: 0,
+        incidentOpen: false,
+        lastCheckAt: timestamp,
+        lastFailureClass: "not_configured",
+      };
+      continue;
+    }
+    if (result.status === "skipped" && result.failureClass === "dependency_failed" && result.required === false) {
+      continue;
+    }
     const evaluated = evaluateRuntimeIncident(
       checkState,
       { status: result.status === "passed" ? "passed" : "failed", failureClass: result.failureClass },
       new Date(timestamp),
     );
-    checks[result.id] = {
+    const nextCheckState = {
       consecutiveFailures: evaluated.state.consecutiveFailures,
       incidentOpen: evaluated.state.incidentOpen,
       incidentOpenedAt: evaluated.state.incidentOpenedAt,
       lastCheckAt: evaluated.state.lastCheckAt,
       lastSuccessAt: evaluated.state.lastSuccessAt,
       lastFailureClass: evaluated.state.lastFailureClass,
+      criticalEscalatedAt: evaluated.state.criticalEscalatedAt,
     };
+    if (
+      result.id === "core.object_storage"
+      && result.status === "failed"
+      && nextCheckState.incidentOpen
+      && nextCheckState.incidentOpenedAt
+      && !nextCheckState.criticalEscalatedAt
+      && Date.parse(timestamp) - Date.parse(nextCheckState.incidentOpenedAt) >= STORAGE_CRITICAL_AFTER_MS
+    ) {
+      nextCheckState.criticalEscalatedAt = timestamp;
+      events.push({ type: "service_critical", checkId: result.id });
+    }
+    checks[result.id] = nextCheckState;
     if (evaluated.notification?.kind === "incident") events.push({ type: "service_unhealthy", checkId: result.id });
     if (evaluated.notification?.kind === "recovery") events.push({ type: "recovered", checkId: result.id });
   }

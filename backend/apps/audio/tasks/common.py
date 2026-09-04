@@ -89,10 +89,11 @@ async def charge_audio_generation_credits(
     device_hash: Optional[str],
     api_key_name: Optional[str],
     log_prefix: str,
-) -> None:
+    raise_on_failure: bool = False,
+) -> Optional[dict[str, Any]]:
     """Charge generated-audio usage after successful provider output."""
     if credits <= 0:
-        return
+        return None
 
     try:
         headers = {"Content-Type": "application/json"}
@@ -127,9 +128,13 @@ async def charge_audio_generation_credits(
                 headers=headers,
             )
             response.raise_for_status()
+            result = response.json()
         logger.info("%s Charged %s credits for audio generation", log_prefix, credits)
+        return result if isinstance(result, dict) else None
     except Exception as exc:
         logger.error("%s Failed to charge audio generation credits: %s", log_prefix, exc, exc_info=True)
+        if raise_on_failure:
+            raise
 
 
 async def ensure_audio_credit_headroom(

@@ -19,13 +19,21 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+try:
+    from scripts.figma_paths import resolve_control_plane_root
+except ModuleNotFoundError:
+    from figma_paths import resolve_control_plane_root
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+CONTROL_PLANE_ROOT = resolve_control_plane_root(REPO_ROOT)
 DEFAULT_FILE_KEY = "PzgE78TVxG0eWuEeO6o8ve"
 DEFAULT_NODE_ID = "4944:31418"
 FIGMA_API_BASE_URL = "https://api.figma.com/v1"
 TOKEN_ENV_NAME = "FIGMA_ACCESS_TOKEN"
-TOKEN_FILES = (REPO_ROOT / ".env.figma.local", REPO_ROOT / ".env")
+TOKEN_FILES = (
+    CONTROL_PLANE_ROOT / ".env.figma.local",
+    CONTROL_PLANE_ROOT / ".env",
+)
 REQUEST_TIMEOUT_SECONDS = 45
 RATE_LIMIT_HEADERS = (
     "retry-after",

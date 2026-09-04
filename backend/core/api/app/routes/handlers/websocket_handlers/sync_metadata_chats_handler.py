@@ -20,15 +20,19 @@ Architecture:
 
 See also: docs/architecture/sync.md
 """
+from __future__ import annotations
+
 import logging
-from typing import Dict, Any
+from typing import TYPE_CHECKING, Dict, Any
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
+
+if TYPE_CHECKING:
+    from backend.core.api.app.services.directus import DirectusService
 
 # Reuse the shared utilities from load_more_chats_handler
 from .load_more_chats_handler import (
@@ -152,7 +156,7 @@ async def handle_sync_metadata_chats(
                     cached_list_item = batch_list_items.get(chat_id)
                     cached_versions = batch_versions.get(chat_id)
 
-                    if not cached_list_item:
+                    if not cached_list_item or not cached_list_item.encrypted_chat_key:
                         chat_ids_needing_directus.append(chat_id)
                         continue
 
@@ -162,7 +166,7 @@ async def handle_sync_metadata_chats(
                 # Fetch any cache misses from Directus
                 if chat_ids_needing_directus:
                     logger.info(
-                        f"Metadata sync: Fetching {len(chat_ids_needing_directus)} chats from Directus (cache miss)"
+                        f"Metadata sync: Fetching {len(chat_ids_needing_directus)} chats from Directus (cache miss/incomplete)"
                     )
                     directus_chats = await _fetch_chats_from_directus(
                         directus_service, user_id, chat_ids_needing_directus

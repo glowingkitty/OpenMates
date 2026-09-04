@@ -33,7 +33,7 @@ ACCESSIBILITY_HELP_RE = re.compile(r"\.help\s*\(")
 ACCESSIBILITY_LABEL_RE = re.compile(r"\.accessibilityLabel\s*\(")
 MARKDOWN_PATH_RE = re.compile(r"`([^`]+\.(?:svelte|css|ts|swift))`")
 
-APPLE_UI_PARITY_PROGRAM_SPEC = "docs/specs/apple-ui-parity-program/spec.yml"
+APPLE_UI_PARITY_PROGRAM_PLAN = "docs/plans/apple-ui-parity-program/plan.yml"
 CHAT_FIRST_SURFACES = (
     {
         "surface": "App shell and navigation",
@@ -418,7 +418,7 @@ def build_chat_first_program_inventory(
 
     return {
         "id": "apple-ui-parity-program",
-        "spec_path": APPLE_UI_PARITY_PROGRAM_SPEC,
+        "plan_path": APPLE_UI_PARITY_PROGRAM_PLAN,
         "first_rollout": "chat",
         "gate_policy": {
             "blocking_from_start": [

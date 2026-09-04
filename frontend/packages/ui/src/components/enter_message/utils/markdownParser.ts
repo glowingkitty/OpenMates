@@ -327,6 +327,7 @@ function htmlToTiptapJson(html: string): any {
  * - @focus:{app_id}:{focus_id}
  * - @memory:{app_id}:{memory_id}:{type}
  * - @memory-entry:{app_id}:{category_id}:{entry_id}
+ * - @wikipedia:{language}:{percent_encoded_title}
  *
  * This is a unified parser that handles all mention types in order of appearance.
  * Returns an array of TipTap nodes.
@@ -335,9 +336,9 @@ function parseMentions(text: string): any[] {
   const result: any[] = [];
 
   // Combined pattern to match all mention types
-  // Group 1: mention type (best-model, ai-model, mate, skill, focus, memory, memory-entry)
-  // Group 2+: variable parts depending on type
+  // Group 1-2: Wikipedia language/title, or group 3+: legacy mention type/parts.
   // Pattern breakdown:
+  // - @wikipedia:language:percent_encoded_title
   // - @best-model:alias_id (e.g., @best-model:best, @best-model:fast)
   // - @ai-model:id or @ai-model:id:provider
   // - @mate:id
@@ -346,7 +347,7 @@ function parseMentions(text: string): any[] {
   // - @memory:app:id:type
   // - @memory-entry:app:category:entry_id
   const mentionPattern =
-    /@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/g;
+    /@wikipedia:([a-z]{2,10}):([^\s]+)|@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/gi;
 
   let lastIndex = 0;
   let match;
@@ -360,10 +361,11 @@ function parseMentions(text: string): any[] {
       }
     }
 
-    const mentionType = match[1]; // "ai-model", "mate", "skill", "focus", or "memory"
-    const part1 = match[2]; // First ID part
-    const part2 = match[3]; // Second ID part (optional)
-    // part3 (match[4]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
+    const isWikipediaMention = typeof match[1] === "string";
+    const mentionType = isWikipediaMention ? "wikipedia" : match[3]; // "ai-model", "mate", "skill", "focus", "memory", or "wikipedia"
+    const part1 = isWikipediaMention ? match[1] : match[4]; // First ID part or Wikipedia language
+    const part2 = isWikipediaMention ? match[2] : match[5]; // Second ID part or Wikipedia encoded title
+    // part3 (match[6]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
 
     // Get the full matched text for mentionSyntax
     const fullMatch = match[0];
@@ -492,6 +494,18 @@ function parseMentions(text: string): any[] {
         });
         break;
       }
+
+      case "wikipedia": {
+        result.push({
+          type: "genericMention",
+          attrs: {
+            mentionType: "wikipedia",
+            displayName: formatWikipediaMentionDisplayName(part2 || ""),
+            mentionSyntax: fullMatch,
+          },
+        });
+        break;
+      }
     }
 
     lastIndex = match.index + match[0].length;
@@ -585,6 +599,17 @@ function formatMentionDisplayName(appId: string, itemId: string): string {
   return formatPart(appId);
 }
 
+function formatWikipediaMentionDisplayName(encodedTitle: string): string {
+  let title = encodedTitle;
+  try {
+    title = decodeURIComponent(encodedTitle);
+  } catch {
+    title = encodedTitle;
+  }
+  const displayTitle = title.replace(/_/g, " ").trim().replace(/\s+/g, "-");
+  return `Wiki-${displayTitle || encodedTitle}`;
+}
+
 function convertNodeToTiptap(node: Node): any {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
@@ -606,7 +631,8 @@ function convertNodeToTiptap(node: Node): any {
       text.includes("@skill:") ||
       text.includes("@focus:") ||
       text.includes("@memory-entry:") ||
-      text.includes("@memory:")
+      text.includes("@memory:") ||
+      text.includes("@wikipedia:")
     ) {
       const parsedNodes = parseMentions(text);
       // If only one node and it's a text node, return it directly

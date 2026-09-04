@@ -47,7 +47,6 @@ from celery import Celery  # For type hinting only
 from pydantic import BaseModel, Field
 
 from backend.apps.base_skill import BaseSkill
-from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
 from backend.apps.events.providers import berlin_philharmonic as berlin_philharmonic_provider
 from backend.apps.events.providers import eventbrite as eventbrite_provider
 from backend.apps.events.providers import google_events as google_events_provider
@@ -1378,22 +1377,6 @@ class SearchSkill(BaseSkill):
                 request_id,
                 quality_metadata.get("applied_filters"),
             )
-
-        try:
-            results = await sanitize_long_text_fields_in_payload(
-                payload=results,
-                task_id=f"events_search_{request_id}",
-                secrets_manager=secrets_manager,
-                cache_service=None,
-            )
-        except Exception as sanitize_error:
-            logger.error(
-                "Events content sanitization failed for request %s: %s",
-                request_id,
-                sanitize_error,
-                exc_info=True,
-            )
-            return (request_id, [], "Content sanitization failed", 0, searched_provider_ids)
 
         logger.info(
             "Events search (id=%s) done: %d results (total=%d) provider=%r query=%r",

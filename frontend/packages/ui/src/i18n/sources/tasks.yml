@@ -1,0 +1,185 @@
+blocked_heading:
+  context: Heading above the explanation shown when a Task is blocked
+  en: Blocked reason
+  de: Grund der Blockierung
+  verified_by_human: []
+
+blocked_reason.needs_user_input:
+  context: Safe fallback shown when a blocked Task needs information from the user
+  en: More information is needed from you before this Task can continue.
+  de: Weitere Informationen von dir werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann.
+  verified_by_human: []
+
+blocked_reason.waiting_for_approval:
+  context: Safe fallback shown when a blocked Task is waiting for approval
+  en: This Task is waiting for approval.
+  de: Diese Aufgabe wartet auf eine Freigabe.
+  verified_by_human: []
+
+blocked_reason.missing_credentials:
+  context: Safe fallback shown when a blocked Task needs credentials
+  en: Credentials are required before this Task can continue.
+  de: Zugangsdaten werden benoetigt, bevor diese Aufgabe fortgesetzt werden kann.
+  verified_by_human: []
+
+blocked_reason.ambiguous_requirement:
+  context: Safe fallback shown when a blocked Task has an ambiguous requirement
+  en: A requirement needs clarification before this Task can continue.
+  de: Eine Anforderung muss geklaert werden, bevor diese Aufgabe fortgesetzt werden kann.
+  verified_by_human: []
+
+blocked_reason.external_dependency:
+  context: Safe fallback shown when a blocked Task is waiting on an external dependency
+  en: This Task is waiting for an external dependency.
+  de: Diese Aufgabe wartet auf eine externe Abhaengigkeit.
+  verified_by_human: []
+
+blocked_reason.environment_unavailable:
+  context: Safe fallback shown when a blocked Task cannot access its environment
+  en: The required environment is currently unavailable.
+  de: Die erforderliche Umgebung ist derzeit nicht verfuegbar.
+  verified_by_human: []
+
+blocked_reason.verification_failed:
+  context: Safe fallback shown when a Task is blocked by failed verification
+  en: Verification failed and must be resolved before this Task can continue.
+  de: Die Ueberpruefung ist fehlgeschlagen und muss vor der Fortsetzung behoben werden.
+  verified_by_human: []
+
+blocked_reason.other:
+  context: Safe generic fallback shown when no more specific blocked Task reason is available
+  en: This Task needs attention before it can continue.
+  de: Diese Aufgabe benoetigt Aufmerksamkeit, bevor sie fortgesetzt werden kann.
+  verified_by_human: []
+
+activity.title:
+  context: Heading for the final encrypted Task Activity section
+  en: Activity
+  de: Aktivitaet
+  verified_by_human: []
+
+activity.placeholder:
+  context: Placeholder for the Task Activity comment composer
+  en: Add a comment...
+  de: Kommentar hinzufuegen...
+  verified_by_human: []
+
+activity.send:
+  context: Button label that posts a Task Activity comment
+  en: Send
+  de: Senden
+  verified_by_human: []
+
+activity.sending:
+  context: Button label while a Task Activity comment is being posted
+  en: Sending...
+  de: Wird gesendet...
+  verified_by_human: []
+
+activity.attach:
+  context: Accessible label for attaching files to a Task Activity comment
+  en: Attach files
+  de: Dateien anhaengen
+  verified_by_human: []
+
+activity.voice:
+  context: Accessible label for recording voice in a Task Activity comment
+  en: Record voice
+  de: Sprache aufnehmen
+  verified_by_human: []
+
+activity.loading:
+  context: Loading state for the Task Activity stream
+  en: Loading Activity...
+  de: Aktivitaet wird geladen...
+  verified_by_human: []
+
+activity.empty:
+  context: Empty state for the Task Activity stream
+  en: No Activity yet.
+  de: Noch keine Aktivitaet.
+  verified_by_human: []
+
+activity.user:
+  context: Safe fallback identity for a Task Activity user
+  en: User
+  de: Benutzer
+  verified_by_human: []
+
+activity.via_cli:
+  context: Source suffix for a Task Activity comment created with the CLI
+  en: via OpenMates CLI
+  de: ueber OpenMates CLI
+  verified_by_human: []
+
+activity.via_sdk:
+  context: Source suffix for a Task Activity comment created with an SDK
+  en: via OpenMates SDK
+  de: ueber OpenMates SDK
+  verified_by_human: []
+
+activity.tombstone:
+  context: Tombstone shown after deletion; author and deleter are display identities
+  en: Comment by {author} deleted by {deleter}
+  de: Kommentar von {author}, geloescht von {deleter}
+  verified_by_human: []
+
+activity.delete:
+  context: Accessible label for deleting a Task Activity comment
+  en: Delete comment
+  de: Kommentar loeschen
+  verified_by_human: []
+
+activity.delete_confirm:
+  context: Inline confirmation before deleting a Task Activity comment
+  en: Delete this comment?
+  de: Diesen Kommentar loeschen?
+  verified_by_human: []
+
+activity.uploading:
+  context: Task Activity composer state while an attachment uploads
+  en: Uploading attachment...
+  de: Anhang wird hochgeladen...
+  verified_by_human: []
+
+activity.transcribing:
+  context: Task Activity composer state while voice is transcribed
+  en: Transcribing recording...
+  de: Aufnahme wird transkribiert...
+  verified_by_human: []
+
+activity.processing_error:
+  context: Visible Task Activity composer error for a failed upload or transcription
+  en: Attachment processing failed. Remove or retry it before sending.
+  de: Die Verarbeitung des Anhangs ist fehlgeschlagen. Entferne ihn oder versuche es erneut.
+  verified_by_human: []
+
+activity.load_error:
+  context: Visible failure when encrypted Task Activity cannot be loaded
+  en: Activity could not be loaded.
+  de: Aktivitaet konnte nicht geladen werden.
+  verified_by_human: []
+
+activity.create_error:
+  context: Visible failure when a Task Activity comment cannot be created
+  en: The comment could not be sent.
+  de: Der Kommentar konnte nicht gesendet werden.
+  verified_by_human: []
+
+activity.attachment_error:
+  context: Visible failure when a Task Activity attachment cannot be processed
+  en: The attachment could not be processed.
+  de: Der Anhang konnte nicht verarbeitet werden.
+  verified_by_human: []
+
+activity.delete_error:
+  context: Visible failure when a Task Activity comment cannot be deleted
+  en: The comment could not be deleted.
+  de: Der Kommentar konnte nicht geloescht werden.
+  verified_by_human: []
+
+activity.key_error:
+  context: Visible failure when Task Activity embed keys cannot be restored locally
+  en: One or more Activity attachments could not be decrypted.
+  de: Mindestens ein Aktivitaetsanhang konnte nicht entschluesselt werden.
+  verified_by_human: []

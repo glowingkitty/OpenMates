@@ -63,7 +63,7 @@
           },
           {
             "type": "command",
-            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/contract-test-impact.sh"
+            "command": "$(git rev-parse --show-toplevel)/.claude/hooks/specification-test-impact.sh"
           },
           {
             "type": "command",

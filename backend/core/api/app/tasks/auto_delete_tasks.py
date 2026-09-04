@@ -72,6 +72,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from fastapi import HTTPException
+
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.user.device_management import (
@@ -81,6 +83,10 @@ from backend.core.api.app.services.directus.user.device_management import (
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.shared.python_utils.storage_availability import (
+    is_storage_unavailable_error,
+    require_storage_available,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -308,8 +314,8 @@ async def _delete_issue_s3_files(
     """
     Delete all S3 files associated with an issue (YAML report + screenshot).
 
-    Failures are logged as warnings but do NOT raise — the caller should still
-    proceed with deleting the Directus record so we don't leave orphaned DB rows.
+    Any storage failure raises so the caller preserves the authoritative record
+    and lets the bounded Celery retry path retain deletion intent.
 
     Args:
         issue:              Raw Directus issue record.
@@ -323,37 +329,24 @@ async def _delete_issue_s3_files(
 
     # Delete encrypted YAML report (issue-reports/…yaml.encrypted)
     yaml_key_enc = issue.get("encrypted_issue_report_yaml_s3_key")
+    screenshot_key_enc = issue.get("encrypted_screenshot_s3_key")
+    if yaml_key_enc or screenshot_key_enc:
+        await require_storage_available(s3_service)
+
     if yaml_key_enc:
-        try:
-            s3_key = await encryption_service.decrypt_issue_report_data(yaml_key_enc)
-            if s3_key:
-                await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
-                deleted += 1
-                logger.info(
-                    f"[IssueAutoDelete] Deleted S3 YAML for issue {issue.get('id')}: {s3_key}"
-                )
-        except Exception as exc:
-            logger.warning(
-                f"[IssueAutoDelete] Failed to delete S3 YAML for issue "
-                f"{issue.get('id')}: {exc}"
-            )
+        s3_key = await encryption_service.decrypt_issue_report_data(yaml_key_enc)
+        if s3_key:
+            await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
+            deleted += 1
+            logger.info("[IssueAutoDelete] Deleted issue report object")
 
     # Delete screenshot PNG (issue-screenshots/….png)
-    screenshot_key_enc = issue.get("encrypted_screenshot_s3_key")
     if screenshot_key_enc:
-        try:
-            s3_key = await encryption_service.decrypt_issue_report_data(screenshot_key_enc)
-            if s3_key:
-                await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
-                deleted += 1
-                logger.info(
-                    f"[IssueAutoDelete] Deleted S3 screenshot for issue {issue.get('id')}: {s3_key}"
-                )
-        except Exception as exc:
-            logger.warning(
-                f"[IssueAutoDelete] Failed to delete S3 screenshot for issue "
-                f"{issue.get('id')}: {exc}"
-            )
+        s3_key = await encryption_service.decrypt_issue_report_data(screenshot_key_enc)
+        if s3_key:
+            await s3_service.delete_file(bucket_key="issue_logs", file_key=s3_key)
+            deleted += 1
+            logger.info("[IssueAutoDelete] Deleted issue screenshot object")
 
     return deleted
 
@@ -401,7 +394,7 @@ async def _async_auto_delete_old_issues() -> Dict[str, Any]:
         await secrets_manager.initialize()
 
         s3_service = S3UploadService(secrets_manager=secrets_manager)
-        await s3_service.initialize()
+        await s3_service.initialize(configure_buckets=False)
 
         # ── Compute cutoff timestamp ───────────────────────────────────────────
         # Directus stores created_at as ISO 8601 strings. We use _lt (less than)
@@ -466,6 +459,14 @@ async def _async_auto_delete_old_issues() -> Dict[str, Any]:
                 summary['issues_deleted'] += 1
                 logger.debug(f"[IssueAutoDelete] Deleted issue {issue_id}.")
 
+            except HTTPException as issue_err:
+                if is_storage_unavailable_error(issue_err):
+                    raise
+                logger.error(
+                    f"[IssueAutoDelete] HTTP error deleting issue {issue_id}",
+                    exc_info=True,
+                )
+                summary['issues_failed'] += 1
             except Exception as issue_err:
                 logger.error(
                     f"[IssueAutoDelete] Error deleting issue {issue_id}: {issue_err}",

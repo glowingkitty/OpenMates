@@ -27,17 +27,20 @@ import {
   decryptWithEmbedKey,
 } from "./cryptoService";
 import type { StoreEmbedPayload } from "../types/chat";
+import { writable } from "svelte/store";
 import {
   canPersistPreviewBackfill,
   canStorePreviewBackfillLocally,
 } from "./embedPreviewBackfill";
 import {
   clearEmbedRefIndexEntries,
+  embedRefIndexVersion,
   registerEmbedRefIndex,
   resolveEmbedRefIndexEntry,
 } from "./embedRefIndex";
 
-export { embedRefIndexVersion } from "./embedRefIndex";
+export { embedRefIndexVersion };
+export const embedAvailabilityVersion = writable(0);
 // Embed store name for IndexedDB
 const EMBEDS_STORE_NAME = "embeds";
 
@@ -228,6 +231,44 @@ export interface EmbedKeyEntry {
 }
 
 export class EmbedStore {
+  private readonly pendingEmbedIdsByChatId = new Map<string, Set<string>>();
+  private readonly refRepairInFlight = new Map<string, Promise<string | null>>();
+
+  markEmbedKeyPendingForChat(chatId: string, embedId: string): void {
+    const pendingEmbedIds = this.pendingEmbedIdsByChatId.get(chatId) ?? new Set<string>();
+    pendingEmbedIds.add(this.normalizeEmbedId(embedId));
+    this.pendingEmbedIdsByChatId.set(chatId, pendingEmbedIds);
+  }
+
+  retryPendingEmbedKeysForChat(chatId: string): boolean {
+    const pendingEmbedIds = this.pendingEmbedIdsByChatId.get(chatId);
+    if (!pendingEmbedIds?.size) return false;
+
+    this.pendingEmbedIdsByChatId.delete(chatId);
+    embedKeyNegativeCache.forEach((cacheKey) => {
+      if (Array.from(pendingEmbedIds).some((embedId) => cacheKey.startsWith(`${embedId}:`))) {
+        embedKeyNegativeCache.delete(cacheKey);
+      }
+    });
+    embedRefIndexVersion.update((version) => version + 1);
+    return true;
+  }
+
+  private isEmbedKeyPending(embedId: string): boolean {
+    const normalizedEmbedId = this.normalizeEmbedId(embedId);
+    return Array.from(this.pendingEmbedIdsByChatId.values()).some((embedIds) =>
+      embedIds.has(normalizedEmbedId)
+    );
+  }
+
+  private clearEmbedKeyPending(embedId: string): void {
+    const normalizedEmbedId = this.normalizeEmbedId(embedId);
+    this.pendingEmbedIdsByChatId.forEach((embedIds, chatId) => {
+      embedIds.delete(normalizedEmbedId);
+      if (embedIds.size === 0) this.pendingEmbedIdsByChatId.delete(chatId);
+    });
+  }
+
   private isFileLikeType(type: string | undefined): boolean {
     if (!type) return false;
     return FILE_LIKE_EMBED_TYPES.has(type);
@@ -567,7 +608,12 @@ export class EmbedStore {
     entries: EmbedStoreEntry[],
   ): string[] {
     const candidates = new Set<string>();
-    for (const entry of entries) {
+    const prioritizedEntries = entries.slice().sort(
+      (a, b) =>
+        (b.updatedAt || b.createdAt || 0) -
+        (a.updatedAt || a.createdAt || 0),
+    );
+    for (const entry of prioritizedEntries) {
       if (entry.status === "error" || entry.status === "cancelled") continue;
 
       const embedId = this.getEntryEmbedId(entry);
@@ -1002,6 +1048,7 @@ export class EmbedStore {
 
     // Store in memory cache
     embedCache.set(contentRef, entry);
+    embedAvailabilityVersion.update((version) => version + 1);
 
     try {
       // Store in IndexedDB
@@ -1279,6 +1326,7 @@ export class EmbedStore {
 
     // Store in memory cache
     embedCache.set(contentRef, entry);
+    embedAvailabilityVersion.update((version) => version + 1);
 
     try {
       // Store in IndexedDB
@@ -1373,6 +1421,7 @@ export class EmbedStore {
       embedCache.set(item.contentRef, entry);
       entries.push(entry);
     }
+    embedAvailabilityVersion.update((version) => version + 1);
 
     // Write all entries in a single IDB transaction
     try {
@@ -1448,6 +1497,7 @@ export class EmbedStore {
             { embedId, fieldName: "encrypted_content" },
           );
           if (decryptedContent) {
+            this.clearEmbedKeyPending(embedId);
             embed.content = decryptedContent;
             // Re-register embed_ref → embed_id on reload/IDB read.
             // embed_ref is stored only inside the encrypted TOON content (zero-knowledge).
@@ -1491,6 +1541,9 @@ export class EmbedStore {
             } as any);
             /* eslint-enable @typescript-eslint/no-explicit-any */
           }
+        } else if (this.isEmbedKeyPending(embedId)) {
+          embed._decryptionPending = true;
+          embed.content = null;
         } else {
           embed._decryptionFailed = true;
           embed.status = "error";
@@ -2011,6 +2064,7 @@ export class EmbedStore {
     };
 
     embedCache.set(contentRef, entry);
+    embedAvailabilityVersion.update((version) => version + 1);
   }
 
   /**
@@ -2646,6 +2700,8 @@ export class EmbedStore {
             if (embedKey) {
               return embedKey;
             }
+          } else if (embedId) {
+            this.markEmbedKeyPendingForChat(chat.chat_id, embedId);
           }
         }
       }
@@ -2732,6 +2788,7 @@ export class EmbedStore {
       console.info(
         `[EmbedStore] Stored ${entries.length} embed key entries`,
       );
+      embedAvailabilityVersion.update((version) => version + 1);
     } catch (error) {
       console.error("[EmbedStore] Failed to store embed keys:", error);
       throw error;
@@ -2785,6 +2842,7 @@ export class EmbedStore {
     embedKeyCache.clear();
     chatIdHashCache.clear();
     embedKeyNegativeCache.clear();
+    this.pendingEmbedIdsByChatId.clear();
     console.debug("[EmbedStore] Cleared embed key cache");
   }
 
@@ -3480,6 +3538,24 @@ export class EmbedStore {
     const indexedEmbedId = this.resolveByRef(embedRef);
     if (indexedEmbedId) return indexedEmbedId;
 
+    const inFlight = this.refRepairInFlight.get(embedRef);
+    if (inFlight) return inFlight;
+
+    const repair = this.resolveByRefDeepUncached(embedRef);
+    this.refRepairInFlight.set(embedRef, repair);
+    try {
+      return await repair;
+    } finally {
+      if (this.refRepairInFlight.get(embedRef) === repair) {
+        this.refRepairInFlight.delete(embedRef);
+      }
+    }
+  }
+
+  private async resolveByRefDeepUncached(embedRef: string): Promise<string | null> {
+    const indexedEmbedId = this.resolveByRef(embedRef);
+    if (indexedEmbedId) return indexedEmbedId;
+
     const embedIdPrefix = this.extractDirectEmbedIdPrefix(embedRef);
     const checkedCandidates = new Set<string>();
 
@@ -3601,16 +3677,19 @@ export class EmbedStore {
 // Export singleton instance
 export const embedStore = new EmbedStore();
 
+export function retryPendingEmbedsForReadyChat(chatId: string): boolean {
+  return embedStore.retryPendingEmbedKeysForChat(chatId);
+}
+
 // OPE-327: When a chat key becomes ready, clear the embed key negative cache so
 // embeds whose key lookup previously failed (because the chat key wasn't loaded yet)
 // can retry and succeed. Without this, the negative cache permanently blocks re-lookup
 // even after the chat key loads via OPE-314's bulk key retry.
 if (typeof chatKeyManager.onKeyReady === "function") {
-  chatKeyManager.onKeyReady((_chatId: string) => {
-    if (embedKeyNegativeCache.size > 0) {
-      embedKeyNegativeCache.clear();
+  chatKeyManager.onKeyReady((chatId: string) => {
+    if (retryPendingEmbedsForReadyChat(chatId)) {
       console.debug(
-        `[EmbedStore] Cleared embed key negative cache — chat key ready, embed lookups will retry`,
+        `[EmbedStore] Retrying pending embed refs after matching chat key became ready`,
       );
     }
   });

@@ -45,10 +45,9 @@ final class SyncManager: ObservableObject {
         syncState = .syncing(phase: 1)
 
         do {
-            try await wsManager.send(WSOutboundMessage(
-                type: "phased_sync_request",
-                data: ["phase": "all"]
-            ))
+            try await wsManager.requestPhasedSync(
+                syncState: chatStore.makeSyncClientState(clientSuggestionsCount: 0)
+            )
         } catch {
             syncState = .failed(error.localizedDescription)
             return
@@ -57,7 +56,7 @@ final class SyncManager: ObservableObject {
         syncTimeoutTask = Task {
             try? await Task.sleep(for: .seconds(syncTimeoutSeconds))
             if case .syncing = syncState {
-                syncState = .complete
+                syncState = .failed("Sync timed out before authoritative completion")
             }
         }
     }

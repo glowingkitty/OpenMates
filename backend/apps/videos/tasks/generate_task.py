@@ -35,6 +35,7 @@ from backend.shared.python_utils.media_generation_safety import (
     MediaGenerationSafetyRejection,
     validate_media_generation_request,
 )
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
     task_id = task.request.id
     log_prefix = f"[Task ID: {task_id}]"
     try:
-        await task.initialize_services()
+        await task.initialize_core_services()
         prompt = str(arguments.get("prompt") or "").strip()
         user_id = arguments.get("user_id")
         chat_id = arguments.get("chat_id")
@@ -175,6 +176,9 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
                 media_decision.reason,
             )
             raise MediaGenerationSafetyRejection(media_decision)
+
+        s3_service = await initialize_task_storage(task)
+        await require_storage_available(s3_service)
 
         requested_duration_seconds = _normalize_veo_duration_seconds(arguments.get("duration_seconds"))
         requested_resolution = _normalize_veo_resolution(arguments.get("resolution", "720p"))

@@ -3,7 +3,7 @@
 
   Preview component for generated application embeds.
   Shows project metadata, latest screenshot/placeholder, and an explicit play
-  affordance. Rendering this component must never start a live preview by itself.
+  affordance. Finished generated apps auto-start once to capture their thumbnail.
 -->
 
 <script lang="ts">
@@ -11,6 +11,19 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
+  import { activeChatStore } from '../../../stores/activeChatStore';
+  import { authStore } from '../../../stores/authStore';
+  import {
+    buildApplicationPreviewSharedContext,
+    getApplicationPreviewStatus,
+    startApplicationPreview,
+    type ApplicationPreviewStatus,
+    type ApplicationPreviewStatusValue,
+  } from '../../../services/applicationPreviewService';
+
+  const AUTO_START_STATUS_ATTEMPTS = 40;
+  const AUTO_START_STATUS_DELAY_MS = 2_000;
+  const ACTIVE_PREVIEW_STATUSES = new Set<ApplicationPreviewStatusValue>(['queued', 'starting', 'running']);
 
   interface FileRef {
     path?: string;
@@ -19,7 +32,7 @@
   }
 
   interface ScreenshotRef {
-    files?: { preview?: { s3_key?: string } };
+    files?: { preview?: { s3_key?: string; encryption?: string } };
     s3_base_url?: string;
     aes_key?: string;
     aes_nonce?: string;
@@ -36,6 +49,8 @@
     latest_screenshot?: ScreenshotRef;
     status: 'processing' | 'finished' | 'error';
     taskId?: string;
+    chatId?: string;
+    sourceMessageId?: string;
     isMobile?: boolean;
     onFullscreen: () => void;
   }
@@ -51,6 +66,8 @@
     latest_screenshot,
     status,
     taskId,
+    chatId,
+    sourceMessageId,
     isMobile = false,
     onFullscreen,
   }: Props = $props();
@@ -61,7 +78,12 @@
   let skillName = $derived(name || $text('embeds.application_title'));
   let decryptedScreenshotUrl = $state('');
   let retainedScreenshotKey = $state('');
-  let screenshotUrl = $derived(latest_screenshot_url || decryptedScreenshotUrl);
+  let latestScreenshotUrl = $state('');
+  let latestScreenshotRef = $state<ScreenshotRef | undefined>(undefined);
+  let autoStartRequested = $state(false);
+  let destroyed = false;
+  let screenshotUrl = $derived(latestScreenshotUrl || latest_screenshot_url || decryptedScreenshotUrl);
+  let screenshotRef = $derived(latestScreenshotRef || latest_screenshot);
   let statusText = $derived.by(() => {
     if (status === 'processing') return $text('embeds.processing');
     if (status === 'error') return $text('embeds.application_preview_failed');
@@ -74,9 +96,10 @@
   }
 
   async function loadEncryptedScreenshot() {
-    const s3Key = latest_screenshot?.files?.preview?.s3_key;
-    const aesKey = latest_screenshot?.aes_key;
-    const aesNonce = latest_screenshot?.aes_nonce;
+    const previewVariant = screenshotRef?.files?.preview;
+    const s3Key = previewVariant?.s3_key;
+    const aesKey = screenshotRef?.aes_key;
+    const aesNonce = screenshotRef?.aes_nonce;
     if (retainedScreenshotKey && s3Key !== retainedScreenshotKey) {
       releaseCachedImage(retainedScreenshotKey);
       retainedScreenshotKey = '';
@@ -93,7 +116,7 @@
     }
 
     try {
-      await fetchAndDecryptImage(latest_screenshot?.s3_base_url || '', s3Key, aesKey, aesNonce);
+      await fetchAndDecryptImage(screenshotRef?.s3_base_url || '', s3Key, aesKey, aesNonce, previewVariant);
       const decryptedUrl = getCachedImageUrl(s3Key);
       if (!decryptedUrl) return;
       decryptedScreenshotUrl = decryptedUrl;
@@ -104,11 +127,74 @@
     }
   }
 
+  function applicationContent(): Record<string, unknown> {
+    return {
+      type: 'application',
+      name,
+      framework,
+      runtime,
+      file_refs,
+      entrypoints,
+    };
+  }
+
+  function getHashChatId(): string | undefined {
+    if (typeof window === 'undefined') return undefined;
+    const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+    return new URLSearchParams(hash).get('chat-id') || undefined;
+  }
+
+  function applyStatusResponse(response: ApplicationPreviewStatus) {
+    latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
+    latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
+    void loadEncryptedScreenshot();
+  }
+
+  async function pollForAutoStartedScreenshot(sessionId: string) {
+    for (let attempt = 0; attempt < AUTO_START_STATUS_ATTEMPTS && !destroyed; attempt += 1) {
+      const response = await getApplicationPreviewStatus(sessionId);
+      applyStatusResponse(response);
+      if (response.latest_screenshot_url || response.latest_screenshot) return;
+      if (!ACTIVE_PREVIEW_STATUSES.has(response.status)) return;
+      await new Promise((resolve) => setTimeout(resolve, AUTO_START_STATUS_DELAY_MS));
+    }
+  }
+
+  async function maybeAutoStartThumbnailCapture() {
+    const resolvedChatId = chatId || $activeChatStore || getHashChatId();
+    if (
+      autoStartRequested ||
+      status !== 'finished' ||
+      screenshotUrl ||
+      !resolvedChatId ||
+      !id ||
+      !$authStore.isAuthenticated
+    ) return;
+
+    autoStartRequested = true;
+    try {
+      const sharedContext = await buildApplicationPreviewSharedContext(id, applicationContent());
+      const session = await startApplicationPreview(resolvedChatId, id, {
+        sharedContext,
+        autoStarted: true,
+        sourceMessageId,
+      });
+      await pollForAutoStartedScreenshot(session.session_id);
+    } catch (error) {
+      console.warn('[ApplicationEmbedPreview] Failed to auto-start thumbnail capture:', error);
+    }
+  }
+
   $effect(() => {
     void loadEncryptedScreenshot();
   });
 
+  $effect(() => {
+    void maybeAutoStartThumbnailCapture();
+  });
+
   onDestroy(() => {
+    destroyed = true;
     if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
   });
 </script>
@@ -132,7 +218,7 @@
     <div class="application-preview" class:mobile={isMobileLayout} data-testid="application-preview-details">
       <div class="screenshot-frame" data-testid="application-preview-screenshot">
         {#if screenshotUrl}
-          <img src={screenshotUrl} alt="" class="screenshot" />
+          <img src={screenshotUrl} alt="" class="screenshot" data-testid="application-preview-screenshot-image" />
         {:else}
           <div class="placeholder" aria-hidden="true">
             <span class="app-window-dot"></span>
@@ -229,7 +315,7 @@
     color: var(--color-font-button);
     background: var(--color-app-code);
     box-shadow: 0 4px 14px rgb(0 0 0 / 20%);
-    font-size: 15px;
+    font-size: var(--font-size-small);
   }
 
   .meta-row {

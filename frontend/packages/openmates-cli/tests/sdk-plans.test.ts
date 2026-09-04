@@ -22,8 +22,9 @@ function assertNoPlaintextMarker(value: unknown, marker: string): void {
 
 const plan = {
   plan_id: "33333333-3333-4333-8333-333333333333",
-  encrypted_plan_key: "cipher-key",
   encrypted_title: "cipher-title",
+  encrypted_goal: "cipher-goal",
+  key_wrappers: [{ key_type: "master", encrypted_plan_key: "cipher-key" }],
   status: "draft" as const,
   created_at: 100,
   updated_at: 100,
@@ -106,8 +107,9 @@ describe("OpenMates SDK user plans", () => {
     const encryptedChatTitle = await encryptWithAesGcmCombined("Chat", chatKey);
     const validPlan = {
       ...plan,
-      encrypted_plan_key: encryptedPlanKey,
+      key_wrappers: [{ key_type: "master", encrypted_plan_key: encryptedPlanKey }],
       encrypted_title: await encryptWithAesGcmCombined("Plan", planKey),
+      encrypted_goal: await encryptWithAesGcmCombined("Ship the plan", planKey),
       version: 1,
     };
     await withServer(
@@ -136,13 +138,13 @@ describe("OpenMates SDK user plans", () => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
         assert.equal((await client.plans.list({ status: "draft", chatId: CHAT_ID }))[0]?.planId, PLAN_ID);
         assert.equal((await client.plans.show(PLAN_ID)).planId, PLAN_ID);
-        assert.equal((await client.plans.create({ title: "Created plan" })).title, "Created plan");
+        assert.equal((await client.plans.create({ title: "Created plan", goal: "Ship it" })).title, "Created plan");
         assert.equal((await client.plans.update(PLAN_ID, { status: "active" })).status, "active");
         assert.equal((await client.plans.attach(PLAN_ID, { chatId: CHAT_ID })).primaryChatId, CHAT_ID);
         assert.equal((await client.plans.start(PLAN_ID)).status, "executing");
         assert.equal((await client.plans.resume(PLAN_ID)).status, "active");
         assert.equal((await client.plans.goal.set(PLAN_ID, "Updated goal")).goal, "Updated goal");
-        assert.equal((await client.plans.currentFocus.clear(PLAN_ID)).currentFocus, "");
+        assert.deepEqual((await client.plans.userFlows.clear(PLAN_ID)).userFlows, []);
         assert.equal((await client.plans.scopeIn.add(PLAN_ID, "Scope")).scopeIn, "Scope");
         assert.equal((await client.plans.openQuestions.answer(PLAN_ID, "Answered")).openQuestions, "Answered");
         assert.equal((await client.plans.complete(PLAN_ID)).planId, PLAN_ID);

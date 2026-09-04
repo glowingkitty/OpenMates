@@ -211,6 +211,7 @@
     // Get credits from userProfile store using Svelte 5 runes
     let credits = $derived($userProfile.credits || 0);
     let isAdminUser = $derived($userProfile.is_admin === true);
+    let ActiveSettingsComponent = $derived(settingsViews[activeSettingsView]);
 
 </script>
 
@@ -378,17 +379,16 @@
         </div>
     {/if}
     
-    <!-- Render only the active subsettings view -->
-    {#each Object.entries(settingsViews) as [key, component]}
-        {@const Component = component}
-        {#if activeSettingsView === key && isSettingsViewFeatureEnabled(key)}
+    <!-- Key the single active component so dynamically registered routes cannot reuse stale page state. -->
+    {#if ActiveSettingsComponent && isSettingsViewFeatureEnabled(activeSettingsView)}
+        {#key activeSettingsView}
             <div 
                 class="settings-submenu-content active"
                 data-testid="settings-page-content"
                 in:fadeIn={{ dir: direction }}
             >
-                <Component 
-                    activeSettingsView={key}
+                <ActiveSettingsComponent
+                    activeSettingsView={activeSettingsView}
                     accountId={accountId}
                     {isSelfHosted}
                     on:openSettings={(event: CustomEvent) => dispatch('openSettings', event.detail)}
@@ -397,8 +397,8 @@
                     on:closeSettings={() => dispatch('closeSettings')}
                 />
             </div>
-        {/if}
-    {/each}
+        {/key}
+    {/if}
 </div>
 
 <style>

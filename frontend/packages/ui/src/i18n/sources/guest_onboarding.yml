@@ -1,0 +1,1008 @@
+landing_intro_headline_line1:
+  context: First line of the expanded logged-out landing intro headline
+  en: Your AI team
+  de: Frag einfach
+  zh: Simply ask
+  es: Simply ask
+  fr: Simply ask
+  pt: Simply ask
+  ru: Simply ask
+  ja: Simply ask
+  ko: Simply ask
+  it: Simply ask
+  tr: Simply ask
+  vi: Simply ask
+  id: Simply ask
+  pl: Simply ask
+  nl: Simply ask
+  ar: Simply ask
+  hi: Simply ask
+  th: Simply ask
+  cs: Simply ask
+  sv: Simply ask
+  he: Simply ask
+  verified_by_human: []
+landing_intro_headline_line2:
+  context: Second line of the expanded logged-out landing intro headline
+  en: for getting things done
+  de: deine KI Team-Mates
+  zh: your AI team mates
+  es: your AI team mates
+  fr: your AI team mates
+  pt: your AI team mates
+  ru: your AI team mates
+  ja: your AI team mates
+  ko: your AI team mates
+  it: your AI team mates
+  tr: your AI team mates
+  vi: your AI team mates
+  id: your AI team mates
+  pl: your AI team mates
+  nl: your AI team mates
+  ar: your AI team mates
+  hi: your AI team mates
+  th: your AI team mates
+  cs: your AI team mates
+  sv: your AI team mates
+  he: your AI team mates
+  verified_by_human: []
+landing_intro_request_doctor:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Find doctor appointments
+  de: Arzttermine finden
+  zh: Find doctor appointments
+  es: Find doctor appointments
+  fr: Find doctor appointments
+  pt: Find doctor appointments
+  ru: Find doctor appointments
+  ja: Find doctor appointments
+  ko: Find doctor appointments
+  it: Find doctor appointments
+  tr: Find doctor appointments
+  vi: Find doctor appointments
+  id: Find doctor appointments
+  pl: Find doctor appointments
+  nl: Find doctor appointments
+  ar: Find doctor appointments
+  hi: Find doctor appointments
+  th: Find doctor appointments
+  cs: Find doctor appointments
+  sv: Find doctor appointments
+  he: Find doctor appointments
+  verified_by_human: []
+landing_intro_request_events:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Find events
+  de: Events finden
+  zh: Find events
+  es: Find events
+  fr: Find events
+  pt: Find events
+  ru: Find events
+  ja: Find events
+  ko: Find events
+  it: Find events
+  tr: Find events
+  vi: Find events
+  id: Find events
+  pl: Find events
+  nl: Find events
+  ar: Find events
+  hi: Find events
+  th: Find events
+  cs: Find events
+  sv: Find events
+  he: Find events
+  verified_by_human: []
+landing_intro_request_web_app:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Build a web app
+  de: Web-App bauen
+  zh: Build a web app
+  es: Build a web app
+  fr: Build a web app
+  pt: Build a web app
+  ru: Build a web app
+  ja: Build a web app
+  ko: Build a web app
+  it: Build a web app
+  tr: Build a web app
+  vi: Build a web app
+  id: Build a web app
+  pl: Build a web app
+  nl: Build a web app
+  ar: Build a web app
+  hi: Build a web app
+  th: Build a web app
+  cs: Build a web app
+  sv: Build a web app
+  he: Build a web app
+  verified_by_human: []
+landing_intro_request_news:
+  context: Short rotating request bubble in the expanded logged-out landing intro
+  en: Explain the news
+  de: Nachrichten erklären
+  zh: Explain the news
+  es: Explain the news
+  fr: Explain the news
+  pt: Explain the news
+  ru: Explain the news
+  ja: Explain the news
+  ko: Explain the news
+  it: Explain the news
+  tr: Explain the news
+  vi: Explain the news
+  id: Explain the news
+  pl: Explain the news
+  nl: Explain the news
+  ar: Explain the news
+  hi: Explain the news
+  th: Explain the news
+  cs: Explain the news
+  sv: Explain the news
+  he: Explain the news
+  verified_by_human: []
+landing_actionable_line1:
+  context: First line of the second logged-out landing slide headline
+  en: Actionable.
+  de: Umsetzbar.
+  zh: 可执行。
+  es: Accionable.
+  fr: Concret.
+  pt: Acionável.
+  ru: С практическим результатом.
+  ja: 実行につながる。
+  ko: 바로 실행할 수 있어요.
+  it: Concreto.
+  tr: Uygulanabilir.
+  vi: Có thể hành động.
+  id: Dapat ditindaklanjuti.
+  pl: Konkretne działanie.
+  nl: Direct uitvoerbaar.
+  ar: قابل للتنفيذ.
+  hi: अमल में लाने योग्य।
+  th: นำไปใช้ได้จริง
+  cs: Praktické.
+  sv: Handlingsbart.
+  he: מעשי.
+  verified_by_human: []
+landing_actionable_line2:
+  context: Second line of the second logged-out landing slide headline
+  en: Not just a wall of text.
+  de: Nicht nur eine Textwand.
+  zh: 不只是一大段文字。
+  es: No solo un muro de texto.
+  fr: Pas seulement un mur de texte.
+  pt: Não apenas uma parede de texto.
+  ru: Не просто стена текста.
+  ja: ただの長い文章ではありません。
+  ko: 긴 텍스트로 끝나지 않아요.
+  it: Non solo un muro di testo.
+  tr: Sadece bir metin duvarı değil.
+  vi: Không chỉ là một bức tường chữ.
+  id: Bukan sekadar dinding teks.
+  pl: Nie tylko ściana tekstu.
+  nl: Niet alleen een muur van tekst.
+  ar: ليست مجرد كتلة من النص.
+  hi: सिर्फ़ टेक्स्ट की दीवार नहीं।
+  th: ไม่ใช่แค่ข้อความยาวเป็นพรืด
+  cs: Nejen stěna textu.
+  sv: Inte bara en vägg av text.
+  he: לא רק קיר של טקסט.
+  verified_by_human: []
+landing_actionable_event_user_message:
+  context: User message shown in the lightweight Actionable landing slide event demo
+  en: Find tech events in Berlin
+  de: Finde Tech-Events in Berlin
+  zh: 寻找柏林的科技活动
+  es: Busca eventos tecnológicos en Berlín
+  fr: Trouve des événements tech à Berlin
+  pt: Encontre eventos de tecnologia em Berlim
+  ru: Найди технологические мероприятия в Берлине
+  ja: ベルリンのテックイベントを探して
+  ko: 베를린의 기술 이벤트를 찾아줘
+  it: Trova eventi tech a Berlino
+  tr: Berlin'deki teknoloji etkinliklerini bul
+  vi: Tìm sự kiện công nghệ ở Berlin
+  id: Cari acara teknologi di Berlin
+  pl: Znajdź wydarzenia technologiczne w Berlinie
+  nl: Zoek tech-evenementen in Berlijn
+  ar: ابحث عن فعاليات تقنية في برلين
+  hi: बर्लिन में टेक कार्यक्रम खोजो
+  th: ค้นหางานเทคในเบอร์ลิน
+  cs: Najdi technologické akce v Berlíně
+  sv: Hitta techevenemang i Berlin
+  he: מצא אירועי טכנולוגיה בברלין
+  verified_by_human: []
+landing_actionable_event_assistant_message:
+  context: Assistant message shown in the lightweight Actionable landing slide event demo
+  en: "Of course, here you go:"
+  de: "Natürlich, hier bitte:"
+  zh: "当然，给你："
+  es: "Por supuesto, aquí tienes:"
+  fr: "Bien sûr, voilà :"
+  pt: "Claro, aqui está:"
+  ru: "Конечно, вот:"
+  ja: "もちろん、どうぞ："
+  ko: "물론이죠, 여기 있어요:"
+  it: "Certo, ecco qui:"
+  tr: "Elbette, işte burada:"
+  vi: "Tất nhiên, đây nhé:"
+  id: "Tentu, ini dia:"
+  pl: "Oczywiście, proszę:"
+  nl: "Natuurlijk, alsjeblieft:"
+  ar: "بالطبع، تفضل:"
+  hi: "ज़रूर, ये रहा:"
+  th: "ได้เลย นี่ครับ:"
+  cs: "Samozřejmě, tady je:"
+  sv: "Självklart, här är det:"
+  he: "כמובן, הנה:"
+  verified_by_human: []
+landing_actionable_event_source:
+  context: Source label for the lightweight Actionable landing slide event demo
+  en: Luma event
+  de: Luma-Event
+  zh: Event preview
+  es: Event preview
+  fr: Event preview
+  pt: Event preview
+  ru: Event preview
+  ja: Event preview
+  ko: Event preview
+  it: Event preview
+  tr: Event preview
+  vi: Event preview
+  id: Event preview
+  pl: Event preview
+  nl: Event preview
+  ar: Event preview
+  hi: Event preview
+  th: Event preview
+  cs: Event preview
+  sv: Event preview
+  he: Event preview
+  verified_by_human: []
+landing_actionable_event_title:
+  context: Event title for the lightweight Actionable landing slide event demo
+  en: DEPIN DAY BERLIN
+  de: DEPIN DAY BERLIN
+  zh: DEPIN DAY BERLIN
+  es: DEPIN DAY BERLIN
+  fr: DEPIN DAY BERLIN
+  pt: DEPIN DAY BERLIN
+  ru: DEPIN DAY BERLIN
+  ja: DEPIN DAY BERLIN
+  ko: DEPIN DAY BERLIN
+  it: DEPIN DAY BERLIN
+  tr: DEPIN DAY BERLIN
+  vi: DEPIN DAY BERLIN
+  id: DEPIN DAY BERLIN
+  pl: DEPIN DAY BERLIN
+  nl: DEPIN DAY BERLIN
+  ar: DEPIN DAY BERLIN
+  hi: DEPIN DAY BERLIN
+  th: DEPIN DAY BERLIN
+  cs: DEPIN DAY BERLIN
+  sv: DEPIN DAY BERLIN
+  he: DEPIN DAY BERLIN
+  verified_by_human: []
+landing_actionable_event_meta:
+  context: Event metadata for the lightweight Actionable landing slide event demo
+  en: May 22 at Magazin in der Heeresbaeckerei
+  de: 22. Mai in der Heeresbaeckerei
+  zh: Today at 19:00 near Kreuzberg
+  es: Today at 19:00 near Kreuzberg
+  fr: Today at 19:00 near Kreuzberg
+  pt: Today at 19:00 near Kreuzberg
+  ru: Today at 19:00 near Kreuzberg
+  ja: Today at 19:00 near Kreuzberg
+  ko: Today at 19:00 near Kreuzberg
+  it: Today at 19:00 near Kreuzberg
+  tr: Today at 19:00 near Kreuzberg
+  vi: Today at 19:00 near Kreuzberg
+  id: Today at 19:00 near Kreuzberg
+  pl: Today at 19:00 near Kreuzberg
+  nl: Today at 19:00 near Kreuzberg
+  ar: Today at 19:00 near Kreuzberg
+  hi: Today at 19:00 near Kreuzberg
+  th: Today at 19:00 near Kreuzberg
+  cs: Today at 19:00 near Kreuzberg
+  sv: Today at 19:00 near Kreuzberg
+  he: Today at 19:00 near Kreuzberg
+  verified_by_human: []
+landing_actionable_event_detail:
+  context: Fullscreen detail description for the lightweight Actionable landing slide event demo
+  en: A Berlin Luma event about decentralized compute and DePIN research, found from a real event search.
+  de: Ein Berliner Luma-Event ueber dezentrales Computing und DePIN-Forschung, gefunden aus einer echten Eventsuche.
+  zh: 在柏林举办的 Luma 活动，探讨去中心化计算和 DePIN 研究。
+  es: Un evento de Luma en Berlín sobre computación descentralizada e investigación DePIN.
+  fr: Un événement Luma à Berlin sur le calcul décentralisé et la recherche DePIN.
+  pt: Um evento da Luma em Berlim sobre computação descentralizada e pesquisa DePIN.
+  ru: Мероприятие Luma в Берлине о децентрализованных вычислениях и исследованиях DePIN.
+  ja: 分散型コンピューティングと DePIN 研究を扱うベルリンの Luma イベントです。
+  ko: 탈중앙화 컴퓨팅과 DePIN 연구를 다루는 베를린 Luma 이벤트입니다.
+  it: Un evento Luma a Berlino su calcolo decentralizzato e ricerca DePIN.
+  tr: Merkeziyetsiz bilişim ve DePIN araştırmaları üzerine Berlin'de bir Luma etkinliği.
+  vi: Một sự kiện Luma tại Berlin về điện toán phi tập trung và nghiên cứu DePIN.
+  id: Acara Luma di Berlin tentang komputasi terdesentralisasi dan riset DePIN.
+  pl: Wydarzenie Luma w Berlinie o zdecentralizowanych obliczeniach i badaniach DePIN.
+  nl: Een Luma-evenement in Berlijn over gedecentraliseerde rekenkracht en DePIN-onderzoek.
+  ar: فعالية على Luma في برلين حول الحوسبة اللامركزية وأبحاث DePIN.
+  hi: विकेंद्रीकृत कंप्यूटिंग और DePIN शोध पर बर्लिन में एक Luma कार्यक्रम।
+  th: งาน Luma ในเบอร์ลินเกี่ยวกับการประมวลผลแบบกระจายศูนย์และงานวิจัย DePIN
+  cs: Akce Luma v Berlíně o decentralizovaných výpočtech a výzkumu DePIN.
+  sv: Ett Luma-evenemang i Berlin om decentraliserad databehandling och DePIN-forskning.
+  he: אירוע Luma בברלין על מחשוב מבוזר ומחקר DePIN.
+  verified_by_human: []
+landing_actionable_event_open_luma:
+  context: CTA clicked by the animated pointer in the Actionable landing slide
+  en: Open on Luma
+  de: Auf Luma öffnen
+  zh: 在 Luma 中打开
+  es: Abrir en Luma
+  fr: Ouvrir sur Luma
+  pt: Abrir no Luma
+  ru: Открыть в Luma
+  ja: Luma で開く
+  ko: Luma에서 열기
+  it: Apri su Luma
+  tr: Luma'da aç
+  vi: Mở trên Luma
+  id: Buka di Luma
+  pl: Otwórz w Luma
+  nl: Openen op Luma
+  ar: فتح على Luma
+  hi: Luma पर खोलें
+  th: เปิดบน Luma
+  cs: Otevřít na Luma
+  sv: Öppna på Luma
+  he: פתיחה ב-Luma
+  verified_by_human: []
+landing_actionable_event_venue:
+  context: Venue name in the Actionable landing slide event preview
+  en: Magazin in der Heeresbaeckerei
+  de: Magazin in der Heeresbaeckerei
+  zh: Magazin in der Heeresbaeckerei
+  es: Magazin in der Heeresbaeckerei
+  fr: Magazin in der Heeresbaeckerei
+  pt: Magazin in der Heeresbaeckerei
+  ru: Magazin in der Heeresbaeckerei
+  ja: Magazin in der Heeresbaeckerei
+  ko: Magazin in der Heeresbaeckerei
+  it: Magazin in der Heeresbaeckerei
+  tr: Magazin in der Heeresbaeckerei
+  vi: Magazin in der Heeresbaeckerei
+  id: Magazin in der Heeresbaeckerei
+  pl: Magazin in der Heeresbaeckerei
+  nl: Magazin in der Heeresbaeckerei
+  ar: Magazin in der Heeresbaeckerei
+  hi: Magazin in der Heeresbaeckerei
+  th: Magazin in der Heeresbaeckerei
+  cs: Magazin in der Heeresbaeckerei
+  sv: Magazin in der Heeresbaeckerei
+  he: Magazin in der Heeresbaeckerei
+  verified_by_human: []
+landing_actionable_event_address:
+  context: Venue address in the Actionable landing slide event preview
+  en: Koepenicker Strasse 16-17
+  de: Koepenicker Strasse 16-17
+  zh: Koepenicker Strasse 16-17
+  es: Koepenicker Strasse 16-17
+  fr: Koepenicker Strasse 16-17
+  pt: Koepenicker Strasse 16-17
+  ru: Koepenicker Strasse 16-17
+  ja: Koepenicker Strasse 16-17
+  ko: Koepenicker Strasse 16-17
+  it: Koepenicker Strasse 16-17
+  tr: Koepenicker Strasse 16-17
+  vi: Koepenicker Strasse 16-17
+  id: Koepenicker Strasse 16-17
+  pl: Koepenicker Strasse 16-17
+  nl: Koepenicker Strasse 16-17
+  ar: Koepenicker Strasse 16-17
+  hi: Koepenicker Strasse 16-17
+  th: Koepenicker Strasse 16-17
+  cs: Koepenicker Strasse 16-17
+  sv: Koepenicker Strasse 16-17
+  he: Koepenicker Strasse 16-17
+  verified_by_human: []
+landing_actionable_event_city:
+  context: Venue city in the Actionable landing slide event preview
+  en: Berlin
+  de: Berlin
+  zh: 柏林
+  es: Berlín
+  fr: Berlin
+  pt: Berlim
+  ru: Берлин
+  ja: ベルリン
+  ko: 베를린
+  it: Berlino
+  tr: Berlin
+  vi: Berlin
+  id: Berlin
+  pl: Berlin
+  nl: Berlijn
+  ar: برلين
+  hi: बर्लिन
+  th: เบอร์ลิน
+  cs: Berlín
+  sv: Berlin
+  he: ברלין
+  verified_by_human: []
+landing_actionable_event_country:
+  context: Venue country in the Actionable landing slide event preview
+  en: Germany
+  de: Deutschland
+  zh: 德国
+  es: Alemania
+  fr: Allemagne
+  pt: Alemanha
+  ru: Германия
+  ja: ドイツ
+  ko: 독일
+  it: Germania
+  tr: Almanya
+  vi: Đức
+  id: Jerman
+  pl: Niemcy
+  nl: Duitsland
+  ar: ألمانيا
+  hi: जर्मनी
+  th: เยอรมนี
+  cs: Německo
+  sv: Tyskland
+  he: גרמניה
+  verified_by_human: []
+landing_actionable_event_organizer:
+  context: Organizer name in the Actionable landing slide event preview
+  en: Fluence
+  de: Fluence
+  zh: Fluence
+  es: Fluence
+  fr: Fluence
+  pt: Fluence
+  ru: Fluence
+  ja: Fluence
+  ko: Fluence
+  it: Fluence
+  tr: Fluence
+  vi: Fluence
+  id: Fluence
+  pl: Fluence
+  nl: Fluence
+  ar: Fluence
+  hi: Fluence
+  th: Fluence
+  cs: Fluence
+  sv: Fluence
+  he: Fluence
+  verified_by_human: []
+landing_actionable_event_online:
+  context: Online event type label in the Actionable landing slide preview
+  en: Online
+  de: Online
+  zh: 线上
+  es: En línea
+  fr: En ligne
+  pt: Online
+  ru: Онлайн
+  ja: オンライン
+  ko: 온라인
+  it: Online
+  tr: Çevrim içi
+  vi: Trực tuyến
+  id: Online
+  pl: Online
+  nl: Online
+  ar: عبر الإنترنت
+  hi: ऑनलाइन
+  th: ออนไลน์
+  cs: Online
+  sv: Online
+  he: מקוון
+  verified_by_human: []
+landing_actionable_event_in_person:
+  context: Physical event type label in the Actionable landing slide preview
+  en: In person
+  de: Vor Ort
+  zh: 线下
+  es: Presencial
+  fr: En personne
+  pt: Presencial
+  ru: Очно
+  ja: 対面
+  ko: 오프라인
+  it: In presenza
+  tr: Yüz yüze
+  vi: Trực tiếp
+  id: Tatap muka
+  pl: Stacjonarnie
+  nl: Op locatie
+  ar: حضوري
+  hi: व्यक्तिगत रूप से
+  th: เข้าร่วมที่สถานที่
+  cs: Osobně
+  sv: På plats
+  he: פנים אל פנים
+  verified_by_human: []
+landing_actionable_event_rsvps:
+  context: Attendance count label in the Actionable landing slide preview
+  en: RSVPs
+  de: Zusagen
+  zh: 人参加
+  es: confirmaciones
+  fr: inscriptions
+  pt: confirmações
+  ru: участников
+  ja: 人が参加予定
+  ko: 명 참석 예정
+  it: partecipanti
+  tr: katılımcı
+  vi: người tham dự
+  id: peserta
+  pl: uczestników
+  nl: aanmeldingen
+  ar: مشاركين
+  hi: प्रतिभागी
+  th: คนตอบรับ
+  cs: účastníků
+  sv: anmälningar
+  he: משתתפים
+  verified_by_human: []
+landing_actionable_event_tag_language:
+  context: Language tag in the lightweight Actionable landing slide event demo
+  en: German
+  de: Deutsch
+  zh: German
+  es: German
+  fr: German
+  pt: German
+  ru: German
+  ja: German
+  ko: German
+  it: German
+  tr: German
+  vi: German
+  id: German
+  pl: German
+  nl: German
+  ar: German
+  hi: German
+  th: German
+  cs: German
+  sv: German
+  he: German
+  verified_by_human: []
+landing_actionable_event_tag_level:
+  context: Skill level tag in the lightweight Actionable landing slide event demo
+  en: Beginner friendly
+  de: Fuer Anfaenger geeignet
+  zh: Beginner friendly
+  es: Beginner friendly
+  fr: Beginner friendly
+  pt: Beginner friendly
+  ru: Beginner friendly
+  ja: Beginner friendly
+  ko: Beginner friendly
+  it: Beginner friendly
+  tr: Beginner friendly
+  vi: Beginner friendly
+  id: Beginner friendly
+  pl: Beginner friendly
+  nl: Beginner friendly
+  ar: Beginner friendly
+  hi: Beginner friendly
+  th: Beginner friendly
+  cs: Beginner friendly
+  sv: Beginner friendly
+  he: Beginner friendly
+  verified_by_human: []
+landing_actionable_event_chip_day:
+  context: Day chip in the lightweight Actionable landing slide event demo
+  en: Today
+  de: Heute
+  zh: Today
+  es: Today
+  fr: Today
+  pt: Today
+  ru: Today
+  ja: Today
+  ko: Today
+  it: Today
+  tr: Today
+  vi: Today
+  id: Today
+  pl: Today
+  nl: Today
+  ar: Today
+  hi: Today
+  th: Today
+  cs: Today
+  sv: Today
+  he: Today
+  verified_by_human: []
+landing_actionable_event_chip_time:
+  context: Time chip in the lightweight Actionable landing slide event demo
+  en: "19:00"
+  de: "19:00"
+  zh: "19:00"
+  es: "19:00"
+  fr: "19:00"
+  pt: "19:00"
+  ru: "19:00"
+  ja: "19:00"
+  ko: "19:00"
+  it: "19:00"
+  tr: "19:00"
+  vi: "19:00"
+  id: "19:00"
+  pl: "19:00"
+  nl: "19:00"
+  ar: "19:00"
+  hi: "19:00"
+  th: "19:00"
+  cs: "19:00"
+  sv: "19:00"
+  he: "19:00"
+  verified_by_human: []
+landing_actionable_event_chip_place:
+  context: Place chip in the lightweight Actionable landing slide event demo
+  en: Kreuzberg
+  de: Kreuzberg
+  zh: Kreuzberg
+  es: Kreuzberg
+  fr: Kreuzberg
+  pt: Kreuzberg
+  ru: Kreuzberg
+  ja: Kreuzberg
+  ko: Kreuzberg
+  it: Kreuzberg
+  tr: Kreuzberg
+  vi: Kreuzberg
+  id: Kreuzberg
+  pl: Kreuzberg
+  nl: Kreuzberg
+  ar: Kreuzberg
+  hi: Kreuzberg
+  th: Kreuzberg
+  cs: Kreuzberg
+  sv: Kreuzberg
+  he: Kreuzberg
+  verified_by_human: []
+landing_privacy_saved_data:
+  context: Encryption-at-storage explanation in the privacy landing header story
+  en: Only your devices can decrypt all your data.
+  de: Nur deine Geräte können alle deine Daten entschlüsseln.
+  zh: Only your devices can unlock your saved data.
+  es: Only your devices can unlock your saved data.
+  fr: Only your devices can unlock your saved data.
+  pt: Only your devices can unlock your saved data.
+  ru: Only your devices can unlock your saved data.
+  ja: Only your devices can unlock your saved data.
+  ko: Only your devices can unlock your saved data.
+  it: Only your devices can unlock your saved data.
+  tr: Only your devices can unlock your saved data.
+  vi: Only your devices can unlock your saved data.
+  id: Only your devices can unlock your saved data.
+  pl: Only your devices can unlock your saved data.
+  nl: Only your devices can unlock your saved data.
+  ar: Only your devices can unlock your saved data.
+  hi: Only your devices can unlock your saved data.
+  th: Only your devices can unlock your saved data.
+  cs: Only your devices can unlock your saved data.
+  sv: Only your devices can unlock your saved data.
+  he: Only your devices can unlock your saved data.
+  verified_by_human: []
+landing_privacy_pii:
+  context: Client-side personal-data placeholder explanation in the privacy landing header story
+  en: Personal details are replaced, before the AI sees them.
+  de: Persönliche Angaben werden ersetzt, bevor die KI sie sieht.
+  zh: Personal details are replaced before AI processing.
+  es: Personal details are replaced before AI processing.
+  fr: Personal details are replaced before AI processing.
+  pt: Personal details are replaced before AI processing.
+  ru: Personal details are replaced before AI processing.
+  ja: Personal details are replaced before AI processing.
+  ko: Personal details are replaced before AI processing.
+  it: Personal details are replaced before AI processing.
+  tr: Personal details are replaced before AI processing.
+  vi: Personal details are replaced before AI processing.
+  id: Personal details are replaced before AI processing.
+  pl: Personal details are replaced before AI processing.
+  nl: Personal details are replaced before AI processing.
+  ar: Personal details are replaced before AI processing.
+  hi: Personal details are replaced before AI processing.
+  th: Personal details are replaced before AI processing.
+  cs: Personal details are replaced before AI processing.
+  sv: Personal details are replaced before AI processing.
+  he: Personal details are replaced before AI processing.
+  verified_by_human: []
+landing_privacy_email_request:
+  context: User-message prefix before the email value in the privacy landing header story
+  en: Prepare an email to
+  de: Bereite eine E-Mail vor an
+  zh: Prepare an email to
+  es: Prepare an email to
+  fr: Prepare an email to
+  pt: Prepare an email to
+  ru: Prepare an email to
+  ja: Prepare an email to
+  ko: Prepare an email to
+  it: Prepare an email to
+  tr: Prepare an email to
+  vi: Prepare an email to
+  id: Prepare an email to
+  pl: Prepare an email to
+  nl: Prepare an email to
+  ar: Prepare an email to
+  hi: Prepare an email to
+  th: Prepare an email to
+  cs: Prepare an email to
+  sv: Prepare an email to
+  he: Prepare an email to
+  verified_by_human: []
+landing_privacy_email_response:
+  context: Burton assistant-message prefix before the protected email value in the privacy landing header story
+  en: Ok, preparing an email to
+  de: Ok, ich bereite eine E-Mail vor an
+  zh: Ok, preparing an email to
+  es: Ok, preparing an email to
+  fr: Ok, preparing an email to
+  pt: Ok, preparing an email to
+  ru: Ok, preparing an email to
+  ja: Ok, preparing an email to
+  ko: Ok, preparing an email to
+  it: Ok, preparing an email to
+  tr: Ok, preparing an email to
+  vi: Ok, preparing an email to
+  id: Ok, preparing an email to
+  pl: Ok, preparing an email to
+  nl: Ok, preparing an email to
+  ar: Ok, preparing an email to
+  hi: Ok, preparing an email to
+  th: Ok, preparing an email to
+  cs: Ok, preparing an email to
+  sv: Ok, preparing an email to
+  he: Ok, preparing an email to
+  verified_by_human: []
+landing_privacy_memory:
+  context: Memory consent title in the privacy landing header story
+  en: Choose which memories can personalize this response.
+  de: Wähle, welche Erinnerungen diese Antwort personalisieren dürfen.
+  zh: Choose which memories can personalize this response.
+  es: Choose which memories can personalize this response.
+  fr: Choose which memories can personalize this response.
+  pt: Choose which memories can personalize this response.
+  ru: Choose which memories can personalize this response.
+  ja: Choose which memories can personalize this response.
+  ko: Choose which memories can personalize this response.
+  it: Choose which memories can personalize this response.
+  tr: Choose which memories can personalize this response.
+  vi: Choose which memories can personalize this response.
+  id: Choose which memories can personalize this response.
+  pl: Choose which memories can personalize this response.
+  nl: Choose which memories can personalize this response.
+  ar: Choose which memories can personalize this response.
+  hi: Choose which memories can personalize this response.
+  th: Choose which memories can personalize this response.
+  cs: Choose which memories can personalize this response.
+  sv: Choose which memories can personalize this response.
+  he: Choose which memories can personalize this response.
+  verified_by_human: []
+landing_privacy_trip_request:
+  context: Synthetic travel request in the privacy landing header story
+  en: Recommended places for my next trip?
+  de: Empfohlene Orte für meine nächste Reise?
+  zh: Recommend places for my next trip.
+  es: Recommend places for my next trip.
+  fr: Recommend places for my next trip.
+  pt: Recommend places for my next trip.
+  ru: Recommend places for my next trip.
+  ja: Recommend places for my next trip.
+  ko: Recommend places for my next trip.
+  it: Recommend places for my next trip.
+  tr: Recommend places for my next trip.
+  vi: Recommend places for my next trip.
+  id: Recommend places for my next trip.
+  pl: Recommend places for my next trip.
+  nl: Recommend places for my next trip.
+  ar: Recommend places for my next trip.
+  hi: Recommend places for my next trip.
+  th: Recommend places for my next trip.
+  cs: Recommend places for my next trip.
+  sv: Recommend places for my next trip.
+  he: Recommend places for my next trip.
+  verified_by_human: []
+landing_privacy_memory_result:
+  context: Memory consent result in the privacy landing header story
+  en: Personalized responses. But only when you want them.
+  de: Personalisierte Antworten. Aber nur, wenn du sie möchtest.
+  zh: Personalized responses, but only when you want them.
+  es: Personalized responses, but only when you want them.
+  fr: Personalized responses, but only when you want them.
+  pt: Personalized responses, but only when you want them.
+  ru: Personalized responses, but only when you want them.
+  ja: Personalized responses, but only when you want them.
+  ko: Personalized responses, but only when you want them.
+  it: Personalized responses, but only when you want them.
+  tr: Personalized responses, but only when you want them.
+  vi: Personalized responses, but only when you want them.
+  id: Personalized responses, but only when you want them.
+  pl: Personalized responses, but only when you want them.
+  nl: Personalized responses, but only when you want them.
+  ar: Personalized responses, but only when you want them.
+  hi: Personalized responses, but only when you want them.
+  th: Personalized responses, but only when you want them.
+  cs: Personalized responses, but only when you want them.
+  sv: Personalized responses, but only when you want them.
+  he: Personalized responses, but only when you want them.
+  verified_by_human: []
+landing_privacy_originals:
+  context: PII reveal explanation in the privacy landing header story
+  en: Only you can view the originals.
+  de: Nur du kannst die Originale sehen.
+  zh: Only you can view the originals.
+  es: Only you can view the originals.
+  fr: Only you can view the originals.
+  pt: Only you can view the originals.
+  ru: Only you can view the originals.
+  ja: Only you can view the originals.
+  ko: Only you can view the originals.
+  it: Only you can view the originals.
+  tr: Only you can view the originals.
+  vi: Only you can view the originals.
+  id: Only you can view the originals.
+  pl: Only you can view the originals.
+  nl: Only you can view the originals.
+  ar: Only you can view the originals.
+  hi: Only you can view the originals.
+  th: Only you can view the originals.
+  cs: Only you can view the originals.
+  sv: Only you can view the originals.
+  he: Only you can view the originals.
+  verified_by_human: []
+landing_privacy_previous_trips:
+  context: Selected travel memory label in the privacy landing header story
+  en: Previous trips
+  de: Frühere Reisen
+  zh: Previous trips
+  es: Previous trips
+  fr: Previous trips
+  pt: Previous trips
+  ru: Previous trips
+  ja: Previous trips
+  ko: Previous trips
+  it: Previous trips
+  tr: Previous trips
+  vi: Previous trips
+  id: Previous trips
+  pl: Previous trips
+  nl: Previous trips
+  ar: Previous trips
+  hi: Previous trips
+  th: Previous trips
+  cs: Previous trips
+  sv: Previous trips
+  he: Previous trips
+  verified_by_human: []
+landing_privacy_favorite_places:
+  context: Selected place preference memory label in the privacy landing header story
+  en: Favorite places
+  de: Lieblingsorte
+  zh: Favorite places
+  es: Favorite places
+  fr: Favorite places
+  pt: Favorite places
+  ru: Favorite places
+  ja: Favorite places
+  ko: Favorite places
+  it: Favorite places
+  tr: Favorite places
+  vi: Favorite places
+  id: Favorite places
+  pl: Favorite places
+  nl: Favorite places
+  ar: Favorite places
+  hi: Favorite places
+  th: Favorite places
+  cs: Favorite places
+  sv: Favorite places
+  he: Favorite places
+  verified_by_human: []
+landing_mates_experts:
+  context: Mate list explanation in the AI accessibility landing header story
+  en: Your AI experts, specialized for different topics.
+  de: Deine KI-Experten, spezialisiert auf verschiedene Themen.
+  zh: Your AI experts, specialized for different topics.
+  es: Your AI experts, specialized for different topics.
+  fr: Your AI experts, specialized for different topics.
+  pt: Your AI experts, specialized for different topics.
+  ru: Your AI experts, specialized for different topics.
+  ja: Your AI experts, specialized for different topics.
+  ko: Your AI experts, specialized for different topics.
+  it: Your AI experts, specialized for different topics.
+  tr: Your AI experts, specialized for different topics.
+  vi: Your AI experts, specialized for different topics.
+  id: Your AI experts, specialized for different topics.
+  pl: Your AI experts, specialized for different topics.
+  nl: Your AI experts, specialized for different topics.
+  ar: Your AI experts, specialized for different topics.
+  hi: Your AI experts, specialized for different topics.
+  th: Your AI experts, specialized for different topics.
+  cs: Your AI experts, specialized for different topics.
+  sv: Your AI experts, specialized for different topics.
+  he: Your AI experts, specialized for different topics.
+  verified_by_human: []
+landing_mates_focus_modes:
+  context: Focus-mode list explanation in the AI accessibility landing header story
+  en: Optimized instructions, selected when they are needed.
+  de: Optimierte Anweisungen, ausgewählt wenn sie gebraucht werden.
+  zh: Optimized instructions, selected when they are needed.
+  es: Optimized instructions, selected when they are needed.
+  fr: Optimized instructions, selected when they are needed.
+  pt: Optimized instructions, selected when they are needed.
+  ru: Optimized instructions, selected when they are needed.
+  ja: Optimized instructions, selected when they are needed.
+  ko: Optimized instructions, selected when they are needed.
+  it: Optimized instructions, selected when they are needed.
+  tr: Optimized instructions, selected when they are needed.
+  vi: Optimized instructions, selected when they are needed.
+  id: Optimized instructions, selected when they are needed.
+  pl: Optimized instructions, selected when they are needed.
+  nl: Optimized instructions, selected when they are needed.
+  ar: Optimized instructions, selected when they are needed.
+  hi: Optimized instructions, selected when they are needed.
+  th: Optimized instructions, selected when they are needed.
+  cs: Optimized instructions, selected when they are needed.
+  sv: Optimized instructions, selected when they are needed.
+  he: Optimized instructions, selected when they are needed.
+  verified_by_human: []
+landing_people_models:
+  context: Provider choice explanation in the people-first landing header story
+  en: All the best AI models, in one place.
+  de: Alle besten KI-Modelle an einem Ort.
+  zh: All the best AI models, in one place.
+  es: All the best AI models, in one place.
+  fr: All the best AI models, in one place.
+  pt: All the best AI models, in one place.
+  ru: All the best AI models, in one place.
+  ja: All the best AI models, in one place.
+  ko: All the best AI models, in one place.
+  it: All the best AI models, in one place.
+  tr: All the best AI models, in one place.
+  vi: All the best AI models, in one place.
+  id: All the best AI models, in one place.
+  pl: All the best AI models, in one place.
+  nl: All the best AI models, in one place.
+  ar: All the best AI models, in one place.
+  hi: All the best AI models, in one place.
+  th: All the best AI models, in one place.
+  cs: All the best AI models, in one place.
+  sv: All the best AI models, in one place.
+  he: All the best AI models, in one place.
+  verified_by_human: []
+landing_people_access:
+  context: Cross-platform access explanation in the people-first landing header story
+  en: Access your OpenMates chats the way you prefer.
+  de: Greife so auf deine OpenMates-Chats zu, wie du möchtest.
+  zh: Access your OpenMates chats the way you prefer.
+  es: Access your OpenMates chats the way you prefer.
+  fr: Access your OpenMates chats the way you prefer.
+  pt: Access your OpenMates chats the way you prefer.
+  ru: Access your OpenMates chats the way you prefer.
+  ja: Access your OpenMates chats the way you prefer.
+  ko: Access your OpenMates chats the way you prefer.
+  it: Access your OpenMates chats the way you prefer.
+  tr: Access your OpenMates chats the way you prefer.
+  vi: Access your OpenMates chats the way you prefer.
+  id: Access your OpenMates chats the way you prefer.
+  pl: Access your OpenMates chats the way you prefer.
+  nl: Access your OpenMates chats the way you prefer.
+  ar: Access your OpenMates chats the way you prefer.
+  hi: Access your OpenMates chats the way you prefer.
+  th: Access your OpenMates chats the way you prefer.
+  cs: Access your OpenMates chats the way you prefer.
+  sv: Access your OpenMates chats the way you prefer.
+  he: Access your OpenMates chats the way you prefer.
+  verified_by_human: []

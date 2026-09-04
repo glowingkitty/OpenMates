@@ -65,12 +65,25 @@ MIN_REVIEW_TIMESTAMP_SEPARATION_SECONDS = 0.05
 SCENE_CHANGE_THRESHOLD = 0.3
 MAX_ADDITIONAL_FRAME_REQUESTS = 10
 MAX_REVIEW_ATTEMPTS = 3
-END_FRAME_OFFSET_SECONDS = 0.1
+END_FRAME_OFFSET_SECONDS = 0.5
 MEDIA_TIMESTAMP_DECIMALS = 3
+EVIDENCE_INTERVAL_END_GUARD_SECONDS = 0.1
+EVIDENCE_INTERVAL_END_GUARD_MS = 100
 DEFAULT_NARRATION_PROVIDER = "elevenlabs"
 DEFAULT_NARRATION_MODEL = "eleven_flash_v2_5"
 DEFAULT_NARRATION_VOICE = "warm_neutral"
 REVIEW_VERDICTS = {"supported", "contradicted", "not_visible", "ambiguous", "wrong_time"}
+REVIEW_QUALITY_CATEGORIES = {
+    "layout",
+    "readability",
+    "geometry",
+    "controls",
+    "visual_assets",
+    "application_state",
+    "consistency",
+    "proof_alignment",
+}
+REVIEW_QUALITY_RESULTS = {"pass", "fail", "uncertain"}
 DEFECT_RETURN_STAGES = {
     "implementation": "implementation",
     "test_coverage": "tests",
@@ -99,10 +112,17 @@ REVIEW_FRAME_FIELDS = {"timestamp", "timestamp_seconds", "path", "sha256"}
 REVIEW_METADATA_REQUIRED_FIELDS = {"duration_seconds", "sha256", "width", "height"}
 REVIEW_METADATA_OPTIONAL_FIELDS = {
     "black_bar_scan_status",
+    "browser_background_color",
+    "browser_chrome",
+    "browser_tab_group",
     "demo_audio_mixed",
     "device_profile",
     "hold_last_frame_seconds",
     "playback_rate",
+    "source_frame_rate",
+    "source_clock_offset_ms",
+    "source_viewport_height",
+    "source_viewport_width",
     "target_height",
     "target_width",
     "captions_sha256",
@@ -115,9 +135,24 @@ PROOF_PRIVACY_SCAN_DISABLED = {
     "reason": "proof_video_pii_detection_disabled",
 }
 PROOF_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
+WEB_PHONE_SAFARI_CHROME = {
+    "kind": "iphone13-pro-safari",
+    "tabGroupLabel": "Personal",
+    "topInset": 128,
+    "bottomInset": 86,
+    "devicePixelRatio": 3,
+}
 DEVICE_PROFILES = {
     "cli-terminal": {"width": 1280, "height": 720, "surface": "cli", "label": "CLI terminal"},
-    "web-phone": {"width": 390, "height": 844, "surface": "web", "label": "phone web"},
+    "web-phone": {
+        "width": 390,
+        "height": 844,
+        "source_width": 390,
+        "source_height": 630,
+        "surface": "web",
+        "label": "phone web",
+        "browser_chrome": WEB_PHONE_SAFARI_CHROME,
+    },
     "web-laptop": {"width": 1440, "height": 900, "surface": "web", "label": "laptop web"},
     "apple-iphone-portrait": {"width": 393, "height": 852, "surface": "apple", "label": "iPhone portrait"},
     "apple-ipad-landscape": {"width": 1366, "height": 1024, "surface": "apple", "label": "iPad landscape"},
@@ -148,7 +183,6 @@ BLACK_BAR_MAX_EDGE_FRACTION = 0.25
 MIN_TUTORIAL_NARRATION_SENTENCES = 3
 MIN_TUTORIAL_NARRATION_WORDS = 24
 MIN_PROOF_PLAYBACK_RATE = 0.75
-MAX_PROOF_PLAYBACK_RATE = 1.0
 MAX_PROOF_OUTPUT_SECONDS = 35.0
 GENERIC_NARRATION_RE = re.compile(
     r"\b(?:it works|works correctly|feature works|successfully demonstrates|as you can see|proof video|demo video)\b",
@@ -170,6 +204,28 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
+
+
+def _parse_frame_rate(value: Any) -> float | None:
+    text = str(value or "").strip()
+    if not text or text == "0/0":
+        return None
+    try:
+        if "/" in text:
+            numerator, denominator = text.split("/", 1)
+            rate = float(numerator) / float(denominator)
+        else:
+            rate = float(text)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return rate if math.isfinite(rate) and rate > 0 else None
+
+
+def _require_source_frame_rate(metadata: dict[str, Any]) -> float:
+    rate = _parse_frame_rate(metadata.get("frame_rate") or metadata.get("avg_frame_rate") or metadata.get("r_frame_rate"))
+    if rate is None:
+        raise DemonstrationError("Browser tutorial source video is missing a valid frame rate")
+    return round(rate, 6)
 
 
 def _write_private(path: Path, content: str) -> None:
@@ -398,6 +454,371 @@ def assert_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str
         raise DemonstrationError(f"Proof-video aspect ratio does not match device profile {profile['id']}")
 
 
+def source_device_profile_dimensions(profile: dict[str, Any]) -> tuple[int, int]:
+    return int(profile.get("source_width") or profile["width"]), int(profile.get("source_height") or profile["height"])
+
+
+def assert_source_device_profile_dimensions(metadata: dict[str, Any], profile: dict[str, Any] | None) -> None:
+    if profile is None:
+        return
+    width, height = source_device_profile_dimensions(profile)
+    if metadata.get("width") != width or metadata.get("height") != height:
+        actual = f"{metadata.get('width')}x{metadata.get('height')}"
+        expected = f"{width}x{height}"
+        label = str(profile.get("label") or profile["id"])
+        raise DemonstrationError(f"{label} source recording must be {expected}, got {actual}")
+
+
+def _proof_renderer_hash() -> str:
+    renderer_root = REPO_ROOT / "tooling/proof-video-remotion/src"
+    renderer_files = [
+        *sorted(path for path in renderer_root.iterdir() if path.suffix in {".ts", ".tsx", ".mjs"}),
+        REPO_ROOT / "tooling/proof-video-remotion/package.json",
+        REPO_ROOT / "pnpm-lock.yaml",
+    ]
+    digest = hashlib.sha256()
+    for path in renderer_files:
+        if not path.is_file():
+            raise DemonstrationError(f"Proof-video Remotion renderer file is missing: {path}")
+        digest.update(path.relative_to(REPO_ROOT).as_posix().encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
+
+
+def estimate_video_clock_offset_ms(
+    source_video: Path,
+    checkpoint_frame: Path,
+    *,
+    checkpoint_ms: int,
+    frame_rate: float,
+) -> int:
+    """Align proof-runtime timestamps to the Playwright recording clock."""
+    from PIL import Image
+
+    if checkpoint_ms < 0 or frame_rate <= 0:
+        raise DemonstrationError("Video clock alignment requires a valid checkpoint time and frame rate")
+    if checkpoint_ms == 0:
+        return 0
+    sample_width = 64
+    sample_height = 64
+    frame_bytes = sample_width * sample_height
+    with Image.open(checkpoint_frame) as image:
+        reference = image.convert("L").resize((sample_width, sample_height), Image.Resampling.LANCZOS).tobytes()
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-i",
+            str(source_video),
+            "-t",
+            str(checkpoint_ms / 1000),
+            "-vf",
+            f"fps={frame_rate:g},scale={sample_width}:{sample_height}:flags=area,format=gray",
+            "-an",
+            "-f",
+            "rawvideo",
+            "-pix_fmt",
+            "gray",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 or len(result.stdout) < frame_bytes:
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        raise DemonstrationError(f"FFmpeg video clock alignment failed: {stderr[-500:]}")
+    candidates = [
+        result.stdout[offset : offset + frame_bytes]
+        for offset in range(0, len(result.stdout) - frame_bytes + 1, frame_bytes)
+    ]
+    best_index, best_error = min(
+        enumerate(sum(abs(left - right) for left, right in zip(reference, candidate, strict=True)) / frame_bytes for candidate in candidates),
+        key=lambda item: item[1],
+    )
+    if best_error > 24:
+        raise DemonstrationError("First proof checkpoint does not visually match the Playwright recording")
+    matched_ms = round(best_index * 1000 / frame_rate)
+    offset_ms = checkpoint_ms - matched_ms
+    if offset_ms < 0:
+        raise DemonstrationError("Proof-runtime clock starts before the Playwright recording clock")
+    return offset_ms
+
+
+def build_browser_tutorial_plan(
+    timeline: dict[str, Any],
+    *,
+    source_video: Path,
+    source_end_seconds: float,
+    device_profile_name: str,
+    contract_hash: str,
+    timeline_hash: str,
+    narration_id: str,
+    source_metadata: dict[str, Any] | None = None,
+    source_edge_color: str | None = None,
+) -> dict[str, Any]:
+    """Compile one chronological Playwright video with timeline-bound captions."""
+    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+    if contract.get("surface") != "web" or not str(contract.get("domain") or "").strip():
+        raise DemonstrationError("Browser tutorial requires a web contract with an attested domain")
+    profile = resolve_device_profile(device_profile_name)
+    if profile is None or not str(profile["id"]).startswith("web-"):
+        raise DemonstrationError("Browser tutorial requires an exact web device profile")
+    align_video_clock = source_metadata is None
+    source_metadata = dict(source_metadata) if source_metadata is not None else video_metadata(source_video)
+    assert_source_device_profile_dimensions(source_metadata, profile)
+    source_frame_rate = _require_source_frame_rate(source_metadata)
+    transcript = [
+        item
+        for item in (contract.get("transcript") if isinstance(contract.get("transcript"), list) else [])
+        if isinstance(item, dict)
+        and profile["id"] in (item.get("devices") if isinstance(item.get("devices"), list) else [])
+    ]
+    if not transcript:
+        raise DemonstrationError("Browser tutorial has no transcript for the selected device")
+    checkpoint_times = {
+        str(item.get("id")): int(item.get("at_ms"))
+        for item in (timeline.get("events") if isinstance(timeline.get("events"), list) else [])
+        if isinstance(item, dict)
+        and item.get("kind") == "checkpoint"
+        and item.get("id")
+        and isinstance(item.get("at_ms"), (int, float))
+    }
+    checkpoint_frames = {
+        str(item.get("checkpoint")): item
+        for item in (timeline.get("checkpoint_frames") if isinstance(timeline.get("checkpoint_frames"), list) else [])
+        if isinstance(item, dict) and item.get("checkpoint")
+    }
+    source_clock_offset_ms = 0
+    if align_video_clock and transcript:
+        first_checkpoint_id = str(transcript[0].get("checkpoint") or "")
+        first_checkpoint_ms = checkpoint_times.get(first_checkpoint_id)
+        first_checkpoint_frame = checkpoint_frames.get(first_checkpoint_id)
+        first_checkpoint_path = Path(str(first_checkpoint_frame.get("path") or "")) if isinstance(first_checkpoint_frame, dict) else Path()
+        if first_checkpoint_ms is None or not first_checkpoint_path.is_file():
+            raise DemonstrationError(f"Browser tutorial checkpoint evidence is missing: {first_checkpoint_id}")
+        source_clock_offset_ms = estimate_video_clock_offset_ms(
+            source_video,
+            first_checkpoint_path,
+            checkpoint_ms=first_checkpoint_ms,
+            frame_rate=source_frame_rate,
+        )
+        checkpoint_times = {key: value - source_clock_offset_ms for key, value in checkpoint_times.items()}
+    selected_assertions = [
+        assertion
+        for assertion in (contract.get("assertions") if isinstance(contract.get("assertions"), list) else [])
+        if isinstance(assertion, dict)
+        and profile["id"] in (assertion.get("devices") if isinstance(assertion.get("devices"), list) else [])
+    ]
+    transcript_checkpoints = {str(item.get("checkpoint") or "") for item in transcript}
+    if any(
+        not str(assertion.get("id") or "")
+        or str(assertion.get("checkpoint") or "") not in transcript_checkpoints
+        for assertion in selected_assertions
+    ):
+        raise DemonstrationError("Every browser tutorial assertion must map to one captured transcript checkpoint")
+    assertions_by_checkpoint: dict[str, list[str]] = {}
+    for assertion in selected_assertions:
+        if not isinstance(assertion, dict) or profile["id"] not in (
+            assertion.get("devices") if isinstance(assertion.get("devices"), list) else []
+        ):
+            continue
+        assertions_by_checkpoint.setdefault(str(assertion.get("checkpoint") or ""), []).append(
+            str(assertion.get("id") or "")
+        )
+    if any(not assertions_by_checkpoint.get(str(item.get("checkpoint") or "")) for item in transcript):
+        raise DemonstrationError("Every browser tutorial transcript checkpoint must carry an assertion")
+    timeline_events = timeline.get("events") if isinstance(timeline.get("events"), list) else []
+    action_ranges = sorted(
+        [
+            (
+                int(round(float(item["start_ms"]))) - source_clock_offset_ms,
+                int(round(float(item["end_ms"]))) - source_clock_offset_ms,
+            )
+            for item in timeline_events
+            if isinstance(item, dict)
+            and item.get("kind") == "action"
+            and isinstance(item.get("start_ms"), (int, float))
+            and isinstance(item.get("end_ms"), (int, float))
+            and float(item["start_ms"]) <= float(item["end_ms"])
+        ],
+        key=lambda item: item[0],
+    )
+    if len(action_ranges) != len(transcript) - 1:
+        raise DemonstrationError("Browser tutorial requires exactly one source action between transcript states")
+    stable_assertion_times = {
+        str(item.get("id")): int(round(float(item["at_ms"]))) - source_clock_offset_ms
+        for item in (timeline.get("assertion_results") if isinstance(timeline.get("assertion_results"), list) else [])
+        if isinstance(item, dict)
+        and item.get("id")
+        and item.get("status") == "passed"
+        and isinstance(item.get("at_ms"), (int, float))
+    }
+    for item in timeline_events:
+        if (
+            isinstance(item, dict)
+            and item.get("kind") == "assertion"
+            and item.get("status") == "passed"
+            and item.get("id")
+            and isinstance(item.get("at_ms"), (int, float))
+        ):
+            stable_assertion_times.setdefault(
+                str(item["id"]),
+                int(round(float(item["at_ms"]))) - source_clock_offset_ms,
+            )
+    tutorial = contract.get("tutorial") if isinstance(contract.get("tutorial"), dict) else {}
+    words_per_second = float(tutorial.get("readingWordsPerSecond") or 0)
+    minimum_hold_ms = int(tutorial.get("minimumHoldMs") or 0)
+    maximum_hold_ms = int(tutorial.get("maximumHoldMs") or 0)
+    if words_per_second <= 0 or not 0 < minimum_hold_ms <= maximum_hold_ms:
+        raise DemonstrationError("Browser tutorial policy has invalid reading or hold bounds")
+    source_end_ms = round(float(source_end_seconds) * 1000) - source_clock_offset_ms
+    previous_checkpoint_ms: int | None = None
+    for cue in transcript:
+        checkpoint_id = str(cue.get("checkpoint") or "")
+        checkpoint_ms = checkpoint_times.get(checkpoint_id)
+        frame = checkpoint_frames.get(checkpoint_id)
+        if checkpoint_ms is None or not isinstance(frame, dict):
+            raise DemonstrationError(f"Browser tutorial checkpoint evidence is missing: {checkpoint_id}")
+        if previous_checkpoint_ms is not None and checkpoint_ms <= previous_checkpoint_ms:
+            raise DemonstrationError("Browser tutorial checkpoints must be strictly chronological")
+        frame_path = Path(str(frame.get("path") or ""))
+        frame_hash = str(frame.get("sha256") or "")
+        if not frame_path.is_file() or sha256_file(frame_path) != frame_hash:
+            raise DemonstrationError(f"Browser tutorial checkpoint frame is missing or changed: {checkpoint_id}")
+        previous_checkpoint_ms = checkpoint_ms
+    if previous_checkpoint_ms is None or source_end_ms < previous_checkpoint_ms:
+        raise DemonstrationError("Browser tutorial source ends before its final checkpoint")
+    first_checkpoint = str(transcript[0].get("checkpoint") or "")
+    first_claim_ids = [value for value in assertions_by_checkpoint.get(first_checkpoint, []) if value]
+    first_stable_ms = min(
+        (stable_assertion_times[claim_id] for claim_id in first_claim_ids if claim_id in stable_assertion_times),
+        default=0,
+    )
+    source_start_ms = max(0, first_stable_ms - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
+    if source_start_ms >= source_end_ms:
+        raise DemonstrationError("Browser tutorial stable source interval is empty")
+    output_duration_ms = source_end_ms - source_start_ms
+    output_duration_seconds = output_duration_ms / 1000
+    caption_segments: list[dict[str, Any]] = []
+    claim_anchor_times: dict[str, float] = {}
+    claim_evidence_intervals: dict[str, list[list[float]]] = {}
+    for index, cue in enumerate(transcript):
+        checkpoint_id = str(cue.get("checkpoint") or "")
+        source_cue_start_ms = source_start_ms if index == 0 else action_ranges[index - 1][0]
+        source_cue_end_ms = action_ranges[index][0] if index < len(action_ranges) else source_end_ms
+        if not source_start_ms <= source_cue_start_ms < source_cue_end_ms <= source_end_ms:
+            raise DemonstrationError("Browser tutorial caption boundaries must follow chronological source actions")
+        caption_start = round((source_cue_start_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        caption_end = round((source_cue_end_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        claim_ids = [value for value in assertions_by_checkpoint.get(checkpoint_id, []) if value]
+        for claim_id in claim_ids:
+            stable_ms = stable_assertion_times.get(claim_id)
+            if stable_ms is None or not source_cue_start_ms <= stable_ms < source_cue_end_ms:
+                raise DemonstrationError(f"Browser tutorial claim lacks stable source-video evidence: {claim_id}")
+            evidence_start = round((stable_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+            evidence_end = visual_interval_end(
+                evidence_start,
+                (source_cue_end_ms - source_start_ms) / 1000,
+                duration_seconds=output_duration_seconds,
+            )
+            if evidence_start >= evidence_end:
+                raise DemonstrationError(f"Browser tutorial stable evidence interval is empty: {claim_id}")
+            claim_anchor_times[claim_id] = evidence_start
+            claim_evidence_intervals[claim_id] = [[evidence_start, evidence_end]]
+        caption_segments.append(
+            {
+                "id": f"CAP-{index + 1}",
+                "narration_id": narration_id,
+                "text": str(cue.get("text") or "").strip(),
+                "start": caption_start,
+                "end": caption_end,
+                "claim_ids": claim_ids,
+            }
+        )
+    segments = [{
+        "kind": "video",
+        "source_from_ms": source_start_ms,
+        "source_to_ms": source_end_ms,
+        "duration_ms": output_duration_ms,
+    }]
+    transition_times = [
+        round((start_ms - source_start_ms) / 1000, MEDIA_TIMESTAMP_DECIMALS)
+        for start_ms, _end_ms in action_ranges
+    ]
+    renderer_hash = _proof_renderer_hash()
+    source_width, source_height = source_device_profile_dimensions(profile)
+    browser_chrome = dict(profile.get("browser_chrome")) if isinstance(profile.get("browser_chrome"), dict) else {"kind": "desktop-browser"}
+    if browser_chrome.get("kind") == "iphone13-pro-safari":
+        background_color = source_edge_color or sample_video_edge_color(
+            source_video,
+            timestamp_seconds=source_start_ms / 1000,
+        )
+        if not re.fullmatch(r"#[0-9a-fA-F]{6}", background_color):
+            raise DemonstrationError("Browser tutorial sampled Safari background color must be a CSS hex color")
+        browser_chrome["backgroundColor"] = background_color.lower()
+    request = {
+        "schemaVersion": 1,
+        "renderer": "openmates-remotion-browser-v1",
+        "presentationMode": "browser-frame-scaled-full-viewport",
+        "sourceVideo": str(source_video.resolve()),
+        "sourceHash": sha256_file(source_video),
+        "sourceFrameRate": source_frame_rate,
+        "sourceClockOffsetMs": source_clock_offset_ms,
+        "domain": str(contract["domain"]),
+        "deviceProfile": str(profile["id"]),
+        "viewport": {"width": source_width, "height": source_height},
+        "browserChrome": browser_chrome,
+        "output": {"width": int(profile["width"]), "height": int(profile["height"]), "fps": 30},
+        "segments": segments,
+        "contractHash": contract_hash,
+        "timelineHash": timeline_hash,
+        "rendererHash": renderer_hash,
+    }
+    canonical_request = json.loads(json.dumps(request))
+    canonical_request["sourceVideo"] = canonical_request["sourceHash"]
+    input_hash = f"sha256:{hashlib.sha256(json.dumps(canonical_request, sort_keys=True, separators=(',', ':')).encode('utf-8')).hexdigest()}"
+    return {
+        "request": request,
+        "caption_segments": caption_segments,
+        "claim_anchor_times": claim_anchor_times,
+        "claim_evidence_intervals": claim_evidence_intervals,
+        "transition_times": transition_times,
+        "duration_seconds": round(output_duration_seconds, MEDIA_TIMESTAMP_DECIMALS),
+        "renderer_hash": renderer_hash,
+        "input_hash": input_hash,
+    }
+
+
+def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> None:
+    """Render one canonical browser tutorial through the repository Remotion package."""
+    source_path = Path(str(request.get("sourceVideo") or ""))
+    if not source_path.is_file() or sha256_file(source_path) != request.get("sourceHash"):
+        raise DemonstrationError("Browser tutorial source video is missing or changed after planning")
+    for segment in request.get("segments") if isinstance(request.get("segments"), list) else []:
+        if not isinstance(segment, dict) or segment.get("kind") != "video":
+            raise DemonstrationError("Browser tutorial rendering accepts only real source-video segments")
+    request_path = output_path.with_suffix(".remotion.json")
+    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
+    result = subprocess.run(
+        [
+            "node",
+            str(REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"),
+            str(request_path),
+            str(output_path),
+        ],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        timeout=600,
+        check=False,
+    )
+    if result.returncode != 0 or not output_path.is_file():
+        raise DemonstrationError(f"Remotion browser tutorial render failed: {(result.stderr or result.stdout).strip()[-1000:]}")
+
+
 def _black_bar_probe_times(duration_seconds: float) -> list[float]:
     if duration_seconds <= 0:
         raise DemonstrationError("Video duration must be positive before black-bar scanning")
@@ -450,9 +871,19 @@ def _center_dark_ratio(frame_path: Path) -> float:
     return _crop_dark_ratio(frame_path, crop="iw/2:ih/2:iw/4:ih/4")
 
 
-def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+def assert_no_letterbox_or_pillarbox(
+    video_path: Path,
+    metadata: dict[str, Any],
+    *,
+    device_profile: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     width = int(metadata["width"])
     height = int(metadata["height"])
+    browser_chrome = device_profile.get("browser_chrome") if isinstance(device_profile, dict) else None
+    ignore_dark_horizontal_edges = (
+        isinstance(browser_chrome, dict)
+        and browser_chrome.get("kind") == "iphone13-pro-safari"
+    )
     edge_pixels = max(
         BLACK_BAR_MIN_PIXELS,
         min(int(min(width, height) * BLACK_BAR_MIN_FRACTION), int(min(width, height) * BLACK_BAR_MAX_EDGE_FRACTION)),
@@ -471,7 +902,8 @@ def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any])
             }
             center_ratio = _center_dark_ratio(frame_path)
             if (
-                ratios["top"] >= BLACK_BAR_DARK_PIXEL_RATIO
+                not ignore_dark_horizontal_edges
+                and ratios["top"] >= BLACK_BAR_DARK_PIXEL_RATIO
                 and ratios["bottom"] >= BLACK_BAR_DARK_PIXEL_RATIO
                 and center_ratio < BLACK_BAR_CENTER_DARK_PIXEL_RATIO
             ):
@@ -493,6 +925,7 @@ def assert_no_letterbox_or_pillarbox(video_path: Path, metadata: dict[str, Any])
         "status": "passed",
         "edge_pixels": edge_pixels,
         "probes": len(_black_bar_probe_times(float(metadata["duration_seconds"]))),
+        "ignored_dark_horizontal_edges": ignore_dark_horizontal_edges,
     }
 
 
@@ -637,8 +1070,8 @@ def render_clean_video(
             raise DemonstrationError(f"Required render input does not exist: {path}")
     if source_path.resolve() == output_path.resolve():
         raise DemonstrationError("Proof output must not replace the raw recording")
-    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= MAX_PROOF_PLAYBACK_RATE:
-        raise DemonstrationError("Playback rate must be between 0.75 and 1.0")
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
+        raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
     if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
         raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
     if demo_audio_path is not None and audio_path is None:
@@ -706,76 +1139,6 @@ def render_clean_video(
     )
     if result.returncode != 0:
         raise DemonstrationError(f"FFmpeg clean render failed: {result.stderr.strip()[-1000:]}")
-
-
-def render_spec_timeline_video(
-    spec_timeline: dict[str, Any],
-    output_path: Path,
-    *,
-    caption_text: str,
-) -> dict[str, Any]:
-    """Render proof-owned checkpoint frames with holds instead of speeding up source video."""
-
-    checkpoint_frames = [item for item in spec_timeline.get("checkpoint_frames", []) if isinstance(item, dict)]
-    frame_paths: list[Path] = []
-    for item in checkpoint_frames:
-        frame_path = Path(str(item.get("path") or ""))
-        if not frame_path.is_file():
-            continue
-        expected_hash = str(item.get("sha256") or "")
-        if expected_hash and sha256_file(frame_path) != expected_hash:
-            raise DemonstrationError(f"Spec-owned checkpoint frame hash mismatch: {frame_path}")
-        frame_paths.append(frame_path)
-    if not frame_paths:
-        raise DemonstrationError("Spec-owned proof timeline has no persisted checkpoint frames")
-    words = max(1, len(re.findall(r"\b\w+\b", caption_text)))
-    duration = min(MAX_PROOF_OUTPUT_SECONDS, max(12.0, words / 2.5, len(frame_paths) * 3.0))
-    hold_seconds = round(duration / len(frame_paths), MEDIA_TIMESTAMP_DECIMALS)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    concat_path = output_path.with_suffix(".concat.txt")
-    lines: list[str] = []
-    for frame_path in frame_paths:
-        lines.append(f"file '{frame_path.resolve().as_posix()}'")
-        lines.append(f"duration {hold_seconds:g}")
-    lines.append(f"file '{frame_paths[-1].resolve().as_posix()}'")
-    _write_private(concat_path, "\n".join(lines) + "\n")
-    result = subprocess.run(
-        [
-            "ffmpeg",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_path),
-            "-vf",
-            "fps=30,format=yuv420p",
-            "-c:v",
-            "libx264",
-            "-pix_fmt",
-            "yuv420p",
-            "-an",
-            "-map_metadata",
-            "-1",
-            "-map_chapters",
-            "-1",
-            "-movflags",
-            "+faststart",
-            str(output_path),
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    concat_path.unlink(missing_ok=True)
-    if result.returncode != 0:
-        raise DemonstrationError(f"FFmpeg spec-timeline render failed: {result.stderr.strip()[-1000:]}")
-    return {
-        "rendered_from": "spec_timeline_checkpoint_frames",
-        "checkpoint_frame_count": len(frame_paths),
-        "checkpoint_hold_seconds": hold_seconds,
-    }
 
 
 def redact_text_with_canonical_scanner(text: str) -> dict[str, Any]:
@@ -848,7 +1211,7 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
             "-v",
             "error",
             "-show_entries",
-            "format=duration:format_tags:stream=codec_type,width,height,codec_name:stream_tags",
+            "format=duration:format_tags:stream=codec_type,width,height,codec_name,avg_frame_rate,r_frame_rate:stream_tags",
             "-of",
             "json",
             str(video_path),
@@ -878,11 +1241,45 @@ def video_metadata(video_path: Path) -> dict[str, Any]:
         "width": int(stream["width"]),
         "height": int(stream["height"]),
         "codec": str(stream.get("codec_name") or "unknown"),
+        "frame_rate": _require_source_frame_rate(stream),
         "has_audio": audio_stream is not None,
         "audio_codec": str(audio_stream.get("codec_name") or "unknown") if audio_stream else "",
         "sha256": sha256_file(video_path),
         "tags": tags,
     }
+
+
+def sample_video_edge_color(video_path: Path, *, timestamp_seconds: float) -> str:
+    """Return the source recording's top-left edge pixel as a CSS hex color."""
+    if timestamp_seconds < 0:
+        raise DemonstrationError("Edge-color timestamp must be non-negative")
+    duration_seconds = video_metadata(video_path)["duration_seconds"]
+    seek_seconds = min(timestamp_seconds, max(0.0, float(duration_seconds) - 0.001))
+    result = subprocess.run(
+        [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-ss",
+            str(seek_seconds),
+            "-i",
+            str(video_path),
+            "-vf",
+            "crop=1:1:0:0,format=rgb24",
+            "-frames:v",
+            "1",
+            "-f",
+            "rawvideo",
+            "-",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0 or len(result.stdout) < 3:
+        stderr = result.stderr.decode("utf-8", "replace").strip()
+        raise DemonstrationError(f"FFmpeg edge-color sampling failed: {stderr[-500:]}")
+    red, green, blue = result.stdout[:3]
+    return f"#{red:02x}{green:02x}{blue:02x}"
 
 
 def media_duration_seconds(path: Path) -> float:
@@ -905,6 +1302,7 @@ def trim_source_to_ready_marker(
     output_path: Path,
     *,
     ready_timestamp_seconds: float,
+    end_timestamp_seconds: float | None = None,
     lead_seconds: float = CAPTURE_READY_TRIM_LEAD_SECONDS,
 ) -> dict[str, Any]:
     """Accurately trim loading/setup frames using an explicit capture marker."""
@@ -913,24 +1311,36 @@ def trim_source_to_ready_marker(
     if ready_timestamp_seconds < 0 or lead_seconds < 0:
         raise DemonstrationError("Capture-ready marker and trim lead must be non-negative")
     trim_start = round(max(0.0, ready_timestamp_seconds - lead_seconds), 3)
-    duration = media_duration_seconds(source_path)
+    source_metadata = video_metadata(source_path)
+    duration = float(source_metadata["duration_seconds"])
     if trim_start >= duration:
         raise DemonstrationError("Capture-ready marker is outside the source video")
+    trim_end = duration
+    if end_timestamp_seconds is not None:
+        if end_timestamp_seconds <= trim_start:
+            raise DemonstrationError("Capture end marker must be after the trim start")
+        trim_end = round(min(duration, end_timestamp_seconds), 3)
+    trim_duration = round(trim_end - trim_start, 3)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
+    command = [
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(source_path),
+        "-ss",
+        str(trim_start),
+    ]
+    if trim_duration < duration - trim_start:
+        command.extend(["-t", str(trim_duration)])
+    pixel_format = "yuv444p" if int(source_metadata["width"]) % 2 or int(source_metadata["height"]) % 2 else "yuv420p"
+    command.extend(
         [
-            "ffmpeg",
-            "-y",
-            "-i",
-            str(source_path),
-            "-ss",
-            str(trim_start),
             "-c:v",
             "libx264",
             "-preset",
             "veryfast",
             "-pix_fmt",
-            "yuv420p",
+            pixel_format,
             "-c:a",
             "aac",
             "-map_metadata",
@@ -938,7 +1348,10 @@ def trim_source_to_ready_marker(
             "-map_chapters",
             "-1",
             str(output_path),
-        ],
+        ]
+    )
+    result = subprocess.run(
+        command,
         capture_output=True,
         text=True,
         check=False,
@@ -948,6 +1361,8 @@ def trim_source_to_ready_marker(
     return {
         "ready_timestamp_seconds": round(ready_timestamp_seconds, 3),
         "trim_start_seconds": trim_start,
+        "trim_end_seconds": trim_end,
+        "source_end_timestamp_seconds": round(end_timestamp_seconds, 3) if end_timestamp_seconds is not None else None,
         "source_duration_seconds": duration,
         "trimmed_duration_seconds": video_metadata(output_path)["duration_seconds"],
     }
@@ -1133,6 +1548,96 @@ def clamp_intervals_to_duration(items: list[dict[str, Any]], *, duration_seconds
     return clamped
 
 
+def visual_interval_end(start: float, end: float, *, duration_seconds: float) -> float:
+    """Return the last reviewable timestamp inside a half-open visual interval."""
+    start = round(float(start), MEDIA_TIMESTAMP_DECIMALS)
+    end = round(min(float(end), duration_seconds), MEDIA_TIMESTAMP_DECIMALS)
+    if end < round(float(duration_seconds), MEDIA_TIMESTAMP_DECIMALS) and end - start > EVIDENCE_INTERVAL_END_GUARD_SECONDS:
+        return round(end - EVIDENCE_INTERVAL_END_GUARD_SECONDS, MEDIA_TIMESTAMP_DECIMALS)
+    return end
+
+
+def align_final_caption_to_first_action(
+    segments: list[dict[str, Any]],
+    *,
+    action_times: Iterable[float],
+    duration_seconds: float,
+) -> list[dict[str, Any]]:
+    """Move the last proof caption boundary to the first visible action."""
+    if len(segments) < 2:
+        return segments
+    first_action = min((float(value) for value in action_times if 0 < float(value) < duration_seconds), default=None)
+    if first_action is None:
+        return segments
+    boundary = round(first_action, MEDIA_TIMESTAMP_DECIMALS)
+    penultimate = segments[-2]
+    final = segments[-1]
+    if not (float(penultimate["start"]) < boundary < float(final["end"])):
+        return segments
+    return [
+        *segments[:-2],
+        {**penultimate, "end": boundary},
+        {**final, "start": boundary},
+    ]
+
+
+def assign_ordered_caption_claims(
+    captions: list[dict[str, Any]],
+    *,
+    claim_ids: list[str],
+) -> list[dict[str, Any]]:
+    if not claim_ids:
+        return captions
+    if len(captions) == len(claim_ids):
+        return [{**caption, "claim_ids": [claim_id]} for caption, claim_id in zip(captions, claim_ids, strict=True)]
+    return [{**caption, "claim_ids": claim_ids} for caption in captions]
+
+
+def align_ordered_caption_boundaries_to_claim_anchors(
+    segments: list[dict[str, Any]],
+    *,
+    claim_ids: list[str],
+    claim_anchor_times: dict[str, float],
+    duration_seconds: float,
+) -> list[dict[str, Any]]:
+    if len(segments) != len(claim_ids):
+        return segments
+    starts = [round(float(segments[0]["start"]), MEDIA_TIMESTAMP_DECIMALS)]
+    for index, claim_id in enumerate(claim_ids[1:], start=1):
+        fallback = round(float(segments[index]["start"]), MEDIA_TIMESTAMP_DECIMALS)
+        anchor = claim_anchor_times.get(claim_id, fallback)
+        try:
+            boundary = round(float(anchor), MEDIA_TIMESTAMP_DECIMALS)
+        except (TypeError, ValueError):
+            boundary = fallback
+        previous = starts[-1]
+        if not previous < boundary < duration_seconds:
+            boundary = fallback
+        if not previous < boundary < duration_seconds:
+            return segments
+        starts.append(boundary)
+    aligned: list[dict[str, Any]] = []
+    for index, segment in enumerate(segments):
+        start = starts[index]
+        end = starts[index + 1] if index + 1 < len(starts) else round(duration_seconds, MEDIA_TIMESTAMP_DECIMALS)
+        if not start < end:
+            return segments
+        aligned.append({**segment, "start": start, "end": end})
+    return aligned
+
+
+def evidence_intervals_for_claim(captions: list[dict[str, Any]], claim_id: str, duration_seconds: float) -> list[list[float]]:
+    intervals = [
+        [
+            round(float(caption["start"]), MEDIA_TIMESTAMP_DECIMALS),
+            visual_interval_end(float(caption["start"]), float(caption["end"]), duration_seconds=duration_seconds),
+        ]
+        for caption in captions
+        if claim_id in {str(value) for value in caption.get("claim_ids", [])}
+    ]
+    return intervals or [[0.0, round(duration_seconds, MEDIA_TIMESTAMP_DECIMALS)]]
+
+
 def assert_realistic_tutorial_narration(text: str) -> None:
     sentences = [value.strip() for value in re.split(r"(?<=[.!?])\s+", text.strip()) if value.strip()]
     words = re.findall(r"\b\w+\b", text)
@@ -1168,8 +1673,11 @@ def prepare_review_artifacts(
     scene_times: Iterable[float] = (),
     action_times: Iterable[float] = (),
     state_change_times: Iterable[float] = (),
+    claim_evidence_intervals: dict[str, list[list[float]]] | None = None,
 ) -> dict[str, Any]:
     metadata = video_metadata(video_path)
+    action_time_values = list(action_times)
+    state_change_time_values = list(state_change_times)
     if not captions_path.is_file():
         raise DemonstrationError("Canonical WebVTT captions are missing")
     if device_profile is not None:
@@ -1179,7 +1687,11 @@ def prepare_review_artifacts(
                 "device_profile": device_profile["id"],
                 "target_width": int(device_profile["width"]),
                 "target_height": int(device_profile["height"]),
-                "black_bar_scan_status": assert_no_letterbox_or_pillarbox(video_path, metadata),
+                "black_bar_scan_status": assert_no_letterbox_or_pillarbox(
+                    video_path,
+                    metadata,
+                    device_profile=device_profile,
+                ),
             }
         )
     if render_metadata:
@@ -1202,8 +1714,18 @@ def prepare_review_artifacts(
         }
     ]
     claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
-    if claim_ids:
-        captions = [{**caption, "claim_ids": claim_ids} for caption in captions]
+    captions = align_final_caption_to_first_action(
+        captions,
+        action_times=action_time_values,
+        duration_seconds=float(metadata["duration_seconds"]),
+    )
+    caption_claim_ids = {
+        str(value)
+        for caption in captions
+        for value in (caption.get("claim_ids") if isinstance(caption.get("claim_ids"), list) else [])
+    }
+    if claim_ids and (not caption_claim_ids or not caption_claim_ids.issubset(set(claim_ids))):
+        captions = assign_ordered_caption_claims(captions, claim_ids=claim_ids)
     captions = clamp_intervals_to_duration(captions, duration_seconds=float(metadata["duration_seconds"]))
     write_webvtt_segments(captions_path, captions)
     validate_webvtt_matches_segments(captions_path, captions)
@@ -1219,9 +1741,9 @@ def prepare_review_artifacts(
             duration_seconds=metadata["duration_seconds"],
             interval_seconds=MAX_REVIEW_INTERVAL_SECONDS,
             scene_times=scene_times,
-            action_times=action_times,
+            action_times=action_time_values,
             caption_intervals=[(float(caption["start"]), float(caption["end"])) for caption in captions],
-            state_change_times=state_change_times,
+            state_change_times=state_change_time_values,
         )
     ):
         frame = extract_frame(
@@ -1233,14 +1755,19 @@ def prepare_review_artifacts(
         frames.append(frame)
     if not acceptance_criteria or not all(isinstance(value, str) and value for value in acceptance_criteria):
         raise DemonstrationError("Every demonstration claim requires acceptance-criterion links")
-    evidence_intervals = [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]]
+    full_evidence_intervals = [[0.0, round(float(metadata["duration_seconds"]), MEDIA_TIMESTAMP_DECIMALS)]]
     expected = (
         [
             {
                 "claim_id": str(assertion["id"]),
                 "text": str(assertion["description"]),
                 "acceptance_criteria": [str(assertion["id"])],
-                "evidence_intervals": evidence_intervals,
+                "evidence_intervals": evidence_intervals_for_claim(
+                    captions, str(assertion["id"]), float(metadata["duration_seconds"])
+                ) if not claim_evidence_intervals else claim_evidence_intervals.get(
+                    str(assertion["id"]),
+                    evidence_intervals_for_claim(captions, str(assertion["id"]), float(metadata["duration_seconds"])),
+                ),
             }
             for assertion in proof_assertions
         ]
@@ -1250,7 +1777,7 @@ def prepare_review_artifacts(
                 "claim_id": "CLAIM-1",
                 "text": expected_proof,
                 "acceptance_criteria": acceptance_criteria,
-                "evidence_intervals": evidence_intervals,
+                "evidence_intervals": full_evidence_intervals,
             }
         ]
     )
@@ -1402,6 +1929,123 @@ def produce_cli_demonstration(
     )
 
 
+def _produce_browser_tutorial_demonstration(
+    *,
+    run_dir: Path,
+    source_video: Path,
+    selected: dict[str, Any],
+    spec_id: str,
+    subject_commit: str,
+    narration_id: str,
+    caption_text: str,
+    expected_proof: str,
+    acceptance_criteria: list[str],
+    proof_assertions: list[dict[str, str]] | None,
+    proof_contract_hash: str,
+    proof_group_id: str,
+    narration_audio_path: Path | None,
+    narration_audio_provider: str,
+    narration_audio_model: str,
+    narration_audio_voice: str,
+    narration_audio_reused_from: str,
+    device_profile_name: str | None,
+    demo_audio_path: Path | None,
+    browser_tutorial_plan: dict[str, Any],
+) -> dict[str, Any]:
+    profile = resolve_device_profile(device_profile_name)
+    if profile is None:
+        raise DemonstrationError("Browser tutorial requires an exact device profile")
+    assert_source_device_profile_dimensions(video_metadata(source_video), profile)
+    output_duration = float(browser_tutorial_plan.get("duration_seconds") or 0)
+    if not 0 < output_duration <= MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Browser tutorial output must be between zero and 35 seconds")
+    request = browser_tutorial_plan.get("request")
+    caption_segments = browser_tutorial_plan.get("caption_segments")
+    if not isinstance(request, dict) or not isinstance(caption_segments, list) or not caption_segments:
+        raise DemonstrationError("Browser tutorial plan is missing canonical render or caption segments")
+    if " ".join(str(item.get("text") or "").strip() for item in caption_segments) != caption_text.strip():
+        raise DemonstrationError("Browser tutorial captions do not match the approved transcript")
+    run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    run_dir.chmod(0o700)
+    _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
+    captions_path = run_dir / "captions.vtt"
+    write_webvtt_segments(captions_path, caption_segments)
+    narration_audio = (
+        prepare_narration_audio(
+            run_dir=run_dir,
+            audio_path=narration_audio_path,
+            provider=narration_audio_provider,
+            model=narration_audio_model,
+            voice=narration_audio_voice,
+            reused_from=narration_audio_reused_from,
+        )
+        if narration_audio_path is not None
+        else narration_audio_not_required()
+    )
+    video_path = run_dir / "demo.mp4"
+    if narration_audio_path is None:
+        if demo_audio_path is not None:
+            raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
+        render_browser_tutorial(request, video_path)
+    else:
+        remotion_path = run_dir / "browser-remotion.mp4"
+        render_browser_tutorial(request, remotion_path)
+        render_clean_video(
+            remotion_path,
+            Path(str(narration_audio["path"])),
+            video_path,
+            demo_audio_path=demo_audio_path,
+        )
+    rendered_metadata = video_metadata(video_path)
+    assert_device_profile_dimensions(rendered_metadata, profile)
+    if abs(float(rendered_metadata["duration_seconds"]) - output_duration) > 0.1:
+        raise DemonstrationError("Rendered browser tutorial duration does not match its canonical segment plan")
+    claim_anchor_times = browser_tutorial_plan.get("claim_anchor_times")
+    claim_evidence_intervals = browser_tutorial_plan.get("claim_evidence_intervals")
+    state_change_times = sorted(
+        float(value)
+        for value in (claim_anchor_times.values() if isinstance(claim_anchor_times, dict) else [])
+    )
+    transition_times = [float(value) for value in browser_tutorial_plan.get("transition_times", [])]
+    return prepare_review_artifacts(
+        run_dir=run_dir,
+        video_path=video_path,
+        spec_id=spec_id,
+        subject_commit=subject_commit,
+        narration_id=narration_id,
+        caption_text=caption_text,
+        captions_path=captions_path,
+        expected_proof=expected_proof,
+        acceptance_criteria=acceptance_criteria,
+        proof_assertions=proof_assertions,
+        proof_contract_hash=proof_contract_hash,
+        proof_group_id=proof_group_id,
+        source={"kind": "playwright", **selected},
+        narration_audio=narration_audio,
+        caption_segments=caption_segments,
+        device_profile=profile,
+        render_metadata={
+            "rendered_from": "spec_timeline_video_segments",
+            "renderer": str(request.get("renderer") or ""),
+            "renderer_hash": str(browser_tutorial_plan.get("renderer_hash") or ""),
+            "render_input_hash": str(browser_tutorial_plan.get("input_hash") or ""),
+            "edit_segments": request.get("segments"),
+            "browser_domain": str(request.get("domain") or ""),
+            "browser_chrome": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("kind") or ""),
+            "browser_tab_group": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("tabGroupLabel") or ""),
+            "browser_background_color": str((request.get("browserChrome") if isinstance(request.get("browserChrome"), dict) else {}).get("backgroundColor") or ""),
+            "source_frame_rate": float(request.get("sourceFrameRate") or 0),
+            "source_clock_offset_ms": int(request.get("sourceClockOffsetMs") or 0),
+            "source_viewport_width": int((request.get("viewport") or {}).get("width") or 0),
+            "source_viewport_height": int((request.get("viewport") or {}).get("height") or 0),
+        },
+        scene_times=detect_scene_change_times(video_path),
+        action_times=transition_times,
+        state_change_times=state_change_times,
+        claim_evidence_intervals=claim_evidence_intervals if isinstance(claim_evidence_intervals, dict) else None,
+    )
+
+
 def produce_playwright_demonstration(
     *,
     run_dir: Path,
@@ -1426,38 +2070,62 @@ def produce_playwright_demonstration(
     hold_last_frame_seconds: float = 0.0,
     ready_timestamp_seconds: float | None = None,
     demo_audio_path: Path | None = None,
-    spec_timeline: dict[str, Any] | None = None,
-    browser_domain: str = "",
+    browser_tutorial_plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     selected = select_playwright_source([source], run_id=str(source["run_id"]), subject_commit=subject_commit)
     verify_playwright_render_input(selected, source_video)
-    device_profile = resolve_device_profile(device_profile_name)
-    if device_profile is None:
-        raise DemonstrationError("Playwright proof videos require --device-profile")
-    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= MAX_PROOF_PLAYBACK_RATE:
-        raise DemonstrationError("Playback rate must be between 0.75 and 1.0")
-    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
-        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
-    if demo_audio_path is not None and narration_audio_path is None:
-        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
+    if browser_tutorial_plan is not None:
+        return _produce_browser_tutorial_demonstration(
+            run_dir=run_dir,
+            source_video=source_video,
+            selected=selected,
+            spec_id=spec_id,
+            subject_commit=subject_commit,
+            narration_id=narration_id,
+            caption_text=caption_text,
+            expected_proof=expected_proof,
+            acceptance_criteria=acceptance_criteria,
+            proof_assertions=proof_assertions,
+            proof_contract_hash=proof_contract_hash,
+            proof_group_id=proof_group_id,
+            narration_audio_path=narration_audio_path,
+            narration_audio_provider=narration_audio_provider,
+            narration_audio_model=narration_audio_model,
+            narration_audio_voice=narration_audio_voice,
+            narration_audio_reused_from=narration_audio_reused_from,
+            device_profile_name=device_profile_name,
+            demo_audio_path=demo_audio_path,
+            browser_tutorial_plan=browser_tutorial_plan,
+        )
     render_source_video = source_video
     trim_metadata: dict[str, Any] = {}
     trim_start_seconds = 0.0
-    has_spec_checkpoint_frames = bool(
-        spec_timeline
-        and any(isinstance(item, dict) and item.get("path") for item in spec_timeline.get("checkpoint_frames", []))
-    )
-    if ready_timestamp_seconds is not None and not has_spec_checkpoint_frames:
+    if ready_timestamp_seconds is not None:
         run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         render_source_video = run_dir / "source-ready-trimmed.mp4"
         trim_metadata = trim_source_to_ready_marker(
             source_video,
             render_source_video,
             ready_timestamp_seconds=ready_timestamp_seconds,
+            end_timestamp_seconds=float(selected["source_end_timestamp_seconds"])
+            if selected.get("source_end_timestamp_seconds") is not None
+            else None,
         )
         trim_start_seconds = float(trim_metadata.get("trim_start_seconds") or 0.0)
     source_metadata = video_metadata(render_source_video)
+    device_profile = resolve_device_profile(device_profile_name)
+    if device_profile is None:
+        raise DemonstrationError("Playwright proof videos require --device-profile")
     assert_device_profile_dimensions(source_metadata, device_profile)
+    if not MIN_PROOF_PLAYBACK_RATE <= playback_rate <= 4.0:
+        raise DemonstrationError("Playback rate must be between 0.75 and 4.0")
+    if hold_last_frame_seconds < 0 or hold_last_frame_seconds > 30:
+        raise DemonstrationError("Hold-last-frame duration must be between 0 and 30 seconds")
+    output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
+    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
+        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
+    if demo_audio_path is not None and narration_audio_path is None:
+        raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     run_dir.chmod(0o700)
     _write_private(run_dir / "transcript.txt", caption_text.strip() + "\n")
@@ -1474,65 +2142,51 @@ def produce_playwright_demonstration(
         if narration_audio_path is not None
         else narration_audio_not_required()
     )
-    if has_spec_checkpoint_frames and (narration_audio_path is not None or demo_audio_path is not None):
-        raise DemonstrationError("Spec-owned checkpoint proof rendering does not support mixed audio tracks")
-    output_duration = round((source_metadata["duration_seconds"] / playback_rate) + hold_last_frame_seconds, 3)
-    render_metadata: dict[str, Any]
-    video_path = run_dir / "demo.mp4"
-    scene_times: list[float]
-    action_times: list[float]
-    state_change_times: list[float]
-    if has_spec_checkpoint_frames:
-        render_metadata = render_spec_timeline_video(
-            spec_timeline or {},
-            video_path,
-            caption_text=caption_text,
-        )
-        output_duration = float(video_metadata(video_path)["duration_seconds"])
-        hold_seconds = float(render_metadata.get("checkpoint_hold_seconds") or 0)
-        scene_times = []
-        action_times = []
-        state_change_times = [
-            round(index * hold_seconds, MEDIA_TIMESTAMP_DECIMALS)
-            for index in range(1, int(render_metadata["checkpoint_frame_count"]))
-        ]
-    else:
-        if output_duration > MAX_PROOF_OUTPUT_SECONDS:
-            raise DemonstrationError("Proof-video output must not exceed 35 seconds")
-        render_clean_video(
-            render_source_video,
-            Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
-            video_path,
-            playback_rate=playback_rate,
-            hold_last_frame_seconds=hold_last_frame_seconds,
-            demo_audio_path=demo_audio_path,
-        )
-        render_metadata = {
-            "playback_rate": playback_rate,
-            "hold_last_frame_seconds": hold_last_frame_seconds,
-            **trim_metadata,
-            "demo_audio_mixed": demo_audio_path is not None,
-        }
-        scene_times = detect_scene_change_times(video_path)
-        action_times = scale_source_event_times(
-            selected.get("action_timestamps", []),
-            trim_start_seconds=trim_start_seconds,
-            playback_rate=playback_rate,
-            output_duration_seconds=output_duration,
-        )
-        state_change_times = scale_source_event_times(
-            selected.get("state_change_timestamps", []),
-            trim_start_seconds=trim_start_seconds,
-            playback_rate=playback_rate,
-            output_duration_seconds=output_duration,
-        )
-    if output_duration > MAX_PROOF_OUTPUT_SECONDS:
-        raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     caption_segments = write_tutorial_captions(
         captions_path,
         text=caption_text,
         duration_seconds=output_duration,
         narration_id=narration_id,
+    )
+    video_path = run_dir / "demo.mp4"
+    render_clean_video(
+        render_source_video,
+        Path(str(narration_audio["path"])) if narration_audio.get("path") else None,
+        video_path,
+        playback_rate=playback_rate,
+        hold_last_frame_seconds=hold_last_frame_seconds,
+        demo_audio_path=demo_audio_path,
+    )
+    scene_times = detect_scene_change_times(video_path)
+    action_times = scale_source_event_times(
+        selected.get("action_timestamps", []),
+        trim_start_seconds=trim_start_seconds,
+        playback_rate=playback_rate,
+        output_duration_seconds=output_duration,
+    )
+    state_change_times = scale_source_event_times(
+        selected.get("state_change_timestamps", []),
+        trim_start_seconds=trim_start_seconds,
+        playback_rate=playback_rate,
+        output_duration_seconds=output_duration,
+    )
+    state_change_times_by_id = scale_source_event_time_map(
+        selected.get("state_change_timestamps_by_id", {}) if isinstance(selected.get("state_change_timestamps_by_id"), dict) else {},
+        trim_start_seconds=trim_start_seconds,
+        playback_rate=playback_rate,
+        output_duration_seconds=output_duration,
+    )
+    claim_ids = [str(item["id"]) for item in proof_assertions or [] if item.get("id")]
+    caption_segments = align_ordered_caption_boundaries_to_claim_anchors(
+        caption_segments,
+        claim_ids=claim_ids,
+        claim_anchor_times=state_change_times_by_id,
+        duration_seconds=output_duration,
+    )
+    caption_segments = align_final_caption_to_first_action(
+        caption_segments,
+        action_times=action_times,
+        duration_seconds=output_duration,
     )
     return prepare_review_artifacts(
         run_dir=run_dir,
@@ -1547,13 +2201,18 @@ def produce_playwright_demonstration(
         proof_assertions=proof_assertions,
         proof_contract_hash=proof_contract_hash,
         proof_group_id=proof_group_id,
-        source={"kind": "playwright", **selected, **({"browser_domain": browser_domain} if browser_domain else {})},
+        source={"kind": "playwright", **selected},
         narration_audio=narration_audio,
         caption_segments=caption_segments,
         device_profile=device_profile,
-        render_metadata=render_metadata,
+        render_metadata={
+            "playback_rate": playback_rate,
+            "hold_last_frame_seconds": hold_last_frame_seconds,
+            **trim_metadata,
+            "demo_audio_mixed": demo_audio_path is not None,
+        },
         scene_times=scene_times,
-        action_times=action_times,
+        action_times=[],
         state_change_times=state_change_times,
     )
 
@@ -1578,6 +2237,26 @@ def scale_source_event_times(
     return scaled
 
 
+def scale_source_event_time_map(
+    values: dict[str, Any],
+    *,
+    trim_start_seconds: float,
+    playback_rate: float,
+    output_duration_seconds: float,
+) -> dict[str, float]:
+    scaled: dict[str, float] = {}
+    for key, value in values.items():
+        result = scale_source_event_times(
+            [value],
+            trim_start_seconds=trim_start_seconds,
+            playback_rate=playback_rate,
+            output_duration_seconds=output_duration_seconds,
+        )
+        if result:
+            scaled[str(key)] = result[0]
+    return scaled
+
+
 def frame_index_hash(frames: list[dict[str, Any]]) -> str:
     """Bind a review to the complete ordered frame index, not a hand-picked subset."""
     canonical = [
@@ -1590,6 +2269,53 @@ def frame_index_hash(frames: list[dict[str, Any]]) -> str:
     ]
     payload = json.dumps(canonical, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def review_request_hash(request: dict[str, Any]) -> str:
+    """Bind a receipt to all canonical frame, caption, claim, and metadata fields."""
+    payload = json.dumps(request, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def review_attempt_sha256(attempt: dict[str, Any]) -> str:
+    """Hash one persisted review attempt exactly as it is stored on disk."""
+    payload = (json.dumps(attempt, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
+
+
+def validate_visual_intent_approval_provenance(
+    approvals: list[dict[str, Any]],
+    prior_attempts: list[dict[str, Any]],
+) -> None:
+    """Bind each user approval to the exact earlier unclear reviewer receipt."""
+    for approval in approvals:
+        original_hash = str(approval.get("original_receipt_sha256") or "")
+        original = next(
+            (
+                attempt
+                for attempt in prior_attempts
+                if isinstance(attempt, dict) and review_attempt_sha256(attempt) == original_hash
+            ),
+            None,
+        )
+        if not isinstance(original, dict) or original.get("status") != "uncertain":
+            raise DemonstrationError("Visual-intent approval does not match a prior uncertain review receipt")
+        finding = next(
+            (
+                item
+                for item in original.get("incidental_findings", [])
+                if isinstance(item, dict) and item.get("id") == approval.get("finding_id")
+            ),
+            None,
+        )
+        if (
+            not isinstance(finding, dict)
+            or finding.get("intent") != "unclear"
+            or list(map(str, finding.get("frames", []))) != list(map(str, approval.get("frames", [])))
+            or list(map(str, finding.get("quality_categories", [])))
+            != list(map(str, approval.get("quality_categories", [])))
+        ):
+            raise DemonstrationError("Visual-intent approval does not match the prior unclear finding")
 
 
 def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> None:
@@ -1610,7 +2336,7 @@ def validate_review_request_files(run_dir: Path, request: dict[str, Any]) -> Non
             raise DemonstrationError(f"Review frame is missing or its hash changed: {relative}")
 
 
-def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, Any]:
+def record_review_receipt(run_dir: Path, receipt: dict[str, Any], *, replace_latest_attempt: bool = False) -> dict[str, Any]:
     """Validate and persist one AI review receipt bound to every supplied frame."""
     request = json.loads((run_dir / "review-request.json").read_text(encoding="utf-8"))
     validate_review_request_files(run_dir, request)
@@ -1620,7 +2346,11 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if not isinstance(review, dict):
         raise DemonstrationError("Manifest review record must be a mapping")
     attempts = review.setdefault("attempts", [])
-    if not isinstance(attempts, list) or len(attempts) >= MAX_REVIEW_ATTEMPTS:
+    if not isinstance(attempts, list):
+        raise DemonstrationError("Manifest review attempts must be a list")
+    if replace_latest_attempt and not attempts:
+        raise DemonstrationError("Cannot replace a missing review attempt")
+    if not replace_latest_attempt and len(attempts) >= MAX_REVIEW_ATTEMPTS:
         raise DemonstrationError("Review attempt budget is exhausted; user input is required")
     if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
         raise DemonstrationError("Review receipt frame-index hash does not match the canonical request")
@@ -1629,7 +2359,9 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         "status",
         "confidence",
         "frame_index_hash",
+        "review_request_hash",
         "reviewed_frames",
+        "frame_reviews",
         "assertions",
         "incidental_findings",
         "return_stage",
@@ -1644,7 +2376,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         "correction_kind",
         "workflow",
     }
-    optional_receipt_fields = {"caption_artifact_hash"}
+    optional_receipt_fields = {"caption_artifact_hash", "approved_visual_intents"}
     unknown_receipt_fields = set(receipt) - required_receipt_fields - optional_receipt_fields
     if unknown_receipt_fields:
         raise DemonstrationError(f"Review receipt contains unsupported field: {sorted(unknown_receipt_fields)[0]}")
@@ -1658,6 +2390,7 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         or receipt.get("proof_group_id") != request.get("proof_group_id")
         or receipt.get("source_artifact_hash") != (request.get("video_metadata") or {}).get("sha256")
         or receipt.get("caption_artifact_hash") != (request.get("video_metadata") or {}).get("captions_sha256")
+        or receipt.get("review_request_hash") != review_request_hash(request)
         or receipt.get("subject_commit") != request.get("subject_commit")
         or receipt.get("device") != (request.get("video_metadata") or {}).get("device_profile", "unspecified-device")
         or receipt.get("correction_round") not in range(3)
@@ -1665,8 +2398,51 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         or not isinstance(receipt.get("workflow"), dict)
     ):
         raise DemonstrationError("Review receipt is missing canonical runner provenance")
+    approved_visual_intents = receipt.get("approved_visual_intents", [])
+    if not isinstance(approved_visual_intents, list):
+        raise DemonstrationError("Review receipt approved_visual_intents must be a list")
+    approval_fields = {
+        "finding_id",
+        "approved_by",
+        "approved_at",
+        "reason",
+        "frames",
+        "quality_categories",
+        "original_receipt_sha256",
+    }
+    for approval in approved_visual_intents:
+        if not isinstance(approval, dict) or set(approval) != approval_fields:
+            raise DemonstrationError("Review receipt visual-intent approval fields do not match the canonical schema")
+        if (
+            not all(isinstance(approval.get(field), str) and approval[field].strip() for field in ("finding_id", "approved_by", "approved_at", "reason"))
+            or not isinstance(approval.get("frames"), list)
+            or not approval["frames"]
+            or not isinstance(approval.get("quality_categories"), list)
+            or not approval["quality_categories"]
+            or not set(map(str, approval["quality_categories"])).issubset(REVIEW_QUALITY_CATEGORIES)
+            or not isinstance(approval.get("original_receipt_sha256"), str)
+            or not SHA256_RE.fullmatch(approval["original_receipt_sha256"])
+        ):
+            raise DemonstrationError("Review receipt contains an invalid visual-intent approval")
+    validate_visual_intent_approval_provenance(approved_visual_intents, attempts)
 
     known_frames = {str(frame["path"]) for frame in request.get("frames", []) if isinstance(frame, dict)}
+    frame_reviews = receipt.get("frame_reviews")
+    if not isinstance(frame_reviews, list):
+        raise DemonstrationError("Review receipt frame_reviews must be a list")
+    frame_review_paths = [str(item.get("frame")) for item in frame_reviews if isinstance(item, dict)]
+    if len(frame_review_paths) != len(set(frame_review_paths)) or set(frame_review_paths) != known_frames:
+        raise DemonstrationError("Review receipt must provide one quality scan for every canonical frame")
+    for frame_review in frame_reviews:
+        if set(frame_review) != {"frame", "checks", "observation"}:
+            raise DemonstrationError("Review receipt frame-review fields do not match the canonical schema")
+        checks = frame_review.get("checks")
+        if not isinstance(checks, dict) or set(checks) != REVIEW_QUALITY_CATEGORIES:
+            raise DemonstrationError("Every frame quality scan must include all required categories")
+        if any(result not in REVIEW_QUALITY_RESULTS for result in checks.values()):
+            raise DemonstrationError("Frame quality scan results must be pass, fail, or uncertain")
+        if not isinstance(frame_review.get("observation"), str) or not frame_review["observation"].strip():
+            raise DemonstrationError("Every frame quality scan requires a frame-grounded observation")
     expected_ids = {
         str(item["claim_id"])
         for item in request.get("expected_proof", [])
@@ -1703,13 +2479,25 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if not isinstance(incidental, list):
         raise DemonstrationError("Review receipt incidental_findings must be a list")
     validate_citations(incidental, "incidental finding") if incidental else None
-    allowed_incidental_fields = {"id", "category", "severity", "confidence", "frames", "observation"}
+    allowed_incidental_fields = {
+        "id",
+        "category",
+        "severity",
+        "confidence",
+        "intent",
+        "quality_categories",
+        "frames",
+        "observation",
+    }
     allowed_incidental_categories = {
         "clipping",
         "overlap",
         "overflow",
         "geometry",
         "color",
+        "contrast",
+        "typography",
+        "icon",
         "loading",
         "raw_text",
         "navigation",
@@ -1720,9 +2508,14 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
         if set(finding) != allowed_incidental_fields:
             raise DemonstrationError("Review receipt incidental-finding fields do not match the canonical schema")
         finding_confidence = finding.get("confidence")
+        quality_categories = finding.get("quality_categories")
         if (
             finding.get("category") not in allowed_incidental_categories
             or finding.get("severity") not in {"blocking", "warning"}
+            or finding.get("intent") not in {"obvious", "unclear"}
+            or not isinstance(quality_categories, list)
+            or not quality_categories
+            or not set(map(str, quality_categories)).issubset(REVIEW_QUALITY_CATEGORIES)
             or isinstance(finding_confidence, bool)
             or not isinstance(finding_confidence, (int, float))
             or not 0 <= finding_confidence <= 1
@@ -1736,14 +2529,41 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     ):
         raise DemonstrationError("Review receipt must attest every canonical frame exactly once")
     blocking = [item for item in incidental if item.get("severity") == "blocking"]
+    nonpassing_quality = [
+        (str(item["frame"]), str(category), str(result))
+        for item in frame_reviews
+        for category, result in item["checks"].items()
+        if result != "pass"
+    ]
+    frame_checks = {str(item["frame"]): item["checks"] for item in frame_reviews}
+    for finding in incidental:
+        if not all(
+            frame_checks.get(str(frame), {}).get(str(category)) in {"fail", "uncertain"}
+            for frame in finding.get("frames", [])
+            for category in finding.get("quality_categories", [])
+        ):
+            raise DemonstrationError("Every incidental finding must cite a matching non-passing frame quality category")
     status = receipt.get("status")
     if status == "passed":
         if any(item.get("verdict") != "supported" for item in assertions):
             raise DemonstrationError("Passed review receipt contains an unsupported assertion")
-        if blocking:
-            raise DemonstrationError("Passed review receipt contains a blocking incidental finding")
+        if incidental:
+            raise DemonstrationError("Passed review receipt contains an unresolved incidental finding")
+        if nonpassing_quality:
+            raise DemonstrationError("Passed review receipt contains a non-passing frame quality scan")
     elif status not in {"capture_defect", "render_defect", "product_defect", "uncertain"}:
         raise DemonstrationError(f"Unsupported review receipt status: {status}")
+    if status == "product_defect" and not blocking:
+        raise DemonstrationError("Product-defect review receipt requires a blocking incidental finding")
+    if any(
+        not any(
+            frame in set(map(str, finding.get("frames", [])))
+            and category in set(map(str, finding.get("quality_categories", [])))
+            for finding in incidental
+        )
+        for frame, category, _result in nonpassing_quality
+    ):
+        raise DemonstrationError("Every non-passing frame quality category requires a matching cited incidental finding")
     confidence = receipt.get("confidence")
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or not 0 <= confidence <= 1:
         raise DemonstrationError("Review receipt confidence must be between zero and one")
@@ -1752,17 +2572,26 @@ def record_review_receipt(run_dir: Path, receipt: dict[str, Any]) -> dict[str, A
     if not isinstance(receipt.get("next_action"), str) or not receipt["next_action"].strip():
         raise DemonstrationError("Review receipt requires one bounded next action")
 
-    attempt_number = len(attempts) + 1
+    if replace_latest_attempt:
+        latest_attempt_number = attempts[-1].get("attempt_number") if isinstance(attempts[-1], dict) else None
+        if isinstance(latest_attempt_number, bool) or not isinstance(latest_attempt_number, int):
+            raise DemonstrationError("Cannot replace a review attempt without a numeric attempt number")
+        attempt_number = latest_attempt_number
+    else:
+        attempt_number = len(attempts) + 1
     receipt_record = {**receipt, "attempt_number": attempt_number}
-    attempts.append(receipt_record)
+    if replace_latest_attempt:
+        attempts[-1] = receipt_record
+    else:
+        attempts.append(receipt_record)
     review.update(
         {
             "status": "passed" if status == "passed" else "failed",
             "classified_status": status,
-            "attempt_count": attempt_number,
+            "attempt_count": len(attempts),
             "requires_user_input": bool((receipt.get("workflow") or {}).get("requires_user_input"))
             or status == "uncertain"
-            or attempt_number >= MAX_REVIEW_ATTEMPTS,
+            or (status != "passed" and len(attempts) >= MAX_REVIEW_ATTEMPTS),
             "frame_index_hash": receipt["frame_index_hash"],
         }
     )
@@ -1805,7 +2634,7 @@ def build_review_frame_times(
             ):
                 event_candidates.append(rounded)
 
-    event_times = [*action_times, *state_change_times]
+    event_times = [*state_change_times, *action_times]
     for value in event_times:
         add_time(value)
     for value in event_times:
@@ -1813,7 +2642,7 @@ def build_review_frame_times(
         add_time(value + 0.25)
     for start, end in caption_intervals:
         add_time(start)
-        add_time(end)
+        add_time(visual_interval_end(start, end, duration_seconds=duration_seconds))
     for value in scene_times:
         add_time(value)
     remaining = MAX_REVIEW_FRAMES_PER_DEVICE - len(times)
@@ -2051,8 +2880,12 @@ def detect_scene_change_times(video_path: Path) -> list[float]:
 def extract_frame(video_path: Path, *, timestamp_seconds: float, output_path: Path) -> dict[str, Any]:
     if timestamp_seconds < 0:
         raise DemonstrationError("Frame timestamp must be non-negative")
-    duration_seconds = video_metadata(video_path)["duration_seconds"]
-    seek_seconds = min(timestamp_seconds, max(0.0, duration_seconds - END_FRAME_OFFSET_SECONDS))
+    metadata = video_metadata(video_path)
+    duration_seconds = metadata["duration_seconds"]
+    frame_offset = 1 / float(metadata.get("frame_rate") or 30)
+    tail_guard = min(END_FRAME_OFFSET_SECONDS, frame_offset * 3)
+    latest_seek_seconds = max(0.0, duration_seconds - tail_guard)
+    seek_seconds = min(timestamp_seconds, latest_seek_seconds)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(
         [
@@ -2195,6 +3028,26 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
     if sha256_file(receipt_path) != expected_hash:
         raise DemonstrationError("AI review receipt hash no longer matches the reviewed manifest")
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    approvals = receipt.get("approved_visual_intents", [])
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    if not isinstance(approvals, list):
+        raise DemonstrationError("AI review receipt visual-intent approvals must be a list")
+    validate_visual_intent_approval_provenance(approvals, attempts)
+    request_path = run_dir / "review-request.json"
+    if not request_path.is_file():
+        raise DemonstrationError("Publication requires the canonical review request")
+    request = json.loads(request_path.read_text(encoding="utf-8"))
+    validate_review_request_files(run_dir, request)
+    canonical_frames = {
+        str(item.get("path"))
+        for item in request.get("frames", [])
+        if isinstance(item, dict) and item.get("path")
+    }
+    canonical_assertions = {
+        str(item.get("claim_id"))
+        for item in request.get("expected_proof", [])
+        if isinstance(item, dict) and item.get("claim_id")
+    }
     if (
         receipt.get("status") != "passed"
         or not str(receipt.get("reviewer_session_id") or "").strip()
@@ -2206,9 +3059,32 @@ def require_review_receipt_integrity(run_dir: Path, manifest: dict[str, Any], *,
         or receipt.get("subject_commit") != manifest.get("subject_commit")
         or receipt.get("correction_round") not in range(3)
         or receipt.get("correction_kind") not in {"none", "mechanical", "capture", "product"}
+        or receipt.get("review_request_hash") != review_request_hash(request)
         or not isinstance(receipt.get("workflow"), dict)
     ):
         raise DemonstrationError("AI review receipt does not match the passed manifest review")
+    frame_reviews = receipt.get("frame_reviews")
+    reviewed_frames = receipt.get("reviewed_frames")
+    assertion_records = receipt.get("assertions")
+    if (
+        not isinstance(frame_reviews, list)
+        or not isinstance(reviewed_frames, list)
+        or not canonical_frames
+        or set(map(str, reviewed_frames)) != canonical_frames
+        or {str(item.get("frame")) for item in frame_reviews if isinstance(item, dict)}
+        != canonical_frames
+        or any(
+            not isinstance(item, dict)
+            or set(item.get("checks") or {}) != REVIEW_QUALITY_CATEGORIES
+            or any(result != "pass" for result in (item.get("checks") or {}).values())
+            for item in frame_reviews
+        )
+        or receipt.get("incidental_findings") != []
+        or not isinstance(assertion_records, list)
+        or {str(item.get("id")) for item in assertion_records if isinstance(item, dict)} != canonical_assertions
+        or any(item.get("verdict") != "supported" for item in assertion_records if isinstance(item, dict))
+    ):
+        raise DemonstrationError("AI review receipt lacks complete passed frame quality scans")
     if verify_video:
         video_path = resolve_run_artifact_path(run_dir, str(manifest.get("video_path") or ""))
         expected_video_hash = str((manifest.get("video_metadata") or {}).get("sha256") or "")
@@ -2320,6 +3196,8 @@ def publish_reviewed_video(
                 "response_media_kind": str(upload.get("kind", "media")),
                 "response_media_markdown": str(snippets.get("markdown", "")),
                 "response_media_html": str(snippets.get("html", "")),
+                "snippet_markdown": str(snippets.get("markdown", "")),
+                "snippet_html": str(snippets.get("html", "")),
                 "response_media_captions": captions_upload or {},
             }
         )

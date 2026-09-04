@@ -1,0 +1,929 @@
+schema_version: 3
+id: ai-model-routing-redesign
+title: AI Model Settings And Composer Redesign
+status: approved
+
+specification_refs:
+  - id: feature.ai-model-routing
+    version: 1
+    role: primary
+    fingerprint: 7100edcfa11355803db4f32b54fe3e68c71c3839964eefc81dcd402d2f5ab9a3
+
+specification_impact:
+  classification: implementation_only
+  specification_update_required: false
+  affected_assertions:
+    - ai-model-routing.tiers.conservative-three-way
+    - ai-model-routing.preferences.exclusive-tier-defaults
+    - ai-model-routing.catalog.capability-recommendation-variants
+    - ai-model-routing.defaults.google-tier-profiles
+    - ai-model-routing.chat-selection.encrypted-user-chat-scope
+    - ai-model-routing.precedence.chat-over-tier-over-auto
+    - ai-model-routing.composer.mention-to-exact-selection
+    - ai-model-routing.unavailable.notify-reset-auto
+    - ai-model-routing.settings.hierarchy-canonical
+    - ai-model-routing.composer.responsive-actions
+    - ai-model-routing.surface.semantic-parity
+  reason: The approved contract already defines the routing, encrypted persistence, recovery, settings, and responsive composer semantics; this spec plans their implementation without changing those semantics.
+
+documentation_impact:
+  generated_reference:
+    status: unchanged
+    reason: The approved contract fingerprint and generated assertion registry already contain the asserted behavior.
+  user_docs:
+    status: update_required
+    documents:
+      - docs/architecture/ai/ai-model-selection.md
+    reason: Settings navigation, model-selection precedence, and unavailable-model recovery need user-facing explanation after implementation.
+  semantic_layer:
+    status: unchanged
+    documents:
+      - specifications/features/ai-model-routing/specification.yml
+      - specifications/features/ai-model-routing/examples.yml
+    reason: Product semantics are governed by the approved feature contract and do not change in this implementation spec.
+
+goal: >
+  Deliver the approved three-tier AI model settings and responsive composer
+  model-selection experience across first-party clients, preserving encrypted
+  owner-scoped preferences, deterministic routing precedence, and clear recovery.
+
+scope:
+  in:
+    - Three-tier simple, complex, and most-demanding automatic routing with conservative classification.
+    - One Auto or exact-model default per authenticated user's request tier.
+    - Provider-tier catalogs, capability indicators, recommendations, model detail, and canonical AI settings hierarchy.
+    - Per-user, per-chat Auto or exact-model selection with client-encrypted durable sync and cross-device restore.
+    - Composer picker, exact-model and alias mention resolution, unavailable-model reset, and responsive actions.
+    - First-party REST/WebSocket, CLI, npm SDK, pip SDK, web, and Apple semantic parity.
+  out:
+    - GPT-5.6 Luna, Terra, Sol, or Sol (Max) provider metadata or provider integration, owned by a separate chat.
+    - A provider-independent user-facing reasoning-level control.
+    - Automatic mutation of saved preferences after catalog recommendation changes.
+    - Invented pricing for unsupported image modalities.
+
+context_discovery:
+  github_issues:
+    - No issue lookup was required for this approved-contract spec-only request.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/ai/ai-model-selection.md
+  contracts:
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/generated/registry.yml
+  figma:
+    nodes:
+      - id: "4406:53279"
+        purpose: AI model settings redesign reference.
+      - id: "5815:59169"
+        purpose: Message composer redesign reference.
+    reference_pngs:
+      - test-results/figma/ai-settings-redesign/figma-ai-settings-overview-updated.png
+      - test-results/figma/ai-settings-redesign/figma-message-input-overview.png
+  code_patterns:
+    - frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte persists existing simple/complex defaults through the authenticated settings endpoint.
+    - backend/core/api/app/routes/settings.py owns POST /v1/settings/ai-model-defaults.
+    - backend/apps/ai/processing/preprocessor.py currently selects simple or complex defaults.
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte and mentionSearchService.ts own composer model mentions.
+    - frontend/packages/openmates-cli/src/cli.ts and sdk.ts already expose AI model default mutation paths.
+  tests:
+    - frontend/apps/web_app/tests/default-model-cli.spec.ts
+    - frontend/apps/web_app/tests/image-model-inference-real.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/ProcessingDetailsView.swift
+    - apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift
+    - Additional composer and settings sources to be identified during the Apple phase after web confirmation.
+  parity_expectations:
+    - Apple exposes equivalent tier defaults, chat Auto/exact selection, encrypted restore, unavailable reset, and routing precedence.
+    - Apple may use native picker and attachment chrome while preserving the approved outcomes.
+  verification:
+    - Run Apple status plus targeted build/test after user confirmation of deployed web behavior.
+  intentional_native_differences:
+    - Native menus and attachment pickers may differ visually from the web Figma references.
+
+clarification:
+  rounds: []
+  vision_summary: >
+    The user supplied an approved exact-hash AI model routing contract and asked
+    only for its durable Schema V3 implementation ledger. The redesign must use
+    the cited AI settings and composer Figma references while preserving the
+    contract rather than recreating behavior from raw design values.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: unimplemented
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-26T00:00:00Z"
+    reason: Explicit approval receipt for feature.ai-model-routing@1 was already recorded with fingerprint bedc508fe88efc9ca0193efb841b7b9c0fa05e679b2bc000a61f5cf7c24d7325.
+  plan:
+    status: approved
+    approved_at: "2026-08-26T00:00:00Z"
+    reason: The user explicitly approved the governing contract and instructed implementation to proceed; the dedicated preference record is the smallest architecture that preserves its per-user/chat encrypted isolation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement only the approved feature.ai-model-routing@1 contract.
+    reason: The user requested a spec-only implementation ledger and supplied the exact approved contract fingerprint.
+    decided_at: "2026-08-26T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Keep GPT-5.6 provider metadata and integration out of this spec's implementation scope.
+    reason: A separate chat owns that provider work.
+    decided_at: "2026-08-26T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Use Figma nodes 4406:53279 and 5815:59169 as visual evidence, not as a substitute for the approved semantic contract.
+    reason: The contract deliberately excludes raw Figma values and component structure.
+    decided_at: "2026-08-26T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Store a chat selection in a dedicated Directus user_chat_preferences record with unique(hashed_user_id, chat_id), encrypted_selected_ai_model Format D master-key ciphertext, preference_v compare-and-set version, and updated_at.
+    reason: A dedicated owner-scoped record is the smallest architecture that preserves approved per-user/chat encrypted isolation without placing selection data in shared chat metadata or drafts.
+    decided_at: "2026-08-26T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Encrypt selections locally before durable sync; broadcast the opaque updated record only to the same authenticated user's devices; permit plaintext model identity only transiently in an authorized inference request.
+    reason: This preserves the approved encryption boundary while providing cross-device convergence and routing precedence without participant disclosure.
+    decided_at: "2026-08-26T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Reject chat-selection reads and writes through drafts and shared chat metadata paths.
+    reason: Both paths have different lifetime or participant visibility semantics and cannot preserve the approved owner-only preference boundary.
+    decided_at: "2026-08-26T00:00:00Z"
+
+scenarios:
+  - id: S-1
+    title: Automatic requests use conservative three-tier routing
+    given: [Alice has Auto selected for a chat and asks a simple weather question, a focused debugging question, or an uncertain high-complexity question.]
+    when: [The request reaches the routing preprocessor.]
+    then: [The route is simple, complex, or most demanding under the conservative policy, and uncertainty resolves to complex.]
+  - id: S-2
+    title: Tier defaults remain exclusive and stable
+    given: [Alice has one preference for each of simple, complex, and most demanding.] 
+    when: [Alice changes the complex tier from Auto to one exact eligible model.] 
+    then: [Only the complex preference changes, the prior exact complex model is replaced, and later recommendation changes do not mutate Alice's choice.]
+  - id: S-3
+    title: Settings reveal capability, variants, and Google defaults
+    given: [Alice opens AI Settings and a tier-specific provider catalog.] 
+    when: [Alice opens Google models and a model detail page.] 
+    then: [Every selectable variant has a capability indicator, one eligible recommendation is identified for the tier, Gemini defaults match the approved profiles, and no generic reasoning control appears.]
+  - id: S-4
+    title: Chat selection is encrypted and isolated
+    given: [Alice selects an exact model in a shared chat while Bob keeps Auto.] 
+    when: [Alice opens the chat on another device.] 
+    then: [Alice's selection restores before the composer presents it, durable server plaintext is absent, and Bob's selection remains Auto.]
+  - id: S-5
+    title: Exact chat selection takes precedence
+    given: [Alice selects an exact model for one chat and retains Auto in another.] 
+    when: [Alice sends the same simple factual request in each chat.] 
+    then: [The exact chat model bypasses tier classification for model routing while Auto applies tier preference then automatic fallback.]
+  - id: S-6
+    title: Composer picker and mentions resolve to exact selections
+    given: ["Alice uses the picker or types an exact model, @best, or @fast in the composer."]
+    when: [Alice sends the message.] 
+    then: [One routable exact model is selected and persisted, the selector identifies it, and the redundant visible model mention is removed from editable text.]
+  - id: S-7
+    title: Unavailable saved selection recovers visibly
+    given: [Alice's saved exact model is unavailable, unhealthy, or has no usable route.] 
+    when: [The chat loads or Alice sends a message.] 
+    then: [The client notifies Alice, synchronizes Auto, and resumes normal automatic routing rather than silently substituting another exact model.]
+  - id: S-8
+    title: Settings and composer remain usable at regular and compact widths
+    given: [Alice uses AI Settings or the composer at 1440x900 and 390x844.] 
+    when: [Alice navigates settings, opens the attachment menu, and changes the model.] 
+    then: [Canonical settings hierarchy is reachable, model selection remains accessible, Drawing/Location/Files are grouped, camera/audio/send remain direct, and no horizontal clipping occurs.]
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Automatic routing classifies simple, complex, and most-demanding requests conservatively; uncertainty resolves to complex and insufficient signals never alone select most demanding.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-ROUTING-TIERS, V-REST-WS-ROUTING]
+    specification_assertions: [ai-model-routing.tiers.conservative-three-way]
+  - id: AC-2
+    scenario: S-2
+    text: Each authenticated user retains exactly one Auto or exact-model selection per tier, with exclusive replacement and no recommendation-driven mutation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-TIER-PREFERENCES, V-REST-WS-ROUTING, V-CLI-ROUTING]
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults]
+  - id: AC-3
+    scenario: S-3
+    text: Tier catalogs expose capability, recommendations, stable provider variants, and authoritative commercial details without invented modality pricing.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-MODEL-CATALOG, T-WEB-AI-SETTINGS, V-UI-VISUAL-SMOKE]
+    specification_assertions: [ai-model-routing.catalog.capability-recommendation-variants]
+  - id: AC-4
+    scenario: S-3
+    text: Auto defaults use the approved Gemini simple, complex, and most-demanding profiles without exposing a universal reasoning-level control.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-ROUTING-TIERS, T-MODEL-CATALOG, V-REST-WS-ROUTING]
+    specification_assertions: [ai-model-routing.defaults.google-tier-profiles]
+  - id: AC-5
+    scenario: S-4
+    text: Per-user per-chat Auto or exact selection is client-encrypted for durable sync, restores before composer display, converges across the owner's devices, and never changes another participant's selection.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CHAT-SELECTION-ENCRYPTION, V-REST-WS-ROUTING, V-SDK-ROUTING]
+    specification_assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope]
+  - id: AC-6
+    scenario: S-5
+    text: Exact chat selection bypasses tier classification only for model routing; Auto applies classified tier preference before automatic and configured fallback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-ROUTING-PRECEDENCE, V-REST-WS-ROUTING, V-CLI-ROUTING]
+    specification_assertions: [ai-model-routing.precedence.chat-over-tier-over-auto]
+  - id: AC-7
+    scenario: S-6
+    text: Picker and exact/@best/@fast mentions resolve before send to one exact routable model, persist it, visibly identify it, and remove the redundant editable mention.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-COMPOSER-MENTIONS, T-WEB-COMPOSER-ROUTING, V-UI-VISUAL-SMOKE]
+    specification_assertions: [ai-model-routing.composer.mention-to-exact-selection]
+  - id: AC-8
+    scenario: S-7
+    text: An unavailable saved exact model produces a visible notification, synchronizes Auto, and resumes normal automatic routing on load or send.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-UNAVAILABLE-MODEL, V-REST-WS-ROUTING, V-WEB-ROUTING]
+    specification_assertions: [ai-model-routing.unavailable.notify-reset-auto]
+  - id: AC-9
+    scenario: S-8
+    text: AI Settings use canonical overview, tier, provider, model-detail, and response-feature navigation with canonical rows, controls, loading, and feedback.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-AI-SETTINGS, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
+    specification_assertions: [ai-model-routing.settings.hierarchy-canonical]
+  - id: AC-10
+    scenario: S-8
+    text: The composer keeps Auto or selected model reachable at regular and compact widths, groups attachment actions, retains direct camera/audio/send actions, and avoids clipping or state loss.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-WEB-COMPOSER-ROUTING, V-UI-VISUAL-SMOKE, V-USER-CONFIRMATION]
+    specification_assertions: [ai-model-routing.composer.responsive-actions]
+  - id: AC-11
+    scenario: S-4
+    text: REST/WebSocket, CLI, npm SDK, pip SDK, web, and Apple preserve equivalent owner-scoped preferences, precedence, alias resolution, unavailable recovery, and authorization wherever exposed.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [V-REST-WS-ROUTING, V-CLI-ROUTING, V-SDK-ROUTING, V-WEB-ROUTING, V-APPLE-ROUTING]
+    specification_assertions: [ai-model-routing.surface.semantic-parity]
+
+assumptions:
+  - id: A-1
+    text: The existing settings route can evolve from two tier fields to three without breaking first-party clients.
+    status: confirmed
+    required_before: implementation
+    confirmation_path: "Confirmed by source research: AiModelDefaultsRequest and POST /v1/settings/ai-model-defaults use field-presence updates, while existing clients send the same authenticated first-party payload; add the third optional field compatibly and retain the existing fields."
+    evidence:
+      - backend/core/api/app/schemas/settings.py: AiModelDefaultsRequest has optional simple and complex fields.
+      - backend/core/api/app/routes/settings.py: update_ai_model_defaults uses model_fields_set for compatible partial updates.
+  - id: A-2
+    text: Client-encrypted chat metadata can carry the exact selection without a durable server plaintext model field.
+    status: confirmed
+    required_before: implementation
+    confirmation_path: "Confirmed by persistence research, with architecture correction: existing encrypted chat metadata has shared-chat lifecycle/versioning, so do not extend it. Persist opaque Format D ciphertext in dedicated user_chat_preferences and use existing same-user WebSocket broadcast primitives for owner-device convergence."
+    evidence:
+      - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py: shared chat metadata versions are allocated from chat-level persistence.
+      - backend/core/api/app/routes/connection_manager.py: broadcast_to_user targets connected devices for one authenticated user.
+  - id: A-3
+    text: The CLI and both SDKs can exercise the real first-party settings and chat contracts with a real dev test account.
+    status: unchecked
+    required_before: task_execution
+    confirmation_path: Confirm auth fixture and command/facade entry points before the CLI phase.
+
+contracts:
+  api:
+    access_model: first-party client surface only
+    auth: Authenticated first-party settings REST and WebSocket session or approved device/API-key authentication; unauthenticated and non-owner calls are rejected.
+    owner_team_scope: Tier preferences are authenticated-user scoped; chat selection is authenticated-user plus chat scoped and never shared with other participants.
+    rate_limits: POST /v1/settings/ai-model-defaults is limited to 30 requests per minute per authenticated owner; WebSocket selection mutations use equivalent owner-scoped throttling.
+    credit_budget: Preference and selection mutations consume no credits; normal send routing remains subject to existing model availability and account credit/budget checks.
+    encryption_boundary: Durable per-user/chat selection is client-encrypted before sync; decrypted selection is transient in the authorized first-party client and routing path only.
+    plaintext_handling: Transient decrypted model routing values are permitted only to choose an authorized route; durable server plaintext model selection is forbidden.
+    endpoints:
+      - route: POST /v1/settings/ai-model-defaults
+        classification: first-party client surface only
+        purpose: Persist authenticated owner-scoped tier preferences including simple, complex, and most-demanding.
+      - route: WebSocket chat preference sync
+        classification: first-party client surface only
+        purpose: Synchronize client-encrypted per-user/chat Auto or exact-model selection and routing recovery.
+  data:
+    - Tier preferences are one Auto or exact model value per authenticated user and request tier.
+    - Chat selection stores Auto or exact stable model variant IDs only in client-encrypted sync metadata.
+  ui:
+    figma_evidence:
+      - node: "4406:53279"
+        reference_png: test-results/figma/ai-settings-redesign/figma-ai-settings-overview-updated.png
+      - node: "5815:59169"
+        reference_png: test-results/figma/ai-settings-redesign/figma-message-input-overview.png
+  privacy_security:
+    - Tests and demonstrations use test-account data and never record decrypted chat content, key material, or share fragments.
+    - No public or developer API contract exposes durable plaintext chat selection.
+  phase_gates:
+    - REST/WebSocket first: real authenticated dev API and WebSocket contract proof covers owner isolation, unauthorized/forbidden behavior, 30/min limit, encrypted durable selection, and routing precedence.
+    - CLI second: real openmates CLI commands against https://api.dev.openmates.org cover tier defaults and chat routing after REST/WebSocket green.
+    - npm/pip third: real local npm and pip SDK calls against https://api.dev.openmates.org cover the same contract, then run audit_sdk_cli_parity.py.
+    - Web fourth: deploy web implementation and run live Playwright routing/settings/composer specs after REST, CLI, and SDK green.
+    - Visual smoke fifth: inspect deployed laptop and mobile AI Settings and composer routes with the Figma PNG references.
+    - Proof video sixth: create and review laptop and phone proof videos with toggleable WebVTT captions after normal green gates.
+    - User confirmation seventh: obtain confirmation of deployed dev web behavior and visual quality.
+    - Apple last: implement and test native parity only after all previous gates pass.
+
+tests:
+  - id: T-ROUTING-TIERS
+    type: pytest
+    file: backend/tests/test_ai_model_routing.py
+    command: python3 -m pytest backend/tests/test_ai_model_routing.py -q
+    covers: [AC-1, AC-4]
+    specification_assertions: [ai-model-routing.tiers.conservative-three-way, ai-model-routing.defaults.google-tier-profiles]
+    assertions: [Conservative classifier assigns all three tiers, uncertainty selects complex, and approved Google profiles remain internal provider configuration.]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py -q", run_id: "local-cc62-routing-red-20260826T200512Z", subject_commit: "72d4803cf98804319bb11d11b3c420daed77aca4", timestamp: "2026-08-26T20:05:12Z", reason: "Nine routing assertions failed because model_routing.py did not exist; preference assertions failed because default_ai_model_most_demanding was absent."}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py backend/tests/test_ai_chat_model_preferences.py backend/tests/test_setup_schemas.py scripts/tests/test_apple_cross_client_sync_test.py scripts/tests/test_verify_ai_model_routing.py -q", run_id: "local-cc62-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", result: "47 passed, 9 warnings"}
+  - id: T-TIER-PREFERENCES
+    type: pytest
+    file: backend/tests/test_ai_model_preferences.py
+    command: python3 -m pytest backend/tests/test_ai_model_preferences.py -q
+    covers: [AC-2]
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults]
+    assertions: [Three owner-scoped preferences are exclusive and recommendation changes do not mutate saved values.]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py -q", run_id: "local-cc62-routing-red-20260826T200512Z", subject_commit: "72d4803cf98804319bb11d11b3c420daed77aca4", timestamp: "2026-08-26T20:05:12Z", reason: "The request schema dropped default_ai_model_most_demanding, proving the third owner preference was unimplemented."}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py backend/tests/test_ai_chat_model_preferences.py backend/tests/test_setup_schemas.py scripts/tests/test_apple_cross_client_sync_test.py scripts/tests/test_verify_ai_model_routing.py -q", run_id: "local-cc62-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", result: "47 passed, 9 warnings"}
+  - id: T-MODEL-CATALOG
+    type: vitest
+    file: frontend/packages/ui/src/data/__tests__/modelCatalog.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-3, AC-4]
+    specification_assertions: [ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.defaults.google-tier-profiles]
+    assertions: [Visible variants have capability and recommendation metadata, stable Gemini variants are distinct, and unsupported modality pricing is absent.]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-CHAT-SELECTION-ENCRYPTION
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-5]
+    specification_assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope]
+    assertions: [Selection encrypts before durable sync, restores before picker display, converges across owner devices, and isolates participants.]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence: {status: failed_as_expected, command: "./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/__tests__", run_id: "local-cc62-frontend-routing-red-20260826T200512Z", subject_commit: "72d4803cf98804319bb11d11b3c420daed77aca4", timestamp: "2026-08-26T20:05:12Z", reason: "TypeScript reported only the intentionally missing chatModelSelection service module for the new red contract tests; local Vitest execution is repository-forbidden."}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: type_checked, command: "./scripts/lint_changed.sh frontend/packages/ui/src/services/chatModelSelection.ts frontend/packages/ui/src/services/unavailableModelRecovery.ts frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts", run_id: "local-cc62-frontend-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", reason: "Changed-file TypeScript gate passed; local Vitest execution is repository-forbidden and the unified Vitest dry-run exposed no runnable catalog entries."}
+  - id: T-ROUTING-PRECEDENCE
+    type: pytest
+    file: backend/tests/test_ai_model_routing.py
+    command: python3 -m pytest backend/tests/test_ai_model_routing.py -q
+    covers: [AC-6]
+    specification_assertions: [ai-model-routing.precedence.chat-over-tier-over-auto]
+    assertions: [Exact chat selection bypasses only model tier routing and Auto applies tier preference before fallback.]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py -q", run_id: "local-cc62-routing-red-20260826T200512Z", subject_commit: "72d4803cf98804319bb11d11b3c420daed77aca4", timestamp: "2026-08-26T20:05:12Z", reason: "Exact-chat precedence assertions failed because the dependency-free three-tier routing boundary was absent."}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py backend/tests/test_ai_chat_model_preferences.py backend/tests/test_setup_schemas.py scripts/tests/test_apple_cross_client_sync_test.py scripts/tests/test_verify_ai_model_routing.py -q", run_id: "local-cc62-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", result: "47 passed, 9 warnings"}
+  - id: T-COMPOSER-MENTIONS
+    type: vitest
+    file: frontend/packages/ui/src/components/enter_message/__tests__/modelRoutingMentions.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-7]
+    specification_assertions: [ai-model-routing.composer.mention-to-exact-selection]
+    assertions: ["Exact, @best, and @fast mentions resolve before send, persist exact model IDs, and remove redundant editor text."]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {}}
+  - id: T-UNAVAILABLE-MODEL
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-8]
+    specification_assertions: [ai-model-routing.unavailable.notify-reset-auto]
+    assertions: [Unavailable saved selection visibly notifies, resets encrypted persisted choice to Auto, and resumes automatic routing.]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence: {status: failed_as_expected, command: "./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/__tests__", run_id: "local-cc62-frontend-routing-red-20260826T200512Z", subject_commit: "72d4803cf98804319bb11d11b3c420daed77aca4", timestamp: "2026-08-26T20:05:12Z", reason: "TypeScript reported only the intentionally missing unavailableModelRecovery service module for the new red contract tests; local Vitest execution is repository-forbidden."}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence: {status: type_checked, command: "./scripts/lint_changed.sh frontend/packages/ui/src/services/chatModelSelection.ts frontend/packages/ui/src/services/unavailableModelRecovery.ts frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts", run_id: "local-cc62-frontend-routing-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", reason: "Changed-file TypeScript gate passed; local Vitest execution is repository-forbidden and the unified Vitest dry-run exposed no runnable catalog entries."}
+  - id: T-WEB-AI-SETTINGS
+    type: playwright
+    file: frontend/apps/web_app/tests/ai-model-settings.spec.ts
+    command: python3 scripts/tests.py run --spec ai-model-settings.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-3, AC-9]
+    specification_assertions: [ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.settings.hierarchy-canonical]
+    assertions: [Settings overview, tier, provider, model detail, recommendation, capability, and response-feature detail are reachable through canonical controls.]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+  - id: T-WEB-COMPOSER-ROUTING
+    type: playwright
+    file: frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    command: python3 scripts/tests.py run --spec composer-model-routing.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-7, AC-10]
+    specification_assertions: [ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.composer.responsive-actions]
+    assertions: [Picker and mentions update selection, regular and compact composer actions remain reachable, and no clipping or state loss occurs.]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+
+verifications:
+  - id: V-REST-WS-ROUTING
+    kind: deterministic_check
+    phase: green
+    status: passed
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-8, AC-11]
+    required_for_done: true
+    command: python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-rest --check-websocket
+    evidence: {status: passed, command: "python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-rest --check-websocket --timeout 60", run_id: "local-cc62-rest-ws-green-20260827T034204Z", subject_commit: "3b5cca0a469b26448fa01c727eb89b0209318df2", timestamp: "2026-08-27T03:42:04Z", target: "https://api.dev.openmates.org", access_model: "first-party client surface only", auth: "real configured test-account session", checks_passed: 16}
+  - id: V-CLI-ROUTING
+    kind: deterministic_check
+    phase: green
+    status: pending
+    covers: [AC-2, AC-6, AC-11]
+    required_for_done: true
+    command: python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-cli
+    evidence: {}
+  - id: V-SDK-ROUTING
+    kind: deterministic_check
+    phase: green
+    status: pending
+    covers: [AC-5, AC-11]
+    required_for_done: true
+    command: python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-npm --check-pip && python3 scripts/audit_sdk_cli_parity.py
+    evidence: {}
+  - id: V-WEB-ROUTING
+    kind: deterministic_check
+    phase: green
+    status: pending
+    covers: [AC-8, AC-11]
+    required_for_done: true
+    command: python3 scripts/tests.py run --spec composer-model-routing.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    evidence: {}
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    status: pending
+    covers: [AC-3, AC-7, AC-9, AC-10]
+    required_for_done: true
+    command: node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/#settings=apps/ai --session <SESSION_ID>
+    viewports: [laptop, mobile]
+    reference_pngs: [test-results/figma/ai-settings-redesign/figma-ai-settings-overview-updated.png, test-results/figma/ai-settings-redesign/figma-message-input-overview.png]
+    evidence: {}
+  - id: V-PROOF-VIDEO
+    kind: artifact_review
+    phase: final
+    status: pending
+    covers: [AC-3, AC-7, AC-9, AC-10]
+    required_for_done: true
+    command: python3 scripts/proof_video_workflow.py start --current --spec frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    evidence: {}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    status: pending
+    covers: [AC-9, AC-10]
+    required_for_done: true
+    evidence: {}
+  - id: V-APPLE-ROUTING
+    kind: deterministic_check
+    phase: final
+    status: pending
+    covers: [AC-11]
+    required_for_done: true
+    command: python3 scripts/apple_remote.py test-ios --target ai-model-routing
+    evidence: {}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: AI Settings and the responsive composer are materially changed user-visible web behavior requiring laptop and phone proof.
+    classified_at: "2026-08-26T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Laptop tutorial of AI Settings hierarchy and an exact tier preference.
+      expected_proof: At 1440x900, the recording opens AI Settings, follows tier/provider/model detail navigation, identifies capability/recommendation, and selects an exact tier model without a generic reasoning control.
+      scenario_ids: [S-2, S-3]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-9]
+    - id: NARR-2
+      purpose: Laptop tutorial of chat override and unavailable recovery.
+      expected_proof: The recording selects an exact chat model, sends a message showing exact-over-tier precedence, then shows the user-visible reset to Auto for an unavailable saved model.
+      scenario_ids: [S-4, S-5, S-7]
+      acceptance_criteria: [AC-5, AC-6, AC-8]
+    - id: NARR-3
+      purpose: Phone tutorial of the compact composer model picker and attachment actions.
+      expected_proof: At 390x844, the model control has an accessible exact selection, Drawing/Location/Files are in the attachment menu, camera/audio/send remain direct, and no clipping occurs.
+      scenario_ids: [S-6, S-8]
+      acceptance_criteria: [AC-7, AC-10]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+implementation_notes:
+  plan_path: docs/plans/ai-model-routing-redesign/plan.yml
+  architecture: >
+    Tier defaults remain authenticated-user fields on the existing settings path,
+    extended compatibly from simple/complex to simple/complex/most-demanding. Add
+    Directus user_chat_preferences as the sole durable chat-selection store, with
+    unique(hashed_user_id, chat_id), encrypted_selected_ai_model Format D
+    master-key ciphertext, preference_v compare-and-set version, and updated_at.
+    The client produces ciphertext locally and persists only Auto or an approved
+    stable exact model variant ID; Directus and the API never persist plaintext.
+    The server derives the owner hash from authenticated identity, authorizes chat
+    access, and broadcasts accepted opaque records only to the same user's devices.
+    Drafts, shared chat metadata, exports, shares, and generic metadata messages
+    reject this payload. The client reconciles local-first writes by preference_v;
+    plaintext is permitted only transiently in the authorized inference request,
+    never in logs, durable cache, broadcasts, or generic metadata.
+  existing_patterns:
+    - AiAskSkillSettings persists authenticated model defaults.
+    - Existing CLI/SDK settings mutation paths provide parity entry points.
+    - Existing encrypted chat metadata has shared-chat lifecycle/versioning and is deliberately not reused for an owner-scoped preference.
+    - ConnectionManager.broadcast_to_user provides the same-user device broadcast primitive.
+  data_flow:
+    - Authenticated owner updates a tier preference through first-party settings REST; optional-field semantics preserve existing first-party clients during the three-tier rollout.
+    - Picker or mention resolution produces Auto or an exact stable variant ID. The client locally encrypts it to Format D master-key ciphertext, persists the local envelope, and sends only ciphertext, chat_id, and expected preference_v to the authorized preference sync path.
+    - The server derives owner hash, authorizes chat membership, compare-and-sets the dedicated record, and emits the opaque accepted record to the owner's other devices. Offline devices load the dedicated record on authenticated sync and decrypt locally before picker display.
+    - For send, an exact selection is decrypted transiently only inside the authorized client/inference request and bypasses model-tier classification; Auto evaluates tier preference then automatic selection and configured fallback. The inference response and persisted chat data never contain the plaintext selection.
+    - If an exact selection is unavailable, the client visibly notifies, encrypts Auto locally, persists the replacement through the same compare-and-set path, broadcasts the opaque update, and resumes automatic routing.
+  migration_rollout:
+    - Add the Directus schema and unique database constraint before enabling preference reads/writes. Deploy schema idempotently and fail startup/health validation if the collection or unique constraint is absent.
+    - Release server reads as absent-is-Auto and retain existing tier-default behavior. There is no backfill because no prior durable per-user/chat selection exists and copying shared metadata or drafts is prohibited.
+    - Release clients that understand the dedicated record and Format D envelope. Older clients continue without a chat override; newer clients treat missing records as Auto.
+    - Enable writes after REST/WebSocket authorization, conflict, same-user broadcast, and privacy checks pass on the real dev server. Monitor adoption/conflicts/invalid envelopes before making the picker entry visible broadly.
+    - Roll back by disabling new writes and hiding the picker entry; retain opaque records so a later compatible client can restore selections. Do not decrypt, transform, or delete records as part of rollback.
+  access_rate_privacy_boundaries:
+    - Access model is first-party client surface only: authenticated web, CLI, npm SDK, pip SDK, and Apple clients with approved session/device/API-key authentication. No public or developer API exposes this record.
+    - Every read/write filters by server-derived hashed_user_id and authorizes the requested chat. Non-owner/non-member access is forbidden; malformed ciphertext, invalid Auto/exact envelope, stale preference_v, and attempts to use drafts/shared metadata are rejected visibly and audibly in structured telemetry.
+    - Preference mutations use the approved 30 requests/minute per authenticated owner limit and equivalent owner-scoped WebSocket throttling. Selection mutation consumes no credits; inference still enforces normal availability, authorization, and account credit/budget limits.
+    - Logs, metrics, traces, broadcasts, exports, and error messages use event names, owner/chat hashes, preference_v, result class, and model availability category only. They must not include ciphertext, plaintext model IDs, keys, message text, drafts, or share fragments.
+  observability:
+    - Emit counters for preference read/write accepted, conflict, unauthorized, forbidden, throttled, malformed-envelope, unavailable-reset, local/server reconciliation, and same-user broadcast delivery/failure.
+    - Emit latency histograms for dedicated-record read/write and owner-device convergence, tagged only with safe result classes and deployment revision.
+    - Add deterministic privacy assertions that Directus rows, API/WebSocket responses, logs, exports, drafts, and shared metadata contain neither plaintext selected model nor the preference payload outside user_chat_preferences.
+  affected_files:
+    - {path: backend/core/directus/schemas/user_chat_preferences.yml, reason: New dedicated owner/chat preference collection, encrypted field, version, timestamp, and unique constraint.}
+    - {path: backend/core/directus/setup/setup_schemas.py, reason: Apply and verify collection schema/constraint rollout.}
+    - {path: backend/core/api/app/schemas/settings.py, reason: Compatibly add most-demanding tier and preference transport schema.}
+    - {path: backend/core/api/app/routes/settings.py, reason: Existing authenticated tier preference evolution and first-party rate-limit behavior.}
+    - {path: backend/core/api/app/routes/websockets.py, reason: Register dedicated preference sync message and same-user opaque broadcast.}
+    - {path: backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py, reason: Explicitly reject preference payloads from shared encrypted chat metadata.}
+    - {path: backend/core/api/app/routes/handlers/websocket_handlers/draft_update_handler.py, reason: Explicitly reject preference payloads from drafts.}
+    - {path: backend/core/api/app/services/directus/, reason: Add narrow owner-scoped user_chat_preferences CRUD and compare-and-set repository method.}
+    - {path: backend/apps/ai/processing/preprocessor.py, reason: Three-tier routing, exact-over-tier precedence, and transient authorized inference selection.}
+    - {path: frontend/packages/ui/src/services/, reason: Local-first Format D encryption, preference reconciliation, and unavailable reset.}
+    - {path: frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte, reason: Canonical three-tier settings hierarchy.}
+    - {path: frontend/packages/ui/src/components/enter_message/MessageInput.svelte, reason: Responsive picker, mention resolution, and local selection state.}
+    - {path: frontend/packages/openmates-cli/src/cli.ts, reason: First-party CLI parity.}
+    - {path: frontend/packages/openmates-cli/src/sdk.ts, reason: npm SDK parity.}
+    - {path: packages/openmates-python/openmates/sdk.py, reason: pip SDK parity.}
+    - {path: frontend/apps/web_app/tests/, reason: Deployed settings/composer and encrypted selection behavior proof.}
+    - {path: backend/tests/, reason: Directus isolation, authorization, conflict, routing, and privacy assertions.}
+  first_vertical_slice:
+    - Create user_chat_preferences schema plus owner-scoped Directus repository with unique(hashed_user_id, chat_id) and preference_v compare-and-set.
+    - Implement a first-party authenticated REST/WebSocket preference mutation/read path that accepts only opaque Format D ciphertext, proves owner isolation and same-user opaque broadcasts, and rejects drafts/shared metadata payloads.
+    - Add red then green backend/API assertions for AC-5, AC-6, AC-8, and AC-11 before adding picker UI, CLI, SDK, or Apple code.
+    - Keep the slice Auto-only/exact-ID transport focused; settings hierarchy and composer presentation follow only after the REST/WebSocket gate is green.
+  acceptance_mapping:
+    - {acceptance_criteria: [AC-1, AC-4], implementation: Three-tier settings schema and conservative preprocessor classification, assertions: [ai-model-routing.tiers.conservative-three-way, ai-model-routing.defaults.google-tier-profiles], verification: [T-ROUTING-TIERS, V-REST-WS-ROUTING]}
+    - {acceptance_criteria: [AC-2], implementation: Field-presence compatible three-tier owner defaults, assertions: [ai-model-routing.preferences.exclusive-tier-defaults], verification: [T-TIER-PREFERENCES, V-REST-WS-ROUTING, V-CLI-ROUTING]}
+    - {acceptance_criteria: [AC-3, AC-9], implementation: Canonical settings catalog/navigation with Figma review, assertions: [ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.settings.hierarchy-canonical], verification: [T-MODEL-CATALOG, T-WEB-AI-SETTINGS, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]}
+    - {acceptance_criteria: [AC-5], implementation: Dedicated encrypted owner/chat preference record and local-first convergence, assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope], verification: [T-CHAT-SELECTION-ENCRYPTION, V-REST-WS-ROUTING, V-SDK-ROUTING]}
+    - {acceptance_criteria: [AC-6], implementation: Transient exact selection in authorized inference only, assertions: [ai-model-routing.precedence.chat-over-tier-over-auto], verification: [T-ROUTING-PRECEDENCE, V-REST-WS-ROUTING, V-CLI-ROUTING]}
+    - {acceptance_criteria: [AC-7, AC-10], implementation: Picker/mention resolution and responsive composer with Figma review, assertions: [ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.composer.responsive-actions], verification: [T-COMPOSER-MENTIONS, T-WEB-COMPOSER-ROUTING, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]}
+    - {acceptance_criteria: [AC-8], implementation: Visible unavailable reset to encrypted Auto, assertions: [ai-model-routing.unavailable.notify-reset-auto], verification: [T-UNAVAILABLE-MODEL, V-REST-WS-ROUTING, V-WEB-ROUTING]}
+    - {acceptance_criteria: [AC-11], implementation: Ordered first-party surface parity, assertions: [ai-model-routing.surface.semantic-parity], verification: [V-REST-WS-ROUTING, V-CLI-ROUTING, V-SDK-ROUTING, V-WEB-ROUTING, V-APPLE-ROUTING]}
+  verification_strategy:
+    - Write and run red contract tests for the first vertical slice before product changes; prove Directus uniqueness, opaque durable storage, compare-and-set conflict, owner/member authorization, same-user broadcast, and draft/shared-metadata rejection.
+    - Run green real-auth REST/WebSocket proof against https://api.dev.openmates.org before CLI work; record A-3 confirmation immediately before the CLI gate by exercising its auth fixture and command/facade entry points.
+    - Run real CLI, then local npm and pip SDK proof against the same dev server, followed by audit_sdk_cli_parity.py; only then implement/deploy web behavior.
+    - Run deployed Playwright settings/composer tests, inspect laptop and phone Figma-aligned visual smoke, create/review separate captioned proof videos, obtain user confirmation, then execute Apple parity.
+  verification_order:
+    - REST/WebSocket red then green against https://api.dev.openmates.org.
+    - CLI red then green against the same dev server.
+    - npm and pip SDK red then green, followed by SDK/CLI parity audit.
+    - Deploy and run web Playwright green.
+    - Review laptop and mobile visual smoke against the Figma PNG evidence.
+    - Create and review laptop and phone proof video.
+    - Obtain user confirmation.
+    - Run Apple parity last.
+
+tasks:
+  - id: TASK-1
+    title: Produce approved technical implementation plan and executable task decomposition
+    status: done
+    phase: complete
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]}
+    expected_files: [docs/plans/ai-model-routing-redesign/plan.yml]
+    verification_ids: [T-ROUTING-TIERS, T-TIER-PREFERENCES, T-MODEL-CATALOG, T-CHAT-SELECTION-ENCRYPTION, T-ROUTING-PRECEDENCE, T-COMPOSER-MENTIONS, T-UNAVAILABLE-MODEL, T-WEB-AI-SETTINGS, T-WEB-COMPOSER-ROUTING]
+    dependencies: []
+    blockers: []
+    ownership: {files: [docs/plans/ai-model-routing-redesign/plan.yml], shared_files: []}
+    follow_up_tasks: []
+    independently_deployable: true
+    canonical_surfaces: [spec-ledger]
+  - id: TASK-2
+    title: Add red routing and encrypted preference contract tests
+    status: done
+    phase: working_tasks
+    canonical_surfaces: [routing-preprocessor, owner-chat-preference-contract, encrypted-preference-client]
+    covers: {scenarios: [S-1, S-2, S-4, S-5, S-7], acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-8]}
+    specification_assertions: [ai-model-routing.tiers.conservative-three-way, ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.defaults.google-tier-profiles, ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.unavailable.notify-reset-auto]
+    expected_files: [backend/tests/test_ai_model_routing.py, backend/tests/test_ai_model_preferences.py, frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts, frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts]
+    verification_ids: [T-ROUTING-TIERS, T-TIER-PREFERENCES, T-CHAT-SELECTION-ENCRYPTION, T-ROUTING-PRECEDENCE, T-UNAVAILABLE-MODEL]
+    verification_commands: [python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py -q, ./scripts/lint_changed.sh --ts --path frontend/packages/ui/src/services/__tests__, python3 scripts/tests.py run --suite vitest]
+    dependencies: [TASK-1]
+    blockers: []
+    ownership: {files: [backend/tests/test_ai_model_routing.py, backend/tests/test_ai_model_preferences.py, frontend/packages/ui/src/services/__tests__/chatModelSelection.test.ts, frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts], shared_files: [specifications/features/ai-model-routing/specification.yml]}
+    independently_deployable: false
+    follow_up_tasks: [TASK-3]
+  - id: TASK-3
+    title: Implement Directus preference schema and REST/WebSocket routing slice
+    status: done
+    phase: complete
+    canonical_surfaces: [directus-user-chat-preferences, settings-rest, preference-websocket, routing-preprocessor]
+    covers: {scenarios: [S-1, S-2, S-4, S-5, S-7], acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-6, AC-8, AC-11]}
+    specification_assertions: [ai-model-routing.tiers.conservative-three-way, ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.defaults.google-tier-profiles, ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.unavailable.notify-reset-auto, ai-model-routing.surface.semantic-parity]
+    expected_files: [backend/core/directus/schemas/user_chat_preferences.yml, backend/core/directus/setup/setup_schemas.py, backend/core/api/app/schemas/settings.py, backend/core/api/app/routes/settings.py, backend/core/api/app/routes/websockets.py, backend/core/api/app/services/directus/, backend/apps/ai/processing/preprocessor.py, scripts/verify_ai_model_routing.py]
+    verification_ids: [T-ROUTING-TIERS, T-TIER-PREFERENCES, T-ROUTING-PRECEDENCE, V-REST-WS-ROUTING]
+    verification_commands: [python3 scripts/sessions.py docker restart --session cc62 --service api --build, python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-rest --check-websocket --timeout 60]
+    dependencies: [TASK-2]
+    blockers: []
+    ownership: {files: [backend/core/directus/schemas/user_chat_preferences.yml, backend/core/directus/setup/setup_schemas.py, backend/core/api/app/schemas/settings.py, backend/core/api/app/routes/settings.py, backend/core/api/app/routes/websockets.py, backend/apps/ai/processing/preprocessor.py, scripts/verify_ai_model_routing.py], shared_files: [backend/core/api/app/services/directus/, backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py, backend/core/api/app/routes/handlers/websocket_handlers/draft_update_handler.py]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-4]
+  - id: TASK-4
+    title: Prove CLI routing against the real dev API
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [openmates-cli, settings-rest, preference-websocket]
+    covers: {scenarios: [S-2, S-5], acceptance_criteria: [AC-2, AC-6, AC-11]}
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.surface.semantic-parity]
+    expected_files: [frontend/packages/openmates-cli/src/cli.ts, scripts/verify_ai_model_routing.py]
+    verification_ids: [V-CLI-ROUTING]
+    verification_commands: [python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-cli]
+    dependencies: [TASK-3]
+    blockers: [A-3 must be confirmed with a real authenticated test account before execution; mocked API calls do not satisfy this gate.]
+    ownership: {files: [frontend/packages/openmates-cli/src/cli.ts, scripts/verify_ai_model_routing.py], shared_files: [frontend/packages/openmates-cli/src/sdk.ts]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-5]
+  - id: TASK-5
+    title: Prove npm and pip SDK routing against the real dev API
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [npm-sdk, pip-sdk, settings-rest, preference-websocket]
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-5, AC-11]}
+    specification_assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.surface.semantic-parity]
+    expected_files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, scripts/verify_ai_model_routing.py]
+    verification_ids: [V-SDK-ROUTING]
+    verification_commands: [python3 scripts/verify_ai_model_routing.py --target https://api.dev.openmates.org --real-auth --check-npm --check-pip]
+    dependencies: [TASK-4]
+    blockers: [Both local SDKs must use https://api.dev.openmates.org with real auth; no fixture or direct-function substitute is valid.]
+    ownership: {files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, scripts/verify_ai_model_routing.py], shared_files: [frontend/packages/openmates-cli/src/cli.ts]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-6]
+  - id: TASK-6
+    title: Wire CI parity checks after local cross-client proof
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [ci-routing-contract, cli-sdk-parity]
+    covers: {scenarios: [S-2, S-4, S-5], acceptance_criteria: [AC-2, AC-5, AC-6, AC-11]}
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.surface.semantic-parity]
+    expected_files: [scripts/audit_sdk_cli_parity.py, .github/workflows/, scripts/verify_ai_model_routing.py]
+    verification_ids: [V-SDK-ROUTING]
+    verification_commands: [python3 scripts/audit_sdk_cli_parity.py]
+    dependencies: [TASK-5]
+    blockers: [Do not wire CI until TASK-4 and TASK-5 have recorded successful real-dev proof.]
+    ownership: {files: [scripts/audit_sdk_cli_parity.py, .github/workflows/, scripts/verify_ai_model_routing.py], shared_files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-7]
+  - id: TASK-7
+    title: Implement AI settings catalog and tier controls
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [ai-settings, model-catalog, settings-rest]
+    covers: {scenarios: [S-2, S-3, S-8], acceptance_criteria: [AC-2, AC-3, AC-4, AC-9]}
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.defaults.google-tier-profiles, ai-model-routing.settings.hierarchy-canonical]
+    expected_files: [frontend/packages/ui/src/data/, frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte, frontend/packages/ui/src/data/__tests__/modelCatalog.test.ts]
+    verification_ids: [T-MODEL-CATALOG, T-WEB-AI-SETTINGS]
+    verification_commands: [python3 scripts/tests.py run --suite vitest]
+    dependencies: [TASK-6]
+    blockers: [Use existing Gemini variants independently; GPT-5.6 model metadata is an external dependency only if its catalog entries are included.]
+    ownership: {files: [frontend/packages/ui/src/data/, frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte, frontend/packages/ui/src/data/__tests__/modelCatalog.test.ts], shared_files: [frontend/packages/ui/src/services/]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-8]
+  - id: TASK-8
+    title: Implement composer model selection and unavailable recovery
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [message-composer, encrypted-preference-client, preference-websocket]
+    covers: {scenarios: [S-4, S-5, S-6, S-7, S-8], acceptance_criteria: [AC-5, AC-6, AC-7, AC-8, AC-10]}
+    specification_assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.unavailable.notify-reset-auto, ai-model-routing.composer.responsive-actions]
+    expected_files: [frontend/packages/ui/src/services/, frontend/packages/ui/src/components/enter_message/MessageInput.svelte, frontend/packages/ui/src/components/enter_message/__tests__/modelRoutingMentions.test.ts, frontend/packages/ui/src/services/__tests__/unavailableModelRecovery.test.ts]
+    verification_ids: [T-CHAT-SELECTION-ENCRYPTION, T-COMPOSER-MENTIONS, T-UNAVAILABLE-MODEL, T-WEB-COMPOSER-ROUTING]
+    verification_commands: [python3 scripts/tests.py run --suite vitest]
+    dependencies: [TASK-7]
+    blockers: [Must retain opaque durable sync and visible Auto reset; do not expose a universal reasoning control.]
+    ownership: {files: [frontend/packages/ui/src/services/, frontend/packages/ui/src/components/enter_message/MessageInput.svelte, frontend/packages/ui/src/components/enter_message/__tests__/modelRoutingMentions.test.ts], shared_files: [frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-9]
+  - id: TASK-9
+    title: Deploy web changes and run settings/composer Playwright proof
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [ai-settings, message-composer, app-dev-web]
+    covers: {scenarios: [S-3, S-6, S-8], acceptance_criteria: [AC-3, AC-7, AC-9, AC-10]}
+    specification_assertions: [ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.settings.hierarchy-canonical, ai-model-routing.composer.responsive-actions]
+    expected_files: [frontend/apps/web_app/tests/ai-model-settings.spec.ts, frontend/apps/web_app/tests/composer-model-routing.spec.ts]
+    verification_ids: [T-WEB-AI-SETTINGS, T-WEB-COMPOSER-ROUTING, V-WEB-ROUTING]
+    verification_commands: [python3 scripts/tests.py run --spec ai-model-settings.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>, python3 scripts/tests.py run --spec composer-model-routing.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>]
+    dependencies: [TASK-8]
+    blockers: [Deploy to dev and use the resulting commit SHA; local or mocked Playwright runs are not valid.]
+    ownership: {files: [frontend/apps/web_app/tests/ai-model-settings.spec.ts, frontend/apps/web_app/tests/composer-model-routing.spec.ts], shared_files: [frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte, frontend/packages/ui/src/components/enter_message/MessageInput.svelte]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-10]
+  - id: TASK-10
+    title: Review deployed Figma-aligned visual smoke
+    status: pending
+    phase: running_checks
+    canonical_surfaces: [ai-settings, message-composer, figma-artifacts]
+    covers: {scenarios: [S-3, S-6, S-8], acceptance_criteria: [AC-3, AC-7, AC-9, AC-10]}
+    specification_assertions: [ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.settings.hierarchy-canonical, ai-model-routing.composer.responsive-actions]
+    expected_files: [test-results/visual-smoke/, test-results/figma/ai-settings-redesign/]
+    verification_ids: [V-UI-VISUAL-SMOKE]
+    verification_commands: [node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/#settings=apps/ai --session <SESSION_ID>, "python3 scripts/sessions.py visual-smoke --session <SESSION_ID> --url https://app.dev.openmates.org/#settings=apps/ai --viewport laptop --viewport mobile --result passed --method playwright --run-id <RUN_ID> --summary 'Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none.'"]
+    dependencies: [TASK-9]
+    blockers: [Inspect both viewports against Figma nodes 4406:53279 and 5815:59169; objective defects require a fix, redeploy, and repeat.]
+    ownership: {files: [test-results/visual-smoke/, test-results/figma/ai-settings-redesign/], shared_files: [frontend/packages/ui/src/components/settings/AiAskSkillSettings.svelte, frontend/packages/ui/src/components/enter_message/MessageInput.svelte]}
+    independently_deployable: false
+    follow_up_tasks: [TASK-11]
+  - id: TASK-11
+    title: Produce captioned laptop and phone proof videos with frame-only review
+    status: pending
+    phase: running_checks
+    canonical_surfaces: [ai-settings, message-composer, proof-media]
+    covers: {scenarios: [S-2, S-3, S-4, S-5, S-6, S-7, S-8], acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10]}
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.unavailable.notify-reset-auto, ai-model-routing.settings.hierarchy-canonical, ai-model-routing.composer.responsive-actions]
+    expected_files: [frontend/apps/web_app/tests/ai-model-settings.spec.ts, frontend/apps/web_app/tests/composer-model-routing.spec.ts, test-results/proof-video/]
+    verification_ids: [V-PROOF-VIDEO]
+    verification_commands: [python3 scripts/proof_video_workflow.py start --current --spec frontend/apps/web_app/tests/ai-model-settings.spec.ts, python3 scripts/proof_video_workflow.py start --current --spec frontend/apps/web_app/tests/composer-model-routing.spec.ts, "python3 scripts/opencode_response_media.py <VIDEO_PATH> --captions <CAPTIONS_VTT> --alt '<DESCRIPTION>'"]
+    dependencies: [TASK-10]
+    blockers: [Require separate 1440x900 laptop and 390x844 phone recordings, device-scoped toggleable WebVTT captions, bounded frame-only quality review, and response-media snippet_html; defects return to TASK-7 or TASK-8.]
+    ownership: {files: [frontend/apps/web_app/tests/ai-model-settings.spec.ts, frontend/apps/web_app/tests/composer-model-routing.spec.ts, test-results/proof-video/], shared_files: []}
+    independently_deployable: false
+    follow_up_tasks: [TASK-12]
+  - id: TASK-12
+    title: Obtain user confirmation of deployed web behavior and visual quality
+    status: pending
+    phase: awaiting_approval
+    canonical_surfaces: [app-dev-web, proof-media]
+    covers: {scenarios: [S-3, S-6, S-8], acceptance_criteria: [AC-9, AC-10]}
+    specification_assertions: [ai-model-routing.settings.hierarchy-canonical, ai-model-routing.composer.responsive-actions]
+    expected_files: [docs/plans/ai-model-routing-redesign/plan.yml]
+    verification_ids: [V-USER-CONFIRMATION]
+    verification_commands: ["Record explicit user confirmation in docs/plans/ai-model-routing-redesign/plan.yml after deployed Playwright, visual smoke, and proof-video evidence are available."]
+    dependencies: [TASK-11]
+    blockers: [User confirmation is required before Apple parity unless an explicit approved waiver is recorded.]
+    ownership: {files: [docs/plans/ai-model-routing-redesign/plan.yml], shared_files: []}
+    independently_deployable: false
+    follow_up_tasks: [TASK-13]
+  - id: TASK-13
+    title: Implement and verify Apple routing parity
+    status: pending
+    phase: working_tasks
+    canonical_surfaces: [apple-settings, apple-composer, apple-routing]
+    covers: {scenarios: [S-2, S-4, S-5, S-6, S-7], acceptance_criteria: [AC-2, AC-5, AC-6, AC-7, AC-8, AC-11]}
+    specification_assertions: [ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.unavailable.notify-reset-auto, ai-model-routing.surface.semantic-parity]
+    expected_files: [apple/OpenMates/Sources/Features/Chat/, apple/OpenMates/Sources/Features/Settings/]
+    verification_ids: [V-APPLE-ROUTING]
+    verification_commands: [python3 scripts/apple_remote.py test-ios --target ai-model-routing]
+    dependencies: [TASK-12]
+    blockers: [Native visual controls may differ, but semantic parity and encrypted owner isolation may not; user confirmation must be recorded first.]
+    ownership: {files: [apple/OpenMates/Sources/Features/Chat/, apple/OpenMates/Sources/Features/Settings/], shared_files: [backend/core/api/app/routes/settings.py, backend/core/api/app/routes/websockets.py]}
+    independently_deployable: true
+    follow_up_tasks: [TASK-14]
+  - id: TASK-14
+    title: Finalize evidence, documentation, and spec verification
+    status: pending
+    phase: complete
+    canonical_surfaces: [spec-ledger, ai-model-selection-docs, proof-media]
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11]}
+    specification_assertions: [ai-model-routing.tiers.conservative-three-way, ai-model-routing.preferences.exclusive-tier-defaults, ai-model-routing.catalog.capability-recommendation-variants, ai-model-routing.defaults.google-tier-profiles, ai-model-routing.chat-selection.encrypted-user-chat-scope, ai-model-routing.precedence.chat-over-tier-over-auto, ai-model-routing.composer.mention-to-exact-selection, ai-model-routing.unavailable.notify-reset-auto, ai-model-routing.settings.hierarchy-canonical, ai-model-routing.composer.responsive-actions, ai-model-routing.surface.semantic-parity]
+    expected_files: [docs/plans/ai-model-routing-redesign/plan.yml, docs/architecture/ai/ai-model-selection.md]
+    verification_ids: [V-REST-WS-ROUTING, V-CLI-ROUTING, V-SDK-ROUTING, V-WEB-ROUTING, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO, V-USER-CONFIRMATION, V-APPLE-ROUTING]
+    verification_commands: [python3 scripts/plan_verify.py docs/plans/ai-model-routing-redesign/plan.yml --phase complete --json]
+    dependencies: [TASK-13]
+    blockers: [All evidence records require command, run ID, timestamp, subject commit, and approved proof response-media snippet_html before completion.]
+    ownership: {files: [docs/plans/ai-model-routing-redesign/plan.yml, docs/architecture/ai/ai-model-selection.md], shared_files: []}
+    independently_deployable: true
+    follow_up_tasks: [TASK-15]
+  - id: TASK-15
+    title: Define frequent exact-model change settings nudge contract
+    status: pending
+    phase: awaiting_approval
+    canonical_surfaces: [encrypted-chat-model-sync, dragonfly, notifications, web-push, apple-push]
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-5]}
+    specification_assertions: [ai-model-routing.chat-selection.encrypted-user-chat-scope, notifications.delivery.push-enabled, notifications.content.privacy-boundary, notifications.delivery.idempotent]
+    expected_files: [specifications/features/ai-model-routing/specification.yml, specifications/features/ai-model-routing/examples.yml, specifications/features/notifications/specification.yml, specifications/features/notifications/examples.yml, docs/plans/ai-model-routing-redesign/plan.yml]
+    verification_ids: [T-CHAT-SELECTION-ENCRYPTION]
+    verification_commands: [python3 scripts/specifications.py validate specifications/features/ai-model-routing, python3 scripts/specifications.py validate specifications/features/notifications, python3 scripts/plan_validate.py docs/plans/ai-model-routing-redesign/plan.yml]
+    dependencies: [TASK-3]
+    blockers:
+      - Approve whether the rolling-hour threshold counts only transitions to a different exact model, excluding Auto, same-model selection, restore, and unavailable-model recovery.
+      - The approved contract update must preserve Format-D ciphertext and send only a metadata-only change signal; Dragonfly keys and notification payloads must never contain model ids, chat ids, ciphertext, or chat content.
+      - Use an atomic rolling one-hour Dragonfly window and an atomic 72-hour delivery cooldown; cache loss may reset both and cache failure must never block encrypted preference persistence.
+      - Add translated title, body, and Open AI settings CTA in every supported language, route web and Apple notification actions to AI settings, and retain notification-history fallback when push is unavailable.
+    ownership:
+      files: [specifications/features/ai-model-routing/, specifications/features/notifications/, docs/plans/ai-model-routing-redesign/plan.yml]
+      shared_files: [backend/core/api/app/routes/handlers/websocket_handlers/chat_model_preference_handler.py, backend/core/api/app/services/notification_event_service.py, frontend/packages/ui/src/i18n/sources/notifications.yml]
+    independently_deployable: false
+    follow_up_tasks: []
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Create only the approved-contract Schema V3 executable ledger after inspecting current spec schema, existing routing code, tests, contract registry, and Figma reference PNG paths.
+    outcome: succeeded
+    recorded_at: "2026-08-26T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Validated the plan against the existing two-tier settings schema/route, user Directus fields, shared encrypted-chat-metadata handler, draft handlers, and same-user WebSocket broadcast primitive; selected a dedicated owner/chat Directus record instead of extending shared metadata or drafts.
+    outcome: succeeded
+    recorded_at: "2026-08-26T00:00:00Z"
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Replaced the single completed planning task with small traceable tasks derived from the approved implementation plan, enforcing red tests through final documentation in the required cross-client order.
+    outcome: succeeded
+    recorded_at: "2026-08-26T00:00:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Implemented the dedicated encrypted owner/chat preference Directus schema, settings REST schema, WebSocket sync path, three-tier routing boundary, deterministic verifier diagnostics, and scoped frontend service helpers; deployed the vertical slice to dev and reran real-auth REST/WebSocket proof.
+    outcome: succeeded
+    recorded_at: "2026-08-27T03:42:04Z"
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Prove CLI routing against https://api.dev.openmates.org with real auth, then run npm and pip SDK parity after the CLI gate is green.
+  command: python3 -m pytest backend/tests/test_ai_model_routing.py backend/tests/test_ai_model_preferences.py -q
+  expected_outcome: Focused routing and owner preference tests pass before the Docker-backed real REST/WebSocket proof begins.
+  blocker: null
+  last_verified_commit: unimplemented

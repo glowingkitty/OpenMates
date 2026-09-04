@@ -58,6 +58,7 @@ def _watch_chat_payload(chat: dict[str, Any]) -> dict[str, Any]:
         "encrypted_slug": chat.get("encrypted_slug"),
         "slug_lookup_hash": chat.get("slug_lookup_hash"),
         "encrypted_chat_summary": chat.get("encrypted_chat_summary"),
+        "encrypted_auto_speak_response": chat.get("encrypted_auto_speak_response"),
         "encrypted_chat_key": chat.get("encrypted_chat_key"),
         "chat_key_wrappers": chat.get("chat_key_wrappers") or [],
         "pinned": chat.get("pinned", False),

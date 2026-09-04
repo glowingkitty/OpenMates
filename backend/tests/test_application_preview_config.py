@@ -51,9 +51,19 @@ class FakeRedis:
     async def get(self, key: str):
         return self.values.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None):
+    async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False):
+        if nx and key in self.values:
+            return False
         self.values[key] = value.encode("utf-8")
         self.ttls[key] = ex
+        return True
+
+    async def eval(self, _script: str, _key_count: int, key: str, token: str):
+        if self.values.get(key) == token.encode("utf-8"):
+            self.values.pop(key, None)
+            self.ttls.pop(key, None)
+            return 1
+        return 0
 
 
 class FakeCache:
@@ -115,11 +125,13 @@ def _metadata(user_id: str, chat_id: str) -> dict:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_preview_origin_requires_configuration() -> None:
     with pytest.raises(ApplicationPreviewConfigError, match="APPLICATION_PREVIEW_ORIGIN"):
         validate_application_preview_origin("", app_origins=["https://app.openmates.org"], api_origin="https://api.openmates.org")
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_preview_origin_rejects_openmates_app_site_subdomain() -> None:
     with pytest.raises(ApplicationPreviewConfigError, match="separate site"):
         validate_application_preview_origin(
@@ -129,6 +141,7 @@ def test_preview_origin_rejects_openmates_app_site_subdomain() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_preview_origin_accepts_configured_user_content_site() -> None:
     origin = validate_application_preview_origin(
         "https://openmatesusercontent.org",
@@ -139,6 +152,7 @@ def test_preview_origin_accepts_configured_user_content_site() -> None:
     assert origin == "https://openmatesusercontent.org"
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_preview_origin_allows_localhost_dev_ports() -> None:
     origin = validate_application_preview_origin(
         "http://localhost:8787",
@@ -149,6 +163,7 @@ def test_preview_origin_allows_localhost_dev_ports() -> None:
     assert origin == "http://localhost:8787"
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_preview_current_user_accepts_session_or_api_key_auth(monkeypatch) -> None:
     captured: dict[str, object] = {}
@@ -191,6 +206,7 @@ async def test_preview_current_user_accepts_session_or_api_key_auth(monkeypatch)
     }
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits,chats.message.identity-idempotent
 def test_preview_session_record_is_viewer_scoped_and_timeout_bounded() -> None:
     record = build_preview_session_record(
         session_id="session-1",
@@ -212,6 +228,7 @@ def test_preview_session_record_is_viewer_scoped_and_timeout_bounded() -> None:
     assert "creator_user_id" not in record
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 def test_auto_started_preview_session_uses_short_screenshot_deadline() -> None:
     record = build_preview_session_record(
         session_id="session-1",
@@ -228,6 +245,7 @@ def test_auto_started_preview_session_uses_short_screenshot_deadline() -> None:
     assert record["idle_deadline"] == 1_000.0 + APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 def test_preview_billing_reuses_code_run_started_minute_rate() -> None:
     assert APPLICATION_PREVIEW_CREDITS_PER_STARTED_MINUTE == 5
     assert calculate_preview_charge_credits(0) == 0
@@ -236,12 +254,14 @@ def test_preview_billing_reuses_code_run_started_minute_rate() -> None:
     assert calculate_preview_charge_credits(61) == 10
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 def test_preview_timeout_policy_matches_spec() -> None:
     assert APPLICATION_PREVIEW_AUTO_START_TIMEOUT_SECONDS == 60
     assert APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS == 5 * 60
     assert APPLICATION_PREVIEW_HARD_TIMEOUT_SECONDS == 30 * 60
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated
 def test_application_worker_payload_resolves_manifest_child_files() -> None:
     payload = build_application_preview_worker_payload(
         application_embed_id="app-embed-1",
@@ -264,6 +284,7 @@ def test_application_worker_payload_resolves_manifest_child_files() -> None:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated
 def test_application_worker_payload_rejects_missing_child_embed() -> None:
     with pytest.raises(HTTPException) as exc_info:
         build_application_preview_worker_payload(
@@ -275,6 +296,7 @@ def test_application_worker_payload_rejects_missing_child_embed() -> None:
     assert exc_info.value.status_code == 409
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated
 def test_application_worker_payload_rejects_non_application_parent() -> None:
     with pytest.raises(HTTPException) as exc_info:
         build_application_preview_worker_payload(
@@ -286,6 +308,7 @@ def test_application_worker_payload_rejects_non_application_parent() -> None:
     assert exc_info.value.status_code == 400
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_application_worker_payload_rejects_secret_like_child_content() -> None:
     with pytest.raises(HTTPException) as exc_info:
         build_application_preview_worker_payload(
@@ -301,6 +324,7 @@ def test_application_worker_payload_rejects_secret_like_child_content() -> None:
     assert "secrets" in str(exc_info.value.detail)
 
 
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open,code-run.request.validated
 def test_shared_context_payload_resolves_decrypted_application_files() -> None:
     payload = build_application_preview_worker_payload_from_shared_context(
         application_embed_id="app-embed-1",
@@ -321,6 +345,7 @@ def test_shared_context_payload_resolves_decrypted_application_files() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open,code-run.request.validated
 def test_shared_context_payload_rejects_mismatched_application_embed() -> None:
     with pytest.raises(HTTPException) as exc_info:
         build_application_preview_worker_payload_from_shared_context(
@@ -335,6 +360,7 @@ def test_shared_context_payload_rejects_mismatched_application_embed() -> None:
     assert exc_info.value.status_code == 400
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,code-run.request.validated
 @pytest.mark.anyio
 async def test_collect_application_payload_reads_cached_encrypted_manifest_and_children() -> None:
     cache = FakeCache()
@@ -361,6 +387,7 @@ async def test_collect_application_payload_reads_cached_encrypted_manifest_and_c
     assert payload["entrypoints"] == [{"name": "frontend", "command": "npm run dev", "port": 5173}]
 
 
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open,code-run.request.validated
 @pytest.mark.anyio
 async def test_collect_application_payload_accepts_shared_recipient_context_without_owner_metadata() -> None:
     cache = FakeCache()
@@ -388,6 +415,7 @@ async def test_collect_application_payload_accepts_shared_recipient_context_with
     assert payload["files"][1]["content"] == "<main>Recipient</main>"
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_collect_application_payload_rejects_embed_outside_chat_index() -> None:
     cache = FakeCache()
@@ -406,6 +434,7 @@ async def test_collect_application_payload_rejects_embed_outside_chat_index() ->
     assert exc_info.value.status_code == 404
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_create_preview_session_stores_viewer_owned_queued_record() -> None:
     cache = FakeCache()
@@ -437,6 +466,7 @@ async def test_create_preview_session_stores_viewer_owned_queued_record() -> Non
     assert stored["events"][0]["text"] == "Queued application preview..."
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,chats.message.identity-idempotent
 @pytest.mark.anyio
 async def test_create_preview_session_dispatches_worker_payload_after_record_creation() -> None:
     cache = FakeCache()
@@ -470,6 +500,7 @@ async def test_create_preview_session_dispatches_worker_payload_after_record_cre
     assert await cache.redis.get(application_preview_session_key("session-1")) is not None
 
 
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open,code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_shared_recipient_preview_session_is_distinct_and_billed_to_recipient() -> None:
     cache = FakeCache()
@@ -503,6 +534,7 @@ async def test_shared_recipient_preview_session_is_distinct_and_billed_to_recipi
     assert "client-decrypted" not in json.dumps(recipient_record)
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.request.validated
 @pytest.mark.anyio
 async def test_start_application_preview_route_resolves_payload_and_dispatches_worker(monkeypatch) -> None:
     cache = FakeCache()
@@ -558,6 +590,7 @@ async def test_start_application_preview_route_resolves_payload_and_dispatches_w
     assert stored["status"] == "queued"
 
 
+# contract-test: supporting surface=rest_api assertions=chat-share-settings.shared-link-open,code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_auto_started_preview_rejects_client_shared_context() -> None:
     fake_request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(config_manager=FakeConfigManager())))
@@ -576,6 +609,7 @@ async def test_auto_started_preview_rejects_client_shared_context() -> None:
     assert exc_info.value.status_code == 400
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_get_preview_session_hides_records_from_other_viewers() -> None:
     cache = FakeCache()
@@ -596,6 +630,7 @@ async def test_get_preview_session_hides_records_from_other_viewers() -> None:
     assert exc_info.value.status_code == 404
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,storage.privacy.ciphertext-boundary
 def test_public_preview_status_excludes_gateway_secrets_and_raw_upstream() -> None:
     response = build_application_preview_status_response({
         "session_id": "session-1",
@@ -635,6 +670,7 @@ def test_public_preview_status_excludes_gateway_secrets_and_raw_upstream() -> No
     assert "vault_wrapped_aes_key" not in json.dumps(public_payload)
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_open_auto_started_preview_promotes_idle_deadline_once() -> None:
     cache = FakeCache()
@@ -661,6 +697,7 @@ async def test_open_auto_started_preview_promotes_idle_deadline_once() -> None:
     assert promoted["idle_deadline"] == 2_030.0 + APPLICATION_PREVIEW_IDLE_TIMEOUT_SECONDS
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible,code-run.billing.rate-limits
 @pytest.mark.anyio
 async def test_stop_preview_session_updates_owner_record_without_cross_user_access() -> None:
     cache = FakeCache()

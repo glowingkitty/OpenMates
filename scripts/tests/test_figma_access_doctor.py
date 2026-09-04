@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for the safe Figma access doctor.
 
 Purpose: make sure rate-limit diagnosis remains useful without exposing tokens,
@@ -47,6 +48,23 @@ def test_build_probe_endpoints_encodes_node_id() -> None:
     assert endpoints[0] == ("file_outline", "/files/file%20key?depth=1")
     assert endpoints[1] == ("node_json", "/files/file%20key/nodes?ids=4944%3A31418")
     assert "ids=4944%3A31418" in endpoints[2][1]
+
+
+def test_tokens_use_control_plane_root() -> None:
+    module = load_module()
+
+    assert module.TOKEN_FILES == (
+        module.CONTROL_PLANE_ROOT / ".env.figma.local",
+        module.CONTROL_PLANE_ROOT / ".env",
+    )
+
+
+def test_mcp_launcher_uses_git_common_directory() -> None:
+    source = (ROOT / "scripts" / "run_figma_mcp.sh").read_text(encoding="utf-8")
+
+    assert "rev-parse --git-common-dir" in source
+    assert "Cannot resolve the OpenMates control-plane checkout" in source
+    assert 'TOKEN_FILE="${CONTROL_PLANE_ROOT}/.env.figma.local"' in source
 
 
 def test_probe_endpoint_reports_rate_limit_headers_without_token(monkeypatch) -> None:

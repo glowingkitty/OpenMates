@@ -26,7 +26,7 @@ const AES_GCM_IV_LENGTH = 12;
 function usage() {
   process.stderr.write(`Usage:
   node scripts/openmates_cli_test_account.mjs login [--slot <n>] [--api-url <url>] [--web-origin <url>]
-  node scripts/openmates_cli_test_account.mjs chat "<prompt>" [--slot <n>] [--api-url <url>] [--web-origin <url>] [--expires <seconds>] [--auto-approve-memories]
+  node scripts/openmates_cli_test_account.mjs chat "<prompt>" [--slot <n>] [--api-url <url>] [--web-origin <url>] [--expires <seconds>] [--auto-approve-memories] [--speak-all]
 
 Environment:
   OPENMATES_TEST_ACCOUNT_EMAIL / PASSWORD / OTP_KEY
@@ -83,6 +83,7 @@ function parseArgs(argv) {
     autoApproveMemories: false,
     expires: "604800",
     slot: defaultSlot(),
+    speakAll: false,
     webOrigin: undefined,
   };
   const positional = [];
@@ -99,6 +100,8 @@ function parseArgs(argv) {
       options.slot = argv[++index];
     } else if (arg === "--auto-approve-memories") {
       options.autoApproveMemories = true;
+    } else if (arg === "--speak-all") {
+      options.speakAll = true;
     } else if (arg === "--help" || arg === "-h") {
       options.help = true;
     } else {
@@ -429,7 +432,7 @@ function parseCliJson(output) {
 }
 
 async function createChat(prompt, options) {
-  await login(options);
+  const account = await login(options);
   const chatArgs = ["chats", "new", prompt, "--json"];
   if (options.autoApproveMemories) chatArgs.push("--auto-approve-memories");
   const chatOutput = runCli(chatArgs, options.apiUrl);
@@ -438,13 +441,27 @@ async function createChat(prompt, options) {
   if (!chatId) {
     throw new Error("CLI chat creation did not return a chat id");
   }
+  let speech = null;
+  let assistantMessageIds = [];
+  if (options.speakAll) {
+    speech = parseCliJson(runCli(["chats", "speak", chatId, "--all", "--json"], options.apiUrl));
+    const shown = parseCliJson(runCli(["chats", "show", chatId, "--all", "--json"], options.apiUrl));
+    const messages = Array.isArray(shown.messages) ? shown.messages : Array.isArray(shown.data?.messages) ? shown.data.messages : [];
+    assistantMessageIds = messages
+      .filter((message) => message?.role === "assistant")
+      .map((message) => message.client_message_id || message.clientMessageId || message.message_id || message.id)
+      .filter(Boolean);
+    if (assistantMessageIds.length === 0) throw new Error("CLI chat did not expose an assistant message ID for publication");
+  }
   const shareOutput = runCli(["chats", "share", chatId, "--expires", options.expires, "--json"], options.apiUrl);
   const share = parseCliJson(shareOutput);
   return {
     success: true,
+    slot: account.slot,
     chatId,
     title: chat.title || null,
     shareUrl: share.url || share.share_url || share.shareUrl || null,
+    ...(speech ? { speech, assistantMessageIds } : {}),
   };
 }
 

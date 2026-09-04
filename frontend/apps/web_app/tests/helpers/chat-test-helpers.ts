@@ -29,8 +29,9 @@ const noopLog = (_message: string, _metadata?: Record<string, unknown>): void =>
 const LOGIN_RATE_LIMIT_COOLDOWN_MS = 65_000;
 const MAX_LOGIN_RATE_LIMIT_RETRIES = 1;
 const PASSWORD_LOGIN_SIGNAL_TIMEOUT_MS = 45_000;
-const CHAT_PREFLIGHT_ACK_TIMEOUT_MS = 60_000;
-const SEND_ACCEPTED_TIMEOUT_MS = CHAT_PREFLIGHT_ACK_TIMEOUT_MS + 15_000;
+const SEND_ACCEPTED_TIMEOUT_MS = 20_000;
+const SYNTHETIC_SEND_DRAFT_IDLE_TIMEOUT_MS = 45_000;
+const TRAILING_LIVE_TEST_MARKER = /\s*(<<<TEST_LIVE_(?:MOCK|RECORD):[A-Za-z0-9_-]+(?::[A-Za-z0-9_-]+)?>>>)\s*$/;
 
 type LoginResponseDiagnostic = {
 	status: number;
@@ -61,6 +62,11 @@ type TestStateDeclaration = {
 	chat: string;
 	notifications: string;
 	securityReminders: string;
+};
+
+type SendMessageOptions = {
+	testMockMarker?: string;
+	preserveExistingContent?: boolean;
 };
 
 const lastSendStateByPage = new WeakMap<object, LastSendState>();
@@ -110,6 +116,15 @@ function visibleMessageAnchors(message: string): string[] {
 
 function normalizeEditorDraftText(text: string | null | undefined): string {
 	return (text ?? '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+export function extractLiveTestMarker(message: string): { message: string; testMockMarker?: string } {
+	const match = message.match(TRAILING_LIVE_TEST_MARKER);
+	if (!match) return { message };
+	return {
+		message: message.slice(0, match.index).trimEnd(),
+		testMockMarker: match[1]
+	};
 }
 
 export async function fillMessageEditor(page: any, messageEditor: any, message: string): Promise<void> {
@@ -198,14 +213,22 @@ async function waitForUserMessageAcceptedByServer(
 						return false;
 					}
 
-					const lastUserText = await userMessages.last().textContent({ timeout: 1000 }).catch(() => '');
-					return !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
+					const lastUser = userMessages.last();
+					const [lastUserText, lastUserStatus] = await Promise.all([
+						lastUser.textContent({ timeout: 1000 }).catch(() => ''),
+						lastUser.getAttribute('data-status').catch(() => null)
+					]);
+					return !['sending', 'waiting_for_internet', 'waiting_for_upload', 'failed'].includes(lastUserStatus ?? '')
+						&& !/\b(Sending|Waiting for internet|Waiting for upload)\b/i.test(lastUserText ?? '');
 				},
 				{ timeout: SEND_ACCEPTED_TIMEOUT_MS }
 			)
 			.toBeTruthy();
 	} catch (error) {
-		const lastSendDebug = await page.evaluate(() => (window as any).__lastSendDebug ?? null).catch(() => null);
+		const sendDebug = await page.evaluate(() => ({
+			lastSendDebug: (window as any).__openmatesLastSendDebug ?? null,
+			lastPreflightDebug: (window as any).__openmatesLastPreflightDebug ?? null
+		})).catch(() => ({ lastSendDebug: null, lastPreflightDebug: null }));
 		const diagnostics = await page.evaluate(() => {
 			const input = document.querySelector('[data-action="message-input"]') as HTMLElement | null;
 			const lastUser = Array.from(document.querySelectorAll('[data-testid="message-user"]')).at(-1) as HTMLElement | undefined;
@@ -213,10 +236,11 @@ async function waitForUserMessageAcceptedByServer(
 			return {
 				url: window.location.href,
 				inputChatId: input?.getAttribute('data-current-chat-id') ?? null,
-				lastUserText: lastUser?.innerText ?? null
+				lastUserText: lastUser?.innerText ?? null,
+				lastUserStatus: lastUser?.getAttribute('data-status') ?? null
 			};
 		});
-		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify({ diagnostics, lastSendDebug })}`);
+		logCheckpoint(`User message stayed pending after send; diagnostics=${JSON.stringify({ diagnostics, ...sendDebug })}`);
 		throw error;
 	}
 }
@@ -241,6 +265,43 @@ async function waitForNewChatSendContext(
 	logCheckpoint('New-chat send rebound to created chat context.', {
 		url: page.url()
 	});
+}
+
+async function refreshStaleAppShellIfPrompted(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const refreshButton = page.getByRole('button', { name: /refresh now/i });
+	if (!(await refreshButton.isVisible({ timeout: 1000 }).catch(() => false))) return;
+
+	logCheckpoint('Software update prompt visible after login; refreshing to current deployed app shell.');
+	await refreshButton.click();
+	await page.waitForLoadState('load');
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 30000 });
+}
+
+async function waitForDraftSaveIdleBeforeSyntheticSend(
+	page: any,
+	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void
+): Promise<void> {
+	const readDraftState = async () => page.evaluate(() => {
+		const hook = (window as any).__openmatesE2EDraftState;
+		return typeof hook === 'function' ? hook() : null;
+	}).catch(() => null);
+
+	const initialState = await readDraftState();
+	if (!initialState?.isSaveInProgress) return;
+
+	logCheckpoint('Waiting for draft save to become idle before synthetic send.', { draftState: initialState });
+	await expect
+		.poll(
+			async () => {
+				const state = await readDraftState();
+				return state ? state.isSaveInProgress === false : true;
+			},
+			{ timeout: SYNTHETIC_SEND_DRAFT_IDLE_TIMEOUT_MS, intervals: [500, 1000, 2000, 5000] }
+		)
+		.toBe(true);
 }
 
 async function waitForAuthenticatedUi(page: any, authSignal: any, timeout = 20000): Promise<boolean> {
@@ -744,6 +805,7 @@ async function loginToTestAccount(
 			await page.waitForTimeout(1000);
 			const messageEditor = page.getByTestId('message-editor');
 			await expect(messageEditor).toBeVisible({ timeout: 20000 });
+			await refreshStaleAppShellIfPrompted(page, logCheckpoint);
 			logCheckpoint('Chat interface loaded - message editor visible.');
 		} else {
 			logCheckpoint('Login complete (skipping editor wait).');
@@ -971,8 +1033,12 @@ async function sendMessage(
 	message: string,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
-	stepLabel: string = 'msg'
+	stepLabel: string = 'msg',
+	options: SendMessageOptions = {}
 ): Promise<void> {
+	const extractedMessage = extractLiveTestMarker(message);
+	message = extractedMessage.message;
+	const testMockMarker = options.testMockMarker ?? extractedMessage.testMockMarker;
 	const currentChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 	const startedFromNewChat = !currentChatId;
 	const currentChatInput = currentChatId
@@ -1001,8 +1067,13 @@ async function sendMessage(
 			.catch(() => '')
 	);
 	const waitForEditorMessage = async (timeout = 2500): Promise<boolean> => expect
-		.poll(currentEditorText, { timeout, intervals: [100, 250, 500] })
-		.toBe(expectedEditorText)
+		.poll(async () => {
+			const editorText = await currentEditorText();
+			return options.preserveExistingContent
+				? editorText.includes(expectedEditorText)
+				: editorText === expectedEditorText;
+		}, { timeout, intervals: [100, 250, 500] })
+		.toBe(true)
 		.then(() => true)
 		.catch(() => false);
 	const retypeEditorMessage = async (reason: string): Promise<void> => {
@@ -1066,9 +1137,14 @@ async function sendMessage(
 		});
 	};
 	const dispatchSyntheticSend = async (reason: string) => {
-		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement) => {
-			return editor.dispatchEvent(new CustomEvent('custom-send-message', { bubbles: true, cancelable: true }));
-		});
+		await waitForDraftSaveIdleBeforeSyntheticSend(page, logCheckpoint);
+		const syntheticDispatchResult = await messageEditor.evaluate((editor: HTMLElement, marker?: string) => {
+			return editor.dispatchEvent(new CustomEvent('custom-send-message', {
+				bubbles: true,
+				cancelable: true,
+				detail: marker ? { testMockMarker: marker } : undefined
+			}));
+		}, testMockMarker);
 		logCheckpoint(`Dispatched synthetic custom-send-message ${reason}; diagnostics=${JSON.stringify({
 			syntheticDispatchResult,
 			lastSendDebug: await readLastSendDebug(),
@@ -1117,8 +1193,12 @@ async function sendMessage(
 	};
 	try {
 		await expect(sendButton).toBeVisible({ timeout: 5000 });
-		await sendButton.click({ timeout: 5000 });
-		logCheckpoint('Clicked send button.');
+		if (testMockMarker) {
+			await dispatchSyntheticSend('with E2E server content override');
+		} else {
+			await sendButton.click({ timeout: 5000 });
+			logCheckpoint('Clicked send button.');
+		}
 	} catch (clickError) {
 		const diagnosticsBeforeFallback = await captureSendDiagnostics();
 		const lastSendDebugAfterClickAttempt = await readLastSendDebug();
@@ -1429,7 +1509,8 @@ async function dismissSecurityReminderIfPresent(
 	const reminder = page.getByTestId('notification').filter({ hasText: 'Security Reminder' });
 	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
 
-	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
+	// The animated stack wrapper can intercept its own visible dismiss button.
+	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000, force: true });
 	await expect(reminder).not.toBeVisible({ timeout: 10000 });
 	logCheckpoint('Dismissed security reminder.');
 }
@@ -1597,6 +1678,7 @@ module.exports = {
 	createIsolatedBrowserContext,
 	fillMessageEditor,
 	focusMessageEditor,
+	extractLiveTestMarker,
 	loginToTestAccount,
 	submitPasswordAndHandleOtp,
 	openSignupInterface,

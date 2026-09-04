@@ -1,0 +1,3774 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-24'
+generated_at: '2026-08-25T00:20:05+00:00'
+range:
+  since: '2026-08-24T00:00:00+00:00'
+  until: '2026-08-25T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 53
+  section_counts:
+    features: 3
+    bug_fixes: 39
+    improvements: 0
+    docs: 2
+    tests: 6
+    infrastructure: 3
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 24
+  dev_only_items: 53
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add secure Apple proof credential relay'
+    section: features
+    commits:
+    - db338886f
+    authored_at: '2026-08-24T10:52:49+00:00'
+    changed_paths:
+    - .github/workflows/apple-proof-credential-broker.yml
+    - deployment/apple-proof-broker-recipient.pem
+    - deployment/apple-proof-broker-relay-public.pem
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add Apple E2E proof recording'
+    section: features
+    commits:
+    - f2743c1ab
+    authored_at: '2026-08-24T05:13:32+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - contracts/generated/assertion-index.yml
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/apple_remote.py
+    - scripts/tests.py
+    - scripts/tests/test_apple_proof_finalization.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add code run artifact surfaces'
+    section: features
+    commits:
+    - 212a6e68c
+    authored_at: '2026-08-24T01:03:22+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_app_skill.py
+    - backend/tests/test_e2b_code_runner.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - contracts/features/app-skills/code-run/contract.yml
+    - contracts/features/app-skills/code-run/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/code-run-skill/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/codeRunInput.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/__tests__/codeRunService.test.ts
+    - frontend/packages/ui/src/services/codeRunArtifacts.ts
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - frontend/packages/ui/src/services/handlersCodeRunOutputs.ts
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/generate_sdk_app_skills.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:code, embed:code:run, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: pin remote Apple Xcode toolchain'
+    section: bug_fixes
+    commits:
+    - b0daef15d
+    authored_at: '2026-08-24T13:01:35+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_native_debugging.py
+    - scripts/tests/test_apple_remote_recording.py
+    - scripts/tests/test_apple_remote_simulator_lock.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve terminal Apple stream state'
+    section: bug_fixes
+    commits:
+    - c8bec0e41
+    authored_at: '2026-08-24T12:46:57+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for completed Apple responses'
+    section: bug_fixes
+    commits:
+    - 81d411c4b
+    authored_at: '2026-08-24T12:13:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep compact composer placeholder proof-safe'
+    section: bug_fixes
+    commits:
+    - b5697a859
+    authored_at: '2026-08-24T12:07:30+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: append file embeds by document position'
+    section: bug_fixes
+    commits:
+    - 1976f567e
+    authored_at: '2026-08-24T12:03:36+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide Apple streaming protocol metadata'
+    section: bug_fixes
+    commits:
+    - c26cccb3c
+    authored_at: '2026-08-24T11:53:25+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve composer text on file attachment'
+    section: bug_fixes
+    commits:
+    - bf96a0d95
+    authored_at: '2026-08-24T11:42:53+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind Apple proof to reserved slot'
+    section: bug_fixes
+    commits:
+    - 3bea4a49f
+    authored_at: '2026-08-24T11:32:29+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: stream broker payload through stdin'
+    section: bug_fixes
+    commits:
+    - 0b29a368c
+    authored_at: '2026-08-24T11:27:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: satisfy broker Playwright fixture contract'
+    section: bug_fixes
+    commits:
+    - 78340f698
+    authored_at: '2026-08-24T11:22:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route Apple broker through registered workflow'
+    section: bug_fixes
+    commits:
+    - a9b587173
+    authored_at: '2026-08-24T11:18:23+00:00'
+    changed_paths:
+    - .github/workflows/apple-proof-credential-broker.yml
+    - frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts
+    - scripts/apple_remote.py
+    - scripts/tests.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: close daily suite running markers'
+    section: bug_fixes
+    commits:
+    - 37ac33ae2
+    authored_at: '2026-08-24T10:37:59+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: load daily recovery webhook safely'
+    section: bug_fixes
+    commits:
+    - 89c8bc129
+    authored_at: '2026-08-24T10:33:07+00:00'
+    changed_paths:
+    - scripts/tests.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add explicit daily run recovery'
+    section: bug_fixes
+    commits:
+    - cf90cdb66
+    authored_at: '2026-08-24T10:30:30+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make daily test runs terminate visibly'
+    section: bug_fixes
+    commits:
+    - '123933715'
+    authored_at: '2026-08-24T10:23:36+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep OpenCode hooks off the event loop'
+    section: bug_fixes
+    commits:
+    - 45ab38b3c
+    authored_at: '2026-08-24T08:24:20+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_performance.mjs
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind Apple proof to reserved account'
+    section: bug_fixes
+    commits:
+    - e6f411733
+    authored_at: '2026-08-24T08:16:46+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden Apple proof capture'
+    section: bug_fixes
+    commits:
+    - 3c099dff7
+    authored_at: '2026-08-24T08:14:09+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/apple_remote.py
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_apple_proof_finalization.py
+    - scripts/tests/test_apple_remote_recording.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: do not reopen Apple login after authentication'
+    section: bug_fixes
+    commits:
+    - 12c1a934d
+    authored_at: '2026-08-24T07:34:44+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Apple proof chat during promotion'
+    section: bug_fixes
+    commits:
+    - '572468170'
+    authored_at: '2026-08-24T07:27:56+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reapply Apple new-chat launch after login'
+    section: bug_fixes
+    commits:
+    - e50020620
+    authored_at: '2026-08-24T07:23:08+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: pin Apple proof to new chat'
+    section: bug_fixes
+    commits:
+    - bdab22d15
+    authored_at: '2026-08-24T07:19:40+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use visible Apple composer immediately'
+    section: bug_fixes
+    commits:
+    - a3515d91d
+    authored_at: '2026-08-24T07:15:58+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Apple composer after login'
+    section: bug_fixes
+    commits:
+    - 4e9cd6a7e
+    authored_at: '2026-08-24T07:12:14+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: detect authenticated Apple UI before optional OTP'
+    section: bug_fixes
+    commits:
+    - 96a9a821c
+    authored_at: '2026-08-24T07:08:50+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: trace native password login phases'
+    section: bug_fixes
+    commits:
+    - f2437fa66
+    authored_at: '2026-08-24T06:50:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: capture live Apple auth diagnostics'
+    section: bug_fixes
+    commits:
+    - d8bb4eb82
+    authored_at: '2026-08-24T06:43:32+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain Apple proof console diagnostics'
+    section: bug_fixes
+    commits:
+    - 400de9df0
+    authored_at: '2026-08-24T06:36:10+00:00'
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject skipped Apple proof recordings'
+    section: bug_fixes
+    commits:
+    - 671bfeba6
+    authored_at: '2026-08-24T06:27:10+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate Apple parity proof account'
+    section: bug_fixes
+    commits:
+    - 14a213208
+    authored_at: '2026-08-24T06:13:47+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: scope Apple chat wrapper hashing'
+    section: bug_fixes
+    commits:
+    - 2a291c600
+    authored_at: '2026-08-24T05:51:22+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve Apple sync state during hydration'
+    section: bug_fixes
+    commits:
+    - 9c5d553bd
+    authored_at: '2026-08-24T05:44:15+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - scripts/apple_evidence_bundle.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_evidence_bundle.py
+    - scripts/tests/test_apple_remote_simulator_lock.py
+    - scripts/tests/test_verify_parity.py
+    - scripts/verify_parity.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: send CLI sync context epoch'
+    section: bug_fixes
+    commits:
+    - 81879ceb0
+    authored_at: '2026-08-24T04:20:26+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use cached credits for assistant code run'
+    section: bug_fixes
+    commits:
+    - a7d09f8ea
+    authored_at: '2026-08-24T04:05:40+00:00'
+    changed_paths:
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/skills/run_code_skill.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:run, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: let assistant run inline code'
+    section: bug_fixes
+    commits:
+    - 12cd02357
+    authored_at: '2026-08-24T03:36:53+00:00'
+    changed_paths:
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:code, embed:code:run, skill:code:run'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: initialize Apple push delivery safely'
+    section: bug_fixes
+    commits:
+    - bbf46076a
+    authored_at: '2026-08-24T02:38:43+00:00'
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/project.yml
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/push_worker_service.py
+    - backend/tests/test_push_notification_worker.py
+    - backend/tests/test_unified_notifications.py
+    - contracts/features/apple-notifications/contract.yml
+    - contracts/features/apple-notifications/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/audit_apple_release_preflight.py
+    - scripts/tests/test_workflow_guard_audits.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: mount media rollout config for code worker'
+    section: bug_fixes
+    commits:
+    - 1ac05fecb
+    authored_at: '2026-08-24T02:28:24+00:00'
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - scripts/audit_media_encryption_rollout.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: add code run billing idempotency'
+    section: bug_fixes
+    commits:
+    - ea4f7e55d
+    authored_at: '2026-08-24T02:05:42+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: make newest notification actionable'
+    section: bug_fixes
+    commits:
+    - 59f9fae71
+    authored_at: '2026-08-24T00:10:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: 'docs: record Apple proof secret blocker'
+    section: docs
+    commits:
+    - 36ba21751
+    authored_at: '2026-08-24T08:29:28+00:00'
+    changed_paths:
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Code Run live inference evidence'
+    section: docs
+    commits:
+    - 6c1f6cb08
+    authored_at: '2026-08-24T04:44:52+00:00'
+    changed_paths:
+    - docs/specs/code-run-skill/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: stabilize code run proof prompt'
+    section: tests
+    commits:
+    - ede44c0ae
+    authored_at: '2026-08-24T12:22:31+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep e2e composer placeholder proof-safe'
+    section: tests
+    commits:
+    - 548f7165f
+    authored_at: '2026-08-24T11:30:37+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bound code run proof capture'
+    section: tests
+    commits:
+    - 190a1670c
+    authored_at: '2026-08-24T11:15:55+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hide explain proof mock marker'
+    section: tests
+    commits:
+    - e211c39a0
+    authored_at: '2026-08-24T11:03:47+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require and record Code Run proof videos'
+    section: tests
+    commits:
+    - e1785184e
+    authored_at: '2026-08-24T09:47:51+00:00'
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/fixtures/code_run_requests.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align notification stack contract'
+    section: tests
+    commits:
+    - faa7b4902
+    authored_at: '2026-08-24T00:34:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: trace native login completion stages'
+    section: infrastructure
+    commits:
+    - d71f5b6ee
+    authored_at: '2026-08-24T07:01:58+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: classify native password login failures'
+    section: infrastructure
+    commits:
+    - 6ea339653
+    authored_at: '2026-08-24T06:55:05+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: update default og image'
+    section: infrastructure
+    commits:
+    - a43a67f22
+    authored_at: '2026-08-24T00:23:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/static/images/og-image.jpg
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: pin remote Apple Xcode toolchain'
+    commits:
+    - b0daef15d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve terminal Apple stream state'
+    commits:
+    - c8bec0e41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: stabilize code run proof prompt'
+    commits:
+    - ede44c0ae
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for completed Apple responses'
+    commits:
+    - 81d411c4b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: keep compact composer placeholder proof-safe'
+    commits:
+    - b5697a859
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: append file embeds by document position'
+    commits:
+    - 1976f567e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide Apple streaming protocol metadata'
+    commits:
+    - c26cccb3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve composer text on file attachment'
+    commits:
+    - bf96a0d95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bind Apple proof to reserved slot'
+    commits:
+    - 3bea4a49f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: keep e2e composer placeholder proof-safe'
+    commits:
+    - 548f7165f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: stream broker payload through stdin'
+    commits:
+    - 0b29a368c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: satisfy broker Playwright fixture contract'
+    commits:
+    - 78340f698
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route Apple broker through registered workflow'
+    commits:
+    - a9b587173
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: bound code run proof capture'
+    commits:
+    - 190a1670c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: hide explain proof mock marker'
+    commits:
+    - e211c39a0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add secure Apple proof credential relay'
+    commits:
+    - db338886f
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: close daily suite running markers'
+    commits:
+    - 37ac33ae2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: load daily recovery webhook safely'
+    commits:
+    - 89c8bc129
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: add explicit daily run recovery'
+    commits:
+    - cf90cdb66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make daily test runs terminate visibly'
+    commits:
+    - '123933715'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: require and record Code Run proof videos'
+    commits:
+    - e1785184e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Apple proof secret blocker'
+    commits:
+    - 36ba21751
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep OpenCode hooks off the event loop'
+    commits:
+    - 45ab38b3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bind Apple proof to reserved account'
+    commits:
+    - e6f411733
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden Apple proof capture'
+    commits:
+    - 3c099dff7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: do not reopen Apple login after authentication'
+    commits:
+    - 12c1a934d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve Apple proof chat during promotion'
+    commits:
+    - '572468170'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: reapply Apple new-chat launch after login'
+    commits:
+    - e50020620
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: pin Apple proof to new chat'
+    commits:
+    - bdab22d15
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: use visible Apple composer immediately'
+    commits:
+    - a3515d91d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve Apple composer after login'
+    commits:
+    - 4e9cd6a7e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: detect authenticated Apple UI before optional OTP'
+    commits:
+    - 96a9a821c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'chore: trace native login completion stages'
+    commits:
+    - d71f5b6ee
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'chore: classify native password login failures'
+    commits:
+    - 6ea339653
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: trace native password login phases'
+    commits:
+    - f2437fa66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: capture live Apple auth diagnostics'
+    commits:
+    - d8bb4eb82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: retain Apple proof console diagnostics'
+    commits:
+    - 400de9df0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reject skipped Apple proof recordings'
+    commits:
+    - 671bfeba6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: isolate Apple parity proof account'
+    commits:
+    - 14a213208
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: scope Apple chat wrapper hashing'
+    commits:
+    - 2a291c600
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve Apple sync state during hydration'
+    commits:
+    - 9c5d553bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add Apple E2E proof recording'
+    commits:
+    - f2743c1ab
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'docs: record Code Run live inference evidence'
+    commits:
+    - 6c1f6cb08
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: send CLI sync context epoch'
+    commits:
+    - 81879ceb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: use cached credits for assistant code run'
+    commits:
+    - a7d09f8ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: let assistant run inline code'
+    commits:
+    - 12cd02357
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'fix: initialize Apple push delivery safely'
+    commits:
+    - bbf46076a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: mount media rollout config for code worker'
+    commits:
+    - 1ac05fecb
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: add code run billing idempotency'
+    commits:
+    - ea4f7e55d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'feat: add code run artifact surfaces'
+    commits:
+    - 212a6e68c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'test: align notification stack contract'
+    commits:
+    - faa7b4902
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: update default og image'
+    commits:
+    - a43a67f22
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: make newest notification actionable'
+    commits:
+    - 59f9fae71
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: let assistant run inline code'
+    commits:
+    - 12cd02357
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+  - title: 'feat: add code run artifact surfaces'
+    commits:
+    - 212a6e68c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: preserve terminal Apple stream state'
+    commits:
+    - c8bec0e41
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: wait for completed Apple responses'
+    commits:
+    - 81d411c4b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: keep compact composer placeholder proof-safe'
+    commits:
+    - b5697a859
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: append file embeds by document position'
+    commits:
+    - 1976f567e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide Apple streaming protocol metadata'
+    commits:
+    - c26cccb3c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve composer text on file attachment'
+    commits:
+    - bf96a0d95
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: stream broker payload through stdin'
+    commits:
+    - 0b29a368c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: satisfy broker Playwright fixture contract'
+    commits:
+    - 78340f698
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route Apple broker through registered workflow'
+    commits:
+    - a9b587173
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: do not reopen Apple login after authentication'
+    commits:
+    - 12c1a934d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve Apple proof chat during promotion'
+    commits:
+    - '572468170'
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reapply Apple new-chat launch after login'
+    commits:
+    - e50020620
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: trace native password login phases'
+    commits:
+    - f2437fa66
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: capture live Apple auth diagnostics'
+    commits:
+    - d8bb4eb82
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: scope Apple chat wrapper hashing'
+    commits:
+    - 2a291c600
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve Apple sync state during hydration'
+    commits:
+    - 9c5d553bd
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add Apple E2E proof recording'
+    commits:
+    - f2743c1ab
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: send CLI sync context epoch'
+    commits:
+    - 81879ceb0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: use cached credits for assistant code run'
+    commits:
+    - a7d09f8ea
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: let assistant run inline code'
+    commits:
+    - 12cd02357
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: initialize Apple push delivery safely'
+    commits:
+    - bbf46076a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: add code run billing idempotency'
+    commits:
+    - ea4f7e55d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'feat: add code run artifact surfaces'
+    commits:
+    - 212a6e68c
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: embed:code:code
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: embed:code:run
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    - id: skill:code:run
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:code
+      source: backend/apps/code/app.yml
+    newsletter_ready: false
+  - title: 'fix: make newest notification actionable'
+    commits:
+    - 59f9fae71
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: b0daef15ddfd712814906ea25568c5f1cee5e704
+    short_sha: b0daef15d
+    authored_at: '2026-08-24T13:01:35+00:00'
+    subject: 'fix: pin remote Apple Xcode toolchain'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_native_debugging.py
+    - scripts/tests/test_apple_remote_recording.py
+    - scripts/tests/test_apple_remote_simulator_lock.py
+    related_feature_ids: []
+  - sha: c8bec0e41a931f96134d0a3e37267ea97df0e337
+    short_sha: c8bec0e41
+    authored_at: '2026-08-24T12:46:57+00:00'
+    subject: 'fix: preserve terminal Apple stream state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: ede44c0aeabf2b8bd5d35c260f8a7bfc55298717
+    short_sha: ede44c0ae
+    authored_at: '2026-08-24T12:22:31+00:00'
+    subject: 'test: stabilize code run proof prompt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    related_feature_ids: []
+  - sha: 81d411c4b9628cf3826243fe839b3e4aa2013383
+    short_sha: 81d411c4b
+    authored_at: '2026-08-24T12:13:15+00:00'
+    subject: 'fix: wait for completed Apple responses'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: b5697a859a59882c6f0a4668fda69a434b4e82bd
+    short_sha: b5697a859
+    authored_at: '2026-08-24T12:07:30+00:00'
+    subject: 'fix: keep compact composer placeholder proof-safe'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 1976f567e5f00d987ef1c8b35156b1c83680ebbf
+    short_sha: 1976f567e
+    authored_at: '2026-08-24T12:03:36+00:00'
+    subject: 'fix: append file embeds by document position'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    related_feature_ids: []
+  - sha: c26cccb3cdb7ce6fd4824d74d15c61c402abae6f
+    short_sha: c26cccb3c
+    authored_at: '2026-08-24T11:53:25+00:00'
+    subject: 'fix: hide Apple streaming protocol metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bf96a0d950f465021ee18c259c3cf6f7050e1430
+    short_sha: bf96a0d95
+    authored_at: '2026-08-24T11:42:53+00:00'
+    subject: 'fix: preserve composer text on file attachment'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/fileHandlers.test.ts
+    related_feature_ids: []
+  - sha: 3bea4a49fb5e82d1f3c2969879b5ba73e8536c1f
+    short_sha: 3bea4a49f
+    authored_at: '2026-08-24T11:32:29+00:00'
+    subject: 'fix: bind Apple proof to reserved slot'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 548f7165f99af85bd5282bdb238dcf7143066089
+    short_sha: 548f7165f
+    authored_at: '2026-08-24T11:30:37+00:00'
+    subject: 'test: keep e2e composer placeholder proof-safe'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    related_feature_ids: []
+  - sha: 0b29a368c84b26d7bf4a5fb480ec62d77c4acd67
+    short_sha: 0b29a368c
+    authored_at: '2026-08-24T11:27:27+00:00'
+    subject: 'fix: stream broker payload through stdin'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts
+    related_feature_ids: []
+  - sha: 78340f69870226efbd8e82f7285f3c5ac48a5346
+    short_sha: 78340f698
+    authored_at: '2026-08-24T11:22:52+00:00'
+    subject: 'fix: satisfy broker Playwright fixture contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts
+    related_feature_ids: []
+  - sha: a9b58717326935b51cb04538974d841c101d82b1
+    short_sha: a9b587173
+    authored_at: '2026-08-24T11:18:23+00:00'
+    subject: 'fix: route Apple broker through registered workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/apple-proof-credential-broker.yml
+    - frontend/apps/web_app/tests/apple-proof-credential-broker.spec.ts
+    - scripts/apple_remote.py
+    - scripts/tests.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids: []
+  - sha: 190a1670cc1f08f350a279e8384ba4f9b5ca2ab3
+    short_sha: 190a1670c
+    authored_at: '2026-08-24T11:15:55+00:00'
+    subject: 'test: bound code run proof capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: e211c39a0dd5b1db4ce1c0abc526278ff2b7cf95
+    short_sha: e211c39a0
+    authored_at: '2026-08-24T11:03:47+00:00'
+    subject: 'test: hide explain proof mock marker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/explain-in-new-chat.spec.ts
+    related_feature_ids: []
+  - sha: db338886f3ab98e22371bb31ad78170ca2d9624a
+    short_sha: db338886f
+    authored_at: '2026-08-24T10:52:49+00:00'
+    subject: 'feat: add secure Apple proof credential relay'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/apple-proof-credential-broker.yml
+    - deployment/apple-proof-broker-recipient.pem
+    - deployment/apple-proof-broker-relay-public.pem
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids: []
+  - sha: 37ac33ae20bf1bae731f0594a292ded0a53234ca
+    short_sha: 37ac33ae2
+    authored_at: '2026-08-24T10:37:59+00:00'
+    subject: 'fix: close daily suite running markers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 89c8bc12943becfa453f388e37beada09b658b7a
+    short_sha: 89c8bc129
+    authored_at: '2026-08-24T10:33:07+00:00'
+    subject: 'fix: load daily recovery webhook safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    related_feature_ids: []
+  - sha: cf90cdb661ffabc588500b261f2f1bdfddf3869d
+    short_sha: cf90cdb66
+    authored_at: '2026-08-24T10:30:30+00:00'
+    subject: 'fix: add explicit daily run recovery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 123933715d00ad3d7b5da9e79c593b77587f2f15
+    short_sha: '123933715'
+    authored_at: '2026-08-24T10:23:36+00:00'
+    subject: 'fix: make daily test runs terminate visibly'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: e1785184eb618907d56eb391507f9716c1e0220a
+    short_sha: e1785184e
+    authored_at: '2026-08-24T09:47:51+00:00'
+    subject: 'test: require and record Code Run proof videos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/session-lifecycle.md
+    - .claude/skills/verify-spec/SKILL.md
+    - AGENTS.md
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/fixtures/code_run_requests.py
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    related_feature_ids: []
+  - sha: 36ba217514fce3179a7cda2ae4843017b91924f5
+    short_sha: 36ba21751
+    authored_at: '2026-08-24T08:29:28+00:00'
+    subject: 'docs: record Apple proof secret blocker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    related_feature_ids: []
+  - sha: 45ab38b3ceb5343c97cdc545308c68562c262555
+    short_sha: 45ab38b3c
+    authored_at: '2026-08-24T08:24:20+00:00'
+    subject: 'fix: keep OpenCode hooks off the event loop'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - scripts/tests/test_opencode_presence_performance.mjs
+    related_feature_ids: []
+  - sha: e6f41173383e2994115b534f110d5135d35f9d25
+    short_sha: e6f411733
+    authored_at: '2026-08-24T08:16:46+00:00'
+    subject: 'fix: bind Apple proof to reserved account'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids: []
+  - sha: 3c099dff717ecef54351d828dbccde2e3f50e540
+    short_sha: 3c099dff7
+    authored_at: '2026-08-24T08:14:09+00:00'
+    subject: 'fix: harden Apple proof capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/apple_remote.py
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_apple_proof_finalization.py
+    - scripts/tests/test_apple_remote_recording.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 12c1a934dd6cd44bcd85311d02ba21faaf6e8816
+    short_sha: 12c1a934d
+    authored_at: '2026-08-24T07:34:44+00:00'
+    subject: 'fix: do not reopen Apple login after authentication'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 57246817058b5947a7459409a0e47023b691544d
+    short_sha: '572468170'
+    authored_at: '2026-08-24T07:27:56+00:00'
+    subject: 'fix: preserve Apple proof chat during promotion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: e5002062057543b963dab9604f454a3d49700f52
+    short_sha: e50020620
+    authored_at: '2026-08-24T07:23:08+00:00'
+    subject: 'fix: reapply Apple new-chat launch after login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bdab22d15b50c2b9d3ad7326905ff925e48888a2
+    short_sha: bdab22d15
+    authored_at: '2026-08-24T07:19:40+00:00'
+    subject: 'fix: pin Apple proof to new chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: a3515d91da1173795f8b8456f5a716ebae934362
+    short_sha: a3515d91d
+    authored_at: '2026-08-24T07:15:58+00:00'
+    subject: 'fix: use visible Apple composer immediately'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 4e9cd6a7e0f93c2d4dcc7a50c00e41435ffbb03e
+    short_sha: 4e9cd6a7e
+    authored_at: '2026-08-24T07:12:14+00:00'
+    subject: 'fix: preserve Apple composer after login'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 96a9a821c31e80a4189d8cc43514e10226b5b9d1
+    short_sha: 96a9a821c
+    authored_at: '2026-08-24T07:08:50+00:00'
+    subject: 'fix: detect authenticated Apple UI before optional OTP'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d71f5b6eedd80f2cedda16a8365b5990d0b04ef5
+    short_sha: d71f5b6ee
+    authored_at: '2026-08-24T07:01:58+00:00'
+    subject: 'chore: trace native login completion stages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6ea3396536b47f584d3b01a3fc61214a7e6f96fe
+    short_sha: 6ea339653
+    authored_at: '2026-08-24T06:55:05+00:00'
+    subject: 'chore: classify native password login failures'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f2437fa66fd27e30920a8d132087a261ab50e00b
+    short_sha: f2437fa66
+    authored_at: '2026-08-24T06:50:15+00:00'
+    subject: 'fix: trace native password login phases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Auth/ViewModels/AuthManager.swift
+    - apple/OpenMates/Sources/Features/Auth/Views/PasswordLoginView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d8bb4eb8212c71e6658f9c464d22a79cc2dbbffd
+    short_sha: d8bb4eb82
+    authored_at: '2026-08-24T06:43:32+00:00'
+    subject: 'fix: capture live Apple auth diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/APIClient.swift
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 400de9df0dab087b5b49f9d28a00bc3af6061272
+    short_sha: 400de9df0
+    authored_at: '2026-08-24T06:36:10+00:00'
+    subject: 'fix: retain Apple proof console diagnostics'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids: []
+  - sha: 671bfeba6a25e5fd8d4891acff1ada7fdffa648a
+    short_sha: 671bfeba6
+    authored_at: '2026-08-24T06:27:10+00:00'
+    subject: 'fix: reject skipped Apple proof recordings'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 14a2132087a261219acf68ff2c8f2295d9f4ba78
+    short_sha: 14a213208
+    authored_at: '2026-08-24T06:13:47+00:00'
+    subject: 'fix: isolate Apple parity proof account'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 2a291c6003aa662ec7768ad6f040390044d37f1f
+    short_sha: 2a291c600
+    authored_at: '2026-08-24T05:51:22+00:00'
+    subject: 'fix: scope Apple chat wrapper hashing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 9c5d553bdd4b13c764d5881c5ba021be9390adb3
+    short_sha: 9c5d553bd
+    authored_at: '2026-08-24T05:44:15+00:00'
+    subject: 'fix: preserve Apple sync state during hydration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - scripts/apple_evidence_bundle.py
+    - scripts/apple_remote.py
+    - scripts/tests/test_apple_evidence_bundle.py
+    - scripts/tests/test_apple_remote_simulator_lock.py
+    - scripts/tests/test_verify_parity.py
+    - scripts/verify_parity.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f2743c1abac3f612e2ede93c1b60df81c5ee8720
+    short_sha: f2743c1ab
+    authored_at: '2026-08-24T05:13:32+00:00'
+    subject: 'feat: add Apple E2E proof recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/App/MainAppView.swift
+    - apple/OpenMates/Sources/Core/Crypto/ChatKeyManager.swift
+    - apple/OpenMates/Sources/Core/Models/ChatModels.swift
+    - apple/OpenMates/Sources/Core/Networking/SyncManager.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Core/Persistence/ChatStore.swift
+    - apple/OpenMates/Sources/Core/Persistence/OfflineStore.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMatesTests/ChatSyncParityTests.swift
+    - apple/OpenMatesUITests/AuthSecurityParityUITests.swift
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - contracts/generated/assertion-index.yml
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/apple_remote.py
+    - scripts/tests.py
+    - scripts/tests/test_apple_proof_finalization.py
+    - scripts/tests/test_apple_remote_recording.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6c1f6cb08fa334157a8ad3e44920b0f670b9d91c
+    short_sha: 6c1f6cb08
+    authored_at: '2026-08-24T04:44:52+00:00'
+    subject: 'docs: record Code Run live inference evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/code-run-skill/spec.yml
+    related_feature_ids: []
+  - sha: 81879ceb0f6c27ef47ac0139e0c1ce14e18d1d45
+    short_sha: 81879ceb0
+    authored_at: '2026-08-24T04:20:26+00:00'
+    subject: 'fix: send CLI sync context epoch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/client.ts
+    related_feature_ids: []
+  - sha: a7d09f8eaa9dda82eca4128f906354870f4d5b3e
+    short_sha: a7d09f8ea
+    authored_at: '2026-08-24T04:05:40+00:00'
+    subject: 'fix: use cached credits for assistant code run'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/skills/run_code_skill.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:run
+    - skill:code:run
+  - sha: 12cd02357827ec28d63682e2986e6a5db3e910e7
+    short_sha: 12cd02357
+    authored_at: '2026-08-24T03:36:53+00:00'
+    subject: 'fix: let assistant run inline code'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:run
+    - skill:code:run
+  - sha: bbf46076a8ca3a3dd565a9b764a80a6f76ac3dfb
+    short_sha: bbf46076a
+    authored_at: '2026-08-24T02:38:43+00:00'
+    subject: 'fix: initialize Apple push delivery safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/OpenMates/Resources/OpenMatesPasskey.entitlements
+    - apple/OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    - apple/OpenMates/Sources/Core/Networking/PushNotificationManager.swift
+    - apple/OpenMatesNotificationService/NotificationService.swift
+    - apple/project.yml
+    - backend/core/api/app/services/push_notification_service.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/push_worker_service.py
+    - backend/tests/test_push_notification_worker.py
+    - backend/tests/test_unified_notifications.py
+    - contracts/features/apple-notifications/contract.yml
+    - contracts/features/apple-notifications/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/audit_apple_release_preflight.py
+    - scripts/tests/test_workflow_guard_audits.py
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 1ac05fecb28132dd9ca9639df4e23f160d096929
+    short_sha: 1ac05fecb
+    authored_at: '2026-08-24T02:28:24+00:00'
+    subject: 'fix: mount media rollout config for code worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/docker-compose.yml
+    - scripts/audit_media_encryption_rollout.py
+    related_feature_ids: []
+  - sha: ea4f7e55d29493d6d71956ca87ee9fba4913f79b
+    short_sha: ea4f7e55d
+    authored_at: '2026-08-24T02:05:42+00:00'
+    subject: 'fix: add code run billing idempotency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_billing_attribution.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids:
+    - app:code
+  - sha: 212a6e68ccc6528e84ab1bd06ec4e39d9d6c4f03
+    short_sha: 212a6e68c
+    authored_at: '2026-08-24T01:03:22+00:00'
+    subject: 'feat: add code run artifact surfaces'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/tests/test_code_run_skill_execution.py
+    - backend/apps/code/app.yml
+    - backend/apps/code/skills/run_code_skill.py
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/routes/code_execution.py
+    - backend/shared/providers/e2b_code_runner.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_code_run_app_skill.py
+    - backend/tests/test_e2b_code_runner.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - contracts/features/app-skills/code-run/contract.yml
+    - contracts/features/app-skills/code-run/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/code-run-skill/spec.yml
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/codeRunInput.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/codeRunInput.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - frontend/packages/openmates-cli/tests/sdkGenerator.test.ts
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte
+    - frontend/packages/ui/src/i18n/sources/app_skills/code.yml
+    - frontend/packages/ui/src/services/__tests__/codeRunService.test.ts
+    - frontend/packages/ui/src/services/codeRunArtifacts.ts
+    - frontend/packages/ui/src/services/codeRunService.ts
+    - frontend/packages/ui/src/services/handlersCodeRunOutputs.ts
+    - frontend/packages/ui/src/services/sendersCodeRunOutputs.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_sdk.py
+    - packages/openmates-python/tests/test_sdk_generator.py
+    - scripts/audit_sdk_cli_parity.py
+    - scripts/generate_sdk_app_skills.py
+    related_feature_ids:
+    - app:ai
+    - app:code
+    - embed:code:code
+    - embed:code:run
+    - skill:code:run
+  - sha: faa7b490270369cfe8b4506b416aebc8fcba1430
+    short_sha: faa7b4902
+    authored_at: '2026-08-24T00:34:03+00:00'
+    subject: 'test: align notification stack contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    related_feature_ids: []
+  - sha: a43a67f22d75c54a87ed93256e3d18d5a037aaa2
+    short_sha: a43a67f22
+    authored_at: '2026-08-24T00:23:06+00:00'
+    subject: 'chore: update default og image'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/static/images/og-image.jpg
+    related_feature_ids: []
+  - sha: 59f9fae71aeac2ae06a504150f3aad3ff3e370b4
+    short_sha: 59f9fae71
+    authored_at: '2026-08-24T00:10:53+00:00'
+    subject: 'fix: make newest notification actionable'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/notification-stack.spec.ts
+    - frontend/packages/ui/src/components/NotificationStack.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: 'OpenMates development focused on two primary tracks: achieving feature parity for unreleased Apple platforms
+    and expanding the capabilities of the code execution engine. Significant work was completed on end-to-end proof recording
+    for iOS and macOS, while the web and CLI interfaces received updates for artifact rendering and messaging stability.'
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: Extensive progress was made on Apple platform parity, including E2E proof recording, secure credential relaying,
+      push notification initialization, and numerous fixes for authentication and synchronization states.
+    evidence:
+      commits:
+      - f2743c1ab
+      - db338886f
+      - bbf46076a
+      - 9c5d553bd
+      - 2a291c600
+      - 12c1a934d
+      - '572468170'
+      - e50020620
+      - d8bb4eb82
+      - f2437fa66
+      - c8bec0e41
+      - 81d411c4b
+      - c26cccb3c
+      - 3bea4a49f
+      - bdab22d15
+      - a3515d91d
+      - 4e9cd6a7e
+      - 96a9a821c
+      - 671bfeba6
+      - 14a213208
+    release_status: dev_only
+  - text: The code execution engine was expanded with new artifact surfaces for displaying results, support for inline code
+      execution by assistants, and improved billing idempotency.
+    evidence:
+      commits:
+      - 212a6e68c
+      - 12cd02357
+      - ea4f7e55d
+      - a7d09f8ea
+    release_status: dev_only
+  - text: Web UI and messaging improvements included stabilizing the notification stack, preserving composer text during file
+      attachments, and ensuring correct document positioning for file embeds.
+    evidence:
+      commits:
+      - 59f9fae71
+      - bf96a0d95
+      - 1976f567e
+      - b5697a859
+      - 81879ceb0
+    release_status: dev_only
+  internal_progress:
+  - text: Daily test suite reliability was improved with new recovery webhooks and explicit termination markers, alongside
+      pinning the remote Apple Xcode toolchain.
+    evidence:
+      commits:
+      - b0daef15d
+      - '123933715'
+      - cf90cdb66
+      - 89c8bc129
+      - 37ac33ae2
+    release_status: dev_only
+  - text: Development environment updates included optimizing OpenCode hooks to avoid event loop blocking and updating default
+      social media preview images.
+    evidence:
+      commits:
+      - 45ab38b3c
+      - 1ac05fecb
+      - a43a67f22
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Code Run Artifact Surfaces and AI Skill Improvements
+      evidence:
+        commits:
+        - 212a6e68c
+        - 12cd02357
+        - ea4f7e55d
+      reason: Feature is currently dev_only and not yet available in the main production environment.
+    - text: Apple Platform Parity and E2E Proof Recording
+      evidence:
+        commits:
+        - f2743c1ab
+        - bbf46076a
+        - 9c5d553bd
+      reason: Apple platform support (iOS/macOS) is currently a disabled feature.
+    rationale: No items met the criteria for public communication as all updates are currently in development or target platforms
+      that are not yet enabled for the general user base.
+  social_video_recommendations:
+  - idea: Demonstrating the new Code Run artifact surfaces showing live AI-generated code results.
+    priority: Medium
+    reason: Provides a concrete visual story of how the assistant interacts with and displays code execution results.
+    evidence:
+      commits:
+      - 212a6e68c
+  quality_notes:
+  - High volume of bug fixes (39) primarily targeting the stabilization of unreleased Apple client features.
+  - Focus on billing idempotency and credit handling for AI-driven code execution.
+  validation_warnings: []

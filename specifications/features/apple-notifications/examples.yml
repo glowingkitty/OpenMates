@@ -1,0 +1,52 @@
+schema_version: 1
+specification: feature.apple-notifications@1
+
+registration_lifecycle:
+  - id: acknowledged-sandbox-registration
+    given: {device_id: apple-device-1, environment: sandbox, permission_state: granted, server_ack_received: true}
+    expect: {registration_active: true, client_reports_registered: true}
+  - id: token-rotation-supersedes-old-token
+    given: {device_id: apple-device-1, environment: sandbox, old_token: token-old, new_token: token-new, server_ack_received: true}
+    expect: {active_tokens_for_device_environment: [token-new], old_token_usable: false}
+  - id: logout-revokes-device-registration
+    given: {device_id: apple-device-1, action: logout, registration_active: true}
+    expect: {registration_active: false, later_delivery_attempted: false}
+  - id: terminal-provider-rejection-is-visible
+    given: {device_id: apple-device-1, provider_result: bad_device_token}
+    expect: {registration_active: false, delivery_state: failed, fabricated_success: false}
+
+payload_privacy:
+  - id: generic-fallback-excludes-private-content
+    given: {chat_title: Private medical plan, message_preview: Private response, encrypted_preview: null}
+    expect: {alert_contains_chat_title: false, alert_contains_message_preview: false, generic_localized_text: true}
+  - id: encrypted-preview-decrypts-only-on-device
+    given: {encrypted_preview: device-ciphertext, service_extension_key_available: true}
+    expect: {server_plaintext_preview: false, device_preview_visible: true}
+  - id: invalid-preview-falls-back-safely
+    given: {encrypted_preview: invalid-ciphertext, service_extension_key_available: true}
+    expect: {device_preview_visible: false, generic_localized_text: true, private_content_leaked: false}
+
+action_routing:
+  - id: terminated-app-tap-hydrates-target-chat
+    given: {launch_state: terminated, notification_id: notif-apple-1, target_chat_id: chat-1, authorized: true}
+    action: open
+    expect: {selected_chat_id: chat-1, normal_sync_hydration_used: true, ciphertext_visible: false}
+  - id: inline-reply-is-exactly-once
+    given: {launch_state: background, notification_id: notif-apple-2, target_chat_id: chat-2, authorized: true}
+    action: {type: reply, message_id: message-reply-1, retries: 2}
+    expect: {durable_encrypted_user_messages: 1, stable_message_id: message-reply-1}
+  - id: visible-chat-suppresses-duplicate-presentation
+    given: {launch_state: foreground, target_chat_id: chat-3, visible_chat_id: chat-3}
+    expect: {system_and_in_app_duplicates: 0, logical_notifications_presented: 1}
+  - id: opening-chat-clears-only-target-unread
+    given: {target_chat_id: chat-4, unread_by_chat: {chat-4: 2, chat-5: 3}, app_badge: 5}
+    action: open
+    expect: {unread_by_chat: {chat-4: 0, chat-5: 3}, app_badge: 3}
+
+delivery_idempotency:
+  - id: duplicate-provider-task-one-success
+    given: {notification_id: notif-apple-5, worker_executions: 2, provider_acceptances: 1}
+    expect: {logical_notifications: 1, successful_deliveries: 1}
+  - id: repeated-reply-action-one-message
+    given: {notification_id: notif-apple-6, reply_message_id: message-reply-2, action_deliveries: 2}
+    expect: {durable_encrypted_user_messages: 1, stable_message_id: message-reply-2}

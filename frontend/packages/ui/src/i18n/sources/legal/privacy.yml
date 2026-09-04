@@ -7858,6 +7858,54 @@ providers.web_and_search.geoapify.description:
   es: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
   ar: Geoapify is used by the Maps search skill to enrich Google Places results with OpenStreetMap-backed amenity details such as air conditioning, internet access, wheelchair access, toilets, outdoor seating, diet, and payment hints when available. Geoapify receives only the place query or matching data needed for enrichment, such as approximate coordinates, category/filter parameters, and Geoapify place IDs, without OpenMates user identifiers.
   verified_by_human: []
+providers.web_and_search.wikimedia.heading:
+  context: Heading for Wikimedia provider entry
+  en: Wikimedia Foundation (Wikipedia)
+  de: Wikimedia Foundation (Wikipedia)
+  zh: 维基媒体基金会（维基百科）
+  es: Fundación Wikimedia (Wikipedia)
+  fr: Fondation Wikimedia (Wikipédia)
+  pt: Fundação Wikimedia (Wikipédia)
+  ru: Фонд Викимедиа (Википедия)
+  ja: ウィキメディア財団（Wikipedia）
+  ko: 위키미디어 재단(Wikipedia)
+  it: Wikimedia Foundation (Wikipedia)
+  tr: Wikimedia Vakfı (Wikipedia)
+  vi: Wikimedia Foundation (Wikipedia)
+  id: Wikimedia Foundation (Wikipedia)
+  pl: Fundacja Wikimedia (Wikipedia)
+  nl: Wikimedia Foundation (Wikipedia)
+  ar: مؤسسة ويكيميديا (ويكيبيديا)
+  hi: विकिमीडिया फ़ाउंडेशन (Wikipedia)
+  th: มูลนิธิวิกิมีเดีย (Wikipedia)
+  cs: Nadace Wikimedia (Wikipedia)
+  sv: Wikimedia Foundation (Wikipedia)
+  he: קרן ויקימדיה (ויקיפדיה)
+  verified_by_human: []
+providers.web_and_search.wikimedia.description:
+  context: Wikimedia description
+  en: Wikimedia is contacted only after you explicitly activate Wiki search. It receives the article query and language, and later the canonical title selected for summary retrieval. Requests are sent by the OpenMates server without your OpenMates user identifier, chat ID, or client IP address.
+  de: Wikimedia wird nur kontaktiert, nachdem du die Wiki-Suche ausdrücklich aktiviert hast. Übermittelt werden die Artikelsuche und Sprache sowie später der für die Zusammenfassung ausgewählte kanonische Titel. Anfragen werden vom OpenMates-Server ohne deine OpenMates-Benutzerkennung, Chat-ID oder Client-IP-Adresse gesendet.
+  zh: 只有在你明确启用 Wiki 搜索后，OpenMates 才会联系维基媒体。维基媒体会收到文章查询和语言，随后还会收到为获取摘要而选择的规范标题。请求由 OpenMates 服务器发送，不包含你的 OpenMates 用户标识符、聊天 ID 或客户端 IP 地址。
+  es: Wikimedia solo se contacta después de que actives explícitamente la búsqueda Wiki. Recibe la consulta del artículo y el idioma y, después, el título canónico elegido para obtener el resumen. El servidor de OpenMates envía las solicitudes sin tu identificador de usuario, ID de chat ni dirección IP del cliente.
+  fr: Wikimedia n'est contacté qu'après l'activation explicite de la recherche Wiki. Il reçoit la requête d'article et la langue, puis le titre canonique choisi pour récupérer le résumé. Les requêtes sont envoyées par le serveur OpenMates sans identifiant utilisateur, identifiant de chat ni adresse IP client.
+  pt: A Wikimedia só é contatada depois que você ativa explicitamente a pesquisa Wiki. Ela recebe a consulta do artigo e o idioma e, depois, o título canônico escolhido para obter o resumo. As solicitações são enviadas pelo servidor OpenMates sem identificador de usuário, ID de chat ou endereço IP do cliente.
+  ru: Wikimedia вызывается только после явного включения поиска Wiki. Она получает запрос статьи и язык, а затем канонический заголовок, выбранный для получения краткого содержания. Сервер OpenMates отправляет запросы без идентификатора пользователя, ID чата и IP-адреса клиента.
+  ja: Wikimediaへの接続は、Wiki検索を明示的に有効にした後に限られます。記事の検索語と言語、その後に要約取得用として選択した正規タイトルが送信されます。OpenMatesサーバーから送信され、ユーザーID、チャットID、クライアントIPアドレスは含まれません。
+  ko: Wikimedia는 Wiki 검색을 명시적으로 활성화한 후에만 호출됩니다. 문서 검색어와 언어, 이후 요약을 가져오기 위해 선택한 정식 제목을 받습니다. 요청은 OpenMates 서버에서 전송되며 사용자 ID, 채팅 ID 또는 클라이언트 IP 주소를 포함하지 않습니다.
+  it: Wikimedia viene contattata solo dopo l'attivazione esplicita della ricerca Wiki. Riceve la query dell'articolo e la lingua e, in seguito, il titolo canonico scelto per recuperare il riepilogo. Le richieste sono inviate dal server OpenMates senza identificativo utente, ID chat o indirizzo IP client.
+  tr: Wikimedia ile yalnızca Wiki aramasını açıkça etkinleştirdikten sonra iletişim kurulur. Makale sorgusunu ve dili, ardından özet için seçilen standart başlığı alır. İstekler OpenMates sunucusundan kullanıcı kimliği, sohbet kimliği veya istemci IP adresi olmadan gönderilir.
+  vi: Wikimedia chỉ được liên hệ sau khi bạn chủ động bật tìm kiếm Wiki. Dịch vụ nhận truy vấn bài viết và ngôn ngữ, sau đó nhận tiêu đề chuẩn đã chọn để lấy phần tóm tắt. Yêu cầu được máy chủ OpenMates gửi mà không có mã người dùng, mã cuộc trò chuyện hoặc địa chỉ IP máy khách.
+  id: Wikimedia hanya dihubungi setelah Anda secara eksplisit mengaktifkan pencarian Wiki. Layanan menerima kueri artikel dan bahasa, lalu judul kanonis yang dipilih untuk mengambil ringkasan. Permintaan dikirim oleh server OpenMates tanpa ID pengguna, ID obrolan, atau alamat IP klien.
+  pl: Wikimedia jest wywoływana dopiero po wyraźnym włączeniu wyszukiwania Wiki. Otrzymuje zapytanie i język, a następnie kanoniczny tytuł wybrany do pobrania podsumowania. Żądania wysyła serwer OpenMates bez identyfikatora użytkownika, ID czatu ani adresu IP klienta.
+  nl: Wikimedia wordt alleen benaderd nadat je Wiki-zoeken uitdrukkelijk activeert. Het ontvangt de artikelzoekopdracht en taal en later de gekozen canonieke titel voor het ophalen van de samenvatting. Verzoeken worden door de OpenMates-server verzonden zonder gebruikers-ID, chat-ID of client-IP-adres.
+  ar: لا يتم الاتصال بويكيميديا إلا بعد تفعيل بحث Wiki صراحةً. تتلقى استعلام المقالة واللغة، ثم العنوان القياسي المحدد لجلب الملخص. يرسل خادم OpenMates الطلبات دون معرف مستخدم أو معرف دردشة أو عنوان IP للعميل.
+  hi: Wikimedia से केवल तब संपर्क किया जाता है जब आप Wiki खोज को स्पष्ट रूप से सक्रिय करते हैं। इसे लेख क्वेरी और भाषा, और बाद में सारांश के लिए चुना गया मानक शीर्षक मिलता है। अनुरोध OpenMates सर्वर से उपयोगकर्ता ID, चैट ID या क्लाइंट IP पते के बिना भेजे जाते हैं।
+  th: Wikimedia จะถูกเรียกใช้หลังจากคุณเปิดการค้นหา Wiki อย่างชัดเจนเท่านั้น โดยจะได้รับคำค้นบทความและภาษา จากนั้นจึงได้รับชื่อมาตรฐานที่เลือกเพื่อดึงสรุป คำขอส่งจากเซิร์ฟเวอร์ OpenMates โดยไม่มีรหัสผู้ใช้ รหัสแชต หรือที่อยู่ IP ของไคลเอนต์
+  cs: Wikimedia je kontaktována až po výslovné aktivaci vyhledávání Wiki. Obdrží dotaz a jazyk a následně kanonický název vybraný pro načtení shrnutí. Požadavky odesílá server OpenMates bez ID uživatele, ID chatu nebo IP adresy klienta.
+  sv: Wikimedia kontaktas först när du uttryckligen aktiverar Wiki-sökning. Tjänsten får artikelfrågan och språket och senare den valda kanoniska titeln för hämtning av sammanfattningen. OpenMates-servern skickar begäran utan användar-ID, chatt-ID eller klientens IP-adress.
+  he: הפנייה ל-Wikimedia מתבצעת רק לאחר הפעלה מפורשת של חיפוש Wiki. השירות מקבל את שאילתת הערך והשפה, ולאחר מכן את הכותרת הקנונית שנבחרה לצורך אחזור התקציר. הבקשות נשלחות משרת OpenMates ללא מזהה משתמש, מזהה צ'אט או כתובת IP של הלקוח.
+  verified_by_human: []
 providers.web_and_search.youtube.heading:
   context: Heading for YouTube provider entry
   en: YouTube (video transcripts)

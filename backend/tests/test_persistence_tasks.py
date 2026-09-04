@@ -26,6 +26,79 @@ def make_client_ciphertext() -> str:
     return base64.b64encode(raw).decode("ascii")
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
+def test_embed_fallback_requires_persisting_a_newer_cached_version() -> None:
+    assert persistence_tasks._persisted_embed_snapshot_is_current(
+        {"version_number": 1},
+        {"version_number": 2},
+    ) is False
+    assert persistence_tasks._persisted_embed_snapshot_is_current(
+        {"version_number": 2},
+        {"version_number": 2},
+    ) is True
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_embed_fallback_resends_newer_cached_version(monkeypatch) -> None:
+    published: list[tuple[str, dict]] = []
+    cached_embed = {
+        "embed_id": "embed-1",
+        "type": "application",
+        "status": "finished",
+        "chat_id": "chat-1",
+        "message_id": "message-1",
+        "user_id": "user-1",
+        "hashed_user_id": "user-hash",
+        "vault_key_id": "vault-1",
+        "encrypted_content": "vault-ciphertext",
+        "version_number": 2,
+    }
+
+    class FakeRedis:
+        async def get(self, key: str):
+            assert key == "embed:embed-1"
+            return json.dumps(cached_embed)
+
+        async def publish(self, channel: str, message: str):
+            published.append((channel, json.loads(message)))
+            return 1
+
+    class FakeCacheService:
+        @property
+        def client(self):
+            async def get_client():
+                return FakeRedis()
+
+            return get_client()
+
+        async def close(self) -> None:
+            return None
+
+    class FakeDirectusService:
+        def __init__(self):
+            self.embed = SimpleNamespace(get_embed_by_id=AsyncMock(return_value={"version_number": 1}))
+
+        async def ensure_auth_token(self):
+            return True
+
+    class FakeEncryptionService:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def decrypt_with_user_key(self, _ciphertext: str, _vault_key_id: str):
+            return "type: application"
+
+    monkeypatch.setattr(persistence_tasks, "CacheService", FakeCacheService)
+    monkeypatch.setattr(persistence_tasks, "DirectusService", FakeDirectusService)
+    monkeypatch.setattr(persistence_tasks, "EncryptionService", FakeEncryptionService)
+
+    await persistence_tasks._async_persist_embed_fallback("embed-1", "task-1")
+
+    assert published[0][0] == "websocket:user:user-hash"
+    assert published[0][1]["payload"]["version_number"] == 2
+
+
 # contract-test: infrastructure
 def test_pending_embed_safety_net_is_time_bounded_and_messages_expire() -> None:
     task = persistence_tasks.process_pending_embeds_task

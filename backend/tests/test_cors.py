@@ -42,7 +42,9 @@ def load_cors_module():
         exceptions_module = types.ModuleType("botocore.exceptions")
 
         class ClientError(Exception):
-            pass
+            def __init__(self, response, operation_name) -> None:
+                super().__init__(operation_name)
+                self.response = response
 
         exceptions_module.ClientError = ClientError
         botocore_module.exceptions = exceptions_module
@@ -66,7 +68,8 @@ def load_cors_module():
             sys.modules.pop("botocore.exceptions", None)
 
 
-apply_cors_settings = load_cors_module().apply_cors_settings
+cors_module = load_cors_module()
+apply_cors_settings = cors_module.apply_cors_settings
 
 
 class FakeS3Client:
@@ -75,6 +78,21 @@ class FakeS3Client:
 
     def put_bucket_cors(self, **kwargs) -> None:
         self.cors_calls.append(kwargs)
+
+
+class FailingS3Client(FakeS3Client):
+    def __init__(self, error_code: str, failures: int) -> None:
+        super().__init__()
+        self.error_code = error_code
+        self.failures = failures
+
+    def put_bucket_cors(self, **kwargs) -> None:
+        super().put_bucket_cors(**kwargs)
+        if len(self.cors_calls) <= self.failures:
+            raise cors_module.ClientError(
+                {"Error": {"Code": self.error_code, "Message": "provider unavailable"}},
+                "PutBucketCors",
+            )
 
 
 def test_apply_cors_settings_exposes_media_range_headers(monkeypatch) -> None:
@@ -104,3 +122,28 @@ def test_apply_cors_settings_exposes_media_range_headers(monkeypatch) -> None:
         "Content-Type",
         "ETag",
     } <= exposed_headers
+
+
+def test_apply_cors_settings_retries_transient_provider_errors(monkeypatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setattr(cors_module.time, "sleep", lambda _seconds: None)
+    s3_client = FailingS3Client("ServiceUnavailable", failures=2)
+
+    apply_cors_settings(s3_client, bucket_names=["dev-openmates-chatfiles"])
+
+    assert len(s3_client.cors_calls) == 3
+
+
+def test_apply_cors_settings_does_not_retry_permission_errors(monkeypatch) -> None:
+    monkeypatch.setenv("SERVER_ENVIRONMENT", "development")
+    monkeypatch.setattr(cors_module.time, "sleep", lambda _seconds: None)
+    s3_client = FailingS3Client("AccessDenied", failures=3)
+
+    try:
+        apply_cors_settings(s3_client, bucket_names=["dev-openmates-chatfiles"])
+    except RuntimeError as exc:
+        assert "1 bucket(s)" in str(exc)
+    else:
+        raise AssertionError("Expected CORS reconciliation to fail")
+
+    assert len(s3_client.cors_calls) == 1

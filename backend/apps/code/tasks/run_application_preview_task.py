@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import asyncio
-import base64
 import json
 import logging
 import math
@@ -18,7 +17,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import httpx
 
 from backend.core.api.app.routes.application_preview import (
@@ -39,11 +37,15 @@ from backend.shared.providers.e2b_application_preview import (
 
 logger = logging.getLogger(__name__)
 APPLICATION_PREVIEW_SCREENSHOT_VARIANT = "preview"
+APPLICATION_PREVIEW_THUMBNAIL_LOCK_SECONDS = 300
+APPLICATION_PREVIEW_THUMBNAIL_LOCK_RETRIES = 50
+APPLICATION_PREVIEW_THUMBNAIL_LOCK_RETRY_SECONDS = 0.1
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN", "")
 
 try:  # pragma: no cover - local unit tests do not install Celery.
     from backend.core.api.app.tasks.celery_config import app, get_worker_cache_service
+    from backend.core.api.app.services.embed_service import EmbedService
     from backend.core.api.app.services.directus import DirectusService
     from backend.core.api.app.services.s3.config import get_bucket_name
     from backend.core.api.app.services.s3.service import S3UploadService
@@ -51,10 +53,15 @@ try:  # pragma: no cover - local unit tests do not install Celery.
     from backend.core.api.app.utils.secrets_manager import SecretsManager
     from backend.shared.providers.e2b_code_runner import get_e2b_api_key_async, redact_execution_output
     from backend.shared.python_utils.generated_assets import build_download_url, create_download_token
-    from backend.shared.python_utils.generated_assets.service import cache_s3_file_keys, index_generated_asset
+    from backend.shared.python_utils.generated_assets.service import (
+        cache_s3_file_keys,
+        index_generated_asset,
+    )
+    from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - exercised by lightweight unit imports.
     app = None
     get_worker_cache_service = None
+    EmbedService = None
     DirectusService = None
     get_bucket_name = None
     S3UploadService = None
@@ -65,6 +72,8 @@ except (ImportError, ModuleNotFoundError):  # pragma: no cover - exercised by li
     create_download_token = None
     cache_s3_file_keys = None
     index_generated_asset = None
+    encrypt_media_variants = None
+    load_media_write_version = None
 
     def redact_execution_output(value: str) -> str:
         return value
@@ -414,6 +423,7 @@ async def store_application_preview_thumbnail(
         dependency is None
         for dependency in (
             DirectusService,
+            EmbedService,
             EncryptionService,
             S3UploadService,
             get_bucket_name,
@@ -421,10 +431,15 @@ async def store_application_preview_thumbnail(
             create_download_token,
             cache_s3_file_keys,
             index_generated_asset,
+            encrypt_media_variants,
+            load_media_write_version,
         )
     ):
         return None
 
+    lock_client = None
+    lock_key = ""
+    lock_token = ""
     try:
         client = await cache_service.client
         raw = await client.get(application_preview_session_key(session_id))
@@ -439,13 +454,31 @@ async def store_application_preview_thumbnail(
         if not screenshot_bytes:
             logger.info("Application preview screenshot skipped for %s: provider did not return screenshot bytes", session_id)
             return None
+        lock_client = client
+        lock_key = f"lock:application-thumbnail-store:{application_embed_id}"
+        lock_token = uuid.uuid4().hex
+        for _ in range(APPLICATION_PREVIEW_THUMBNAIL_LOCK_RETRIES):
+            if await lock_client.set(
+                lock_key,
+                lock_token,
+                nx=True,
+                ex=APPLICATION_PREVIEW_THUMBNAIL_LOCK_SECONDS,
+            ):
+                break
+            await asyncio.sleep(APPLICATION_PREVIEW_THUMBNAIL_LOCK_RETRY_SECONDS)
+        else:
+            logger.warning("Timed out waiting to store application preview thumbnail for %s", application_embed_id)
+            return None
         content_type = _application_preview_screenshot_content_type(runtime.latest_screenshot_mime_type)
         file_extension = _application_preview_screenshot_extension(content_type)
 
         encryption_service = EncryptionService(cache_service=cache_service)
         await encryption_service.initialize()
         directus_service = DirectusService(cache_service=cache_service, encryption_service=encryption_service)
-        s3_service = S3UploadService(secrets_manager=secrets_manager)
+        s3_service = S3UploadService(
+            secrets_manager=secrets_manager,
+            directus_service=directus_service,
+        )
         await s3_service.initialize()
 
         user_profile = await directus_service.get_user_fields_direct(viewer_user_id, ["vault_key_id", "storage_used_bytes"])
@@ -453,11 +486,13 @@ async def store_application_preview_thumbnail(
         if not vault_key_id:
             return None
 
-        aes_key = os.urandom(32)
-        nonce = os.urandom(12)
-        encrypted_payload = AESGCM(aes_key).encrypt(nonce, screenshot_bytes, None)
-        aes_key_b64 = base64.b64encode(aes_key).decode("utf-8")
-        nonce_b64 = base64.b64encode(nonce).decode("utf-8")
+        encrypted = encrypt_media_variants(
+            {APPLICATION_PREVIEW_SCREENSHOT_VARIANT: screenshot_bytes},
+            write_version=load_media_write_version(),
+        )
+        encrypted_payload = encrypted.payloads[APPLICATION_PREVIEW_SCREENSHOT_VARIANT]
+        aes_key_b64 = encrypted.aes_key_b64
+        nonce_b64 = encrypted.legacy_nonce_b64 or ""
         vault_wrapped_aes_key, _ = await encryption_service.encrypt_with_user_key(aes_key_b64, vault_key_id)
         if not vault_wrapped_aes_key:
             return None
@@ -482,6 +517,7 @@ async def store_application_preview_thumbnail(
                 "size_bytes": len(screenshot_bytes),
                 "format": file_extension,
                 "mime_type": content_type,
+                **encrypted.metadata[APPLICATION_PREVIEW_SCREENSHOT_VARIANT],
             }
         }
         width, height = _png_dimensions(screenshot_bytes)
@@ -530,6 +566,25 @@ async def store_application_preview_thumbnail(
             "vault_wrapped_aes_key": vault_wrapped_aes_key,
             "captured_at": datetime.fromtimestamp(now, tz=timezone.utc).isoformat(),
         }
+        usage_context = session.get("usage_context") if isinstance(session.get("usage_context"), dict) else {}
+        chat_id = str(usage_context.get("chat_id") or "")
+        viewer_user_id_hash = str(session.get("viewer_user_id_hash") or "")
+        if chat_id and viewer_user_id_hash:
+            embed_service = EmbedService(cache_service, directus_service, encryption_service)
+            published = await embed_service.update_application_embed_thumbnail(
+                embed_id=application_embed_id,
+                screenshot_metadata=metadata,
+                chat_id=chat_id,
+                user_id=viewer_user_id,
+                user_id_hash=viewer_user_id_hash,
+                user_vault_key_id=str(vault_key_id),
+                log_prefix=f"[ApplicationPreviewScreenshot] [session:{session_id[:8]}]",
+            )
+            if not published:
+                logger.warning(
+                    "Application preview screenshot stored but parent embed refresh was not published for %s",
+                    application_embed_id,
+                )
         token = create_download_token(
             asset_id=application_embed_id,
             user_id=viewer_user_id,
@@ -547,6 +602,17 @@ async def store_application_preview_thumbnail(
     except Exception as exc:
         logger.warning("Application preview thumbnail storage failed for %s: %s", session_id, exc, exc_info=True)
         return None
+    finally:
+        if lock_client and lock_key and lock_token:
+            try:
+                await lock_client.eval(
+                    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
+                    1,
+                    lock_key,
+                    lock_token,
+                )
+            except Exception as exc:
+                logger.warning("Failed to release application preview thumbnail lock for %s: %s", application_embed_id, exc)
 
 
 def _application_preview_screenshot_content_type(value: str | None) -> str:

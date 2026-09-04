@@ -18,7 +18,10 @@ RUN mkdir -p /directus/extensions/chat-recovery-transaction/dist \
         /directus/extensions/workflow-runtime-transaction/dist/ \
     && mkdir -p /directus/extensions/sub-chat-orchestration-transaction/dist \
     && cp /directus/extensions/sub-chat-orchestration-transaction/src/*.js \
-        /directus/extensions/sub-chat-orchestration-transaction/dist/
+        /directus/extensions/sub-chat-orchestration-transaction/dist/ \
+    && mkdir -p /directus/extensions/anonymous-usage-transaction/dist \
+    && cp /directus/extensions/anonymous-usage-transaction/src/*.js \
+        /directus/extensions/anonymous-usage-transaction/dist/
 
 COPY --chmod=755 <<'START_SCRIPT' /usr/local/bin/openmates-directus-start
 #!/bin/sh
@@ -31,6 +34,8 @@ test -r /directus/extensions/workflow-runtime-transaction/package.json
 test -r /directus/extensions/workflow-runtime-transaction/dist/index.js
 test -r /directus/extensions/sub-chat-orchestration-transaction/package.json
 test -r /directus/extensions/sub-chat-orchestration-transaction/dist/index.js
+test -r /directus/extensions/anonymous-usage-transaction/package.json
+test -r /directus/extensions/anonymous-usage-transaction/dist/index.js
 
 node cli.js bootstrap
 pm2-runtime start ecosystem.config.cjs &
@@ -59,6 +64,27 @@ done
 
 if [ "$endpoint_status" != "401" ]; then
   echo "FATAL: chat-recovery-transaction endpoint failed startup verification (HTTP ${endpoint_status:-none})" >&2
+  kill -TERM "$directus_pid" 2>/dev/null || true
+  wait "$directus_pid" || true
+  exit 1
+fi
+
+endpoint_status=""
+attempt=0
+while [ "$attempt" -lt 30 ]; do
+  endpoint_status="$(curl --silent --show-error --output /tmp/anonymous-usage-startup.json \
+    --write-out '%{http_code}' --request POST \
+    --header 'Content-Type: application/json' \
+    --data '{"operation":"health_check","data":{"protocol_version":1}}' \
+    http://127.0.0.1:8055/anonymous-usage-transaction/ || true)"
+  if [ "$endpoint_status" = "401" ]; then
+    break
+  fi
+  attempt=$((attempt + 1))
+  sleep 2
+done
+if [ "$endpoint_status" != "401" ]; then
+  echo "FATAL: anonymous-usage-transaction endpoint failed startup verification (HTTP ${endpoint_status:-none})" >&2
   kill -TERM "$directus_pid" 2>/dev/null || true
   wait "$directus_pid" || true
   exit 1
@@ -150,6 +176,13 @@ curl --fail --silent --show-error --output /tmp/sub-chat-orchestration-health.js
   --data '{"operation":"health_check","data":{"protocol_version":1}}' \
   http://127.0.0.1:8055/sub-chat-orchestration-transaction/
 
+curl --fail --silent --show-error --output /tmp/anonymous-usage-health.json \
+  --request POST \
+  --header 'Content-Type: application/json' \
+  --header "X-Internal-Service-Token: ${INTERNAL_API_SHARED_TOKEN}" \
+  --data '{"operation":"health_check","data":{"protocol_version":1}}' \
+  http://127.0.0.1:8055/anonymous-usage-transaction/
+
 index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \
   --tuples-only --no-align --command "
@@ -209,10 +242,12 @@ sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'usage_orchestration_created_idx',
         'billing_charge_identities_charge_uq',
         'billing_charge_identities_user_created_idx',
+        'billing_refund_identities_refund_uq',
+        'billing_settlement_outbox_due_idx',
         'team_credit_events_event_uq',
         'team_usage_events_event_uq'
       );")"
-test "$sub_chat_index_count" = "18"
+test "$sub_chat_index_count" = "20"
 HEALTH_SCRIPT
 
 USER root

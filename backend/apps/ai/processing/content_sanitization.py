@@ -441,6 +441,7 @@ async def _sanitize_text_chunk(
             tool_definition=tool_definition,
             secrets_manager=secrets_manager,
             fallback_models=sanitization_fallbacks,
+            observability_purpose="safety",
         )
         
         # Log sanitization response
@@ -841,6 +842,7 @@ async def sanitize_message_for_import(
                 tool_definition=tool_definition,
                 secrets_manager=secrets_manager,
                 fallback_models=import_fallbacks,
+                observability_purpose="safety",
             )
 
             if result.error_message or not result.arguments:

@@ -46,6 +46,29 @@ async function withServer(
 }
 
 describe("OpenMates SDK", () => {
+  // contract-test: direct surface=sdks.npm assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
+  it("preserves Wikipedia query, language, and title metadata", async () => {
+    const requests: string[] = [];
+    await withServer((request, response) => {
+      requests.push(String(request.url));
+      assert.equal(request.headers.authorization, "Bearer sk-api-test");
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ language: "de", title: "Albert Einstein" }));
+    }, async (apiUrl) => {
+      const wikipedia = new OpenMates({ apiKey: "sk-api-test", apiUrl }).wikipedia;
+      assert.deepEqual(await wikipedia.search("AlbertEin", { language: "de", limit: 3 }), {
+        language: "de",
+        title: "Albert Einstein",
+      });
+      await wikipedia.summary("Albert_Einstein", { language: "de" });
+    });
+
+    assert.deepEqual(requests, [
+      "/v1/wikipedia/search?query=AlbertEin&language=de&limit=3",
+      "/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+    ]);
+  });
+
   it("uses an injected opaque device id without deriving it from the platform", async () => {
     await withServer((request, response) => {
       assert.equal(request.headers["x-openmates-sdk"], "npm");
@@ -145,6 +168,71 @@ describe("OpenMates SDK", () => {
       assert.deepEqual(requests, [
         "POST /v1/apps/code/skills/image_to_html",
         "GET /v1/tasks/task-image-html",
+      ]);
+    });
+  });
+
+  // contract-test: direct surface=sdks.npm assertions=code-run.output.direct-transient,code-run.surface-parity
+  it("resolves Code Run status paths and returns final artifact metadata", async () => {
+    const requests: string[] = [];
+    await withServer((request, response) => {
+      requests.push(`${request.method} ${request.url}`);
+      response.writeHead(200, { "content-type": "application/json" });
+      if (request.url === "/v1/apps/code/skills/run") {
+        response.end(JSON.stringify({
+          success: true,
+          data: {
+            results: [{
+              execution_id: "exec-1",
+              status: "queued",
+              target_filename: "main.py",
+              files: ["main.py"],
+              persisted_output: false,
+              stream_path: "/v1/code/run/exec-1/stream",
+              status_path: "/v1/code/run/exec-1",
+            }],
+          },
+        }));
+        return;
+      }
+      if (request.url === "/v1/code/run/exec-1") {
+        response.end(JSON.stringify({
+          status: "finished",
+          exit_code: 0,
+          output: "ok\n",
+          artifacts: [{
+            normalized_path: "outputs/summary.csv",
+            mime_type: "text/csv",
+            size_bytes: 12,
+            download_url: "https://example.test/download/summary.csv",
+          }],
+        }));
+        return;
+      }
+      response.statusCode = 404;
+      response.end(JSON.stringify({ detail: "not found" }));
+    }, async (apiUrl) => {
+      const client = new OpenMates({ apiKey: "sk-api-test", apiUrl });
+      const result = await client.apps.code.run({
+        requests: [{ mode: "direct", entry_path: "main.py", files: [] }],
+      }) as Record<string, unknown>;
+
+      const data = result.data as { results: Array<Record<string, unknown>> };
+      assert.equal(data.results[0].persisted_output, false);
+      assert.deepEqual(data.results[0].final, {
+        status: "finished",
+        exit_code: 0,
+        output: "ok\n",
+        artifacts: [{
+          normalized_path: "outputs/summary.csv",
+          mime_type: "text/csv",
+          size_bytes: 12,
+          download_url: "https://example.test/download/summary.csv",
+        }],
+      });
+      assert.deepEqual(requests, [
+        "POST /v1/apps/code/skills/run",
+        "GET /v1/code/run/exec-1",
       ]);
     });
   });
@@ -1177,6 +1265,11 @@ describe("OpenMates SDK", () => {
       await client.chats.search("Madrid", { limit: 5 });
       await client.chats.load(CHAT_ID);
       await client.settings.setDarkMode(true);
+      await client.settings.setModelDefaults({
+        default_ai_model_simple: "google/gemini-3.5-flash-lite",
+        default_ai_model_complex: "google/gemini-3.7-flash",
+        default_ai_model_most_demanding: "google/gemini-3.7-flash-high",
+      });
       await client.billing.listInvoices();
       await client.docs.search("sdk");
       await client.embeds.versions("embed-1");
@@ -1195,6 +1288,7 @@ describe("OpenMates SDK", () => {
       { method: "GET", url: "/v1/sdk/chats?limit=0" },
       { method: "GET", url: `/v1/sdk/chats/${CHAT_ID}` },
       { method: "POST", url: "/v1/sdk/settings/dark-mode" },
+      { method: "POST", url: "/v1/sdk/settings/ai-model-defaults" },
       { method: "GET", url: "/v1/sdk/billing/invoices" },
       { method: "GET", url: "/v1/sdk/docs/search?q=sdk" },
       { method: "GET", url: "/v1/sdk/embeds/embed-1/versions" },

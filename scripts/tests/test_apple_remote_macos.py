@@ -6,6 +6,8 @@ they never connect to a Mac or execute Xcode. The assertions keep remote output
 behind apple_remote.py's redaction boundary and preserve the real test target.
 """
 
+# contract-test-file: infrastructure
+
 from __future__ import annotations
 
 import importlib.util
@@ -35,10 +37,13 @@ def test_macos_commands_use_the_shared_scheme_and_native_destination() -> None:
 
     for command in (build, test):
         assert "npm run build:translations" in command
+        assert "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer" in command
         assert "-scheme OpenMates_macOS" in command
         assert "-destination platform=macOS" in command
         assert "/Users/" not in command
     assert "-only-testing OpenMatesMacUITests/SettingsMacShellParityUITests" in test
+    assert "CODE_SIGNING_ALLOWED=NO" in build
+    assert "-allowProvisioningUpdates" not in build
     assert "-allowProvisioningUpdates" in test
 
 

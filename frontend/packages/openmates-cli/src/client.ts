@@ -83,7 +83,7 @@ import {
   toonEncodeContent,
 } from "./embedCreator.js";
 import { processFiles } from "./fileEmbed.js";
-import { transcribeUploadedAudio, uploadFile } from "./uploadService.js";
+import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile } from "./uploadService.js";
 import {
   generateChatShareBlob,
   generateEmbedShareBlob,
@@ -98,6 +98,12 @@ import {
   type ConnectedAccountCliTransferPayload,
   type EncryptedConnectedAccountImportRow,
 } from "./connectedAccountImport.js";
+import {
+  projectAssistantSpeech,
+  selectAssistantMessagesForSpeech,
+  summarizeAssistantSpeech,
+  type SpeechMessageResult,
+} from "./assistantSpeech.js";
 import { containsCredentialLikeField, type ProtonLocalConnectorRegistration } from "./protonBridgeConnector.js";
 import {
   buildCreateUserTaskInput,
@@ -633,7 +639,7 @@ export interface WorkflowEdge {
 
 export interface WorkflowGraph {
   version: number;
-  trigger_node_id: string;
+  trigger_node_id: string | null;
   nodes: WorkflowNode[];
   edges?: WorkflowEdge[];
   variables?: Record<string, unknown>;
@@ -652,6 +658,8 @@ export interface WorkflowSummary {
   slug_lookup_hash?: string | null;
   title: string;
   description?: string | null;
+  category?: string;
+  icon?: string;
   status: "draft" | "active" | "disabled" | "error" | "deleted";
   enabled: boolean;
   lifecycle?: WorkflowLifecycle;
@@ -836,10 +844,13 @@ export interface UserTaskRecord {
   assignee_type: UserTaskAssigneeType;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
+  external_chat_provider?: "opencode" | null;
+  external_chat_lookup_hash?: string | null;
+  encrypted_external_chat_id?: string | null;
+  encrypted_external_chat_title?: string | null;
   linked_project_ids?: string[] | null;
   parent_task_id?: string | null;
   plan_id?: string | null;
-  plan_step_id?: string | null;
   task_type?: "work" | "verification" | null;
   verification_id?: string | null;
   source_plan_id?: string | null;
@@ -854,8 +865,44 @@ export interface UserTaskRecord {
   started_at?: number | null;
   completed_at?: number | null;
   blocked_reason_code?: string | null;
+  encrypted_blocked_reason?: string | null;
   ai_execution_state?: string | null;
   history?: WorkspaceHistoryResult | null;
+}
+
+export interface UserTaskActivityRecord {
+  entry_id: string;
+  task_id: string;
+  kind: "comment" | "lifecycle_update" | "tombstone";
+  actor_type: string;
+  actor_hash: string;
+  actor_display_name?: string | null;
+  actor_profile_image_url?: string | null;
+  author_hash?: string | null;
+  event_type: string;
+  source_surface: string;
+  created_at: number;
+  deleted_at?: number | null;
+  deleted_by_hash?: string | null;
+  deleted_by_display_name?: string | null;
+  encrypted_entry_key: string | null;
+  encrypted_message: string | null;
+  encrypted_embed_key_material: string | null;
+  embed_refs: string[];
+}
+
+export interface UserTaskActivityCreateInput {
+  entry_id: string;
+  encrypted_entry_key: string;
+  encrypted_message: string;
+  encrypted_embed_key_material?: string | null;
+  embed_refs?: string[];
+  created_at: number;
+}
+
+export interface UserTaskActivityPage {
+  entries: UserTaskActivityRecord[];
+  next_cursor: string | null;
 }
 
 export interface WorkspaceHistoryResult {
@@ -891,7 +938,12 @@ export type UserTaskStartAIInput = UserTaskUpdateInput & {
   plaintext_chat_title?: string;
 };
 
-export type UserTaskActionInput = { version: number; blocked_reason_code?: string | null; team_id?: string | null };
+export type UserTaskActionInput = {
+  version: number;
+  blocked_reason_code?: string | null;
+  encrypted_blocked_reason?: string | null;
+  team_id?: string | null;
+};
 export type UserTaskReorderInput = {
   moves: Array<{
     task_id: string;
@@ -913,16 +965,13 @@ export type UserPlanLearningLevel = "low" | "medium" | "high";
 
 export interface UserPlanRecord {
   plan_id: string;
-  encrypted_plan_key?: string | null;
   encrypted_slug?: string | null;
   slug_lookup_hash?: string | null;
   encrypted_title: string;
-  encrypted_summary?: string | null;
-  encrypted_goal?: string | null;
+  encrypted_goal: string;
   encrypted_scope_in?: string | null;
   encrypted_scope_out?: string | null;
   encrypted_user_flows?: string | null;
-  encrypted_current_focus?: string | null;
   encrypted_assumptions?: string | null;
   encrypted_open_questions?: string | null;
   encrypted_constraints?: string | null;
@@ -935,9 +984,6 @@ export interface UserPlanRecord {
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   key_wrappers?: Array<Record<string, unknown>> | null;
-  current_phase_id?: string | null;
-  current_step_id?: string | null;
-  current_task_id?: string | null;
   planner_focus_id?: string | null;
   version?: number;
   created_at?: number;
@@ -955,7 +1001,6 @@ export interface UserPlanCriterionRecord {
   type?: string;
   status?: UserPlanCriterionStatus;
   required?: boolean;
-  linked_step_ids?: string[];
   linked_task_ids?: string[];
   verification_ids?: string[];
   created_at?: number;
@@ -970,7 +1015,6 @@ export interface UserPlanAssumptionRecord {
   required_before?: string;
   linked_sub_chat_id?: string | null;
   linked_task_id?: string | null;
-  linked_step_ids?: string[];
   linked_criterion_ids?: string[];
   source_count?: number;
   encrypted_corrected_text?: string | null;
@@ -980,6 +1024,20 @@ export interface UserPlanAssumptionRecord {
   encrypted_sources?: string | null;
   created_at?: number;
   updated_at?: number;
+}
+
+export interface WorkDependencyRecord {
+  source_ref: string;
+  target_ref: string;
+  [key: string]: unknown;
+}
+
+export interface UserPlanRevisionRecord {
+  revision_id: string;
+  fingerprint: string;
+  encrypted_snapshot: string;
+  created_at: number;
+  [key: string]: unknown;
 }
 
 export interface UserPlanReferencePatternRecord {
@@ -1664,7 +1722,6 @@ function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): vo
     "linked_project_ids",
     "parent_task_id",
     "plan_id",
-    "plan_step_id",
     "position",
     "primary_chat_id",
     "priority",
@@ -2316,6 +2373,7 @@ export interface BenchmarkHistoryMessage {
 /** Decrypted message for display */
 export interface DecryptedMessage {
   id: string;
+  clientMessageId?: string;
   chatId: string;
   role: string;
   content: string;
@@ -2324,6 +2382,12 @@ export interface DecryptedMessage {
   modelName: string | null;
   createdAt: number;
   embedIds: string[];
+}
+
+interface AssistantSpeechStatus {
+  segment_id?: string;
+  status?: string;
+  error?: string;
 }
 
 export interface ChatMessageSummary extends DecryptedMessage {
@@ -2960,6 +3024,30 @@ export class OpenMatesClient {
     if (options.personal) return null;
     if (options.teamId !== undefined) return options.teamId;
     return this.getActiveTeamId();
+  }
+
+  async searchWikipediaTitles(query: string, language: string, limit = 5): Promise<Array<{
+    page_id: number;
+    key: string;
+    title: string;
+    description?: string;
+    disambiguation: boolean;
+    language: string;
+  }>> {
+    this.requireSession();
+    const params = new URLSearchParams({ query, language, limit: String(limit) });
+    const response = await this.http.get<{ results?: Array<{
+      page_id: number;
+      key: string;
+      title: string;
+      description?: string;
+      disambiguation: boolean;
+      language: string;
+    }> }>(`/v1/wikipedia/search?${params.toString()}`, this.getCliRequestHeaders());
+    if (!response.ok) {
+      throw new Error(`Wikipedia search failed with HTTP ${response.status}`);
+    }
+    return Array.isArray(response.data.results) ? response.data.results : [];
   }
 
   async startAccountExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {
@@ -4231,6 +4319,7 @@ export class OpenMatesClient {
 
     await this.hydrateEmailEncryptionKey(session);
 
+    this.session = session;
     saveSession(session);
   }
 
@@ -4238,6 +4327,8 @@ export class OpenMatesClient {
     const session = this.requireSession();
     const response = await this.http.post<{
       success?: boolean;
+      message?: string;
+      re_auth_reason?: string;
       user?: Record<string, unknown>;
       ws_token?: string;
     }>(
@@ -4246,7 +4337,9 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.success) {
-      throw new Error("Session is invalid. Please run `openmates login`.");
+      throw new Error(
+        `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`openmates login\`.`,
+      );
     }
     if (response.data.ws_token) {
       session.wsToken = response.data.ws_token;
@@ -4831,6 +4924,7 @@ export class OpenMatesClient {
 
     const session = this.getSession();
     const uploadResult = await uploadFile(audioEmbed.localPath, session);
+    adoptUploadEmbedId(audioEmbed.embed, uploadResult.embed_id);
     const embedRef = audioEmbed.embed.embedRef ?? createEmbedRef("audio-recording", `${audioEmbed.displayName}:${audioEmbed.embed.embedId}`);
     audioEmbed.embed.embedRef = embedRef;
     const transcription = await transcribeUploadedAudio(
@@ -5363,6 +5457,7 @@ export class OpenMatesClient {
 
       messages.push({
         id: String(m.id ?? m.message_id ?? ""),
+        clientMessageId: clientMsgId,
         chatId: String(m.chat_id ?? chatItem.id),
         role: String(m.role ?? "unknown"),
         content: content ?? "",
@@ -5505,6 +5600,107 @@ export class OpenMatesClient {
     }
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
     return { chat: chatItem, messages };
+  }
+
+  async generateExistingAssistantSpeech(
+    query: string,
+    selection: { messageId?: string; all?: boolean },
+    options: TeamContextOptions = {},
+  ) {
+    const { chat, messages } = await this.getChatMessages(query, options);
+    const selected = selectAssistantMessagesForSpeech(messages, selection);
+    if (selected.length === 0) throw new Error("This chat has no eligible assistant messages.");
+    const teamId = this.resolveTeamContext(options);
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    const results: SpeechMessageResult[] = [];
+    ws.send("set_active_chat", { chat_id: chat.id, ...(teamId ? { team_id: teamId } : {}) });
+    try {
+      for (const message of selected) {
+        const projected = projectAssistantSpeech(message.content);
+        const segments = projected.map((segment) => ({
+          source_version: 1,
+          sequence: segment.sequence,
+          kind: segment.kind,
+          source_hash: createHash("sha256").update(segment.speakableText).digest("hex"),
+          speakable_text: segment.speakableText,
+        }));
+        const messageId = message.clientMessageId || message.id;
+        const result = await this.requestAssistantSpeechMessage(ws, chat.id, messageId, segments);
+        results.push({ messageId, ...result });
+      }
+    } finally {
+      ws.close();
+    }
+    return summarizeAssistantSpeech(chat.id, results);
+  }
+
+  private async requestAssistantSpeechMessage(
+    ws: OpenMatesWsClient,
+    chatId: string,
+    messageId: string,
+    segments: Array<Record<string, unknown>>,
+  ): Promise<Omit<SpeechMessageResult, "messageId">> {
+    const timeoutMs = 10 * 60 * 1000;
+    return await new Promise((resolve, reject) => {
+      const expected = new Set<string>();
+      const queued = new Set<string>();
+      const terminal = new Map<string, AssistantSpeechStatus>();
+      let accepted = false;
+      const finishIfComplete = () => {
+        if (!accepted || expected.size === 0 || terminal.size !== expected.size) return;
+        cleanup();
+        const statuses = [...terminal.values()];
+        resolve({
+          generated: statuses.filter((status) => status.status === "ready" && queued.has(String(status.segment_id))).length,
+          reused: statuses.filter((status) => status.status === "ready" && !queued.has(String(status.segment_id))).length,
+          failed: statuses.filter((status) => status.status === "error").length,
+          charged: statuses.filter((status) => status.status === "ready" && queued.has(String(status.segment_id))).length,
+        });
+      };
+      const consume = (status: AssistantSpeechStatus) => {
+        const segmentId = String(status.segment_id ?? "");
+        if (!segmentId || (expected.size > 0 && !expected.has(segmentId))) return;
+        if (status.status === "queued" || status.status === "generating") queued.add(segmentId);
+        if (status.status === "ready" || status.status === "error") terminal.set(segmentId, status);
+      };
+      const unsubscribe = ws.onMessageType<Record<string, unknown>>("assistant_speech_status", (payload) => {
+        if (payload.status === "error" && !Array.isArray(payload.segments)) {
+          cleanup();
+          reject(new Error(String(payload.error ?? "Assistant speech request failed.")));
+          return;
+        }
+        if (Array.isArray(payload.segments)) {
+          accepted = true;
+          for (const value of payload.segments) {
+            const status = value as AssistantSpeechStatus;
+            if (status.segment_id) expected.add(status.segment_id);
+            consume(status);
+          }
+          if (expected.size === 0) {
+            cleanup();
+            reject(new Error("No canonical speech segments are available for this historical message."));
+            return;
+          }
+        } else if (String(payload.message_id ?? "") === messageId || expected.has(String(payload.segment_id ?? ""))) {
+          consume(payload as AssistantSpeechStatus);
+        }
+        finishIfComplete();
+      });
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error("Timed out waiting for assistant speech generation."));
+      }, timeoutMs);
+      const cleanup = () => {
+        clearTimeout(timer);
+        unsubscribe();
+      };
+      ws.send("assistant_speech", {
+        action: "request",
+        chat_id: chatId,
+        assistant_message_id: messageId,
+        segments,
+      });
+    });
   }
 
   async getChatMessagesWindow(query: string, options: ChatMessageWindowOptions = {}): Promise<ChatMessageWindowResult> {
@@ -9264,13 +9460,15 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
     if (filters.projectId) params.set("project_id", filters.projectId);
     for (const labelHash of filters.labelHashes ?? []) params.append("label_hash", labelHash);
+    if (filters.externalChatProvider) params.set("external_chat_provider", filters.externalChatProvider);
+    if (filters.externalChatLookupHash) params.set("external_chat_lookup_hash", filters.externalChatLookupHash);
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
     const limit = filters.limit;
     if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
@@ -9367,10 +9565,12 @@ export class OpenMatesClient {
     return response.data.proposed_tasks;
   }
 
-  async updateUserTask(taskId: string, input: UserTaskUpdateInput): Promise<UserTaskRecord> {
+  async updateUserTask(taskId: string, input: UserTaskUpdateInput, context: TeamContextOptions = {}): Promise<UserTaskRecord> {
     this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
     const response = await this.http.patch<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
-      `/v1/user-tasks/${encodeURIComponent(taskId)}`,
+      `/v1/user-tasks/${encodeURIComponent(taskId)}${query}`,
       input,
       this.getCliRequestHeaders(),
     );
@@ -9406,6 +9606,77 @@ export class OpenMatesClient {
       throw new Error(`User task delete failed with HTTP ${response.status}`);
     }
     return response.data;
+  }
+
+  async listUserTaskActivity(taskId: string, context: TeamContextOptions & { cursor?: string; limit?: number } = {}): Promise<UserTaskActivityPage> {
+    this.requireSession();
+    const params = new URLSearchParams();
+    const teamId = this.resolveTeamContext(context);
+    if (teamId) params.set("team_id", teamId);
+    if (context.cursor) params.set("cursor", context.cursor);
+    if (Number.isSafeInteger(context.limit) && context.limit !== undefined && context.limit > 0) {
+      params.set("limit", String(context.limit));
+    }
+    const query = params.toString();
+    const response = await this.http.get<UserTaskActivityPage>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query ? `?${query}` : ""}`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.entries)) {
+      throw new Error(`User task activity list failed with HTTP ${response.status}`);
+    }
+    return response.data;
+  }
+
+  async createUserTaskActivity(taskId: string, input: UserTaskActivityCreateInput, context: TeamContextOptions = {}): Promise<UserTaskActivityRecord> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    const response = await this.http.post<{ entry?: UserTaskActivityRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query}`,
+      input,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.entry) {
+      throw new Error(`User task activity create failed with HTTP ${response.status}`);
+    }
+    return response.data.entry;
+  }
+
+  async deleteUserTaskActivity(taskId: string, entryId: string, context: TeamContextOptions = {}): Promise<UserTaskActivityRecord> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    const response = await this.http.delete<{ entry?: UserTaskActivityRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}/activity/${encodeURIComponent(entryId)}${query}`,
+      undefined,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.entry) {
+      throw new Error(`User task activity delete failed with HTTP ${response.status}`);
+    }
+    return response.data.entry;
+  }
+
+  async addTaskDependency(taskId: string, targetRef: string): Promise<WorkDependencyRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ dependency?: WorkDependencyRecord }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, { target_ref: targetRef }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.dependency) throw new Error(`Task dependency add failed with HTTP ${response.status}`);
+    return response.data.dependency;
+  }
+
+  async removeTaskDependency(taskId: string, targetKind: "plan" | "task", targetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies/${targetKind}/${encodeURIComponent(targetId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Task dependency remove failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getTaskDependencies(taskId: string): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Task dependency list failed with HTTP ${response.status}`);
+    return { dependencies: response.data.dependencies ?? [], blockers: response.data.blockers ?? [] };
   }
 
   async completeUserTask(taskId: string, input: UserTaskActionInput): Promise<UserTaskRecord> {
@@ -9559,6 +9830,55 @@ export class OpenMatesClient {
     }
     response.data.plan.history = response.data.history ?? null;
     return response.data.plan;
+  }
+
+  async deleteUserPlan(planId: string, version: number): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}?version=${encodeURIComponent(String(version))}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`User plan delete failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async addPlanDependency(planId: string, targetRef: string): Promise<WorkDependencyRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ dependency?: WorkDependencyRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/dependencies`, { target_ref: targetRef }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.dependency) throw new Error(`Plan dependency add failed with HTTP ${response.status}`);
+    return response.data.dependency;
+  }
+
+  async removePlanDependency(planId: string, targetKind: "plan" | "task", targetId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.delete<Record<string, unknown>>(`/v1/user-plans/${encodeURIComponent(planId)}/dependencies/${targetKind}/${encodeURIComponent(targetId)}`, undefined, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Plan dependency remove failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getPlanDependencies(planId: string): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
+    this.requireSession();
+    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/dependencies`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Plan dependency list failed with HTTP ${response.status}`);
+    return { dependencies: response.data.dependencies ?? [], blockers: response.data.blockers ?? [] };
+  }
+
+  async listPlanRevisions(planId: string): Promise<UserPlanRevisionRecord[]> {
+    this.requireSession();
+    const response = await this.http.get<{ revisions?: UserPlanRevisionRecord[] }>(`/v1/user-plans/${encodeURIComponent(planId)}/revisions`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Plan revision list failed with HTTP ${response.status}`);
+    return response.data.revisions ?? [];
+  }
+
+  async getPlanApprovalStatus(planId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ approval?: Record<string, unknown> }>(`/v1/user-plans/${encodeURIComponent(planId)}/approval-status`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.approval) throw new Error(`Plan approval status read failed with HTTP ${response.status}`);
+    return response.data.approval;
+  }
+
+  async submitPlanRevision(planId: string, input: { fingerprint: string; encrypted_snapshot: string; created_at: number }): Promise<UserPlanRevisionRecord> {
+    this.requireSession();
+    const response = await this.http.post<{ revision?: UserPlanRevisionRecord }>(`/v1/user-plans/${encodeURIComponent(planId)}/revisions`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.revision) throw new Error(`Plan revision submission failed with HTTP ${response.status}`);
+    return response.data.revision;
   }
 
   async createPlanCriterion(planId: string, input: UserPlanCriterionRecord): Promise<UserPlanCriterionRecord> {
@@ -11509,6 +11829,7 @@ export class OpenMatesClient {
       // connection and terminates with phased_sync_complete.
       const baseSyncPayload = {
         ...(teamId ? { team_id: teamId } : {}),
+        context_epoch: 0,
         client_chat_versions: clientChatVersions,
         client_chat_ids: clientChatIds,
         client_embed_ids: clientEmbedIds,

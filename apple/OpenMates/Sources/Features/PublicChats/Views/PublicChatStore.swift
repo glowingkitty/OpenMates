@@ -14,6 +14,10 @@ final class PublicChatStore: ObservableObject {
     @Published var isLoading = false
 
     private let api = APIClient.shared
+    private let excludedPublicChatSlugs: Set<String> = [
+        "demo-for-everyone",
+        "demo-for-developers"
+    ]
 
     var allPublicChats: [DemoChat] {
         introChats + exampleChats + announcementChats + tipsChats
@@ -39,7 +43,8 @@ final class PublicChatStore: ObservableObject {
 
     func loadCategory(_ category: String) async -> [DemoChat] {
         do {
-            return try await api.request(.get, path: "/v1/public/chats/\(category)")
+            let chats: [DemoChat] = try await api.request(.get, path: "/v1/public/chats/\(category)")
+            return chats.filter { !excludedPublicChatSlugs.contains($0.slug) }
         } catch {
             print("[PublicChats] Failed to load \(category): \(error)")
             return []

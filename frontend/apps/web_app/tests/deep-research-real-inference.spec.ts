@@ -168,14 +168,18 @@ test('Deep research delegates three angles and renders the final parent synthesi
 		await expect(card).toHaveAttribute('data-category', /^(?!general_knowledge$).+/);
 		await expect(card).toHaveAttribute('data-icon', /^(?!help-circle$).+/);
 		await expect(card.getByTestId('sub-chat-open-cta')).toContainText('Click to open sub chat');
+		await expect(card).not.toContainText('Active');
+		await expect(card).not.toContainText('Done');
 		await expect(card).not.toContainText('"type":"app_skill_use"');
 		await expect(card).not.toContainText('The AI service encountered an error');
+		await expect(card).not.toContainText('Sub-chat failed before completion');
 	}
 	await proof.assert('deep_research.children_visible', async () => {
 		await expect(subChatCards).toHaveCount(3);
 		for (let index = 0; index < 3; index += 1) {
 			await expect(subChatCards.nth(index)).not.toContainText('"type":"app_skill_use"');
 			await expect(subChatCards.nth(index)).not.toContainText('The AI service encountered an error');
+			await expect(subChatCards.nth(index)).not.toContainText('Sub-chat failed before completion');
 		}
 	});
 	await proof.checkpoint('deep-research-children-visible');
@@ -183,8 +187,12 @@ test('Deep research delegates three angles and renders the final parent synthesi
 
 	await subChatCards.first().click();
 	const returnToParent = page.getByTestId('return-to-parent-button');
+	await expect(returnToParent).toBeVisible({ timeout: 30_000 });
+	await expect(returnToParent).toBeInViewport();
 	await expect(returnToParent).toContainText('Return to parent chat', { timeout: 30_000 });
 	await proof.assert('deep_research.child_navigation', async () => {
+		await expect(returnToParent).toBeVisible();
+		await expect(returnToParent).toBeInViewport();
 		await expect(returnToParent).toContainText('Return to parent chat');
 	});
 	await proof.checkpoint('deep-research-child-opened');
@@ -206,16 +214,11 @@ test('Deep research delegates three angles and renders the final parent synthesi
 	await expect(finalAssistant).toContainText('Counterarguments');
 	await expect(finalAssistant).toContainText('Bottom Line');
 	await expect(finalAssistant).not.toContainText('The AI service encountered an error');
+	await expect(finalAssistant).not.toContainText('Sub-chat failed before completion');
 	await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
 	await expect(page.getByTestId('sub-chat-open-cta')).toHaveCount(0);
 	await expect(page.getByTestId('sub-chat-summary')).toHaveCount(3);
-	await proof.assert('deep_research.parent_synthesis', async () => {
-		await expect(finalAssistant).toContainText('Short Answer');
-		await expect(finalAssistant).toContainText('Bottom Line');
-		await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
-	});
-	await proof.checkpoint('deep-research-parent-synthesis');
-	await proof.attach();
+	await expect(page.getByTestId('sub-chat-status-completed')).toHaveCount(3);
 	expect(await page.evaluate(() =>
 		(window as Window & { __subChatRawProtocolObserved?: boolean }).__subChatRawProtocolObserved
 	)).toBe(false);
@@ -234,6 +237,14 @@ test('Deep research delegates three angles and renders the final parent synthesi
 		// Keep each asserted proof state visible in the recorded Playwright artifact.
 		await page.waitForTimeout(DEMONSTRATION_REVIEW_HOLD_MS);
 	}
+	await proof.assert('deep_research.parent_synthesis', async () => {
+		await expect(finalAssistant).toContainText('Short Answer');
+		await expect(finalAssistant).toContainText('Bottom Line');
+		await expect(finalAssistant).not.toContainText('Sub-chat failed before completion');
+		await expect(page.getByTestId('typing-indicator')).not.toBeVisible();
+	});
+	await proof.checkpoint('deep-research-parent-synthesis');
+	await proof.attach();
 
 	await deleteActiveChat(page, log, screenshot, 'deep-research-cleanup');
 	log('Deep research completed with three children and a final parent synthesis.');

@@ -79,19 +79,7 @@ export const GET: RequestHandler = async ({ url }) => {
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>`,
-		// Intro chat SEO pages
-		`  <url>
-    <loc>${siteOrigin}/intro/for-everyone</loc>
-    <lastmod>${BUILD_DATE}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>`,
-		`  <url>
-    <loc>${siteOrigin}/intro/for-developers</loc>
-    <lastmod>${BUILD_DATE}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>`,
+		// Intro chat SEO page
 		`  <url>
     <loc>${siteOrigin}/intro/who-develops-openmates</loc>
     <lastmod>${BUILD_DATE}</lastmod>

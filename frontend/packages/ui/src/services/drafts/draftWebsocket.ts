@@ -16,6 +16,7 @@ import type {
 } from "./draftTypes";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance } from "./draftCore";
+import { isDraftUpdateBlockedByLocalDeletion } from "../chatSyncMerge";
 
 // --- WebSocket Handlers ---
 
@@ -142,9 +143,12 @@ const handleDraftUpdated = async (
     const chat = await chatDB.getRawChat(chat_id);
     if (chat) {
       const localDraftVersion = chat.draft_v ?? 0;
-      if (localDraftVersion > newUserDraftVersion) {
+      if (
+        localDraftVersion > newUserDraftVersion ||
+        isDraftUpdateBlockedByLocalDeletion(chat, newUserDraftVersion)
+      ) {
         console.info(
-          `[DraftService] Ignoring stale chat_draft_updated for chat ${chat_id}. Local draft_v=${localDraftVersion}, incoming draft_v=${newUserDraftVersion}`,
+          `[DraftService] Ignoring stale chat_draft_updated for chat ${chat_id}. Local draft_v=${localDraftVersion}, cleared_draft_v=${chat.cleared_draft_v ?? 0}, incoming draft_v=${newUserDraftVersion}`,
         );
         return;
       }
@@ -449,6 +453,7 @@ let handlersRegistered = false; // Prevent duplicate registration
  */
 const handleDraftVersionsResponse = async (payload: {
   versions: Record<string, number>;
+  tombstone_versions?: Record<string, number>;
 }) => {
   const versions = payload?.versions;
   if (!versions || typeof versions !== "object") {
@@ -483,7 +488,19 @@ const handleDraftVersionsResponse = async (payload: {
     try {
       const chat = await chatDB.getChat(chat_id);
       if (chat && chat.encrypted_draft_md) {
+        const tombstoneVersion = payload.tombstone_versions?.[chat_id] ?? 0;
+        if (tombstoneVersion === 0 || tombstoneVersion < (chat.draft_v ?? 0)) {
+          console.info(
+            `[DraftService] Preserving local draft for chat ${chat_id}; ` +
+              `server deletion version ${tombstoneVersion} is not authoritative for local draft_v=${chat.draft_v ?? 0}.`,
+          );
+          continue;
+        }
         // Only clear if we actually have a local draft (avoid no-op writes)
+        chat.cleared_draft_v = Math.max(
+          chat.cleared_draft_v ?? 0,
+          tombstoneVersion,
+        );
         chat.encrypted_draft_md = null;
         chat.encrypted_draft_preview = null;
         chat.draft_v = 0;
@@ -495,7 +512,7 @@ const handleDraftVersionsResponse = async (payload: {
 
         console.info(
           `[DraftService] Cleared stale local draft for chat ${chat_id} ` +
-            `(server draft_v=0, was offline when draft was deleted).`,
+            `(server tombstone_v=${tombstoneVersion}, was offline when draft was deleted).`,
         );
       }
     } catch (err) {

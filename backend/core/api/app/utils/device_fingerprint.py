@@ -26,7 +26,12 @@ def _is_valid_ip_format(ip: str) -> bool:
         return False
 
 def _extract_client_ip(headers: Mapping[str, str], client_host: Optional[str]) -> str:
-    """Internal helper to extract client IP from headers and host."""
+    """Extract client IP while trusting forwarding headers only from local proxies."""
+    if client_host and _is_valid_ip_format(client_host):
+        peer = ipaddress.ip_address(client_host)
+        if not (peer.is_private or peer.is_loopback):
+            return client_host
+
     ip_candidates = [
         headers.get("x-real-ip", ""),
         headers.get("x-forwarded-for", "").split(",")[0].strip(),
@@ -143,16 +148,26 @@ def parse_user_agent(user_agent: str) -> Tuple[str, str, str, str, str]:
         logger.error("The 'user-agents' library is not installed. Please install it: pip install user-agents")
         browser_name, browser_version, os_name, os_version, device_type = "Unknown", "Unknown", "Unknown", "Unknown", "desktop"
         ua_lower = user_agent.lower()
-        if "mobile" in ua_lower or "iphone" in ua_lower or "android" in ua_lower: device_type = "mobile"
-        elif "tablet" in ua_lower or "ipad" in ua_lower: device_type = "tablet"
-        if "firefox" in ua_lower: browser_name = "Firefox"
-        elif "chrome" in ua_lower: browser_name = "Chrome"
-        elif "safari" in ua_lower: browser_name = "Safari"
-        if "windows" in ua_lower: os_name = "Windows"
-        elif "mac os" in ua_lower: os_name = "MacOS"
-        elif "linux" in ua_lower: os_name = "Linux"
-        elif "android" in ua_lower: os_name = "Android"
-        elif "iphone" in ua_lower or "ipad" in ua_lower: os_name = "iOS"
+        if "mobile" in ua_lower or "iphone" in ua_lower or "android" in ua_lower:
+            device_type = "mobile"
+        elif "tablet" in ua_lower or "ipad" in ua_lower:
+            device_type = "tablet"
+        if "firefox" in ua_lower:
+            browser_name = "Firefox"
+        elif "chrome" in ua_lower:
+            browser_name = "Chrome"
+        elif "safari" in ua_lower:
+            browser_name = "Safari"
+        if "windows" in ua_lower:
+            os_name = "Windows"
+        elif "mac os" in ua_lower:
+            os_name = "MacOS"
+        elif "linux" in ua_lower:
+            os_name = "Linux"
+        elif "android" in ua_lower:
+            os_name = "Android"
+        elif "iphone" in ua_lower or "ipad" in ua_lower:
+            os_name = "iOS"
         return browser_name, browser_version, os_name, os_version, device_type
     except Exception as e:
         logger.error(f"Error parsing user agent '{user_agent}': {e}", exc_info=True)
@@ -169,12 +184,12 @@ def generate_device_fingerprint_hash(
     Generate device fingerprint hashes for different purposes:
 
     1. Device Hash (without sessionId): For device detection and "new device" emails
-       - Formula: SHA256(OS:Country:UserID)
-       - Stays consistent across browser sessions on same device
+       - Formula: SHA256(Browser:OS:DeviceType:UserID)
+       - Stays consistent across browser sessions and location changes on the same device
        - ALWAYS generated
 
     2. Connection Hash (with sessionId): For WebSocket connection management
-       - Formula: SHA256(OS:Country:UserID:SessionID)
+       - Formula: SHA256(DeviceHash:SessionID)
        - Unique per browser tab/instance
        - Only generated if session_id is provided
 
@@ -192,8 +207,9 @@ def generate_device_fingerprint_hash(
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     user_agent = request.headers.get("User-Agent", "unknown")
 
-    # Extract OS name
-    _, _, os_name, _, _ = parse_user_agent(user_agent)
+    # Extract stable client characteristics. Location is intentionally excluded:
+    # country is assessed independently for each logical refresh-token session.
+    browser_name, _, os_name, _, device_type = parse_user_agent(user_agent)
     
     # Get country code and detailed geo data from IP
     geo_data = get_geo_data_from_ip(client_ip)
@@ -204,20 +220,26 @@ def generate_device_fingerprint_hash(
     longitude = geo_data.get("longitude")
 
     # Generate DEVICE HASH (without sessionId) - for device detection and emails
-    device_fingerprint_string = f"{os_name}:{country_code}:{user_id}"
+    device_fingerprint_string = f"{browser_name}:{os_name}:{device_type}:{user_id}"
     device_hash = hashlib.sha256(device_fingerprint_string.encode()).hexdigest()
 
     # Generate CONNECTION HASH (with sessionId) - for WebSocket connection management
     # Only generate if session_id is provided
     connection_hash = None
     if session_id:
-        connection_fingerprint_string = f"{os_name}:{country_code}:{user_id}:{session_id}"
+        connection_fingerprint_string = f"{device_hash}:{session_id}"
         connection_hash = hashlib.sha256(connection_fingerprint_string.encode()).hexdigest()
-        logger.debug(f"Generated hashes for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) | Connection: {connection_hash[:8]}... (Session: {session_id[:8]}...)")
+        logger.debug(f"Generated hashes for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}) | Connection: {connection_hash[:8]}... (Session: {session_id[:8]}...)")
     else:
-        logger.debug(f"Generated device hash for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) | No session_id provided, connection_hash is None")
+        logger.debug(f"Generated device hash for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}) | No session_id provided, connection_hash is None")
 
     return device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude
+
+
+def generate_legacy_device_fingerprint_hash(os_name: str, country_code: str, user_id: str) -> str:
+    """Return the pre-migration location-coupled hash for known-device compatibility."""
+    legacy_fingerprint = f"{os_name}:{country_code}:{user_id}"
+    return hashlib.sha256(legacy_fingerprint.encode()).hexdigest()
 
 # Removed: DeviceFingerprint Pydantic model
 # Removed: calculate_risk_level function

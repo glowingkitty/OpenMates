@@ -1,3 +1,52 @@
+file:
+  context: Name of the internal safe File artifact viewer
+  en: File
+  de: Datei
+  zh: File
+  es: File
+  fr: File
+  pt: File
+  ru: File
+  ja: File
+  ko: File
+  it: File
+  tr: File
+  vi: File
+  id: File
+  pl: File
+  nl: File
+  ar: File
+  hi: File
+  th: File
+  cs: File
+  sv: File
+  he: File
+  verified_by_human: [en, de]
+file.description:
+  context: Description of the internal safe File artifact viewer
+  en: Safely view metadata and download captured files without executing them.
+  de: Metadaten sicher anzeigen und erfasste Dateien herunterladen, ohne sie auszuführen.
+  zh: Safely view metadata and download captured files without executing them.
+  es: Safely view metadata and download captured files without executing them.
+  fr: Safely view metadata and download captured files without executing them.
+  pt: Safely view metadata and download captured files without executing them.
+  ru: Safely view metadata and download captured files without executing them.
+  ja: Safely view metadata and download captured files without executing them.
+  ko: Safely view metadata and download captured files without executing them.
+  it: Safely view metadata and download captured files without executing them.
+  tr: Safely view metadata and download captured files without executing them.
+  vi: Safely view metadata and download captured files without executing them.
+  id: Safely view metadata and download captured files without executing them.
+  pl: Safely view metadata and download captured files without executing them.
+  nl: Safely view metadata and download captured files without executing them.
+  ar: Safely view metadata and download captured files without executing them.
+  hi: Safely view metadata and download captured files without executing them.
+  th: Safely view metadata and download captured files without executing them.
+  cs: Safely view metadata and download captured files without executing them.
+  sv: Safely view metadata and download captured files without executing them.
+  he: Safely view metadata and download captured files without executing them.
+  verified_by_human: [en, de]
+
 finance:
   context: App name for the Finance app
   en: Finance

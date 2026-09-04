@@ -33,6 +33,30 @@ header:
   sv: Som standard väljer OpenMates automatiskt AI-modell, mates, app-färdigheter, fokusmoder samt inställningar och minnen. Sök för att åsidosätta det automatiska valet
   he: כברירת מחדל, OpenMates בוחרת אוטומטית את מודל ה-AI, ה-mates, כישורי האפליקציה, מצבי המיקוד וההגדרות והזיכרונות. חפש כדי לדרוס את הבחירה האוטומטית
   verified_by_human: []
+wikipedia_header:
+  context: Header shown while the user is entering an explicit Wikipedia search term in the mention dropdown
+  en: Enter a term to search for on Wikipedia
+  de: Gib einen Begriff ein, um auf Wikipedia zu suchen
+  zh: 输入一个词条以在维基百科上搜索
+  es: Introduce un término para buscar en Wikipedia
+  fr: Saisissez un terme à rechercher sur Wikipédia
+  pt: Digite um termo para pesquisar na Wikipédia
+  ru: Введите термин для поиска в Википедии
+  ja: Wikipediaで検索する用語を入力してください
+  ko: 위키백과에서 검색할 용어를 입력하세요
+  it: Inserisci un termine da cercare su Wikipedia
+  tr: Wikipedia'da aramak için bir terim girin
+  vi: Nhập một thuật ngữ để tìm kiếm trên Wikipedia
+  id: Masukkan istilah untuk dicari di Wikipedia
+  pl: Wpisz termin, aby wyszukać go w Wikipedii
+  nl: Voer een term in om op Wikipedia te zoeken
+  ar: أدخل مصطلحًا للبحث عنه في ويكيبيديا
+  hi: विकिपीडिया पर खोजने के लिए कोई शब्द दर्ज करें
+  th: ป้อนคำเพื่อค้นหาในวิกิพีเดีย
+  cs: Zadejte výraz, který chcete vyhledat na Wikipedii
+  sv: Ange en term att söka efter på Wikipedia
+  he: הזינו מונח לחיפוש בוויקיפדיה
+  verified_by_human: []
 autocomplete_hint:
   context: Footer hint text in the @ mention dropdown suggesting how to autocomplete
   en: Press enter or tab to autocomplete.
@@ -56,6 +80,54 @@ autocomplete_hint:
   cs: Stiskněte enter nebo tab pro automatické doplnění.
   sv: Tryck enter eller tab för att autofylla.
   he: לחץ על Enter או Tab להשלמה אוטומטית.
+  verified_by_human: []
+wikipedia_disambiguation:
+  context: Message shown when a selected Wikipedia title is a disambiguation page and the user must choose a specific result.
+  en: Choose a specific article from the alternatives.
+  de: Wähle einen bestimmten Artikel aus den Alternativen.
+  zh: 请从备选项中选择一篇具体文章。
+  es: Elige un artículo específico de las alternativas.
+  fr: Choisissez un article précis parmi les alternatives.
+  pt: Escolha um artigo específico entre as alternativas.
+  ru: Выберите конкретную статью из вариантов.
+  ja: 候補から特定の記事を選択してください。
+  ko: 대안 중에서 특정 문서를 선택하세요.
+  it: Scegli un articolo specifico tra le alternative.
+  tr: Alternatiflerden belirli bir makale seçin.
+  vi: Chọn một bài viết cụ thể từ các lựa chọn.
+  id: Pilih artikel tertentu dari alternatif.
+  pl: Wybierz konkretny artykuł z alternatyw.
+  nl: Kies een specifiek artikel uit de alternatieven.
+  ar: اختر مقالة محددة من البدائل.
+  hi: विकल्पों में से कोई विशिष्ट लेख चुनें।
+  th: เลือกบทความเฉพาะจากตัวเลือก
+  cs: Vyberte konkrétní článek z alternativ.
+  sv: Välj en specifik artikel bland alternativen.
+  he: בחרו ערך מסוים מתוך החלופות.
+  verified_by_human: []
+wikipedia_limit:
+  context: Error shown when a user tries to add more than three Wikipedia references to one message.
+  en: You can add up to three Wikipedia references per message.
+  de: Du kannst pro Nachricht bis zu drei Wikipedia-Referenzen hinzufügen.
+  zh: 每条消息最多可添加三个维基百科引用。
+  es: Puedes añadir hasta tres referencias de Wikipedia por mensaje.
+  fr: Vous pouvez ajouter jusqu'à trois références Wikipédia par message.
+  pt: Você pode adicionar até três referências da Wikipédia por mensagem.
+  ru: В одно сообщение можно добавить до трёх ссылок на Википедию.
+  ja: 1件のメッセージに追加できるWikipedia参照は3件までです。
+  ko: 메시지당 Wikipedia 참조를 최대 3개까지 추가할 수 있습니다.
+  it: Puoi aggiungere fino a tre riferimenti Wikipedia per messaggio.
+  tr: Mesaj başına en fazla üç Wikipedia referansı ekleyebilirsiniz.
+  vi: Bạn có thể thêm tối đa ba tham chiếu Wikipedia cho mỗi tin nhắn.
+  id: Anda dapat menambahkan hingga tiga referensi Wikipedia per pesan.
+  pl: Do jednej wiadomości możesz dodać maksymalnie trzy odwołania do Wikipedii.
+  nl: Je kunt maximaal drie Wikipedia-verwijzingen per bericht toevoegen.
+  ar: يمكنك إضافة ما يصل إلى ثلاثة مراجع من ويكيبيديا لكل رسالة.
+  hi: आप प्रति संदेश अधिकतम तीन Wikipedia संदर्भ जोड़ सकते हैं।
+  th: คุณสามารถเพิ่มข้อมูลอ้างอิง Wikipedia ได้สูงสุดสามรายการต่อข้อความ
+  cs: Do jedné zprávy můžete přidat až tři odkazy na Wikipedii.
+  sv: Du kan lägga till upp till tre Wikipedia-referenser per meddelande.
+  he: אפשר להוסיף עד שלושה מקורות מוויקיפדיה בכל הודעה.
   verified_by_human: []
 show_more:
   context:

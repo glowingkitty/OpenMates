@@ -29,11 +29,6 @@ DEFAULT_PROVIDER = "elevenlabs"
 DEFAULT_MODEL = DEFAULT_SPEECH_MODEL
 PREMIUM_MODEL = PREMIUM_SPEECH_MODEL
 DEFAULT_OUTPUT_FORMAT = "mp3_44100_128"
-VOICE_PRESET_TO_ELEVENLABS_ID = {
-    "warm_neutral": "21m00Tcm4TlvDq8ikWAM",
-    "bright_neutral": "EXAVITQu4vr4xnSDxMaL",
-    "calm_narrator": "pNInz6obpgDQGcFmaJgB",
-}
 IGNORE_FIELDS_FOR_INFERENCE = ["audio_base64", "aes_key", "aes_nonce", "vault_wrapped_aes_key"]
 
 
@@ -67,7 +62,7 @@ class AudioSpeakRequestItem(BaseModel):
         "mp3_44100_128",
         "mp3_44100_192",
     ] = DEFAULT_OUTPUT_FORMAT
-    model: Literal["eleven_multilingual_v2", "eleven_flash_v2_5"] = DEFAULT_MODEL
+    model: Literal["eleven_v3", "eleven_multilingual_v2", "eleven_flash_v2_5"] = DEFAULT_MODEL
 
     @field_validator("text")
     @classmethod

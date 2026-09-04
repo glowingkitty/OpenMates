@@ -37,7 +37,7 @@ export const variants = {
         { id: "opt_four_spaces", text: "    (Four spaces - block indent)" }
       ]
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   choice_custom: {
     payload: {
@@ -54,7 +54,7 @@ export const variants = {
         { id: "own_answer", text: "I give you my own answer" }
       ]
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   choice_with_embeds: {
     payload: {
@@ -67,7 +67,7 @@ export const variants = {
         { id: "robust", text: "More robust implementation", embed_ids: ["preview-code-robust"] }
       ]
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   input_form: {
     payload: {
@@ -80,7 +80,7 @@ export const variants = {
         { id: "experience", label: "Years of Experience", placeholder: "e.g., 5", required: true }
       ]
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   slider_scale: {
     payload: {
@@ -97,7 +97,7 @@ export const variants = {
         5: "Extreme master"
       }
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   swipe_cards: {
     payload: {
@@ -110,7 +110,7 @@ export const variants = {
         { id: "skeuomorphic", text: "Skeuomorphic: heavy gradients, drop shadows, glass reflections, and physical textures." }
       ]
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   swipe_with_embeds: {
     payload: {
@@ -122,7 +122,7 @@ export const variants = {
         { id: "asset_2", text: "Approve this generated sheet?", embed_ids: ["preview-sheet-1"] }
       ]
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   },
   rating_stars: {
     payload: {
@@ -133,11 +133,11 @@ export const variants = {
       require_comment: false,
       comment_placeholder: "Let us know how we can improve..."
     } as InteractiveQuestionPayload,
-    chatId: "demo-for-everyone"
+    chatId: "demo-who-develops-openmates"
   }
 };
 
 export default {
   payload: defaultPayload,
-  chatId: "demo-for-everyone"
+  chatId: "demo-who-develops-openmates"
 };

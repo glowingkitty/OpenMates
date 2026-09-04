@@ -1,0 +1,950 @@
+id: api-key-scopes-v1
+title: API Key Scopes V1
+status: implementing
+profile: strict
+schema_version: 2
+
+goal: >
+  Add comprehensive, backend-enforced API-key scopes and a Settings API-key
+  creation UI that lets users choose Full access or Limited access while
+  preserving existing full_access keys and denying restricted keys outside their
+  explicitly selected scopes.
+
+scope:
+  in:
+    - Central API-key route policy for supported developer/API-key routes.
+    - Fail-closed method/path to scope mapping for supported product surfaces.
+    - Separate create-only scopes for new Chats, Tasks, Projects, Plans, and Workflows.
+    - Approved-device enforcement for API-key-authenticated encrypted product/account-export routes.
+    - Existing full_access keys bypass individual scope checks on supported user-facing API-key endpoints.
+    - Settings > Developers > API Keys Full access toggle.
+    - A long scrollable Limited access list grouped by category, using the existing Settings toggle UI for every fixed scope.
+    - Dynamic app and app-skill access rendered as existing app/skill toggle rows.
+    - Focused backend, translation, Playwright payload/UI, visual-smoke, and proof-video verification.
+  out:
+    - Editing protected Task-bridge route, service, schema, CLI, SDK, UI task-component, or task specification files.
+    - Password, passkey, 2FA, recovery-key, active-session, billing checkout, team, organization, or admin privilege management through API keys.
+    - Treating X-OpenMates-SDK or another caller-controlled SDK marker as an authorization boundary.
+    - Persisting plaintext API keys, plaintext master keys, decrypted chats, decrypted memories, or decrypted account exports.
+    - Deploying or marking this work approved before explicit user approval of this Plan.
+    - Completing CLI, npm SDK, pip SDK, or Apple parity implementation unless later approved as separate scoped work.
+
+current_worktree_disclosure:
+  status: undeployed_unapproved_implementation_exists
+  subject_commit: 4bbe5aeb5601793ce72df103b8ef3a34ed2bb225
+  note: >
+    Implementation edits were created before the required separate Plan approval
+    gate was honored. They are preserved in the worktree, remain undeployed, and
+    must not be continued, verified further, deployed, or marked complete until
+    this Plan is explicitly approved or revised by the user.
+  dirty_files_observed:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+    - backend/core/api/app/routes/apps_api.py
+    - backend/core/api/app/routes/openai_compat.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/api_key_authorization.py
+    - backend/core/api/app/utils/api_key_auth.py
+    - backend/tests/test_account_export_security.py
+    - backend/tests/test_account_import_security.py
+    - backend/tests/test_api_key_scopes.py
+    - backend/tests/test_workflows_routes_security.py
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+
+implementation_state:
+  subject_commit: 4bbe5aeb5601793ce72df103b8ef3a34ed2bb225
+  approval_gate: approved
+  deployment_state: not_deployed
+  product_edit_state: preserved_unapproved_edits_exist
+
+protected_files:
+  - docs/plans/opencode-external-task-bridge/plan.yml
+  - specifications/features/tasks
+  - backend/core/api/app/routes/user_tasks.py
+  - backend/core/api/app/services/directus/user_task_methods.py
+  - backend/core/directus/schemas/user_tasks.yml
+  - frontend/packages/openmates-cli/src/tasksCli.ts
+  - frontend/packages/openmates-cli/src/sdk.ts
+  - frontend/packages/openmates-cli/src/client.ts
+  - frontend/packages/ui/src/services/userTaskService.ts
+  - frontend/packages/ui/src/components/tasks
+
+api_access_model:
+  route_classification: developer_api_key_rest_api
+  auth_requirements:
+    - API-key-authenticated requests must present a valid bearer API key.
+    - API keys must not be revoked or expired.
+    - API-key devices must have an approved device_hash before protected product/account-export access.
+    - The backend must use stored API-key metadata and explicit scopes, not caller-controlled SDK labels, to authorize access.
+  rate_limit_and_budget:
+    - Existing API-key rate limits and credit/budget enforcement remain server-side requirements.
+    - Scope denial must happen before any operation that can expose data or spend credits.
+  encrypted_data_handling:
+    - Routes may return client-side encrypted product/account-export material when the device is approved and the key has full_access or the exact required limited scope.
+    - The server must not decrypt or persist plaintext user content as part of this change.
+
+canonical_scope_registry:
+  chats:
+    - chat:create_incognito
+    - chat:create_saved
+    - chat:read_existing
+    - chat:append_existing
+    - chat:delete
+    - chat:share
+    - chat:export
+  tasks:
+    - task:read
+    - task:read_metadata
+    - task:create
+    - task:write
+  projects:
+    - project:read
+    - project:create
+    - project:write
+  plans:
+    - plan:read
+    - plan:read_metadata
+    - plan:create
+    - plan:write
+  workflows:
+    - workflow:read
+    - workflow:create
+    - workflow:write
+    - workflow:execute
+  memories:
+    - memory:read
+    - memory:write
+  account:
+    - account:export
+    - account:import
+  api_keys:
+    - developer:api_keys:read
+    - developer:api_keys:create
+    - developer:api_keys:revoke
+  devices:
+    - developer:devices:read
+    - developer:devices:approve
+    - developer:devices:revoke
+  apps_and_skills:
+    storage_shape:
+      mode:
+        - all
+        - selected
+      allowed_apps: dynamic_app_ids
+      allowed_skills: dynamic_app_skill_ids_such_as_web:search
+    ui: Use existing Settings app and skill toggle rows rather than inventing fixed scope strings for dynamic app IDs.
+
+scope_toggle_labels:
+  chats:
+    - scope: chat:create_incognito
+      label: Create temporary chats
+      description: Create new chats that are not saved to the account.
+    - scope: chat:create_saved
+      label: Create saved chats
+      description: Create new chats saved to the account.
+    - scope: chat:read_existing
+      label: Read existing chats
+      description: List and read existing encrypted chats.
+    - scope: chat:append_existing
+      label: Add messages to existing chats
+      description: Append new messages to existing saved chats.
+    - scope: chat:delete
+      label: Delete chats
+      description: Delete existing chats.
+    - scope: chat:share
+      label: Share chats
+      description: Create or manage chat sharing for existing chats.
+    - scope: chat:export
+      label: Export chats
+      description: Export encrypted chat content.
+  tasks:
+    - scope: task:read
+      label: Read tasks
+      description: Read existing encrypted task content.
+    - scope: task:read_metadata
+      label: Read task metadata
+      description: Read task metadata without granting task modification.
+    - scope: task:create
+      label: Create tasks
+      description: Create new tasks without access to existing tasks.
+    - scope: task:write
+      label: Edit and delete tasks
+      description: Modify or delete existing tasks.
+  projects:
+    - scope: project:read
+      label: Read projects
+      description: Read existing encrypted projects.
+    - scope: project:create
+      label: Create projects
+      description: Create new projects without access to existing projects.
+    - scope: project:write
+      label: Edit and delete projects
+      description: Modify or delete existing projects.
+  plans:
+    - scope: plan:read
+      label: Read plans
+      description: Read existing encrypted plans.
+    - scope: plan:read_metadata
+      label: Read plan metadata
+      description: Read plan metadata without granting plan modification.
+    - scope: plan:create
+      label: Create plans
+      description: Create new plans without access to existing plans.
+    - scope: plan:write
+      label: Edit and delete plans
+      description: Modify or delete existing plans.
+  workflows:
+    - scope: workflow:read
+      label: Read workflows
+      description: Read existing workflows and their configuration.
+    - scope: workflow:create
+      label: Create workflows
+      description: Create new workflows without access to existing workflows.
+    - scope: workflow:write
+      label: Edit and delete workflows
+      description: Modify or delete existing workflows.
+    - scope: workflow:execute
+      label: Run workflows
+      description: Execute existing workflows and submit workflow input.
+  memories:
+    - scope: memory:read
+      label: Read memories
+      description: Read explicitly requested encrypted memories.
+    - scope: memory:write
+      label: Create and edit memories
+      description: Create or modify memories.
+  account:
+    - scope: account:export
+      label: Export account data
+      description: Create and download encrypted account exports.
+    - scope: account:import
+      label: Import account data
+      description: Create and process account imports.
+  api_keys:
+    - scope: developer:api_keys:read
+      label: Read API keys
+      description: List API-key metadata without revealing plaintext keys.
+    - scope: developer:api_keys:create
+      label: Create API keys
+      description: Create additional API keys with one-time client-side reveal.
+    - scope: developer:api_keys:revoke
+      label: Revoke API keys
+      description: Revoke existing API keys.
+  devices:
+    - scope: developer:devices:read
+      label: Read API-key devices
+      description: List device metadata and pending approval requests.
+    - scope: developer:devices:approve
+      label: Approve API-key devices
+      description: Approve pending devices for API-key use.
+    - scope: developer:devices:revoke
+      label: Revoke API-key devices
+      description: Revoke previously approved API-key devices.
+
+security_decisions:
+  - id: SD-1
+    decision: X-OpenMates-SDK is caller-controlled metadata only and is never an auth boundary.
+    reason: A client can forge request headers; authorization must depend on stored API-key/device records and scopes.
+  - id: SD-2
+    decision: full_access bypasses individual scope checks only for explicitly supported user-facing API-key endpoints.
+    reason: This preserves existing full_access keys while the fail-closed route registry continues to block unsupported, admin, billing, and account-security surfaces.
+  - id: SD-3
+    decision: Create-only means POST collection creation only, not read, update, delete, append, share, or execute on existing resources.
+    reason: Users need automation keys that can create new resources without becoming account read/write keys.
+  - id: SD-4
+    decision: Unsupported API-key route/method combinations fail closed.
+    reason: Adding a route without explicit scope mapping should not accidentally expose data to restricted keys.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use a separate docs/plans/api-key-scopes-v1/plan.yml approval gate before any further product work.
+    reason: The original task required a separate executable Plan and explicit user approval before implementation continuation or deploy.
+    decided_at: "2026-09-02T16:50:00Z"
+  - id: D-2
+    status: active
+    decision: Use one Full access toggle and, when disabled, show every fixed scope as an individual existing Settings toggle grouped in a long scrollable category list.
+    reason: The user preferred explicit per-scope control over compact category dropdowns for the first version.
+    decided_at: "2026-09-02T17:05:00Z"
+  - id: D-3
+    status: active
+    decision: Existing full_access keys bypass individual checks for supported user-facing endpoints; limited keys require the exact mapped scope.
+    reason: This preserves backward compatibility while keeping unsupported and privileged endpoint classes fail-closed.
+    decided_at: "2026-09-02T17:05:00Z"
+  - id: D-4
+    status: active
+    decision: Include account:import in the fixed Account scope list.
+    reason: Implementation inventory found the existing account-import route already enforces this scope, so omitting it would make the canonical list incomplete.
+    decided_at: "2026-09-02T17:20:00Z"
+
+attempts:
+  - id: ATT-1
+    task_id: TASK-1
+    outcome: succeeded
+    approach: Draft the separate executable Plan, validate it, revert duplicated older-Plan edits if represented, then ask the user for approval.
+    recorded_at: "2026-09-02T16:50:00Z"
+  - id: ATT-2
+    task_id: TASK-2
+    outcome: succeeded
+    approach: Inventory live scope enforcement, correct the chat group mismatch, and add the pre-existing account:import permission to the canonical registry.
+    recorded_at: "2026-09-02T17:20:00Z"
+
+scenarios:
+  - id: S-1
+    title: Restricted API key can only use selected backend scopes
+    given:
+      - Alice owns an approved API key with a limited scope set.
+      - The key is used from an approved API-key device.
+    when:
+      - The key calls supported API-key routes across Chats, Tasks, Projects, Plans, Workflows, Memories, app skills, developer API keys, devices, or account export.
+    then:
+      - The backend authorizes only methods and paths mapped to explicit selected scopes.
+      - Unsupported or unmapped route/method combinations fail closed.
+      - Missing scopes return typed authorization failures without exposing user data.
+
+  - id: S-2
+    title: Create-only scopes create new resources without existing-resource access
+    given:
+      - Alice creates a limited API key with a create-only category for one or more resource types.
+    when:
+      - The key creates a new Chat, Task, Project, Plan, or Workflow through a supported collection endpoint.
+      - The same key tries to read, update, delete, append to, share, or execute existing resources.
+    then:
+      - New resource creation is allowed for the selected categories.
+      - Existing-resource read/modify/execute/share operations are denied.
+      - Denied calls do not leak encrypted account material.
+
+  - id: S-3
+    title: Full-access compatibility and limited-key enforcement
+    given:
+      - Alice owns API keys with different combinations of full_access, explicit scopes, and device approval states.
+    when:
+      - A key calls encrypted product routes or account export routes.
+    then:
+      - Unapproved devices are denied before scope grants matter.
+      - Approved full-access keys may call supported user-facing endpoints without individual scope entries.
+      - Approved limited keys must have the exact scope mapped to the requested endpoint.
+      - Admin, billing, account-security, and unsupported endpoints remain unavailable regardless of full_access.
+
+  - id: S-4
+    title: User selects API-key access levels in Settings
+    given:
+      - Alice opens Settings > Developers > API Keys and starts creating a key.
+    when:
+      - Alice leaves Full access enabled or disables it to configure Limited access.
+    then:
+      - Full access uses the existing Settings toggle and shows the full-access warning below it.
+      - Disabling Full access reveals a long scrollable list grouped by Chats, Tasks, Projects, Plans, Workflows, Memories, Account, API keys, Devices, Apps, and Skills.
+      - Every fixed scope in canonical_scope_registry has its own existing Settings toggle row and starts disabled.
+      - Dynamic apps and skills use existing app/skill toggle rows.
+      - The submitted payload matches backend-enforced scopes.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Central backend API-key route policy maps supported method/path combinations to least-privilege scopes and fails closed for unsupported API-key routes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-POLICY
+
+  - id: AC-2
+    scenario: S-2
+    text: Create-only scopes for Chats, Tasks, Projects, Plans, and Workflows allow only new collection creation and deny read, update, delete, append, share, and execute access to existing resources.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-POLICY
+      - T-PYTEST-SCOPES
+
+  - id: AC-3
+    scenario: S-3
+    text: Supported user-facing endpoints require an approved API-key device and allow either full_access or the exact required limited scope; unsupported and privileged endpoints remain denied regardless of full_access.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-ACCOUNT-EXPORT
+      - T-PYTEST-POLICY
+
+  - id: AC-4
+    scenario: S-3
+    text: Existing full_access keys remain compatible without newly added literal scopes, while server/admin, billing, account-security, and unsupported endpoints remain unavailable to user API keys.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-API-KEYS
+
+  - id: AC-5
+    scenario: S-4
+    text: Settings API-key creation uses the existing Full access toggle; disabling it shows a long scrollable category list in which every fixed scope toggle starts disabled.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-API-KEYS
+      - T-PLAYWRIGHT-SCOPE-PREVIEW
+      - V-VISUAL-SMOKE
+
+  - id: AC-6
+    scenario: S-4
+    text: Limited access lists every scope in canonical_scope_registry under category headings, including account import and export, uses one existing Settings toggle per fixed scope plus dynamic app/skill toggles, and produces payload scopes matching backend enforcement.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-API-KEYS
+      - T-PLAYWRIGHT-SCOPE-PREVIEW
+      - T-PYTEST-SCOPES
+
+  - id: AC-7
+    scenario: S-4
+    text: New Settings labels for Full access, category headings, and every fixed scope toggle are sourced through the Settings i18n source and locale validation passes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-I18N-SETTINGS
+
+  - id: AC-8
+    scenario: S-1
+    text: The approved implementation completes lint, focused backend tests, deployed Playwright, visual smoke, and required proof-video evidence before any completion claim.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids:
+      - T-LINT-CHANGED
+      - T-PLAYWRIGHT-API-KEYS
+      - T-PLAYWRIGHT-SCOPE-PREVIEW
+      - V-VISUAL-SMOKE
+      - V-PROOF-VIDEO
+
+tests:
+  - id: T-PLAN-VALIDATE
+    type: lint
+    file: docs/plans/api-key-scopes-v1/plan.yml
+    command: python3 scripts/plan_validate.py docs/plans/api-key-scopes-v1/plan.yml
+    covers:
+      - AC-8
+    assertions:
+      - The separate executable Plan parses and validates while remaining draft/pending until user approval.
+    red_phase:
+      required: false
+      expected: not_applicable_for_new_plan
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: local-ede3-plan-approval
+        timestamp: "2026-09-02T17:11:27Z"
+
+  - id: T-LINT-CHANGED
+    type: lint
+    file: scripts/lint_changed.sh
+    command: python3 scripts/sessions.py lint --session ede3
+    covers:
+      - AC-8
+    assertions:
+      - Tracked backend, frontend, i18n, and Plan changes pass the session-scoped lint gate.
+    red_phase:
+      required: false
+      expected: lint_may_pass_or_fail_before_changes
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-POLICY
+    type: pytest
+    file: backend/tests/test_workflows_routes_security.py
+    command: python3 -m pytest backend/tests/test_workflows_routes_security.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - Workflow route policy returns workflow:create for POST collection creation.
+      - Workflow read, update, delete, and execution routes require non-create scopes.
+      - API-key product route policy denies missing scopes and unsupported routes.
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-ACCOUNT-EXPORT
+    type: pytest
+    file: backend/tests/test_account_export_security.py
+    command: python3 -m pytest backend/tests/test_account_export_security.py
+    covers:
+      - AC-3
+    assertions:
+      - Account export rejects API keys without approved devices.
+      - Account export rejects approved devices without account:export.
+      - Account export permits approved full_access keys without requiring a newly added literal account:export entry.
+      - Account export does not trust caller-controlled SDK headers as auth boundaries.
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PYTEST-SCOPES
+    type: pytest
+    file: backend/tests/test_api_key_scopes.py
+    command: python3 -m pytest backend/tests/test_api_key_scopes.py
+    covers:
+      - AC-2
+      - AC-6
+    assertions:
+      - API-key scope normalization accepts only supported canonical scopes.
+      - Create-only scopes are not broadened into read/write/execute scopes.
+      - Existing full_access keys bypass individual checks on supported user-facing endpoints.
+      - Unsupported and privileged endpoint classes remain unavailable regardless of full_access.
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: blocked_by_missing_redis_in_bare_worktree_until_routed_or_container_env_is_used
+        run_id: ""
+        timestamp: ""
+
+  - id: T-I18N-SETTINGS
+    type: build
+    file: frontend/packages/ui/src/i18n/sources/settings/main.yml
+    command: node frontend/packages/ui/scripts/build-translations.js && node frontend/packages/ui/scripts/validate-locales.js
+    covers:
+      - AC-7
+    assertions:
+      - Full-access, category-heading, and per-scope toggle labels compile into locale output.
+      - Settings locale validation does not report missing or invalid translation keys.
+    red_phase:
+      required: false
+      expected: not_applicable_for_translation_extension
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-API-KEYS
+    type: playwright
+    file: frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    command: python3 scripts/tests.py run --spec api-keys-flow.spec.ts --gate-deploy --expected-commit <commit>
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-8
+    assertions:
+      - Full access uses the existing Settings toggle and shows its warning underneath.
+      - Disabling Full access reveals the scrollable category list with every fixed scope toggle initially disabled.
+      - Every literal scope in canonical_scope_registry has a labeled toggle.
+      - Enabling individual limited scopes submits only those selected scopes.
+      - Dynamic app and skill permissions use existing app/skill toggle rows.
+    red_phase:
+      required: true
+      expected: fail_before_implementation_or_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-SCOPE-PREVIEW
+    type: playwright
+    file: frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    command: python3 scripts/tests.py run --spec api-key-scopes-settings.spec.ts --gate-deploy --expected-commit <commit>
+    target: app.dev.openmates.org
+    covers:
+      - AC-5
+      - AC-6
+      - AC-8
+    assertions:
+      - The bare component preview starts with Full access enabled and its warning visible.
+      - Disabling Full access reveals all 32 fixed permission toggles grouped by category.
+      - Every fixed permission starts disabled and selected scopes toggle independently.
+      - Laptop and phone proof checkpoints contain no preview chrome.
+    red_phase:
+      required: true
+      expected: fail_before_implementation_or_deploy
+      evidence:
+        status: ""
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+verifications:
+  - id: V-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    status: pending
+    required_for_done: true
+    covers:
+      - AC-5
+      - AC-8
+    evidence: {}
+
+  - id: V-PROOF-VIDEO
+    kind: artifact_review
+    phase: final
+    status: pending
+    required_for_done: true
+    covers:
+      - AC-8
+    evidence: {}
+
+risks:
+  - Risk: A broad full_access shortcut could accidentally expose future privileged routes.
+    Mitigation: Maintain an explicit allowlisted route registry; full_access bypasses scope checks only after the endpoint is classified as supported user-facing API-key access.
+  - Risk: Create-only labels could imply more access than intended.
+    Mitigation: Backend tests and Playwright payload assertions separate create scopes from read/write/execute scopes.
+  - Risk: The per-scope list will be long on small screens.
+    Mitigation: Use clear category headings and the established compact Settings toggle row within a scrollable settings page; verify laptop and mobile rendering after deploy.
+  - Risk: UI-only scope filtering could drift from backend authorization.
+    Mitigation: Treat backend scope allowlist as canonical and verify the UI payload against backend-recognized scopes.
+  - Risk: Bare-worktree Python tests may miss dependencies such as redis.
+    Mitigation: After approval, run required tests through the current routed/coordinated environment or containerized dependency path.
+
+unresolved_choices:
+  - id: UC-1
+    question: Should this Plan stop at web/backend scope enforcement, or add CLI/npm/pip/Apple parity changes in the same implementation batch?
+    recommendation: Keep this Plan to web/backend enforcement and verification because no CLI/npm/pip/Apple files are currently changed and broader parity would expand the approval scope.
+
+approvals:
+  specification:
+    status: not_required
+    reason: This change proposes implementation under existing API-key/developer settings behavior without modifying a Specification bundle in specifications/**.
+  plan:
+    status: approved
+    approved_at: "2026-09-02T17:11:27Z"
+
+implementation_notes:
+  plan_path: docs/plans/api-key-scopes-v1/plan.yml
+  existing_patterns:
+    - backend/core/api/app/routes/auth_routes/auth_dependencies.py centralizes API-key route policy for user-or-API-key dependencies.
+    - backend/core/api/app/utils/api_key_auth.py handles API-key lookup, device metadata, and approved-device state.
+    - backend/core/api/app/services/api_key_authorization.py contains reusable scope normalization and matching helpers.
+    - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte owns the Settings API-key create/list/reveal flow.
+    - frontend/apps/web_app/tests/api-keys-flow.spec.ts already covers API-key Settings interactions and intercepted create payloads.
+  architecture: >
+    Keep authorization server-side and centralized. The Settings UI only builds a
+    user-readable scope payload; backend policy remains the source of truth for
+    route-to-scope requirements, approved-device gating, create-only separation,
+    full_access compatibility, and the fail-closed supported-route boundary.
+  data_flow:
+    - User leaves Full access enabled or disables it to reveal every limited scope toggle grouped by category.
+    - Browser builds a scope payload from enabled scope/app/skill toggles and creates the key without exposing plaintext key material to the server beyond the existing one-way hash flow.
+    - API-key requests are authenticated by bearer key hash lookup and device_hash approval state.
+    - Central route policy first confirms the endpoint is explicitly supported for API-key access.
+    - For a supported endpoint, full_access allows the request; otherwise the policy resolves method/path to an exact required scope and rejects a missing scope before product handlers expose data.
+    - Product/account-export handlers return only encrypted client-side material after approved-device and full_access-or-exact-scope authorization.
+  affected_files:
+    - path: docs/plans/api-key-scopes-v1/plan.yml
+      reason: Separate executable Plan requiring explicit user approval before continued work.
+    - path: backend/core/api/app/routes/auth_routes/auth_dependencies.py
+      reason: Central route-to-scope policy and sensitive-route gates.
+    - path: backend/core/api/app/routes/apps_api.py
+      reason: Enforce dynamic app-skill permission on the direct AI ask dispatch exception.
+    - path: backend/core/api/app/routes/openai_compat.py
+      reason: Enforce ai:ask permission before OpenAI-compatible requests directly dispatch the skill.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Validate newly created limited-key payloads against the canonical allowlist.
+    - path: backend/core/api/app/services/api_key_authorization.py
+      reason: Canonical scope normalization and enforcement helpers.
+    - path: backend/core/api/app/utils/api_key_auth.py
+      reason: API-key auth/device metadata used by policy enforcement.
+    - path: backend/tests/test_workflows_routes_security.py
+      reason: Backend route-policy contract coverage for workflow create-only enforcement.
+    - path: backend/tests/test_account_export_security.py
+      reason: Account-export approved-device and account:export scope coverage.
+    - path: backend/tests/test_account_import_security.py
+      reason: Account-import approved-device and account:import scope coverage.
+    - path: backend/tests/test_api_key_scopes.py
+      reason: Broader API-key scope normalization and compatibility coverage.
+    - path: frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+      reason: Existing Full access toggle, categorized per-scope toggle list, dynamic app/skill toggles, and payload mapping.
+    - path: frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.preview.ts
+      reason: Deterministic API-key create-screen fixture for focused component verification.
+    - path: frontend/packages/ui/src/i18n/sources/settings/main.yml
+      reason: Localized Settings API-key labels.
+    - path: frontend/apps/web_app/tests/api-keys-flow.spec.ts
+      reason: Settings flow UI and create-payload assertions.
+    - path: frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+      reason: Focused bare-preview interaction and proof contract for per-scope toggles.
+    - path: scripts/api_tests/test_rest_api_security_hardening.py
+      reason: Live dev-server scope and approved-device authorization verification.
+  verification_strategy:
+    - Validate this Plan with python3 scripts/plan_validate.py docs/plans/api-key-scopes-v1/plan.yml.
+    - After approval, run python3 scripts/sessions.py lint --session ede3.
+    - After approval, run focused backend tests in the routed/coordinated environment required by the restored session instructions.
+    - After approval and scoped deploy, run python3 scripts/tests.py run --spec api-keys-flow.spec.ts --gate-deploy --expected-commit <commit>.
+    - After deployed Playwright, run reviewed laptop/mobile visual smoke for the long categorized Settings scope list.
+    - Before completion, produce and embed required proof-video evidence for the changed Settings API-key product surface.
+  verification_order:
+    - Plan validation and explicit user approval.
+    - Backend route policy and sensitive-route tests.
+    - Translation build and locale validation.
+    - Session lint.
+    - Scoped dev deploy only after approval.
+    - Deployed Playwright API-key Settings flow.
+    - Visual smoke and proof-video review.
+    - Plan verification and final completion summary.
+
+tasks:
+  - id: TASK-1
+    title: Create and approve separate executable Plan
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - docs/plans/api-key-scopes-v1/plan.yml
+    verification_ids:
+      - T-PLAN-VALIDATE
+    dependencies: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-2
+      - TASK-3
+      - TASK-4
+    ownership:
+      files:
+        - docs/plans/api-key-scopes-v1/plan.yml
+      shared_files: []
+
+  - id: TASK-2
+    title: Finish backend API-key scope enforcement
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+      - backend/core/api/app/routes/apps_api.py
+      - backend/core/api/app/routes/openai_compat.py
+      - backend/core/api/app/services/api_key_authorization.py
+      - backend/core/api/app/utils/api_key_auth.py
+      - backend/tests/test_workflows_routes_security.py
+      - backend/tests/test_account_export_security.py
+      - backend/tests/test_account_import_security.py
+      - backend/tests/test_api_key_scopes.py
+    verification_ids:
+      - T-PYTEST-POLICY
+      - T-PYTEST-ACCOUNT-EXPORT
+      - T-PYTEST-SCOPES
+    dependencies:
+      - TASK-1
+    blockers:
+      - Do not continue product edits before Plan approval.
+    follow_up_tasks:
+      - TASK-4
+    ownership:
+      files:
+        - backend/core/api/app/routes/auth_routes/auth_dependencies.py
+        - backend/core/api/app/routes/apps_api.py
+        - backend/core/api/app/routes/openai_compat.py
+        - backend/core/api/app/services/api_key_authorization.py
+        - backend/core/api/app/utils/api_key_auth.py
+        - backend/tests/test_workflows_routes_security.py
+        - backend/tests/test_account_export_security.py
+        - backend/tests/test_account_import_security.py
+        - backend/tests/test_api_key_scopes.py
+      shared_files: []
+
+  - id: TASK-3
+    title: Finish Settings API-key scope selection UI
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+      - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.preview.ts
+      - frontend/packages/ui/src/i18n/sources/settings/main.yml
+      - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+      - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    verification_ids:
+      - T-I18N-SETTINGS
+      - T-PLAYWRIGHT-API-KEYS
+      - T-PLAYWRIGHT-SCOPE-PREVIEW
+      - V-VISUAL-SMOKE
+      - V-PROOF-VIDEO
+    dependencies:
+      - TASK-1
+    blockers:
+      - Do not continue product edits before Plan approval.
+    follow_up_tasks:
+      - TASK-4
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/settings/developers/SettingsApiKeys.svelte
+        - frontend/packages/ui/src/i18n/sources/settings/main.yml
+        - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+      shared_files: []
+
+  - id: TASK-4
+    title: Complete approved verification, deploy, and proof evidence
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+    expected_files:
+      - docs/plans/api-key-scopes-v1/plan.yml
+      - frontend/apps/web_app/tests/api-keys-flow.spec.ts
+    verification_ids:
+      - T-LINT-CHANGED
+      - T-PYTEST-POLICY
+      - T-PYTEST-ACCOUNT-EXPORT
+      - T-PYTEST-SCOPES
+      - T-I18N-SETTINGS
+      - T-PLAYWRIGHT-API-KEYS
+      - V-VISUAL-SMOKE
+      - V-PROOF-VIDEO
+    dependencies:
+      - TASK-2
+      - TASK-3
+    blockers:
+      - Requires Plan approval and a scoped deploy before deployed Playwright/proof work.
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/plans/api-key-scopes-v1/plan.yml
+      shared_files:
+        - test-results
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Align the preserved backend implementation and tests with the approved full_access and canonical limited-scope model.
+  command: python3 scripts/plan_validate.py docs/plans/api-key-scopes-v1/plan.yml
+  expected_outcome: PASS while implementation proceeds under the approved Plan.
+  last_verified_commit: 4bbe5aeb5601793ce72df103b8ef3a34ed2bb225
+  blocker: null
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: Settings API-key creation is a changed observable product surface.
+    classified_at: "2026-09-02T16:50:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show Full access warning placement and the categorized per-scope toggle list in Settings API-key creation.
+      expected_proof: The recording shows the Full access toggle, warning placement, every fixed-scope category with initially disabled toggle rows, dynamic app/skill toggles, and a successful guarded create flow after deploy.
+      scenario_ids:
+        - S-4
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""

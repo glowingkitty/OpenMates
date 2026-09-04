@@ -12,6 +12,7 @@ import json
 import logging
 import math
 import asyncio
+import re
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
@@ -38,16 +39,23 @@ RESOURCE_KEYS = {"cpu_percent", "memory_percent", "disk_used_percent", "disk_fre
 ACTIVITY_KEYS = {"chats", "messages", "embeds", "usage_entries"}
 PROCESSING_KEYS = {"created", "completed", "invalidated", "non_terminal_over_15m"}
 FRESHNESS_KEYS = {"resource_metrics", "application_metrics", "report_scheduler"}
+PROVIDER_HEALTH_KEYS = {
+    "status", "healthy_count", "unavailable_names", "skipped_names", "stale_names", "checked_at",
+}
+PROVIDER_HEALTH_INVENTORY_KEY = "health_check:provider_inventory"
 BILLING_KEYS = {
     "status", "purchase_count", "credits_sold", "usage_committed", "usage_failed",
     "bank_review", "refund_failed", "chargebacks", "incomplete_settlements", "purchase_window_complete",
     "purchase_window_label",
 }
+BILLING_READINESS_KEYS = {
+    "status", "eu_card", "managed", "catalog_gaps", "missing_events", "checked_at",
+}
 ISSUE_KEYS = {"fingerprint", "severity", "active", "count", "last_seen"}
 SELF_HOST_FORBIDDEN_TERMS = ("billing", "payment", "stripe", "invoice", "subscription", "purchase")
 SEVERITY_ORDER = {"critical": 3, "warning": 2, "digest": 1}
 REPORT_WIDTH = 1200
-REPORT_HEIGHT = 800
+REPORT_HEIGHT = 840
 MAX_GRAPH_POINTS = 96
 MAX_ISSUES = 3
 DELIVERY_MAX_ATTEMPTS = 3
@@ -69,17 +77,128 @@ def resolve_operational_environment(deployment_mode: str, server_environment: st
     return "production" if server_environment.strip().lower() == "production" else "development"
 
 
-def resolve_operational_discord_webhook(environment: str, environ: Mapping[str, str]) -> str | None:
+def resolve_operations_discord_destination(environment: str, environ: Mapping[str, str]) -> dict[str, Any]:
     _validate_environment(environment)
     if environment == "production":
-        return environ.get("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION") or environ.get("DISCORD_WEBHOOK_PROD_SMOKE")
-    if environment == "development":
-        return (
-            environ.get("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT")
-            or environ.get("DISCORD_WEBHOOK_DEV_NIGHTLY")
-            or environ.get("DISCORD_WEBHOOK_DEV_SMOKE")
+        canonical = (
+            environ.get("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION")
+            or environ.get("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION")
         )
-    return environ.get("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST") or environ.get("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
+        fallback = environ.get("DISCORD_WEBHOOK_PROD_SMOKE")
+        fallback_source = "prod_smoke_fallback"
+    elif environment == "development":
+        canonical = (
+            environ.get("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT")
+            or environ.get("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT")
+        )
+        fallback = environ.get("DISCORD_WEBHOOK_DEV_NIGHTLY") or environ.get("DISCORD_WEBHOOK_DEV_SMOKE")
+        fallback_source = "dev_fallback"
+    else:
+        canonical = (
+            environ.get("DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST")
+            or environ.get("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST")
+            or environ.get("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL")
+        )
+        fallback = None
+        fallback_source = "missing"
+
+    if canonical:
+        return {"url": canonical, "source": "canonical", "fallback_used": False}
+    if fallback:
+        return {"url": fallback, "source": fallback_source, "fallback_used": True}
+    return {"url": None, "source": "missing", "fallback_used": False}
+
+
+def resolve_operational_discord_webhook(environment: str, environ: Mapping[str, str]) -> str | None:
+    return resolve_operations_discord_destination(environment, environ)["url"]
+
+
+def summarize_provider_health(
+    records: Mapping[str, Mapping[str, Any]],
+    *,
+    now: datetime,
+    stale_after: timedelta = timedelta(minutes=45),
+    expected_names: Iterable[str] = (),
+) -> dict[str, Any]:
+    """Group provider status without retaining errors, payloads, or credentials."""
+    healthy_count = 0
+    unavailable_names: list[str] = []
+    skipped_names: list[str] = []
+    stale_names: list[str] = []
+    normalized_now = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
+
+    for raw_name, record in records.items():
+        name = re.sub(r"[^a-zA-Z0-9_.-]", "_", str(raw_name))[:80]
+        status = str(record.get("status", "unknown")).lower()
+        last_check = _parse_timestamp(record.get("last_check"))
+        is_stale = not last_check or normalized_now.timestamp() - last_check > stale_after.total_seconds()
+        if status == "healthy" and is_stale:
+            stale_names.append(name)
+        elif status == "healthy":
+            healthy_count += 1
+        elif status in {"skipped", "not_configured"}:
+            skipped_names.append(name)
+        else:
+            unavailable_names.append(name)
+
+    recorded_names = set(records)
+    unavailable_names.extend(
+        re.sub(r"[^a-zA-Z0-9_.-]", "_", str(name))[:80]
+        for name in expected_names
+        if name not in recorded_names
+    )
+
+    nonhealthy = unavailable_names or skipped_names or stale_names
+    return {
+        "status": "degraded" if nonhealthy else "healthy" if records else "unavailable",
+        "healthy_count": healthy_count,
+        "unavailable_names": sorted(unavailable_names),
+        "skipped_names": sorted(skipped_names),
+        "stale_names": sorted(stale_names),
+        "checked_at": normalized_now.isoformat(),
+    }
+
+
+async def collect_provider_health(cache_service: Any, *, now: datetime) -> dict[str, Any]:
+    """Read current aggregate provider health records from the shared cache."""
+    client = await cache_service.client
+    if not client:
+        raise RuntimeError("provider_health_cache_unavailable")
+    records: dict[str, dict[str, Any]] = {}
+    raw_inventory = await client.get(PROVIDER_HEALTH_INVENTORY_KEY)
+    if isinstance(raw_inventory, bytes):
+        raw_inventory = raw_inventory.decode("utf-8")
+    expected_names = json.loads(raw_inventory) if raw_inventory else []
+    for raw_key in await client.keys("health_check:provider:*"):
+        key = raw_key.decode("utf-8") if isinstance(raw_key, bytes) else str(raw_key)
+        raw_value = await client.get(key)
+        if not raw_value:
+            continue
+        value = raw_value.decode("utf-8") if isinstance(raw_value, bytes) else raw_value
+        records[key.removeprefix("health_check:provider:")] = json.loads(value)
+    return summarize_provider_health(records, now=now, expected_names=expected_names)
+
+
+async def collect_billing_readiness(cache_service: Any, *, now: datetime) -> dict[str, Any]:
+    """Read and sanitize the latest scheduled Stripe readiness result."""
+    client = await cache_service.client
+    raw_value = await client.get("health_check:external:stripe") if client else None
+    if isinstance(raw_value, bytes):
+        raw_value = raw_value.decode("utf-8")
+    record = json.loads(raw_value) if raw_value else {}
+    readiness = record.get("readiness") or {}
+    checked_at = str(readiness.get("checked_at") or "")
+    checked_timestamp = _parse_timestamp(checked_at)
+    stale = not checked_timestamp or now.timestamp() - checked_timestamp > timedelta(minutes=30).total_seconds()
+    status = "stale" if stale else str(readiness.get("status", "unavailable"))
+    return {
+        "status": status,
+        "eu_card": "unavailable" if stale else str(readiness.get("eu_card", "unavailable")),
+        "managed": "unavailable" if stale else str(readiness.get("managed_payments", "unavailable")),
+        "catalog_gaps": sorted(str(name)[:80] for name in readiness.get("missing_products", [])),
+        "missing_events": sorted(str(name)[:80] for name in readiness.get("missing_events", [])),
+        "checked_at": checked_at or now.isoformat(),
+    }
 
 
 def _validate_private_fields(value: Any, path: str = "snapshot") -> None:
@@ -131,6 +250,8 @@ def build_operational_snapshot(
     resource_series: dict[str, list[list[float]]],
     activity_counts: dict[str, int],
     processing_transactions: dict[str, int],
+    provider_health: dict[str, Any] | None = None,
+    billing_readiness: dict[str, Any] | None = None,
     telemetry_freshness: dict[str, str],
     issues: Iterable[dict[str, Any]],
     billing: dict[str, Any] | None = None,
@@ -140,6 +261,8 @@ def build_operational_snapshot(
         raise ValueError("Operational snapshots require an exact 24-hour window")
     if environment == "self_host" and billing is not None:
         raise ValueError("self-host operational snapshots cannot include billing")
+    if environment == "self_host" and billing_readiness is not None:
+        raise ValueError("self-host operational snapshots cannot include billing readiness")
     schemas = (
         ("resource_series", resource_series, RESOURCE_KEYS),
         ("activity_counts", activity_counts, ACTIVITY_KEYS),
@@ -152,6 +275,11 @@ def build_operational_snapshot(
             raise ValueError(f"unsupported {label} fields: {sorted(unexpected)}")
     if billing is not None and set(billing) - BILLING_KEYS:
         raise ValueError(f"unsupported billing fields: {sorted(set(billing) - BILLING_KEYS)}")
+    if provider_health is not None and set(provider_health) - PROVIDER_HEALTH_KEYS:
+        raise ValueError(f"unsupported provider_health fields: {sorted(set(provider_health) - PROVIDER_HEALTH_KEYS)}")
+    if billing_readiness is not None:
+        if set(billing_readiness) - BILLING_READINESS_KEYS:
+            raise ValueError(f"unsupported billing_readiness fields: {sorted(set(billing_readiness) - BILLING_READINESS_KEYS)}")
 
     snapshot: dict[str, Any] = {
         "environment": environment,
@@ -165,6 +293,15 @@ def build_operational_snapshot(
         "processing_transactions": {key: int(value or 0) for key, value in processing_transactions.items()},
         "prioritized_issues": rank_prioritized_issues(issues),
     }
+    if environment != "self_host":
+        snapshot["provider_health"] = provider_health or {
+            "status": "unavailable", "healthy_count": 0, "unavailable_names": [],
+            "skipped_names": [], "stale_names": [], "checked_at": window_end.isoformat(),
+        }
+        snapshot["billing_readiness"] = billing_readiness or {
+            "status": "unavailable", "eu_card": "unavailable", "managed": "unavailable",
+            "catalog_gaps": [], "missing_events": [], "checked_at": window_end.isoformat(),
+        }
     if environment != "self_host":
         snapshot["billing"] = billing or {
             "status": "unavailable",
@@ -215,15 +352,35 @@ def build_operational_discord_summary(snapshot: dict[str, Any], *, test: bool, r
         f"**{prefix}{report_subject(snapshot['environment'])} · {report_id}**",
         f"24h: {activity['chats']} chats · {activity['messages']} messages · {activity['embeds']} embeds · {activity['usage_entries']} usage entries",
         f"AI response recovery jobs: {processing['created']} created · {processing['completed']} completed · {processing['invalidated']} invalidated · {processing['non_terminal_over_15m']} non-terminal >15m",
-        f"Telemetry: resources {freshness['resource_metrics']} · application {freshness['application_metrics']}",
-        f"Prioritized issues: {len(snapshot['prioritized_issues'])}",
     ]
     if snapshot["environment"] != "self_host":
+        providers = snapshot["provider_health"]
+        readiness = snapshot["billing_readiness"]
+        provider_parts = [f"Providers: {providers['healthy_count']} healthy"]
+        for label, key in (("unavailable", "unavailable_names"), ("skipped", "skipped_names"), ("stale", "stale_names")):
+            if providers[key]:
+                visible_names = providers[key][:5]
+                remaining = len(providers[key]) - len(visible_names)
+                suffix = f" (+{remaining} more)" if remaining else ""
+                provider_parts.append(f"{label} {', '.join(visible_names)}{suffix}")
+        provider_parts.append(f"payments EU {readiness['eu_card']} / Managed {readiness['managed']}")
+        lines.append(" · ".join(provider_parts))
         cloud = snapshot["billing"]
+        issue_count = len(snapshot["prioritized_issues"])
+        open_purchase_issues = cloud["bank_review"] + cloud["refund_failed"] + cloud["chargebacks"] + cloud["incomplete_settlements"]
+        all_clear = (
+            issue_count == 0 and providers["status"] == "healthy" and readiness["status"] == "healthy"
+            and cloud["status"] == "healthy" and all(value == "fresh" for value in freshness.values())
+        )
+        lines.append(
+            f"Status: {'all clear' if all_clear else 'attention'} · purchases {cloud['purchase_count']} / {cloud['credits_sold']} credits ({cloud['status']})"
+            f" · usage {cloud['usage_committed']} committed / {cloud['usage_failed']} failed · open purchase issues {open_purchase_issues}"
+            f" · telemetry {freshness['resource_metrics']}/{freshness['application_metrics']} · prioritized issues {issue_count}"
+        )
+    else:
         lines.extend([
-            f"Cloud credit purchases ({cloud.get('purchase_window_label', 'withheld until ledger is complete')}): {cloud['purchase_count']} purchases · {cloud['credits_sold']} credits sold · {cloud['status']}",
-            f"Usage charging: {cloud['usage_committed']} committed · {cloud['usage_failed']} failed",
-            f"Open purchase issues: {cloud['bank_review']} bank review · {cloud['refund_failed']} failed refunds · {cloud['chargebacks']} chargebacks · {cloud['incomplete_settlements']} incomplete settlements",
+            f"Telemetry: resources {freshness['resource_metrics']} · application {freshness['application_metrics']}",
+            f"Prioritized issues: {len(snapshot['prioritized_issues'])}",
         ])
     return "\n".join(lines)
 
@@ -276,7 +433,7 @@ def render_operational_report_svg(snapshot: dict[str, Any]) -> str:
     processing = snapshot["processing_transactions"]
     issues = snapshot["prioritized_issues"]
     issue_lines = []
-    issues_y = 704 if environment != "self_host" else 568
+    issues_y = 748 if environment != "self_host" else 568
     for index, issue in enumerate(issues):
         fingerprint = escape(str(issue.get("fingerprint", "unknown"))[:90])
         issue_lines.append(
@@ -289,12 +446,17 @@ def render_operational_report_svg(snapshot: dict[str, Any]) -> str:
     cloud_only = ""
     if environment != "self_host":
         cloud = snapshot.get("billing") or {}
+        providers = snapshot.get("provider_health") or {}
+        readiness = snapshot.get("billing_readiness") or {}
         purchase_window_label = escape(str(cloud.get("purchase_window_label", "withheld until ledger is complete")))
+        nonhealthy_providers = sum(len(providers.get(key, [])) for key in ("unavailable_names", "skipped_names", "stale_names"))
         cloud_only = (
-            f'<text x="72" y="558" fill="#aeb0ba" font-size="14">Cloud credit purchases · {purchase_window_label}</text>'
-            f'<text x="72" y="586" fill="#ffffff" font-size="18">Purchases {escape(str(cloud.get("purchase_count", "withheld")))} · Credits sold {escape(str(cloud.get("credits_sold", "withheld")))} · Status {escape(str(cloud.get("status", "unavailable")))}</text>'
-            f'<text x="72" y="620" fill="#aeb0ba" font-size="14">Usage charging: {int(cloud.get("usage_committed", 0) or 0)} committed · {int(cloud.get("usage_failed", 0) or 0)} failed</text>'
-            f'<text x="72" y="646" fill="#aeb0ba" font-size="14">Open purchase issues: {int(cloud.get("bank_review", 0) or 0)} bank review · {int(cloud.get("refund_failed", 0) or 0)} failed refunds · {int(cloud.get("chargebacks", 0) or 0)} chargebacks · {int(cloud.get("incomplete_settlements", 0) or 0)} incomplete settlements</text>'
+            f'<text x="72" y="550" fill="#aeb0ba" font-size="14">Providers: {int(providers.get("healthy_count", 0) or 0)} healthy · {nonhealthy_providers} nonhealthy · {escape(str(providers.get("status", "unavailable")))}</text>'
+            f'<text x="72" y="578" fill="#aeb0ba" font-size="14">Payment readiness: EU {escape(str(readiness.get("eu_card", "unavailable")))} · Managed {escape(str(readiness.get("managed", "unavailable")))} · {escape(str(readiness.get("status", "unavailable")))}</text>'
+            f'<text x="72" y="608" fill="#aeb0ba" font-size="14">Cloud credit purchases · {purchase_window_label}</text>'
+            f'<text x="72" y="636" fill="#ffffff" font-size="18">Purchases {escape(str(cloud.get("purchase_count", "withheld")))} · Credits sold {escape(str(cloud.get("credits_sold", "withheld")))} · Status {escape(str(cloud.get("status", "unavailable")))}</text>'
+            f'<text x="72" y="664" fill="#aeb0ba" font-size="14">Usage charging: {int(cloud.get("usage_committed", 0) or 0)} committed · {int(cloud.get("usage_failed", 0) or 0)} failed</text>'
+            f'<text x="72" y="690" fill="#aeb0ba" font-size="14">Open purchase issues: {int(cloud.get("bank_review", 0) or 0)} bank review · {int(cloud.get("refund_failed", 0) or 0)} failed refunds · {int(cloud.get("chargebacks", 0) or 0)} chargebacks · {int(cloud.get("incomplete_settlements", 0) or 0)} incomplete settlements</text>'
         )
 
     paths = "".join(
@@ -359,8 +521,10 @@ def render_operational_report_png(snapshot: dict[str, Any]) -> bytes:
         draw.text((72, 420), f'Activity: {snapshot["activity_counts"]}', fill="white")
         draw.text((72, 460), f'AI response recovery jobs: {snapshot["processing_transactions"]}', fill="white")
         if snapshot["environment"] != "self_host":
-            draw.text((72, 500), f'Cloud credit purchases: {snapshot["billing"]}', fill="white")
-        draw.text((72, 680 if snapshot["environment"] != "self_host" else 540), f'Issues: {len(snapshot["prioritized_issues"])}', fill="#aeb0ba")
+            draw.text((72, 500), f'Providers: {snapshot["provider_health"]}', fill="white")
+            draw.text((72, 530), f'Payment readiness: {snapshot["billing_readiness"]}', fill="white")
+            draw.text((72, 560), f'Cloud credit purchases: {snapshot["billing"]}', fill="white")
+        draw.text((72, 740 if snapshot["environment"] != "self_host" else 540), f'Issues: {len(snapshot["prioritized_issues"])}', fill="#aeb0ba")
         output = BytesIO()
         image.save(output, format="PNG", optimize=True)
         return output.getvalue()
@@ -376,6 +540,8 @@ def create_delivery_receipt(
     attempt_count: int,
     occurred_at: datetime,
     sanitized_failure_class: str | None = None,
+    destination_source: str | None = None,
+    fallback_used: bool = False,
 ) -> dict[str, Any]:
     _validate_environment(environment)
     if channel not in VALID_DELIVERY_CHANNELS:
@@ -391,6 +557,8 @@ def create_delivery_receipt(
         "attempt_count": int(attempt_count),
         "occurred_at": occurred_at.isoformat(),
         "sanitized_failure_class": sanitized_failure_class,
+        "destination_source": destination_source,
+        "fallback_used": fallback_used,
     }
 
 

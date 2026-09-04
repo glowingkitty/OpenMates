@@ -9,6 +9,11 @@ import { webSocketService } from "./websocketService";
 import { encryptWithEmbedKey } from "./encryption/MetadataEncryptor";
 import { upsertCodeRunOutput as idbUpsertCodeRunOutput } from "./db/codeRunOutputs";
 import { embedStore } from "./embedStore";
+import {
+  buildCodeRunOutputPayload,
+  sanitizeCodeRunArtifacts,
+  sanitizeCodeRunSkippedArtifacts,
+} from "./codeRunArtifacts";
 import type { CodeRunOutput, CodeRunOutputPayload } from "../types/chat";
 
 export async function sendUpsertCodeRunOutputImpl(
@@ -22,6 +27,11 @@ export async function sendUpsertCodeRunOutputImpl(
       text: String(text),
       timestamp: Number(timestamp),
     })),
+    artifacts: sanitizeCodeRunArtifacts(output.artifacts, {
+      includeDownloadUrl: true,
+      includeNativeRenderPayload: true,
+    }),
+    skipped_artifacts: sanitizeCodeRunSkippedArtifacts(output.skipped_artifacts),
   };
 
   const embedKey = await embedStore.getEmbedKey(cloneSafeOutput.embed_id);
@@ -31,15 +41,14 @@ export async function sendUpsertCodeRunOutputImpl(
     );
   }
 
-  const payload: CodeRunOutputPayload = {
-    output: cloneSafeOutput.output,
-    status: cloneSafeOutput.status,
-    files: cloneSafeOutput.files,
-    events: cloneSafeOutput.events,
-    saved_at: cloneSafeOutput.saved_at,
-    created_at: cloneSafeOutput.created_at,
-    updated_at: cloneSafeOutput.updated_at,
-  };
+  const payload: CodeRunOutputPayload = buildCodeRunOutputPayload(cloneSafeOutput, {
+    includeDownloadUrl: true,
+    includeNativeRenderPayload: true,
+  });
+  const inferencePayload: CodeRunOutputPayload = buildCodeRunOutputPayload(cloneSafeOutput, {
+    includeDownloadUrl: false,
+    includeNativeRenderPayload: false,
+  });
   const encrypted_payload = await encryptWithEmbedKey(JSON.stringify(payload), embedKey);
 
   try {
@@ -56,7 +65,7 @@ export async function sendUpsertCodeRunOutputImpl(
       id: cloneSafeOutput.id,
       key_version: cloneSafeOutput.key_version ?? null,
       encrypted_payload,
-      inference_payload: payload,
+      inference_payload: inferencePayload,
       created_at: cloneSafeOutput.created_at,
       updated_at: cloneSafeOutput.updated_at ?? cloneSafeOutput.created_at,
     });

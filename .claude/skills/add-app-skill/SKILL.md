@@ -28,7 +28,7 @@ Read these files to understand the app's patterns:
 
 ### Step 1b: Create Skill Behavior Spec
 
-Before scaffolding a new app skill, run `specify` or create an inline spec using
+Before scaffolding a new app skill, run `create-plan` or create an inline Plan using
 `docs/contributing/guides/spec-driven-development.md`.
 
 New app skills usually require a full spec because they define user-facing AI

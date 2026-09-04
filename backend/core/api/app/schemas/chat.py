@@ -110,6 +110,7 @@ class CachedChatListItemData(BaseModel):
     encrypted_quick_tip_slugs: Optional[str] = None  # Encrypted array of selected product quick tip slugs
     encrypted_shared_short_url: Optional[str] = None  # Encrypted owner share URL for reopening copy/QR UI
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
+    encrypted_auto_speak_response: Optional[str] = None  # Encrypted chat-scoped assistant-response speech preference
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
     pinned: Optional[bool] = None  # Whether this chat is pinned
     # Disclaimer tracking for hardcoded advice disclaimers
@@ -226,6 +227,7 @@ class ChatSyncData(BaseModel):
     updated_at: int
     encrypted_title: Optional[str] = None # Encrypted title from cache
     encrypted_chat_summary: Optional[str] = None # Client-encrypted summary from cache
+    encrypted_auto_speak_response: Optional[str] = None # Client-encrypted chat-scoped assistant-response speech preference
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
     encrypted_draft_preview: Optional[str] = None # Encrypted preview text for the user's draft (shown in chat list)
     ideabucket: Optional[bool] = None # Sparse marker for IdeaBucket-origin drafts/chats

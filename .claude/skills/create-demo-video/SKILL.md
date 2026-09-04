@@ -47,6 +47,20 @@ opt-in.
 ## Capture And Render
 
 - Use a real passing deployed Playwright result, Apple run, or real OpenMates CLI command.
+- For Playwright/spec proofs, the rendered video must include real source-video
+  segments from the attested Playwright recording. Checkpoint frames may only be
+  short freeze segments; never publish checkpoint-frame-only screenshot montages
+  or a manifest with `rendered_from: spec_timeline_checkpoint_frames`.
+- For web UI component proofs, use the focused component spec recording from
+  `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every
+  inspection and recording must include `chrome=0` and show only the component,
+  never the configuration UI. Use the `.preview.ts` default fixture for the
+  standard state and encode every non-default input or configuration in URL
+  query parameters such as `variant`, `props`, `theme`, `background`, and
+  `width`. Publish the component video for every modified UI component, use separate phone/laptop
+  profiles only when responsive behavior differs, and derive still frames only
+  from the completed video for failures, explicit requests, or ambiguous visual
+  inspection.
 - Use CLI proof only when the actual `openmates` CLI is the product surface being
   demonstrated or fixed. Do not use CLI proof for generic smoke scripts, pytest
   helpers, Node scripts, or shell wrappers that do not visibly execute the
@@ -73,7 +87,10 @@ python3 scripts/proof_video_workflow.py review --run-dir <path> --correction-rou
 ```
 
 Review every clean frame in the immutable one-to-twelve-frame device index plus the
-complete device-applicable WebVTT cue text, approved device-applicable assertions, and deterministic metadata. Return exactly one status:
+complete device-applicable WebVTT cue text, approved device-applicable assertions,
+and deterministic metadata. Before evaluating assertions, complete the mandatory
+per-frame critical UI scan for layout, readability, geometry, controls, visual
+assets, application state, consistency, and proof alignment. Return exactly one status:
 
 - `passed`
 - `capture_defect`
@@ -83,22 +100,37 @@ complete device-applicable WebVTT cue text, approved device-applicable assertion
 
 Every verdict needs frame-grounded observations. Blank opening frames may be corrected mechanically once. Caption syntax, ordering, and bounds are deterministic checks rather than visual-review concerns. Unexplained scroll state returns to
 capture. Clipping, broken headers, wrong UI state, raw implementation text, stale
-loading, and broken navigation are product defects: add or strengthen a failing
-test, fix the product, deploy, and recapture. Never hide them through trimming,
-cropping, caption edits, or transcript edits.
+loading, and broken navigation are product defects. When the reviewer classifies
+the defect intent as `obvious`, automatically add or strengthen a failing test,
+fix the product, deploy, and recapture. When intent is `unclear`, upload the
+representative blocker frame and ask the user for consent before product-code
+changes. Never hide defects through trimming, cropping, caption edits, or transcript edits.
+Contrast, text-size, opacity, font-weight, and related typography/readability findings
+are advisory design concerns from frame-only review: report them to the user as
+`unclear` warnings and never route them to automatic product correction.
+Do not ask that visual-intent question until the exact cited blocker image is
+successfully embedded in the same response with a short explanation of what the
+user should inspect. If media delivery fails, repair or retry it first; never
+substitute a text-only question, local path, or uncited description.
+After explicit user approval, bind the exact unclear finding into the receipt with
+`python3 scripts/proof_video_workflow.py approve-intent --run-dir <path> --finding-id <id> --reason "<decision>" --approved-at <ISO-8601>`. This may resolve only
+`uncertain` checks cited by that finding and must not override failed checks or
+unsupported assertions.
 
 The entire proof contract is limited to six AI review calls and forty-eight cumulative submitted frames.
 It permits one initial review plus at most two
 automatic correction rounds, including at most one product-code correction round.
-Re-review only changed device hashes. Uncertain findings, repeated defect
-fingerprints, or exhausted budgets require immediate user input.
+Re-review only changed device hashes. Unclear intent, uncertain findings, repeated
+defect fingerprints, or exhausted budgets require immediate user input.
 
 If review returns any blocker status (`capture_defect`, `render_defect`,
 `product_defect`, or `uncertain`), inspect the returned `blocker_media` metadata
 before responding. Run its `upload_command` and paste the returned `<video>` HTML
 in the blocker response so the user can see the exact failed recording. If
 `blocker_media.media_status` is `missing`, state that as a workflow defect and
-include the missing `video_path`; do not report the blocker with text alone.
+include the missing `video_path`; do not report the blocker or ask for design
+consent with text alone. Run `image_upload_command` and embed the cited frame before
+any visual-intent question.
 
 After a passed frame review, upload the approved proof video with its hash-bound WebVTT sidecar or representative
 proof screenshots with `python3 scripts/opencode_response_media.py <path> --alt

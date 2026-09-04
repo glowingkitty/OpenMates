@@ -13,6 +13,7 @@ export type GenericMentionType =
   | "focus_mode"
   | "settings_memory"
   | "settings_memory_entry"
+  | "wikipedia"
   | "project"
   | "project_folder"
   | "project_file";
@@ -117,6 +118,8 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
     const style =
       HTMLAttributes.colorStart && HTMLAttributes.colorEnd
         ? `--mention-color-start: ${HTMLAttributes.colorStart}; --mention-color-end: ${HTMLAttributes.colorEnd};`
+        : HTMLAttributes.mentionType === "wikipedia"
+          ? "--mention-color-start: var(--color-app-study-start); --mention-color-end: var(--color-app-study-end);"
         : "";
 
     const attrs = mergeAttributes(HTMLAttributes, {

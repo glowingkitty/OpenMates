@@ -4,18 +4,19 @@
 # from /v1/tasks, which remains Celery/background skill task polling.
 #
 # Spec: docs/specs/tasks-v1/spec.yml
+# test-file: backend/tests/test_user_task_activity_api.py
 
 import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.feature_availability_guards import ensure_tasks_enabled
 from backend.core.api.app.services.limiter import limiter
@@ -26,6 +27,11 @@ from backend.core.api.app.services.user_task_service import (
     UserTaskService,
 )
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
+from backend.core.api.app.services.user_work_control_service import (
+    DirectusWorkControlRepository,
+    UserWorkControlService,
+    WorkControlPermissionError,
+)
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_task_projection_service import WorkflowTaskProjectionService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
@@ -36,7 +42,18 @@ router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[D
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["ai", "user"]
-KeyWrapperType = Literal["master", "chat", "project"]
+KeyWrapperType = Literal["master", "chat", "project", "plan"]
+ExternalChatProvider = Literal["opencode"]
+BlockedReasonCode = Literal[
+    "needs_user_input",
+    "waiting_for_approval",
+    "missing_credentials",
+    "ambiguous_requirement",
+    "external_dependency",
+    "environment_unavailable",
+    "verification_failed",
+    "other",
+]
 
 
 class UserTaskKeyWrapperRequest(BaseModel):
@@ -44,6 +61,7 @@ class UserTaskKeyWrapperRequest(BaseModel):
     encrypted_task_key: str = Field(min_length=1)
     hashed_chat_id: str | None = None
     hashed_project_id: str | None = None
+    hashed_plan_id: str | None = None
     created_at: int
     expires_at: int | None = None
 
@@ -65,15 +83,20 @@ class UserTaskCreateRequest(BaseModel):
     assignee_type: AssigneeType = "user"
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
+    external_chat_provider: ExternalChatProvider | None = None
+    external_chat_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
+    encrypted_external_chat_id: str | None = None
+    encrypted_external_chat_title: str | None = None
     linked_project_ids: list[str] = Field(default_factory=list)
     parent_task_id: str | None = None
     plan_id: str | None = None
-    plan_step_id: str | None = None
     task_type: Literal["work", "verification"] = "work"
     verification_id: str | None = None
     due_at: int | None = None
     priority: int = Field(default=0, ge=0, le=4)
     position: int = 0
+    blocked_reason_code: BlockedReasonCode | None = None
+    encrypted_blocked_reason: str | None = None
     version: int
     created_at: int
     updated_at: int
@@ -101,16 +124,20 @@ class UserTaskUpdateRequest(BaseModel):
     assignee_type: AssigneeType | None = None
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
+    external_chat_provider: ExternalChatProvider | None = None
+    external_chat_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
+    encrypted_external_chat_id: str | None = None
+    encrypted_external_chat_title: str | None = None
     linked_project_ids: list[str] | None = None
     parent_task_id: str | None = None
     plan_id: str | None = None
-    plan_step_id: str | None = None
     task_type: Literal["work", "verification"] | None = None
     verification_id: str | None = None
     due_at: int | None = None
     priority: int | None = Field(default=None, ge=0, le=4)
     position: int | None = None
-    blocked_reason_code: str | None = None
+    blocked_reason_code: BlockedReasonCode | None = None
+    encrypted_blocked_reason: str | None = None
     ai_execution_state: str | None = None
     updated_at: int | None = None
     version: int
@@ -141,7 +168,8 @@ class UserTaskStartAIRequest(BaseModel):
 
 class UserTaskActionRequest(BaseModel):
     version: int
-    blocked_reason_code: str | None = None
+    blocked_reason_code: BlockedReasonCode | None = None
+    encrypted_blocked_reason: str | None = None
     team_id: str | None = None
 
 
@@ -174,6 +202,23 @@ class UserTaskKeyWrappersRequest(BaseModel):
 class UserTaskRestoreRequest(BaseModel):
     entry_id: str = Field(min_length=1)
     state: Literal["before", "after"] = "after"
+
+
+class UserTaskActivityCreateRequest(BaseModel):
+    """Ciphertext-only Activity input for first-party clients."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: str = Field(min_length=1)
+    encrypted_entry_key: str = Field(min_length=1)
+    encrypted_message: str = Field(min_length=1)
+    encrypted_embed_key_material: str | None = None
+    embed_refs: list[str] = Field(default_factory=list)
+    created_at: int
+
+
+class WorkDependencyRequest(BaseModel):
+    target_ref: str = Field(pattern=r"^(plan|task):[^:]+$")
 
 
 class UserTaskAskUpdateRequest(BaseModel):
@@ -240,6 +285,38 @@ async def _current_user(request: Request, response: Response) -> User:
     )
 
 
+async def _current_session_user(request: Request, response: Response) -> User:
+    """Dependency mutations are first-party session-only encrypted operations."""
+    return await get_current_user(
+        directus_service=request.app.state.directus_service,
+        cache_service=request.app.state.cache_service,
+        refresh_token=request.cookies.get("auth_refresh_token"),
+        response=response,
+        request=request,
+    )
+
+
+def _work_control_service(request: Request, user_id: str) -> UserWorkControlService:
+    return UserWorkControlService(
+        DirectusWorkControlRepository(
+            user_id=user_id,
+            plan_methods=request.app.state.directus_service.user_plan,
+            task_methods=request.app.state.directus_service.user_task,
+            directus_service=request.app.state.directus_service,
+            cache_service=request.app.state.cache_service,
+        )
+    )
+
+
+async def _ensure_linked_plan_execution(request: Request, user_id: str, task: dict[str, Any]) -> None:
+    plan_id = task.get("plan_id")
+    if not plan_id:
+        return
+    blockers = await _work_control_service(request, user_id).plan_execution_blockers(str(plan_id))
+    if blockers:
+        raise ValueError(f"Plan task execution is blocked: {blockers}")
+
+
 async def _require_task_team_role(request: Request, user_id: str, team_id: str | None) -> None:
     if team_id:
         await request.app.state.directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
@@ -254,9 +331,71 @@ def _handle_task_error(exc: Exception) -> None:
         raise HTTPException(status_code=409, detail="TASK_SLUG_CONFLICT") from exc
     if isinstance(exc, UserTaskNotFoundError):
         raise HTTPException(status_code=404, detail="Task not found") from exc
+    if isinstance(exc, WorkControlPermissionError):
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    if isinstance(exc, PermissionError):
+        raise HTTPException(status_code=403, detail="TASK_ACTIVITY_PERMISSION_DENIED") from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
+
+
+def _request_header(request: Request, name: str) -> str:
+    headers = request.headers
+    value = headers.get(name)
+    if value is not None:
+        return str(value).strip().lower()
+    lowered = name.lower()
+    for key, candidate in headers.items():
+        if str(key).lower() == lowered:
+            return str(candidate).strip().lower()
+    return ""
+
+
+def derive_task_activity_source_surface(request: Request) -> str:
+    """Derive durable attribution from authenticated first-party client headers."""
+
+    sdk_surface = _request_header(request, "X-OpenMates-SDK")
+    client_surface = _request_header(request, "X-OpenMates-Client")
+    raw_surface = sdk_surface or client_surface
+    if not raw_surface:
+        if _request_header(request, "Authorization").startswith("bearer "):
+            raise HTTPException(status_code=403, detail="TASK_ACTIVITY_FIRST_PARTY_CLIENT_REQUIRED")
+        return "web"
+    mapped = {"web": "web", "apple": "apple", "cli": "cli", "npm": "sdk_npm", "pip": "sdk_pip"}.get(raw_surface)
+    if mapped is None:
+        raise HTTPException(status_code=400, detail="TASK_ACTIVITY_CLIENT_INVALID")
+    return mapped
+
+
+def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
+    allowed = {
+        "entry_id",
+        "task_id",
+        "kind",
+        "actor_type",
+        "actor_hash",
+        "actor_display_name",
+        "actor_profile_image_url",
+        "event_type",
+        "source_surface",
+        "created_at",
+        "deleted_at",
+        "deleted_by_hash",
+        "deleted_by_display_name",
+        "encrypted_entry_key",
+        "encrypted_message",
+        "encrypted_embed_key_material",
+        "embed_refs",
+    }
+    projected = {key: value for key, value in entry.items() if key in allowed}
+    if projected.get("kind") == "tombstone":
+        projected["author_hash"] = projected.get("actor_hash")
+    return projected
+
+
+def _task_activity_cursor(entry: dict[str, Any]) -> str:
+    return f"{int(entry['created_at'])}:{entry['entry_id']}"
 
 
 async def _record_task_history(
@@ -341,6 +480,8 @@ async def list_user_tasks(
     status: TaskStatus | None = None,
     project_id: str | None = None,
     chat_id: str | None = None,
+    external_chat_provider: ExternalChatProvider | None = None,
+    external_chat_lookup_hash: str | None = Query(default=None, pattern="^[0-9a-f]{64}$"),
     assignee_hash: str | None = None,
     label_hash: list[str] | None = Query(default=None),
     label_hashes: list[str] | None = Query(default=None),
@@ -354,25 +495,30 @@ async def list_user_tasks(
     current_user = await _current_user(request, response)
     label_hash_values = [*_query_list_values(label_hash), *_query_list_values(label_hashes)]
     priority_value = _unwrap_query_default(priority)
+    external_chat_lookup_hash = _unwrap_query_default(external_chat_lookup_hash)
     try:
         if team_id:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        if (external_chat_provider is None) != (external_chat_lookup_hash is None):
+            raise ValueError("Task external chat filters require both provider and lookup hash")
+        tasks = await service.list_tasks(
+            current_user.id,
+            status=status,
+            project_id=project_id,
+            chat_id=chat_id,
+            external_chat_provider=external_chat_provider,
+            external_chat_lookup_hash=external_chat_lookup_hash,
+            assignee_hash=assignee_hash,
+            label_hashes=label_hash_values,
+            priority=priority_value,
+            due_before=due_before,
+            team_id=team_id,
+            limit=limit,
+        )
     except Exception as exc:
         _handle_task_error(exc)
-    tasks = await service.list_tasks(
-        current_user.id,
-        status=status,
-        project_id=project_id,
-        chat_id=chat_id,
-        assignee_hash=assignee_hash,
-        label_hashes=label_hash_values,
-        priority=priority_value,
-        due_before=due_before,
-        team_id=team_id,
-        limit=limit,
-    )
     projections = []
-    if not any((chat_id, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
+    if not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
@@ -390,7 +536,21 @@ async def create_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
+        if body.plan_id and body.assignee_type == "ai":
+            await _ensure_linked_plan_execution(request, current_user.id, body.model_dump())
         task = await service.create_task(current_user.id, body.model_dump())
+        if task.get("plan_id"):
+            try:
+                await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                    None, task, updated_at=int(task.get("updated_at") or time.time())
+                )
+            except Exception:
+                await service.task_methods.delete_task(
+                    str(task["task_id"]),
+                    current_user.id,
+                    int(task.get("version") or 1),
+                )
+                raise
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -456,13 +616,29 @@ async def ask_user_tasks(
         action_type = "ask_create"
         summary = ""
         for encrypted_create in encrypted_creates:
+            if encrypted_create.plan_id and encrypted_create.assignee_type == "ai":
+                await _ensure_linked_plan_execution(request, current_user.id, encrypted_create.model_dump())
             task = await service.create_task(current_user.id, encrypted_create.model_dump())
+            if task.get("plan_id"):
+                try:
+                    await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                        None, task, updated_at=int(task.get("updated_at") or time.time())
+                    )
+                except Exception:
+                    await service.task_methods.delete_task(
+                        str(task["task_id"]), current_user.id, int(task.get("version") or 1)
+                    )
+                    raise
             tasks.append(task)
             entries.append({"object_type": "task", "object_id": task["task_id"], "operation": "create", "after": task})
         for encrypted_update in encrypted_updates:
             patch = encrypted_update.patch.model_dump(exclude_unset=True)
             before = await service.task_methods.get_task(encrypted_update.task_id, current_user.id)
             task = await service.update_task(encrypted_update.task_id, current_user.id, patch)
+            if "plan_id" in patch:
+                await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                    before, task, updated_at=int(patch.get("updated_at") or time.time())
+                )
             tasks.append(task)
             entries.append({
                 "object_type": "task",
@@ -473,9 +649,16 @@ async def ask_user_tasks(
             })
         for exact_delete in exact_deletes:
             before = await service.task_methods.get_task(exact_delete.task_id, current_user.id)
-            deleted = await service.task_methods.delete_task(exact_delete.task_id, current_user.id, exact_delete.version)
+            async with _work_control_service(request, current_user.id).delete_guard(f"task:{exact_delete.task_id}") as lease:
+                if lease is not None:
+                    await lease.assert_held()
+                deleted = await service.task_methods.delete_task(exact_delete.task_id, current_user.id, exact_delete.version)
             if not deleted:
                 raise HTTPException(status_code=404, detail="Task not found")
+            if before and before.get("plan_id"):
+                await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                    before, None, updated_at=int(time.time())
+                )
             entries.append({"object_type": "task", "object_id": exact_delete.task_id, "operation": "delete", "before": before})
         if encrypted_updates:
             action_type = "ask_update"
@@ -520,6 +703,112 @@ async def list_user_task_history(
     return {"entries": entries}
 
 
+@router.get("/{task_id}/activity")
+@limiter.limit("60/minute")
+async def list_user_task_activity(
+    request: Request,
+    response: Response,
+    task_id: str,
+    team_id: str | None = Query(default=None),
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """First-party ciphertext read; Task authorization applies, no credits."""
+
+    current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    cursor = _unwrap_query_default(cursor)
+    limit = int(_unwrap_query_default(limit))
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member", "viewer"}
+            )
+        entries = await service.list_task_activity(
+            task_id,
+            current_user.id,
+            team_id=team_id,
+            cursor=cursor,
+            limit=limit + 1,
+        )
+        visible = entries[:limit]
+        return {
+            "entries": [_task_activity_response(entry) for entry in visible],
+            "next_cursor": _task_activity_cursor(visible[-1]) if len(entries) > limit and visible else None,
+        }
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/activity")
+@limiter.limit("30/minute")
+async def create_user_task_activity(
+    request: Request,
+    response: Response,
+    task_id: str,
+    body: UserTaskActivityCreateRequest,
+    team_id: str | None = Query(default=None),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """First-party ciphertext mutation; authenticated Task writers, no credits."""
+
+    current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member"}
+            )
+        entry = await service.create_task_activity(
+            task_id,
+            current_user.id,
+            payload=body.model_dump(),
+            team_id=team_id,
+            source_surface=derive_task_activity_source_surface(request),
+            actor_display_name=getattr(current_user, "username", None),
+            actor_profile_image_url=getattr(current_user, "profile_image_url", None),
+        )
+        return {"entry": _task_activity_response(entry)}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.delete("/{task_id}/activity/{entry_id}")
+@limiter.limit("30/minute")
+async def delete_user_task_activity(
+    request: Request,
+    response: Response,
+    task_id: str,
+    entry_id: str,
+    team_id: str | None = Query(default=None),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """Logical Activity deletion preserving safe tombstone attribution."""
+
+    current_user = await _current_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        allow_task_mutation = False
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(
+                team_id, current_user.id, {"owner", "admin", "member"}
+            )
+            allow_task_mutation = True
+        entry = await service.delete_task_activity(
+            task_id,
+            entry_id,
+            current_user.id,
+            team_id=team_id,
+            deleted_at=int(time.time()),
+            allow_task_mutation=allow_task_mutation,
+            deleted_by_display_name=getattr(current_user, "username", None),
+        )
+        return {"entry": _task_activity_response(entry)}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
 @router.post("/{task_id}/restore")
 @limiter.limit("20/minute")
 async def restore_user_task_from_history(
@@ -531,14 +820,14 @@ async def restore_user_task_from_history(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        result = await history_service.restore_object_to_entry(
-            user_id=current_user.id,
-            object_type="task",
-            object_id=task_id,
-            entry_id=body.entry_id,
-            state=body.state,
-            source="cli",
-        )
+        async with _work_control_service(request, current_user.id).restore_delete_guard(
+            history_service, user_id=current_user.id, object_type="task", object_id=task_id, entry_id=body.entry_id, state=body.state
+        ) as lease:
+            if lease is not None:
+                await lease.assert_held()
+            result = await history_service.restore_object_to_entry(
+                user_id=current_user.id, object_type="task", object_id=task_id, entry_id=body.entry_id, state=body.state, source="cli"
+            )
         return {"task": result.get("object"), "history": result}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -560,12 +849,17 @@ async def update_user_task(
     try:
         await _require_task_team_role(request, current_user.id, team_id)
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        patch = body.model_dump(exclude_unset=True)
         task = await service.update_task(
             task_id,
             current_user.id,
-            body.model_dump(exclude_unset=True),
+            patch,
             team_id=team_id,
         )
+        if not team_id and "plan_id" in patch:
+            await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                before, task, updated_at=int(patch.get("updated_at") or time.time())
+            )
         history = await _record_task_history(
             history_service,
             current_user.id,
@@ -575,6 +869,40 @@ async def update_user_task(
             redacted_summary="Updated 1 task",
         )
         return {"task": task, "history": history}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.post("/{task_id}/dependencies")
+@limiter.limit("30/minute")
+async def add_task_dependency(request: Request, response: Response, task_id: str, body: WorkDependencyRequest) -> dict[str, Any]:
+    """First-party session or approved-device route; standard rate limit, no credits."""
+    current_user = await _current_user(request, response)
+    try:
+        edge = await _work_control_service(request, current_user.id).add_dependency(f"task:{task_id}", body.target_ref)
+        return {"dependency": edge}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.delete("/{task_id}/dependencies/{target_kind}/{target_id}")
+@limiter.limit("30/minute")
+async def remove_task_dependency(request: Request, response: Response, task_id: str, target_kind: Literal["plan", "task"], target_id: str) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        await _work_control_service(request, current_user.id).remove_dependency(f"task:{task_id}", f"{target_kind}:{target_id}")
+        return {"deleted": True}
+    except Exception as exc:
+        _handle_task_error(exc)
+
+
+@router.get("/{task_id}/dependencies")
+@limiter.limit("60/minute")
+async def list_task_dependencies(request: Request, response: Response, task_id: str) -> dict[str, Any]:
+    """First-party/API-key read; owner-scoped safe dependency metadata only."""
+    current_user = await _current_user(request, response)
+    try:
+        return await _work_control_service(request, current_user.id).dependency_read_model(f"task:{task_id}")
     except Exception as exc:
         _handle_task_error(exc)
 
@@ -593,6 +921,14 @@ async def start_user_task_ai(
     try:
         await _require_task_team_role(request, current_user.id, body.team_id)
         before = await service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        if body.team_id:
+            raise ValueError("Team work-control task execution is not supported in this slice")
+        if before:
+            blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
+            if blockers:
+                raise ValueError(f"Task execution is blocked: {blockers}")
+        if before:
+            await _ensure_linked_plan_execution(request, current_user.id, before)
         task = await service.start_ai(
             task_id,
             current_user.id,
@@ -622,6 +958,7 @@ async def move_user_task_to_team(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
+        await _work_control_service(request, current_user.id).ensure_unlinked(f"task:{task_id}")
         task = await move_workspace_record_to_team(
             directus_service=request.app.state.directus_service,
             actor_user_id=current_user.id,
@@ -658,7 +995,12 @@ async def delete_user_task(
         if skipped_projection is not None:
             return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
-        deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
+        if team_id:
+            raise ValueError("Team work-control task deletion is not supported in this slice")
+        async with _work_control_service(request, current_user.id).delete_guard(f"task:{task_id}") as lease:
+            if lease is not None:
+                await lease.assert_held()
+            deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Task not found")
         history = await _record_task_history(
@@ -669,6 +1011,10 @@ async def delete_user_task(
             entries=[{"object_type": "task", "object_id": task_id, "operation": "delete", "before": before}],
             redacted_summary="Deleted 1 task",
         )
+        if before and before.get("plan_id"):
+            await _work_control_service(request, current_user.id).invalidate_for_task_membership_change(
+                before, None, updated_at=int(time.time())
+            )
     except Exception as exc:
         _handle_task_error(exc)
     return {"deleted": True, "task_id": task_id, "history": history}
@@ -688,6 +1034,13 @@ async def complete_user_task(
     try:
         await _require_task_team_role(request, current_user.id, body.team_id)
         before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
+        if body.team_id:
+            raise ValueError("Team work-control task completion is not supported in this slice")
+        blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
+        if blockers:
+            raise ValueError(f"Task completion is blocked: {blockers}")
+        if before:
+            await _ensure_linked_plan_execution(request, current_user.id, before)
         task = await queue_service.complete_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,
@@ -721,6 +1074,7 @@ async def block_user_task(
             current_user.id,
             version=body.version,
             blocked_reason_code=body.blocked_reason_code,
+            encrypted_blocked_reason=body.encrypted_blocked_reason,
             team_id=body.team_id,
         )
         history = await _record_task_history(

@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webSocketService } from "../websocketService";
+import * as wsTracing from "../tracing/wsSpans";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -142,5 +143,25 @@ describe("webSocketService recovery protocol errors", () => {
       "[WebSocketService] Received error message from server:",
       expect.anything(),
     );
+  });
+});
+
+describe("webSocketService message dispatch", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+  it("rejects instead of silently dropping a message when the socket changes during tracing", async () => {
+    const service = webSocketService as unknown as {
+      ws: { readyState: number; send: ReturnType<typeof vi.fn> } | null;
+    };
+    const socket = { readyState: WebSocket.OPEN, send: vi.fn() };
+    service.ws = socket;
+    vi.spyOn(wsTracing, "withActiveWsSpan").mockImplementation(async (_name, callback) => {
+      service.ws = null;
+      return callback();
+    });
+
+    await expect(webSocketService.sendMessage("chat_turn_preflight", {})).rejects.toThrow(
+      "WebSocket changed before message dispatch",
+    );
+    expect(socket.send).not.toHaveBeenCalled();
   });
 });

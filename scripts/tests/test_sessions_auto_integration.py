@@ -5,6 +5,8 @@ Automatic integration is opt-out but remains exact-patch, grace-period, and
 normal-deploy-gate constrained. Legacy worktrees never become implicit inputs.
 """
 
+# contract-test-file: tooling
+
 from __future__ import annotations
 
 import importlib.util
@@ -54,6 +56,41 @@ def eligible_data() -> dict:
     }
 
 
+def test_activate_session_worktree_invalidates_eligible_checkpoint(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    data["sessions"]["abcd"]["opencode_session_id"] = "ses-parent"
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", tmp_path / "locks")
+
+    result = sessions.activate_session_worktree("ses-parent")
+
+    assert result["status"] == "active"
+    assert data["sessions"]["abcd"]["workspace_state"] == "changes_pending"
+    assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
+    assert data["sessions"]["abcd"]["auto_integration"]["status"] == "changes_pending"
+    assert data["sessions"]["abcd"]["auto_integration"]["block_reason"] == "live_turn_started"
+
+
+def test_claim_rechecks_presence_and_invalidates_candidate(monkeypatch, tmp_path: Path) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: True)
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", tmp_path / "locks")
+
+    assert sessions._claim_auto_integration({
+        "session_id": "abcd",
+        "patch_id": "patch-1",
+        "checkpoint_commit": "commit-1",
+    }) is False
+    assert data["sessions"]["abcd"]["workspace_state"] == "changes_pending"
+    assert data["sessions"]["abcd"]["auto_integration"]["status"] == "changes_pending"
+    assert data["sessions"]["abcd"]["auto_integration"]["block_reason"] == "live_turn_started"
+
+
 def test_only_current_checkpoint_past_grace_is_selected(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = eligible_data()
@@ -66,6 +103,39 @@ def test_only_current_checkpoint_past_grace_is_selected(monkeypatch) -> None:
     selected = sessions.select_auto_integration_candidates(now="2026-08-06T17:00:00Z")
 
     assert [item["session_id"] for item in selected] == ["abcd"]
+
+
+def test_candidate_inspection_failure_does_not_abort_later_candidate(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    broken = data["sessions"].pop("abcd")
+    healthy = {
+        **broken,
+        "worktree": {**broken["worktree"], "path": "/repo/agent-healthy"},
+        "auto_integration": {
+            **broken["auto_integration"],
+            "checkpoint_ref": "refs/openmates/checkpoints/healthy",
+        },
+    }
+    data["sessions"] = {"broken": broken, "healthy": healthy}
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_checkpoint_ref_matches", lambda _session_id, _auto: True)
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: False)
+
+    def deploy_files(session, _exclude):
+        if session["worktree"]["path"].endswith("agent-abcd"):
+            raise RuntimeError("missing git metadata")
+        return ["frontend/packages/ui/src/safe.ts"]
+
+    monkeypatch.setattr(sessions, "_session_deploy_files", deploy_files)
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata, _files: "patch-1")
+
+    selected = sessions.select_auto_integration_candidates(now="2026-08-06T17:00:00Z")
+
+    assert [item["session_id"] for item in selected] == ["healthy"]
+    assert data["sessions"]["broken"]["auto_integration"]["status"] == "recovery_needed"
+    assert "candidate_inspection_failed" in data["sessions"]["broken"]["auto_integration"]["block_reason"]
 
 
 def test_changed_patch_hold_sensitive_path_and_live_lease_are_blocked(monkeypatch) -> None:
@@ -268,3 +338,102 @@ def test_idle_worker_retries_unchanged_patch_after_transient_failure(monkeypatch
 
     assert result == [{"status": "eligible"}]
     assert retried == [("ses-parent", "idle")]
+
+
+def test_idle_worker_isolates_checkpoint_failure_and_continues(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    data["sessions"] = {
+        "broken": {
+            **data["sessions"]["abcd"],
+            "opencode_session_id": "ses-broken",
+            "last_active": "2026-08-06T15:00:00Z",
+        },
+        "healthy": {
+            **data["sessions"]["abcd"],
+            "opencode_session_id": "ses-healthy",
+            "last_active": "2026-08-06T15:00:00Z",
+        },
+    }
+    data["sessions"]["broken"]["auto_integration"] = {
+        "status": "blocked",
+        "block_reason": "checkpoint_failed:ignored path",
+    }
+    data["sessions"]["healthy"]["auto_integration"] = {
+        "status": "blocked",
+        "block_reason": "temporary failure",
+    }
+    calls: list[str] = []
+
+    def checkpoint(opencode_id: str, *, event: str) -> dict:
+        calls.append(opencode_id)
+        if opencode_id == "ses-broken":
+            raise RuntimeError("ignored deploy path")
+        return {"session_id": "healthy", "status": "eligible"}
+
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: False)
+    monkeypatch.setattr(sessions, "_session_deploy_files", lambda _session, _exclude: ["safe.py"])
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata, _files: "patch-1")
+    monkeypatch.setattr(sessions, "checkpoint_session_worktree", checkpoint)
+
+    result = sessions.checkpoint_idle_sessions(now="2026-08-06T17:00:00Z")
+
+    assert calls == ["ses-broken", "ses-healthy"]
+    assert result == [
+        {"session_id": "broken", "status": "blocked", "reason": "ignored deploy path"},
+        {"session_id": "healthy", "status": "eligible"},
+    ]
+
+
+def test_idle_worker_isolates_deploy_file_inspection_failure_and_continues(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    data = eligible_data()
+    data["sessions"] = {
+        "broken": {
+            **data["sessions"]["abcd"],
+            "opencode_session_id": "ses-broken",
+            "last_active": "2026-08-06T15:00:00Z",
+        },
+        "healthy": {
+            **data["sessions"]["abcd"],
+            "opencode_session_id": "ses-healthy",
+            "last_active": "2026-08-06T15:00:00Z",
+        },
+    }
+    data["sessions"]["broken"]["auto_integration"] = {
+        "status": "blocked",
+        "block_reason": "stale directory state",
+    }
+    data["sessions"]["healthy"]["auto_integration"] = {
+        "status": "blocked",
+        "block_reason": "temporary failure",
+    }
+    checkpointed: list[str] = []
+
+    def deploy_files(session: dict, _exclude: set[str]) -> list[str]:
+        if session.get("opencode_session_id") == "ses-broken":
+            raise RuntimeError("Unsupported non-file deploy path: test-results/proof-videos/frames")
+        return ["safe.py"]
+
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: False)
+    monkeypatch.setattr(sessions, "_session_deploy_files", deploy_files)
+    monkeypatch.setattr(sessions, "_worktree_patch_id", lambda _metadata, _files: "patch-1")
+    monkeypatch.setattr(
+        sessions,
+        "checkpoint_session_worktree",
+        lambda opencode_id, *, event: checkpointed.append(opencode_id) or {"session_id": "healthy", "status": "eligible"},
+    )
+
+    result = sessions.checkpoint_idle_sessions(now="2026-08-06T17:00:00Z")
+
+    assert checkpointed == ["ses-healthy"]
+    assert result == [
+        {
+            "session_id": "broken",
+            "status": "blocked",
+            "reason": "Unsupported non-file deploy path: test-results/proof-videos/frames",
+        },
+        {"session_id": "healthy", "status": "eligible"},
+    ]

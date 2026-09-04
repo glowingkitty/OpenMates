@@ -213,13 +213,13 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "productivity_organization", type: "context", audience: "work", fallbackLabel: "productivity & organization", icon: "check-check", appId: "tasks", gradientCategory: "life_coach_psychology",
     related: ["project_management", "admin_operations", "automation_workflows", "learning_new_skills"],
-    exampleChats: ["example-upcoming-reminders-list", "example-cancel-test-reminder", "example-example-chat-task-planning", "example-library-book-return-workflow", "example-launch-readiness-checklist-doc", "example-balcony-plant-reminder", "example-memory-reminder-defaults", "example-memory-web-bookmarks", "example-memory-web-read-later", "example-memory-books-to-read", "example-memory-tv-to-watch", "example-memory-videos-to-watch", "example-memory-ai-communication-style", "example-memory-ai-learning-preferences", "example-memory-study-learning-goals", "example-memory-travel-trips", "example-memory-code-projects", "example-berlin-weather-bike-commute"],
+    exampleChats: ["example-upcoming-reminders-list", "example-cancel-test-reminder", "example-example-chat-task-planning", "example-library-book-return-workflow", "example-launch-readiness-checklist-doc", "example-balcony-plant-reminder", "example-memory-reminder-defaults", "example-memory-web-bookmarks", "example-memory-web-read-later", "example-memory-books-to-read", "example-memory-tv-to-watch", "example-memory-videos-to-watch", "example-memory-study-learning-goals", "example-memory-travel-trips", "example-memory-code-projects", "example-berlin-weather-bike-commute"],
     suggestions: ["chat.new_chat_suggestions.improve_productivity"],
   },
   {
     id: "learning_new_skills", type: "context", audience: "personal", fallbackLabel: "learning new skills", icon: "graduation-cap", appId: "web", gradientCategory: "general_knowledge", developerIntro: true,
     related: ["research_analysis", "software_development", "productivity_organization", "diy_electronics"],
-    exampleChats: ["example-memory-study-learning-goals", "example-memory-code-want-to", "example-memory-ai-learning-preferences", "example-svelte-runes-docs", "example-rag-explained-videos", "example-ai-workshops-meetups-berlin", "example-frontend-developer-career-pivot", "example-memory-books-to-read", "example-memory-books-currently-reading", "example-memory-books-favorite-books", "example-ted-talk-transcript-summary", "example-sqlite-strict-tables-summary", "example-rust-vector-database-repos", "example-open-meteo-weather-notebook", "example-damped-sine-wave-plot", "example-artemis-ii-mission", "example-gigantic-airplanes", "example-germany-historic-film-industry"],
+    exampleChats: ["example-memory-study-learning-goals", "example-memory-code-want-to", "example-svelte-runes-docs", "example-rag-explained-videos", "example-ai-workshops-meetups-berlin", "example-frontend-developer-career-pivot", "example-memory-books-to-read", "example-memory-books-currently-reading", "example-memory-books-favorite-books", "example-ted-talk-transcript-summary", "example-sqlite-strict-tables-summary", "example-rust-vector-database-repos", "example-open-meteo-weather-notebook", "example-damped-sine-wave-plot", "example-artemis-ii-mission", "example-gigantic-airplanes", "example-germany-historic-film-industry"],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.learn_spanish", "chat.new_chat_suggestions.quantum_computing"],
   },
   {
@@ -280,7 +280,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
     id: "privacy_personal_data", type: "context", audience: "personal", fallbackLabel: "privacy & personal data", icon: "shield-check", appId: "ai", gradientCategory: "openmates_official",
     related: ["legal_compliance", "health_wellbeing", "finance_bookkeeping", "software_development"],
     dailyInspirations: ["pii-detection", "relevant-memories", "incognito-mode", "provider-independent"],
-    exampleChats: ["example-pdf-search-encryption", "example-eu-chat-control-law", "example-privacy-first-local-ai", "example-private-workspace-demo-video", "example-privacy-first-product-launch", "example-privacy-website-hero-background", "example-building-maintenance-email", "example-memory-health-medical-history", "example-memory-health-appointments", "example-memory-ai-communication-style", "example-framework-store-reputation-check"],
+    exampleChats: ["example-pdf-search-encryption", "example-eu-chat-control-law", "example-privacy-first-local-ai", "example-private-workspace-demo-video", "example-privacy-first-product-launch", "example-privacy-website-hero-background", "example-building-maintenance-email", "example-memory-health-medical-history", "example-memory-health-appointments", "example-framework-store-reputation-check"],
     suggestions: ["chat.new_chat_suggestions.cybersecurity", "chat.new_chat_suggestions.professional_email"],
   },
 ];
@@ -292,9 +292,7 @@ export const INTEREST_TAGS: InterestTag[] = DEFINITIONS.map((definition, index) 
     labelKey: `chat.interests.${tag.id}`,
     defaultOrder: (index + 1) * 10,
     dailyInspirations: [...dailyInspirations, ...GUEST_PRODUCT_INSPIRATIONS],
-    introChats: developerIntro
-      ? ["demo-for-developers", "demo-who-develops-openmates", "demo-for-everyone"]
-      : ["demo-for-everyone"],
+    introChats: developerIntro ? ["demo-who-develops-openmates"] : [],
   };
 });
 

@@ -317,13 +317,21 @@ async def handle_sync_offline_changes(
                         logger.error(f"Failed to increment draft_v in cache for offline change (chat {chat_id}).")
                         error_count += 1
                         continue
-                    await cache_service.update_user_draft_in_cache(
+                    update_success = await cache_service.update_user_draft_in_cache(
                         user_id,
                         chat_id,
                         encrypted_value_str,
                         new_cache_version,
                         encrypted_draft_preview=change.get("encrypted_draft_preview"),
                     )
+                    if update_success is None:
+                        logger.error(f"Failed to update draft cache for offline change (chat {chat_id}).")
+                        error_count += 1
+                        continue
+                    if update_success is False:
+                        logger.info(f"Skipped superseded offline draft update for user {user_id}, chat {chat_id}.")
+                        processed_count += 1
+                        continue
 
                     # Match update_draft_handler semantics: draft-only new chats are
                     # discoverable cross-device, but drafts do not reorder existing chats.
@@ -375,6 +383,8 @@ async def handle_sync_offline_changes(
                         logger.info(f"User {user_id}: Successfully tombstoned draft in cache for chat_id: {chat_id} during offline sync.")
                     else:
                         logger.warning(f"User {user_id}: Draft cache tombstone failed for chat_id: {chat_id} during offline sync.")
+                        processed_count += 1
+                        continue
 
                     try:
                         chat_service = getattr(directus_service, "chat", None)
@@ -392,7 +402,10 @@ async def handle_sync_offline_changes(
                     await _delete_directus_user_draft_if_present(directus_service, user_id, chat_id)
 
                     await manager.broadcast_to_user(
-                        message={"type": "draft_deleted", "payload": {"chat_id": chat_id}},
+                        message={
+                            "type": "draft_deleted",
+                            "payload": {"chat_id": chat_id, "draft_v": deleted_draft_v},
+                        },
                         user_id=user_id,
                         exclude_device_hash=None,
                     )

@@ -1,0 +1,1258 @@
+schema_version: 2
+id: tasks-plans-workspace
+title: Tasks And Plans Workspace Transition
+status: verified
+
+goal: >
+  Move the central Tasks and Plans web routes onto the shared workspace home
+  pattern while preserving the approved encrypted task and plan API, CLI, and
+  SDK contracts. /tasks and /plans must feel like sibling workspaces: each has
+  its own Figma-directed greeting, daily inspiration, prompt composer, Kanban
+  board, search/filter affordances, and management actions, with Plans treating
+  completed plans as Done-column items instead of hiding them from the board.
+
+scope:
+  in:
+    - A focused web workspace transition for /tasks and /plans, not a new task or plan data model.
+    - Reuse WorkspaceHomeShell, WorkspacePromptComposer, DailyInspirationBanner, shared route chrome, and existing encrypted task/plan services where practical.
+    - Keep /tasks task-specific and /plans plan-specific; /plans must no longer look like a generic TasksPage focus mode with task creation and extraction as the primary content.
+    - Render task and plan Kanban boards from encrypted client-decrypted records, with stable status columns, search/filter tags, and open chat/workflow/project/detail affordances.
+    - Map completed plans into the Done column and keep blocked plans in the Blocked column; archived plans are hidden by default unless an explicit filter/history view is added.
+    - Support desktop and mobile board interaction with both horizontal and vertical scrolling like the Figma frames, without clipping composer, daily inspiration, Report Issue, or primary action controls.
+    - Bring web create/edit/manage parity up to the existing CLI where practical: tasks edit/update/status actions, tasks ask, plans edit/update/status actions, and plans ask.
+    - Use the workspace composer for creating new tasks/plans and for natural-language update/manage requests against existing tasks/plans.
+    - Require preview, confirmation, and undo for destructive or bulk natural-language changes such as delete, archive, complete-many, or replace plan/task content.
+    - Preserve stable /tasks/{task_id} and /plans/{plan_id} detail routes and the existing project/chat embedded task-plan surfaces.
+    - Add or extend Playwright spec.ts coverage for /tasks and /plans route distinction, shared workspace shell usage, board columns, plan Done mapping, composer create/update behavior, responsive scrolling, and visible error/empty states.
+  out:
+    - New task statuses, new plan statuses, or a replacement for docs/plans/tasks-v1/plan.yml or docs/plans/plans-v1/plan.yml.
+    - New public developer REST API endpoints for tasks or plans.
+    - Server-side plaintext search over encrypted task or plan titles, descriptions, goals, summaries, criteria, assumptions, checks, or learnings.
+    - Team/shared collaborative tasks or plans beyond already approved read-only share behavior.
+    - Rebuilding full plan execution, assumption checking, or check-run detail UX beyond what existing Plans V1 services already expose.
+    - Replacing ChatHeader, Project details, Workflow details, or Apple UI in this web slice.
+    - Exact one-to-one Figma token parity; implementation maps the approved hierarchy and flow to current OpenMates design tokens.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials during this discovery."
+    - "Fallback gh issue list --repo glowingkitty/OpenMates --state all --search 'tasks plans workspace kanban composer' --limit 10 returned no output."
+    - "Fallback gh issue list --repo glowingkitty/OpenMates --state all --search 'tasks plans Figma workspace' --limit 10 returned no output."
+    - "Fallback gh issue list --repo glowingkitty/OpenMates --state all --search 'plans tasks web app' --limit 10 returned #447: Design planning, tasks, projects, and permissions for agentic coding."
+  figma:
+    - "python3 scripts/figma_index.py ensure --max-age-hours 168 reported a fresh index."
+    - "Web App > tasks, node 5371:46140, URL https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/OpenMates?node-id=5371-46140."
+    - "Web App > plans, node 5453:35113, URL https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/OpenMates?node-id=5453-35113."
+    - "Figma Tasks frame shows daily suggestion, search, task greeting 'Hey Kitty! What task is next?', app/tag chips, task cards, chat/workflow links, and desktop/mobile boards."
+    - "Figma Plans frame shows daily suggestion, plan greeting 'Hey Kitty! What is your next plan?', plan composer copy 'Click to add or update plans', and notes that voice/text can create, update, manage, or delete plans with Undo for modifying/deleting requests."
+    - "Downloaded references: test-results/figma/tasks-plans-workspace/figma-web-app-tasks.png and test-results/figma/tasks-plans-workspace/figma-web-app-plans.png."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/tasks-web-app-parity/plan.yml
+    - docs/plans/tasks-v1/plan.yml
+    - docs/plans/plans-v1/plan.yml
+    - docs/plans/unified-detail-pages/plan.yml
+    - docs/plans/tasks-workflows-app-skill-embeds/plan.yml
+    - docs/architecture/platforms/tasks-v1.md
+  code_patterns:
+    - frontend/apps/web_app/src/routes/tasks/+page.svelte mounts TasksPage for /tasks and TaskDetailPage for task detail routes.
+    - frontend/apps/web_app/src/routes/plans/+page.svelte mounts TasksPage focus="plans" for /plans and PlanDetailPage for plan detail routes.
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte mixes central task board, linked plans strip, task creation, transcript extraction, plan creation, and plan activation/completion actions.
+    - frontend/packages/ui/src/components/tasks/TaskBoard.svelte defines backlog, todo, in_progress, blocked, and done task columns with drag/drop and explicit move controls.
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte already supports surface values chats, projects, workflows, tasks, and plans with DailyInspirationBanner and a composer slot.
+    - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte already provides a reusable text/mic workspace composer for projects, workflows, tasks, and plans.
+    - frontend/packages/ui/src/services/userTaskService.ts and userPlanService.ts encrypt durable private fields client-side before hitting /v1/user-tasks and /v1/user-plans.
+    - frontend/packages/openmates-cli/src/cli.ts exposes tasks edit, tasks ask, plans edit/update, and plans ask behavior.
+    - frontend/packages/openmates-cli/src/sdk.ts uses buildUpdateUserTaskInput and buildUpdateUserPlanInput for encrypted SDK updates.
+    - scripts/verify_tasks_cli_smoke.py and scripts/verify_sdk_tasks_live_smoke.mjs cover real task CLI/SDK smoke against the dev API.
+    - scripts/verify_sdk_plans_live_smoke.mjs covers npm and pip SDK plan helpers against the dev API; a matching live CLI plan smoke is not present yet and should be added or replaced with explicit real CLI commands before web implementation.
+  tests:
+    - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+    - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    - frontend/apps/web_app/tests/tasks-flow.spec.ts
+    - frontend/apps/web_app/tests/plans-flow.spec.ts
+    - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    - packages/openmates-python/tests/test_plans.py
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Tasks/TaskBoardView.swift
+    - apple/OpenMates/Sources/Features/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Features/Plans/PlanDetailView.swift
+    - apple/OpenMates/Sources/Features/Chat/ChatView.swift
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+  parity_expectations:
+    - Apple should eventually expose equivalent task and plan workspace board semantics, including completed plans as Done-column content or an accessible native equivalent.
+    - This spec only implements web; Apple parity starts after deployed web Playwright, visual smoke, and user confirmation are complete or explicitly waived.
+    - Native may use platform-appropriate lists/sections instead of browser-style horizontal board scrolling if statuses, actions, accessibility, and Done mapping remain equivalent.
+  verification:
+    - Record Apple as deferred after web user confirmation unless implementation touches shared Apple/API client code.
+    - If native code is touched, run or attempt python3 scripts/apple_remote.py status plus build-ios or targeted tests.
+  intentional_native_differences:
+    - Native task/plan movement may use segmented pickers, context menus, or rotor/actions instead of drag/drop.
+
+clarification:
+  rounds:
+    - question: Should completed plans be hidden from the active plans strip or visible on the board?
+      answer: Completed plans must go to the done column.
+    - question: Should web only create plans/tasks, or also update and manage existing records when the CLI supports it?
+      answer: If CLI supports update/manage existing plans/tasks, web app should too.
+    - question: How should the desktop/mobile board scroll behavior work?
+      answer: Mobile and desktop board should support horizontal and vertical scrolling like Figma.
+  vision_summary: >
+    Tasks and Plans should become first-class sibling workspaces using the shared
+    workspace home/composer language instead of a shared generic TasksPage. The
+    existing encrypted CLI/API/SDK contracts remain the behavioral source of
+    truth; web adds parity where practical, especially plan/task updates and
+    management, while preserving Figma-directed board, composer, and scrolling
+    behavior.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-01T00:00:00Z"
+    reason: User said "Go ahead and implement" after reviewing the drafted product contract.
+  plan:
+    status: approved
+    approved_at: "2026-08-01T00:00:00Z"
+    reason: Existing implementation_notes and tasks are sufficient for this focused web slice.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Treat this as a web workspace transition on top of Tasks V1 and Plans V1, not a replacement for their data models.
+    reason: Existing task and plan specs already own encrypted storage, status lifecycles, API, CLI, and SDK contracts.
+    decided_at: "2026-07-31T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: /tasks and /plans should both use the shared workspace shell/composer pattern, with surface-specific content and copy.
+    reason: Workflows and Projects already use the shared shell, and the Figma tasks/plans frames are sibling surfaces.
+    decided_at: "2026-07-31T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Completed plans map to the Done board column.
+    reason: User explicitly required completed plans to go to Done.
+    decided_at: "2026-07-31T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Web should expose task/plan update and manage actions already supported by CLI/SDK where practical.
+    reason: The user explicitly said web app should support update/manage existing plans/tasks if the CLI does.
+    decided_at: "2026-07-31T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Natural-language destructive or bulk management requests require preview, explicit confirmation, and undo.
+    reason: Figma notes call out Undo for modifying/deleting plan requests, and encrypted private task/plan data must not be silently mutated.
+    decided_at: "2026-07-31T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: The current Chat workspace is the source of truth for reusable home layout and action treatment.
+    reason: The user explicitly requested minimal changes to Chat and reuse of its Daily Inspiration, card rail, top-button/report, composer, and text-link action patterns across workspaces.
+    decided_at: "2026-08-01T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Perform bounded discovery through GitHub fallback search, Figma index/node inspection, related specs, route/component source, services, CLI support, and existing tests.
+    outcome: succeeded
+    recorded_at: "2026-07-31T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Reuse the existing Tasks Web App Parity spec as the only contract for this combined workspace transition.
+    outcome: rejected
+    recorded_at: "2026-07-31T00:00:00Z"
+    reason: That spec covers task board parity but not /plans becoming a plan-specific shared workspace, completed-plan Done mapping, or task/plan composer management parity.
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Add a real plans CLI smoke and run task CLI, plan CLI, npm SDK, and pip SDK gates against https://api.dev.openmates.org before web implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-01T08:45:47Z"
+    reason: Initial plan smoke exposed that CLI plan completion omitted updated_at and plans ask JSON emitted encrypted internals; both were fixed before the live gates passed.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Rerun final deployed Playwright, CLI, SDK, static validation, and deterministic-audit evidence against commit 5ec7675b6 after mobile task completion exposed a hidden-checkbox touch target issue.
+    outcome: succeeded
+    recorded_at: "2026-08-01T12:39:01Z"
+    reason: Final commit 5ec7675b6 made the task done control a visible 44px label target, then all targeted deployed Playwright specs and live CLI/SDK gates passed.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Run Firecrawl visual smoke for deployed /tasks and /plans in laptop and mobile viewports after Playwright passed.
+    outcome: blocked
+    recorded_at: "2026-08-01T12:40:00Z"
+    reason: Firecrawl returned Insufficient credits for all requested visual-smoke scrapes before screenshots or markdown could be captured.
+  - id: ATTEMPT-6
+    task_id: TASK-5
+    approach: Complete the spec after recording the Firecrawl credit blocker, preserving deployed Playwright/CLI/SDK evidence as the automated gate and treating the user's "Complete the full spec" instruction as confirmation plus waiver for the unavailable Firecrawl artifact capture.
+    outcome: succeeded
+    recorded_at: "2026-08-01T19:42:17Z"
+    reason: All implementation and deployed automation gates were green; only external Firecrawl credits and user confirmation remained after the user requested spec completion.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Spec complete; schedule or resume Apple task/plan workspace parity as follow-up when prioritized.
+  command: python3 scripts/plan_verify.py docs/plans/tasks-plans-workspace/plan.yml
+  expected_outcome: Spec verification passes after user confirmation and Firecrawl waiver are recorded.
+  blocker: null
+  last_verified_commit: 5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2
+
+scenarios:
+  - id: S-1
+    title: Tasks route uses the shared workspace pattern
+    given:
+      - Alice is logged into the web app and platform:tasks is enabled.
+      - Alice has tasks in backlog, todo, in_progress, blocked, and done.
+    when:
+      - Alice opens /tasks on desktop.
+    then:
+      - The route renders the shared workspace home shell with surface="tasks".
+      - Daily inspiration appears above the workspace content and uses task-specific inspiration copy.
+      - The central greeting says "What task is next?" with Alice's first display name when available.
+      - Search/filter controls and a task prompt composer are visible.
+      - The board shows backlog, todo, in_progress, blocked, and done task columns populated from decrypted task records.
+
+  - id: S-2
+    title: Plans route is plan-specific, not a task workspace clone
+    given:
+      - Alice is logged into the web app and platform:plans is enabled.
+      - Alice has draft, active, executing, blocked, completed, and archived plans.
+    when:
+      - Alice opens /plans on desktop.
+    then:
+      - The route renders the shared workspace home shell with surface="plans".
+      - The central greeting says "What is your next plan?".
+      - The composer invites Alice to add or update plans.
+      - The primary board shows plan cards, not task creation/transcript extraction as the main workspace content.
+      - Completed plans appear in the Done column, blocked plans appear in Blocked, and archived plans are hidden from the default board.
+
+  - id: S-3
+    title: Web composer creates short and rich tasks or plans
+    given:
+      - Alice opens /tasks or /plans.
+      - The relevant encrypted API contract and feature flag are available.
+    when:
+      - Alice enters a short phrase such as "Weather check" into the task or plan composer.
+      - Alice enters a longer plan description such as "Plan a teams feature with goals, checks, and risks" into the plan composer.
+    then:
+      - The short task request creates a task with the phrase as title and encrypted durable fields.
+      - The short plan request creates a draft plan with the phrase as title and encrypted durable fields.
+      - The longer plan request creates or starts a richer plan draft using existing plan ask/planner behavior where available, without inventing server-side plaintext storage.
+      - Success and failure states are visible and testable.
+
+  - id: S-4
+    title: Web composer manages existing tasks and plans with confirmation
+    given:
+      - Alice has an existing task named "Draft launch copy" and an existing plan named "Launch website".
+    when:
+      - Alice types "move Draft launch copy to blocked" in /tasks.
+      - Alice types "mark Launch website complete" or "delete the duplicate launch plan" in /plans.
+    then:
+      - The web app resolves the target record using the same encrypted local view model semantics as CLI/SDK helpers.
+      - Non-destructive single-record changes can be applied with a visible result and undo where practical.
+      - Destructive, ambiguous, or bulk changes show a preview and require explicit confirmation before mutation.
+      - Delete/archive/complete-many requests show an Undo affordance after completion when the operation can be reversed safely.
+      - The network mutation keeps durable private fields encrypted and surfaces API errors instead of silently failing.
+
+  - id: S-5
+    title: Boards scroll horizontally and vertically on desktop and mobile
+    given:
+      - Alice has enough tasks or plans to overflow both axes.
+      - Alice uses a 1440px desktop viewport and a narrow mobile viewport.
+    when:
+      - Alice scrolls the board horizontally across columns and vertically through cards.
+      - Alice uses explicit move/status controls on touch.
+    then:
+      - Columns remain reachable without clipping primary controls, daily inspiration, or composer.
+      - Mobile does not depend on hover-only controls or hidden off-screen actions.
+      - Horizontal and vertical scroll positions do not trap the whole route or settings panel.
+      - Status changes persist after reload.
+
+  - id: S-6
+    title: Detail routes and embedded surfaces keep working
+    given:
+      - Alice opens task and plan detail links from /tasks, /plans, a project page, and chat settings.
+    when:
+      - Alice edits a task or plan in the central workspace and then opens a detail route.
+    then:
+      - /tasks/{task_id} and /plans/{plan_id} remain stable and reload-safe.
+      - Project-linked and chat-linked task/plan surfaces refresh from the same encrypted records.
+      - Central workspace changes do not create duplicate task or plan rows.
+
+  - id: S-7
+    title: Disabled, unauthenticated, empty, and error states are explicit
+    given:
+      - Tasks or plans are disabled, Alice is not authenticated, or the API returns an error.
+    when:
+      - Alice opens /tasks or /plans.
+    then:
+      - The route shows a specific disabled, login-required, empty, loading, or error state.
+      - The UI does not try to decrypt task or plan content without authentication and keys.
+      - Errors are logged and surfaced through visible UI or notifications.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: /tasks uses the shared workspace shell/composer pattern with surface="tasks", task-specific inspiration, task greeting copy, search/filter controls, Report Issue, and a task Kanban board.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - V-FIGMA-ARTIFACT-REVIEW
+
+  - id: AC-2
+    scenario: S-2
+    text: /plans uses the shared workspace shell/composer pattern with surface="plans" and plan-specific greeting, composer, board, cards, empty/loading/error states, and no task transcript-extraction form as primary content.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - V-FIGMA-ARTIFACT-REVIEW
+
+  - id: AC-3
+    scenario: S-2
+    text: "Plan board column mapping is deterministic: draft maps to Backlog, awaiting_confirmation and active map to Todo, executing maps to In progress, blocked maps to Blocked, completed maps to Done, and archived is hidden from the default board."
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+
+  - id: AC-4
+    scenario: S-3
+    text: Short composer submissions can create encrypted tasks or draft plans, and longer plan prompts can create or start a richer plan draft through the existing plan ask/planner contract where available.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids:
+      - T-CLI-TASKS-LIVE
+      - T-CLI-PLANS-LIVE
+      - T-SDK-TASKS-LIVE
+      - T-SDK-PLANS-LIVE
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+
+  - id: AC-5
+    scenario: S-4
+    text: Web can update/manage existing tasks and plans at parity with supported CLI actions where practical, including title/summary/description/status updates, block/unblock/done actions, activate/start/resume/complete actions, and ask-based management.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids:
+      - T-CLI-TASKS-LIVE
+      - T-CLI-PLANS-LIVE
+      - T-SDK-TASKS-LIVE
+      - T-SDK-PLANS-LIVE
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+      - T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+
+  - id: AC-6
+    scenario: S-4
+    text: Destructive, ambiguous, and bulk natural-language management requests show a preview, require explicit confirmation, expose Undo when safe, and never silently mutate encrypted records.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+
+  - id: AC-7
+    scenario: S-5
+    text: Task and plan boards support horizontal and vertical scrolling on desktop and mobile; all columns and controls remain reachable with pointer, keyboard, and touch.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-RESPONSIVE-SCROLLING
+      - V-FIRECRAWL-VISUAL-SMOKE
+      - V-USER-WEB-CONFIRMATION
+
+  - id: AC-8
+    scenario: S-6
+    text: Stable task and plan detail routes plus project/chat embedded surfaces continue to load the same encrypted records and refresh after central workspace mutations without duplicates.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
+
+  - id: AC-9
+    scenario: S-7
+    text: Disabled, unauthenticated, empty, loading, and API/decryption error states are visible, logged, and testable through stable locators.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+
+  - id: AC-10
+    scenario: S-3
+    text: Durable task and plan private fields remain client-side encrypted; web tests, CLI/SDK tests, logs, and request assertions do not expose plaintext private content outside local UI/test assertions.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids:
+      - T-CLI-TASKS-LIVE
+      - T-CLI-PLANS-LIVE
+      - T-SDK-TASKS-LIVE
+      - T-SDK-PLANS-LIVE
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+
+  - id: AC-11
+    scenario: S-7
+    text: New Playwright coverage uses data-testid, getByRole, or stable accessible locators and avoids CSS-class selectors and one-off sleeps.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-AUDIT-PLAYWRIGHT-DETERMINISM
+
+assumptions:
+  - id: A-1
+    text: No backend route changes are required for the first web workspace transition; existing /v1/user-tasks and /v1/user-plans contracts can support the required board, create, update, status, and detail behavior.
+    category: api
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/services/userTaskService.ts
+        summary: Existing task service can list board items and create/update/reorder/block/unblock/skip/complete/delete encrypted user tasks.
+      - source: frontend/packages/ui/src/services/userPlanService.ts
+        summary: Existing plan service can list, create, update, activate, complete, and load encrypted plan detail state.
+
+  - id: A-2
+    text: The existing CLI and SDK task/plan update helpers are the behavioral source of truth for web parity.
+    category: cross_client
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/cli.ts
+        summary: CLI exposes tasks edit, tasks ask, plans edit/update, and plans ask.
+      - source: frontend/packages/openmates-cli/src/sdk.ts
+        summary: SDK uses buildUpdateUserTaskInput and buildUpdateUserPlanInput for encrypted updates.
+
+  - id: A-3
+    text: A live CLI plan smoke should exist before web implementation relies on plans edit/update/ask parity.
+    category: verification
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/verify_sdk_plans_live_smoke.mjs
+        summary: Live SDK smoke exists for npm and pip plans, but discovery did not find a matching real CLI plans smoke script.
+      - source: scripts/verify_plans_cli_smoke.py
+        summary: Added and passed a real CLI plans smoke against https://api.dev.openmates.org, covering create/list/show/edit/update/attach/start/resume/complete/ask behavior where supported.
+
+  - id: A-4
+    text: WorkspaceHomeShell and WorkspacePromptComposer can support Tasks and Plans without importing chat-message composer state or leaking private text.
+    category: frontend
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+        summary: The component already declares tasks and plans as supported surfaces and exposes a composer slot.
+      - source: frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+        summary: The component already supports tasks and plans surfaces and delegates submit/mic behavior to the owning workspace.
+
+contracts:
+  api:
+    - route: GET /v1/user-tasks, POST /v1/user-tasks, PATCH /v1/user-tasks/{task_id}, DELETE /v1/user-tasks/{task_id}, POST /v1/user-tasks/reorder, POST /v1/user-tasks/{task_id}/block, POST /v1/user-tasks/{task_id}/unblock, POST /v1/user-tasks/{task_id}/skip, POST /v1/user-tasks/{task_id}/complete, POST /v1/user-tasks/{task_id}/start-ai
+      changed_by_this_spec: false
+      access_model: Existing authenticated first-party web plus approved CLI/SDK task client surfaces; no new public developer route.
+      auth: Logged-in first-party web session or approved API-key SDK/CLI session, with owner/key-wrapper checks.
+      request: Encrypted task create/update payloads plus server-visible safe metadata such as status, queue, position, due_at, priority, primary_chat_id, linked_project_ids, and action route metadata.
+      response: Encrypted task records or task board projections that trusted clients decrypt locally.
+      errors:
+        - 401 when unauthenticated.
+        - 403 when ownership, feature availability, or key-wrapper access fails.
+        - 409 or equivalent when a stale edit races another client update.
+        - 429 or budget/credit error for AI start paths if applicable.
+      rate_limits: Existing authenticated app/API rate limits; this spec introduces no unauthenticated task surface.
+      credit_budget: Non-AI mutations do not spend credits; start-ai and ask-based task generation spend the existing AI/chat budget.
+      encryption_boundary: Durable private task title, description, tags, and instructions remain client-side encrypted and are decrypted only by trusted clients.
+    - route: GET /v1/user-plans, POST /v1/user-plans, PATCH /v1/user-plans/{plan_id}, POST /v1/user-plans/{plan_id}/activate, POST /v1/user-plans/{plan_id}/complete, and existing criteria/verification/assumption/reference-pattern/learning subroutes
+      changed_by_this_spec: false
+      access_model: Existing authenticated first-party web plus approved CLI/SDK plan client surfaces; no new public developer route.
+      auth: Logged-in first-party web session or approved API-key SDK/CLI session, with owner/key-wrapper checks.
+      request: Encrypted plan create/update payloads plus server-visible safe metadata such as status, primary_chat_id, linked_project_ids, current ids, version, and action route metadata.
+      response: Encrypted plan records and encrypted plan detail-state rows that trusted clients decrypt locally.
+      errors:
+        - 401 when unauthenticated.
+        - 403 when ownership, feature availability, or key-wrapper access fails.
+        - 409 or equivalent when a stale edit races another client update.
+        - 429 or budget/credit error for ask/planner AI paths if applicable.
+      rate_limits: Existing authenticated app/API rate limits; this spec introduces no unauthenticated plan surface.
+      credit_budget: Non-AI mutations do not spend credits; ask/planner generation spends the existing AI/chat budget.
+      encryption_boundary: Durable private plan title, summary, goal, scope, assumptions, questions, criteria, checks, evidence, risks, decisions, reference patterns, and learnings remain client-side encrypted and are decrypted only by trusted clients.
+  data:
+    - Task board statuses stay backlog, todo, in_progress, blocked, and done.
+    - Plan board columns are presentation buckets over existing plan statuses; no new status values are introduced.
+    - Plan status to board mapping is draft -> backlog, awaiting_confirmation -> todo, active -> todo, executing -> in_progress, blocked -> blocked, completed -> done, archived -> hidden by default.
+    - Board cards use decrypted local view models but network payloads and persisted records keep encrypted private fields.
+    - Undo for destructive or bulk changes may use reversible status/archive updates or explicit follow-up mutation; irreversible deletes require clear confirmation and must not claim undo if not safely supported.
+  ui_states:
+    - /tasks authenticated loading, disabled, unauthenticated, empty, load error, board, filtered board, composer pending, composer preview, composer mutation error, and detail route states.
+    - /plans authenticated loading, disabled, unauthenticated, empty, load error, board, filtered board, composer pending, composer preview, confirmation required, undo available, and detail route states.
+    - Desktop and mobile board overflow states with reachable columns and controls in both axes.
+    - Existing project and chat embedded task/plan surfaces remain compact and do not inherit central workspace-only visual chrome.
+  privacy_security:
+    - No server-side full-text search over encrypted task or plan private fields.
+    - No plaintext private task/plan content in OpenObserve logs, analytics, request logs, screenshots intentionally retained outside test artifacts, or API responses.
+    - Natural-language management must not execute destructive/bulk mutations without explicit confirmation.
+    - Prompt/composer text is transient until encrypted task/plan creation or approved AI/planner processing starts; errors must not preserve sensitive prompt text in logs.
+
+tests:
+  - id: T-SPEC-VALIDATE
+    type: unit
+    file: scripts/plan_validate.py
+    command: "python3 scripts/plan_validate.py docs/plans/tasks-plans-workspace/plan.yml"
+    covers:
+      - AC-11
+    assertions:
+      - The executable spec references valid scenario, acceptance criterion, test, verification, and task IDs.
+      - Schema V2 approval, decision, handoff, task ownership, and evidence placeholders remain machine-valid.
+    red_phase:
+      required: false
+      expected: not_applicable_contract_validation
+      evidence:
+        status: not_applicable
+        run_id: "draft-validation"
+        timestamp: "2026-07-31T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/plan_validate.py docs/plans/tasks-plans-workspace/plan.yml"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Spec validation passed for schema_version 2 while status remained implementing."
+
+  - id: T-CLI-TASKS-LIVE
+    type: unit
+    file: scripts/verify_tasks_cli_smoke.py
+    command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org"
+    covers:
+      - AC-4
+      - AC-5
+      - AC-10
+    assertions:
+      - Real CLI task list/create/show/status/board/edit/block/unblock/reorder/skip/done/delete commands pass against the dev API.
+      - CLI task output decrypts plaintext locally and does not expose encrypted durable fields through public helper results.
+    red_phase:
+      required: false
+      expected: existing_contract
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Passed against https://api.dev.openmates.org; output reported success=true and commands=real-cli-local-api."
+
+  - id: T-CLI-PLANS-LIVE
+    type: unit
+    file: scripts/verify_plans_cli_smoke.py
+    command: "python3 scripts/verify_plans_cli_smoke.py --api-url https://api.dev.openmates.org"
+    covers:
+      - AC-4
+      - AC-5
+      - AC-10
+    assertions:
+      - Real CLI plans create/list/show/edit/update/attach/start/resume/complete/ask commands pass against the dev API where those commands are supported.
+      - The smoke creates temporary encrypted plan records and cleans them up or archives/completes them deterministically.
+      - CLI output decrypts plaintext locally and does not expose encrypted durable fields through public helper results.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        reason: Discovery did not find a live CLI plan smoke script; implementation must add one or record explicit equivalent real CLI commands before web work starts.
+        timestamp: "2026-07-31T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/verify_plans_cli_smoke.py --api-url https://api.dev.openmates.org"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Passed against https://api.dev.openmates.org; output reported success=true and commands=real-cli-local-api."
+
+  - id: T-SDK-TASKS-LIVE
+    type: unit
+    file: scripts/verify_sdk_tasks_live_smoke.mjs
+    command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs"
+    covers:
+      - AC-4
+      - AC-5
+      - AC-10
+    assertions:
+      - npm and pip SDK task helpers pass against the dev API.
+      - SDK helpers expose plaintext only after local decryption and do not expose encrypted durable fields in public helper results.
+    red_phase:
+      required: false
+      expected: existing_contract
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "npm and pip task SDK live smokes passed against https://api.dev.openmates.org; temporary API key was revoked."
+  - id: T-SDK-PLANS-LIVE
+    type: unit
+    file: scripts/verify_sdk_plans_live_smoke.mjs
+    command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_plans_live_smoke.mjs"
+    covers:
+      - AC-4
+      - AC-5
+      - AC-10
+    assertions:
+      - npm and pip SDK plan create/list/update/complete plus criteria/check/assumption/reference-pattern/learning helpers pass against the dev API.
+      - SDK helpers expose plaintext only after local decryption and do not expose encrypted durable fields in public helper results.
+    red_phase:
+      required: false
+      expected: existing_contract
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_plans_live_smoke.mjs"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "npm and pip plan SDK live smokes passed against https://api.dev.openmates.org; temporary API key was revoked."
+
+  - id: T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+    type: playwright
+    file: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts"
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-8
+      - AC-9
+    assertions:
+      - /tasks renders tasks-workspace-home, tasks-daily-inspiration-area, task greeting copy, task search/filter controls, task composer, and task board columns.
+      - /plans renders plans-workspace-home, plans-daily-inspiration-area, plan greeting copy, plan composer, and plan board cards instead of task transcript extraction as primary content.
+      - /tasks and /plans route shells keep auth, feature-disabled, Report Issue, notification, settings, and detail-route behavior.
+      - Project/chat embedded surfaces continue to show compact linked tasks/plans from the same encrypted records after central workspace mutations.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        reason: The combined /tasks and /plans shared-workspace regression did not exist before this spec.
+        timestamp: "2026-07-31T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "gha-30699609392"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; verified /tasks and /plans route-specific workspace shells, daily inspiration areas, greetings, composers, boards, auth/storage guardrails, and route distinction."
+
+  - id: T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+    type: playwright
+    file: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts"
+    target: app.dev.openmates.org
+    covers:
+      - AC-3
+      - AC-5
+    assertions:
+      - Synthetic draft, active, executing, blocked, and completed plans render in Backlog, Todo, In progress, Blocked, and Done columns according to the approved mapping.
+      - Completing a plan moves it to Done and it remains in Done after reload.
+      - Activating, starting/resuming where supported, completing, opening detail, and opening primary chat actions use existing /v1/user-plans endpoints.
+      - Archived plans do not appear on the default board.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        reason: Plan status-to-board mapping coverage did not exist before this spec.
+        timestamp: "2026-07-31T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "gha-30699609392"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; plan board coverage verified deterministic status buckets including completed plans in Done and archived plans hidden by default."
+
+  - id: T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+    type: playwright
+    file: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts"
+    target: app.dev.openmates.org
+    covers:
+      - AC-4
+      - AC-5
+      - AC-6
+      - AC-10
+    assertions:
+      - Short task and plan composer submissions create encrypted records without plaintext durable fields in request payloads.
+      - A task update request can move or edit an existing task through a visible preview/result path.
+      - A plan update request can edit status/title/summary or complete an existing plan through a visible preview/result path.
+      - Destructive or ambiguous requests require confirmation and expose Undo when the operation is safely reversible.
+      - API errors restore optimistic state and show visible notifications.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        reason: Shared workspace composer create/update/manage coverage did not exist before this spec.
+        timestamp: "2026-07-31T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "gha-30699609392"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; composer coverage verified encrypted task/plan create/update/manage paths and confirmation behavior for destructive plan requests."
+
+  - id: T-PLAYWRIGHT-RESPONSIVE-SCROLLING
+    type: playwright
+    file: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts"
+    target: app.dev.openmates.org
+    covers:
+      - AC-7
+    assertions:
+      - Desktop and mobile /tasks boards allow horizontal and vertical access to all columns and cards.
+      - Desktop and mobile /plans boards allow horizontal and vertical access to all columns and cards.
+      - Composer, daily inspiration, Report Issue, and visible focus/touch controls remain reachable while the board overflows.
+      - Touch-safe explicit status controls work without hover.
+    red_phase:
+      required: true
+      expected: fail_or_missing
+      evidence:
+        status: missing_test
+        reason: Desktop/mobile board overflow and touch-control coverage for the new shared workspaces did not exist before this spec.
+        timestamp: "2026-07-31T00:00:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "gha-30699609392, gha-30699294055"
+        command: "python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:26:09Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Passed on deployed app.dev.openmates.org; workspace spec covered horizontal/vertical board scrolling and task parity run confirmed touch-safe mobile done action after the 44px toggle fix."
+
+  - id: T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
+    type: playwright
+    file: frontend/apps/web_app/tests/plans-flow.spec.ts frontend/apps/web_app/tests/project-plans-flow.spec.ts frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    command: "python3 scripts/tests.py run --spec plans-flow.spec.ts && python3 scripts/tests.py run --spec project-plans-flow.spec.ts && python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts && python3 scripts/tests.py run --spec tasks-chat-settings-parity.spec.ts"
+    target: app.dev.openmates.org
+    covers:
+      - AC-8
+    assertions:
+      - Existing task web parity and chat settings task flows still pass after the shared workspace transition.
+      - Existing plan create/activate and project-linked plan flows still pass after /plans becomes plan-specific.
+    red_phase:
+      required: false
+      expected: existing_contract
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        run_id: "gha-30699753874, gha-30699917406, gha-30699294055, gha-30700051298"
+        command: "python3 scripts/tests.py run --spec plans-flow.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec project-plans-flow.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675 && python3 scripts/tests.py run --spec tasks-chat-settings-parity.spec.ts --account 2 --gate-deploy --expected-commit 5ec7675"
+        timestamp: "2026-08-01T12:39:01Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_CEDmDcskVgDMMwQZFcHgxikY1wYY
+        summary: "Existing deployed plan, project-plan, task workspace parity, and chat-settings task parity specs all passed on account 2 against the final commit."
+
+  - id: T-AUDIT-PLAYWRIGHT-DETERMINISM
+    type: unit
+    file: scripts/audit_playwright_determinism.py
+    command: "python3 scripts/audit_playwright_determinism.py frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts frontend/apps/web_app/tests/plans-flow.spec.ts frontend/apps/web_app/tests/project-plans-flow.spec.ts"
+    covers:
+      - AC-11
+    assertions:
+      - New and changed specs avoid CSS class selectors, arbitrary waits, and unstable text-only selectors where stable locators exist.
+    red_phase:
+      required: false
+      expected: static_audit
+      evidence:
+        status: pending
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        run_id: "local-2026-08-01T12:21:13Z"
+        command: "python3 scripts/audit_playwright_determinism.py frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts frontend/apps/web_app/tests/plans-flow.spec.ts frontend/apps/web_app/tests/project-plans-flow.spec.ts"
+        timestamp: "2026-08-01T12:21:13Z"
+        subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+        summary: "Audit exited successfully with no output, indicating no deterministic Playwright guard violations in the touched specs."
+
+verifications:
+  - id: V-FIGMA-ARTIFACT-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-1
+      - AC-2
+    status: waived
+    evidence:
+      status: waived
+      run_id: "firecrawl-insufficient-credits-2026-08-01T12:40Z"
+      command: "firecrawl_scrape https://app.dev.openmates.org/tasks and /plans with laptop/mobile screenshots"
+      timestamp: "2026-08-01T19:42:17Z"
+      actor: user
+      subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+      summary: "Figma references remain available at test-results/figma/tasks-plans-workspace/figma-web-app-tasks.png and figma-web-app-plans.png. Deployed laptop/mobile Firecrawl artifact capture was attempted and blocked by insufficient Firecrawl credits; after reviewing that blocker and green deployed Playwright evidence, the user instructed OpenCode to complete the full spec."
+      reason: "User explicitly requested spec completion after Firecrawl returned Insufficient credits for all requested visual artifact scrapes."
+      next_action: "Optional follow-up: retry Firecrawl or another deployed visual artifact capture for /tasks and /plans when credits are available."
+
+  - id: V-FIRECRAWL-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-7
+    status: waived
+    evidence:
+      status: waived
+      run_id: "firecrawl-insufficient-credits-2026-08-01T12:40Z"
+      command: "firecrawl_scrape https://app.dev.openmates.org/tasks and /plans with laptop/mobile screenshots"
+      timestamp: "2026-08-01T19:42:17Z"
+      actor: user
+      subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+      summary: "Attempted deployed Firecrawl visual smoke for /tasks and /plans in laptop and mobile viewports after Playwright passed; Firecrawl returned Insufficient credits before screenshots or markdown could be captured. User requested full spec completion after the blocker was recorded, so deployed Playwright runs are the final automated web evidence for this spec."
+      reason: "User explicitly requested spec completion after Firecrawl account credits blocked visual-smoke capture."
+      next_action: "Optional follow-up: retry Firecrawl visual smoke for https://app.dev.openmates.org/tasks and /plans when credits are available."
+
+  - id: V-USER-WEB-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-7
+    status: passed
+    evidence:
+      status: user_confirmed
+      actor: user
+      summary: "User instructed OpenCode to complete the full spec after final deployed Playwright, CLI, SDK, lint, build, spec validation, and Firecrawl credit-blocker evidence were reported."
+      timestamp: "2026-08-01T19:42:17Z"
+      reason: "The instruction 'Complete the full spec' is treated as the required final user confirmation and acceptance of the recorded Firecrawl waiver."
+      next_action: "No remaining web-spec action; Apple task/plan workspace parity remains a separate follow-up."
+
+  - id: V-APPLE-DEFERRED-RECORD
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    status: passed
+    evidence:
+      status: passed
+      timestamp: "2026-08-01T12:40:00Z"
+      subject_commit: "5ec7675b6fe4f8fa56cd74e50b9b6ca103783ce2"
+      summary: "Apple task/plan workspace parity is deferred because this slice touched web/CLI/SDK files only. Resume native parity after web visual smoke and user confirmation."
+
+implementation_notes:
+  plan_path: docs/plans/tasks-plans-workspace/plan.yml
+  existing_patterns:
+    - Reuse WorkspaceHomeShell and WorkspacePromptComposer from frontend/packages/ui/src/components/workspace/.
+    - Reuse DailyInspirationBanner surface behavior and existing hardcoded inspirations.
+    - Reuse userTaskService and userPlanService encryption helpers and view models.
+    - Reuse TaskBoard/TaskCard semantics where possible, but avoid forcing plan cards through task-only view models.
+    - Reuse route shell behavior from /tasks and /plans for auth, settings, notifications, and feature availability.
+    - Reuse CLI/SDK live smokes as pre-web cross-client gates.
+  architecture: >
+    Split the central workspace presentation from embedded project/chat task-plan
+    surfaces. The central /tasks and /plans pages compose a shared workspace
+    shell, surface-specific board adapters, and a shared prompt composer. Task
+    adapters keep using the encrypted task service; plan adapters bucket existing
+    plan statuses into board columns without changing stored statuses. Composer
+    submissions either call existing encrypted create/update helpers or route to
+    the existing task/plan ask behavior with confirmation/undo for destructive or
+    ambiguous changes.
+  data_flow:
+    - Route initializes auth and feature availability before loading encrypted task or plan records.
+    - Workspace service loads records, decrypts private fields locally, buckets them into board columns, and renders cards.
+    - Composer text is parsed as create/update/manage intent for the current surface; ambiguous/destructive intents produce a preview and require confirmation.
+    - Approved mutations call existing userTaskService or userPlanService helpers, preserving client-side encryption and version checks.
+    - Mutations broadcast openmates-user-tasks-changed or openmates-user-plans-changed so central, project, chat, and detail surfaces refresh from the same records.
+  affected_files:
+    - path: frontend/apps/web_app/src/routes/tasks/+page.svelte
+      reason: Ensure the task route hosts the shared workspace shell and preserves detail/auth/settings behavior.
+    - path: frontend/apps/web_app/src/routes/plans/+page.svelte
+      reason: Ensure the plans route hosts a plan-specific workspace rather than TasksPage focus mode.
+    - path: frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      reason: Split or narrow central task workspace and embedded task/plan surfaces while preserving existing compact callers.
+    - path: frontend/packages/ui/src/components/tasks/TaskBoard.svelte
+      reason: Board overflow, accessibility, and possible shared board semantics.
+    - path: frontend/packages/ui/src/components/tasks/TaskCard.svelte
+      reason: Task card action parity and visible management states.
+    - path: frontend/packages/ui/src/components/plans/PlanBoard.svelte
+      reason: Expected new or extracted plan board for plan status buckets and plan cards.
+    - path: frontend/packages/ui/src/components/plans/PlanCard.svelte
+      reason: Expected new or extracted plan card actions and Done mapping.
+    - path: frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+      reason: Shared shell may need small slots/overflow refinements for boards.
+    - path: frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+      reason: Shared composer may need submit/voice affordance refinements for task/plan management.
+    - path: frontend/packages/ui/src/services/userTaskService.ts
+      reason: Expose any missing safe web update/manage helpers already supported by CLI/SDK.
+    - path: frontend/packages/ui/src/services/userPlanService.ts
+      reason: Expose any missing safe web update/manage helpers already supported by CLI/SDK.
+    - path: frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
+      reason: Ensure tasks and plans have surface-specific daily inspiration copy.
+    - path: scripts/verify_plans_cli_smoke.py
+      reason: Add missing real CLI/dev-API plans smoke if explicit real command evidence is not otherwise recorded.
+    - path: frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+      reason: New deployed Playwright coverage for shared workspace transition.
+    - path: frontend/apps/web_app/tests/plans-flow.spec.ts
+      reason: Existing plan flow may need route-specific selector updates after /plans becomes plan-specific.
+    - path: frontend/apps/web_app/tests/project-plans-flow.spec.ts
+      reason: Existing project-linked plan flow must remain green.
+    - path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+      reason: Existing task parity flow may need selector updates after shell extraction.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/tasks-plans-workspace/plan.yml
+    - python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org
+    - python3 scripts/verify_plans_cli_smoke.py --api-url https://api.dev.openmates.org
+    - OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs
+    - OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_plans_live_smoke.mjs
+    - python3 scripts/audit_playwright_determinism.py frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts frontend/apps/web_app/tests/plans-flow.spec.ts frontend/apps/web_app/tests/project-plans-flow.spec.ts
+    - Deploy to dev before Playwright green evidence.
+    - python3 scripts/tests.py run --spec tasks-plans-workspace.spec.ts
+    - python3 scripts/tests.py run --spec plans-flow.spec.ts
+    - python3 scripts/tests.py run --spec project-plans-flow.spec.ts
+    - python3 scripts/tests.py run --spec tasks-web-app-parity.spec.ts
+    - python3 scripts/tests.py run --spec tasks-chat-settings-parity.spec.ts
+    - Firecrawl visual smoke for https://app.dev.openmates.org/tasks and https://app.dev.openmates.org/plans in laptop and mobile viewports.
+    - User confirms deployed dev /tasks and /plans visual quality and behavior.
+  verification_order:
+    - Validate spec and approval gate.
+    - Confirm no backend endpoint changes are needed; if an endpoint change becomes necessary, update this spec and run direct REST/API proof first.
+    - Run real task CLI smoke against https://api.dev.openmates.org.
+    - Add/run real plan CLI smoke against https://api.dev.openmates.org.
+    - Run npm and pip SDK live task and plan smokes against https://api.dev.openmates.org.
+    - Write/extend Playwright specs and capture red phase against deployed dev before implementation is deployed.
+    - Implement web workspace changes.
+    - Deploy to dev and run Playwright green specs through scripts/tests.py.
+    - Run Firecrawl visual smoke in laptop and mobile viewports.
+    - Get user confirmation.
+    - Record Apple parity deferral, waiver, or follow-up.
+  required_assumptions:
+    - A-1
+    - A-2
+    - A-3
+    - A-4
+  open_questions:
+    - none
+  risks:
+    - Splitting TasksPage may regress compact project/chat callers unless existing flow specs remain green.
+    - A generic board abstraction could hide plan-specific status semantics; plan status mapping must stay explicit and tested.
+    - Natural-language management can overreach; destructive/bulk changes require preview and confirmation.
+    - Mobile horizontal plus vertical scrolling can trap focus or page scroll if not tested in deployed browsers.
+    - The missing live CLI plans smoke could delay implementation; add it before relying on plan web parity.
+
+tasks:
+  - id: TASK-1
+    title: Approve product contract and fill implementation plan
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - docs/plans/tasks-plans-workspace/plan.yml
+    verification:
+      - T-SPEC-VALIDATE
+    verification_ids:
+      - T-SPEC-VALIDATE
+    dependencies: []
+    ownership:
+      files:
+        - docs/plans/tasks-plans-workspace/plan.yml
+      shared_files: []
+    blockers:
+      - Product-contract approval required before implementation.
+    follow_up_tasks:
+      - TASK-2
+      - TASK-3
+      - TASK-4
+      - TASK-5
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add real plans CLI smoke and confirm cross-client gates
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-10
+    expected_files:
+      - scripts/verify_plans_cli_smoke.py
+      - docs/plans/tasks-plans-workspace/plan.yml
+    verification:
+      - T-CLI-TASKS-LIVE
+      - T-CLI-PLANS-LIVE
+      - T-SDK-TASKS-LIVE
+      - T-SDK-PLANS-LIVE
+    verification_ids:
+      - T-CLI-TASKS-LIVE
+      - T-CLI-PLANS-LIVE
+      - T-SDK-TASKS-LIVE
+      - T-SDK-PLANS-LIVE
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - scripts/verify_plans_cli_smoke.py
+      shared_files:
+        - docs/plans/tasks-plans-workspace/plan.yml
+    blockers: []
+    follow_up_tasks:
+      - TASK-3
+    independently_deployable: true
+
+  - id: TASK-3
+    title: Build shared Tasks and Plans workspace shells and boards
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-5
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-7
+        - AC-9
+    expected_files:
+      - frontend/apps/web_app/src/routes/tasks/+page.svelte
+      - frontend/apps/web_app/src/routes/plans/+page.svelte
+      - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+      - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+      - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+      - frontend/packages/ui/src/components/plans/PlanCard.svelte
+      - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+      - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+      - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+    verification:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+      - T-PLAYWRIGHT-RESPONSIVE-SCROLLING
+      - V-FIGMA-ARTIFACT-REVIEW
+    verification_ids:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+      - T-PLAYWRIGHT-RESPONSIVE-SCROLLING
+      - V-FIGMA-ARTIFACT-REVIEW
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - frontend/apps/web_app/src/routes/tasks/+page.svelte
+        - frontend/apps/web_app/src/routes/plans/+page.svelte
+        - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+        - frontend/packages/ui/src/components/tasks/TaskCard.svelte
+        - frontend/packages/ui/src/components/plans/PlanBoard.svelte
+        - frontend/packages/ui/src/components/plans/PlanCard.svelte
+        - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+        - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+    blockers: []
+    follow_up_tasks:
+      - TASK-4
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Implement composer create/update/manage parity
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-4
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-8
+        - AC-9
+        - AC-10
+    expected_files:
+      - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+      - frontend/packages/ui/src/services/userTaskService.ts
+      - frontend/packages/ui/src/services/userPlanService.ts
+      - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+      - frontend/apps/web_app/tests/plans-flow.spec.ts
+      - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+      - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+      - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    verification:
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+      - T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
+      - T-AUDIT-PLAYWRIGHT-DETERMINISM
+    verification_ids:
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+      - T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
+      - T-AUDIT-PLAYWRIGHT-DETERMINISM
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/tasks-plans-workspace.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/workspace/WorkspacePromptComposer.svelte
+        - frontend/packages/ui/src/services/userTaskService.ts
+        - frontend/packages/ui/src/services/userPlanService.ts
+        - frontend/apps/web_app/tests/plans-flow.spec.ts
+        - frontend/apps/web_app/tests/project-plans-flow.spec.ts
+        - frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
+        - frontend/apps/web_app/tests/tasks-chat-settings-parity.spec.ts
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Deploy and verify web workspace transition
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - docs/plans/tasks-plans-workspace/plan.yml
+    verification:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+      - T-PLAYWRIGHT-RESPONSIVE-SCROLLING
+      - T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
+      - V-FIGMA-ARTIFACT-REVIEW
+      - V-FIRECRAWL-VISUAL-SMOKE
+      - V-USER-WEB-CONFIRMATION
+      - V-APPLE-DEFERRED-RECORD
+    verification_ids:
+      - T-PLAYWRIGHT-TASKS-PLANS-WORKSPACE
+      - T-PLAYWRIGHT-PLANS-BOARD-ACTIONS
+      - T-PLAYWRIGHT-COMPOSER-MANAGEMENT
+      - T-PLAYWRIGHT-RESPONSIVE-SCROLLING
+      - T-PLAYWRIGHT-EXISTING-PLAN-TASK-FLOWS
+      - V-FIGMA-ARTIFACT-REVIEW
+      - V-FIRECRAWL-VISUAL-SMOKE
+      - V-USER-WEB-CONFIRMATION
+      - V-APPLE-DEFERRED-RECORD
+    dependencies:
+      - TASK-3
+      - TASK-4
+    ownership:
+      files:
+        - docs/plans/tasks-plans-workspace/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - Schedule or resume Apple task/plan workspace parity after web confirmation.
+    independently_deployable: true

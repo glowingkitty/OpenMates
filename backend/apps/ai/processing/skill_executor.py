@@ -268,6 +268,8 @@ async def execute_skill(
 
     last_exception: Optional[Exception] = None
     total_attempts = max_retries + 1
+    successful_result: Any = None
+    skill_succeeded = False
 
     for attempt in range(total_attempts):
         # Check cancellation before each retry
@@ -325,19 +327,9 @@ async def execute_skill(
                 logger.info(f"[SkillRetry] Skill '{app_id}.{skill_id}' succeeded on retry attempt {attempt + 1}/{total_attempts}")
             else:
                 logger.debug(f"Skill '{app_id}.{skill_id}' executed successfully")
-            return await sanitize_app_skill_output(
-                result,
-                AppSkillOutputSafetyContext(
-                    app_id=app_id,
-                    skill_id=skill_id,
-                    surface=APP_SKILL_SURFACE_ASSISTANT,
-                    request_body=arguments,
-                    external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
-                    secrets_manager=secrets_manager,
-                    cache_service=cache_service,
-                    log_prefix=f"[SkillExecutor {app_id}.{skill_id}] ",
-                ),
-            )
+            successful_result = result
+            skill_succeeded = True
+            break
 
         except SkillCancelledException:
             raise
@@ -363,6 +355,21 @@ async def execute_skill(
                 f"[SkillRetry] Skill '{app_id}.{skill_id}' raised {type(e).__name__} "
                 f"(attempt {attempt + 1}/{total_attempts}): {e}"
             )
+
+    if skill_succeeded:
+        return await sanitize_app_skill_output(
+            successful_result,
+            AppSkillOutputSafetyContext(
+                app_id=app_id,
+                skill_id=skill_id,
+                surface=APP_SKILL_SURFACE_ASSISTANT,
+                request_body=arguments,
+                external_data=is_external_data_skill(registry.get_metadata(app_id), app_id, skill_id),
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+                log_prefix=f"[SkillExecutor {app_id}.{skill_id}] ",
+            ),
+        )
 
     logger.error(
         f"Skill '{app_id}.{skill_id}' failed after {total_attempts} attempts. "

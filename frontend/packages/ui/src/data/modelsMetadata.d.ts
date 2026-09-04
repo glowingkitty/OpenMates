@@ -37,6 +37,7 @@ export interface AIModelMetadata {
   for_app_skill?: string;
   reasoning?: boolean;
   tier: "economy" | "standard" | "premium";
+  capability_level?: "low" | "medium" | "high" | "max";
   release_date?: string;
   servers?: ModelServerInfo[];
   default_server?: string;

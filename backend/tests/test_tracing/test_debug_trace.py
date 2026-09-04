@@ -11,6 +11,7 @@ Bug history this test suite guards against:
   - Phase 09-03: trace errors/recent showed bare root spans because
     _get_latest_traces only returns first_event metadata (SHA: pending)
 """
+# contract-test-file: tooling
 
 import os
 import sys
@@ -28,6 +29,7 @@ if _SCRIPTS_DIR not in sys.path:
 from debug_trace import (  # noqa: E402
     _build_error_trace_sql,
     _get_full_trace_spans,
+    format_json,
     format_trace_timeline,
     parse_args,
     parse_duration,
@@ -188,6 +190,151 @@ class TestFormatTraceTimeline:
     def test_empty_spans(self):
         output = format_trace_timeline([])
         assert "No trace data" in output or output.strip() == ""
+
+    # contract-test: direct surface=cli assertions=ai-request-observability.operator-debug.waterfall
+    def test_json_output_is_a_redacted_structural_projection(self):
+        spans = [{
+            "trace_id": "trace-private",
+            "span_id": "span-1",
+            "parent_span_id": "",
+            "start_time": 1000000,
+            "end_time": 2000000,
+            "duration": 1000000,
+            "service_name": "app-ai-worker",
+            "operation_name": "ai.preprocess",
+            "span_status": "OK",
+            "ai.phase": "preprocess",
+            "ai.token_count_bucket": "10k_50k",
+            "enduser.id": "user-private",
+            "chat.id": "chat-private",
+            "rpc.request.body": "private prompt",
+            "exception.message": "private provider response",
+        }]
+
+        output = format_json(spans)
+
+        assert "ai.preprocess" in output
+        assert "10k_50k" in output
+        assert "user-private" not in output
+        assert "chat-private" not in output
+        assert "private prompt" not in output
+        assert "private provider response" not in output
+
+    def test_openobserve_flattened_ai_fields_are_restored(self):
+        spans = [{
+            "trace_id": "trace-flattened",
+            "span_id": "turn",
+            "parent_span_id": "",
+            "start_time": 1_000_000,
+            "duration": 5_000_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.turn",
+            "span_status": "OK",
+            "ai_terminal_class": "completed",
+            "ai_first_token_ms": "1200.4",
+            "ai_final_marker_ms": "4300.2",
+            "ai_worker_tail_ms": "699.8",
+        }]
+
+        timeline = format_trace_timeline(spans)
+        json_output = format_json(spans)
+
+        assert "Terminal class: completed" in timeline
+        assert "Completion timing: first-token=1200ms, final-marker=4300ms, worker-tail=700ms" in timeline
+        assert '"ai.first_token_ms": "1200.4"' in json_output
+        assert '"ai_first_token_ms"' not in json_output
+
+    def test_ai_waterfall_reports_missing_required_phases(self):
+        spans = [
+            {
+                "trace_id": "trace-ai",
+                "span_id": "turn",
+                "parent_span_id": "",
+                "start_time": 1000000,
+                "end_time": 3000000,
+                "duration": 2000000,
+                "service_name": "worker-app-ai",
+                "operation_name": "ai.turn",
+                "span_status": "OK",
+            },
+            {
+                "trace_id": "trace-ai",
+                "span_id": "main",
+                "parent_span_id": "turn",
+                "start_time": 1500000,
+                "end_time": 2000000,
+                "duration": 500000,
+                "service_name": "worker-app-ai",
+                "operation_name": "ai.main",
+                "span_status": "OK",
+            },
+        ]
+
+        output = format_trace_timeline(spans)
+
+        assert "AI phase waterfall:" in output
+        assert "main: 500ms OK" in output
+        assert "Missing AI phases:" in output
+        assert "provider" in output
+
+    # contract-test: direct surface=cli assertions=ai-request-observability.operator-debug.waterfall
+    def test_ai_waterfall_aggregates_repeated_spans_without_overwrite(self):
+        spans = [{
+            "trace_id": "trace-repeat",
+            "span_id": "turn",
+            "parent_span_id": "",
+            "start_time": 1_000_000,
+            "duration": 5_000_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.turn",
+            "span_status": "OK",
+            "ai.terminal_class": "completed",
+        }]
+        for index, duration in enumerate((1_000_000, 2_000_000), start=1):
+            spans.append({
+                "trace_id": "trace-repeat",
+                "span_id": f"provider-{index}",
+                "parent_span_id": "turn",
+                "start_time": 1_000_000 + index,
+                "duration": duration,
+                "service_name": "worker-app-ai",
+                "operation_name": "ai.provider",
+                "span_status": "OK",
+            })
+        spans.append({
+            "trace_id": "trace-repeat",
+            "span_id": "tool-1",
+            "parent_span_id": "turn",
+            "start_time": 1_000_010,
+            "duration": 500_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.tool",
+            "span_status": "OK",
+        })
+
+        output = format_trace_timeline(spans)
+
+        assert "provider: count=2 total=3000ms max=2000ms" in output
+        assert "tool: 500ms OK" in output
+
+    # contract-test: direct surface=cli assertions=ai-request-observability.operator-debug.waterfall
+    def test_ai_waterfall_uses_terminal_aware_missing_phases(self):
+        spans = [{
+            "trace_id": "trace-early-failure",
+            "span_id": "turn",
+            "parent_span_id": "",
+            "start_time": 1_000_000,
+            "duration": 100_000,
+            "service_name": "worker-app-ai",
+            "operation_name": "ai.turn",
+            "span_status": "ERROR",
+            "ai.terminal_class": "failed_before_main",
+        }]
+
+        output = format_trace_timeline(spans)
+
+        assert "Terminal class: failed_before_main" in output
+        assert "provider" not in output.split("Missing AI phases:", 1)[1].split("\n", 1)[0]
 
     def test_multiple_traces(self):
         spans = [
@@ -459,6 +606,32 @@ class TestGetFullTraceSpans:
 
             assert len(result) == 1
             assert result[0]["trace_id"] == "abc123"
+
+    def test_paginates_when_trace_reaches_openobserve_page_size(self):
+        import httpx as real_httpx
+
+        first_page = MagicMock(status_code=200)
+        first_page.json.return_value = {
+            "hits": [{"trace_id": "abc123", "span_id": str(index)} for index in range(1000)]
+        }
+        second_page = MagicMock(status_code=200)
+        second_page.json.return_value = {
+            "hits": [{"trace_id": "abc123", "span_id": "last"}]
+        }
+
+        with patch.object(real_httpx, "post", side_effect=[first_page, second_page]) as mock_post:
+            result = _get_full_trace_spans(
+                trace_id="abc123",
+                start_time_us=1000000,
+                end_time_us=9000000,
+                base_url="http://localhost:5080",
+                auth=("user", "pass"),
+            )
+
+        assert len(result) == 1001
+        assert mock_post.call_count == 2
+        assert mock_post.call_args_list[0].kwargs["json"]["query"]["from"] == 0
+        assert mock_post.call_args_list[1].kwargs["json"]["query"]["from"] == 1000
 
 
 class TestBuildErrorTraceSql:

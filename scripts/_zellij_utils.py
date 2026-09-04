@@ -30,6 +30,10 @@ from typing import Dict, List, Optional
 ZELLIJ_BIN = "/usr/local/bin/zellij"
 ZELLIJ_WEB_URL = "http://localhost:8082"
 OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
+OPENCODE_CONTROL_PLANE_RUNTIME = os.environ.get(
+    "OPENMATES_CONTROL_PLANE_RUNTIME",
+    str(Path(__file__).resolve().parent.parent),
+)
 OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.5")
 OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "xhigh")
 OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
@@ -670,15 +674,74 @@ def resume_opencode_session(
     cwd: str,
     prompt: str = "The server restarted and this session was interrupted. Continue where you left off.",
     permission_mode: str = "plan",
+    provider_id: str | None = None,
+    model_id: str | None = None,
+    variant: str | None = None,
 ) -> bool:
-    """Send a continuation prompt to an existing OpenCode session."""
-    return spawn_opencode_session(
-        session_name=session_name,
-        prompt=prompt,
-        cwd=cwd,
-        permission_mode=permission_mode,
-        opencode_session_id=opencode_session_id,
+    """Send a continuation directly through the existing OpenCode Web API.
+
+    ``opencode run --attach --session`` can attach to the event stream without
+    ever submitting its positional prompt. The asynchronous prompt endpoint is
+    the server's deterministic resume primitive and returns as soon as the
+    generation has been accepted.
+    """
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    if permission_mode not in {"plan", "execute", "execute-readonly"}:
+        print(f"Warning: invalid OpenCode permission mode '{permission_mode}'.", file=sys.stderr)
+        return False
+    configured_provider_id, _separator, configured_model_id = OPENCODE_EXECUTE_MODEL.partition("/")
+    if provider_id is None:
+        provider_id = configured_provider_id
+    if model_id is None:
+        model_id = configured_model_id
+    if permission_mode != "plan" and (not provider_id or not model_id):
+        print(f"Warning: invalid OpenCode execute model '{OPENCODE_EXECUTE_MODEL}'.", file=sys.stderr)
+        return False
+    body: dict[str, object] = {
+        "agent": "plan" if permission_mode == "plan" else "build",
+        "parts": [{"type": "text", "text": prompt}],
+    }
+    if permission_mode != "plan":
+        body["model"] = {"providerID": provider_id, "modelID": model_id}
+        body["variant"] = variant or OPENCODE_EXECUTE_VARIANT
+    # The server selects project-local plugins from this directory. Always
+    # start resumed generations from the clean deployed runtime so old source
+    # worktrees cannot load stale orchestration code; the hook routes product
+    # tools back to ``cwd`` using the durable session mapping.
+    query = urllib.parse.urlencode({"directory": OPENCODE_CONTROL_PLANE_RUNTIME})
+    request = urllib.request.Request(
+        f"{OPENCODE_SERVER_URL}/session/{urllib.parse.quote(opencode_session_id, safe='')}/prompt_async?{query}",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
+    try:
+        with urllib.request.urlopen(request, timeout=15) as response:
+            accepted = 200 <= int(response.status) < 300
+        if accepted and permission_mode != "plan":
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    str(Path(__file__).resolve().parent / "opencode_permission_watcher.py"),
+                    "--server-url",
+                    OPENCODE_SERVER_URL,
+                    "--cwd",
+                    cwd,
+                    "--session",
+                    opencode_session_id,
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        return accepted
+    except (OSError, urllib.error.URLError) as exc:
+        print(f"Warning: OpenCode continuation request failed: {exc}", file=sys.stderr)
+        return False
 
 
 def find_opencode_session_id(

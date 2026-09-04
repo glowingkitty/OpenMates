@@ -1,0 +1,599 @@
+schema_version: 3
+id: cli-encrypted-slugs
+title: CLI Encrypted Object Slugs
+status: approved
+
+specification_refs:
+  - id: surface.cli
+    version: 1
+    role: primary
+    fingerprint: fa98cbf2375d62f3aa586561909a4c01597ff44059b22c8e9a08b44226c70da7
+  - id: feature.workflows
+    version: 2
+    role: inherited
+    fingerprint: c18378e7d25955678686ce7c49c54501898ed68b66b4d0d65e76bc3e85d80bf8
+  - id: feature.projects
+    version: 1
+    role: inherited
+    fingerprint: 0d04832e141aa62c98ace16df2a8aacf6673e089b27b9980496c740be132d4d7
+  - id: feature.plans
+    version: 1
+    role: inherited
+    fingerprint: 42bdef146759edab2103675caead7c9449df0ff43f669c2f40abe4602f335683
+  - id: feature.tasks
+    version: 2
+    role: inherited
+    fingerprint: 556356b0bf20ba6fa3b45f013dd039b01afa214d0dedcb14053894d50a44b143
+  - id: feature.chats
+    version: 2
+    role: inherited
+    fingerprint: 13d258a587aad182838e9f6eef2e09ae6a4a7f9f51dd6f7fbb8ec59c26ba336b
+  - id: surface.sdk
+    version: 1
+    role: inherited
+    fingerprint: 3ad6ddb47459eafb5d24381184d470d84216cc7e36da295f6d3a4ab89145274d
+
+specification_impact:
+  classification: new_specification
+  specification_update_required: true
+  affected_assertions:
+    - cli.slugs.encrypted-stable
+    - cli.slugs.local-resolution-id-transport
+    - cli.output.actionable-readable
+    - cli.surface.semantic-parity
+    - workflows.surface.semantic-parity
+    - projects.surface.semantic-parity
+    - plans.surface.semantic-parity
+    - tasks.surface.semantic-parity
+    - chats.surface.semantic-parity
+    - sdk.encryption.local-only
+    - sdk.surface.semantic-parity
+  reason: >
+    The user approved a new CLI surface contract for persistent encrypted object
+    slugs, owner/context-scoped slug lookup hashes, local slug-to-id resolution,
+    and actionable human terminal output across Workflows, Projects, Plans,
+    Tasks, and saved Chats.
+
+documentation_impact:
+  generated_reference:
+    status: update_required
+    reason: CLI help text and generated SDK/CLI references must document slug-capable inputs and JSON fields.
+    documents:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - packages/openmates-python/openmates/sdk.py
+  user_docs:
+    status: update_required
+    reason: User-facing CLI docs should explain stable slugs, duplicate errors, and how slugs differ from IDs.
+    documents:
+      - docs/plans/cli-encrypted-slugs/plan.yml
+      - specifications/surfaces/cli/examples.yml
+  semantic_layer:
+    status: update_required
+    reason: Object metadata contracts and CLI behavior now include encrypted_slug and slug_lookup_hash semantics.
+    documents:
+      - specifications/surfaces/cli/specification.yml
+      - specifications/generated/registry.yml
+      - specifications/generated/assertion-index.yml
+      - specifications/generated/coverage.yml
+
+goal: >
+  Make OpenMates CLI object commands readable and reliable by giving Workflows,
+  Projects, Plans, Tasks, and saved Chats persistent encrypted slugs plus
+  owner/context-scoped slug lookup hashes. The CLI and SDKs decrypt slugs locally,
+  display them as the preferred human handle, accept them as command inputs, and
+  send only canonical object IDs to the server for ordinary object operations.
+
+scope:
+  in:
+    - Add encrypted_slug and slug_lookup_hash storage/transport for Workflows, Projects, Plans, Tasks, and saved Chats.
+    - Generate a slug when a supported object is created unless the user supplies an explicit slug.
+    - Keep generated slugs stable across title/name changes unless an explicit slug mutation is performed later.
+    - Enforce duplicate slug_lookup_hash rejection in the same owner/team context where backend mutation routes are touched.
+    - Let CLI commands accept object slugs for show/list-runs/run/edit/delete/link/send operations where full or short IDs are currently accepted.
+    - Resolve slugs locally to canonical IDs before REST/WebSocket requests; ordinary server requests must not contain plaintext slugs.
+    - Improve human CLI output so lists and run/detail views lead with title/name plus slug, relevant state, and next commands using slugs.
+    - Preserve --json output compatibility while adding slug fields and keeping canonical IDs available for machines/debugging.
+    - Preserve existing full UUID and short-ID input compatibility.
+    - Include npm and pip SDK parity for creating/updating/preserving encrypted slugs where SDK namespaces expose object creation or mutation.
+  out:
+    - Public example chat slug changes; public examples already intentionally use cleartext public slugs.
+    - Server-side plaintext slug search or plaintext slug storage.
+    - Provider records, external provider URLs, generated artifacts, or app-skill provider IDs.
+    - Apple native slug UI in this slice, unless shared metadata changes require a basic native regression check.
+    - Long-term slug rename UI beyond backend/client-safe primitives needed to avoid blocking stable slug creation.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP get_me failed with 401 Bad credentials while checking tracker context; no GitHub issue result could be verified from MCP in this session.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/standards/cli.md
+    - docs/plans/workflows-cli-runtime/plan.yml
+    - docs/plans/workflows-v1/plan.yml
+    - docs/plans/plans-v1/plan.yml
+    - docs/plans/tasks-v1/plan.yml
+    - docs/plans/sdk-cleartext-encryption-boundary/plan.yml
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/architecture/privacy/privacy-promises.md
+  contracts:
+    - specifications/surfaces/cli/specification.yml was created and exact-hash approved in session d3d9.
+    - specifications/features/workflows/specification.yml
+    - specifications/features/projects/specification.yml
+    - specifications/features/plans/specification.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/features/chats/specification.yml
+    - specifications/surfaces/sdk/specification.yml
+  code_patterns:
+    - frontend/packages/openmates-cli/src/cli.ts currently accepts workflow UUIDs for workflows show/run/runs/run-show/delete and prints short run IDs only.
+    - frontend/packages/openmates-cli/src/tasksCli.ts supports task full IDs and shortId but not title-derived encrypted slugs.
+    - frontend/packages/openmates-cli/src/plansCli.ts supports plan full IDs and shortId but not title-derived encrypted slugs.
+    - frontend/packages/openmates-cli/src/client.ts resolves saved chats by full/short ID, last, exact title, or partial title after local decryption.
+    - frontend/packages/openmates-cli/src/cli.ts project helpers resolve Projects by name/ID but list output still leads with short UUID.
+    - backend/core/directus/schemas/workflows.yml has encrypted_title and public workflow_id but no encrypted_slug or slug_lookup_hash.
+    - backend/core/directus/schemas/projects.yml, user_tasks.yml, and user_plans.yml hold encrypted names/titles and metadata but no stable encrypted slug field.
+    - backend/core/directus/schemas/demo_chats.yml intentionally stores public example chat slugs in cleartext and is out of scope.
+  tests:
+    - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/plans.test.ts
+    - frontend/packages/openmates-cli/tests/projects.test.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-plans.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    - packages/openmates-python/tests/test_plans.py
+    - backend/tests/test_workflow_trigger_persistence.py
+    - backend/tests/test_user_tasks_api.py
+    - backend/tests/test_user_plans_api.py
+
+apple_impact:
+  affected_files:
+    - none for first implementation slice
+  parity_expectations:
+    - Apple must not write plaintext slug metadata if native creation/editing of these object types exists later.
+    - Apple-created/edited objects must interoperate with encrypted_slug once native support exists.
+  verification:
+    - Apple not directly affected unless shared backend schema/API changes require native regression verification.
+  intentional_native_differences:
+    - Native UI does not need to expose terminal-style slugs in this CLI-first slice.
+
+clarification:
+  rounds:
+    - question: Should CLI object handles be recomputed local aliases or persistent encrypted slugs?
+      answer: Persistent encrypted slug fields, decrypted and shown to the user, with server receiving IDs instead of cleartext slug.
+    - question: Should slug lookup hashes be included?
+      answer: Yes, include slug_lookup_hash.
+    - question: Should slugs remain stable after creation unless explicitly changed?
+      answer: Yes, stable slugs are required so users can reliably request more info using the same slug.
+  vision_summary: >
+    The CLI should feel like users are addressing meaningful object names such as
+    daily-weather-reminder instead of opaque UUIDs. The backend can enforce slug
+    uniqueness with safe lookup hashes, but neither ordinary CLI commands nor
+    durable server storage may expose plaintext private slugs.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-12T13:45:00Z"
+    reason: User explicitly approved the surface.cli contract after reviewing the full contract draft.
+  plan:
+    status: approved
+    approved_at: "2026-08-14T11:48:31Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Slugs are persistent encrypted object fields, not recomputed ephemeral aliases.
+    reason: Users need reliable stable handles that do not shift when duplicate titles change.
+    decided_at: "2026-08-12T13:45:00Z"
+  - id: D-2
+    status: active
+    decision: The server stores slug_lookup_hash and encrypted_slug but never plaintext private slugs.
+    reason: Duplicate prevention needs a server-checkable value, while privacy requires the slug itself to remain client-side encrypted.
+    decided_at: "2026-08-12T13:45:00Z"
+  - id: D-3
+    status: active
+    decision: CLI commands resolve slugs locally and send canonical object IDs to REST/WebSocket operations.
+    reason: Existing object endpoints are ID-addressed and should not receive private title-derived handles.
+    decided_at: "2026-08-12T13:45:00Z"
+  - id: D-4
+    status: active
+    decision: Full UUID and existing short-ID inputs remain supported.
+    reason: Backward compatibility is needed for scripts, JSON users, existing docs, and debug workflows.
+    decided_at: "2026-08-12T13:45:00Z"
+
+scenarios:
+  - id: S-1
+    title: Workflow runs by stable slug
+    given:
+      - Alice creates a Workflow titled Daily Weather Reminder from the CLI.
+      - The client stores encrypted_slug for daily-weather-reminder and slug_lookup_hash for Alice's personal context.
+    when:
+      - Alice runs `openmates workflows runs daily-weather-reminder`.
+    then:
+      - The CLI resolves daily-weather-reminder locally to the workflow_id.
+      - The REST request uses the workflow_id path and does not contain the plaintext slug.
+      - Human output starts with the Workflow title and slug, then shows runs with useful state and next commands.
+
+  - id: S-2
+    title: Duplicate slug fails safely
+    given:
+      - Alice already owns a Task with slug renew-passport.
+    when:
+      - Alice or an SDK tries to create another Task in the same owner/team context with slug renew-passport.
+    then:
+      - The backend rejects the mutation using slug_lookup_hash uniqueness.
+      - No partial object row is created.
+      - The error message tells Alice to choose another slug without revealing another user's slug.
+
+  - id: S-3
+    title: Projects, Plans, and Tasks list with slug handles
+    given:
+      - Alice has Projects, Plans, and Tasks with encrypted slugs and encrypted names/titles.
+    when:
+      - Alice runs list and show commands for each surface.
+    then:
+      - Human output shows slug plus name/title as the primary handle.
+      - Detail output still exposes canonical IDs for debug/copy-paste.
+      - Suggested next commands use slugs, not raw UUIDs.
+
+  - id: S-4
+    title: Saved chat command uses encrypted chat slug
+    given:
+      - Alice has a saved Chat titled Berlin Trip Planning with encrypted slug berlin-trip-planning.
+    when:
+      - Alice runs `openmates chats send --chat berlin-trip-planning "add packing list"`.
+    then:
+      - The CLI resolves the chat slug locally to chat_id.
+      - The WebSocket send payload contains chat_id and not the plaintext slug.
+      - Human history/list output shows the slug as the stable handle.
+
+  - id: S-5
+    title: SDK-created object preserves slug privacy
+    given:
+      - Developer code uses npm or pip SDK to create a Project, Plan, Task, or Workflow with cleartext title/name and optional slug.
+    when:
+      - The SDK sends the create mutation.
+    then:
+      - The SDK derives or validates the slug locally, encrypts encrypted_slug, computes slug_lookup_hash, and sends no plaintext slug.
+      - The SDK returns cleartext slug in memory for the caller.
+      - Later CLI list/show resolves the same encrypted slug.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Workflows store encrypted_slug and slug_lookup_hash on create/update and CLI workflow commands accept the slug while sending only workflow_id to server run/detail/list-runs operations.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-BACKEND-SLUGS, T-CLI-WORKFLOW-SLUGS, V-LIVE-CLI-SLUGS]
+    specification_assertions: [cli.slugs.encrypted-stable, cli.slugs.local-resolution-id-transport, cli.output.actionable-readable, workflows.surface.semantic-parity]
+  - id: AC-2
+    scenario: S-2
+    text: Backend mutation paths reject duplicate slug_lookup_hash values within the same owner/team context for every implemented slugged object surface without creating partial objects.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-SLUGS]
+    specification_assertions: [cli.slugs.encrypted-stable, cli.surface.semantic-parity]
+  - id: AC-3
+    scenario: S-3
+    text: Projects, Plans, and Tasks human CLI output leads with slug plus decrypted name/title, uses slug-based next commands, and keeps canonical IDs available in detail or --json output.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-WORKSPACE-SLUGS, V-LIVE-CLI-SLUGS]
+    specification_assertions: [cli.output.actionable-readable, projects.surface.semantic-parity, plans.surface.semantic-parity, tasks.surface.semantic-parity]
+  - id: AC-4
+    scenario: S-4
+    text: Saved Chat list/show/send commands accept encrypted chat slugs locally and send only chat_id over WebSocket/REST operations.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-CHAT-SLUGS, V-LIVE-CLI-SLUGS]
+    specification_assertions: [cli.slugs.local-resolution-id-transport, chats.persistence.client-encrypted, chats.surface.semantic-parity]
+  - id: AC-5
+    scenario: S-5
+    text: npm and pip SDK object create/update helpers preserve encrypted_slug plus slug_lookup_hash semantics and do not expose encrypted storage details to callers.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids: [T-SDK-SLUGS, V-SDK-PARITY]
+    specification_assertions: [cli.slugs.encrypted-stable, sdk.encryption.local-only, sdk.surface.semantic-parity]
+
+assumptions:
+  - id: A-1
+    text: The slug lookup hash can be derived with an existing owner/team-scoped key or a new deterministic client-side index key without exposing plaintext slug to the server.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - TS and Python helpers derive slug_lookup_hash locally with HKDF/HMAC-SHA256 info openmates-object-slug-index-v1 from the personal master key or local team key.
+      - Static audit verified object selectors resolve locally to canonical IDs; private plaintext slugs are not sent to object API paths.
+  - id: A-2
+    text: Existing Directus schema migration patterns can add nullable encrypted_slug and slug_lookup_hash fields plus owner/team scoped uniqueness without destructive data loss.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - backend/core/directus/setup/migrate_encrypted_slug_indexes.sql adds nullable encrypted_slug and slug_lookup_hash columns plus owner/team partial unique indexes.
+      - backend/core/directus/setup/setup_schemas.py registers encrypted slug index migration names with existing migration runner pattern.
+  - id: A-3
+    text: Existing CLI/SDK tests can be extended without requiring browser Playwright for the first implementation slice.
+    status: confirmed
+    required_before: task_execution
+    evidence:
+      - Existing Node test suites now cover CLI/npm workflow, project, plan, task, and saved-chat slug behavior without adding browser Playwright coverage.
+      - Existing pip SDK tests now cover local slug resolution and encrypted metadata payloads across project, plan, task, workflow, and saved-chat surfaces.
+
+tests:
+  - id: T-BACKEND-SLUGS
+    type: pytest
+    file: backend/tests/test_cli_object_slugs.py
+    command: python3 -m pytest backend/tests/test_cli_object_slugs.py -q
+    assertions:
+      - Schema/model helpers persist encrypted_slug and slug_lookup_hash but not plaintext slug.
+      - Duplicate slug_lookup_hash is rejected in owner/team context.
+    specification_assertions: [cli.slugs.encrypted-stable, cli.surface.semantic-parity]
+    covers: [AC-1, AC-2]
+    red_phase: {required: true, expected: fail_before_implementation, status: skipped_with_reason, evidence: {status: skipped_with_reason, reason: Backend tests were added during this resumed implementation slice before a preserved red run was recorded; green evidence below exercises the intended contract assertions., timestamp: "2026-08-13T15:27:14Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_cli_object_slugs.py -q", run_id: "local:pytest-backend-cli-object-slugs-2026-08-13T15:27:14Z", subject_commit: "9977e0ce83d77790a1abae1f26e79c388841c586", timestamp: "2026-08-13T15:27:14Z"}}
+  - id: T-CLI-WORKFLOW-SLUGS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/workflows.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/workflows.test.ts ./frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    assertions:
+      - Workflow create/list/show/runs output uses slug handles in human mode.
+      - Workflow slug input is resolved locally before API calls.
+    specification_assertions: [cli.slugs.local-resolution-id-transport, cli.output.actionable-readable]
+    covers: [AC-1]
+    red_phase: {required: true, expected: fail_before_implementation, status: skipped_with_reason, evidence: {status: skipped_with_reason, reason: Planned standalone workflow slug test was folded into existing workflow and SDK workflow suites during implementation; no preserved red run exists for the final file mapping., timestamp: "2026-08-13T15:27:14Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/workflows.test.ts ./frontend/packages/openmates-cli/tests/sdk-workflows.test.ts ./frontend/packages/openmates-cli/tests/tasks.test.ts ./frontend/packages/openmates-cli/tests/plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-tasks.test.ts ./frontend/packages/openmates-cli/tests/sdk-plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-projects.test.ts ./frontend/packages/openmates-cli/tests/sdk.test.ts", run_id: "local:node-cli-sdk-slug-subset-2026-08-13T15:27:14Z", subject_commit: "9977e0ce83d77790a1abae1f26e79c388841c586", timestamp: "2026-08-13T15:27:14Z"}}
+  - id: T-CLI-WORKSPACE-SLUGS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/tasks.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/tasks.test.ts ./frontend/packages/openmates-cli/tests/plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-tasks.test.ts ./frontend/packages/openmates-cli/tests/sdk-plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-projects.test.ts
+    assertions:
+      - Project, Plan, and Task list/detail render slug handles and slug next commands.
+      - Resolver accepts slug and existing full/short IDs.
+    specification_assertions: [cli.slugs.local-resolution-id-transport, cli.output.actionable-readable]
+    covers: [AC-3]
+    red_phase: {required: true, expected: fail_before_implementation, status: skipped_with_reason, evidence: {status: skipped_with_reason, reason: Planned standalone workspace slug test was folded into existing task, plan, project, and SDK suites; no preserved red run exists for the final file mapping., timestamp: "2026-08-13T15:27:14Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/workflows.test.ts ./frontend/packages/openmates-cli/tests/sdk-workflows.test.ts ./frontend/packages/openmates-cli/tests/tasks.test.ts ./frontend/packages/openmates-cli/tests/plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-tasks.test.ts ./frontend/packages/openmates-cli/tests/sdk-plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-projects.test.ts ./frontend/packages/openmates-cli/tests/sdk.test.ts", run_id: "local:node-cli-sdk-slug-subset-2026-08-13T15:27:14Z", subject_commit: "9977e0ce83d77790a1abae1f26e79c388841c586", timestamp: "2026-08-13T15:27:14Z"}}
+  - id: T-CLI-CHAT-SLUGS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/sdk.test.ts
+    assertions:
+      - Saved chat list/show/send resolves encrypted slug locally and keeps payloads ID-based.
+      - Public example chat cleartext slugs remain intentionally separate.
+    specification_assertions: [cli.slugs.local-resolution-id-transport, chats.surface.semantic-parity]
+    covers: [AC-4]
+    red_phase: {required: true, expected: fail_before_implementation, status: skipped_with_reason, evidence: {status: skipped_with_reason, reason: Saved-chat slug coverage was implemented in the existing SDK suite instead of a new standalone chat slug test; no preserved red run exists for the final file mapping., timestamp: "2026-08-13T15:27:14Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/sdk.test.ts", run_id: "local:node-sdk-chat-slug-2026-08-13T15:27:14Z", subject_commit: "9977e0ce83d77790a1abae1f26e79c388841c586", timestamp: "2026-08-13T15:27:14Z"}}
+  - id: T-SDK-SLUGS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk-workflows.test.ts
+    command: python3 -m py_compile packages/openmates-python/openmates/sdk.py && python3 -m pytest packages/openmates-python/tests/test_sdk.py packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_plans.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_workflows.py -q && node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/tests/sdk-workflows.test.ts ./frontend/packages/openmates-cli/tests/sdk-tasks.test.ts ./frontend/packages/openmates-cli/tests/sdk-plans.test.ts ./frontend/packages/openmates-cli/tests/sdk-projects.test.ts ./frontend/packages/openmates-cli/tests/sdk.test.ts
+    assertions:
+      - npm SDK cleartext create/update inputs generate encrypted_slug and slug_lookup_hash internally.
+      - Public outputs return slug while encrypted storage fields remain internal.
+    specification_assertions: [cli.slugs.encrypted-stable, sdk.encryption.local-only, sdk.surface.semantic-parity]
+    covers: [AC-5]
+    red_phase: {required: true, expected: fail_before_implementation, status: skipped_with_reason, evidence: {status: skipped_with_reason, reason: SDK slug coverage was folded into existing npm and pip SDK suites; no preserved red run exists for the final file mapping., timestamp: "2026-08-13T15:27:14Z"}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m py_compile packages/openmates-python/openmates/sdk.py && python3 -m pytest packages/openmates-python/tests/test_sdk.py packages/openmates-python/tests/test_projects.py packages/openmates-python/tests/test_plans.py packages/openmates-python/tests/test_tasks.py packages/openmates-python/tests/test_workflows.py -q", run_id: "local:pytest-python-sdk-slugs-2026-08-13T15:27:14Z", subject_commit: "9977e0ce83d77790a1abae1f26e79c388841c586", timestamp: "2026-08-13T15:27:14Z"}}
+
+verifications:
+  - id: V-LIVE-CLI-SLUGS
+    kind: deterministic_check
+    phase: green
+    status: passed
+    covers: [AC-1, AC-3, AC-4]
+    required_for_done: true
+    command: npm exec --yes tsx -- scripts/verify_cli_encrypted_slugs_live_smoke.mjs --proof-summary
+    evidence: {status: passed, command: "npm exec --yes tsx -- scripts/verify_cli_encrypted_slugs_live_smoke.mjs --proof-summary", run_id: "live:cli-encrypted-slugs-2026-08-14T11-02-58-326Z", subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960", timestamp: "2026-08-14T11:12:08Z", artifact_path: "test-results/cli-encrypted-slugs/live:cli-encrypted-slugs-2026-08-14T11-02-58-326Z.json", artifact_sha256: "sha256:ff59ed81b23b21e67131e457688d81f63dba48f209dc542dc71cff3ebb91473a", target_environment: "https://api.dev.openmates.org", proof_summary: "CLI/npm/pip project, task, plan, workflow, and chat all slug-ok; encrypted_slug and slug_lookup_hash hidden; slug inputs resolved locally to canonical IDs; temporary API key and private CLI HOME removed."}
+  - id: V-SDK-PARITY
+    kind: deterministic_check
+    phase: green
+    status: passed
+    covers: [AC-5]
+    required_for_done: true
+    command: python3 scripts/audit_sdk_cli_parity.py
+    evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "local:audit-sdk-cli-parity-2026-08-14T11:41:00Z", subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960", timestamp: "2026-08-14T11:41:00Z", note: "Audit exited successfully and reported pre-existing unclassified CLI commands: credits, switch-to."}
+  - id: V-SPEC-VERIFY
+    kind: deterministic_check
+    phase: final
+    status: passed
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5]
+    required_for_done: true
+    command: python3 scripts/plan_verify.py docs/plans/cli-encrypted-slugs/plan.yml
+    evidence: {status: passed, command: "python3 scripts/plan_verify.py docs/plans/cli-encrypted-slugs/plan.yml", run_id: "local:spec-verify-cli-encrypted-slugs-2026-08-14T11:56:00Z", subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960", timestamp: "2026-08-14T11:56:00Z"}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: cli
+    reason: User-visible CLI behavior changes need terminal proof showing slug input/output and ID-only server operation evidence.
+    classified_at: "2026-08-12T13:45:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show that a workflow can be addressed with a stable slug instead of an opaque UUID.
+      expected_proof: Terminal shows a slug-based workflow command, readable workflow/run output, and retained evidence that the real API operation used the canonical workflow ID.
+      scenario_ids: [S-1]
+      acceptance_criteria: [AC-1]
+    - id: NARR-2
+      purpose: Show readable object handles across workspace objects.
+      expected_proof: Terminal list/detail commands for Projects, Plans, Tasks, and Chats show slug handles and next commands using slugs.
+      scenario_ids: [S-3, S-4]
+      acceptance_criteria: [AC-3, AC-4]
+  evidence:
+    status: passed
+    privacy_status: passed
+    audio_status: not_required
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 2
+    subject_commit: "d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960"
+    manifest_path: "test-results/proof-videos/3e46/cli-encrypted-slugs-artifact-d9a70a9/manifest.json"
+    manifest_hash: "sha256:a5961e3dd27c5d8a1e2846684318d78ddba9766d34e23e6320c1904cec2d4a6e"
+    review_run_id: "review-cli-encrypted-slugs-artifact-d9a70a9"
+    timestamp: "2026-08-14T11:48:31Z"
+
+implementation_notes:
+  plan_path: docs/plans/cli-encrypted-slugs/plan.yml
+  architecture: >
+    Add shared encrypted slug primitives to CLI/SDK client code and object API
+    payloads. Backend stores encrypted_slug and slug_lookup_hash as safe metadata;
+    clients decrypt slug locally and resolve user command inputs to canonical IDs
+    before network calls.
+  existing_patterns:
+    - Client-side encrypted titles/names already mirror web crypto semantics in CLI task, plan, project, and chat helpers.
+    - Existing label_hashes and linked_project_hashes provide safe metadata precedent for server-filterable hashes without plaintext private strings.
+    - Existing chat title resolution in the CLI already performs local decrypt-before-match for title queries.
+  data_flow:
+    - User enters title/name and optional slug in CLI/SDK/web.
+    - Client slugifies/validates the slug, encrypts it with the object key or appropriate owner key, computes slug_lookup_hash with scoped client-side hash material, and sends ciphertext/hash to backend.
+    - Backend persists encrypted_slug and slug_lookup_hash and rejects same-context duplicates.
+    - CLI list/show decrypts encrypted_slug locally and prints it as primary handle.
+    - CLI command input resolves slug locally by listing/decrypting accessible objects, then sends only canonical ID to server operation.
+  affected_files:
+    - {path: specifications/surfaces/cli/specification.yml, reason: Approved CLI slug surface contract.}
+    - {path: specifications/surfaces/cli/examples.yml, reason: Contract examples for encrypted slugs, local resolution, and human output.}
+    - {path: docs/plans/cli-encrypted-slugs/plan.yml, reason: Executable implementation and verification ledger.}
+    - {path: backend/core/directus/schemas/workflows.yml, reason: Add encrypted slug and lookup hash fields.}
+    - {path: backend/core/directus/schemas/projects.yml, reason: Add encrypted slug and lookup hash fields.}
+    - {path: backend/core/directus/schemas/user_plans.yml, reason: Add encrypted slug and lookup hash fields.}
+    - {path: backend/core/directus/schemas/user_tasks.yml, reason: Add encrypted slug and lookup hash fields.}
+    - {path: backend/core/directus/schemas/chats.yml, reason: Add encrypted slug and lookup hash fields for saved chats if not already present.}
+    - {path: frontend/packages/openmates-cli/src/cli.ts, reason: Slug-capable command resolution and human output.}
+    - {path: frontend/packages/openmates-cli/src/client.ts, reason: Chat/workflow/project API models, slug helpers, and local resolution.}
+    - {path: frontend/packages/openmates-cli/src/tasksCli.ts, reason: Task slug encryption/decryption/resolution/rendering.}
+    - {path: frontend/packages/openmates-cli/src/plansCli.ts, reason: Plan slug encryption/decryption/resolution/rendering.}
+    - {path: frontend/packages/openmates-cli/src/sdk.ts, reason: npm SDK slug parity for object creation/mutation.}
+    - {path: packages/openmates-python/openmates/sdk.py, reason: pip SDK slug parity for object creation/mutation.}
+    - {path: scripts/audit_sdk_cli_parity.py, reason: Add slug parity guard if current audit lacks coverage.}
+  verification_strategy:
+    - Write red unit/contract tests for encrypted slug storage and CLI resolver behavior before product changes.
+    - Add backend tests for slug_lookup_hash uniqueness and plaintext-forbidden payload/state assertions.
+    - Run CLI unit tests after TypeScript build.
+    - Run real installed CLI commands against https://api.dev.openmates.org after backend/API changes are deployed to the local dev stack.
+    - Run SDK parity audit and npm/pip slug tests where SDK surfaces are touched.
+  verification_order:
+    - T-BACKEND-SLUGS red then green.
+    - T-CLI-WORKFLOW-SLUGS, T-CLI-WORKSPACE-SLUGS, T-CLI-CHAT-SLUGS red then green.
+    - T-SDK-SLUGS and V-SDK-PARITY after CLI green.
+    - V-LIVE-CLI-SLUGS against https://api.dev.openmates.org.
+    - Proof video after normal green gates.
+    - V-SPEC-VERIFY final.
+
+tasks:
+  - id: TASK-1
+    title: Add encrypted slug primitives and backend schema/API support
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-5], acceptance_criteria: [AC-1, AC-2, AC-5]}
+    expected_files:
+      - backend/core/directus/schemas/workflows.yml
+      - backend/core/directus/schemas/projects.yml
+      - backend/core/directus/schemas/user_plans.yml
+      - backend/core/directus/schemas/user_tasks.yml
+      - backend/core/directus/schemas/chats.yml
+      - backend/tests/test_cli_object_slugs.py
+    verification_ids: [T-BACKEND-SLUGS]
+    dependencies: []
+    blockers: [A-1, A-2]
+    ownership:
+      files:
+        - backend/core/directus/schemas/workflows.yml
+        - backend/core/directus/schemas/projects.yml
+        - backend/core/directus/schemas/user_plans.yml
+        - backend/core/directus/schemas/user_tasks.yml
+        - backend/core/directus/schemas/chats.yml
+      shared_files: []
+    follow_up_tasks: [TASK-2]
+  - id: TASK-2
+    title: Implement CLI slug resolution and readable output
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-3, S-4], acceptance_criteria: [AC-1, AC-3, AC-4]}
+    expected_files:
+      - frontend/packages/openmates-cli/src/cli.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/tasksCli.ts
+      - frontend/packages/openmates-cli/src/plansCli.ts
+      - frontend/packages/openmates-cli/tests/workflows-yaml.test.ts
+      - frontend/packages/openmates-cli/tests/workspace-slugs.test.ts
+      - frontend/packages/openmates-cli/tests/chat-slugs.test.ts
+    verification_ids: [T-CLI-WORKFLOW-SLUGS, T-CLI-WORKSPACE-SLUGS, T-CLI-CHAT-SLUGS, V-LIVE-CLI-SLUGS]
+    dependencies: [TASK-1]
+    blockers: [A-3]
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/cli.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/tasksCli.ts
+        - frontend/packages/openmates-cli/src/plansCli.ts
+      shared_files: []
+    follow_up_tasks: [TASK-3]
+  - id: TASK-3
+    title: Preserve npm and pip SDK slug parity
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-5]}
+    expected_files:
+      - frontend/packages/openmates-cli/src/sdk.ts
+      - frontend/packages/openmates-cli/tests/sdk-slugs.test.ts
+      - packages/openmates-python/openmates/sdk.py
+      - packages/openmates-python/tests/test_tasks.py
+      - packages/openmates-python/tests/test_plans.py
+      - scripts/audit_sdk_cli_parity.py
+    verification_ids: [T-SDK-SLUGS, V-SDK-PARITY]
+    dependencies: [TASK-1, TASK-2]
+    blockers: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/sdk.ts
+        - packages/openmates-python/openmates/sdk.py
+        - scripts/audit_sdk_cli_parity.py
+      shared_files: []
+    follow_up_tasks: [TASK-4]
+  - id: TASK-4
+    title: Final verification, proof video, and spec closure
+    status: done
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5]}
+    expected_files:
+      - docs/plans/cli-encrypted-slugs/plan.yml
+      - test-results/proof-videos/3e46/cli-encrypted-slugs-artifact-d9a70a9/manifest.json
+    verification_ids: [V-LIVE-CLI-SLUGS, V-SDK-PARITY, V-SPEC-VERIFY]
+    dependencies: [TASK-1, TASK-2, TASK-3]
+    blockers: []
+    ownership:
+      files:
+        - docs/plans/cli-encrypted-slugs/plan.yml
+      shared_files: []
+    follow_up_tasks: []
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Create and exact-hash approve a new surface.cli contract before implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-12T13:45:00Z"
+    evidence: specifications/surfaces/cli/specification.yml fingerprint c81cf22357b99e260947304f2b0df39d9f1cb5654370831a4aced1aa6ea8007d
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Deploy the final spec evidence ledger update.
+  command: python3 scripts/sessions.py deploy --session 3e46 --title "Verify CLI encrypted slug evidence" --message "Verify CLI encrypted slug spec evidence"
+  expected_outcome: The final spec evidence ledger update is committed and pushed to dev.
+  blocker: null
+  last_verified_commit: d9a70a9d0fbeb1f1db46c5015fe83e38b6a62960

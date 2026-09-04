@@ -2,7 +2,7 @@
 //
 // Server-side loader for public OpenMates event pages at /events/{slug}.
 // The visible page is crawlable and exposes schema.org/Event JSON-LD.
-// Humans can open the interactive SPA embed fullscreen from the CTA.
+// Human browsers are forwarded to the interactive SPA embed fullscreen on mount.
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -17,10 +17,6 @@ function isDevelopmentHost(hostname: string): boolean {
 		hostname === '127.0.0.1';
 }
 
-function absoluteUrl(siteOrigin: string, value: string): string {
-	return new URL(value, siteOrigin).href;
-}
-
 export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	const event = getOpenMatesEventBySlug(params.slug);
 	if (!event) {
@@ -33,7 +29,6 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 
 	const siteOrigin = getSiteOrigin(url);
 	const canonicalUrl = `${siteOrigin}/events/${event.slug}`;
-	const imageUrl = absoluteUrl(siteOrigin, event.image_url);
 	const location = event.event_type === 'ONLINE'
 		? 'Online'
 		: [event.venue.name, event.venue.address, event.venue.city, event.venue.country].filter(Boolean).join(', ');
@@ -72,7 +67,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 			? 'https://schema.org/OnlineEventAttendanceMode'
 			: 'https://schema.org/OfflineEventAttendanceMode',
 		eventStatus: 'https://schema.org/EventScheduled',
-		image: [imageUrl],
+		image: [event.image_url],
 		url: canonicalUrl,
 		organizer: {
 			'@type': 'Organization',
@@ -92,7 +87,6 @@ export const load: PageServerLoad = async ({ params, setHeaders, url }) => {
 	return {
 		event,
 		canonicalUrl,
-		imageUrl,
 		location,
 		jsonLd: JSON.stringify(jsonLd),
 		isDevHost: isDevelopmentHost(url.hostname),

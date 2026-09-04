@@ -1,0 +1,4479 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-25'
+generated_at: '2026-08-31T17:15:22+00:00'
+range:
+  since: '2026-08-25T00:00:00+00:00'
+  until: '2026-08-26T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 81
+  section_counts:
+    features: 3
+    bug_fixes: 25
+    improvements: 1
+    docs: 13
+    tests: 33
+    infrastructure: 1
+    internal: 4
+    other: 1
+  newsletter_ready_items: 0
+  user_facing_items: 19
+  dev_only_items: 81
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: harden anonymous billing and storage retries'
+    section: features
+    commits:
+    - 9a1f4c3a5
+    authored_at: '2026-08-25T23:26:55+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/utils/device_fingerprint.py
+    - backend/core/api/templates/email/billing-processing-error.mjml
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/anonymous-usage-transaction/package.json
+    - backend/core/directus/extensions/anonymous-usage-transaction/src/index.js
+    - backend/core/directus/extensions/anonymous-usage-transaction/src/operations.js
+    - backend/core/directus/extensions/anonymous-usage-transaction/test/operations.test.js
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_operation_metering.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_billing_storage_degradation.py
+    - backend/tests/test_device_fingerprint.py
+    - contracts/features/billing/contract.yml
+    - contracts/features/billing/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/billing-storage-degradation-retries/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: require server update completion email'
+    section: features
+    commits:
+    - 0f2520813
+    authored_at: '2026-08-25T14:33:20+00:00'
+    changed_paths:
+    - contracts/architecture/server-management/contract.yml
+    - contracts/architecture/server-management/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/core/servers.md
+    - docs/specs/post-update-completion-email/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/src/serverUpdateState.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_runtime_health_contract.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add issue report email fallback'
+    section: features
+    commits:
+    - 26e40998a
+    authored_at: '2026-08-25T13:32:14+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsGradientLink.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: hide official cloud operator CLI help'
+    section: bug_fixes
+    commits:
+    - da32137f1
+    authored_at: '2026-08-25T23:50:29+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - scripts/tests/test_cloud_only_operator_exclusions.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: close storage outage resilience gaps'
+    section: bug_fixes
+    commits:
+    - 61d29c7b8
+    authored_at: '2026-08-25T18:57:26+00:00'
+    changed_paths:
+    - backend/apps/videos/tasks/render_remotion_task.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/tests/test_s3_outage_resilience.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/s3-outage-resilience/spec.yml
+    - scripts/audit_s3_outage_resilience.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:videos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: verify exact storage alert transitions'
+    section: bug_fixes
+    commits:
+    - 67f6af961
+    authored_at: '2026-08-25T18:35:14+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - scripts/verify_post_update_notifications.py
+    - scripts/verify_s3_outage_alerts.py
+    - scripts/verify_s3_outage_resilience.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: publish release intelligence summaries'
+    section: bug_fixes
+    commits:
+    - a0aca2a72
+    authored_at: '2026-08-25T12:52:18+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/releases/daily/2026-08-17.md
+    - docs/releases/daily/2026-08-17.yml
+    - docs/releases/daily/2026-08-18.md
+    - docs/releases/daily/2026-08-18.yml
+    - docs/releases/daily/2026-08-19.md
+    - docs/releases/daily/2026-08-19.yml
+    - docs/releases/daily/2026-08-20.md
+    - docs/releases/daily/2026-08-20.yml
+    - docs/releases/daily/2026-08-21.md
+    - docs/releases/daily/2026-08-21.yml
+    - docs/releases/daily/2026-08-22.md
+    - docs/releases/daily/2026-08-22.yml
+    - docs/releases/daily/2026-08-23.md
+    - docs/releases/daily/2026-08-23.yml
+    - docs/releases/daily/2026-08-24.md
+    - docs/releases/daily/2026-08-24.yml
+    - docs/releases/weekly/2026-W34.md
+    - docs/releases/weekly/2026-W34.yml
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve exhaustive Playwright summaries'
+    section: bug_fixes
+    commits:
+    - f6b2c71c4
+    authored_at: '2026-08-25T12:22:00+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve cached proof blocker frames'
+    section: bug_fixes
+    commits:
+    - 03195ddae
+    authored_at: '2026-08-25T12:17:45+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind proof readiness and blocker frames'
+    section: bug_fixes
+    commits:
+    - 41d27119b
+    authored_at: '2026-08-25T12:03:06+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve proof blocker media paths'
+    section: bug_fixes
+    commits:
+    - b5c2afece
+    authored_at: '2026-08-25T11:51:59+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: isolate workflow task services'
+    section: bug_fixes
+    commits:
+    - bf121efd9
+    authored_at: '2026-08-25T11:49:57+00:00'
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show flattened AI trace timing'
+    section: bug_fixes
+    commits:
+    - 8a4a3379b
+    authored_at: '2026-08-25T11:31:37+00:00'
+    changed_paths:
+    - backend/scripts/debug_trace.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/ai-request-observability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: anchor proof capture to visible checkpoints'
+    section: bug_fixes
+    commits:
+    - f2d210eb2
+    authored_at: '2026-08-25T11:27:17+00:00'
+    changed_paths:
+    - .claude/agents/proof-video-reviewer.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: invalidate superseded Apple connections'
+    section: bug_fixes
+    commits:
+    - 3cbc47914
+    authored_at: '2026-08-25T11:19:14+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: return Apple socket identity result'
+    section: bug_fixes
+    commits:
+    - 92d621e9f
+    authored_at: '2026-08-25T11:09:46+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: ignore stale Apple socket callbacks'
+    section: bug_fixes
+    commits:
+    - 849ae435a
+    authored_at: '2026-08-25T11:08:02+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden proof video review workflow'
+    section: bug_fixes
+    commits:
+    - 9ec6e154a
+    authored_at: '2026-08-25T11:01:03+00:00'
+    changed_paths:
+    - .claude/skills/create-demo-video/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/proof_video_workflow.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_review.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reject stale Apple stream completion'
+    section: bug_fixes
+    commits:
+    - bd94c9b43
+    authored_at: '2026-08-25T10:57:06+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve ordered Apple chat streaming'
+    section: bug_fixes
+    commits:
+    - 993e42ab9
+    authored_at: '2026-08-25T10:45:57+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finish streaming render harness preview'
+    section: bug_fixes
+    commits:
+    - 32dfeab89
+    authored_at: '2026-08-25T10:36:32+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep nightly test delivery resilient'
+    section: bug_fixes
+    commits:
+    - 7845ee03b
+    authored_at: '2026-08-25T10:32:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.test.ts
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore AI stream observability'
+    section: bug_fixes
+    commits:
+    - 358f04c46
+    authored_at: '2026-08-25T03:03:37+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/tasks/celery_config.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retry map sources when embeds arrive'
+    section: bug_fixes
+    commits:
+    - cdbca3ca9
+    authored_at: '2026-08-25T02:56:12+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/tasks/celery_config.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: show complete mobile event cards'
+    section: bug_fixes
+    commits:
+    - bf3a8efc9
+    authored_at: '2026-08-25T01:22:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix Code Run File child assertion scope
+    section: bug_fixes
+    commits:
+    - 8fc364a7d
+    authored_at: '2026-08-25T00:54:46+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound Apple inline embed cards'
+    section: bug_fixes
+    commits:
+    - 701ea1877
+    authored_at: '2026-08-25T00:37:27+00:00'
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve embed message indexes during sync'
+    section: bug_fixes
+    commits:
+    - 0ad0b854f
+    authored_at: '2026-08-25T00:10:23+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: reduce AI request latency overhead'
+    section: improvements
+    commits:
+    - f63986d74
+    authored_at: '2026-08-25T02:17:21+00:00'
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/video_processor.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/url_corrector.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/web/app.yml
+    - backend/scripts/debug_trace.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/finalization_embed_graph.py
+    - backend/shared/python_utils/stream_content_coalescer.py
+    - backend/shared/python_utils/tracing/ai_observability.py
+    - backend/shared/python_utils/tracing/privacy_filter.py
+    - backend/tests/test_ai_finalization_embed_graph.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_app_skill_parallel_execution.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_stream_consumer_publish_coalescing.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - backend/tests/test_tracing/test_privacy_filter.py
+    - contracts/architecture/ai-request-observability/contract.yml
+    - contracts/architecture/ai-request-observability/examples.yml
+    - contracts/architecture/app-skill-execution/contract.yml
+    - contracts/architecture/app-skill-execution/examples.yml
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/ai-request-observability/spec.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: remove private cloud operations from CLI guide'
+    section: docs
+    commits:
+    - 31524969d
+    authored_at: '2026-08-25T23:50:56+00:00'
+    changed_paths:
+    - docs/user-guide/cli/server-management.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: refine anonymous usage contract'
+    section: docs
+    commits:
+    - a34650e3c
+    authored_at: '2026-08-25T23:22:43+00:00'
+    changed_paths:
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: complete S3 outage resilience evidence'
+    section: docs
+    commits:
+    - 9327a8abd
+    authored_at: '2026-08-25T19:11:36+00:00'
+    changed_paths:
+    - docs/specs/s3-outage-resilience/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: make proof retry commit-current'
+    section: docs
+    commits:
+    - 7aa6e9e7d
+    authored_at: '2026-08-25T12:13:39+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: update proof workflow blocker evidence'
+    section: docs
+    commits:
+    - d983ec9b7
+    authored_at: '2026-08-25T12:12:47+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record proof review verification blocker'
+    section: docs
+    commits:
+    - a77ce75f9
+    authored_at: '2026-08-25T11:55:50+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/tests/test_spec_demonstration_review.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record Apple streaming parity evidence'
+    section: docs
+    commits:
+    - 7df5a3306
+    authored_at: '2026-08-25T11:49:21+00:00'
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - scripts/tests/test_spec_demonstration_review.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record real AI trace verification'
+    section: docs
+    commits:
+    - 20f812e52
+    authored_at: '2026-08-25T11:32:56+00:00'
+    changed_paths:
+    - docs/specs/ai-request-observability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'chore: sync proof review agent guidance'
+    section: docs
+    commits:
+    - f4eee6c89
+    authored_at: '2026-08-25T11:02:59+00:00'
+    changed_paths:
+    - .claude/agents/proof-video-reviewer.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: refresh streaming proof evidence'
+    section: docs
+    commits:
+    - f739b877e
+    authored_at: '2026-08-25T09:53:18+00:00'
+    changed_paths:
+    - docs/specs/ai-request-observability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record AI performance verification'
+    section: docs
+    commits:
+    - b9bfabc70
+    authored_at: '2026-08-25T02:31:06+00:00'
+    changed_paths:
+    - docs/specs/ai-request-observability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record final Apple simulator proof evidence'
+    section: docs
+    commits:
+    - 92b4f711f
+    authored_at: '2026-08-25T02:26:28+00:00'
+    changed_paths:
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record proof assertion decision'
+    section: docs
+    commits:
+    - b6a8c63e3
+    authored_at: '2026-08-25T01:01:51+00:00'
+    changed_paths:
+    - docs/specs/billing-processing-reliability/spec.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: target mounted chat selection race'
+    section: tests
+    commits:
+    - bac86e26e
+    authored_at: '2026-08-25T23:54:37+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce stale chat selection race'
+    section: tests
+    commits:
+    - 0e34b5aea
+    authored_at: '2026-08-25T23:24:59+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/progressive-chat-opening/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: end DeepSeek proof on restored response'
+    section: tests
+    commits:
+    - e40f74681
+    authored_at: '2026-08-25T22:18:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hold reviewed DeepSeek terminal states'
+    section: tests
+    commits:
+    - 0ced914f1
+    authored_at: '2026-08-25T22:04:04+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reject DeepSeek error state after reload'
+    section: tests
+    commits:
+    - e20279188
+    authored_at: '2026-08-25T19:36:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize report issue proof capture'
+    section: tests
+    commits:
+    - 27099fe51
+    authored_at: '2026-08-25T19:16:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: isolate live DeepSeek browser contract'
+    section: tests
+    commits:
+    - 3d5eb61aa
+    authored_at: '2026-08-25T18:54:36+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep notification proof output bounded'
+    section: tests
+    commits:
+    - 52f2dd613
+    authored_at: '2026-08-25T18:42:20+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: complete report issue proof timeline'
+    section: tests
+    commits:
+    - b1e73b400
+    authored_at: '2026-08-25T18:41:28+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: select exact DeepSeek Pro model'
+    section: tests
+    commits:
+    - 97825b047
+    authored_at: '2026-08-25T18:37:16+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add report issue email fallback proof timeline'
+    section: tests
+    commits:
+    - 1dde7756c
+    authored_at: '2026-08-25T18:29:17+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover live DeepSeek model override'
+    section: tests
+    commits:
+    - 64d10e7d1
+    authored_at: '2026-08-25T18:20:11+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add S3 outage verification drills'
+    section: tests
+    commits:
+    - be341ff92
+    authored_at: '2026-08-25T15:52:06+00:00'
+    changed_paths:
+    - docs/architecture/core/servers.md
+    - docs/architecture/infrastructure/health-checks.md
+    - docs/specs/s3-outage-resilience/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - scripts/verify_s3_outage_alerts.py
+    - scripts/verify_s3_outage_resilience.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover superseded Apple connections'
+    section: tests
+    commits:
+    - '925239614'
+    authored_at: '2026-08-25T11:16:23+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover stale Apple socket callbacks'
+    section: tests
+    commits:
+    - 5862f9591
+    authored_at: '2026-08-25T11:04:09+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover Apple streaming terminal races'
+    section: tests
+    commits:
+    - 7fc834350
+    authored_at: '2026-08-25T10:54:22+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: define Apple chat parity red contracts'
+    section: tests
+    commits:
+    - 8d8c1b30b
+    authored_at: '2026-08-25T10:30:18+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/features/message-input/contract.yml
+    - contracts/features/message-input/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderLifecycle.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: attest completed chat reload'
+    section: tests
+    commits:
+    - 6efe8678a
+    authored_at: '2026-08-25T10:09:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: define streaming proof profiles'
+    section: tests
+    commits:
+    - 04ad7c696
+    authored_at: '2026-08-25T10:08:00+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align reload proof video clock'
+    section: tests
+    commits:
+    - 578b6a88e
+    authored_at: '2026-08-25T02:21:31+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hold reloaded proof state'
+    section: tests
+    commits:
+    - 30f2fac8e
+    authored_at: '2026-08-25T02:08:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Assert both reloaded artifact histories
+    section: tests
+    commits:
+    - 287efcccf
+    authored_at: '2026-08-25T01:49:44+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: focus Apple login fields before typing'
+    section: tests
+    commits:
+    - e57d4471c
+    authored_at: '2026-08-25T01:46:42+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: shorten Apple core parity proof prompt'
+    section: tests
+    commits:
+    - a099a0df1
+    authored_at: '2026-08-25T01:31:31+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: bound Apple core parity proof response'
+    section: tests
+    commits:
+    - b3c5e314b
+    authored_at: '2026-08-25T01:20:08+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reuse Apple proof device profile'
+    section: tests
+    commits:
+    - 84d78f58f
+    authored_at: '2026-08-25T01:11:16+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Recognize custom fullscreen child closure
+    section: tests
+    commits:
+    - 841f79b95
+    authored_at: '2026-08-25T01:10:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: prove reloaded event results'
+    section: tests
+    commits:
+    - 8b1cd3fd9
+    authored_at: '2026-08-25T01:07:03+00:00'
+    changed_paths:
+    - docs/specs/billing-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make Apple proof capture snapshot-safe'
+    section: tests
+    commits:
+    - 2f908bfec
+    authored_at: '2026-08-25T01:01:12+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: honor Apple response timeout'
+    section: tests
+    commits:
+    - eaaeded97
+    authored_at: '2026-08-25T00:52:55+00:00'
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: frame recovered response checkpoints'
+    section: tests
+    commits:
+    - d2ae20a03
+    authored_at: '2026-08-25T00:49:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce unbounded Apple inline embeds'
+    section: tests
+    commits:
+    - e88633fdf
+    authored_at: '2026-08-25T00:31:22+00:00'
+    changed_paths:
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: require reloaded map hydration'
+    section: tests
+    commits:
+    - e79f46984
+    authored_at: '2026-08-25T00:30:26+00:00'
+    changed_paths:
+    - docs/specs/billing-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: sync generated agent mirrors'
+    section: infrastructure
+    commits:
+    - 853e498f2
+    authored_at: '2026-08-25T11:04:42+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Harden object storage outage resilience
+    section: internal
+    commits:
+    - 7b7c3a90b
+    authored_at: '2026-08-25T15:16:25+00:00'
+    changed_paths:
+    - backend/apps/audio/tasks/generate_task.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/models3d/tasks/generate_task.py
+    - backend/apps/music/tasks/generate_task.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/core/api/app/services/usage_archive_service.py
+    - backend/core/api/app/tasks/auto_delete_tasks.py
+    - backend/core/api/app/tasks/storage_billing_tasks.py
+    - backend/core/api/app/tasks/usage_archive_tasks.py
+    - backend/core/api/main.py
+    - backend/scripts/runtime_health_verifier.py
+    - backend/shared/python_utils/storage_availability.py
+    - backend/tests/test_runtime_health_verifier.py
+    - backend/tests/test_s3_outage_jobs.py
+    - backend/tests/test_s3_outage_resilience.py
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    - contracts/architecture/storage-resilience/contract.yml
+    - contracts/architecture/storage-resilience/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/s3-outage-resilience/spec.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_s3_outage_resilience.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: app:audio, app:images, app:models3d, app:music, app:videos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Avoid request-time S3 bucket reconciliation
+    section: internal
+    commits:
+    - 8f76604bd
+    authored_at: '2026-08-25T10:43:24+00:00'
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - 'matches feature availability gates: app:code'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Wait for Code Run rerun lifecycle
+    section: internal
+    commits:
+    - 00745631a
+    authored_at: '2026-08-25T01:32:53+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize Code Run child navigation E2E
+    section: internal
+    commits:
+    - 72136598d
+    authored_at: '2026-08-25T00:36:53+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: 'contract: define images view behavior'
+    section: other
+    commits:
+    - 567ed9c68
+    authored_at: '2026-08-25T11:07:23+00:00'
+    changed_paths:
+    - contracts/features/app-skills/images-view/contract.yml
+    - contracts/features/app-skills/images-view/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'test: target mounted chat selection race'
+    commits:
+    - bac86e26e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: remove private cloud operations from CLI guide'
+    commits:
+    - 31524969d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hide official cloud operator CLI help'
+    commits:
+    - da32137f1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: harden anonymous billing and storage retries'
+    commits:
+    - 9a1f4c3a5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'test: reproduce stale chat selection race'
+    commits:
+    - 0e34b5aea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: refine anonymous usage contract'
+    commits:
+    - a34650e3c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: end DeepSeek proof on restored response'
+    commits:
+    - e40f74681
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: hold reviewed DeepSeek terminal states'
+    commits:
+    - 0ced914f1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reject DeepSeek error state after reload'
+    commits:
+    - e20279188
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize report issue proof capture'
+    commits:
+    - 27099fe51
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: complete S3 outage resilience evidence'
+    commits:
+    - 9327a8abd
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: close storage outage resilience gaps'
+    commits:
+    - 61d29c7b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+  - title: 'test: isolate live DeepSeek browser contract'
+    commits:
+    - 3d5eb61aa
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep notification proof output bounded'
+    commits:
+    - 52f2dd613
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: complete report issue proof timeline'
+    commits:
+    - b1e73b400
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: select exact DeepSeek Pro model'
+    commits:
+    - 97825b047
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: verify exact storage alert transitions'
+    commits:
+    - 67f6af961
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add report issue email fallback proof timeline'
+    commits:
+    - 1dde7756c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover live DeepSeek model override'
+    commits:
+    - 64d10e7d1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add S3 outage verification drills'
+    commits:
+    - be341ff92
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Harden object storage outage resilience
+    commits:
+    - 7b7c3a90b
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+  - title: 'feat: require server update completion email'
+    commits:
+    - 0f2520813
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: add issue report email fallback'
+    commits:
+    - 26e40998a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: publish release intelligence summaries'
+    commits:
+    - a0aca2a72
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve exhaustive Playwright summaries'
+    commits:
+    - f6b2c71c4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve cached proof blocker frames'
+    commits:
+    - 03195ddae
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: make proof retry commit-current'
+    commits:
+    - 7aa6e9e7d
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: update proof workflow blocker evidence'
+    commits:
+    - d983ec9b7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bind proof readiness and blocker frames'
+    commits:
+    - 41d27119b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record proof review verification blocker'
+    commits:
+    - a77ce75f9
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve proof blocker media paths'
+    commits:
+    - b5c2afece
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: isolate workflow task services'
+    commits:
+    - bf121efd9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record Apple streaming parity evidence'
+    commits:
+    - 7df5a3306
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record real AI trace verification'
+    commits:
+    - 20f812e52
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: show flattened AI trace timing'
+    commits:
+    - 8a4a3379b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: anchor proof capture to visible checkpoints'
+    commits:
+    - f2d210eb2
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: invalidate superseded Apple connections'
+    commits:
+    - 3cbc47914
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: cover superseded Apple connections'
+    commits:
+    - '925239614'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: return Apple socket identity result'
+    commits:
+    - 92d621e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: ignore stale Apple socket callbacks'
+    commits:
+    - 849ae435a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'contract: define images view behavior'
+    commits:
+    - 567ed9c68
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: sync generated agent mirrors'
+    commits:
+    - 853e498f2
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover stale Apple socket callbacks'
+    commits:
+    - 5862f9591
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'chore: sync proof review agent guidance'
+    commits:
+    - f4eee6c89
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden proof video review workflow'
+    commits:
+    - 9ec6e154a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reject stale Apple stream completion'
+    commits:
+    - bd94c9b43
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: cover Apple streaming terminal races'
+    commits:
+    - 7fc834350
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: preserve ordered Apple chat streaming'
+    commits:
+    - 993e42ab9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: Avoid request-time S3 bucket reconciliation
+    commits:
+    - 8f76604bd
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+  - title: 'fix: finish streaming render harness preview'
+    commits:
+    - 32dfeab89
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep nightly test delivery resilient'
+    commits:
+    - 7845ee03b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: define Apple chat parity red contracts'
+    commits:
+    - 8d8c1b30b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: attest completed chat reload'
+    commits:
+    - 6efe8678a
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: define streaming proof profiles'
+    commits:
+    - 04ad7c696
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: refresh streaming proof evidence'
+    commits:
+    - f739b877e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore AI stream observability'
+    commits:
+    - 358f04c46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: retry map sources when embeds arrive'
+    commits:
+    - cdbca3ca9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: record AI performance verification'
+    commits:
+    - b9bfabc70
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record final Apple simulator proof evidence'
+    commits:
+    - 92b4f711f
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align reload proof video clock'
+    commits:
+    - 578b6a88e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'perf: reduce AI request latency overhead'
+    commits:
+    - f63986d74
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'test: hold reloaded proof state'
+    commits:
+    - 30f2fac8e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Assert both reloaded artifact histories
+    commits:
+    - 287efcccf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: focus Apple login fields before typing'
+    commits:
+    - e57d4471c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: Wait for Code Run rerun lifecycle
+    commits:
+    - 00745631a
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: shorten Apple core parity proof prompt'
+    commits:
+    - a099a0df1
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'fix: show complete mobile event cards'
+    commits:
+    - bf3a8efc9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: bound Apple core parity proof response'
+    commits:
+    - b3c5e314b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: reuse Apple proof device profile'
+    commits:
+    - 84d78f58f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: Recognize custom fullscreen child closure
+    commits:
+    - 841f79b95
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: prove reloaded event results'
+    commits:
+    - 8b1cd3fd9
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record proof assertion decision'
+    commits:
+    - b6a8c63e3
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: make Apple proof capture snapshot-safe'
+    commits:
+    - 2f908bfec
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: Fix Code Run File child assertion scope
+    commits:
+    - 8fc364a7d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: honor Apple response timeout'
+    commits:
+    - eaaeded97
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: frame recovered response checkpoints'
+    commits:
+    - d2ae20a03
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bound Apple inline embed cards'
+    commits:
+    - 701ea1877
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: Stabilize Code Run child navigation E2E
+    commits:
+    - 72136598d
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reproduce unbounded Apple inline embeds'
+    commits:
+    - e88633fdf
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: require reloaded map hydration'
+    commits:
+    - e79f46984
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve embed message indexes during sync'
+    commits:
+    - 0ad0b854f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: Harden object storage outage resilience
+    commits:
+    - 7b7c3a90b
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+  - title: 'perf: reduce AI request latency overhead'
+    commits:
+    - f63986d74
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: hide official cloud operator CLI help'
+    commits:
+    - da32137f1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: harden anonymous billing and storage retries'
+    commits:
+    - 9a1f4c3a5
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: close storage outage resilience gaps'
+    commits:
+    - 61d29c7b8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    newsletter_ready: false
+  - title: 'fix: verify exact storage alert transitions'
+    commits:
+    - 67f6af961
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: require server update completion email'
+    commits:
+    - 0f2520813
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add issue report email fallback'
+    commits:
+    - 26e40998a
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: invalidate superseded Apple connections'
+    commits:
+    - 3cbc47914
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: return Apple socket identity result'
+    commits:
+    - 92d621e9f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: ignore stale Apple socket callbacks'
+    commits:
+    - 849ae435a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: reject stale Apple stream completion'
+    commits:
+    - bd94c9b43
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: preserve ordered Apple chat streaming'
+    commits:
+    - 993e42ab9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: finish streaming render harness preview'
+    commits:
+    - 32dfeab89
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep nightly test delivery resilient'
+    commits:
+    - 7845ee03b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore AI stream observability'
+    commits:
+    - 358f04c46
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: retry map sources when embeds arrive'
+    commits:
+    - cdbca3ca9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: reduce AI request latency overhead'
+    commits:
+    - f63986d74
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'fix: show complete mobile event cards'
+    commits:
+    - bf3a8efc9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix Code Run File child assertion scope
+    commits:
+    - 8fc364a7d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound Apple inline embed cards'
+    commits:
+    - 701ea1877
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: bac86e26ecbdebebdcec695f566c0ef05816829a
+    short_sha: bac86e26e
+    authored_at: '2026-08-25T23:54:37+00:00'
+    subject: 'test: target mounted chat selection race'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    related_feature_ids: []
+  - sha: 31524969daf3d7975e75eca29ded6f09633e1f71
+    short_sha: 31524969d
+    authored_at: '2026-08-25T23:50:56+00:00'
+    subject: 'docs: remove private cloud operations from CLI guide'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/user-guide/cli/server-management.md
+    related_feature_ids: []
+  - sha: da32137f1733c85fbc228eaca4230ce13b5da954
+    short_sha: da32137f1
+    authored_at: '2026-08-25T23:50:29+00:00'
+    subject: 'fix: hide official cloud operator CLI help'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - scripts/tests/test_cloud_only_operator_exclusions.py
+    related_feature_ids: []
+  - sha: 9a1f4c3a59deff19990186be1a9119b2dd127251
+    short_sha: 9a1f4c3a5
+    authored_at: '2026-08-25T23:26:55+00:00'
+    subject: 'feat: harden anonymous billing and storage retries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/sub_chat_orchestration.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/admin.py
+    - backend/core/api/app/routes/anonymous.py
+    - backend/core/api/app/routes/internal_api.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/services/anonymous_free_usage_service.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/core/api/app/tasks/email_tasks/purchase_confirmation_email_task.py
+    - backend/core/api/app/utils/device_fingerprint.py
+    - backend/core/api/templates/email/billing-processing-error.mjml
+    - backend/core/directus/Dockerfile
+    - backend/core/directus/extensions/anonymous-usage-transaction/package.json
+    - backend/core/directus/extensions/anonymous-usage-transaction/src/index.js
+    - backend/core/directus/extensions/anonymous-usage-transaction/src/operations.js
+    - backend/core/directus/extensions/anonymous-usage-transaction/test/operations.test.js
+    - backend/core/directus/schemas/anonymous_free_usage_budget.yml
+    - backend/core/directus/schemas/anonymous_free_usage_reservations.yml
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_anonymous_free_usage_budget.py
+    - backend/tests/test_anonymous_operation_metering.py
+    - backend/tests/test_anonymous_skill_access.py
+    - backend/tests/test_billing_admin_notifications.py
+    - backend/tests/test_billing_storage_degradation.py
+    - backend/tests/test_device_fingerprint.py
+    - contracts/features/billing/contract.yml
+    - contracts/features/billing/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/billing-storage-degradation-retries/spec.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 0e34b5aeadab058100635323cb8d3062c37cc051
+    short_sha: 0e34b5aea
+    authored_at: '2026-08-25T23:24:59+00:00'
+    subject: 'test: reproduce stale chat selection race'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/progressive-chat-opening/spec.yml
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    related_feature_ids: []
+  - sha: a34650e3c7c4e1302692ceb9e1df921f1287e107
+    short_sha: a34650e3c
+    authored_at: '2026-08-25T23:22:43+00:00'
+    subject: 'docs: refine anonymous usage contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/anonymous-free-usage-budget/spec.yml
+    related_feature_ids: []
+  - sha: e40f74681e2a71733956b99bf4c78e3c65bf3810
+    short_sha: e40f74681
+    authored_at: '2026-08-25T22:18:29+00:00'
+    subject: 'test: end DeepSeek proof on restored response'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    related_feature_ids: []
+  - sha: 0ced914f1de830a9eab70b233a3208d6b720c7c2
+    short_sha: 0ced914f1
+    authored_at: '2026-08-25T22:04:04+00:00'
+    subject: 'test: hold reviewed DeepSeek terminal states'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    related_feature_ids: []
+  - sha: e20279188a5b9201a1975a4067334ddf4b449b6d
+    short_sha: e20279188
+    authored_at: '2026-08-25T19:36:07+00:00'
+    subject: 'test: reject DeepSeek error state after reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    related_feature_ids: []
+  - sha: 27099fe5153e8ad1937d62accec06bfc8f1d1acc
+    short_sha: 27099fe51
+    authored_at: '2026-08-25T19:16:43+00:00'
+    subject: 'test: stabilize report issue proof capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    related_feature_ids: []
+  - sha: 9327a8abd3b276b629c7b407a0a3291f039e8f66
+    short_sha: 9327a8abd
+    authored_at: '2026-08-25T19:11:36+00:00'
+    subject: 'docs: complete S3 outage resilience evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/s3-outage-resilience/spec.yml
+    related_feature_ids: []
+  - sha: 61d29c7b87302322a571da874b1103ff961f94e3
+    short_sha: 61d29c7b8
+    authored_at: '2026-08-25T18:57:26+00:00'
+    subject: 'fix: close storage outage resilience gaps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/videos/tasks/render_remotion_task.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/tests/test_s3_outage_resilience.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/s3-outage-resilience/spec.yml
+    - scripts/audit_s3_outage_resilience.py
+    related_feature_ids:
+    - app:videos
+  - sha: 3d5eb61aa14fc07bd4fb56df041546cd9df06ecb
+    short_sha: 3d5eb61aa
+    authored_at: '2026-08-25T18:54:36+00:00'
+    subject: 'test: isolate live DeepSeek browser contract'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deepseek-model-override.spec.ts
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    related_feature_ids: []
+  - sha: 52f2dd6132b0693754d3a0626b3aec91b1abbd0d
+    short_sha: 52f2dd613
+    authored_at: '2026-08-25T18:42:20+00:00'
+    subject: 'test: keep notification proof output bounded'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    related_feature_ids: []
+  - sha: b1e73b4007375bec5ef11e0050fb9d5a7eabfa6c
+    short_sha: b1e73b400
+    authored_at: '2026-08-25T18:41:28+00:00'
+    subject: 'test: complete report issue proof timeline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    related_feature_ids: []
+  - sha: 97825b047c0bf1bed14c0daf41ddf98f65c1fbc2
+    short_sha: 97825b047
+    authored_at: '2026-08-25T18:37:16+00:00'
+    subject: 'test: select exact DeepSeek Pro model'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    related_feature_ids: []
+  - sha: 67f6af9616a7be5de314cd584fbdac7b8d5dc3fc
+    short_sha: 67f6af961
+    authored_at: '2026-08-25T18:35:14+00:00'
+    subject: 'fix: verify exact storage alert transitions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - scripts/verify_post_update_notifications.py
+    - scripts/verify_s3_outage_alerts.py
+    - scripts/verify_s3_outage_resilience.py
+    related_feature_ids: []
+  - sha: 1dde7756c7e573be8f136e2317fdfaf7b091abab
+    short_sha: 1dde7756c
+    authored_at: '2026-08-25T18:29:17+00:00'
+    subject: 'test: add report issue email fallback proof timeline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    related_feature_ids: []
+  - sha: 64d10e7d12f1e72570b115732b87c7391853b577
+    short_sha: 64d10e7d1
+    authored_at: '2026-08-25T18:20:11+00:00'
+    subject: 'test: cover live DeepSeek model override'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/model-override.spec.ts
+    related_feature_ids: []
+  - sha: be341ff923463e6a4b8954bf5f526f70276aa2f4
+    short_sha: be341ff92
+    authored_at: '2026-08-25T15:52:06+00:00'
+    subject: 'test: add S3 outage verification drills'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/core/servers.md
+    - docs/architecture/infrastructure/health-checks.md
+    - docs/specs/s3-outage-resilience/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - scripts/verify_s3_outage_alerts.py
+    - scripts/verify_s3_outage_resilience.py
+    related_feature_ids: []
+  - sha: 7b7c3a90b5a8aaeb1e05e2c20d38e19c3ea59b1f
+    short_sha: 7b7c3a90b
+    authored_at: '2026-08-25T15:16:25+00:00'
+    subject: Harden object storage outage resilience
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/audio/tasks/generate_task.py
+    - backend/apps/audio/tasks/speak_task.py
+    - backend/apps/images/tasks/generate_task.py
+    - backend/apps/models3d/tasks/generate_task.py
+    - backend/apps/music/tasks/generate_task.py
+    - backend/apps/videos/tasks/generate_task.py
+    - backend/core/api/app/services/directus/embed_methods.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/core/api/app/services/usage_archive_service.py
+    - backend/core/api/app/tasks/auto_delete_tasks.py
+    - backend/core/api/app/tasks/storage_billing_tasks.py
+    - backend/core/api/app/tasks/usage_archive_tasks.py
+    - backend/core/api/main.py
+    - backend/scripts/runtime_health_verifier.py
+    - backend/shared/python_utils/storage_availability.py
+    - backend/tests/test_runtime_health_verifier.py
+    - backend/tests/test_s3_outage_jobs.py
+    - backend/tests/test_s3_outage_resilience.py
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    - contracts/architecture/storage-resilience/contract.yml
+    - contracts/architecture/storage-resilience/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/s3-outage-resilience/spec.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_s3_outage_resilience.py
+    related_feature_ids:
+    - app:audio
+    - app:images
+    - app:models3d
+    - app:music
+    - app:videos
+  - sha: 0f2520813552767fe0c666cb3c86fa36510bdb07
+    short_sha: 0f2520813
+    authored_at: '2026-08-25T14:33:20+00:00'
+    subject: 'feat: require server update completion email'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/architecture/server-management/contract.yml
+    - contracts/architecture/server-management/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/core/servers.md
+    - docs/specs/post-update-completion-email/spec.yml
+    - docs/user-guide/cli/server-management.md
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/src/serverUpdateState.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_runtime_health_contract.py
+    related_feature_ids: []
+  - sha: 26e40998a3b92b0dc61adbd02b589426770aab5d
+    short_sha: 26e40998a
+    authored_at: '2026-08-25T13:32:14+00:00'
+    subject: 'feat: add issue report email fallback'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/report-issue-email-fallback.spec.ts
+    - frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte
+    - frontend/packages/ui/src/components/settings/elements/SettingsGradientLink.svelte
+    - frontend/packages/ui/src/i18n/sources/settings/main.yml
+    related_feature_ids: []
+  - sha: a0aca2a72ec745c3a5319e48950d5b34844357d1
+    short_sha: a0aca2a72
+    authored_at: '2026-08-25T12:52:18+00:00'
+    subject: 'fix: publish release intelligence summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/releases/daily/2026-08-17.md
+    - docs/releases/daily/2026-08-17.yml
+    - docs/releases/daily/2026-08-18.md
+    - docs/releases/daily/2026-08-18.yml
+    - docs/releases/daily/2026-08-19.md
+    - docs/releases/daily/2026-08-19.yml
+    - docs/releases/daily/2026-08-20.md
+    - docs/releases/daily/2026-08-20.yml
+    - docs/releases/daily/2026-08-21.md
+    - docs/releases/daily/2026-08-21.yml
+    - docs/releases/daily/2026-08-22.md
+    - docs/releases/daily/2026-08-22.yml
+    - docs/releases/daily/2026-08-23.md
+    - docs/releases/daily/2026-08-23.yml
+    - docs/releases/daily/2026-08-24.md
+    - docs/releases/daily/2026-08-24.yml
+    - docs/releases/weekly/2026-W34.md
+    - docs/releases/weekly/2026-W34.yml
+    - scripts/release-intelligence-cron.sh
+    - scripts/release_intelligence.py
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: f6b2c71c4695833b4c4bf1c46d0d095270f3d3e5
+    short_sha: f6b2c71c4
+    authored_at: '2026-08-25T12:22:00+00:00'
+    subject: 'fix: preserve exhaustive Playwright summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    related_feature_ids: []
+  - sha: 03195ddaeed9d23056e577947463a1fb6f1ac616
+    short_sha: 03195ddae
+    authored_at: '2026-08-25T12:17:45+00:00'
+    subject: 'fix: preserve cached proof blocker frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 7aa6e9e7dbefc9738802b4d5ee76debc1252dd28
+    short_sha: 7aa6e9e7d
+    authored_at: '2026-08-25T12:13:39+00:00'
+    subject: 'docs: make proof retry commit-current'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: d983ec9b7a03f8aace057a9b086ce85200c15246
+    short_sha: d983ec9b7
+    authored_at: '2026-08-25T12:12:47+00:00'
+    subject: 'docs: update proof workflow blocker evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: 41d27119b380bf64621283b80d8e5628907c0e2c
+    short_sha: 41d27119b
+    authored_at: '2026-08-25T12:03:06+00:00'
+    subject: 'fix: bind proof readiness and blocker frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: a77ce75f9596603b3ab1bf31702566cec68a4a1d
+    short_sha: a77ce75f9
+    authored_at: '2026-08-25T11:55:50+00:00'
+    subject: 'docs: record proof review verification blocker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/tests/test_spec_demonstration_review.py
+    related_feature_ids: []
+  - sha: b5c2afeceb26d5e287c49329e65a58193dc09c21
+    short_sha: b5c2afece
+    authored_at: '2026-08-25T11:51:59+00:00'
+    subject: 'fix: preserve proof blocker media paths'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: bf121efd97867e7409dafd6ee23754dcf6354d0a
+    short_sha: bf121efd9
+    authored_at: '2026-08-25T11:49:57+00:00'
+    subject: 'fix: isolate workflow task services'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/tasks/base_task.py
+    - backend/core/api/app/tasks/workflow_tasks.py
+    - backend/tests/test_workflow_due_scanner_task.py
+    related_feature_ids: []
+  - sha: 7df5a3306f8e316ffdc34804a64e71a9c5f80912
+    short_sha: 7df5a3306
+    authored_at: '2026-08-25T11:49:21+00:00'
+    subject: 'docs: record Apple streaming parity evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - scripts/tests/test_spec_demonstration_review.py
+    related_feature_ids: []
+  - sha: 20f812e52183c8e408050074483de93b3340e385
+    short_sha: 20f812e52
+    authored_at: '2026-08-25T11:32:56+00:00'
+    subject: 'docs: record real AI trace verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/ai-request-observability/spec.yml
+    related_feature_ids: []
+  - sha: 8a4a3379bc171484e540f694a0cbcfd85967f3d7
+    short_sha: 8a4a3379b
+    authored_at: '2026-08-25T11:31:37+00:00'
+    subject: 'fix: show flattened AI trace timing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/debug_trace.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/ai-request-observability/spec.yml
+    related_feature_ids: []
+  - sha: f2d210eb239b84b47ccf36349cbc4d193a520ded
+    short_sha: f2d210eb2
+    authored_at: '2026-08-25T11:27:17+00:00'
+    subject: 'fix: anchor proof capture to visible checkpoints'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/agents/proof-video-reviewer.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 3cbc4791420de05f89788f9837dd98680ebd1bd2
+    short_sha: 3cbc47914
+    authored_at: '2026-08-25T11:19:14+00:00'
+    subject: 'fix: invalidate superseded Apple connections'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 925239614b44fd5489caf1828698e995cd00a25a
+    short_sha: '925239614'
+    authored_at: '2026-08-25T11:16:23+00:00'
+    subject: 'test: cover superseded Apple connections'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 92d621e9f9941c54d79e785d9eef9daeee8ee5fe
+    short_sha: 92d621e9f
+    authored_at: '2026-08-25T11:09:46+00:00'
+    subject: 'fix: return Apple socket identity result'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 849ae435ac5732202a07f493a3410fb8b1da1bd2
+    short_sha: 849ae435a
+    authored_at: '2026-08-25T11:08:02+00:00'
+    subject: 'fix: ignore stale Apple socket callbacks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 567ed9c68e8f034792db7331818fb46ada969023
+    short_sha: 567ed9c68
+    authored_at: '2026-08-25T11:07:23+00:00'
+    subject: 'contract: define images view behavior'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/app-skills/images-view/contract.yml
+    - contracts/features/app-skills/images-view/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 853e498f2f5c0b3529a655ee2fadf908f657c395
+    short_sha: 853e498f2
+    authored_at: '2026-08-25T11:04:42+00:00'
+    subject: 'chore: sync generated agent mirrors'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/verify-spec/SKILL.md
+    - .codex/agents/proof-video-reviewer.toml
+    - .opencode/agents/proof-video-reviewer.md
+    related_feature_ids: []
+  - sha: 5862f95910212196fbf2fcdea41debef588f15d0
+    short_sha: 5862f9591
+    authored_at: '2026-08-25T11:04:09+00:00'
+    subject: 'test: cover stale Apple socket callbacks'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: f4eee6c89eb8b529246621bfd0c9b45b95960ef7
+    short_sha: f4eee6c89
+    authored_at: '2026-08-25T11:02:59+00:00'
+    subject: 'chore: sync proof review agent guidance'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/agents/proof-video-reviewer.md
+    related_feature_ids: []
+  - sha: 9ec6e154a5ddb8fb6df27cf90038ffbe19588dec
+    short_sha: 9ec6e154a
+    authored_at: '2026-08-25T11:01:03+00:00'
+    subject: 'fix: harden proof video review workflow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/create-demo-video/SKILL.md
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/proof_video_workflow.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_discord.py
+    - scripts/tests/test_spec_demonstration_review.py
+    related_feature_ids: []
+  - sha: bd94c9b434957dc9e39ace2551ccae2e8de36c92
+    short_sha: bd94c9b43
+    authored_at: '2026-08-25T10:57:06+00:00'
+    subject: 'fix: reject stale Apple stream completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 7fc8343509866a7db85d7e198e59aa14e78a241e
+    short_sha: 7fc834350
+    authored_at: '2026-08-25T10:54:22+00:00'
+    subject: 'test: cover Apple streaming terminal races'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 993e42ab972118486ac19301fe588e03936f00c1
+    short_sha: 993e42ab9
+    authored_at: '2026-08-25T10:45:57+00:00'
+    subject: 'fix: preserve ordered Apple chat streaming'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Core/Networking/StreamingClient.swift
+    - apple/OpenMates/Sources/Core/Networking/WebSocketManager.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8f76604bd167e5b95740edd3ff5eb2d2b803f0df
+    short_sha: 8f76604bd
+    authored_at: '2026-08-25T10:43:24+00:00'
+    subject: Avoid request-time S3 bucket reconciliation
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/code/tasks/run_code_task.py
+    - backend/core/api/app/services/s3/service.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    related_feature_ids:
+    - app:code
+  - sha: 32dfeab899f3b7fdb083f568fbd65cf58c1efbee
+    short_sha: 32dfeab89
+    authored_at: '2026-08-25T10:36:32+00:00'
+    subject: 'fix: finish streaming render harness preview'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    - frontend/packages/ui/src/components/StreamingMessageRenderHarness.svelte
+    related_feature_ids: []
+  - sha: 7845ee03b5151c316e8f53c7cc66c97df72fda78
+    short_sha: 7845ee03b
+    authored_at: '2026-08-25T10:32:03+00:00'
+    subject: 'fix: keep nightly test delivery resilient'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.test.ts
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    related_feature_ids: []
+  - sha: 8d8c1b30b016bd00b01142bba15d6932a4636c49
+    short_sha: 8d8c1b30b
+    authored_at: '2026-08-25T10:30:18+00:00'
+    subject: 'test: define Apple chat parity red contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - apple/OpenMatesTests/ChatStreamingLifecycleParityTests.swift
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/features/message-input/contract.yml
+    - contracts/features/message-input/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/apple-chat-streaming-parity/spec.yml
+    - frontend/apps/web_app/tests/apple-chat-history-contracts.spec.ts
+    - frontend/apps/web_app/tests/apple-chat-ui-contracts.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingAppSkillGroup.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageCompiler.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageReopenParity.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingRenderLifecycle.test.ts
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 6efe8678a1909996d03cb0761ba1c685cd51f4af
+    short_sha: 6efe8678a
+    authored_at: '2026-08-25T10:09:33+00:00'
+    subject: 'test: attest completed chat reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 04ad7c696f7e5fa2e45f1b986203a5a268cc1177
+    short_sha: 04ad7c696
+    authored_at: '2026-08-25T10:08:00+00:00'
+    subject: 'test: define streaming proof profiles'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/chat-streaming-render-performance.spec.ts
+    related_feature_ids: []
+  - sha: f739b877e6bb5cdfb23b1357193ff58a42527f31
+    short_sha: f739b877e
+    authored_at: '2026-08-25T09:53:18+00:00'
+    subject: 'docs: refresh streaming proof evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/ai-request-observability/spec.yml
+    related_feature_ids: []
+  - sha: 358f04c46490de6fcdc6e725a9e190343cf3590f
+    short_sha: 358f04c46
+    authored_at: '2026-08-25T03:03:37+00:00'
+    subject: 'fix: restore AI stream observability'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/tasks/celery_config.py
+    related_feature_ids:
+    - app:ai
+  - sha: cdbca3ca9d016216e6b1428091783535d7285e65
+    short_sha: cdbca3ca9
+    authored_at: '2026-08-25T02:56:12+00:00'
+    subject: 'fix: retry map sources when embeds arrive'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/tasks/celery_config.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    related_feature_ids:
+    - app:ai
+  - sha: b9bfabc70c452c57166fd1c6e95a1a9eb0119187
+    short_sha: b9bfabc70
+    authored_at: '2026-08-25T02:31:06+00:00'
+    subject: 'docs: record AI performance verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/ai-request-observability/spec.yml
+    related_feature_ids: []
+  - sha: 92b4f711fcafd84a25e7f5ae71b6e01ddf4e865b
+    short_sha: 92b4f711f
+    authored_at: '2026-08-25T02:26:28+00:00'
+    subject: 'docs: record final Apple simulator proof evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/apple-core-cross-client-parity/spec.yml
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 578b6a88efbf06ad789ee6ad91b3e820fe8f4c9e
+    short_sha: 578b6a88e
+    authored_at: '2026-08-25T02:21:31+00:00'
+    subject: 'test: align reload proof video clock'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    related_feature_ids: []
+  - sha: f63986d744e3d1b92f72785bad460059275207b8
+    short_sha: f63986d74
+    authored_at: '2026-08-25T02:17:21+00:00'
+    subject: 'perf: reduce AI request latency overhead'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/daily_inspiration/generator.py
+    - backend/apps/ai/daily_inspiration/validator.py
+    - backend/apps/ai/daily_inspiration/video_processor.py
+    - backend/apps/ai/daily_inspiration/wiki_generator.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/postprocessor.py
+    - backend/apps/ai/processing/url_corrector.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/web/app.yml
+    - backend/scripts/debug_trace.py
+    - backend/shared/python_schemas/app_metadata_schemas.py
+    - backend/shared/python_utils/finalization_embed_graph.py
+    - backend/shared/python_utils/stream_content_coalescer.py
+    - backend/shared/python_utils/tracing/ai_observability.py
+    - backend/shared/python_utils/tracing/privacy_filter.py
+    - backend/tests/test_ai_finalization_embed_graph.py
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_app_skill_parallel_execution.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_stream_consumer_publish_coalescing.py
+    - backend/tests/test_tracing/test_debug_trace.py
+    - backend/tests/test_tracing/test_privacy_filter.py
+    - contracts/architecture/ai-request-observability/contract.yml
+    - contracts/architecture/ai-request-observability/examples.yml
+    - contracts/architecture/app-skill-execution/contract.yml
+    - contracts/architecture/app-skill-execution/examples.yml
+    - contracts/features/chats/contract.yml
+    - contracts/features/chats/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/specs/ai-request-observability/spec.yml
+    related_feature_ids:
+    - app:ai
+    - app:web
+  - sha: 30f2fac8e818bb9b0911483ae200320938d746d8
+    short_sha: 30f2fac8e
+    authored_at: '2026-08-25T02:08:51+00:00'
+    subject: 'test: hold reloaded proof state'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 287efcccf89668443a0b7a380b052d65cb2d76f3
+    short_sha: 287efcccf
+    authored_at: '2026-08-25T01:49:44+00:00'
+    subject: Assert both reloaded artifact histories
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: e57d4471c77573984e8fc0c5c6cd93091a93ee0d
+    short_sha: e57d4471c
+    authored_at: '2026-08-25T01:46:42+00:00'
+    subject: 'test: focus Apple login fields before typing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 00745631a2899f4458630c924bfc464bf4fda05c
+    short_sha: 00745631a
+    authored_at: '2026-08-25T01:32:53+00:00'
+    subject: Wait for Code Run rerun lifecycle
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: a099a0df195e401b947c892790b7d07b3ef3eea0
+    short_sha: a099a0df1
+    authored_at: '2026-08-25T01:31:31+00:00'
+    subject: 'test: shorten Apple core parity proof prompt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: bf3a8efc95e325816fc03038388f65f0c44029db
+    short_sha: bf3a8efc9
+    authored_at: '2026-08-25T01:22:34+00:00'
+    subject: 'fix: show complete mobile event cards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: b3c5e314b52e04c57348cd1a21d6f747b55c1bdd
+    short_sha: b3c5e314b
+    authored_at: '2026-08-25T01:20:08+00:00'
+    subject: 'test: bound Apple core parity proof response'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 84d78f58fbcd773b65d0f71348dfd773b0e47f5a
+    short_sha: 84d78f58f
+    authored_at: '2026-08-25T01:11:16+00:00'
+    subject: 'test: reuse Apple proof device profile'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 841f79b9528371e32737a6c704d037b94266e4cd
+    short_sha: 841f79b95
+    authored_at: '2026-08-25T01:10:27+00:00'
+    subject: Recognize custom fullscreen child closure
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/embed-test-helpers.ts
+    related_feature_ids: []
+  - sha: 8b1cd3fd99b2729098441ec4c46b7806195ea37c
+    short_sha: 8b1cd3fd9
+    authored_at: '2026-08-25T01:07:03+00:00'
+    subject: 'test: prove reloaded event results'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/billing-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    related_feature_ids: []
+  - sha: b6a8c63e3e08853fe65586c4508869b244f0395c
+    short_sha: b6a8c63e3
+    authored_at: '2026-08-25T01:01:51+00:00'
+    subject: 'docs: record proof assertion decision'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/billing-processing-reliability/spec.yml
+    related_feature_ids: []
+  - sha: 2f908bfeccfb72ed5187d6c9e8af8651f830d7e3
+    short_sha: 2f908bfec
+    authored_at: '2026-08-25T01:01:12+00:00'
+    subject: 'test: make Apple proof capture snapshot-safe'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/ChatFlowRealAccountUITests.swift
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 8fc364a7ddb55ffcf24802f1756f2fe4033d31f5
+    short_sha: 8fc364a7d
+    authored_at: '2026-08-25T00:54:46+00:00'
+    subject: Fix Code Run File child assertion scope
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: eaaeded976f99a7c2743aebe8d67d999555e30a2
+    short_sha: eaaeded97
+    authored_at: '2026-08-25T00:52:55+00:00'
+    subject: 'test: honor Apple response timeout'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesUITests/RealAccountUITestSupport.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: d2ae20a036f1a58da80eac124ab2bb80c4dbb51b
+    short_sha: d2ae20a03
+    authored_at: '2026-08-25T00:49:55+00:00'
+    subject: 'test: frame recovered response checkpoints'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 701ea18771903cabf05b5e32424391d078a888a0
+    short_sha: 701ea1877
+    authored_at: '2026-08-25T00:37:27+00:00'
+    subject: 'fix: bound Apple inline embed cards'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Grouping/EmbedGrouping.swift
+    - apple/OpenMates/Sources/Shared/Components/RichMarkdownRenderer.swift
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: 72136598d134bee9876a115a73ed99d82ff64461
+    short_sha: 72136598d
+    authored_at: '2026-08-25T00:36:53+00:00'
+    subject: Stabilize Code Run child navigation E2E
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    related_feature_ids: []
+  - sha: e88633fdfa7dc991e65d7a9afc5a10a44d691e80
+    short_sha: e88633fdf
+    authored_at: '2026-08-25T00:31:22+00:00'
+    subject: 'test: reproduce unbounded Apple inline embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - apple/OpenMatesTests/ChatHistoryRenderDocumentTests.swift
+    - contracts/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: e79f46984fad3c6a25114dbf2677e7e658d9047f
+    short_sha: e79f46984
+    authored_at: '2026-08-25T00:30:26+00:00'
+    subject: 'test: require reloaded map hydration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/specs/billing-processing-reliability/spec.yml
+    - frontend/apps/web_app/tests/billing-settlement-recovery.spec.ts
+    related_feature_ids: []
+  - sha: 0ad0b854f17d389b2ceb2d45930e673d0d028d0a
+    short_sha: 0ad0b854f
+    authored_at: '2026-08-25T00:10:23+00:00'
+    subject: 'fix: preserve embed message indexes during sync'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on optimizing AI request performance and hardening storage resilience. Significant development
+    occurred on the unreleased Apple platform clients, alongside refinements to the web application's embed rendering and
+    error reporting fallbacks.
+  released_changes:
+  - text: OpenMates reduced AI request latency by optimizing content sanitization and stream coalescing.
+    evidence:
+      commits:
+      - f63986d74
+    release_status: dev_only
+  - text: The map view now automatically retries loading sources when embeds arrive asynchronously.
+    evidence:
+      commits:
+      - cdbca3ca9
+    release_status: dev_only
+  - text: A new email fallback was added to the issue reporting system to ensure user feedback is captured even during API
+      interruptions.
+    evidence:
+      commits:
+      - 26e40998a
+    release_status: dev_only
+  - text: Observability for AI streams was restored, allowing for better tracking of real-time request processing.
+    evidence:
+      commits:
+      - 358f04c46
+    release_status: dev_only
+  bug_fixes:
+  - text: OpenMates addressed resilience gaps during object storage outages to ensure smoother video rendering and task processing.
+    evidence:
+      commits:
+      - 61d29c7b8
+    release_status: dev_only
+  - text: Mobile event cards now display completely without layout truncation.
+    evidence:
+      commits:
+      - bf3a8efc9
+    release_status: dev_only
+  - text: The CLI now hides help documentation for cloud-only operator commands in standard environments.
+    evidence:
+      commits:
+      - da32137f1
+    release_status: dev_only
+  - text: A scope error in code execution assertions was corrected to properly validate child file attachments.
+    evidence:
+      commits:
+      - 8fc364a7d
+    release_status: dev_only
+  unreleased_progress:
+  - text: Development continued on Apple platform networking, focusing on WebSocket stability and ordered chat streaming.
+    evidence:
+      commits:
+      - 993e42ab9
+      - 3cbc47914
+      - 92d621e9f
+      - 849ae435a
+      - bd94c9b43
+    release_status: dev_only
+  - text: Work progressed on bounding inline embed cards for iOS and macOS interfaces.
+    evidence:
+      commits:
+      - 701ea1877
+    release_status: dev_only
+  - text: The project is hardening billing and storage retry logic for anonymous usage tiers.
+    evidence:
+      commits:
+      - 9a1f4c3a5
+    release_status: dev_only
+  - text: A new server management workflow is being developed to require email confirmation upon successful update completion.
+    evidence:
+      commits:
+      - 0f2520813
+    release_status: dev_only
+  internal_progress:
+  - text: Internal storage services were hardened against S3 outages across audio, image, and video generation tasks.
+    evidence:
+      commits:
+      - 7b7c3a90b
+    release_status: dev_only
+  - text: The project optimized S3 bucket reconciliation to avoid unnecessary overhead during active requests.
+    evidence:
+      commits:
+      - 8f76604bd
+    release_status: dev_only
+  - text: Chat synchronization logic was updated to preserve message indexes for embedded content.
+    evidence:
+      commits:
+      - 0ad0b854f
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI request latency reduction and overhead optimization.
+      evidence:
+        commits:
+        - f63986d74
+      reason: This performance improvement is currently in dev_only status and not yet released to the main branch.
+    - text: New email fallback for issue reporting.
+      evidence:
+        commits:
+        - 26e40998a
+      reason: This feature is in dev_only status.
+    - text: Streaming and UI refinements for Apple platforms.
+      evidence:
+        commits:
+        - 993e42ab9
+        - 701ea1877
+      reason: iOS and macOS platforms are currently disabled features.
+    rationale: No items from this period have reached the 'ready_for_public_communication' status on the main branch. Significant
+      work is progressing in development, particularly regarding AI performance and storage resilience.
+  social_video_recommendations:
+  - idea: A technical deep-dive into how OpenMates reduced AI latency through stream coalescing.
+    priority: medium
+    reason: Performance improvements provide a strong technical story for developer-centric audiences.
+    evidence:
+      commits:
+      - f63986d74
+  quality_notes:
+  - Extensive testing was added for DeepSeek model overrides and S3 outage drills.
+  - Automated release intelligence tools were updated to ensure consistent daily summary generation.
+  validation_warnings: []

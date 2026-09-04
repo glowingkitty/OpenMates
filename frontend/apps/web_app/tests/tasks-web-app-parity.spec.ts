@@ -19,6 +19,7 @@ function taskCardIn(column: any, title: string): any {
 }
 
 test.describe('Tasks web app parity', () => {
+	// contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.detail.embed-responsive,tasks.surface.semantic-parity
 	test('renders daily task tips and manages encrypted tasks through Kanban actions', async ({ page }) => {
 		test.slow();
 		test.setTimeout(180_000);
@@ -71,11 +72,29 @@ test.describe('Tasks web app parity', () => {
 
 		const todoCard = taskCardIn(page.getByTestId('task-column-todo'), taskTitle);
 		await expect(todoCard).toBeVisible({ timeout: 30_000 });
+		const openTarget = todoCard.getByTestId('task-card-open');
+		await openTarget.click();
+		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('embed-header-title')).toContainText(taskTitle);
+		await page.getByTestId('task-detail-minimize').click();
+		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
+
+		await openTarget.focus();
+		await page.keyboard.press('Enter');
+		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
+		await openTarget.focus();
+		await page.keyboard.press('Space');
+		await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible({ timeout: 15_000 });
+		await page.getByTestId('task-detail-minimize').click();
+		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
 
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/v1/user-tasks/reorder') && response.ok()),
 			todoCard.getByTestId('task-move-in_progress').click(),
 		]);
+		await expect(page.getByTestId('task-detail-fullscreen')).toHaveCount(0);
 		const inProgressCard = taskCardIn(page.getByTestId('task-column-in_progress'), taskTitle);
 		await expect(inProgressCard).toBeVisible({ timeout: 30_000 });
 
@@ -104,14 +123,25 @@ test.describe('Tasks web app parity', () => {
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
 		const persistedDoneCard = taskCardIn(page.getByTestId('task-column-done'), taskTitle);
 		await expect(persistedDoneCard).toBeVisible({ timeout: 30_000 });
+		const taskId = await persistedDoneCard.getAttribute('data-task-id');
+		expect(taskId, 'created task id should be available for direct-route verification').toBeTruthy();
+		await page.goto(getE2EDebugUrl(`/tasks/${encodeURIComponent(taskId!)}`), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('task-detail-page')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('task-detail-content')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('task-detail-title')).toContainText(taskTitle);
+		await page.goto(getE2EDebugUrl('/tasks'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30_000 });
+		const cardToDelete = taskCardIn(page.getByTestId('task-column-done'), taskTitle);
+		await expect(cardToDelete).toBeVisible({ timeout: 30_000 });
 
 		await Promise.all([
 			page.waitForResponse((response) => response.request().method() === 'DELETE' && response.url().includes('/v1/user-tasks/') && response.ok()),
-			persistedDoneCard.getByTestId('task-delete-button').click(),
+			cardToDelete.getByTestId('task-delete-button').click(),
 		]);
 		await expect(page.getByTestId('task-board')).not.toContainText(taskTitle, { timeout: 30_000 });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible,tasks.detail.embed-responsive,tasks.surface.semantic-parity
 	test('keeps task actions reachable on a mobile viewport', async ({ page }) => {
 		test.slow();
 		test.setTimeout(150_000);

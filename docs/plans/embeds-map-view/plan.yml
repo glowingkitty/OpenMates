@@ -1,0 +1,1633 @@
+schema_version: 2
+id: embeds-map-view
+title: Embeds Map View
+status: implementing
+
+goal: >
+  Let the assistant render a compact in-chat map/list view that groups existing
+  location-capable or route-capable embeds without creating a new persisted embed
+  type, duplicating embed content, or triggering extra paid provider calls. When
+  a map-capable app skill returns geo data, map view generation is recommended by
+  default unless the user request explicitly makes a map inappropriate.
+
+scope:
+  in:
+    - A message-level `embeds_map_view` fenced block emitted by the assistant.
+    - Compact curated syntax using `title` and `embeds` for explicit child embed refs.
+    - Source syntax using `sources` for app-skill parent embeds and `highlight` for selected child refs.
+    - Resolution of short `embed_ref` slugs with full `embed_id` fallback when a ref index is unavailable.
+    - Frontend-derived filters based on resolved embed content, not assistant-authored filter fields.
+    - Desktop and mobile in-chat rendering with list/map coordination and partial loading states.
+    - Reuse of existing events, health appointments, maps places, travel stays, travel connections, and other embeds that already contain coordinates or routes.
+    - Default-recommended map-view instructions and deterministic repair for map-capable app-skill outputs such as travel connections, health appointments, maps search, events search, and travel stays.
+    - Rendering multiple travel connection child routes on one grouped map by deriving route polylines from existing connection segment coordinates.
+    - Figma-aligned preview carousel, map viewport selection, pin/route selection, filter panel, and weekly calendar behavior from Website node `5819:61921`.
+    - Reuse of registered `UnifiedEmbedPreview`-based child preview components instead of a second map-view-specific result card implementation.
+    - Real OpenMates CLI inference tests that prove the assistant generates valid blocks from natural prompts.
+    - Real CLI-generated example chats for inspection and future regression coverage.
+    - Deterministic cost and privacy safeguards that forbid automatic paid provider enrichment.
+  out:
+    - Creating a new persisted embed type or Directus collection for map views.
+    - Copying child embed content into assistant message text.
+    - Suppressing normal standalone embed previews that are also referenced by the map view.
+    - Assistant-authored filter schemas, categories, or facets beyond `title`, `embeds`, `sources`, and `highlight`.
+    - Automatic calls to `travel.flight_details`, booking details, Flightradar24, FlightAware, or any other paid provider/enrichment endpoint.
+    - Drawing exact flight tracks unless those tracks already exist in the referenced embed content.
+    - Replacing fullscreen search-result pages for events, health, or travel.
+    - Apple implementation before REST/API, CLI, SDK, web, and user-confirmation gates are complete.
+    - Cross-device persistence or assistant-context injection of active filters; this requires a separate approved encrypted sync and AI-context contract because no compatible state channel exists today.
+
+context_discovery:
+  github_issues:
+    - "No matching public GitHub issue found: `embed map results`."
+    - "No matching public GitHub issue found: `events map appointments travel routes`."
+    - "No matching public GitHub issue found: `grouped embeds map`."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/messaging/embeds.md
+    - docs/plans/scalable-chat-embed-loading/plan.yml
+    - docs/plans/unified-embed-fullscreen-routing/plan.yml
+    - docs/plans/mindmap-embeds/plan.yml
+    - .agents/skills/add-example-chat/SKILL.md
+  code_patterns:
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/message_parsing/embedGrouping.ts
+    - frontend/packages/ui/src/message_parsing/groupHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/services/embedStore.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    - frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/EntryWithMapTemplate.svelte
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/health/HealthSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/travel/TravelConnectionEmbedFullscreen.svelte
+    - backend/core/api/app/services/embed_service.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/events/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/maps/app.yml
+  tests:
+    - frontend/packages/ui/src/message_parsing/__tests__/embedParsing.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/groupHandlers.test.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+    - scripts/audit_example_chats.py
+    - scripts/tests/create_example_chat_from_share.test.mjs
+
+apple_impact:
+  affected_files:
+    - To be discovered during the Apple phase; expected surface is native chat message rendering and native embed preview/fullscreen components if Apple supports equivalent embeds.
+  parity_expectations:
+    - Apple work must not start until REST/API, CLI, SDK, web Playwright, and user-confirmation gates pass or are explicitly waived.
+    - Native rendering should preserve the same message-level map/list contract, no paid enrichment, and no new persisted embed type.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or a targeted native test after web/user confirmation gates complete.
+  intentional_native_differences:
+    - None approved yet; any native-only layout difference must preserve the same refs, highlights, filters, loading, and cost rules.
+
+clarification:
+  rounds:
+    - question: Should this be a new persisted embed type or a message-level presentation block?
+      answer: >
+        It is a message-level presentation block named `embeds_map_view`, not a new
+        persisted embed type or a fullscreen-only pattern.
+    - question: What compact syntax should the assistant emit for curated results?
+      answer: >
+        Use a fenced block with `title` and `embeds`, where `embeds` is a comma-separated
+        list of readable embed refs such as `ai-founders-meetup-7f3a91`.
+    - question: How should full app-skill result sets and selected highlights be represented?
+      answer: >
+        Use `sources` for parent app-skill embed refs and `highlight` for child refs
+        that should be visually emphasized and sorted first.
+    - question: Should filters be assistant-authored or derived by the frontend?
+      answer: >
+        Filters are derived by the frontend from resolved embed content. The assistant
+        should only emit `title`, `embeds`, `sources`, and `highlight`.
+    - question: Should the map view trigger extra provider lookups for richer data?
+      answer: >
+        No. The map view may use existing embed data, local decrypt/IndexedDB work,
+        and normal OpenStreetMap tile requests, but it must not automatically spend
+        extra app-skill/provider credits or call enrichment endpoints.
+    - question: Should map-view generation remain opt-in only?
+      answer: >
+        No. When an app skill returns geo-capable results, include the map-specific
+        instruction and recommend a map-view block by default. Omit it only when a
+        map clearly does not fit the request, such as explicit no-map, text-only,
+        or list-only wording, or when resolved content exposes no usable spatial data.
+  vision_summary: >
+    Users should receive a compact map/list block for geo-capable app-skill
+    results by default, even when they did not explicitly say "map", unless their
+    request makes the spatial overview inappropriate. The block references
+    existing embeds by ref, can point at full app-skill result sources with
+    highlighted children, derives filters and travel route lines client-side, and
+    remains bounded and cost-safe even when a source contains many child embeds.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-07-29T11:32:34Z"
+  plan:
+    status: approved
+    approved_at: "2026-07-29T11:32:34Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement `embeds_map_view` as a message-level fenced block, not a persisted embed type.
+    reason: >
+      The view is a presentation over existing encrypted embeds and should not create
+      another durable content entity or copy child embed data into messages.
+    decided_at: "2026-07-29T11:32:34Z"
+  - id: D-2
+    status: active
+    decision: Support only `title`, `embeds`, `sources`, and `highlight` fields in assistant-authored blocks.
+    reason: >
+      This keeps prompts cheap, minimizes malformed output, and lets the frontend
+      derive facets from authoritative embed content.
+    decided_at: "2026-07-29T11:32:34Z"
+  - id: D-3
+    status: active
+    decision: Do not suppress standalone embed previews that are also referenced by a map view.
+    reason: >
+      Users may need the original card plus the grouped spatial overview; duplicate
+      suppression can be considered later after real usage data.
+    decided_at: "2026-07-29T11:32:34Z"
+  - id: D-4
+    status: active
+    decision: The map view must never trigger automatic paid provider or app-skill enrichment.
+    reason: >
+      Referencing existing embeds should be a rendering choice, not a hidden billing
+      event. Exact flight tracks and richer booking details are allowed only when
+      already present in the referenced embed content.
+    decided_at: "2026-07-29T11:32:34Z"
+  - id: D-5
+    status: active
+    decision: Map-capable app-skill outputs should get map-view instructions and repair by default.
+    reason: >
+      Spatial results such as routes, places, appointments, events, and stays are
+      easier to compare on a map. The default should recommend a map view while
+      preserving explicit user opt-outs and the no-enrichment cost/privacy boundary.
+    decided_at: "2026-07-30T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Replace category-only filtering with frontend-derived dynamic facets.
+    reason: >
+      A single `route/event/place` selector is not enough for comparing real search
+      results. The renderer should derive useful filters from already-resolved
+      embed content, such as date, time, price, provider, RSVP count, transport
+      mode, train type, stops, duration, rating, and amenities, while keeping the
+      assistant-authored block limited to refs.
+    decided_at: "2026-07-31T15:00:00Z"
+  - id: D-7
+    status: active
+    decision: Map-view performance fixes must reduce cold-load work before adding heavier filter UI.
+    reason: >
+      Issue YVBZW showed mobile Safari unresponsiveness on a small route-map
+      example. Richer filters must reuse one normalized entry/facet model and must
+      not add repeated TOON decoding, source resolution, or Leaflet layer rebuilds
+      during initial chat load or slider changes.
+    decided_at: "2026-07-31T15:00:00Z"
+  - id: D-8
+    status: active
+    decision: Maps Search parent fullscreens reuse the map-view list/map layout inside UnifiedEmbedFullscreen.
+    reason: >
+      Maps Search is itself a place-results map surface. Reusing the existing
+      `EmbedsMapView` layout removes nested child fullscreens while preserving
+      the standard fullscreen embed header, top bar, share behavior, and no
+      provider-enrichment boundary.
+    decided_at: "2026-08-12T11:10:00Z"
+  - id: D-9
+    status: active
+    decision: Reuse the embed preview registry and existing UnifiedEmbedPreview-based child components in a horizontal carousel above the map or calendar.
+    reason: >
+      Figma node 5819:61921 composes the existing 300 by 200 embed cards rather
+      than introducing a second result-card design. Registry reuse keeps child
+      content, fullscreen behavior, app identity, and accessibility consistent.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Keep filters local to the mounted results view for this redesign and do not silently persist them to an unrelated encrypted data model.
+    reason: >
+      The Figma canvas contains conflicting temporary and permanent filter notes.
+      Repository discovery found no existing per-view encrypted sync state that is
+      also available to the assistant. Cross-device and assistant-aware persistence
+      therefore needs a separate privacy/API contract rather than misuse of drafts,
+      highlights, chat metadata, or embed history.
+    decided_at: "2026-08-27T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft the executable Schema V2 product contract before implementation.
+    outcome: planned
+    recorded_at: "2026-07-29T11:32:34Z"
+  - id: ATTEMPT-2
+    task_id: TASK-2
+    approach: Rely on model instructions, tool-result hints, and tool_calls_info-based missing-block repair.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-29T12:52:00Z"
+    reason: >
+      Real CLI chats produced valid event inline embed refs but persisted no
+      `embeds_map_view` block because the final persisted app-skill marker was a
+      fenced JSON block in assistant text rather than `tool_calls_info` metadata.
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Detect map-capable `app_skill_use` JSON fences in final assistant text before missing-block repair.
+    outcome: succeeded
+    recorded_at: "2026-07-29T13:02:00Z"
+    reason: >
+      Real CLI chat `bdcbc562-50b0-4bd4-8a43-84f2fd891215` persisted a valid
+      `embeds_map_view` block referencing generated event refs.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Complete the remaining public example-chat and user-confirmation work without reopening the verified Figma-aligned Map/Calendar task.
+  command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit <current-dev-commit>
+  expected_outcome: Public example chats render the already-verified Map/Calendar UI and are ready for explicit user confirmation.
+  blocker: null
+  last_verified_commit: 040179be997cbbbfd9e09253be3e0cd272995c29
+
+scenarios:
+  - id: S-1
+    title: Assistant emits a curated map view for selected event embeds
+    given:
+      - Alice asks for Berlin AI events this week.
+      - The assistant has already created or received event child embeds with readable refs.
+    when:
+      - The assistant writes its response.
+    then:
+      - The response contains normal prose and a fenced `embeds_map_view` block.
+      - The block has a human-readable `title`.
+      - The `embeds` field references the selected child embed refs only.
+      - The message can still render the same event embeds as standalone previews elsewhere in the response.
+
+  - id: S-2
+    title: Assistant references a full source result set and highlights selected children
+    given:
+      - Alice asks for travel options from Munich to Zurich and wants the options on a map.
+      - The travel app-skill returns a parent source embed containing child connection embeds.
+      - The assistant wants to recommend two connections while keeping all source results available.
+    when:
+      - The assistant writes an `embeds_map_view` block with `sources` and `highlight`.
+    then:
+      - The frontend resolves the source parent ref to its child embed refs.
+      - Highlighted child refs render first and receive a visible highlighted state.
+      - Non-highlighted child refs from the same source remain accessible in the grouped list/map.
+      - The assistant does not copy route geometry, fares, schedules, or provider details into the block.
+
+  - id: S-9
+    title: Geo-capable app-skill results recommend a map view by default
+    given:
+      - Alice asks for events, appointments, places, stays, or travel connections without explicitly saying "map".
+      - The selected app skill returns parent or child embeds with coordinates or route segment coordinates.
+    when:
+      - The assistant receives the app-skill result and writes the response.
+    then:
+      - The map-view instruction is present for the model by default.
+      - A missing map-view block is deterministically repaired from source or inline refs when possible.
+      - The block is omitted when Alice explicitly asks for no map, text-only output, list-only output, or the resolved content has no usable spatial data.
+
+  - id: S-3
+    title: Frontend renders a responsive list and map using existing embed content
+    given:
+      - A message contains an `embeds_map_view` block with event, appointment, place, stay, or route refs.
+      - Some referenced embeds are still resolving from IndexedDB or decrypted storage.
+    when:
+      - Alice opens the chat on desktop and mobile widths.
+    then:
+      - Desktop uses a list-left and map-right layout with the list around 30% and the map around 70% of the content width.
+      - Mobile uses a horizontal scrollable list inside the message container and a full-width map below or above it.
+      - Hovering, focusing, or selecting a list item highlights the corresponding marker or route.
+      - Multiple travel connection child embeds render as separate route polylines on the same map using existing segment coordinates.
+      - Unresolved refs show a recoverable loading state and do not break rendering for resolved refs.
+
+  - id: S-4
+    title: Filters are derived from resolved content without assistant-authored schema
+    given:
+      - A map view contains a mix of events, places, health appointments, stays, and travel connections.
+    when:
+      - The frontend resolves enough embed metadata to classify entries.
+    then:
+      - The UI derives filters such as type, date, price, specialty, rating, provider, or transport mode only from fields already present in resolved embed content.
+      - Missing data omits that filter rather than asking the server or provider for enrichment.
+      - The assistant-authored block remains valid if it contains no filter fields at all.
+
+  - id: S-5
+    title: Source references stay bounded for large result sets
+    given:
+      - An `embeds_map_view` block references an app-skill source with many child embeds.
+      - The chat follows the scalable chat loading policy.
+    when:
+      - Alice scrolls to the message or opens the chat through a share link.
+    then:
+      - The map view resolves only the metadata needed for visible list/map entries plus a bounded overscan.
+      - It does not eagerly decrypt or render all child embed content just because a source ref is present.
+      - Deep links or explicit user actions can hydrate additional child content on demand.
+      - Parent preview rendering remains self-contained and does not regress scalable chat loading guarantees.
+
+  - id: S-10
+    title: Dynamic filters are generated from the visible map-view content
+    given:
+      - A map view references route, event, place, stay, appointment, or mixed result embeds.
+      - Resolved embeds expose different optional fields such as departure time, event date, price, provider, rating, amenities, RSVP count, transport mode, train line, stops, or duration.
+    when:
+      - Alice opens the top-right filter button.
+    then:
+      - The filter trigger replaces the funnel icon with a close icon while the panel is open.
+      - The filter panel shows only facets that have usable data in the current map-view entries.
+      - Time-like fields use range sliders with histogram bars showing entry distribution across the available spectrum.
+      - Date-like fields use start/end date controls.
+      - Numeric fields such as price, duration, stops, RSVP count, rating, or distance use range controls with min/max labels.
+      - Categorical fields such as provider, transport mode, train type, carrier, line, amenity, specialty, category, or fare coverage use multi-select chips or checkboxes.
+      - Filtering updates list entries, markers, route paths, and the shown count consistently.
+      - Clearing filters restores all resolved entries without reloading or re-decoding embed content.
+
+  - id: S-11
+    title: Mobile map-view load stays responsive while filters hydrate
+    given:
+      - Alice opens a public or example chat containing a source-backed route map view on mobile Safari-sized viewports.
+      - The browser must parse chat content, resolve referenced embeds, build filter facets, and render a map.
+    when:
+      - The chat first loads or reloads.
+    then:
+      - The message text and result cards render before Leaflet imports and tile requests block interaction.
+      - The map hydrates lazily or during idle/near-viewport time with a stable placeholder while pending.
+      - Map-view source resolution and TOON decoding are cached per embed/content identity for the component lifetime.
+      - Ref-index updates do not trigger redundant full entry reloads when the relevant refs and content are unchanged.
+      - Filter slider movement does not rebuild geometry layers or re-decode embeds on every pointer movement.
+      - Example-chat hash handling treats example chats as public targets and does not schedule duplicate user-chat deep-link loads after sync.
+
+  - id: S-6
+    title: Map view rendering is cost-safe and privacy-safe
+    given:
+      - A map view references events, travel connections, stays, appointments, places, or flights.
+      - Some referenced records could be enriched by paid app-skill or provider calls.
+    when:
+      - The message renders, filters change, map bounds change, or Alice selects entries.
+    then:
+      - OpenMates performs no automatic paid app-skill/provider calls.
+      - No `travel.flight_details`, booking-details, Flightradar24, FlightAware, or similar enrichment request is made unless Alice explicitly invokes such a skill outside the map-view render path.
+      - Existing client-side encrypted embed content stays client-side; decrypted plaintext is not sent to a new endpoint for map rendering.
+      - Normal OpenStreetMap tile requests are allowed for map display.
+
+  - id: S-7
+    title: Real CLI chats demonstrate reliable assistant generation
+    given:
+      - The implementation updates AI instructions and output guards for `embeds_map_view`.
+      - Test prompts ask naturally for mapped events, appointments, stays, or travel routes.
+    when:
+      - The real OpenMates CLI sends those prompts against `https://api.dev.openmates.org` with a real test account.
+    then:
+      - The assistant produces syntactically valid `embeds_map_view` blocks in the expected cases.
+      - Guards reject or repair slight structure issues such as extra fields, JSON-looking blocks, duplicate refs, or refs that are not comma-separated.
+      - The generated blocks reference actual embeds created or available in the same chat.
+
+  - id: S-8
+    title: Public example chats preserve the real behavior
+    given:
+      - At least three natural CLI-generated candidate chats have been created for map-view scenarios.
+      - The strongest examples are shared with key fragments and scaffolded through the example-chat workflow.
+    when:
+      - The examples are deployed and opened at `/example/<slug>`.
+    then:
+      - The public example pages render the map view, referenced embeds, highlights, filters, and fullscreens correctly.
+      - Example data preserves the real generated transcript instead of a hand-authored fixture.
+      - Private fields, share keys, provider secrets, and raw account identifiers are absent from committed example-chat data.
+
+  - id: S-12
+    title: Maps Search parent fullscreen shows map-view results without nested child fullscreen
+    given:
+      - Alice opens a Maps Search parent embed fullscreen from a chat or public example.
+      - The parent embed exposes place child embed IDs or legacy place results with coordinates.
+    when:
+      - The fullscreen content renders and Alice selects a result row.
+    then:
+      - The standard `UnifiedEmbedFullscreen` header and top bar remain visible for the parent Maps Search embed.
+      - The fullscreen body shows the reusable `EmbedsMapView` list and map layout.
+      - Desktop positions the result list to the left of the map, and mobile stacks the list above the map.
+      - Selecting a result highlights the row and marker rather than opening `MapLocationEmbedFullscreen` inside the parent fullscreen.
+      - The render uses local parent/child embed data only and does not call Maps, Geoapify, or other enrichment endpoints.
+
+  - id: S-13
+    title: Existing embed previews form the result carousel
+    given:
+      - A results view resolves event, place, appointment, fitness, stay, or travel connection child embeds.
+      - Each ready child type has an existing UnifiedEmbedPreview-based preview component.
+    when:
+      - Alice opens the map or calendar view.
+    then:
+      - Ready results render through the shared embed preview registry in one horizontal scrollable, snap-aligned carousel above the active visual pane.
+      - The map view does not render a second custom title/subtitle/category result card for ready embeds.
+      - Preview activation keeps the existing open-fullscreen behavior in chat mode and local selection behavior in Maps Search fullscreen mode.
+      - Loading or unregistered refs use a bounded accessible fallback without preventing ready previews from rendering.
+
+  - id: S-14
+    title: Map viewport and pin selection coordinate the preview carousel
+    given:
+      - The filtered result set contains multiple location pins or travel routes.
+    when:
+      - Alice stops moving the map or selects a pin.
+    then:
+      - The carousel refreshes only when the set of filtered entries intersecting the settled map viewport changes.
+      - Map pins use the shared Maps SVG asset instead of a generic location-pin glyph.
+      - Selecting a pin keeps its airport, station, city, or place label visible above the selected pin and visually dims other pins without deleting them from the filtered map data.
+      - Selecting a shared travel stop scopes the carousel to every filtered route that passes through that stop, not just one arbitrary route.
+      - A Show all results action clears pin or stop selection and restores the filtered result set without clearing applied facet filters.
+      - Travel route selection keeps all filtered route geometry visible while dimming non-selected paths; shared-stop selection keeps every matching path active.
+
+  - id: S-15
+    title: Calendar defaults to the first populated week
+    given:
+      - Filtered results expose date and start-time values across one or more weeks.
+    when:
+      - Alice switches to Calendar.
+    then:
+      - A seven-day Monday-first week grid opens on the first week containing results.
+      - Previous and next controls navigate one week at a time without changing the shared filters or preview carousel.
+      - The current day is highlighted only when it falls within the visible week.
+      - Event blocks are positioned by start time, remain keyboard-accessible, and activate the same result behavior as their preview.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: 'The message parser recognizes `embeds_map_view` fenced blocks with `title` and comma-separated `embeds`, preserves refs in order, and rejects unsupported assistant-authored fields.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-PARSE
+
+  - id: AC-2
+    scenario: S-2
+    text: '`sources` parent refs resolve to child embeds, `highlight` child refs sort first and receive a highlighted state, and direct child refs still work when no source is provided.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-PARSE
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-9
+    scenario: S-9
+    text: 'Map-capable app-skill outputs receive map-view guidance and deterministic source-backed repair by default, unless the user explicitly opts out or no usable spatial data exists.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-AI-CONTRACT
+
+  - id: AC-3
+    scenario: S-3
+    text: 'The in-chat renderer coordinates list selection, marker or route highlighting, grouped travel connection route polylines, unresolved-ref loading states, and responsive desktop/mobile layouts.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-RENDER
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-4
+    scenario: S-4
+    text: 'Filters are derived only from resolved embed content and the assistant-authored block remains limited to `title`, `embeds`, `sources`, and `highlight`.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-RENDER
+      - T-PYTEST-AI-CONTRACT
+
+  - id: AC-5
+    scenario: S-5
+    text: 'Source-backed map views follow scalable chat loading by avoiding eager all-child decryption/rendering and loading only visible entries plus bounded overscan until explicit user action.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-RENDER
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-6
+    scenario: S-6
+    text: 'Rendering and interacting with an `embeds_map_view` never triggers automatic paid provider/app-skill calls or sends decrypted embed plaintext to a new map-rendering endpoint.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-AI-CONTRACT
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-7
+    scenario: S-7
+    text: 'Real OpenMates CLI inference against the dev API reliably produces valid map-view blocks from natural prompts and output guards handle slight structure mistakes.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-INFERENCE
+      - T-PYTEST-AI-CONTRACT
+
+  - id: AC-8
+    scenario: S-8
+    text: 'Multiple public example chats are generated from real CLI source chats, audited, deployed, and verified with map views, highlights, filters, and embed fullscreens working.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-PLAYWRIGHT-EXAMPLES
+      - V-USER-CONFIRMATION
+
+  - id: AC-12
+    scenario: S-12
+    text: 'Maps Search parent fullscreens keep the standard UnifiedEmbedFullscreen header while rendering reusable map-view list/map content and preventing nested child fullscreen overlays on result selection.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FULLSCREEN-SELECT
+      - T-PLAYWRIGHT-MAPS-FULLSCREEN
+
+  - id: AC-10
+    scenario: S-10
+    text: 'The map-view filter button opens a dynamic facet panel derived from resolved content, including range/date/time histogram controls and categorical multi-selects when the current entries expose those fields.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-11
+    scenario: S-11
+    text: 'Mobile cold-load and filter interaction stay bounded by lazy map hydration, cached normalized entries/facets, stable geometry layers, and no duplicate example-chat deep-link loads.'
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+
+  - id: AC-13
+    scenario: S-13
+    text: 'Ready map/calendar results render registered existing embed preview components in one horizontal carousel and no longer use the custom map-view result card UI.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-14
+    scenario: S-14
+    text: 'Settled map bounds and Maps-SVG pin or route selection coordinate the visible preview set, keep the selected location label visible, retain every route through a selected shared stop, dim non-selected geometry, and provide a Show all results reset that preserves applied filters without provider calls.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+
+  - id: AC-15
+    scenario: S-15
+    text: 'Calendar renders a navigable Monday-first week grid beginning with the first populated week and highlights today only when visible.'
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+
+assumptions:
+  - id: A-1
+    text: Existing readable `embed_ref` slugs can be resolved to full `embed_id` values after decrypted content/index metadata is available.
+    category: embed-resolution
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/embed_service.py
+        summary: Existing service generates readable embed refs.
+      - source: frontend/packages/ui/src/services/embedStore.ts
+        summary: Existing frontend store maintains embed ref/index resolution behavior.
+  - id: A-2
+    text: Parent app-skill embeds expose enough child embed IDs for source-backed map views to resolve child refs without provider calls.
+    category: embed-graph
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/architecture/messaging/embeds.md
+        summary: The embeds collection has `embed_ids` for composite `app_skill_use` embeds and child embeds remain independently encrypted.
+  - id: A-3
+    text: Shared Leaflet rendering can be extended to support multiple markers, selected state, callbacks, and multiple route polylines using existing content.
+    category: frontend-rendering
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        summary: Shared map component now accepts multiple route polylines while preserving the existing single `path` prop for older embed fullscreens.
+      - source: frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        summary: Map-view renderer derives marker and route selected/highlighted styles from resolved refs; new performance work must keep Leaflet geometry stable when selection or filters change.
+
+contracts:
+  syntax:
+    - name: Curated child embeds
+      example: |
+        ```embeds_map_view
+        title: Berlin AI events
+        embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
+        ```
+    - name: Source with highlighted children
+      example: |
+        ```embeds_map_view
+        title: Berlin AI events
+        sources: events-search-12ab34
+        highlight: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
+        ```
+    - Only `title`, `embeds`, `sources`, and `highlight` are supported in assistant output.
+    - '`embeds`, `sources`, and `highlight` are comma-separated readable refs or full embed IDs.'
+  api:
+    - route: Existing authenticated chat WebSocket and message sync surfaces only
+      access_model: first-party client surface only
+      auth: Existing session or approved device auth; no new public or developer API route is introduced.
+      rate_limits: Existing chat/WebSocket/message sync limits apply; map rendering adds no new server endpoint.
+      credit_budget: Model token costs may apply to assistant generation; map rendering itself must not spend app-skill/provider credits.
+      encryption_boundary: Client-side encrypted embed content stays encrypted at rest and decrypted only client-side for rendering.
+      errors:
+        - Invalid map-view syntax renders a safe fallback or ignored block without crashing chat rendering.
+        - Unresolved refs render recoverable loading or unavailable states.
+  data:
+    - Messages store only the lightweight `embeds_map_view` fenced text and refs.
+    - Referenced embeds remain existing encrypted embed records; no copied child content is persisted in message text.
+    - Source-backed views resolve child refs from existing parent app-skill embed relationships.
+    - Normalized map-view entries and filter facets are derived once per embed/content identity and reused for list, map, count, and filter interactions.
+    - Example chats must strip private fields such as vault keys, user IDs, account IDs, and share key fragments before commit.
+  ui_states:
+    - Empty or unresolved refs.
+    - Partial resolution where some entries load and others are unavailable.
+    - Desktop list-left/map-right grouped view.
+    - Mobile horizontal card list with full-width map.
+    - Highlighted entries from `highlight`.
+    - Derived filters present only when resolved content supports them.
+    - Time range filters with histogram bars for departure, arrival, event start, appointment start, opening, or other time-like fields.
+    - Date range filters for start/end dates, event dates, check-in/check-out dates, or travel dates.
+    - Numeric range filters for price, duration, stops/transfers, RSVP count, rating, distance, or delay when present.
+    - Categorical multi-select filters for provider, transport mode, train type, carrier, line, amenity, specialty, category, fare coverage, or availability state.
+    - Active-filter chips and clear-all behavior.
+    - No-map fallback when no referenced item has coordinates or route geometry.
+  privacy_security:
+    - No decrypted embed plaintext is sent to a new endpoint for map rendering.
+    - Share-chat recipients keep URL fragment keys client-side.
+    - Rendering may request OpenStreetMap tiles but must not call app providers or enrichment endpoints automatically.
+    - Cost metadata for known skills remains explicit: events search 30 credits, travel connections 25 credits, health appointments 20 credits, travel stays 25 credits, and travel flight details 7 credits.
+
+tests:
+  - id: T-VITEST-PARSE
+    type: vitest
+    file: frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-1
+      - AC-2
+    assertions:
+      - Parses curated `embeds_map_view` blocks with title and ordered child refs.
+      - Parses source-backed blocks with ordered source refs and highlight refs.
+      - Rejects or drops unsupported fields such as filters, provider, enrichment, or freeform JSON payloads.
+      - Preserves full embed IDs when readable refs are unavailable.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Frontend red-phase run was not captured before implementation in this session; green coverage now proves the parser contract.
+        timestamp: "2026-07-29T12:03:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: 2026-07-30T20:57:11Z / GitHub Actions 30581390137
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        timestamp: "2026-07-30T20:58:24Z"
+
+  - id: T-VITEST-RENDER
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-3
+      - AC-4
+      - AC-5
+    assertions:
+      - Resolves direct child refs and source child refs through mocked local embed-store data without network/provider calls.
+      - Derives filters from resolved event, place, appointment, stay, and route fields.
+      - Derives multiple grouped travel connection route polylines from structured and flat segment coordinates.
+      - Renders unresolved refs as recoverable loading states while resolved entries remain visible.
+      - Applies highlighted ordering and marker/route selected state.
+      - Enforces bounded visible-entry rendering for large source result sets.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Frontend red-phase run was not captured before implementation in this session; green coverage now proves source resolution, highlighting, and derived filters.
+        timestamp: "2026-07-29T12:03:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: 2026-07-30T20:57:11Z / GitHub Actions 30581390137
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        timestamp: "2026-07-30T20:58:24Z"
+
+  - id: T-PYTEST-AI-CONTRACT
+    type: pytest
+    file: backend/tests/test_embeds_map_view_contract.py
+    command: python3 -m pytest backend/tests/test_embeds_map_view_contract.py
+    covers:
+      - AC-4
+      - AC-6
+      - AC-7
+      - AC-9
+    assertions:
+      - AI prompt or continuation instructions document the allowed `embeds_map_view` fields and examples.
+      - Stream/output guards reject or repair extra fields, malformed separators, duplicate refs, and JSON-like structures.
+      - Map-capable app-skill outputs receive the map-view hint by default unless user text explicitly suppresses maps.
+      - Missing-block repair recognizes map-capable `app_skill_use` JSON fences in final assistant text and prefers source-backed refs.
+      - Guarded map-view handling does not enqueue paid app skills or provider enrichment from render-only refs.
+      - Cost-sensitive skills remain explicit user/app-skill actions, not automatic map-view render effects.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_embeds_map_view_contract.py
+        run_id: local-pytest-red-module-not-found
+        subject_commit: 0cedc891082250ed5f3158a90b777e1de2817ce0
+        timestamp: "2026-07-29T11:45:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: docker exec api python -m pytest /app/backend/tests/test_embeds_map_view_contract.py -q
+        run_id: docker-api-pytest-20260730T2057Z
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        timestamp: "2026-07-30T20:57:11Z"
+        supporting_evidence:
+          - status: passed
+            command: docker exec api python -m pytest /app/backend/tests/test_code_block_detection.py -k embeds_map_view -q
+            run_id: docker-api-pytest-code-block-detection-20260729T1300Z
+            timestamp: "2026-07-29T13:00:30Z"
+
+  - id: T-CLI-INFERENCE
+    type: manual
+    command: >
+      Build/login the OpenMates CLI, then run multiple natural `chats new` prompts
+      against https://api.dev.openmates.org for events, health appointments, travel
+      stays, and route scenarios; record chat IDs and extracted `embeds_map_view`
+      blocks in spec evidence.
+    covers:
+      - AC-7
+    assertions:
+      - Real model output includes valid map-view syntax when mapped embed results are useful.
+      - Blocks reference actual embeds present in the same chat.
+      - Slightly malformed model output is rejected or repaired by deterministic guards.
+      - The CLI path uses real dev API/WebSocket auth and not mocked OpenMates calls.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: node scripts/openmates_cli_test_account.mjs chat "Find Berlin AI events this week and show them on a map." --api-url https://api.dev.openmates.org --expires 604800
+        run_id: cli-chat-bfe03906-d431-442f-9b02-904cb103efd1
+        timestamp: "2026-07-29T12:52:00Z"
+        reason: >
+          Before text-based app-skill fence detection, the real CLI chat produced
+          valid `events.search` refs but no `embeds_map_view` block in the raw
+          persisted assistant message.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node scripts/openmates_cli_test_account.mjs chat "Find Berlin AI events this week and show them on a map." --api-url https://api.dev.openmates.org --expires 604800
+        run_id: cli-chat-bdcbc562-50b0-4bd4-8a43-84f2fd891215
+        subject_commit: working-tree:a243e070b9acae0674a9fae0489f1fdb67321237
+        timestamp: "2026-07-29T13:02:00Z"
+        reason: >
+          Raw decrypted CLI output contains a valid `embeds_map_view` block with
+          generated event refs from the same chat. Share URL exists but the
+          fragment key is intentionally not recorded in the spec.
+
+  - id: T-PLAYWRIGHT-MAP
+    type: playwright
+    file: frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-2
+      - AC-3
+      - AC-5
+      - AC-6
+    assertions:
+      - A deployed chat renders a map-view block with source-backed and direct refs.
+      - Desktop and mobile layouts match the list/map requirements.
+      - Selecting list cards highlights markers or routes and keeps highlights sorted first.
+      - Network observation confirms no paid app-skill/provider/enrichment endpoint is called during render, filtering, or selection.
+      - Large source fixtures keep rendered entries bounded and lazy.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Playwright red-phase was not captured before implementation; later failed runs exposed route, fixture, and responsive bugs and were fixed before green evidence.
+        timestamp: "2026-07-29T16:41:47Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 7afd493b9 --no-mocks
+        run_id: 2026-07-30T20:58:57Z / GitHub Actions 30582024571
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        target: app.dev.openmates.org
+        deployment_reference: dpl_2tMB2d35HDfbZioLwKVK2yrCmTy9
+        timestamp: "2026-07-30T21:07:51Z"
+        supporting_evidence:
+          - status: failed_then_fixed
+            command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 3880083 --no-mocks
+            run_id: 2026-07-31T15:53:41Z / GitHub Actions 30645291283
+            subject_commit: 9a25db61cd85b1bca0bc8574758ca8a13ebb96ae
+            target: app.dev.openmates.org
+            timestamp: "2026-07-31T16:04:50Z"
+            summary: Failed because the new dynamic filter panel kept category selection open while the legacy spec reopened the panel to select All results.
+          - status: passed
+            command: python3 scripts/tests.py run --spec embeds-map-view.spec.ts --gate-deploy --expected-commit 893103a --no-mocks
+            run_id: 2026-07-31T16:13:09Z / GitHub Actions 30646819626
+            subject_commit: 893103a5c151dd57d277f453f232eb6a8a0e03a0
+            target: app.dev.openmates.org
+            deployment_reference: dpl_56eKXnZezBdcB7WYBSrt6rkpDfXj
+            timestamp: "2026-07-31T16:23:54Z"
+            summary: Deployed preview map-view spec passed after restoring close-on-category filter behavior.
+
+  - id: T-PLAYWRIGHT-EXAMPLES
+    type: playwright
+    file: frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-8
+    assertions:
+      - Deployed example chats created from real CLI source chats render map-view blocks.
+      - Example pages include resolved refs, highlights, derived filters, and usable embed fullscreens.
+      - Example-chat data does not expose private share keys, vault keys, provider secrets, user IDs, or raw account identifiers.
+      - '`scripts/audit_example_chats.py` passes for the new examples.'
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 51fc156
+        run_id: 2026-07-30T10:01:09Z / GitHub Actions 30533411458
+        subject_commit: 51fc15609
+        target: app.dev.openmates.org
+        deployment_reference: dpl_BudCkC3xQtcQdc7HGQKjSsXU4WQp
+        timestamp: "2026-07-30T10:08:28Z"
+        reason: Failed for the expected visible code-snippet fallback assertion before the static example data fix.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 7afd493b9 --no-mocks
+        run_id: 2026-07-30T21:08:11Z / GitHub Actions 30582532870
+        subject_commit: 7afd493b92bd1377eb6ea683678d2e67535c2eae
+        target: app.dev.openmates.org
+        deployment_reference: dpl_2tMB2d35HDfbZioLwKVK2yrCmTy9
+        timestamp: "2026-07-30T21:15:32Z"
+        summary: Passed the deployed public example flow with mobile 390x844 dark-mode assertions for removed redundant headings, filter menu, card contrast/spacing, hover dimming, map visibility, and no forbidden provider/app-skill API calls.
+        supporting_evidence:
+          - status: passed
+            command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit d39224a31 --no-mocks
+            run_id: 2026-07-30T21:17:01Z / GitHub Actions 30583151607
+            subject_commit: d39224a31abf2bbf5d526619ba10cd1286a051d4
+            target: app.dev.openmates.org
+            deployment_reference: dpl_GZP5Yp1CwFc12V514Asox6J57eyt
+            timestamp: "2026-07-30T21:26:13Z"
+            summary: Deutschlandticket example route-map assertion passed on current example-chat rendering, including grouped route count >= 5.
+          - status: passed
+            command: python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts --gate-deploy --expected-commit 9bb3b76
+            run_id: 2026-07-30T10:21:59Z / GitHub Actions 30534728170
+            subject_commit: 9bb3b760f
+            target: app.dev.openmates.org
+            deployment_reference: dpl_9vYjFkXdRTvcu1ZjrJTUDAnAYZgy
+            timestamp: "2026-07-30T10:28:45Z"
+            summary: Earlier pass after removing the stale persisted code embed/reference and adding assertions that visible Code snippet / raw embeds_map_view text are absent.
+          - status: passed
+            command: Firecrawl mobile rendered extraction for https://app.dev.openmates.org/example/berlin-ai-founder-meetups-map
+            run_id: firecrawl-scrape-019fb292-df74-7009-87bb-d9292cb6a229
+            timestamp: "2026-07-30T10:31:00Z"
+            summary: containsCodeSnippetCard=false; containsRawEmbedsMapViewText=false; containsMappedResults=true.
+
+  - id: T-VITEST-FULLSCREEN-SELECT
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-12
+    assertions:
+      - Fullscreen/select mode selects a map-view entry locally and marks the selected card.
+      - Fullscreen/select mode does not dispatch `dispatchEmbedFullscreen` for child map locations.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: gh workflow run vitest.yml --ref dev -f checkout_ref=0286315fb68662153e5f9eb914aac36cba20144d -f test_files_json=<focused-map-view-tests>
+        run_id: "GitHub Actions 33088837090"
+        subject_commit: 0286315fb68662153e5f9eb914aac36cba20144d
+        timestamp: "2026-08-27T15:37:39Z"
+        summary: Focused tests failed on the missing filter/close state and generic marker HTML before the product fix.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+  - id: T-PLAYWRIGHT-MAPS-FULLSCREEN
+    type: playwright
+    file: frontend/apps/web_app/tests/berlin-mitte-maps-example.spec.ts
+    command: python3 scripts/tests.py run --spec berlin-mitte-maps-example.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-8
+      - AC-12
+    assertions:
+      - The deployed Berlin Mitte example renders Maps Search parent embeds and the assistant map-view block from static public data.
+      - Opening a Maps Search parent fullscreen keeps the parent embed header visible and renders one `EmbedsMapView` result list plus map.
+      - Desktop and mobile Maps Search fullscreen layouts preserve list-left/map-right and list-top/map-bottom ordering.
+      - Selecting a place result in the parent fullscreen highlights the row and does not create a nested `map-location-fullscreen` overlay.
+      - No-result Maps Search parent fullscreen still renders the no-results and strict-amenity status copy.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec berlin-mitte-maps-example.spec.ts
+        run_id: ""
+        subject_commit: ""
+        target: app.dev.openmates.org
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        command: python3 scripts/tests.py run --spec berlin-mitte-maps-example.spec.ts --gate-deploy --expected-commit <sha>
+        run_id: ""
+        subject_commit: ""
+        target: app.dev.openmates.org
+        timestamp: ""
+
+  - id: T-VITEST-FILTERS
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-10
+      - AC-11
+    assertions:
+      - Normalizes resolved map-view entries into reusable facet fields for time, date, price, provider, RSVP/count, transport, train line/type, stops, duration, rating, and amenities when present.
+      - Omits filters for missing fields instead of showing empty controls.
+      - Applies time/date/range and categorical filters to cards, markers, and route paths from cached normalized entries.
+      - Filter changes do not call `resolveEmbed` or `decodeToonContent` again for already-normalized entries.
+      - Ref-index updates that do not change relevant source/direct refs do not trigger a redundant full reload.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: The first control-plane Vitest dispatch after adding tests targeted the then-current dev commit and passed; no separate red run was captured before implementation.
+        timestamp: "2026-07-31T15:33:34Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: 2026-07-31T15:49:53Z / GitHub Actions 30644562294
+        subject_commit: 3880083362af86857a5816d9e6341d054696be01
+        timestamp: "2026-07-31T15:51:09Z"
+        summary: 669/669 Vitest tests passed, including the new map-view dynamic filter and cache/no-redecode assertions.
+
+  - id: T-PLAYWRIGHT-DEUTSCHLANDTICKET
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chats-load.spec.ts
+    command: python3 scripts/tests.py run --spec example-chats-load.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-11
+    assertions:
+      - The deployed Deutschlandticket example renders the grouped route map on mobile without raw `embeds_map_view` text or visible implementation errors.
+      - The map view exposes exactly one hydrated Leaflet map after load, route count remains at least five, and the page remains scrollable.
+      - Dynamic filters expose departure-time, duration/stops, provider, and train-line/type facets for route entries.
+      - Opening and applying filters does not trigger forbidden app-skill/provider/embed API calls beyond existing public/example chat loading.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: No separate red run was captured before extending the deployed example-chat spec; green Playwright and visual smoke evidence now cover the mobile route-map regression.
+        timestamp: "2026-07-31T15:49:50Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec example-chats-load.spec.ts --gate-deploy --expected-commit 3880083 --no-mocks
+        run_id: 2026-07-31T15:53:41Z / GitHub Actions 30645254259
+        subject_commit: 9a25db61cd85b1bca0bc8574758ca8a13ebb96ae
+        target: app.dev.openmates.org
+        deployment_reference: dpl_Azece75p5MVmsVBDFNmR1nrQxhKJ
+        timestamp: "2026-07-31T15:59:44Z"
+        summary: Deployed Deutschlandticket mobile route-map example passed with lazy map hydration and dynamic route filters.
+        supporting_evidence:
+          - status: passed
+            command: Firecrawl mobile rendered extraction for https://app.dev.openmates.org/#chat-id=example-deutschlandticket-train-fare-breakdown
+            run_id: firecrawl-scrape-019fb8fd-861c-74db-9516-b9a8fdccf0c0
+            subject_commit: af6bd4b27
+            target: app.dev.openmates.org
+            timestamp: "2026-07-31T16:24:22Z"
+            summary: Deutschlandticket map/list content present, filter button available, no raw embeds_map_view text, no visible implementation errors, no stuck loading/spinner state, and no obvious mobile layout breakage at 390x844.
+
+  - id: T-VITEST-FIGMA-REDESIGN
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-13
+      - AC-14
+      - AC-15
+    assertions:
+      - Ready child entries resolve through embedPreviewRegistry and render UnifiedEmbedPreview roots inside the horizontal carousel.
+      - The custom ready result-card title/subtitle/category implementation is absent.
+      - The open filter control uses a close icon and one filtered result set drives carousel entries, markers, and route paths.
+      - Pins use the shared Maps SVG; selecting a shared stop keeps its location label visible and narrows the carousel to every matching route.
+      - Show all results clears only map selection and restores the applied-filter result set without re-decoding entries.
+      - Calendar starts on the first populated Monday-first week and week navigation preserves filters.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: 2026-08-28T00:28:26Z / GitHub Actions 33129833405
+        subject_commit: 77d2e61d11548cbaae804bc0033a24756551ed3f
+        timestamp: "2026-08-28T00:31:30Z"
+        reason: The Figma-aligned implementation predated this resumed verification session; the first resumed suite run instead exposed and preserved a stale filter-overlay structural assertion before the focused test correction.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest
+        run_id: 2026-08-28T00:41:35Z / GitHub Actions 33130525495
+        subject_commit: 040179be997cbbbfd9e09253be3e0cd272995c29
+        timestamp: "2026-08-28T00:44:24Z"
+        summary: EmbedsMapView.test.ts passed after aligning the filter-overlay assertion with the mounted but aria-hidden Map/Calendar body; three unrelated pre-existing Vitest failures remained outside this task.
+
+verifications:
+  - id: V-FIGMA-ARTIFACT-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-13
+      - AC-14
+      - AC-15
+    status: passed
+    evidence:
+      status: passed
+      command: Manual comparison of Figma node 5819:61921 with the deployed laptop/mobile Playwright captures and Calendar gate screenshot.
+      artifact: test-results/figma/embeds-map-calendar-redesign/figma-chat-map-calendar-view.png
+      subject_commit: 77d2e61d11548cbaae804bc0033a24756551ed3f
+      reason: Required final design-reference review for the Figma-aligned Map/Calendar task.
+      summary: Deployed laptop and mobile captures preserve the Figma 652px visual pane, reusable horizontal preview carousel, centered Map/Calendar switch, filter control, route geometry, responsive narrow-screen stacking, Monday-first week grid, readable week title, and contained week navigation controls. The intentionally visible next-card edge communicates horizontal scrolling.
+      timestamp: "2026-08-28T00:26:47Z"
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-13
+      - AC-14
+      - AC-15
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/dev/preview/embeds/EmbedsMapView --session 579e
+      target: https://app.dev.openmates.org/dev/preview/embeds/EmbedsMapView
+      viewports:
+        - laptop
+        - mobile
+      run_id: test-results/visual-smoke/2026-08-28T00-25-55-429318+00-00/summary.json
+      subject_commit: 77d2e61d11548cbaae804bc0033a24756551ed3f
+      reason: Required final laptop/mobile rendering review for the user-visible Map/Calendar redesign.
+      summary: "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: the horizontal carousel intentionally reveals the next card edge to communicate scrollability. No page overflow, broken media, console errors, page errors, response errors, or request failures were reported."
+      timestamp: "2026-08-28T00:26:07Z"
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-8
+    status: pending
+    evidence:
+      status: pending
+      summary: User has not yet confirmed deployed dev map-view examples.
+      timestamp: ""
+  - id: V-APPLE-PARITY
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-3
+      - AC-6
+    status: blocked
+    evidence:
+      status: blocked
+      command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios
+      reason: Remote Mac SSH is currently unreachable from this Linux session.
+      actor: OpenCode
+      summary: "ssh_failed: apple_remote.py status reported ssh_reachable=false; build-ios exited 255 with SSH connection timeout."
+      recheck_condition: Re-run apple_remote.py status and build-ios when macos-peer SSH is reachable.
+      timestamp: "2026-07-30T21:27:00Z"
+
+implementation_notes:
+  plan_path: docs/plans/embeds-map-view/plan.yml
+  existing_patterns:
+    - Fenced embed parsing in frontend/packages/ui/src/message_parsing/embedParsing.ts.
+    - Group rendering in frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts.
+    - Ref resolution and IndexedDB-backed embed loading in frontend/packages/ui/src/services/embedStore.ts.
+    - List/map fullscreen UX in frontend/packages/ui/src/components/embeds/maps/MapsSearchEmbedFullscreen.svelte.
+    - Shared Leaflet rendering in frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte.
+    - Shared child preview resolution in frontend/packages/ui/src/services/embedPreviewRegistry.ts.
+    - Unified preview cards in frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte.
+    - Figma reference node 5819:61921 exported to test-results/figma/embeds-map-calendar-redesign/figma-chat-map-calendar-view.png.
+    - Real example-chat creation from shared CLI chats in scripts/create-example-chat-from-share.mjs.
+  architecture: >
+    Add a lightweight message parser node and renderer for `embeds_map_view` that
+    references existing embeds by ref, resolves direct and source-backed entries
+    client-side, and renders a bounded responsive list/map UI. Backend work is
+    limited to AI instructions, output guards, and cost-safety tests; no new public
+    endpoint, provider wrapper, persisted embed type, or Directus schema is added.
+  data_flow:
+    - App skills create normal parent and child embeds through existing encrypted embed flows.
+    - The assistant emits a text fenced block containing refs only.
+    - The frontend parser converts the fenced block into a message node with title, direct refs, source refs, and highlight refs.
+    - The renderer resolves refs through local decrypted/indexed embed metadata, then hydrates visible entries plus bounded overscan.
+    - A cached normalized entry model derives marker labels, route summaries, highlight state, and filter facets from resolved embed content once per embed/content identity.
+    - Filter state applies to normalized entries locally, updating cards, markers, route paths, and counts without new provider calls or repeated TOON decoding.
+    - Each normalized ready entry resolves its registered preview component once and renders it in a horizontal carousel shared by map and calendar modes.
+    - Settled Leaflet bounds derive a viewport subset; explicit pin/route selection overrides that subset until Show all results clears it.
+    - Calendar projection groups the filtered entries into a Monday-first seven-day grid and keeps its week cursor independent from filters.
+    - Leaflet map hydration is deferred until after text/cards can render and the map is near-visible or idle, especially on mobile.
+    - Example-chat workflow extracts real shared CLI chats and commits sanitized hardcoded example data.
+  affected_files:
+    - path: frontend/packages/ui/src/message_parsing/embedParsing.ts
+      reason: Parse and validate `embeds_map_view` fenced blocks.
+    - path: frontend/packages/ui/src/message_parsing/types.ts
+      reason: Add typed node attributes for map-view refs and highlights.
+    - path: frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+      reason: Route parsed map-view nodes to the renderer.
+    - path: frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      reason: Responsive list/map message renderer, normalized facet extraction, dynamic filters, cached entry resolution, and lazy map hydration trigger.
+    - path: frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      reason: Support multiple markers/routes, selected state, callbacks, and low-cost layer updates needed by grouped map views.
+    - path: frontend/packages/ui/src/services/embedPreviewRegistry.ts
+      reason: Register existing direct child preview components used by the Figma carousel.
+    - path: frontend/apps/web_app/src/routes/+page.svelte
+      reason: Ensure example chat hash targets are not misclassified as user chats during post-auth/sync deep-link handling.
+    - path: frontend/packages/ui/src/services/embedStore.ts
+      reason: Resolve source refs and visible child refs without eager all-child hydration.
+    - path: backend/apps/ai/tasks/async_skill_continuation.py
+      reason: Teach the assistant when and how to emit compact map-view syntax.
+    - path: backend/apps/ai/processing/main_processor.py
+      reason: Add map-view hints to synchronous app-skill tool results.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Guard or normalize malformed map-view blocks before client rendering.
+    - path: backend/apps/ai/utils/embeds_map_view.py
+      reason: Shared map-view syntax, detection, normalization, and deterministic repair helpers.
+    - path: backend/tests/test_embeds_map_view_contract.py
+      reason: Red/green contract tests for AI instructions, guards, and no paid enrichment.
+    - path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
+      reason: Deployed web rendering and cost-safety E2E coverage.
+    - path: frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+      reason: Deployed example-chat rendering coverage.
+    - path: frontend/apps/web_app/tests/example-chats-load.spec.ts
+      reason: Deployed Deutschlandticket mobile route-map performance and dynamic-filter coverage.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/embeds-map-view/plan.yml
+    - python3 scripts/plan_verify.py docs/plans/embeds-map-view/plan.yml --phase red
+    - python3 -m pytest backend/tests/test_embeds_map_view_contract.py
+    - python3 scripts/tests.py run --suite vitest
+    - Real OpenMates CLI inference against https://api.dev.openmates.org with recorded chat IDs.
+    - python3 scripts/audit_sdk_cli_parity.py if CLI or SDK command surface changes.
+    - python3 scripts/tests.py run --spec embeds-map-view.spec.ts after deploy.
+    - python3 scripts/playwright_visual_smoke.py --url https://app.dev.openmates.org/dev/preview/embeds/EmbedsMapView --session 104a
+    - Manual Figma artifact review against node 5819:61921 for laptop and mobile captures.
+    - python3 scripts/tests.py run --spec embeds-map-view-examples.spec.ts after deploy.
+    - python3 scripts/apple_remote.py status and build-ios/test-ios after user confirmation, unless Apple is proven unaffected or unavailable.
+  verification_order:
+    - Product contract approval before implementation.
+    - Red parser/render/AI contract tests before feature code.
+    - Direct REST/API/WebSocket classification first; no new endpoint is expected, so evidence must state existing first-party chat surfaces, auth, rate limits, credit budget, and encryption boundaries.
+    - Real CLI inference against the dev API second, proving assistant output and guard behavior with real auth/test-account state.
+    - npm SDK and pip SDK parity third only if a programmatic SDK surface changes; otherwise record not applicable with reason.
+    - GitHub Actions CI/daily-test reproduction only after local REST/API, CLI, and SDK applicability are resolved.
+    - Web Playwright fourth, after deploy to dev.
+    - User confirmation fifth for deployed visual/example behavior.
+    - Apple remote status plus build/test last when a native counterpart is confirmed.
+
+tasks:
+  - id: TASK-1
+    title: Add parser and contract tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+    expected_files:
+      - frontend/packages/ui/src/message_parsing/embedParsing.ts
+      - frontend/packages/ui/src/message_parsing/types.ts
+      - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+    verification:
+      - T-VITEST-PARSE
+    verification_ids:
+      - T-VITEST-PARSE
+    dependencies: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/message_parsing/embedParsing.ts
+        - frontend/packages/ui/src/message_parsing/types.ts
+        - frontend/packages/ui/src/message_parsing/__tests__/embedsMapViewParsing.test.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-2
+    title: Add AI instructions, guards, and CLI inference proof
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-4
+        - AC-6
+        - AC-7
+    expected_files:
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/tasks/async_skill_continuation.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/apps/ai/utils/embeds_map_view.py
+      - backend/tests/test_embeds_map_view_contract.py
+    verification:
+      - T-PYTEST-AI-CONTRACT
+      - T-CLI-INFERENCE
+    verification_ids:
+      - T-PYTEST-AI-CONTRACT
+      - T-CLI-INFERENCE
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/apps/ai/processing/main_processor.py
+        - backend/apps/ai/tasks/async_skill_continuation.py
+        - backend/apps/ai/tasks/stream_consumer.py
+        - backend/apps/ai/utils/embeds_map_view.py
+        - backend/tests/test_embeds_map_view_contract.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Build bounded responsive map-view renderer
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+      - frontend/packages/ui/src/services/embedStore.ts
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    verification:
+      - T-VITEST-RENDER
+      - T-PLAYWRIGHT-MAP
+    verification_ids:
+      - T-VITEST-RENDER
+      - T-PLAYWRIGHT-MAP
+    dependencies:
+      - TASK-1
+      - TASK-2
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+        - frontend/packages/ui/src/services/embedStore.ts
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
+        - frontend/packages/ui/src/components/embeds/EntryWithMapTemplate.svelte
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Create and verify real example chats
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-8
+      acceptance_criteria:
+        - AC-8
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/*.yml
+      - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+      - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+    verification:
+      - T-PLAYWRIGHT-EXAMPLES
+      - V-USER-CONFIRMATION
+    verification_ids:
+      - T-PLAYWRIGHT-EXAMPLES
+      - V-USER-CONFIRMATION
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - frontend/packages/ui/src/demo_chats/data/example_chats/*.ts
+        - frontend/packages/ui/src/i18n/sources/example_chats/*.yml
+        - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+        - frontend/apps/web_app/tests/embeds-map-view-examples.spec.ts
+      shared_files:
+        - scripts/create-example-chat-from-share.mjs
+        - scripts/audit_example_chats.py
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Default geo map views and grouped travel routes
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-9
+      acceptance_criteria:
+        - AC-3
+        - AC-9
+    expected_files:
+      - backend/apps/ai/utils/embeds_map_view.py
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/tests/test_embeds_map_view_contract.py
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - docs/plans/embeds-map-view/plan.yml
+    verification:
+      - T-PYTEST-AI-CONTRACT
+      - T-VITEST-RENDER
+    verification_ids:
+      - T-PYTEST-AI-CONTRACT
+      - T-VITEST-RENDER
+    dependencies:
+      - TASK-1
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - backend/apps/ai/utils/embeds_map_view.py
+        - backend/apps/ai/tasks/stream_consumer.py
+        - backend/tests/test_embeds_map_view_contract.py
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - docs/plans/embeds-map-view/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Complete parity, user confirmation, and final verification
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios:
+        - S-3
+        - S-6
+        - S-8
+      acceptance_criteria:
+        - AC-3
+        - AC-6
+        - AC-8
+    expected_files:
+      - docs/plans/embeds-map-view/plan.yml
+    verification:
+      - V-USER-CONFIRMATION
+      - V-APPLE-PARITY
+    verification_ids:
+      - V-USER-CONFIRMATION
+      - V-APPLE-PARITY
+    dependencies:
+      - TASK-1
+      - TASK-2
+      - TASK-3
+      - TASK-4
+      - TASK-6
+      - TASK-7
+    ownership:
+      files:
+        - docs/plans/embeds-map-view/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-7
+    title: Redesign map-view filters and fix mobile cold-load performance
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-10
+        - S-11
+      acceptance_criteria:
+        - AC-10
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - frontend/apps/web_app/src/routes/+page.svelte
+      - frontend/apps/web_app/tests/example-chats-load.spec.ts
+      - docs/plans/embeds-map-view/plan.yml
+    verification:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+    verification_ids:
+      - T-VITEST-FILTERS
+      - T-PLAYWRIGHT-DEUTSCHLANDTICKET
+    dependencies:
+      - TASK-3
+      - TASK-6
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - frontend/apps/web_app/src/routes/+page.svelte
+        - frontend/apps/web_app/tests/example-chats-load.spec.ts
+        - docs/plans/embeds-map-view/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: true
+
+  - id: TASK-8
+    title: Implement Figma-aligned carousel, map selection, filters, and week calendar
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-13
+        - S-14
+        - S-15
+      acceptance_criteria:
+        - AC-13
+        - AC-14
+        - AC-15
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+      - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+      - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+      - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+      - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+      - docs/plans/embeds-map-view/plan.yml
+    verification:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+    verification_ids:
+      - T-VITEST-FIGMA-REDESIGN
+      - T-PLAYWRIGHT-MAP
+    dependencies:
+      - TASK-3
+      - TASK-7
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+        - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+        - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+        - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+        - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+        - docs/plans/embeds-map-view/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-9
+    independently_deployable: true
+
+  - id: TASK-9
+    title: Verify deployed Figma alignment and publish proof evidence
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-13
+        - S-14
+        - S-15
+      acceptance_criteria:
+        - AC-13
+        - AC-14
+        - AC-15
+    expected_files:
+      - docs/plans/embeds-map-view/plan.yml
+      - test-results/figma/embeds-map-calendar-redesign/*
+    verification:
+      - V-FIGMA-ARTIFACT-REVIEW
+      - V-UI-VISUAL-SMOKE
+    verification_ids:
+      - V-FIGMA-ARTIFACT-REVIEW
+      - V-UI-VISUAL-SMOKE
+    dependencies:
+      - TASK-8
+    ownership:
+      files:
+        - docs/plans/embeds-map-view/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - TASK-5
+    independently_deployable: true

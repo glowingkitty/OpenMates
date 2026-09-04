@@ -13,11 +13,7 @@ export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const { fillMessageEditor, focusMessageEditor, loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
 
-const INTRO_CHAT_TITLES = new Set([
-	'OpenMates | For everyone',
-	'OpenMates | For developers',
-	'Who develops OpenMates?'
-]);
+const INTRO_CHAT_TITLES = new Set(['Who develops OpenMates?']);
 
 const SECURITY_REMINDER_TITLE = 'Security Reminder';
 
@@ -25,6 +21,7 @@ async function dismissSecurityReminder(page: any): Promise<void> {
 	const reminder = page.getByTestId('notification').filter({ hasText: SECURITY_REMINDER_TITLE });
 	if (!(await reminder.isVisible({ timeout: 2000 }).catch(() => false))) return;
 
+	await expect(reminder.getByTestId('notification-progress')).toHaveAttribute('data-duration-ms', '7000');
 	await reminder.getByTestId('notification-dismiss').click({ timeout: 5000 });
 	await expect(reminder).not.toBeVisible({ timeout: 10000 });
 }
@@ -78,7 +75,7 @@ async function swipeHeader(page: any, startX: number, endX: number): Promise<voi
 }
 
 test.describe('ChatHeader follows Chats.svelte order', () => {
-	// contract-test: direct surface=gui.web assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only,drafts.established-chat.presentation-unchanged
+	// contract-test: direct surface=gui.web assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only,drafts.established-chat.presentation-unchanged,notifications.web.timed-dismissal
 	test('navigates from a regular chat to the newest draft-only chat with the sidebar closed', async ({
 		page
 	}: {

@@ -1,0 +1,824 @@
+schema_version: 1
+id: feature.teams
+version: 2
+status: draft
+title: Teams
+summary: >
+  OpenMates Teams let authenticated users create small-group contexts with
+  encrypted team metadata, generated or uploaded team profile imagery,
+  role-gated membership, shared team credits, team-owned connected accounts,
+  realtime collaboration, invite-link onboarding, and device-local active
+  context switching across REST, CLI, SDK, and web surfaces.
+
+outcome: >
+  Teams provide a shared encrypted working context in which members can organize
+  resources, collaborate in realtime, use Team-owned credits and connected
+  accounts, and explicitly invoke OpenMates without mixing Team data, credentials,
+  billing, or conversations with any member's Personal context.
+
+presentation:
+  document_kind: capability_specification
+  chapter_order: [team-creation-profile, membership-invitations, active-context-resources, collaboration-chat, cross-surface-guarantees]
+  generated_indexes: [requirements, user_flows, edge_cases, models, checks, examples, history]
+  legend:
+    requirement: Durable behavior, security, privacy, accessibility, invariant, or parity truth backed by a canonical assertion id.
+    user_flow: Goal-oriented user experience owned by this exact Specification revision.
+    edge_case: Boundary or failure path rendered like a User Flow and optionally linked to its parent flow.
+    check: Reusable proof obligation; source tests may already exist before a Project Check embed is materialized.
+    model: Canonical domain or interface definition shown contextually without copying its source definition.
+    surface: Stable capability surface from the home Project catalog; deferred means specified but not implemented in V2.
+
+project_surface_catalog:
+  home_project_id: openmates
+  revision_id: openmates-surfaces-v1
+  surfaces:
+    - {id: rest_api, label: REST API, kind: api, status: active}
+    - {id: cli, label: CLI, kind: cli, status: active}
+    - {id: sdk_npm, label: npm SDK, kind: sdk, status: active}
+    - {id: sdk_pip, label: pip SDK, kind: sdk, status: active}
+    - {id: web, label: Web, kind: web, status: active}
+    - {id: apple, label: Apple, kind: native, status: deferred}
+
+scope:
+  includes:
+    - Team lifecycle create, list, show, update, delete, and device-local active context selection between Personal and one Team.
+    - Team membership roles owner, admin, member, and viewer with role-gated management, billing, export, write, and AI-trigger permissions.
+    - Client-encrypted team name, description, billing profile, team key wrappers, invite key material, credit balance snapshots, and profile-image metadata where user-visible or private.
+    - Generated default team profile image metadata saved during Team creation: white icon name plus colored background chosen by the client, never inferred only from transient UI.
+    - Uploaded team profile image processing with the same crop/resize, content-safety scan, storage, and authenticated retrieval guarantees as user profile images.
+    - Invite-link acceptance from web URLs containing a fragment secret, including login/signup handoff, recipient email binding for encrypted team-key unwrap, pending approval, decline, and joined states.
+    - Full active-context switch in the web app: chats, billing and usage, tasks, plans, projects, workflows, memories, connected accounts, and new-resource creation resolve to exactly Personal or the selected Team.
+    - Web Teams management is settings-only: Settings contains the Teams root and per-team pages, while Personal/Team switching lives in the user profile menu with closed/open team-avatar states.
+    - Ordinary team chats are client-side encrypted collaboration: without @openmates, plaintext content and sender display metadata never reach the server, no AI preprocessing or postprocessing runs, and the client derives an encrypted default title from the start of the first human message.
+    - Mentioning @openmates explicitly releases the full current team-chat history to the transient inference cache and processing pipeline; later ordinary messages do not update that plaintext cache, and each later @openmates mention replaces it with the then-current full chat history.
+    - Team chats preserve per-human sender attribution, consume team credits only for @openmates turns, and synchronize encrypted new chats and human messages plus authorized AI processing state and responses to active members in realtime.
+    - Team chat UI keeps the current user's unchanged right-side message layout without a profile image; other members render on the left with username and profile image but no AI badge, while assistants remain on the left with the existing AI identity treatment.
+    - Team chats always show a reminder below the chat header and above the first message that @openmates must be mentioned to trigger AI processing.
+    - Team members can mention another active member by username; the client resolves the recipient identity without exposing message plaintext, and OpenMates sends an in-app notification plus a default-on email notification that contains no message plaintext or private chat content.
+    - Team-wide visibility in V1 for chats, tasks, plans, projects, workflows, memories, and approved team-connected-account capabilities to every active team member/viewer, with viewer read-only restrictions.
+    - Team-owned connected accounts use team-scoped encrypted credential bundles and token brokerage; owner/admin can manage connections, members can use approved capabilities, and viewers remain read-only without receiving raw provider credentials or personal-account fallback.
+    - Semantic parity across REST/API, OpenMates CLI, npm SDK, pip SDK, and web for every Teams operation each surface exposes.
+  excludes:
+    - Private team chats, per-resource ACLs, participant lists, public team discovery, SSO/SAML, domain-restricted teams, and user groups.
+    - Per-member credit limits, team-to-personal credit transfers, per-seat subscriptions, and enterprise sales flows.
+    - Sharing, copying, importing, or falling back to any member's Personal connected account while Team context is active.
+    - Automatic team key rotation, historical rewrap, public-key member key distribution, or strict cryptographic erasure of already-synced data.
+    - Apple-native Teams implementation before REST/API, CLI, SDK, web, visual-smoke, and user-confirmation gates are complete or explicitly deferred.
+    - A top-level Teams workspace route, workspace navigation tab, or Teams-as-workspace web surface.
+
+chapters:
+  - id: team-creation-profile
+    title: Team creation, profile, and lifecycle
+    summary: Create, update, display, and delete encrypted Teams with safe generated or uploaded profile imagery.
+    requirement_ids: [teams.lifecycle.encrypted-profiled, teams.profile-image.safe-parity]
+    user_flow_ids: [create-team, update-team-profile, delete-team]
+    edge_case_ids: [profile-image-rejected, deletion-cleanup-fails, deleted-team-access]
+    model_ids: [TeamRecord, TeamProfileImage]
+  - id: membership-invitations
+    title: Membership, roles, and invitations
+    summary: Invite members, accept or decline access, manage roles, and fail closed when authorization or key revocation is incomplete.
+    requirement_ids: [teams.membership.role-gated, teams.invites.fragment-key-web-flow]
+    user_flow_ids: [invite-member, change-member-role, remove-member]
+    edge_case_ids: [invite-unusable, viewer-mutation-denied, member-revocation-fails]
+    model_ids: [TeamMembership, TeamInvite]
+  - id: active-context-resources
+    title: Active context and shared resources
+    summary: Switch the complete workspace between Personal and one Team while isolating Team-owned connected accounts and credentials.
+    requirement_ids: [teams.context.full-switch-local, teams.connected-accounts.team-owned-isolation]
+    user_flow_ids: [switch-team-context, connect-team-account, use-team-account]
+    edge_case_ids: [no-personal-account-fallback, context-remains-device-local]
+    model_ids: [TeamActiveContext, TeamConnectedAccount]
+  - id: collaboration-chat
+    title: Realtime collaboration and Team chat
+    summary: Synchronize encrypted human collaboration, explicit OpenMates turns, member mentions, sender identity, and Team-scoped AI billing.
+    requirement_ids: [teams.collaboration.realtime-team-sync, teams.chat.encrypted-until-invoked, teams.chat.member-mentions-notify, teams.chat.sender-identity-layout, teams.chat-billing.team-credit-boundary]
+    user_flow_ids: [send-ordinary-team-message, invoke-openmates-in-team-chat, mention-team-member]
+    edge_case_ids: [insufficient-team-credits, removed-member-connected, ordinary-follow-up-after-ai, missing-member-profile-image]
+    model_ids: [TeamMembership, TeamActiveContext, TeamChatProcessingBoundary, TeamMemberMention]
+  - id: cross-surface-guarantees
+    title: Cross-surface guarantees
+    summary: Preserve equivalent Teams semantics across every supported interface while Apple remains explicitly deferred.
+    requirement_ids: [teams.workspace.surface-parity]
+    user_flow_ids: []
+    edge_case_ids: []
+    model_ids: []
+
+flows:
+  - id: create-team
+    kind: user_flow
+    title: Create a Team
+    chapter_id: team-creation-profile
+    requirement_ids: [teams.lifecycle.encrypted-profiled, teams.profile-image.safe-parity, teams.membership.role-gated]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. Open Settings and select Teams.
+      2. Choose Create Team and enter a name plus optional description.
+      3. Accept or change the generated profile image.
+      4. Confirm creation.
+      5. OpenMates creates encrypted Team metadata, a wrapped Team key, a zero Team balance, and owner membership for the creator.
+      6. The Team appears in the profile context switcher and on every supported surface.
+    embed_references: []
+    check_obligation_ids: [check.team-lifecycle, check.team-profile-image]
+  - id: update-team-profile
+    kind: user_flow
+    title: Update a Team profile
+    chapter_id: team-creation-profile
+    requirement_ids: [teams.lifecycle.encrypted-profiled, teams.profile-image.safe-parity, teams.membership.role-gated]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. An owner or admin opens the Team profile settings.
+      2. Change the encrypted name, description, generated avatar, or uploaded profile image.
+      3. Save the change.
+      4. Every supported surface resolves the updated encrypted metadata and authenticated image reference.
+    embed_references: []
+    check_obligation_ids: [check.team-profile-image, check.membership-permissions]
+  - id: delete-team
+    kind: user_flow
+    title: Delete a Team
+    chapter_id: team-creation-profile
+    requirement_ids: [teams.lifecycle.encrypted-profiled, teams.membership.role-gated, teams.connected-accounts.team-owned-isolation]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. The owner opens the destructive-actions section and confirms deletion.
+      2. OpenMates revokes Team sources, memberships, connected-account access, and Team resource availability.
+      3. The current device returns to Personal context when the deleted Team was active.
+      4. Personal resources remain unchanged.
+    embed_references: []
+    check_obligation_ids: [check.team-lifecycle, check.connected-account-isolation]
+  - id: profile-image-rejected
+    kind: edge_case
+    parent_flow_id: update-team-profile
+    title: Uploaded Team profile image is rejected
+    chapter_id: team-creation-profile
+    requirement_ids: [teams.profile-image.safe-parity]
+    surface_ids: [rest_api, cli, web]
+    content: |
+      The content-safety pipeline rejects the upload visibly, retains the previous profile metadata, and applies the same account-safety consequences as a rejected Personal profile image.
+    embed_references: []
+    check_obligation_ids: [check.team-profile-image]
+  - id: deletion-cleanup-fails
+    kind: edge_case
+    parent_flow_id: delete-team
+    title: Team deletion cleanup cannot complete safely
+    chapter_id: team-creation-profile
+    requirement_ids: [teams.lifecycle.encrypted-profiled, teams.connected-accounts.team-owned-isolation]
+    surface_ids: [rest_api]
+    content: |
+      Deletion fails closed when source, credential, membership, cache, or key-wrapper revocation cannot complete. The Team must never appear deleted while usable authority remains.
+    embed_references: []
+    check_obligation_ids: [check.team-lifecycle, check.connected-account-isolation]
+  - id: deleted-team-access
+    kind: edge_case
+    parent_flow_id: delete-team
+    title: Existing member attempts to access a deleted Team
+    chapter_id: team-creation-profile
+    requirement_ids: [teams.lifecycle.encrypted-profiled, teams.membership.role-gated]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      Every role and resource check rejects the deleted Team. Cached membership or wrappers cannot restore access, and the client visibly returns to an authorized context.
+    embed_references: []
+    check_obligation_ids: [check.team-lifecycle, check.membership-permissions]
+  - id: invite-member
+    kind: user_flow
+    title: Invite a Team member
+    chapter_id: membership-invitations
+    requirement_ids: [teams.membership.role-gated, teams.invites.fragment-key-web-flow]
+    surface_ids: [rest_api, web]
+    content: |
+      1. An owner or admin creates an invitation with an allowed role.
+      2. The recipient opens the invite URL containing a fragment secret.
+      3. Login or signup completes without sending the fragment secret to the server.
+      4. The client unwraps or submits encrypted Team-key material for the bound recipient.
+      5. The invitation resolves to pending approval or active membership.
+    embed_references: []
+    check_obligation_ids: [check.membership-permissions, check.invite-fragment-flow]
+  - id: change-member-role
+    kind: user_flow
+    title: Change a Team member's role
+    chapter_id: membership-invitations
+    requirement_ids: [teams.membership.role-gated]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. An authorized owner or admin opens Team members.
+      2. Select an active member and choose an allowed role.
+      3. Save the role change.
+      4. Management, billing, export, write, and AI-trigger permissions immediately reflect the new role.
+    embed_references: []
+    check_obligation_ids: [check.membership-permissions]
+  - id: remove-member
+    kind: user_flow
+    title: Remove a Team member
+    chapter_id: membership-invitations
+    requirement_ids: [teams.membership.role-gated, teams.collaboration.realtime-team-sync]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. An authorized owner or admin selects an active member.
+      2. Confirm removal.
+      3. OpenMates revokes membership and Team-key wrappers before reporting success.
+      4. The removed member stops receiving Team synchronization and cannot access Team resources.
+    embed_references: []
+    check_obligation_ids: [check.membership-permissions, check.realtime-team-sync]
+  - id: invite-unusable
+    kind: edge_case
+    parent_flow_id: invite-member
+    title: Invitation is expired, revoked, or bound to another recipient
+    chapter_id: membership-invitations
+    requirement_ids: [teams.invites.fragment-key-web-flow]
+    surface_ids: [rest_api, web]
+    content: |
+      Acceptance fails without exposing recipient-account existence, the fragment secret, or raw Team-key material. No membership or local Team key is created.
+    embed_references: []
+    check_obligation_ids: [check.invite-fragment-flow]
+  - id: viewer-mutation-denied
+    kind: edge_case
+    parent_flow_id: change-member-role
+    title: Viewer attempts a Team mutation
+    chapter_id: membership-invitations
+    requirement_ids: [teams.membership.role-gated]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      The operation fails visibly before mutating Team data, exporting content, charging credits, invoking AI, or starting a provider action.
+    embed_references: []
+    check_obligation_ids: [check.membership-permissions]
+  - id: member-revocation-fails
+    kind: edge_case
+    parent_flow_id: remove-member
+    title: Member key or cache revocation fails
+    chapter_id: membership-invitations
+    requirement_ids: [teams.membership.role-gated]
+    surface_ids: [rest_api]
+    content: |
+      Removal fails closed and remains visibly incomplete. OpenMates must not report the member as safely removed while cached authorization or a key wrapper remains usable.
+    embed_references: []
+    check_obligation_ids: [check.membership-permissions]
+  - id: switch-team-context
+    kind: user_flow
+    title: Switch between Personal and Team context
+    chapter_id: active-context-resources
+    requirement_ids: [teams.context.full-switch-local]
+    surface_ids: [cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. Open the profile menu and select Personal or one Team.
+      2. Replace chats, billing, usage, tasks, Plans, Projects, Workflows, memories, connected accounts, and resume cards with the selected context.
+      3. New resources inherit exactly that context.
+      4. Other devices and clients retain their own active context.
+    embed_references: []
+    check_obligation_ids: [check.active-context-isolation]
+  - id: connect-team-account
+    kind: user_flow
+    title: Connect a provider account to a Team
+    chapter_id: active-context-resources
+    requirement_ids: [teams.connected-accounts.team-owned-isolation, teams.membership.role-gated]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. An owner or admin opens Team connected accounts.
+      2. Complete the provider connection in Team context.
+      3. Store the encrypted credential bundle and display metadata as Team-owned.
+      4. Personal provider connections remain unchanged and undisclosed.
+    embed_references: []
+    check_obligation_ids: [check.connected-account-isolation, check.membership-permissions]
+  - id: use-team-account
+    kind: user_flow
+    title: Use an approved Team connected account
+    chapter_id: active-context-resources
+    requirement_ids: [teams.connected-accounts.team-owned-isolation]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. A member opens a capability backed by a Team-owned connection.
+      2. OpenMates verifies active Team membership and approved capability access.
+      3. Token brokerage remains Team-scoped.
+      4. The member never receives raw provider credentials.
+    embed_references: []
+    check_obligation_ids: [check.connected-account-isolation]
+  - id: no-personal-account-fallback
+    kind: edge_case
+    parent_flow_id: use-team-account
+    title: Team has no matching connected account
+    chapter_id: active-context-resources
+    requirement_ids: [teams.connected-accounts.team-owned-isolation]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      The capability shows no available Team connection. It must never list, copy, import, broker, or fall back to a member's Personal provider account.
+    embed_references: []
+    check_obligation_ids: [check.connected-account-isolation]
+  - id: context-remains-device-local
+    kind: edge_case
+    parent_flow_id: switch-team-context
+    title: The same account uses another client
+    chapter_id: active-context-resources
+    requirement_ids: [teams.context.full-switch-local]
+    surface_ids: [cli, sdk_npm, sdk_pip, web]
+    content: |
+      Switching the web app to a Team does not change CLI, SDK, or another device. Each client resolves its own device-local context without changing a server default.
+    embed_references: []
+    check_obligation_ids: [check.active-context-isolation]
+  - id: send-ordinary-team-message
+    kind: user_flow
+    title: Send an ordinary encrypted Team message
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.collaboration.realtime-team-sync, teams.chat.encrypted-until-invoked, teams.chat.sender-identity-layout]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. Write a message without mentioning @openmates.
+      2. Encrypt the message on the client before transmission.
+      3. Synchronize ciphertext and sender attribution to active Team members.
+      4. Render the sender with the correct human identity.
+      5. Do not run AI processing, update inference cache, or charge credits.
+    embed_references: []
+    check_obligation_ids: [check.realtime-team-sync, check.team-chat-privacy, check.sender-layout]
+  - id: invoke-openmates-in-team-chat
+    kind: user_flow
+    title: Invoke OpenMates in a Team chat
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.collaboration.realtime-team-sync, teams.chat.encrypted-until-invoked, teams.chat-billing.team-credit-boundary]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      1. Mention @openmates in a Team message.
+      2. Submit the full current Team-chat history with per-human sender attribution to transient inference.
+      3. Share processing state with active members.
+      4. Charge only the selected Team's credit balance.
+      5. Synchronize the completed assistant response to active Team members.
+    embed_references: []
+    check_obligation_ids: [check.realtime-team-sync, check.team-chat-privacy, check.team-chat-billing]
+  - id: mention-team-member
+    kind: user_flow
+    title: Mention another Team member
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.chat.member-mentions-notify]
+    surface_ids: [rest_api, web]
+    content: |
+      1. Mention an active member by username.
+      2. Resolve the authorized recipient without exposing message plaintext.
+      3. Send an in-app notification and the default-on email notification.
+      4. Keep message plaintext and private chat content out of notification payloads, email, logs, and traces.
+    embed_references: []
+    check_obligation_ids: [check.member-mentions]
+  - id: insufficient-team-credits
+    kind: edge_case
+    parent_flow_id: invoke-openmates-in-team-chat
+    title: Team credit balance is insufficient
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.chat-billing.team-credit-boundary]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      The request fails visibly before inference. Team credits are not overdrawn, Personal credits remain untouched, and no assistant processing state is published.
+    embed_references: []
+    check_obligation_ids: [check.team-chat-billing]
+  - id: removed-member-connected
+    kind: edge_case
+    parent_flow_id: send-ordinary-team-message
+    title: A removed member remains connected
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.collaboration.realtime-team-sync, teams.membership.role-gated]
+    surface_ids: [rest_api, web]
+    content: |
+      The removed member receives no new chat, message, processing, or response event. Server authorization denies access and managed clients remove inaccessible Team state.
+    embed_references: []
+    check_obligation_ids: [check.realtime-team-sync, check.membership-permissions]
+  - id: ordinary-follow-up-after-ai
+    kind: edge_case
+    parent_flow_id: invoke-openmates-in-team-chat
+    title: Ordinary messages follow an OpenMates response
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.chat.encrypted-until-invoked]
+    surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    content: |
+      Follow-up messages without @openmates remain ciphertext-only and do not refresh the transient inference cache. A later @openmates mention replaces the cache with the then-current complete history.
+    embed_references: []
+    check_obligation_ids: [check.team-chat-privacy]
+  - id: missing-member-profile-image
+    kind: edge_case
+    parent_flow_id: send-ordinary-team-message
+    title: Another member has no profile image
+    chapter_id: collaboration-chat
+    requirement_ids: [teams.chat.sender-identity-layout]
+    surface_ids: [web]
+    content: |
+      Render the standard human initials fallback on the left with username and without an AI badge. Never use the assistant identity treatment for a human member.
+    embed_references: []
+    check_obligation_ids: [check.sender-layout]
+
+model_placements:
+  - {model_id: TeamRecord, chapter_ids: [team-creation-profile]}
+  - {model_id: TeamProfileImage, chapter_ids: [team-creation-profile]}
+  - {model_id: TeamMembership, chapter_ids: [membership-invitations, collaboration-chat]}
+  - {model_id: TeamInvite, chapter_ids: [membership-invitations]}
+  - {model_id: TeamActiveContext, chapter_ids: [active-context-resources, collaboration-chat]}
+  - {model_id: TeamConnectedAccount, chapter_ids: [active-context-resources]}
+  - {model_id: TeamChatProcessingBoundary, chapter_ids: [collaboration-chat]}
+  - {model_id: TeamMemberMention, chapter_ids: [collaboration-chat]}
+
+check_obligations:
+  - id: check.team-lifecycle
+    title: Team lifecycle remains encrypted and authorization-safe
+    materialization: pending
+    covers: [teams.lifecycle.encrypted-profiled, create-team, delete-team, deletion-cleanup-fails, deleted-team-access]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_lifecycle.py}
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_routes.py}
+      - {kind: e2e, role: required, surface: web, path: frontend/apps/web_app/tests/teams-flow.spec.ts}
+      - {kind: unit_suite, role: supporting, surface: web, path: frontend/packages/ui/src/services/__tests__/teamService.test.ts}
+  - id: check.team-profile-image
+    title: Team profile images preserve safe cross-surface behavior
+    materialization: pending
+    covers: [teams.profile-image.safe-parity, create-team, update-team-profile, profile-image-rejected]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_profile_images.py}
+      - {kind: unit_suite, role: required, surface: cli, path: frontend/packages/openmates-cli/tests/team-profile-images.test.ts}
+      - {kind: unit_suite, role: required, surface: sdk_npm, path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts}
+      - {kind: unit_suite, role: required, surface: sdk_pip, path: packages/openmates-python/tests/test_teams.py}
+  - id: check.membership-permissions
+    title: Membership roles gate every Team operation
+    materialization: pending
+    covers: [teams.membership.role-gated, change-member-role, remove-member, viewer-mutation-denied, member-revocation-fails]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_lifecycle.py}
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_routes.py}
+      - {kind: deterministic_audit, role: supporting, surface: rest_api, path: scripts/tests/test_teams_privacy_audit.py}
+  - id: check.invite-fragment-flow
+    title: Invite fragment secret survives web authentication without server disclosure
+    materialization: pending
+    covers: [teams.invites.fragment-key-web-flow, invite-member, invite-unusable]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_lifecycle.py}
+      - {kind: e2e, role: required, surface: web, path: frontend/apps/web_app/tests/teams-flow.spec.ts}
+      - {kind: deterministic_audit, role: supporting, surface: rest_api, path: scripts/tests/test_teams_privacy_audit.py}
+  - id: check.active-context-isolation
+    title: Active context remains complete and device-local
+    materialization: pending
+    covers: [teams.context.full-switch-local, switch-team-context, context-remains-device-local]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_chat_turn_preflight.py}
+      - {kind: e2e, role: required, surface: web, path: frontend/apps/web_app/tests/teams-settings-context.spec.ts}
+      - {kind: unit_suite, role: supporting, surface: web, path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts}
+  - id: check.connected-account-isolation
+    title: Team connected accounts never fall back to Personal credentials
+    materialization: pending
+    covers: [teams.connected-accounts.team-owned-isolation, connect-team-account, use-team-account, no-personal-account-fallback]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_connected_accounts.py}
+  - id: check.realtime-team-sync
+    title: Realtime Team collaboration reaches only active members
+    materialization: pending
+    covers: [teams.collaboration.realtime-team-sync, send-ordinary-team-message, invoke-openmates-in-team-chat, removed-member-connected]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_realtime_sync.py}
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_team_chat_pagination.py}
+      - {kind: unit_suite, role: supporting, surface: web, path: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts}
+  - id: check.team-chat-privacy
+    title: Team chat stays ciphertext-only until explicit OpenMates invocation
+    materialization: pending
+    covers: [teams.chat.encrypted-until-invoked, send-ordinary-team-message, invoke-openmates-in-team-chat, ordinary-follow-up-after-ai]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_chat_ai.py}
+      - {kind: e2e, role: required, surface: web, path: frontend/apps/web_app/tests/teams-settings-context.spec.ts}
+      - {kind: unit_suite, role: required, surface: sdk_npm, path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts}
+      - {kind: unit_suite, role: required, surface: sdk_pip, path: packages/openmates-python/tests/test_teams.py}
+  - id: check.member-mentions
+    title: Team-member notifications disclose no message plaintext
+    materialization: pending
+    covers: [teams.chat.member-mentions-notify, mention-team-member]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_team_member_mentions.py}
+  - id: check.sender-layout
+    title: Team chat distinguishes current user, other humans, and assistants
+    materialization: pending
+    covers: [teams.chat.sender-identity-layout, send-ordinary-team-message, missing-member-profile-image]
+    sources:
+      - {kind: integration, role: supporting, surface: rest_api, path: backend/tests/test_teams_chat_ai.py}
+      - {kind: unit_suite, role: required, surface: web, path: frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts}
+  - id: check.team-chat-billing
+    title: OpenMates Team turns charge only Team credits
+    materialization: pending
+    covers: [teams.chat-billing.team-credit-boundary, invoke-openmates-in-team-chat, insufficient-team-credits]
+    sources:
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_chat_ai.py}
+      - {kind: integration, role: required, surface: rest_api, path: backend/tests/test_teams_routes.py}
+      - {kind: e2e, role: supporting, surface: web, path: frontend/apps/web_app/tests/teams-settings-context.spec.ts}
+  - id: check.team-surface-parity
+    title: Teams semantics remain equivalent across exposed surfaces
+    materialization: pending
+    covers: [teams.workspace.surface-parity]
+    sources:
+      - {kind: unit_suite, role: required, surface: cli, path: frontend/packages/openmates-cli/tests/team-profile-images.test.ts}
+      - {kind: unit_suite, role: required, surface: sdk_npm, path: frontend/packages/openmates-cli/tests/sdk-teams.test.ts}
+      - {kind: unit_suite, role: required, surface: sdk_pip, path: packages/openmates-python/tests/test_teams.py}
+      - {kind: e2e, role: required, surface: web, path: frontend/apps/web_app/tests/teams-flow.spec.ts}
+
+models:
+  TeamRecord:
+    team_id:
+      type: stable_id
+      required: true
+    slug:
+      type: public_string_or_null
+      nullable: true
+      constraints: {not_secret: true, unique_when_set: true}
+    status:
+      type: enum
+      values: [active, archived, deleted]
+      required: true
+    encrypted_name:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_private_content: forbidden}
+    encrypted_description:
+      type: client_ciphertext
+      nullable: true
+      constraints: {plaintext_private_content: forbidden}
+    encrypted_profile_image_metadata:
+      type: client_ciphertext
+      required: true
+      constraints:
+        plaintext_private_content: forbidden
+        contains_default_icon_and_background_or_uploaded_image_ref: true
+    encrypted_billing_profile:
+      type: client_ciphertext
+      nullable: true
+      constraints: {plaintext_private_content: forbidden}
+
+  TeamProfileImage:
+    mode:
+      type: enum
+      values: [generated, uploaded]
+      required: true
+    icon_name:
+      type: string
+      nullable: true
+      constraints: {required_when_mode_generated: true, white_icon: true}
+    background_color:
+      type: design_token_or_hex_color
+      nullable: true
+      constraints: {required_when_mode_generated: true}
+    image_url:
+      type: authenticated_media_url
+      nullable: true
+      constraints: {required_when_mode_uploaded: true, raw_upload_private: true}
+    content_safety_status:
+      type: enum_or_null
+      values: [pending, accepted, rejected]
+
+  TeamMembership:
+    role:
+      type: enum
+      values: [owner, admin, member, viewer]
+      required: true
+    status:
+      type: enum
+      values: [active, invited, left, removed]
+      required: true
+    permission_state:
+      type: derived_permission_summary
+      required: true
+      constraints: {must_match_role_and_status: true}
+
+  TeamInvite:
+    invite_id:
+      type: stable_id
+      required: true
+    role:
+      type: enum
+      values: [admin, member, viewer]
+      required: true
+    encrypted_invite_team_key:
+      type: client_ciphertext_or_null
+      nullable: true
+      constraints: {raw_team_key: forbidden, fragment_secret_server_storage: forbidden}
+    invite_key_kdf_context:
+      type: public_kdf_context_or_null
+      nullable: true
+    status:
+      type: enum
+      values: [pending, access_requested, accepted, declined, revoked, expired]
+      required: true
+
+  TeamActiveContext:
+    selected_context:
+      type: enum
+      values: [personal, team]
+      required: true
+    team_id:
+      type: stable_id_or_null
+      nullable: true
+      constraints: {required_when_selected_context_team: true}
+    persistence_scope:
+      type: enum
+      values: [device_local]
+      required: true
+    resource_scope:
+      type: enum
+      values: [full_switch]
+      required: true
+
+  TeamConnectedAccount:
+    owner_context:
+      type: enum
+      values: [team]
+      required: true
+    team_id:
+      type: stable_id
+      required: true
+    encrypted_credentials:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_provider_secret: forbidden, personal_credential_fallback: forbidden}
+    encrypted_display_metadata:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_private_content: forbidden}
+    management_roles:
+      type: enum_list
+      values: [owner, admin]
+      required: true
+    usage_roles:
+      type: enum_list
+      values: [owner, admin, member, viewer]
+      required: true
+      constraints: {viewer_mutation_or_ai_trigger: forbidden}
+
+  TeamChatProcessingBoundary:
+    ordinary_message_transport:
+      type: enum
+      values: [client_ciphertext_only]
+      required: true
+    ai_trigger:
+      type: literal
+      value: '@openmates'
+      required: true
+    inference_history_scope:
+      type: enum
+      values: [full_current_chat_history]
+      required: true
+    inference_cache_refresh:
+      type: enum
+      values: [only_on_openmates_mention]
+      required: true
+    ordinary_message_processing:
+      type: enum_list
+      values: [no_preprocessing, no_postprocessing, no_title_extraction, no_memory_lookup, no_connected_account_lookup, no_ai_billing]
+      required: true
+
+  TeamMemberMention:
+    recipient:
+      type: active_team_member_id
+      required: true
+    message_content:
+      type: client_ciphertext
+      required: true
+      constraints: {plaintext_server_delivery: forbidden, plaintext_email_delivery: forbidden}
+    notifications:
+      type: enum_list
+      values: [in_app, email_default_on]
+      required: true
+
+assertions:
+  - id: teams.lifecycle.encrypted-profiled
+    title: Team lifecycle data remains encrypted
+    chapter_id: team-creation-profile
+    type: privacy
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.team-lifecycle]
+    must: Team lifecycle mutations persist encrypted display metadata, encrypted billing/profile-image metadata, and wrapped team-key material; generated profile defaults and uploaded image refs survive list/show/update without exposing plaintext private fields or raw keys to durable server storage.
+    depends_on: [models.TeamRecord, models.TeamProfileImage, examples.team_lifecycle_profile]
+  - id: teams.profile-image.safe-parity
+    title: Team profile images use the standard safe-image pipeline
+    chapter_id: team-creation-profile
+    type: security
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.team-profile-image]
+    must: REST/API, CLI, npm SDK, pip SDK, and web support generated team profile defaults and uploaded team profile images with the same processing, content-safety, storage, authenticated retrieval, rejection, and account-safety consequences as user profile images where that surface can upload media.
+    depends_on: [models.TeamProfileImage, examples.team_profile_images, applies_to]
+  - id: teams.membership.role-gated
+    title: Team permissions are role-gated
+    chapter_id: membership-invitations
+    type: security
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.membership-permissions]
+    must: Owner, admin, member, and viewer permissions are derived from active membership status and enforced consistently for team management, billing, export/import, workspace writes, AI-triggering actions, and read-only viewer access; unauthorized operations fail visibly before returning or mutating team-scoped rows.
+    depends_on: [models.TeamMembership, examples.team_membership_permissions]
+  - id: teams.invites.fragment-key-web-flow
+    title: Invite links preserve the encrypted Team-key boundary
+    chapter_id: membership-invitations
+    type: behavior
+    importance: required
+    project_surface_ids: [rest_api, web]
+    check_obligation_ids: [check.invite-fragment-flow]
+    must: Invite links containing fragment secrets can be opened in web, survive login/signup handoff without sending the fragment secret to the server, unwrap or submit encrypted team-key material client-side, and resolve to pending approval, joined, declined, expired, or forbidden states without leaking recipient existence or raw team keys.
+    depends_on: [models.TeamInvite, examples.team_invites]
+  - id: teams.context.full-switch-local
+    title: Personal and Team context never mix
+    chapter_id: active-context-resources
+    type: invariant
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.active-context-isolation]
+    must: Active team context is device-local per client and resolves every supported chat, billing and usage, task, plan, project, workflow, memory, connected-account, home/welcome resume-card, and new-resource operation to exactly Personal or one Team; web must replace every active-context collection without mixing or retaining stale Personal or other-Team rows, including the sidebar and "Continue where you left off" cards, and switching one client must not switch another client.
+    depends_on: [models.TeamActiveContext, examples.team_context_switching]
+  - id: teams.connected-accounts.team-owned-isolation
+    title: Connected accounts are owned and isolated by the Team
+    chapter_id: active-context-resources
+    type: security
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.connected-account-isolation]
+    must: Team context lists and uses only connected accounts owned by the selected Team; encrypted team credential bundles and provider token brokerage remain team-scoped, owner/admin management is role-gated, members receive only approved capabilities, viewers remain read-only, and no request may list, copy, import, decrypt, broker, or fall back to a member's Personal connected account.
+    depends_on: [models.TeamConnectedAccount, examples.team_connected_accounts]
+  - id: teams.collaboration.realtime-team-sync
+    title: Team collaboration synchronizes in realtime
+    chapter_id: collaboration-chat
+    type: behavior
+    importance: required
+    project_surface_ids: [rest_api, web]
+    check_obligation_ids: [check.realtime-team-sync]
+    must: Active members in the same Team receive newly created team chats, human messages with sender attribution, AI processing state, and completed AI responses through authorized realtime sync without refresh; Personal clients, other Teams, viewers attempting writes, and removed members receive no unauthorized team mutation or plaintext.
+    depends_on: [models.TeamMembership, models.TeamActiveContext, examples.team_realtime_collaboration]
+  - id: teams.chat.encrypted-until-invoked
+    title: Team chats remain encrypted until OpenMates is invoked
+    chapter_id: collaboration-chat
+    type: privacy
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.team-chat-privacy]
+    must: Team messages without @openmates are encrypted client-side before transmission and remain ciphertext-only through storage and realtime sync; the server performs no plaintext sanitization, extraction, preprocessing, postprocessing, title generation, memory or connected-account lookup, or AI billing. An @openmates turn explicitly sends the full current chat history to transient inference cache and processing, and ordinary follow-up messages do not refresh that cache until a later @openmates turn replaces it with the then-current full history.
+    depends_on: [models.TeamChatProcessingBoundary, examples.team_chat_privacy]
+  - id: teams.chat.member-mentions-notify
+    title: Member mentions notify without exposing message content
+    chapter_id: collaboration-chat
+    type: behavior
+    importance: required
+    project_surface_ids: [rest_api, web]
+    check_obligation_ids: [check.member-mentions]
+    must: Mentioning an active team member username resolves to an authorized recipient identity without exposing message plaintext and sends both an in-app notification and a default-on email notification; notification payloads, email, logs, and traces contain no message plaintext or private chat content, removed/non-members receive nothing, and member mentions do not trigger AI unless @openmates is also present.
+    depends_on: [models.TeamMemberMention, examples.team_member_mentions]
+  - id: teams.chat.sender-identity-layout
+    title: Human and assistant identities remain visually distinct
+    chapter_id: collaboration-chat
+    type: behavior
+    importance: required
+    project_surface_ids: [web]
+    check_obligation_ids: [check.sender-layout]
+    must: In team chats the current user's messages retain the normal right-side layout without a profile image; other human members render on the left with their username and profile image but no AI badge; assistant messages render on the left with the existing assistant identity and AI indicator; missing human profile images use the standard non-AI fallback.
+    depends_on: [examples.team_sender_layout]
+  - id: teams.chat-billing.team-credit-boundary
+    title: AI requests charge only Team credits
+    chapter_id: collaboration-chat
+    type: invariant
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web]
+    check_obligation_ids: [check.team-chat-billing]
+    must: Team chat AI requests require explicit @openmates mention, include the full current chat history with per-human sender attribution, charge only the selected team's credit balance, never charge personal credits, publish processing and completed response state to active team members in realtime, and fail with visible insufficient-team-credit or viewer-read-only states before AI execution when the selected Team cannot pay or mutate.
+    depends_on: [examples.team_chat_billing, examples.team_chat_privacy]
+  - id: teams.workspace.surface-parity
+    title: Supported surfaces preserve equivalent Team behavior
+    chapter_id: cross-surface-guarantees
+    type: parity
+    importance: required
+    project_surface_ids: [rest_api, cli, sdk_npm, sdk_pip, web, apple]
+    check_obligation_ids: [check.team-surface-parity]
+    must: REST/API, WebSocket sync, CLI, npm SDK, pip SDK, and web preserve the same team lifecycle, profile-image, invite, role, billing, active-context, realtime collaboration, chat, task, plan, project, workflow, memory, connected-account, export/import, and visible-failure semantics for every Teams operation that surface implements; web management exists only under Settings with context switching in the user profile menu and no Teams workspace route or navigation tab; unsupported Apple Teams behavior remains deferred until web/user-confirmation gates are complete.
+    depends_on: [models, examples, applies_to]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Authenticated first-party and approved SDK/CLI Teams routes own canonical team metadata storage, membership authorization, upload safety, invite state, billing subject scoping, and encrypted artifact boundaries.
+  cli:
+    required: true
+    parity: semantic
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false}
+    exceptions:
+      - id: apple-teams-after-web-confirmation
+        implementation: apple
+        reason: Teams V1 requires REST/API, CLI, SDK, web, visual-smoke, and user confirmation before Apple parity starts.
+        equivalent_outcome: Apple must follow the same encrypted team, profile-image, invite, billing, and active-context contract when native Teams surfaces are implemented.
+
+examples:
+  file: examples.yml
+  required_groups:
+    - team_lifecycle_profile
+    - team_profile_images
+    - team_membership_permissions
+    - team_invites
+    - team_context_switching
+    - team_connected_accounts
+    - team_realtime_collaboration
+    - team_chat_privacy
+    - team_member_mentions
+    - team_sender_layout
+    - team_chat_billing
+    - team_surface_parity
+    - specification_structure

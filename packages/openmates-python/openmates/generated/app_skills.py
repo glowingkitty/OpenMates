@@ -13,6 +13,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'ai',
   'description': 'Run this OpenMates app skill.',
   'description_key': 'ai.ask.description',
+  'output_schema': {'properties': {'answer': {'type': 'string'},
+                                   'conversation': {'type': 'string'}},
+                    'type': 'object'},
   'schema': {'properties': {'conversation': {'description': 'Optional run-local conversation name '
                                                             'for retaining previous Workflow AI '
                                                             'context in the same run.',
@@ -118,22 +121,29 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                                                                                         'preserved '
                                                                                         'in the '
                                                                                         'result.'},
-                                                                  'model': {'default': 'eleven_multilingual_v2',
+                                                                  'model': {'default': 'eleven_v3',
                                                                             'description': 'ElevenLabs '
                                                                                            'TTS '
                                                                                            'model. '
-                                                                                           'Multilingual '
-                                                                                           'v2 is '
+                                                                                           'Eleven '
+                                                                                           'v3 is '
                                                                                            'the '
-                                                                                           'higher-quality '
+                                                                                           'highest-quality '
                                                                                            'default; '
+                                                                                           'Multilingual '
+                                                                                           'v2 '
+                                                                                           'provides '
+                                                                                           'stable '
+                                                                                           'long-form '
+                                                                                           'speech '
+                                                                                           'and '
                                                                                            'Flash '
                                                                                            'v2.5 '
                                                                                            'is the '
                                                                                            'lower-cost '
-                                                                                           'explicit '
                                                                                            'option.',
-                                                                            'enum': ['eleven_multilingual_v2',
+                                                                            'enum': ['eleven_v3',
+                                                                                     'eleven_multilingual_v2',
                                                                                      'eleven_flash_v2_5'],
                                                                             'type': 'string'},
                                                                   'output_format': {'default': 'mp3_44100_128',
@@ -221,6 +231,11 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'use for private companies, investment advice, stock-price forecasts, portfolio '
                  'decisions, or discovering companies by broad category.',
   'description_key': 'app_skills.business.company_financials.description',
+  'output_schema': {'properties': {'provider': {'type': 'string'},
+                                   'result_count': {'type': 'integer'},
+                                   'results': {'type': 'array'},
+                                   'summary': {'type': 'string'}},
+                    'type': 'object'},
   'schema': {'properties': {'companies': {'description': 'Explicit public companies to look up by '
                                                          'ticker, CIK, or exact company name. Do '
                                                          'not pass broad categories such as "egg '
@@ -346,6 +361,180 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'skill_id': 'get_docs',
   'skill_method_py': 'get_docs',
   'skill_method_ts': 'getDocs'},
+ {'app_id': 'code',
+  'app_namespace_py': 'code',
+  'app_namespace_ts': 'code',
+  'description': 'Run code in an isolated E2B sandbox. When running code the assistant is creating '
+                 'in this same turn, pass the source through files[].code plus entry_path; do not '
+                 'invent a target_embed_id from a filename. Use target_embed_id only for an '
+                 'existing chat code embed. Ask the user before running unmodified user-supplied '
+                 'code or after the initial run plus two unprompted reruns. The sandbox installs '
+                 'supported dependency manifests, executes the selected file, streams terminal '
+                 'status, and returns safe artif',
+  'description_key': 'app_skills.code.run.description',
+  'output_schema': {'properties': {'results': {'items': {'properties': {'credits_per_minute': {'type': 'integer'},
+                                                                        'execution_id': {'type': 'string'},
+                                                                        'files': {'items': {'type': 'string'},
+                                                                                  'type': 'array'},
+                                                                        'final': {'description': 'Final '
+                                                                                                 'status '
+                                                                                                 'fetched '
+                                                                                                 'from '
+                                                                                                 'status_path '
+                                                                                                 'by '
+                                                                                                 'SDK '
+                                                                                                 'helpers. '
+                                                                                                 'Direct '
+                                                                                                 'runs '
+                                                                                                 'remain '
+                                                                                                 'transient.',
+                                                                                  'properties': {'artifacts': {'items': {'properties': {'asset_id': {'type': 'string'},
+                                                                                                                                        'download_url': {'type': 'string'},
+                                                                                                                                        'file_id': {'type': 'string'},
+                                                                                                                                        'kind': {'type': 'string'},
+                                                                                                                                        'mime_type': {'type': 'string'},
+                                                                                                                                        'normalized_path': {'type': 'string'},
+                                                                                                                                        'path': {'type': 'string'},
+                                                                                                                                        'size_bytes': {'type': 'integer'},
+                                                                                                                                        'status': {'type': 'string'},
+                                                                                                                                        'variant': {'type': 'string'},
+                                                                                                                                        'version': {'type': 'integer'}},
+                                                                                                                         'type': 'object'},
+                                                                                                               'type': 'array'},
+                                                                                                 'charged_credits': {'type': 'integer'},
+                                                                                                 'charged_minutes': {'type': 'integer'},
+                                                                                                 'duration_seconds': {'type': 'number'},
+                                                                                                 'error': {'type': 'string'},
+                                                                                                 'exit_code': {'type': 'integer'},
+                                                                                                 'output': {'type': 'string'},
+                                                                                                 'skipped_artifacts': {'items': {'properties': {'normalized_path': {'type': 'string'},
+                                                                                                                                                'path': {'type': 'string'},
+                                                                                                                                                'reason': {'type': 'string'}},
+                                                                                                                                 'type': 'object'},
+                                                                                                                       'type': 'array'},
+                                                                                                 'status': {'type': 'string'}},
+                                                                                  'type': 'object'},
+                                                                        'persisted_output': {'type': 'boolean'},
+                                                                        'status': {'type': 'string'},
+                                                                        'status_path': {'type': 'string'},
+                                                                        'stream_path': {'type': 'string'},
+                                                                        'target_filename': {'type': 'string'}},
+                                                         'type': 'object'},
+                                               'type': 'array'}},
+                    'type': 'object'},
+  'schema': {'properties': {'requests': {'description': 'Array of direct or chat-bound Code Run '
+                                                        'requests for the custom REST/SDK route.',
+                                         'items': {'properties': {'chat_id': {'description': 'Chat '
+                                                                                             'ID '
+                                                                                             'for '
+                                                                                             'chat-bound '
+                                                                                             'runs.',
+                                                                              'type': 'string'},
+                                                                  'dependency_installs': {'description': 'Optional '
+                                                                                                         'explicit '
+                                                                                                         'dependency '
+                                                                                                         'installs.',
+                                                                                          'items': {'properties': {'ecosystem': {'enum': ['python',
+                                                                                                                                          'npm'],
+                                                                                                                                 'type': 'string'},
+                                                                                                                   'packages': {'items': {'type': 'string'},
+                                                                                                                                'type': 'array'}},
+                                                                                                    'required': ['ecosystem',
+                                                                                                                 'packages'],
+                                                                                                    'type': 'object'},
+                                                                                          'maxItems': 20,
+                                                                                          'type': 'array'},
+                                                                  'enable_internet': {'default': True,
+                                                                                      'description': 'Allow '
+                                                                                                     'outbound '
+                                                                                                     'internet '
+                                                                                                     'access '
+                                                                                                     'from '
+                                                                                                     'the '
+                                                                                                     'E2B '
+                                                                                                     'sandbox.',
+                                                                                      'type': 'boolean'},
+                                                                  'entry_path': {'description': 'Entrypoint '
+                                                                                                'file '
+                                                                                                'path '
+                                                                                                'for '
+                                                                                                'direct '
+                                                                                                'runs.',
+                                                                                 'type': 'string'},
+                                                                  'files': {'description': 'Direct-run '
+                                                                                           'files '
+                                                                                           'with '
+                                                                                           'base64-encoded '
+                                                                                           'content. '
+                                                                                           'The '
+                                                                                           'backend '
+                                                                                           'never '
+                                                                                           'fetches '
+                                                                                           'local '
+                                                                                           'paths '
+                                                                                           'or '
+                                                                                           'URLs.',
+                                                                            'items': {'properties': {'content_base64': {'type': 'string'},
+                                                                                                     'is_target': {'default': False,
+                                                                                                                   'type': 'boolean'},
+                                                                                                     'language': {'type': 'string'},
+                                                                                                     'mime_type': {'default': 'text/plain',
+                                                                                                                   'type': 'string'},
+                                                                                                     'path': {'type': 'string'}},
+                                                                                      'required': ['path',
+                                                                                                   'content_base64'],
+                                                                                      'type': 'object'},
+                                                                            'maxItems': 50,
+                                                                            'type': 'array'},
+                                                                  'mode': {'default': 'direct',
+                                                                           'description': 'Direct '
+                                                                                          'runs '
+                                                                                          'use '
+                                                                                          'caller-supplied '
+                                                                                          'files '
+                                                                                          'and '
+                                                                                          'stay '
+                                                                                          'transient; '
+                                                                                          'chat_bound '
+                                                                                          'runs '
+                                                                                          'use a '
+                                                                                          'chat/embed '
+                                                                                          'target '
+                                                                                          'and '
+                                                                                          'persist '
+                                                                                          'encrypted '
+                                                                                          'output.',
+                                                                           'enum': ['direct',
+                                                                                    'chat_bound'],
+                                                                           'type': 'string'},
+                                                                  'selected_embed_ids': {'description': 'Optional '
+                                                                                                        'related '
+                                                                                                        'embed '
+                                                                                                        'IDs '
+                                                                                                        'to '
+                                                                                                        'include '
+                                                                                                        'in '
+                                                                                                        'chat-bound '
+                                                                                                        'runs.',
+                                                                                         'items': {'type': 'string'},
+                                                                                         'type': 'array'},
+                                                                  'target_embed_id': {'description': 'Target '
+                                                                                                     'code '
+                                                                                                     'embed '
+                                                                                                     'ID '
+                                                                                                     'for '
+                                                                                                     'chat-bound '
+                                                                                                     'runs.',
+                                                                                      'type': 'string'}},
+                                                   'type': 'object'},
+                                         'maxItems': 10,
+                                         'minItems': 1,
+                                         'type': 'array'}},
+             'required': ['requests'],
+             'type': 'object'},
+  'skill_id': 'run',
+  'skill_method_py': 'run',
+  'skill_method_ts': 'run'},
  {'app_id': 'code',
   'app_namespace_py': 'code',
   'app_namespace_ts': 'code',
@@ -681,6 +870,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'events), Berlin Philharmonic (classical concerts in Berlin), and official event '
                  'schedules for GPN24, 39C3, 38C3',
   'description_key': 'events.search.description',
+  'output_schema': {'properties': {'result_count': {'type': 'integer'},
+                                   'summary': {'type': 'string'}},
+                    'type': 'object'},
   'schema': {'properties': {'provider': {'description': "The event provider to use. 'auto' "
                                                         '(default) queries all providers in '
                                                         'parallel for best coverage. Use specific '
@@ -2532,6 +2724,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'app_namespace_ts': 'news',
   'description': 'Search for news articles, current events, headlines, announcements.',
   'description_key': 'news.search.description',
+  'output_schema': {'properties': {'result_count': {'type': 'integer'},
+                                   'summary': {'type': 'string'}},
+                    'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
                                                         'requests). \n'
@@ -5197,6 +5392,10 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
                  'for weather questions, forecast requests, and trip/day planning involving '
                  'weather.',
   'description_key': 'apps.weather.forecast.description',
+  'output_schema': {'properties': {'max_temperature_c': {'type': 'number'},
+                                   'rain_probability': {'type': 'number'},
+                                   'summary': {'type': 'string'}},
+                    'type': 'object'},
   'schema': {'properties': {'days': {'default': 7,
                                      'description': 'Number of forecast days to return. Defaults '
                                                     'to 7. Maximum 14.',
@@ -5269,6 +5468,9 @@ APP_SKILL_METADATA = [{'app_id': 'ai',
   'description': 'General web search for current information, prices, weather, facts, stocks, '
                  'sports scores, etc. Use as a fallback when no specialized skill applies.',
   'description_key': 'app_skills.web.search.description',
+  'output_schema': {'properties': {'result_count': {'type': 'integer'},
+                                   'summary': {'type': 'string'}},
+                    'type': 'object'},
   'schema': {'properties': {'requests': {'description': 'REQUIRED: Array of search request objects '
                                                         'for parallel processing (up to 5 '
                                                         'requests). \n'
@@ -5733,6 +5935,14 @@ class CodeAppSkills:
         Skill: code/remove_secrets
         """
         return self._run_skill("code", "remove_secrets", input_data, prompt_injection_protection=prompt_injection_protection)
+
+    def run(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
+        """Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif
+
+        Description key: app_skills.code.run.description
+        Skill: code/run
+        """
+        return self._run_skill("code", "run", input_data, prompt_injection_protection=prompt_injection_protection)
 
     def search_repos(self, input_data: dict[str, Any], *, prompt_injection_protection: bool | None = None) -> dict[str, Any]:
         """Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.

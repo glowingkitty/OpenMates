@@ -1,0 +1,110 @@
+schema_version: 1
+id: feature.newsletter-campaigns
+version: 1
+status: draft
+title: Newsletter Campaign Automation
+summary: >
+  OpenMates internal automation creates localized newsletter campaigns from
+  deterministic sources, gives the administrator a review and correction
+  window, and delivers each approved campaign once to eligible subscribers.
+
+scope:
+  includes:
+    - Internal campaign creation, preview, correction, cancellation, scheduling, and delivery.
+    - Deterministic biweekly OpenMates events newsletters sourced from a versioned event registry.
+    - Localized exported header and event-card images with accessible HTML event details.
+    - Category-gated, resumable, recipient-idempotent delivery through the existing email provider.
+  excludes:
+    - Public or developer access to campaign administration and subscriber lists.
+    - Automated event-image, social-image, social-post, or video-clip rendering and publishing.
+    - Event presentation preparation, recording, and readiness work outside newsletter delivery.
+    - Third-party email-provider dashboards and analytics beyond delivery safety records.
+
+models:
+  NewsletterCampaign:
+    slug:
+      type: stable_campaign_key
+      required: true
+      constraints: {recipient_delivery_idempotency_key: true}
+    status:
+      type: campaign_status
+      required: true
+      constraints: {allowed: [draft, scheduled, sending, sent, failed, cancelled]}
+    body_markdown:
+      type: localized_markdown_map
+      required: true
+      constraints: {required_languages: [en, de]}
+    scheduled_for:
+      type: timestamp
+      nullable: true
+    payload_hash:
+      type: sha256
+      required: true
+      constraints: {material_change_invalidates_review: true}
+  EventNewsletterEntry:
+    event_window:
+      type: event_time_range
+      required: true
+      constraints: {timezone_required: true}
+    localized_content:
+      type: localized_event_content
+      required: true
+      constraints: {required_languages: [en, de]}
+    links:
+      type: event_link_set
+      required: true
+      constraints: {luma_url_required: true, openmates_url_optional: true}
+    exported_assets:
+      type: localized_asset_set
+      nullable: true
+      constraints: {accessible_alt_text_required_when_present: true}
+
+assertions:
+  - id: newsletter.campaign.deterministic-event-window
+    type: behavior
+    must: A biweekly events-newsletter run selects published registry entries whose start times fall within the next four weeks, excludes past or out-of-window events, produces stable input-derived campaign identity, and does not create a duplicate campaign for the same cadence window and unchanged inputs.
+    depends_on: [models.EventNewsletterEntry, models.NewsletterCampaign.slug, examples.event_selection]
+  - id: newsletter.campaign.review-window
+    type: invariant
+    must: An events campaign sends English and German admin previews before scheduling, waits 24 hours after the latest successful preview before automatic delivery, allows explicit cancellation or send-now, and treats every material content, event, link, or image change as a new payload that cancels the prior schedule, sends replacement previews, and restarts the full review window.
+    depends_on: [models.NewsletterCampaign, examples.review_window]
+  - id: newsletter.campaign.event-link-fallback
+    type: failure
+    must: Each event links to its production OpenMates event page only when that exact page is confirmed live; otherwise it links to the registry Luma URL, and a missing usable destination blocks preview and delivery rather than producing a broken link.
+    depends_on: [models.EventNewsletterEntry.links, examples.link_fallback]
+  - id: newsletter.campaign.accessible-event-layout
+    type: behavior
+    must: The events newsletter may use localized exported images for the red header and event cards, but every image has meaningful localized alt text and all event title, summary, date, time, timezone, location or online venue, and destination link remain available as real email HTML text; unresolved required assets block preview instead of silently degrading.
+    depends_on: [models.EventNewsletterEntry.exported_assets, examples.accessible_layout]
+  - id: newsletter.campaign.eligible-idempotent-delivery
+    type: privacy
+    must: A campaign is delivered at most once per campaign and subscriber only to confirmed subscribers whose canonical campaign category is enabled; recipient identity remains encrypted or hashed at rest, ignored recipients are excluded, and a partial failure can resume without resending successful deliveries.
+    depends_on: [models.NewsletterCampaign.slug, examples.delivery_safety]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Campaign administration is excluded from public and developer REST APIs.
+  cli:
+    required: false
+    role: Campaign administration is not exposed through the user-facing OpenMates CLI.
+  sdks:
+    required: false
+    role: Campaign administration is not exposed through public SDK facades.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: false
+    role: No public campaign-management GUI is required.
+    implementations:
+      web: {required: false}
+      apple: {required: false}
+    exceptions: []
+  internal_admin:
+    required: true
+    role: Campaign operations require approved admin authentication; subscriber lists and plaintext recipient addresses are never exposed through public or developer surfaces.
+
+examples:
+  file: examples.yml
+  required_groups: [event_selection, review_window, link_fallback, accessible_layout, delivery_safety]

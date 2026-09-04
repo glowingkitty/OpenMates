@@ -1,0 +1,23 @@
+# Durable authoritative deletion fence for every regional object generation.
+# Tombstones deliberately contain no user relation so account/resource deletion
+# cannot cascade away unfinished purge work. Only safe routing and retry state is
+# persisted; private plaintext and encryption keys are forbidden.
+storage_deletion_tombstones:
+  type: collection
+  note: "Internal authoritative regional object deletion tombstones"
+  fields:
+    id: {type: uuid, primary: true}
+    idempotency_key: {type: string, length: 64, required: true}
+    logical_bucket: {type: string, length: 64, required: true}
+    object_key: {type: text, required: true}
+    generations: {type: json, required: true}
+    generation_keys: {type: json, required: true}
+    purge_states: {type: json, required: true}
+    state: {type: string, length: 32, required: true}
+    version: {type: integer, required: true, default: 1}
+    attempts: {type: integer, required: true, default: 0}
+    last_error_code: {type: string, length: 64, nullable: true}
+    next_attempt_at: {type: datetime, nullable: true}
+    created_at: {type: datetime, required: true}
+    updated_at: {type: datetime, required: true}
+    completed_at: {type: datetime, nullable: true}

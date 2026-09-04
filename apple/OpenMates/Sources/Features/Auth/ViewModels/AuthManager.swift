@@ -230,10 +230,15 @@ final class AuthManager: ObservableObject {
             deviceInfo: makeDeviceInfo()
         )
 
+        NativeDiagnostics.info("phase=passwordLogin.request", category: "auth")
         let response: LoginResponse = try await api.request(.post, path: "/v1/auth/login", body: request)
-        print("[Auth] Password login response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)")
+        NativeDiagnostics.info(
+            "phase=passwordLogin.response success=\(response.success) tfaRequired=\(response.tfaRequired == true) hasUser=\(response.user != nil) needsDeviceVerification=\(response.needsDeviceVerification == true)",
+            category: "auth"
+        )
 
         if response.tfaRequired == true, tfaCode == nil {
+            NativeDiagnostics.info("phase=passwordLogin.awaitingTFA", category: "auth")
             throw AuthError.tfaRequired
         }
 
@@ -244,6 +249,7 @@ final class AuthManager: ObservableObject {
         }
 
         if response.success, response.user != nil {
+            NativeDiagnostics.info("phase=passwordLogin.unwrapMasterKey", category: "auth")
             try await handleSuccessfulLogin(response: response, password: password)
             return
         }
@@ -392,6 +398,7 @@ final class AuthManager: ObservableObject {
     // MARK: - Logout
 
     func logout() async {
+        await PushNotificationManager.shared.unregisterCurrentDevice()
         do {
             let _: Data = try await api.request(.post, path: "/v1/auth/logout")
         } catch {
@@ -457,15 +464,18 @@ final class AuthManager: ObservableObject {
         let wrappingKey = try await crypto.deriveWrappingKeyFromPassword(
             password: password, salt: saltData
         )
+        NativeDiagnostics.info("phase=passwordLogin.wrappingKeyDerived", category: "auth")
         let masterKey = try await crypto.unwrapMasterKey(
             wrappedKeyBase64: encryptedKeyB64,
             ivBase64: keyIvB64,
             wrappingKey: wrappingKey
         )
+        NativeDiagnostics.info("phase=passwordLogin.masterKeyUnwrapped", category: "auth")
         try await crypto.saveMasterKey(masterKey, for: user.id)
+        NativeDiagnostics.info("phase=passwordLogin.masterKeySaved", category: "auth")
         currentUser = user
         await migrateLegacyComposerDrafts()
-        print("[Auth] Master key derived and saved to Keychain")
+        NativeDiagnostics.info("phase=passwordLogin.draftsMigrated", category: "auth")
 
         webSocketToken = response.wsToken
         cacheAuthenticatedUser(user)
@@ -476,6 +486,7 @@ final class AuthManager: ObservableObject {
         pendingEmail = nil
 
         state = .authenticated
+        NativeDiagnostics.info("phase=passwordLogin.authenticated", category: "auth")
     }
 
     private func restoreCachedSessionForStartup() async -> Bool {

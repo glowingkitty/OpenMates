@@ -220,6 +220,28 @@ def test_search_opencode_chat_filters_to_matching_messages(tmp_path: Path, monke
     assert view["messages"][0]["parts"][0]["matched"] is True
 
 
+def test_read_opencode_chat_returns_the_newest_bounded_messages_in_order(tmp_path: Path, monkeypatch) -> None:
+    database = tmp_path / "opencode.db"
+    create_opencode_fixture(database)
+    connection = sqlite3.connect(database)
+    connection.execute(
+        "INSERT INTO message VALUES (?, ?, ?, ?, ?)",
+        ("msg_root_latest", ROOT_SESSION, 1_786_000_005_000, 1_786_000_005_000, json.dumps({"role": "assistant", "agent": "build"})),
+    )
+    connection.execute(
+        "INSERT INTO part VALUES (?, ?, ?, ?, ?, ?)",
+        ("part_root_latest", "msg_root_latest", ROOT_SESSION, 1_786_000_005_000, 1_786_000_005_000, json.dumps({"type": "text", "text": "Newest progress update"})),
+    )
+    connection.commit()
+    connection.close()
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
+
+    view = sessions.read_opencode_chat(ROOT_SESSION, max_messages=2, db_path=database)
+
+    assert [message["message_id"] for message in view["messages"]] == ["msg_child_tool", "msg_root_latest"]
+    assert view["truncated"]["messages"] is True
+
+
 def test_all_signal_mode_restores_broad_text_and_tool_signals(tmp_path: Path, monkeypatch) -> None:
     database = tmp_path / "opencode.db"
     create_opencode_fixture(database)

@@ -1,0 +1,182 @@
+schema_version: 1
+specification: feature.teams@2
+
+specification_structure:
+  - id: requirements-use-canonical-assertion-ids
+    input: {chapter: membership-invitations, requirement_id: teams.membership.role-gated, ui_label: Requirements}
+    expect: {duplicate_requirement_record: false, canonical_assertion_id_preserved: true, chapter_placement_visible: true}
+  - id: flow-is-specification-owned-rich-content
+    input: {flow_id: create-team, kind: user_flow, embed_references: [], parent_contract_revision: feature.teams@2}
+    expect: {independent_flow_embed_created: false, nested_fullscreen_renderable: true, independent_share_action: false}
+  - id: edge-case-reuses-flow-rendering
+    input: {flow_id: invite-unusable, kind: edge_case, parent_flow_id: invite-member}
+    expect: {scenario_model_created: false, same_rich_content_renderer: true, parent_flow_visible: true}
+  - id: models-remain-global-and-contextual
+    input: {model_id: TeamMembership, chapter_ids: [membership-invitations, collaboration-chat]}
+    expect: {canonical_model_definitions: 1, contextual_placements: 2, copied_definition: false}
+  - id: checks-group-real-test-sources
+    input: {check_obligation_id: check.team-chat-privacy, materialization: pending, source_kinds: [integration, e2e, unit_suite]}
+    expect: {one_check_per_test_case: false, existing_sources_visible: true, check_embed_required_before_current_run_history: true}
+
+team_lifecycle_profile:
+  - id: create-team-generates-default-profile
+    input: {operation: create, name: Acme Studio, image_mode: omitted}
+    durable_state:
+      contains: [team_id, encrypted_name, encrypted_profile_image_metadata, encrypted_team_key, encrypted_zero_balance]
+      forbidden: [plaintext_name, plaintext_icon_name, plaintext_background_color, raw_team_key]
+    expect: {creator_role: owner, default_profile_metadata_decrypts_locally: true}
+  - id: update-team-name-and-profile-metadata
+    input: {operation: update, name: Acme Research, generated_icon_name: team, background_color: '#3457d5'}
+    expect: {encrypted_name_changed: true, encrypted_profile_image_metadata_changed: true, role_required: owner_or_admin}
+  - id: delete-team-clears-local-active-context
+    input: {operation: delete, active_context_team_id: team-1}
+    expect: {team_deleted: true, team_resources_unavailable: true, team_connected_account_tokens_revoked: true, active_context_after_delete: personal, personal_rows_deleted: false}
+
+team_profile_images:
+  - id: generated-avatar-is-renderable-on-every-surface
+    input: {mode: generated, icon_name: team, background_color: '#4d73ff'}
+    expect: {web_profile_overlay_visible: true, cli_json_contains_encrypted_metadata: true, sdk_plain_helper_returns_generated_profile: true}
+  - id: upload-team-image-uses-user-profile-safety-pipeline
+    input: {mode: uploaded, file_type: image/jpeg, image_size: 340x340}
+    expect: {client_crops_and_resizes: true, content_safety_scan_runs: true, authenticated_media_url_returned: true}
+  - id: rejected-team-image-matches-user-profile-policy
+    input: {mode: uploaded, safety_result: rejected}
+    expect_error: {code: image_rejected, profile_metadata_changed: false, policy_violation_count_applied: true}
+
+team_membership_permissions:
+  - id: owner-can-manage-team-and-billing
+    input: {role: owner, operation: invite_change_role_delete_buy_export}
+    expect: {allowed: true}
+  - id: admin-can-manage-without-owner-transfer-delete
+    input: {role: admin, operation: invite_change_member_role_buy_export_delete_team}
+    expect: {invite_allowed: true, role_change_allowed: true, billing_allowed: true, export_allowed: true, delete_team_allowed: false}
+  - id: member-can-write-and-use-credits
+    input: {role: member, operation: create_team_chat_send_openmates_message}
+    expect: {workspace_write_allowed: true, team_credit_charge_allowed: true, member_management_allowed: false}
+  - id: viewer-is-read-only
+    input: {role: viewer, operation: send_openmates_message_create_project_export}
+    expect_error: {code: TEAM_PERMISSION_DENIED, mutation: false, ai_triggered: false, export_created: false}
+
+team_invites:
+  - id: encrypted-invite-link-web-accept-after-login
+    input: {url: 'https://app.example/teams/invites/invite-1#key=<fragment>', auth_state: logged_out, recipient_email: bob@example.com}
+    expect:
+      login_handoff_preserves_fragment_client_side: true
+      server_receives_fragment_secret: false
+      encrypted_team_key_submitted_after_local_unwrap: true
+      final_state: pending_access_approval_or_joined
+  - id: invite-decline-visible
+    input: {operation: decline, invite_id: invite-1}
+    expect: {status: declined, team_key_cached: false}
+  - id: expired-or-wrong-recipient-fails-closed
+    input: {operation: accept, invite_status: expired, recipient_email: wrong@example.com}
+    expect_error: {code: invite_not_usable, raw_team_key_exposed: false, account_existence_leaked: false}
+
+team_context_switching:
+  - id: web-active-context-is-device-local
+    input: {web_context: team-1, cli_context_same_account: personal}
+    expect: {web_stays_team: true, cli_stays_personal: true, server_default_context_changed: false}
+  - id: team-context-filters-all-workspaces
+    input: {active_context: team-1, resources: [chats, billing, usage, tasks, plans, projects, workflows, memories, connected_accounts]}
+    expect: {only_team_1_rows_visible: true, personal_rows_visible: false, new_resource_team_scoped: true}
+  - id: personal-context-filters-out-team-workspaces
+    input: {active_context: personal, user_memberships: [team-1]}
+    expect: {personal_rows_visible: true, team_rows_visible: false, new_resource_personal: true}
+
+team_connected_accounts:
+  - id: owner-connects-team-calendar
+    input: {active_context: team-1, role: owner, operation: connect, provider: calendar}
+    expect: {owner_context: team, encrypted_credentials_team_scoped: true, personal_connection_modified: false}
+  - id: member-uses-approved-team-calendar
+    input: {active_context: team-1, role: member, operation: list_and_use, capability: calendar_read}
+    expect: {team_connection_visible: true, approved_capability_available: true, raw_provider_credentials_visible: false, personal_connections_visible: false}
+  - id: viewer-cannot-mutate-or-trigger-provider-write
+    input: {active_context: team-1, role: viewer, operation: create_calendar_event}
+    expect_error: {code: TEAM_PERMISSION_DENIED, provider_write_started: false, personal_connection_fallback: false}
+  - id: team-context-never-falls-back-to-personal-provider
+    input: {active_context: team-1, team_connections: [], member_personal_connections: [personal-calendar]}
+    expect: {connections_visible: [], personal_connections_visible: false, token_broker_called_for_personal_account: false}
+
+team_realtime_collaboration:
+  - id: joined-member-receives-new-team-chat-without-refresh
+    input: {team: team-1, actor: owner, observer: member, operation: create_chat}
+    expect: {observer_chat_list_updated_realtime: true, team_id_preserved: true, personal_clients_updated: false}
+  - id: members-exchange-attributed-messages-realtime
+    input: {team: team-1, participants: [owner, member], messages: [owner_message, member_reply]}
+    expect: {both_clients_receive_messages_without_refresh: true, sender_attribution_preserved: true, ordering_consistent: true}
+  - id: ai-response-streams-to-active-team-members
+    input: {team: team-1, actor: member, message: '@openmates summarize the discussion', team_balance: sufficient}
+    expect: {processing_state_shared: true, completed_response_shared: true, team_balance_charged: true, personal_balances_untouched: true}
+  - id: removed-member-stops-receiving-team-sync
+    input: {team: team-1, observer_status: removed, operation: create_chat_and_message}
+    expect: {observer_receives_update: false, server_access_denied: true, managed_local_cleanup_requested: true}
+
+team_chat_privacy:
+  - id: ordinary-team-message-is-ciphertext-only
+    input: {active_context: team-1, message: 'Draft the launch notes with me.', mentions: []}
+    expect: {client_encrypts_before_send: true, server_plaintext_received: false, preprocessing_started: false, postprocessing_started: false, inference_cache_updated: false, credits_charged: 0}
+  - id: first-human-message-creates-client-title
+    input: {active_context: team-1, first_message: 'Launch checklist for the Berlin event'}
+    expect: {client_title_starts_with: 'Launch checklist for the Berlin event', title_encrypted_before_send: true, server_title_extraction_started: false}
+  - id: openmates-mention-releases-full-current-history
+    input: {active_context: team-1, history: [alice_message_1, bob_message_1, alice_message_2], message: '@openmates summarize our decisions'}
+    expect: {full_current_chat_history_sent_to_inference: true, sender_attribution_preserved: true, transient_inference_cache_replaced: true, processing_started: true}
+  - id: follow-up-without-openmates-does-not-refresh-cache
+    input: {active_context: team-1, cached_history_version: 3, new_messages: [bob_message_2, alice_message_3]}
+    expect: {encrypted_sync_succeeds: true, inference_cache_version: 3, plaintext_follow_up_sent_to_server: false}
+  - id: later-openmates-mention-refreshes-full-history
+    input: {active_context: team-1, cached_history_version: 3, current_history_version: 5, message: '@openmates update the summary'}
+    expect: {full_current_chat_history_sent_to_inference: true, inference_cache_version: 5, stale_cache_replaced: true}
+  - id: team-chat-reminder-is-visible
+    input: {surface: gui.web, active_context: team-1, chat_type: team}
+    expect: {reminder_below_header_above_first_message: true, reminder_explains_openmates_mention: true}
+
+team_member_mentions:
+  - id: username-mention-sends-in-app-and-email
+    input: {team: team-1, sender: alice, message: '@bob please review this', recipient_status: active}
+    expect: {recipient_resolved_client_side: true, encrypted_message_synced: true, in_app_notification_sent: true, email_notification_sent_by_default: true, ai_triggered: false}
+  - id: notification-never-includes-message-plaintext
+    input: {team: team-1, recipient: bob, channels: [in_app, email]}
+    expect: {message_plaintext_in_payload: false, message_plaintext_in_email: false, private_chat_content_in_logs: false, safe_chat_link_present: true}
+  - id: removed-or-foreign-user-cannot-be-notified
+    input: {team: team-1, mentioned_user_status: removed_or_non_member}
+    expect: {notification_sent: false, email_sent: false, membership_error_visible: true}
+  - id: member-and-openmates-mentions-have-independent-effects
+    input: {team: team-1, message: '@bob @openmates summarize this'}
+    expect: {bob_notified: true, ai_triggered: true, full_current_history_sent_to_inference: true}
+
+team_sender_layout:
+  - id: current-user-message-stays-right-without-avatar
+    input: {viewer: alice, sender: alice, role: user}
+    expect: {side: right, profile_image_visible: false, ai_badge_visible: false}
+  - id: other-user-message-is-left-with-human-identity
+    input: {viewer: alice, sender: bob, role: user, profile_image: available}
+    expect: {side: left, username_visible: true, profile_image_visible: true, ai_badge_visible: false}
+  - id: other-user-without-image-uses-human-fallback
+    input: {viewer: alice, sender: bob, role: user, profile_image: missing}
+    expect: {side: left, username_visible: true, initials_fallback_visible: true, ai_badge_visible: false}
+  - id: assistant-remains-left-with-ai-identity
+    input: {viewer: alice, role: assistant}
+    expect: {side: left, assistant_identity_visible: true, ai_badge_visible: true}
+
+team_chat_billing:
+  - id: team-chat-message-without-mention-does-not-trigger-ai
+    input: {active_context: team-1, message: 'Please review this async.', role: member}
+    expect: {human_message_saved: true, ai_triggered: false, credits_charged: 0}
+  - id: team-chat-openmates-mention-charges-team
+    input: {active_context: team-1, message: '@openmates summarize the plan', role: member, team_balance: sufficient}
+    expect: {ai_triggered: true, sender_attribution_in_context: true, team_balance_charged: true, personal_balance_untouched: true}
+  - id: insufficient-team-credit-blocks-before-personal-charge
+    input: {active_context: team-1, message: '@openmates run this', team_balance: insufficient, personal_balance: sufficient}
+    expect_error: {code: INSUFFICIENT_TEAM_CREDITS, personal_balance_charged: false, ai_triggered: false}
+
+team_surface_parity:
+  - id: rest-cli-sdk-web-lifecycle-parity
+    input: {operation: create_list_show_update_delete_switch_personal}
+    expect: {rest_contract_first: true, cli_green_before_sdk: true, sdk_green_before_web: true, web_spec_after_deploy: true}
+  - id: web-settings-full-cli-parity
+    input: {surface: gui.web, settings_sections: [overview, create, profile_image, members, invites, access_requests, billing, usage, connected_accounts, export_import, delete]}
+    expect: {roles_and_failures_visible: true, owner_admin_actions_available: true, viewer_actions_disabled: true, top_level_teams_workspace: absent, context_switcher: user_profile_menu}
+  - id: apple-deferred-until-web-confirmed
+    input: {surface: gui.apple, web_user_confirmation: missing}
+    expect: {apple_implementation_blocked: true, stale_personal_only_assumptions_allowed: false}

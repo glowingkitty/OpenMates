@@ -1,0 +1,610 @@
+schema_version: 2
+id: selfhost-worker-update-readiness
+title: Self-Host Worker Update Readiness
+status: draft
+
+goal: >
+  Prevent self-hosted and production OpenMates core deployments from serving chat
+  traffic with stale, partially updated, or Vault/provider-unready worker
+  containers by making shared-image updates atomic, surfacing worker readiness in
+  CLI/server health, and extending self-host smoke coverage to the app worker
+  containers that process user requests.
+
+scope:
+  in:
+    - Treat all core containers that reuse the openmates-api image as one update
+      consistency group for image-mode updates and source-mode builds.
+    - Add deterministic CLI planning/status guards that detect missing core
+      workers, stale shared-image siblings, wrong/missing env, and invalid Vault
+      api.token handoff for worker containers.
+    - Add app-ai-worker readiness checks that verify the worker process can access
+      the Vault/provider material needed for preprocessing before chat failures
+      reach users.
+    - Extend the selfhost-smoke workflow so it fails when app workers are absent,
+      stopped, running the wrong image tag, or missing critical runtime env/Vault
+      readiness.
+    - Update self-host operator guidance for service-scoped updates, backend-only
+      updates, and recovery from worker readiness failures.
+    - Record the production issue 228f4e44-cc3e-4257-a026-666515223d2d as the
+      motivating incident without storing private chat contents or share keys.
+  out:
+    - Changing the public chat API, WebSocket protocol, SDK contracts, or user
+      chat encryption model.
+    - Adding a new public REST endpoint for deployment readiness.
+    - Replacing the existing provider-requirements manifest or self-host env
+      command work.
+    - Implementing automatic production rollback after a failed update.
+    - Requiring real third-party provider API keys for the generic no-key
+      self-host installation smoke test.
+    - Apple app changes; this is host-level server, CLI, CI, and backend worker
+      readiness work only.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP get_me returned 401 Bad credentials during discovery, so GitHub
+      issue search was unavailable in this environment.
+  local_issue_records:
+    - docs/findings/issues/prod/2026/228f4e44-cc3e-4257-a026-666515223d2d-chat-an-error-occured.md
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/unified-server-cli-management/plan.yml
+    - docs/plans/provider-requirements-update-preflight/plan.yml
+    - docs/self-hosting/setup.md
+    - docs/user-guide/cli/server-management.md
+    - docs/architecture/infrastructure/auto-deploy.md
+    - docs/architecture/core/servers.md
+  code_patterns:
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/api/app/tasks/health_check_tasks.py
+    - backend/core/api/app/utils/vault_token_check.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/apps/ai/llm_providers/mistral_client.py
+    - backend/apps/ai/llm_providers/openai_openrouter.py
+    - .github/workflows/selfhost-smoke.yml
+  tests:
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - backend/tests/test_vault_token_handoff.py
+    - backend/tests/test_preprocessor.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - .github/workflows/selfhost-smoke.yml
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No native Apple UI or app behavior changes; Apple clients use the same chat
+      backend after server readiness is restored.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should the first spec include both deployment guards and AI/provider readiness checks?
+      answer: >
+        Yes. The user asked to improve stability, add guards, and improve the
+        self-hosting test so this production class does not repeat.
+  vision_summary: >
+    The approved direction is guard-first: stale workers and missing worker
+    readiness must become deterministic failures in planning, status, health, or
+    CI before a user chat can hit the same outage path. The initial implementation
+    should keep public APIs unchanged and use the smallest reliable CLI/backend
+    checks plus selfhost-smoke coverage.
+  approved_by_user: false
+
+implementation_state:
+  subject_commit: 81e7c970d576e3831141e0bac1c428b108b6c787
+
+approvals:
+  specification:
+    status: pending
+  plan:
+    status: pending
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Add a dedicated Schema V2 spec instead of extending the legacy unified-server-cli-management spec.
+    reason: >
+      The existing server-management spec is broad and predates Schema V2, while
+      this incident needs a narrow resumable ledger for shared-image workers,
+      worker readiness, and selfhost-smoke guards.
+    decided_at: "2026-08-02T11:14:11Z"
+  - id: D-2
+    status: active
+    decision: Keep the no-key self-host install smoke free of real third-party provider calls.
+    reason: >
+      Self-hosting must still start without provider API keys; the smoke should
+      verify worker image/env/Vault readiness and separate provider-key absence
+      from broken worker readiness.
+    decided_at: "2026-08-02T11:14:11Z"
+  - id: D-3
+    status: active
+    decision: Treat openmates-api runtime containers as an atomic update consistency group.
+    reason: >
+      The production incident left app-ai-worker stale while api and task-worker
+      were current; any service-scoped update of one shared-image sibling can
+      recreate that failure class unless the group expands or is flagged.
+    decided_at: "2026-08-02T11:14:11Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: >
+      Re-check the production finding, CLI service lists, compose templates,
+      health-check implementation, and selfhost-smoke workflow before drafting
+      the product contract.
+    outcome: succeeded
+    recorded_at: "2026-08-02T11:14:11Z"
+    evidence: local:read-only-discovery
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Validate the draft Schema V2 spec before implementation.
+    outcome: succeeded
+    recorded_at: "2026-08-02T11:19:17Z"
+    evidence: python3 scripts/plan_validate.py docs/plans/selfhost-worker-update-readiness/plan.yml
+
+handoff:
+  current_task_id: TASK-2
+  next_action: Ask for product-contract approval before product-code implementation.
+  command: python3 scripts/plan_validate.py docs/plans/selfhost-worker-update-readiness/plan.yml
+  expected_outcome: The Schema V2 spec validates structurally and remains pending approval.
+  blocker:
+    id: product_contract_approval
+    status: pending
+    summary: Await user approval of the product contract before product-code implementation.
+  last_verified_commit: 81e7c970d576e3831141e0bac1c428b108b6c787
+
+scenarios:
+  - id: S-1
+    title: Service-scoped update cannot leave shared-image core workers stale
+    given:
+      - A core image-mode install is running api, task-worker, workflow-worker,
+        task-scheduler, app-ai-worker, and other app workers.
+      - Those containers all use ghcr.io/glowingkitty/openmates-api with the
+        current OPENMATES_IMAGE_TAG.
+    when:
+      - The operator runs openmates server update --services api,task-worker.
+    then:
+      - The dry-run and applied plan expand or explicitly fail to prevent stale
+        openmates-api siblings.
+      - The plan reports the expanded shared-image service group.
+      - The applied update recreates every running configured openmates-api
+        service in the group or fails before changing containers.
+
+  - id: S-2
+    title: Status and preflight expose shared-image drift
+    given:
+      - app-ai-worker is running an older openmates-api image digest than api.
+    when:
+      - The operator runs openmates server status --json.
+      - The operator runs openmates server preflight --json.
+    then:
+      - The output includes a machine-readable sharedImageParity status.
+      - The stale container names and expected image/tag/digest are listed.
+      - Non-json output gives an actionable command to reconcile the group.
+
+  - id: S-3
+    title: AI worker readiness catches Vault/provider breakage before chat traffic
+    given:
+      - app-ai-worker is listening on the app_ai Celery queue.
+      - Its /vault-data/api.token is missing, invalid, or lacks required policy.
+      - Or the preprocessing chain depends on Mistral/OpenRouter secrets that are
+        marked imported but absent from Vault.
+    when:
+      - Scheduled app/provider health checks run.
+      - Or the operator runs the CLI readiness/preflight check.
+    then:
+      - AI app health becomes degraded or blocked with a sanitized reason such as
+        worker_vault_token_invalid or preprocessing_provider_secret_missing.
+      - The health/readiness output does not print secret values or private chat data.
+      - Chat-facing code can use the readiness state to avoid accepting new turns
+        into a known-broken app_ai worker path in a later implementation slice.
+
+  - id: S-4
+    title: Self-host smoke fails when app workers are missing or stale
+    given:
+      - The selfhost-smoke workflow builds local image-mode images with IMAGE_TAG.
+      - The workflow installs, starts, and updates a disposable image-mode core server.
+    when:
+      - The post-update smoke checks runtime containers.
+    then:
+      - api, task-worker, workflow-worker, task-scheduler, app-ai-worker,
+        app-images-worker, app-music-worker, app-videos-worker, app-pdf-worker,
+        app-code-worker, and app-social-media-worker must be running.
+      - Each shared-image container must report ghcr.io/glowingkitty/openmates-api:IMAGE_TAG.
+      - app-ai-worker must expose the app_ai queue env and be able to read a valid
+        Vault token handoff without needing real provider API keys.
+
+  - id: S-5
+    title: Operator guidance avoids raw compose/env mistakes
+    given:
+      - An operator is recovering a stale worker on a self-host or production host.
+    when:
+      - They read self-host update docs or CLI error output.
+    then:
+      - The guidance prefers openmates server update/status/preflight over raw docker compose.
+      - Any documented raw compose fallback includes --env-file <install>/.env and
+        the correct project directory/file order.
+      - The docs explain that several worker containers reuse openmates-api and
+        must be updated together.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Core update planning includes workflow-worker and every configured runtime container that reuses the openmates-api image.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-SERVER-UNIT]
+  - id: AC-2
+    scenario: S-1
+    text: Service-scoped image-mode update expands or blocks partial updates of the openmates-api shared-image group and reports the expansion in dry-run JSON.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-SERVER-UNIT]
+  - id: AC-3
+    scenario: S-2
+    text: CLI status/preflight can detect stale shared-image siblings and identify the mismatched containers without printing secrets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-SERVER-UNIT, T-SELFHOST-SMOKE]
+  - id: AC-4
+    scenario: S-3
+    text: AI app health/readiness distinguishes worker queue presence from worker Vault token and preprocessing provider-secret readiness.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-HEALTH-UNIT]
+  - id: AC-5
+    scenario: S-3
+    text: Readiness failures are sanitized, actionable, and do not expose API keys, Vault tokens, chat text, or share keys.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-HEALTH-UNIT]
+  - id: AC-6
+    scenario: S-4
+    text: The selfhost-smoke workflow verifies all openmates-api shared-image containers after image-mode update, including app-ai-worker and workflow-worker.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-SELFHOST-SMOKE]
+  - id: AC-7
+    scenario: S-4
+    text: The selfhost-smoke workflow verifies app-ai-worker has the app_ai queue env and a valid Vault token handoff while still allowing absent real provider API keys.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-SELFHOST-SMOKE]
+  - id: AC-8
+    scenario: S-5
+    text: Self-host docs and CLI output tell operators to update shared-image workers together and include safe raw compose fallback syntax only where unavoidable.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DOCS-CLAIMS]
+
+assumptions:
+  - id: A-1
+    text: workflow-worker should be treated as part of the core openmates-api shared-image worker group.
+    category: deployment
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml
+        summary: workflow-worker inherits x-openmates-worker-base using the openmates-api image.
+      - source: backend/core/docker-compose.selfhost.yml
+        summary: workflow-worker inherits x-openmates-worker-base using the openmates-api image.
+  - id: A-2
+    text: The selfhost-smoke job can inspect Docker containers directly after starting the disposable stack.
+    category: CI
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: .github/workflows/selfhost-smoke.yml
+        summary: The existing workflow already uses docker inspect for api, webapp, and cms.
+  - id: A-3
+    text: A generic self-host install must continue to pass without real LLM provider keys.
+    category: self-hosting
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/self-hosting/setup.md
+        summary: The guide states OpenMates can start without AI provider keys and chat/model features stay unavailable until configured.
+
+contracts:
+  cli:
+    - openmates server update --dry-run --json includes sharedImageGroups and expandedSharedImageServices for core image-mode updates.
+    - openmates server status --json includes sharedImageParity for OpenMates-built image groups when Docker inspect data is available.
+    - openmates server preflight --json includes workerReadiness and sharedImageParity without secret values.
+    - Service filters remain accepted, but image-changing updates cannot silently update only one running sibling of a shared-image group.
+  backend_internal:
+    - AI worker readiness is internal-only and may be implemented as a Celery diagnostic task, health-check helper, or CLI docker-exec probe.
+    - Any backend readiness cache is internal/first-party admin surface only; no new unauthenticated public endpoint is introduced in this spec.
+    - Readiness data may include container/service names, queue names, provider ids, Vault paths, and sanitized failure codes.
+    - Readiness data must not include API key values, Vault token values, decrypted chat content, encrypted chat keys, share URL fragments, or user prompts.
+  access_model:
+    changed_endpoints: none
+    endpoint_classification: internal-only if a future implementation adds a readiness route.
+    auth: Existing CLI/local Docker access or existing admin/authenticated server-status surfaces only.
+    rate_limits: No new public rate limit; any live provider probe remains bounded by existing provider health-check intervals.
+    credit_budget: No chat credits are charged for readiness checks.
+    encrypted_data: Client-side encrypted chat, memory, file, key, sync, and share material is not accepted or returned.
+  selfhost_smoke:
+    - The no-key smoke asserts container readiness and Vault token handoff, not live third-party provider success.
+    - A separate provider-backed smoke may be added later when Vault test secrets are intentionally available.
+
+tests:
+  - id: T-CLI-SERVER-UNIT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:server
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+    assertions:
+      - planServerRuntime core default services include workflow-worker and all openmates-api worker siblings.
+      - image-mode update planning expands a partial openmates-api service selection to the full shared-image group.
+      - dry-run JSON exposes expandedSharedImageServices and stale shared-image parity diagnostics without secret values.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+  - id: T-BACKEND-HEALTH-UNIT
+    type: pytest
+    file: backend/tests/test_worker_readiness_health.py
+    command: python -m pytest backend/tests/test_worker_readiness_health.py
+    covers:
+      - AC-4
+      - AC-5
+    assertions:
+      - app_ai worker readiness reports no_worker separately from invalid Vault token.
+      - imported preprocessing provider secrets missing from Vault produce sanitized readiness failure codes.
+      - readiness output omits token values, API key values, chat text, and share-key fragments.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+  - id: T-SELFHOST-SMOKE
+    type: build
+    file: .github/workflows/selfhost-smoke.yml
+    command: gh workflow run selfhost-smoke.yml --ref dev
+    covers:
+      - AC-3
+      - AC-6
+      - AC-7
+    assertions:
+      - post-update smoke checks api, task-worker, workflow-worker, task-scheduler, and app workers that reuse openmates-api.
+      - each shared-image container reports ghcr.io/glowingkitty/openmates-api:${IMAGE_TAG} after image-mode update.
+      - app-ai-worker exposes CELERY_QUEUES=app_ai and validates /vault-data/api.token without requiring real provider keys.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+  - id: T-DOCS-CLAIMS
+    type: unit
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: cd frontend/packages/openmates-cli && npm run test:unit:server
+    covers:
+      - AC-8
+    assertions:
+      - docs mention that api and app workers share openmates-api and must update together.
+      - any raw compose fallback documented for worker recovery includes --env-file and a role-specific compose file.
+      - CLI guidance prefers openmates server update/status/preflight for normal recovery.
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {}
+
+implementation_notes:
+  plan_path: docs/plans/selfhost-worker-update-readiness/plan.yml
+  architecture: >
+    Add a shared-image service-group planner in the CLI, surface parity/readiness
+    diagnostics through existing CLI/server health surfaces, and extend CI smoke
+    to assert the disposable self-host stack is actually running all request
+    processing workers on the expected images before the smoke is considered green.
+  existing_patterns:
+    - serverPlanning.ts already centralizes role services, update plans, and compose args.
+    - server.test.ts already has doc-backed assertions for self-host server behavior.
+    - vault_token_check.py already validates Vault api.token handoff without live secrets.
+    - health_check_tasks.py already writes sanitized app/provider health data to cache.
+    - selfhost-smoke.yml already builds local image tags and inspects running containers.
+  data_flow:
+    - CLI reads runtime role/config/env and compose service metadata, derives shared-image groups, and expands image-changing update services before Docker is called.
+    - CLI status/preflight reads Docker inspect metadata and reports stale group members without secret values.
+    - Backend health/readiness probes the app_ai worker and Vault/provider-secret presence, then stores sanitized status in the existing health cache.
+    - GitHub selfhost-smoke builds images, performs image-mode update, and inspects worker containers plus Vault token handoff before web Playwright smoke.
+  affected_files:
+    - path: frontend/packages/openmates-cli/src/serverPlanning.ts
+      reason: Define and test core openmates-api shared-image service groups, including workflow-worker.
+    - path: frontend/packages/openmates-cli/src/server.ts
+      reason: Apply shared-image expansion and expose status/preflight diagnostics.
+    - path: frontend/packages/openmates-cli/tests/server.test.ts
+      reason: Add red/green unit and doc-claim coverage for service groups and operator guidance.
+    - path: backend/core/api/app/tasks/health_check_tasks.py
+      reason: Distinguish worker queue presence from worker readiness and provider/Vault readiness.
+    - path: backend/tests/test_worker_readiness_health.py
+      reason: Add focused pytest coverage for sanitized AI worker readiness states.
+    - path: .github/workflows/selfhost-smoke.yml
+      reason: Check shared-image worker containers after image-mode update.
+    - path: docs/self-hosting/setup.md
+      reason: Document shared-image update safety and recovery guidance.
+    - path: docs/user-guide/cli/server-management.md
+      reason: Update service-scoped update examples and explain shared-image expansion.
+  verification_strategy:
+    - Add failing unit tests for shared-image expansion before changing CLI behavior.
+    - Add backend readiness unit tests before adding worker readiness logic.
+    - Add selfhost-smoke worker assertions and verify syntax/unit coverage locally; full green requires GitHub Actions run.
+    - Use existing provider and Vault token tests as supporting coverage, not replacements for new readiness checks.
+  verification_order:
+    - T-CLI-SERVER-UNIT red, then CLI planner/status implementation, then T-CLI-SERVER-UNIT green.
+    - T-BACKEND-HEALTH-UNIT red, then readiness implementation, then T-BACKEND-HEALTH-UNIT green.
+    - T-DOCS-CLAIMS red/green with docs updates.
+    - T-SELFHOST-SMOKE red/green through GitHub Actions after deploy to dev.
+
+tasks:
+  - id: TASK-1
+    title: Draft and validate the worker update readiness spec
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8]
+    expected_files:
+      - docs/plans/selfhost-worker-update-readiness/plan.yml
+    verification_ids:
+      - T-CLI-SERVER-UNIT
+      - T-BACKEND-HEALTH-UNIT
+      - T-SELFHOST-SMOKE
+      - T-DOCS-CLAIMS
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/plans/selfhost-worker-update-readiness/plan.yml
+      shared_files: []
+  - id: TASK-2
+    title: Add CLI shared-image planning and parity diagnostics
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2, AC-3]
+    expected_files:
+      - frontend/packages/openmates-cli/src/serverPlanning.ts
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification_ids:
+      - T-CLI-SERVER-UNIT
+    dependencies:
+      - TASK-1
+    blockers:
+      - product_contract_approval
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/serverPlanning.ts
+        - frontend/packages/openmates-cli/src/server.ts
+        - frontend/packages/openmates-cli/tests/server.test.ts
+      shared_files: []
+  - id: TASK-3
+    title: Add AI worker Vault/provider readiness health checks
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-3]
+      acceptance_criteria: [AC-4, AC-5]
+    expected_files:
+      - backend/core/api/app/tasks/health_check_tasks.py
+      - backend/tests/test_worker_readiness_health.py
+    verification_ids:
+      - T-BACKEND-HEALTH-UNIT
+    dependencies:
+      - TASK-1
+    blockers:
+      - product_contract_approval
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/tasks/health_check_tasks.py
+        - backend/tests/test_worker_readiness_health.py
+      shared_files: []
+  - id: TASK-4
+    title: Improve selfhost-smoke worker container guard
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-4]
+      acceptance_criteria: [AC-6, AC-7]
+    expected_files:
+      - .github/workflows/selfhost-smoke.yml
+    verification_ids:
+      - T-SELFHOST-SMOKE
+    dependencies:
+      - TASK-1
+    blockers:
+      - product_contract_approval
+    follow_up_tasks: []
+    ownership:
+      files:
+        - .github/workflows/selfhost-smoke.yml
+      shared_files: []
+  - id: TASK-5
+    title: Update operator docs and doc-backed tests
+    status: pending
+    phase: awaiting_approval
+    covers:
+      scenarios: [S-5]
+      acceptance_criteria: [AC-8]
+    expected_files:
+      - docs/self-hosting/setup.md
+      - docs/user-guide/cli/server-management.md
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification_ids:
+      - T-DOCS-CLAIMS
+    dependencies:
+      - TASK-2
+      - TASK-4
+    blockers:
+      - product_contract_approval
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/self-hosting/setup.md
+        - docs/user-guide/cli/server-management.md
+        - frontend/packages/openmates-cli/tests/server.test.ts
+      shared_files: []
+
+risks:
+  - id: R-1
+    risk: Expanding service-scoped updates may surprise operators who expected only one container to restart.
+    mitigation: Dry-run and non-json output must report the expansion before applying; restart remains available for one-container process restarts.
+  - id: R-2
+    risk: Worker readiness checks that make live provider calls could add cost or false positives.
+    mitigation: The first slice verifies Vault/provider-secret readiness without requiring live third-party provider calls in generic self-host smoke.
+  - id: R-3
+    risk: Selfhost-smoke could become flaky if it requires all low-resource worker containers to stay running.
+    mitigation: Only assert containers that the generated core template starts by default and keep the check deterministic with Docker inspect and Vault token validation.
+
+open_questions:
+  - id: Q-1
+    question: Should a future implementation block new chat turns when app_ai readiness is degraded, or only surface admin/operator alerts first?
+    status: open
+  - id: Q-2
+    question: Should an explicit override exist for intentionally updating only one shared-image container during emergency debugging?
+    status: open

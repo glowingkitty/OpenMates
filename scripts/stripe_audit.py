@@ -3,6 +3,7 @@ Stripe product audit and management script.
 
 Commands:
   (no args)              — Read-only audit: list all products, compare against expected
+  --health --json        — Redacted read-only payment configuration readiness
   create-global-products — Create non-EU (global/Managed Payments) products and prices
   --sandbox              — Force sandbox API key (default: auto-detect)
   --production           — Force production API key
@@ -18,7 +19,11 @@ sys.path.insert(0, '/app')
 import stripe
 import asyncio
 import argparse
+import json
+from datetime import datetime, timezone
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.payment_readiness import StripeSdkReadOnlyGateway, collect_stripe_readiness
 
 # EU (regular Stripe) tiers — EUR only, Adaptive Pricing handles other currencies
 EU_PRICING_TIERS = [
@@ -67,6 +72,69 @@ def get_expected_global_product_names() -> set:
             total = tier["credits"] + tier["monthly_auto_top_up_extra_credits"]
             names.add(_credits_label(total) + " credits (monthly auto top-up, global)")
     return names
+
+
+async def _load_api_key(force_env: str | None) -> tuple[str | None, str]:
+    sm = SecretsManager()
+    await sm.initialize()
+    try:
+        if force_env == "production":
+            return await sm.get_secret("kv/data/providers/stripe", "production_secret_key"), "production"
+        if force_env == "sandbox":
+            return await sm.get_secret("kv/data/providers/stripe", "sandbox_secret_key"), "sandbox"
+        sandbox_key = await sm.get_secret("kv/data/providers/stripe", "sandbox_secret_key")
+        if sandbox_key:
+            return sandbox_key, "sandbox"
+        return await sm.get_secret("kv/data/providers/stripe", "production_secret_key"), "production"
+    finally:
+        await sm.aclose()
+
+
+async def _load_runtime_readiness_checks() -> dict[str, bool]:
+    cache = CacheService()
+    try:
+        client = await cache.client
+        raw = await client.get("health_check:external:stripe") if client else None
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        record = json.loads(raw) if raw else {}
+        last_check = float(record.get("last_check", 0) or 0)
+        fresh = datetime.now(timezone.utc).timestamp() - last_check <= 10 * 60
+        checks = (record.get("readiness") or {}).get("checks") if fresh else {}
+        return {
+            "routes_registered": bool((checks or {}).get("routes_registered")),
+            "workers_healthy": bool((checks or {}).get("workers_healthy")),
+            "settlements_healthy": bool((checks or {}).get("settlements_healthy")),
+        }
+    finally:
+        await cache.close()
+
+
+async def run_health(force_env: str | None, *, json_output: bool) -> int:
+    api_key, environment = await _load_api_key(force_env)
+    if not api_key:
+        result = {"status": "unavailable", "environment": environment, "failure_class": "missing_stripe_api_key"}
+        print(json.dumps(result, sort_keys=True) if json_output else "ERROR: No Stripe API key found")
+        return 1
+
+    stripe.api_key = api_key
+    checked_at = datetime.now(timezone.utc)
+    runtime_checks = await _load_runtime_readiness_checks()
+    result = collect_stripe_readiness(
+        StripeSdkReadOnlyGateway(stripe),
+        **runtime_checks,
+        now=checked_at,
+    )
+    result.update({"environment": environment, "scope": "stripe_configuration"})
+    if json_output:
+        print(json.dumps(result, sort_keys=True))
+    else:
+        print(f"Stripe configuration: {result['status']}")
+        print(f"EU card: {result['eu_card']}")
+        print(f"Managed Payments: {result['managed_payments']}")
+        print(f"Missing products: {', '.join(result['missing_products']) or 'none'}")
+        print(f"Missing events: {', '.join(result['missing_events']) or 'none'}")
+    return 0 if result["status"] == "healthy" else 1
 
 
 async def run_audit():
@@ -253,6 +321,8 @@ async def main():
                         help="Command to run (default: audit)")
     parser.add_argument("--sandbox", action="store_true", help="Force sandbox environment")
     parser.add_argument("--production", action="store_true", help="Force production environment")
+    parser.add_argument("--health", action="store_true", help="Run redacted read-only payment readiness")
+    parser.add_argument("--json", action="store_true", help="Emit machine-readable redacted output")
     args = parser.parse_args()
 
     force_env = None
@@ -261,10 +331,13 @@ async def main():
     elif args.sandbox:
         force_env = "sandbox"
 
+    if args.health:
+        return await run_health(force_env, json_output=args.json)
     if args.command == "create-global-products":
         await create_global_products(force_env=force_env)
     else:
         await run_audit()
+    return 0
 
 
-asyncio.run(main())
+raise SystemExit(asyncio.run(main()))

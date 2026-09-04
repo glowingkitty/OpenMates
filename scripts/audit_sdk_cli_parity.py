@@ -33,6 +33,7 @@ EXCLUSION_REASONS = {
     "project-support-info": "Voluntary project support information is a local/public link helper, not SDK API behavior.",
     "e2e-provisioning": "Local test-account artifact tooling stays CLI-only.",
     "local-remote-access": "Local Project source bridge commands operate on user-approved local paths and stay CLI-only.",
+    "local-work-recovery": "External cleartext YAML projection and explicit restore validation are local CLI recovery behavior.",
     "local-connected-account-setup": "Local connected-account setup supervises user-machine processes and credential prompts, so setup stays CLI-only.",
     "cli-active-context": "CLI active Personal/Team context is local convenience state; SDK callers pass explicit context instead.",
     "browser-high-risk": "Browser-only or high-risk account/security flow.",
@@ -71,6 +72,7 @@ TOP_LEVEL_CLASSIFICATION = {
     "ideabucket": "ideabucket.*",
     "finance": "finance.checkAccounts / finance.check_accounts",
     "remote-access": "local-remote-access",
+    "recovery": "local-work-recovery",
     "support": "project-support-info",
     "update": "cli-self-update",
     "upgrade": "cli-self-update",
@@ -281,7 +283,7 @@ def main() -> int:
         failures.append("Generated pip app-skill methods are missing images.generate")
     if re.search(r"\brun\s*\(", sdk_ts) and "runAppSkill" not in sdk_ts:
         failures.append("Public generic npm apps.run appears to be present")
-    if re.search(r"def run\s*\(", generated_py):
+    if re.search(r"class GeneratedAppSkills:[\s\S]*?\n    def run\s*\(", generated_py):
         failures.append("Public generic pip apps.run appears to be present")
     if re.search(r"class OpenMatesProjects[\s\S]*?async files\s*\(", sdk_ts):
         failures.append("Live Project filesystem methods must remain absent from the npm SDK")

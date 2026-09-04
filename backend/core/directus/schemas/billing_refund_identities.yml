@@ -1,0 +1,19 @@
+# Durable exactly-once identities for personal credit refunds.
+# Balance snapshots remain Vault ciphertext and user content is never stored.
+# A stable refund ID makes caller retries safe after a committed response is
+# lost between Directus, the API, and a background worker.
+billing_refund_identities:
+  type: collection
+  note: "Internal exactly-once personal billing refund identities"
+  fields:
+    id: {type: uuid, primary: true}
+    refund_id: {type: string, length: 255, required: true}
+    hashed_user_id: {type: string, length: 128, required: true}
+    app_id: {type: string, length: 100, required: true}
+    skill_id: {type: string, length: 100, required: true}
+    refunded_credits: {type: integer, required: true}
+    encrypted_balance_before: {type: text, required: true}
+    encrypted_balance_after: {type: text, required: true}
+    state: {type: string, length: 24, required: true}
+    created_at: {type: datetime, required: true}
+    committed_at: {type: datetime, required: true}

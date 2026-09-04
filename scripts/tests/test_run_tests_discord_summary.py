@@ -187,6 +187,200 @@ def test_discord_summary_payload_uses_grouped_failure_embeds(monkeypatch):
     assert captured["timeout"] == 30
 
 
+def test_daily_notifications_include_structural_cache_backfill_status_without_detail():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={"total": 1, "passed": 1, "failed": 0, "dispatch_error": 0, "timeout": 0, "result_unknown": 0, "skipped": 0, "not_started": 0},
+        suites={},
+        flags={"cache_backfill": {"status": "failed", "spec": "cache.spec.ts", "cache_group": "cache_group", "detail": "secret prompt must not be sent"}},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+
+    text = service._build_summary_text(result)
+    html = service._build_summary_html(result)
+
+    assert "Cache backfill: failed (cache.spec.ts, cache_group)" in text
+    assert "Cache backfill: failed (cache.spec.ts, cache_group)" in html
+    assert "secret prompt" not in text
+    assert "secret prompt" not in html
+
+
+def test_summary_email_prefers_direct_brevo_when_both_transports_are_configured(monkeypatch):
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    calls = []
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = "https://example.invalid/webhook"
+    service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or True
+    service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: True
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    delivered = service.send_summary_email(result)
+
+    assert delivered is True
+    assert calls == [("brevo", None)]
+    assert result.flags["email_delivered"] is True
+    assert result.flags["discord_delivered"] is True
+    assert result.flags["notification_channels"] == {
+        "email": {"configured": True, "status": "provider_accepted", "transport": "brevo"},
+        "discord": {"configured": True, "status": "provider_accepted", "transport": "webhook"},
+    }
+
+
+def test_summary_email_falls_back_to_internal_queue_when_brevo_fails():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    calls = []
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = "https://example.invalid/webhook"
+    service._send_via_internal_api = lambda endpoint, payload: calls.append(("internal", endpoint)) or True
+    service._send_via_brevo = lambda *_args: calls.append(("brevo", None)) or False
+    service._send_summary_to_discord = lambda *_args, **_kwargs: True
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    delivered = service.send_summary_email(result)
+
+    assert delivered is False
+    assert calls == [
+        ("brevo", None),
+        ("internal", "dispatch-test-summary-email"),
+    ]
+    assert result.flags["email_delivered"] is False
+    assert result.flags["notification_channels"]["email"] == {
+        "configured": True,
+        "status": "queued_unconfirmed",
+        "transport": "internal_api",
+    }
+
+
+def test_summary_email_is_delivered_when_optional_discord_is_unconfigured():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = ""
+    service._send_via_brevo = lambda *_args: True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: False
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    assert service.send_summary_email(result) is True
+    assert result.flags["email_delivered"] is True
+    assert result.flags["discord_delivered"] is False
+
+
+def test_summary_notifications_are_incomplete_when_configured_discord_fails():
+    run_tests = load_run_tests_module()
+    result = run_tests.RunResult(
+        run_id="run-1",
+        git_sha="abc123",
+        git_branch="dev",
+        environment="development",
+        duration_seconds=1,
+        summary={
+            "total": 1,
+            "passed": 1,
+            "failed": 0,
+            "dispatch_error": 0,
+            "timeout": 0,
+            "result_unknown": 0,
+            "skipped": 0,
+            "not_started": 0,
+        },
+        suites={},
+    )
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service.internal_token = "internal-token"
+    service.brevo_api_key = "brevo-key"
+    service.discord_webhook_url = "https://example.invalid/webhook"
+    service._send_via_brevo = lambda *_args: True
+    service._send_summary_to_discord = lambda *_args, **_kwargs: False
+    service.send_urgent_essential_failure_email = lambda *_args: None
+
+    assert service.send_summary_email(result) is False
+    assert result.flags["email_delivered"] is True
+    assert result.flags["discord_delivered"] is False
+
+
+def test_manual_start_email_preserves_manual_trigger_type(monkeypatch):
+    run_tests = load_run_tests_module()
+    monkeypatch.delenv("DAILY_RUN_ENVIRONMENT", raising=False)
+    payloads = []
+    service = run_tests.NotificationService.__new__(run_tests.NotificationService)
+    service.admin_email = "admin@example.invalid"
+    service._send_email = lambda _subject, _text, endpoint, payload: payloads.append((endpoint, payload)) or True
+
+    service.send_start_email("abc123", "dev", "development")
+
+    assert payloads[0][0] == "dispatch-test-start-email"
+    assert payloads[0][1]["trigger_type"] == "Manual"
+
+
 def test_daily_discord_status_reports_phase_and_elapsed_time(monkeypatch):
     run_tests = load_run_tests_module()
     captured = {}
@@ -225,6 +419,21 @@ def test_daily_discord_status_reports_phase_and_elapsed_time(monkeypatch):
     assert "**Elapsed:** 61m" in embed["description"]
     assert run_tests.DAILY_STATUS_INTERVAL_SECONDS == 30 * 60
     assert captured["timeout"] == 30
+
+
+def test_all_problem_statuses_fail_the_runner():
+    run_tests = load_run_tests_module()
+    empty = {
+        "failed": 0,
+        "dispatch_error": 0,
+        "timeout": 0,
+        "result_unknown": 0,
+        "not_started": 0,
+    }
+
+    assert run_tests._exit_code_for_summary(empty) == 0
+    for status in empty:
+        assert run_tests._exit_code_for_summary({**empty, status: 1}) == 1
 
 
 def test_daily_skip_notification_reports_no_commit_skip(monkeypatch):

@@ -91,6 +91,12 @@
     userMessageId: null, 
     aiMessageId: null 
   });
+
+  const TEST_LIVE_MOCK_MARKER_PATTERN = /<<<TEST_LIVE_MOCK:[^>]+>>>/g;
+
+  function sanitizeDraftPreview(value: string | null | undefined): string {
+    return (value ?? '').replace(TEST_LIVE_MOCK_MARKER_PATTERN, '').replace(/\s+/g, ' ').trim();
+  }
   
   // Category circle state
   let categoryIconNames: string[] = $state([]);
@@ -540,7 +546,7 @@
       if (!$authStore.isAuthenticated) {
         const sessionDraftPreview = getSessionStorageDraftPreview(currentChat.chat_id);
         if (sessionDraftPreview) {
-          draftTextContent = sessionDraftPreview;
+          draftTextContent = sanitizeDraftPreview(sessionDraftPreview);
           console.debug(`[Chat] Found sessionStorage draft preview for demo chat ${currentChat.chat_id}:`, {
             previewLength: sessionDraftPreview.length,
             preview: sessionDraftPreview.substring(0, 50)
@@ -597,7 +603,7 @@
       
       if (sessionDraftPreview) {
         // SessionStorage-only chat (new chat with draft that doesn't exist in database yet)
-        draftTextContent = sessionDraftPreview;
+        draftTextContent = sanitizeDraftPreview(sessionDraftPreview);
         console.debug('[Chat] Found sessionStorage draft preview for new chat:', {
           chatId: currentChat.chat_id,
           previewLength: sessionDraftPreview.length,
@@ -615,7 +621,7 @@
         cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
         
         if (cachedMetadata?.draftPreview) {
-          draftTextContent = cachedMetadata.draftPreview;
+          draftTextContent = sanitizeDraftPreview(cachedMetadata.draftPreview);
         } else {
           draftTextContent = '';
         }
@@ -662,7 +668,7 @@
       
       if (cachedMetadata?.draftPreview) {
         // Use the pre-computed, decrypted draft preview
-        draftTextContent = cachedMetadata.draftPreview;
+        draftTextContent = sanitizeDraftPreview(cachedMetadata.draftPreview);
         console.debug('[Chat] Using cached draft preview:', {
           chatId: currentChat.chat_id,
           previewLength: draftTextContent.length,
@@ -675,7 +681,7 @@
           const decryptedMarkdown = await decryptWithMasterKey(currentChat.encrypted_draft_md);
           if (decryptedMarkdown) {
             // Extract display text directly from markdown, replacing json_embed blocks with URLs
-            draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
+            draftTextContent = sanitizeDraftPreview(extractDisplayTextFromMarkdown(decryptedMarkdown));
             console.warn('[Chat] Using fallback full content decryption (no preview available):', {
               chatId: currentChat.chat_id,
               originalLength: decryptedMarkdown.length,
@@ -1100,7 +1106,7 @@
     return textToTruncate;
   }
 
-  let isActive = $derived(activeChatId === chat?.chat_id);
+  let isActive = $derived(activeChatId === chat?.chat_id || $activeChatStore === chat?.chat_id);
   let isSharedByOthers = $derived(!!chat?.is_shared_by_others);
   let isOwnerShared = $derived(!!chat?.is_shared && !isSharedByOthers);
   let isIdeaBucketChat = $derived(chat?.ideabucket === true);
@@ -2409,12 +2415,12 @@
     margin-bottom: 0;
   }
 
-  .chat-item-wrapper:hover {
+  .chat-item-wrapper:hover:not(.active) {
     background-color: var(--color-grey-10);
   }
 
   .chat-item-wrapper.active {
-    background-color: var(--color-grey-10);
+    background-color: var(--color-grey-0);
   }
 
   .chat-item {

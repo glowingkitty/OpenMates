@@ -1,0 +1,654 @@
+schema_version: 2
+id: task-activity-comments
+title: Task Activity Comments
+status: implementing
+
+goal: >
+  Make Activity the single final section of Task detail, with a composer at the
+  top that supports multiline text, voice, files/uploads, and normal message
+  embeds; keep Activity content and embed keys client-encrypted through the Task
+  key boundary; and preserve the approved personal, Team, CLI, SDK, OpenMates,
+  and deletion-tombstone attribution semantics across supported surfaces.
+
+scope:
+  in:
+    - Extend the existing user_task_activity collection into the canonical Task Activity store rather than introducing a parallel comment or update collection.
+    - Add first-party task-scoped list, create-comment, and delete-comment routes with owner/Team authorization, idempotent entry identities, and standard Task rate limits.
+    - Store comment text, entry-key wrappers, and embed-key material as client ciphertext while retaining only approved routing, attribution, ordering, and tombstone metadata server-side.
+    - Add account-wide and Team-aware CLI commands for listing, adding, and deleting Task Activity comments.
+    - Add semantically equivalent npm and pip SDK methods with local encryption/decryption.
+    - Add one final Activity section to Task detail with a top composer that reuses normal message input processing for multiline text, voice, uploads, and embeds.
+    - Render comments, lifecycle updates, and tombstones in one stable chronological stream with approved source-aware attribution.
+    - Add direct dev API, CLI, npm SDK, pip SDK, deployed component Playwright, visual-smoke, proof-video, and user-confirmation evidence in the mandated order.
+  out:
+    - A standalone Activity or Comments Specification, separate Updates and Comments UI sections, or a second Task history source of truth.
+    - Public unauthenticated or generic developer API access to encrypted Task Activity.
+    - Server-side plaintext comment search, server-side content decryption, notification delivery, reactions, threaded replies, or comment editing.
+    - Replacing workspace change-set history or restore APIs; those remain audit/restore infrastructure and are not rendered by default as Activity.
+    - Native Apple Task Activity implementation in this Plan; required parity is recorded for a later Apple Tasks slice.
+
+specification_refs:
+  - id: feature.tasks
+    version: 3
+    role: primary
+    fingerprint: 0cdcc592769386b514545d3e10314a26e59358d007ec2866aa12811aa5757a4b
+    path: specifications/features/tasks/specification.yml
+    assertions:
+      - tasks.content.client-encrypted
+      - tasks.activity.single-final-section
+      - tasks.activity.composer-message-parity
+      - tasks.activity.client-encrypted
+      - tasks.activity.context-attribution
+      - tasks.activity.deletion-tombstone
+      - tasks.activity.task-scoped-authorization
+      - tasks.surface.semantic-parity
+    evidence_locations:
+      - backend/tests/test_user_task_activity_api.py
+      - scripts/verify_task_activity_api_live.py
+      - scripts/verify_tasks_cli_smoke.py
+      - scripts/verify_sdk_tasks_live_smoke.mjs
+      - frontend/apps/web_app/tests/task-activity.spec.ts
+
+context_discovery:
+  github_issues:
+    - No matching task Activity/comment issue was found during the prior bounded tracker search.
+  docs:
+    - docs/plans/tasks-v1/plan.yml
+    - docs/plans/tasks-web-app-parity/plan.yml
+    - docs/contributing/guides/spec-driven-development.md
+  code_patterns:
+    - backend/core/directus/schemas/user_tasks.yml already declares user_task_activity with actor, event, timestamp, encrypted_message, and encrypted_snapshot fields.
+    - backend/core/api/app/routes/user_tasks.py already owns first-party/API-key Task routes, Team role checks, standard read/mutation rate limits, and separate workspace restore history.
+    - backend/core/api/app/services/directus/user_task_methods.py already owns owner/Team-scoped Task persistence and Task-key wrapper validation.
+    - frontend/packages/ui/src/services/userTaskService.ts already unlocks Task keys and transports encrypted Task records.
+    - frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte is the shared Task detail body and currently has no Activity section.
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte owns normal multiline, voice, upload, and embed processing behavior.
+    - frontend/packages/openmates-cli/src/tasksCli.ts, client.ts, cli.ts, and sdk.ts own current CLI/npm Task encryption and command surfaces.
+    - packages/openmates-python/openmates/sdk.py owns pip Task encryption and methods.
+  tests:
+    - backend/tests/test_user_tasks_api.py
+    - frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - packages/openmates-python/tests/test_tasks.py
+    - frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
+    - frontend/packages/ui/src/components/tasks/TaskDetailFullscreen.preview.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Tasks/TaskDetailView.swift
+    - apple/OpenMates/Sources/Core/Networking/OpenMatesAPIClient.swift
+  parity_expectations:
+    - When native Task Activity is implemented, Apple uses the same encrypted Activity API contract and Task-key boundary.
+    - Team comments authored in Apple show user name and profile image without via text; mate-authored entries show OpenMates.
+    - Apple preserves the same unified stream and deletion tombstones with native controls.
+  verification:
+    - Record Apple implementation as deferred after web user confirmation because no Apple Task source files are present in the current checkout.
+    - If Apple Task files appear or shared native networking is changed during implementation, run python3 scripts/apple_remote.py status and build-ios or a focused test-ios command last.
+  intentional_native_differences:
+    - Apple may use native recording, file-picker, context-menu, and confirmation controls while preserving equivalent inputs and outcomes.
+
+clarification:
+  rounds:
+    - question: Should Activity/comments be a standalone Specification or part of Tasks?
+      answer: Activity/comments must be part of the Task Specification.
+    - question: Should the Task Specification remain draft?
+      answer: No; approve feature.tasks@3 together with the Activity/comment requirements.
+  vision_summary: >
+    Task Activity is intrinsic Task behavior. It is one final Task-detail section,
+    not a separate product domain, and combines rich encrypted comments, visible
+    lifecycle updates, source-aware attribution, and deletion tombstones.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 75cd79c1888e6785009905fc58730edb01bcaaaa
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-03T17:46:03Z"
+    fingerprint: 0cdcc592769386b514545d3e10314a26e59358d007ec2866aa12811aa5757a4b
+  plan:
+    status: approved
+    approved_at: "2026-09-03T22:10:31Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Extend user_task_activity as the canonical Activity store; keep workspace change-set history separate.
+    reason: Current dev already has both concepts, and the approved Specification requires one user-facing Activity stream without conflating it with restore history.
+    decided_at: "2026-09-03T17:46:03Z"
+  - id: D-2
+    status: active
+    decision: Activity endpoints are first-party client surface only and accept/return ciphertext without server-side decryption.
+    reason: The endpoints handle client-side encrypted Task, entry-key, and embed-key material.
+    decided_at: "2026-09-03T17:46:03Z"
+  - id: D-3
+    status: active
+    decision: The server derives or validates source_surface from authenticated client identity instead of trusting arbitrary caller attribution.
+    reason: CLI/SDK via labels and Team attribution must not be spoofable by request content.
+    decided_at: "2026-09-03T17:46:03Z"
+  - id: D-4
+    status: active
+    decision: Reuse message-processing services and subcomponents behind a Task-specific composer adapter rather than nesting a chat-only MessageInput instance unchanged.
+    reason: Activity needs full voice/upload/embed parity but sends an encrypted Activity entry instead of a chat turn.
+    decided_at: "2026-09-03T17:46:03Z"
+  - id: D-5
+    status: active
+    decision: Delete comments logically by replacing normal rendering with immutable author/deleter tombstone metadata.
+    reason: The approved wording requires attribution after content and attachments disappear from normal rendering.
+    decided_at: "2026-09-03T17:46:03Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Discover and extend the existing Task Activity schema, Task routes, encryption clients, message composer, and focused Task detail preview rather than creating parallel product concepts.
+    outcome: planned
+    recorded_at: "2026-09-03T17:46:03Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Run the ciphertext-only Activity verifier against the currently deployed dev API before deploying the new routes.
+    outcome: failed_as_expected
+    recorded_at: "2026-09-03T22:33:47Z"
+
+risks:
+  - id: R-1
+    risk: Reusing MessageInput directly could accidentally submit a chat message or duplicate its large state machine.
+    mitigation: Extract or reuse focused processing helpers/subcomponents and prove the Task adapter never calls chat-send persistence.
+  - id: R-2
+    risk: Client-supplied actor/source metadata could spoof Team attribution.
+    mitigation: Resolve actor identity from authentication and allowlisted client headers; test spoofed fields are ignored or rejected.
+  - id: R-3
+    risk: Comment deletion could orphan uploaded files or leak decrypted previews through local state.
+    mitigation: Tombstone rendering removes content/embed references immediately and cleanup behavior is explicit and tested.
+  - id: R-4
+    risk: Existing task history consumers could confuse restore history with Activity.
+    mitigation: Use dedicated Activity endpoints and models while leaving /history and /restore semantics unchanged.
+
+scenarios:
+  - id: S-1
+    title: Personal Task receives a rich encrypted comment
+    given:
+      - Alice can mutate a personal Task and unlock its Task key locally.
+    when:
+      - Alice enters multiline text, records voice, and attaches a private file in the Activity composer.
+      - Alice sends the Activity comment after transcription and upload complete.
+    then:
+      - One idempotent comment entry appears below the composer in the final Activity section.
+      - Text and entry-key material are client ciphertext, and the uploaded embed key is decryptable through the Task key boundary.
+      - No chat message is created and no private plaintext is durably stored by the backend.
+  - id: S-2
+    title: Team attribution identifies the user and client surface
+    given:
+      - Sam can mutate a Team Task and has a profile image.
+    when:
+      - Sam comments from web, Apple, CLI, npm SDK, and pip SDK clients.
+    then:
+      - Web and Apple entries show Sam plus the profile image with no via suffix.
+      - CLI entries add via OpenMates CLI, while npm and pip entries add via OpenMates SDK.
+      - A mate-authored entry shows OpenMates and never the mate's actual name.
+  - id: S-3
+    title: Authorized deletion leaves an attributed tombstone
+    given:
+      - Activity contains comments by Sam and OpenMates.
+    when:
+      - Sam deletes an own comment and an authorized Team admin Taylor deletes another comment.
+    then:
+      - Content, attachment links, and embed previews disappear from normal rendering.
+      - Tombstones read Comment by Sam deleted by Sam, Comment by Sam deleted by Taylor, or Comment by OpenMates deleted by Sam as applicable.
+  - id: S-4
+    title: Read-only Team member cannot mutate Activity
+    given:
+      - Lee is a Team viewer who may read the Task.
+    when:
+      - Lee attempts to add or delete an Activity comment.
+    then:
+      - The API rejects the action before mutation and every client presents a visible permission failure.
+  - id: S-5
+    title: Lifecycle updates and comments share one Activity stream
+    given:
+      - A Task has blocked, comment-added, completed, and comment-deleted entries.
+    when:
+      - An authorized client lists Activity.
+    then:
+      - Entries use stable chronological ordering and idempotent identities in one stream.
+      - Workspace restore history is not rendered unless explicitly materialized as a user-facing lifecycle entry.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Activity is the final Task-detail section with its composer first and no separate Updates or Comments section.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-ACTIVITY, V-UI-VISUAL-SMOKE]
+  - id: AC-2
+    scenario: S-1
+    text: Multiline, voice, files/uploads, and normal embeds reuse message-processing behavior and cannot send before processing succeeds.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-UI-ACTIVITY-UNIT, T-PLAYWRIGHT-ACTIVITY]
+  - id: AC-3
+    scenario: S-1
+    text: Durable Activity text, entry keys, and embed keys remain ciphertext, with embed keys decryptable through the Task key and no durable private plaintext.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE]
+  - id: AC-4
+    scenario: S-2
+    text: Personal, Team app, CLI, SDK, and mate-authored entries render the approved identities, profile images, and via suffixes.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-ACTIVITY, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-PLAYWRIGHT-ACTIVITY]
+  - id: AC-5
+    scenario: S-3
+    text: Authorized deletion hides comment content and embeds while preserving the approved author/deleter tombstone wording.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-ACTIVITY, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-PLAYWRIGHT-ACTIVITY]
+  - id: AC-6
+    scenario: S-4
+    text: Activity authorization follows Task access, Team viewers cannot comment, and forbidden creates/deletes fail visibly before mutation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
+  - id: AC-7
+    scenario: S-5
+    text: Comments, lifecycle entries, and tombstones form one stable idempotent chronological stream without replacing workspace restore history.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE, T-PLAYWRIGHT-ACTIVITY]
+
+assumptions:
+  - id: A-1
+    text: The existing Task key can wrap per-entry keys and uploaded embed-key material without introducing a second Task ownership key.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: specifications/features/tasks/specification.yml
+        summary: Approved TaskActivityEncryption requires entry-key material and embed-key material to resolve through the Task key boundary.
+  - id: A-2
+    text: Existing Team roles owner, admin, member, and viewer are sufficient for Activity read/mutation authorization.
+    category: authorization
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/user_tasks.py
+        summary: Existing Task routes already distinguish Team read roles from mutation roles.
+  - id: A-3
+    text: Apple Task UI is deferred and is not available in the current checkout.
+    category: parity
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: docs/plans/tasks-web-app-parity/plan.yml
+        summary: Existing Task web parity planning records Apple Task implementation as deferred.
+
+contracts:
+  api:
+    - route: GET /v1/user-tasks/{task_id}/activity
+      access_model: first-party client surface only
+      auth: authenticated session or approved CLI/npm/pip device API key; owner or authorized Team reader
+      request: "query: team_id?, cursor?, limit?"
+      response: "{ entries: EncryptedTaskActivityEntry[], next_cursor?: string }"
+      errors: [401 unauthenticated, 403 unauthorized, 404 task missing, 429 standard read limit]
+      rate_limits: 60/minute per existing Task read conventions
+      credit_budget: no credits
+      encryption_boundary: Returns ciphertext and safe metadata only; no server-side decryption.
+    - route: POST /v1/user-tasks/{task_id}/activity
+      access_model: first-party client surface only
+      auth: authenticated session or approved CLI/npm/pip device API key; owner or Team owner/admin/member
+      request: "{ entry_id, encrypted_entry_key, encrypted_message, encrypted_embed_key_material?, embed_refs?, created_at, team_id? }"
+      response: "{ entry: EncryptedTaskActivityEntry }"
+      errors: [400 invalid encrypted payload, 401 unauthenticated, 403 viewer or unauthorized, 404 task missing, 409 conflicting entry identity, 429 standard mutation limit]
+      rate_limits: 30/minute per existing Task mutation conventions
+      credit_budget: no credits; voice transcription and upload retain their existing independent limits/cost behavior
+      encryption_boundary: Client encrypts text and key material before submission; backend stores no comment, transcript, file, entry-key, embed-key, or Task-key plaintext.
+    - route: DELETE /v1/user-tasks/{task_id}/activity/{entry_id}
+      access_model: first-party client surface only
+      auth: authenticated session or approved CLI/npm/pip device API key; comment author or Task-mutation-authorized role
+      request: "{ team_id? }"
+      response: "{ entry: TaskActivityTombstone }"
+      errors: [401 unauthenticated, 403 unauthorized, 404 task or entry missing, 409 already changed, 429 standard mutation limit]
+      rate_limits: 30/minute per existing Task mutation conventions
+      credit_budget: no credits
+      encryption_boundary: Backend suppresses encrypted content/embed references from normal response and retains safe author/deleter tombstone metadata.
+  data:
+    - user_task_activity gains a stable entry_id, owner/Team scope, source_surface, encrypted_entry_key, encrypted_embed_key_material, embed references, deletion timestamp, and deleting-user hash while preserving encrypted_message and safe event metadata.
+    - Actor and source attribution are derived from authenticated identity and allowlisted client identity, not arbitrary user-authored display strings.
+    - A unique task_id plus entry_id constraint makes retrying create idempotent; created_at plus entry_id defines stable order.
+    - Deletion is logical for Activity rendering; private ciphertext/embed references are removed or suppressed according to retention policy while safe tombstone metadata remains.
+  ui_states:
+    - Loading, empty, ready, text draft, recording, transcribing, uploading, upload failed, sending, create failed, populated stream, delete confirmation, delete failed, and tombstone.
+    - Team viewer read-only Activity hides or disables mutation controls with accessible explanation.
+    - Laptop and phone layouts keep the final Activity section and composer reachable without horizontal overflow or obscured content.
+  privacy_security:
+    - Never log or index decrypted comment text, voice transcripts, file content, raw Task keys, raw entry keys, or raw embed keys.
+    - Profile display data is resolved only for users authorized to read the Team Task.
+    - Client source labels are validated against authenticated first-party client identity to prevent attribution spoofing.
+
+tests:
+  - id: T-BACKEND-ACTIVITY
+    type: pytest
+    file: backend/tests/test_user_task_activity_api.py
+    command: python3 -m pytest backend/tests/test_user_task_activity_api.py
+    covers: [AC-3, AC-4, AC-5, AC-6, AC-7]
+    assertions:
+      - Schemas reject plaintext/private extra fields and store only ciphertext plus allowlisted metadata.
+      - Owner and Team role checks cover list, create, deletion, viewer rejection, and cross-task/cross-Team denial.
+      - Source attribution is server-derived or validated, create retries are idempotent, ordering is stable, and deletion returns the correct tombstone metadata.
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "local-pytest-activity-red-20260903T222422Z", timestamp: "2026-09-03T22:24:22Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_user_task_activity_api.py backend/tests/test_user_tasks_api.py", run_id: "local-pytest-activity-green-20260903T223347Z", subject_commit: "75cd79c1888e6785009905fc58730edb01bcaaaa", timestamp: "2026-09-03T22:33:47Z"}}
+  - id: T-API-ACTIVITY-LIVE
+    type: unit
+    file: scripts/verify_task_activity_api_live.py
+    command: python3 scripts/verify_task_activity_api_live.py --api-url https://api.dev.openmates.org
+    target: api.dev.openmates.org
+    covers: [AC-3, AC-6, AC-7]
+    assertions:
+      - Real authenticated create/list/delete reaches the dev API and cleans up the synthetic Task and Activity.
+      - Unauthorized or insufficient-role access is rejected, duplicate entry identity is idempotent/conflict-safe, and response payloads contain no plaintext comment.
+      - Rate-limit classification and zero-credit behavior are asserted without mocked OpenMates API calls.
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "dev-api-activity-red-20260903T223347Z", timestamp: "2026-09-03T22:33:47Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_task_activity_api_live.py --api-url https://api.dev.openmates.org", run_id: "github-33850463507-api", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
+  - id: T-CLI-ACTIVITY-LIVE
+    type: unit
+    file: scripts/verify_tasks_cli_smoke.py
+    command: python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org
+    target: api.dev.openmates.org
+    covers: [AC-3, AC-4, AC-5]
+    assertions:
+      - Real openmates tasks activity list/add/delete commands encrypt locally, render decrypted output locally, and clean up created data.
+      - Team CLI comments render via OpenMates CLI and tombstones retain approved author/deleter wording.
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "cli-activity-missing-surface-20260903T225544Z", timestamp: "2026-09-03T22:55:44Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --activity-only", run_id: "github-33850463507-cli", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
+  - id: T-SDK-ACTIVITY-LIVE
+    type: unit
+    file: scripts/verify_sdk_tasks_live_smoke.mjs
+    command: OPENMATES_API_URL=https://api.dev.openmates.org node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs
+    target: api.dev.openmates.org
+    covers: [AC-3, AC-4, AC-5]
+    assertions:
+      - npm and pip list/add/delete Activity methods pass against the real dev API with local encryption/decryption.
+      - Team SDK comments use via OpenMates SDK and public results do not expose encrypted storage fields.
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "sdk-activity-missing-methods-20260903T231130Z", timestamp: "2026-09-03T23:11:30Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs --activity-only", run_id: "github-33850463507-sdk", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
+  - id: T-UI-ACTIVITY-UNIT
+    type: unit
+    file: frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers: [AC-2, AC-3]
+    assertions:
+      - Activity entry text and entry/embed key material encrypt and decrypt through the Task key locally.
+      - Upload/transcription pending and failure states gate send without invoking chat persistence.
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "github-33852020198-missing-web-activity-service", timestamp: "2026-09-04T08:11:30Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
+  - id: T-PLAYWRIGHT-ACTIVITY
+    type: playwright
+    file: frontend/apps/web_app/tests/task-activity.spec.ts
+    command: python3 scripts/tests.py run --spec task-activity.spec.ts
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-7]
+    assertions:
+      - Bare TaskActivity preview uses chrome=0 and proves final-section placement, composer-first order, multiline, voice, upload/embed pending/error states, and stable stream order.
+      - Team web attribution shows name/profile without via text, mate attribution shows OpenMates, and deletion shows each approved tombstone variant.
+      - Laptop 1440x900 and phone 390x844 profiles have no clipping, hidden controls, horizontal overflow, or composer obstruction.
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: missing_as_expected, run_id: "missing-task-activity-preview-before-cfe3c2a", timestamp: "2026-09-04T08:12:00Z"}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: ""}}
+  - id: T-SDK-CLI-PARITY-AUDIT
+    type: unit
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers: [AC-4, AC-5]
+    assertions:
+      - CLI, npm, and pip Activity operations remain registered with matching semantics.
+    red_phase: {required: false, expected: not_applicable_static_audit, evidence: {status: not_applicable, run_id: static-audit, timestamp: "2026-09-03T17:46:03Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "github-33850463507-parity", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
+
+verifications:
+  - id: V-UI-VISUAL-SMOKE
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-4, AC-5]
+    status: pending
+    evidence: {status: pending, summary: "Review deployed laptop and mobile Task Activity screenshots; record Defects and Accepted differences.", timestamp: ""}
+  - id: V-PROOF-VIDEO
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-4, AC-5, AC-7]
+    status: pending
+    evidence: {status: pending, summary: "Create and review separate 1440x900 laptop and 390x844 phone proof videos from task-activity.spec.ts with toggleable captions.", timestamp: ""}
+  - id: V-USER-WEB-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-4, AC-5]
+    status: pending
+    evidence: {status: pending, summary: "User confirms deployed Task Activity behavior and appearance after reviewed proof evidence.", timestamp: ""}
+  - id: V-APPLE-DEFERRED
+    kind: manual_check
+    phase: final
+    required_for_done: false
+    covers: [AC-4]
+    status: pending
+    evidence: {status: pending, summary: "Record Apple Task Activity parity as deferred unless native Task sources become available.", timestamp: ""}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: Task Activity changes an observable web component and interaction flow.
+    classified_at: "2026-09-03T17:46:03Z"
+  source_spec: frontend/apps/web_app/tests/task-activity.spec.ts
+  devices: [web-laptop, web-phone]
+  narration_outline:
+    - id: NARR-1
+      purpose: Show Activity as the final Task-detail section with the composer first.
+      expected_proof: Scroll through Task detail into Activity on laptop and phone without clipping or hidden controls.
+      scenario_ids: [S-1, S-5]
+      acceptance_criteria: [AC-1, AC-7]
+    - id: NARR-2
+      purpose: Show rich composer processing and visible pending/error states.
+      expected_proof: Enter multiline text, exercise voice and file/embed states, then create one Activity entry.
+      scenario_ids: [S-1]
+      acceptance_criteria: [AC-2, AC-3]
+    - id: NARR-3
+      purpose: Show Team attribution and deletion tombstones.
+      expected_proof: Render web, CLI, SDK, and OpenMates labels and delete comments into the three approved tombstone examples.
+      scenario_ids: [S-2, S-3]
+      acceptance_criteria: [AC-4, AC-5]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+implementation_notes:
+  plan_path: docs/plans/task-activity-comments/plan.yml
+  existing_patterns:
+    - Extend user_task_activity and UserTaskMethods rather than introducing a parallel comment persistence service.
+    - Reuse UserTaskService task-key handling and MessageInput processing helpers for client encryption and rich composer inputs.
+    - Extend existing task CLI and SDK facades plus their real dev-server smoke scripts.
+  architecture: >
+    Evolve user_task_activity into a Task-owned append-oriented encrypted stream.
+    Clients unlock the Task key, generate/wrap entry and embed key material, and
+    encrypt/decrypt Activity locally. The API authorizes against the parent Task,
+    derives attribution metadata from authenticated identity, and never decrypts
+    private content. A focused TaskActivity component adapts shared message
+    processing to Activity persistence and is mounted last by TaskDetailContent.
+  data_flow:
+    - Client loads the parent Task and unlocks its Task key.
+    - Composer reuses message input processing to finish transcription/uploads and collect embed references.
+    - Client generates an entry identity/key, encrypts text, wraps entry/embed keys through the Task key, and submits ciphertext.
+    - API verifies Task access, derives actor/source metadata, writes one idempotent Activity row, and returns ciphertext plus safe metadata.
+    - Authorized clients list and decrypt entries locally, resolve Team display identity/profile data, and render stable chronological Activity.
+    - Authorized deletion removes/suppresses content and embed references and returns safe tombstone metadata.
+  affected_files:
+    - {path: backend/core/directus/schemas/user_tasks.yml, reason: Extend canonical Activity schema and indexes.}
+    - {path: backend/core/directus/setup/setup_schemas.py, reason: Verify scoped Activity indexes during schema setup.}
+    - {path: backend/core/api/app/routes/user_tasks.py, reason: Add encrypted first-party Activity endpoints and authorization.}
+    - {path: backend/core/api/app/services/user_task_service.py, reason: Enforce parent Task existence before Activity persistence.}
+    - {path: backend/core/api/app/services/directus/user_task_methods.py, reason: Add owner/Team-scoped Activity persistence.}
+    - {path: backend/tests/test_user_task_activity_api.py, reason: Backend privacy, auth, attribution, ordering, and tombstone contract.}
+    - {path: backend/tests/test_setup_schemas.py, reason: Keep schema permission expectations aligned for the deploy gate.}
+    - {path: scripts/verify_task_activity_api_live.py, reason: Real dev API phase gate.}
+    - {path: specifications/generated/assertion-index.yml, reason: Regenerated assertion-to-test traceability for Activity contract tests.}
+    - {path: specifications/generated/coverage.yml, reason: Regenerated Specification coverage for Activity contract tests.}
+    - {path: frontend/packages/openmates-cli/src/client.ts, reason: Activity wire types and methods.}
+    - {path: frontend/packages/openmates-cli/src/tasksCli.ts, reason: Local Activity encryption/decryption and rendering.}
+    - {path: frontend/packages/openmates-cli/src/cli.ts, reason: Task Activity commands and help.}
+    - {path: frontend/packages/openmates-cli/src/sdk.ts, reason: npm Activity facade.}
+    - {path: packages/openmates-python/openmates/sdk.py, reason: pip Activity facade and encryption.}
+    - {path: scripts/verify_tasks_cli_smoke.py, reason: Real CLI Activity phase gate.}
+    - {path: scripts/verify_sdk_tasks_live_smoke.mjs, reason: Real npm/pip Activity phase gate.}
+    - {path: docs/user-guide/developers/sdk-reference.md, reason: Regenerated public SDK method reference.}
+    - {path: docs/user-guide/developers/sdk-test-coverage.md, reason: Regenerated SDK contract coverage.}
+    - {path: .github/workflows/app-skill-cli-smoke.yml, reason: Registered daily/manual real Task Activity contract verification.}
+    - {path: frontend/packages/ui/src/services/userTaskService.ts, reason: Browser Activity models, crypto, and API calls.}
+    - {path: frontend/packages/ui/src/components/tasks/TaskActivity.svelte, reason: Unified Activity stream and composer adapter.}
+    - {path: frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, reason: Deterministic component states.}
+    - {path: frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte, reason: Mount Activity as final detail section.}
+    - {path: frontend/apps/web_app/tests/task-activity.spec.ts, reason: Deployed component behavior and proof contract.}
+  rollout:
+    - Apply Directus schema additions before enabling client Activity mutations.
+    - Preserve existing user_task_activity rows as lifecycle entries; migration must not invent plaintext or require decrypting legacy ciphertext.
+    - Backend/API deploy precedes real API, CLI, SDK, and web gates; web deploy follows successful direct API/CLI/SDK evidence.
+  documentation_impact:
+    - Update task user-guide/API/CLI references only after implementation names and command syntax are verified.
+  verification_strategy:
+    - Write and run backend privacy/authorization tests before API product code.
+    - Prove the encrypted contract against the real dev API before CLI, SDK, or web work.
+    - Prove real CLI and npm/pip SDK behavior before deploying and testing the web component.
+    - Verify the deployed bare component at laptop and phone sizes, then review visual smoke and proof videos before user confirmation.
+  verification_order:
+    - Backend schema/routes and direct real dev API contract first.
+    - Real OpenMates CLI command against the dev API second.
+    - npm and pip SDK calls plus parity audit against the dev API third.
+    - Wire successful direct coverage into CI/daily tests before web implementation.
+    - Web service/component and deployed component Playwright fourth.
+    - Reviewed laptop/mobile visual smoke fifth.
+    - Reviewed laptop/phone proof videos, then user confirmation sixth.
+    - Apple parity implementation last in a later Plan; record deferral here.
+
+tasks:
+  - id: TASK-1
+    title: Implement encrypted Activity persistence and first-party API
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-5, AC-6, AC-7]}
+    expected_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/directus/setup/setup_schemas.py, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py, backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py, specifications/generated/assertion-index.yml, specifications/generated/coverage.yml]
+    verification: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
+    verification_ids: [T-BACKEND-ACTIVITY, T-API-ACTIVITY-LIVE]
+    specification_assertions: [tasks.content.client-encrypted, tasks.activity.client-encrypted, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization]
+    surfaces: [rest_api]
+    dependencies: []
+    ownership: {files: [backend/tests/test_user_task_activity_api.py, scripts/verify_task_activity_api_live.py], shared_files: [backend/core/directus/schemas/user_tasks.yml, backend/core/directus/setup/migrate_user_task_indexes.sql, backend/core/directus/setup/setup_schemas.py, backend/core/api/app/routes/user_tasks.py, backend/core/api/app/services/directus/user_task_methods.py, backend/core/api/app/services/user_task_service.py]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Add real CLI Task Activity commands
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-3, AC-4, AC-5]}
+    expected_files: [frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/tasksCli.ts, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/tests/tasks.test.ts, scripts/verify_tasks_cli_smoke.py]
+    verification: [T-CLI-ACTIVITY-LIVE]
+    verification_ids: [T-CLI-ACTIVITY-LIVE]
+    specification_assertions: [tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.surface.semantic-parity]
+    surfaces: [rest_api, cli]
+    dependencies: [TASK-1]
+    ownership: {files: [frontend/packages/openmates-cli/tests/tasks.test.ts], shared_files: [frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/tasksCli.ts, frontend/packages/openmates-cli/src/cli.ts, scripts/verify_tasks_cli_smoke.py]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Add npm and pip Task Activity parity
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-3, AC-4, AC-5]}
+    expected_files: [frontend/packages/openmates-cli/src/sdk.ts, frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_tasks.py, scripts/verify_sdk_tasks_live_smoke.mjs, docs/user-guide/developers/sdk-reference.md, docs/user-guide/developers/sdk-test-coverage.md]
+    verification: [T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
+    verification_ids: [T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
+    specification_assertions: [tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.surface.semantic-parity]
+    surfaces: [rest_api, cli, sdk_npm, sdk_pip]
+    dependencies: [TASK-2]
+    ownership: {files: [frontend/packages/openmates-cli/tests/sdk-tasks.test.ts, packages/openmates-python/tests/test_tasks.py], shared_files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, scripts/verify_sdk_tasks_live_smoke.mjs]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Wire real Activity contract checks into CI and daily coverage
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-7]}
+    expected_files: [.github/workflows/app-skill-cli-smoke.yml, backend/tests/test_setup_schemas.py, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]
+    verification: [T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
+    verification_ids: [T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
+    specification_assertions: [tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization, tasks.surface.semantic-parity]
+    surfaces: [rest_api, cli, sdk_npm, sdk_pip]
+    dependencies: [TASK-3]
+    ownership: {files: [backend/tests/test_setup_schemas.py], shared_files: [.github/workflows/app-skill-cli-smoke.yml, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Build and verify the web Task Activity surface
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]}
+    expected_files: [frontend/packages/ui/src/services/userTaskService.ts, frontend/packages/ui/src/services/__tests__/userTaskService.test.ts, frontend/packages/ui/src/components/tasks/TaskActivity.svelte, frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte, frontend/apps/web_app/tests/task-activity.spec.ts]
+    verification: [T-UI-ACTIVITY-UNIT, T-PLAYWRIGHT-ACTIVITY, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]
+    verification_ids: [T-UI-ACTIVITY-UNIT, T-PLAYWRIGHT-ACTIVITY, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]
+    specification_assertions: [tasks.activity.single-final-section, tasks.activity.composer-message-parity, tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization, tasks.surface.semantic-parity]
+    surfaces: [rest_api, gui_web]
+    dependencies: [TASK-4]
+    ownership: {files: [frontend/packages/ui/src/components/tasks/TaskActivity.svelte, frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, frontend/apps/web_app/tests/task-activity.spec.ts], shared_files: [frontend/packages/ui/src/services/userTaskService.ts, frontend/packages/ui/src/services/__tests__/userTaskService.test.ts, frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Confirm web behavior and record Apple deferral
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-5], acceptance_criteria: [AC-1, AC-2, AC-4, AC-5, AC-7]}
+    expected_files: [docs/plans/task-activity-comments/plan.yml]
+    verification: [V-USER-WEB-CONFIRMATION, V-APPLE-DEFERRED]
+    verification_ids: [V-USER-WEB-CONFIRMATION, V-APPLE-DEFERRED]
+    specification_assertions: [tasks.activity.single-final-section, tasks.activity.composer-message-parity, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.surface.semantic-parity]
+    surfaces: [gui_web, gui_apple]
+    dependencies: [TASK-5]
+    ownership: {files: [docs/plans/task-activity-comments/plan.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Write and run backend red-phase Activity persistence and route contract tests before product code.
+  command: python3 -m pytest backend/tests/test_user_task_activity_api.py
+  expected_outcome: Tests fail because Activity persistence methods and routes do not exist yet.
+  blocker: null
+  last_verified_commit: 070c8f69b16c605194e0e5eca583911c699e9bef

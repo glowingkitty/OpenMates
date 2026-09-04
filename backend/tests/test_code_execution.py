@@ -124,7 +124,9 @@ sys.modules.setdefault("slowapi.util", slowapi_util_stub)
 from toon_format import encode
 
 from backend.apps.code.tasks.run_code_task import RUN_CREDITS_PER_MINUTE as TASK_RUN_CREDITS_PER_MINUTE
+from backend.apps.code.tasks import run_code_task as code_run_task
 from backend.apps.code.tasks.run_code_task import _charge_run_credits
+from backend.apps.code.tasks.run_code_task import _safe_artifact_metadata
 from backend.core.api.app.routes.code_execution import (
     CLIENT_CONTENT_REQUIRED_CODE,
     CodeRunClientAttachment,
@@ -141,6 +143,7 @@ from backend.core.api.app.routes.code_execution import (
     _safe_filename,
     _validate_dependency_manifest,
     cancel_code_run,
+    stream_code_run_status,
 )
 from backend.core.api.app.routes.handlers.websocket_handlers.code_run_output_handlers import (
     _impl_upsert,
@@ -194,6 +197,77 @@ class FakeCache:
 
     async def publish_event(self, channel: str, payload: dict):
         return None
+
+
+class FakeCodeRunStreamCache:
+    def __init__(self, execution_id: str):
+        self.execution_id = execution_id
+        self.redis = FakeRedis({})
+        self.redis.values[_execution_key(execution_id)] = json.dumps({
+            "execution_id": execution_id,
+            "user_id_hash": USER_HASH,
+            "status": "running",
+            "events": [],
+        }).encode()
+
+    @property
+    def client(self):
+        async def _client():
+            return self.redis
+
+        return _client()
+
+    async def subscribe_to_channel(self, _channel: str):
+        finished = {
+            "execution_id": self.execution_id,
+            "user_id_hash": USER_HASH,
+            "status": "finished",
+            "events": [
+                {"kind": "stdout", "text": "Hello, World!\n", "timestamp": 1.0},
+                {"kind": "status", "text": "Exited with code 0\n", "timestamp": 2.0},
+            ],
+        }
+        self.redis.values[_execution_key(self.execution_id)] = json.dumps(finished).encode()
+        yield {"data": {"type": "code_run_update", "payload": {"status": "finished"}}}
+
+
+class FakeCodeRunWebSocket:
+    def __init__(self, cache_service: FakeCodeRunStreamCache):
+        self.app = SimpleNamespace(state=SimpleNamespace(cache_service=cache_service))
+        self.sent: list[dict] = []
+        self.accepted = False
+
+    async def accept(self):
+        self.accepted = True
+
+    async def send_json(self, payload: dict):
+        self.sent.append(payload)
+
+    async def close(self, **_kwargs):
+        return None
+
+
+# contract-test: direct surface=rest_api assertions=code-run.execution.stream-status-visible
+@pytest.mark.asyncio
+async def test_code_run_stream_sends_authoritative_terminal_snapshot():
+    execution_id = "execution-fast"
+    cache = FakeCodeRunStreamCache(execution_id)
+    websocket = FakeCodeRunWebSocket(cache)
+
+    await stream_code_run_status(websocket, execution_id, {"user_id": USER_ID})
+
+    assert websocket.accepted is True
+    assert [message["type"] for message in websocket.sent] == [
+        "code_run_snapshot",
+        "code_run_update",
+        "code_run_snapshot",
+    ]
+    final_snapshot = websocket.sent[-1]["payload"]
+    assert final_snapshot["status"] == "finished"
+    assert [event["text"] for event in final_snapshot["events"]] == [
+        "Hello, World!\n",
+        "Exited with code 0\n",
+    ]
 
 
 class FakeDirectusEmbed:
@@ -271,6 +345,340 @@ def _metadata(encrypted_content: str = "client-ciphertext") -> dict:
         "message_id": MESSAGE_ID,
         "status": "finished",
     }
+
+
+def test_code_run_artifact_status_metadata_strips_sensitive_fields() -> None:
+    artifacts = _safe_artifact_metadata([
+        {
+            "path": "outputs/chart.png",
+            "normalized_path": "outputs/chart.png",
+            "mime_type": "image/png",
+            "kind": "image",
+            "size_bytes": 4,
+            "content_base64": "ZGF0YQ==",
+            "download_url": "https://api.dev.openmates.org/v1/generated-assets/id/files/original/download?token=secret",
+            "token": "secret",
+            "s3_key": "user/private.png",
+            "aes_key": "secret",
+            "aes_nonce": "secret",
+            "vault_wrapped_aes_key": "secret",
+            "sandbox_id": "sandbox-1",
+        }
+    ])
+
+    assert artifacts == [
+        {
+            "path": "outputs/chart.png",
+            "normalized_path": "outputs/chart.png",
+            "mime_type": "image/png",
+            "kind": "image",
+            "size_bytes": 4,
+            "status": "captured",
+        }
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=code-run.artifacts.encrypted-indexed,code-run.artifacts.child-renderer-routing
+@pytest.mark.anyio
+async def test_persist_code_run_artifacts_encrypts_indexes_and_returns_download_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    plaintext = b"name,value\nAlice,1\n"
+    uploads: list[dict[str, object]] = []
+    indexed: list[dict[str, object]] = []
+    cached: list[dict[str, object]] = []
+    s3_initialize_modes: list[bool] = []
+
+    class FakeEncryptionService:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def initialize(self):
+            return None
+
+        async def encrypt_with_user_key(self, plaintext_key: str, vault_key_id: str):
+            assert plaintext_key
+            assert vault_key_id == "vault-key"
+            return "wrapped-aes-key", None
+
+    class FakeDirectusService:
+        def __init__(self, **_kwargs):
+            pass
+
+        async def get_user_fields_direct(self, user_id: str, fields: list[str]):
+            assert user_id == USER_ID
+            assert fields == ["vault_key_id", "storage_used_bytes"]
+            return {"vault_key_id": "vault-key", "storage_used_bytes": 0}
+
+    class FakeS3Service:
+        environment = "development"
+        base_domain = "nbg1.your-objectstorage.com"
+
+        def __init__(self, **_kwargs):
+            pass
+
+        async def initialize(self, *, configure_buckets: bool = True):
+            s3_initialize_modes.append(configure_buckets)
+            return None
+
+        async def upload_file(self, **kwargs):
+            uploads.append(kwargs)
+            return {"url": "s3://stored"}
+
+        async def delete_file(self, **kwargs):
+            uploads.append({"deleted": kwargs})
+            return True
+
+    async def fake_index_generated_asset(_task, **kwargs):
+        indexed.append(kwargs)
+        return True
+
+    async def fake_cache_s3_file_keys(_task, **kwargs):
+        cached.append(kwargs)
+
+    def fake_encrypt_media_variants(plaintext_by_variant, *, write_version: int):
+        assert write_version == 2
+        return SimpleNamespace(
+            aes_key_b64="fake-aes-key",
+            payloads={variant: b"encrypted:" + content for variant, content in plaintext_by_variant.items()},
+            metadata={variant: {"encryption": "test"} for variant in plaintext_by_variant},
+            legacy_nonce_b64=None,
+        )
+
+    monkeypatch.setattr(code_run_task, "EncryptionService", FakeEncryptionService)
+    monkeypatch.setattr(code_run_task, "DirectusService", FakeDirectusService)
+    monkeypatch.setattr(code_run_task, "S3UploadService", FakeS3Service)
+    monkeypatch.setattr(code_run_task, "get_bucket_name", lambda _bucket, _environment=None: "dev-openmates-chatfiles")
+    monkeypatch.setattr(code_run_task, "index_generated_asset", fake_index_generated_asset)
+    monkeypatch.setattr(code_run_task, "cache_s3_file_keys", fake_cache_s3_file_keys)
+    monkeypatch.setattr(code_run_task, "encrypt_media_variants", fake_encrypt_media_variants)
+    monkeypatch.setattr(code_run_task, "load_media_write_version", lambda: 2)
+    monkeypatch.setattr(code_run_task, "create_download_token", lambda **_kwargs: "signed-token")
+    monkeypatch.setattr(code_run_task, "build_download_url", lambda **kwargs: f"{kwargs['base_url']}/download/{kwargs['asset_id']}/{kwargs['variant']}?token={kwargs['token']}")
+
+    stored = await code_run_task._persist_code_run_artifacts(
+        execution_id="execution-1",
+        payload={"user_id": USER_ID, "chat_id": None, "target_embed_id": None, "target_path": "main.py"},
+        artifacts=[{
+            "path": "outputs/report.csv",
+            "normalized_path": "outputs/report.csv",
+            "mime_type": "text/csv",
+            "kind": "data",
+            "size_bytes": len(plaintext),
+            "content_base64": base64.b64encode(plaintext).decode("ascii"),
+        }],
+        secrets_manager=object(),
+        cache_service=FakeCache([], {}),
+        now=2_030.0,
+    )
+
+    assert uploads and uploads[0]["content"] != plaintext
+    assert uploads[0]["content_type"] == "application/octet-stream"
+    assert indexed and indexed[0]["embed_id"] == "execution-1"
+    variant_name = stored[0]["variant"]
+    files_metadata = indexed[0]["files_metadata"]
+    assert files_metadata[variant_name]["normalized_path"] == "outputs/report.csv"
+    assert files_metadata[variant_name]["mime_type"] == "text/csv"
+    assert files_metadata[variant_name]["s3_key"].endswith("_report.csv")
+    assert indexed[0]["media_type"] == "code_run"
+    assert indexed[0]["provenance_metadata"]["mode"] == "direct"
+    assert cached and cached[0]["embed_id"] == "execution-1"
+    assert stored == [
+        {
+            "path": "outputs/report.csv",
+            "normalized_path": "outputs/report.csv",
+            "mime_type": "text/csv",
+            "kind": "data",
+            "size_bytes": len(plaintext),
+            "status": "captured",
+            "asset_id": "execution-1",
+            "variant": variant_name,
+            "download_url": f"https://api.dev.openmates.org/download/execution-1/{variant_name}?token=signed-token",
+            "download_expires_at": 2_930,
+        }
+    ]
+    assert "content_base64" not in stored[0]
+    assert "s3_key" not in stored[0]
+    assert "token" not in stored[0]
+
+    chat_bound = await code_run_task._persist_code_run_artifacts(
+        execution_id="execution-2",
+        payload={"user_id": USER_ID, "chat_id": "chat-1", "target_embed_id": TARGET_EMBED_ID, "target_path": "main.py"},
+        artifacts=[{
+            "path": "outputs/chart.png",
+            "normalized_path": "outputs/chart.png",
+            "mime_type": "image/png",
+            "kind": "image",
+            "size_bytes": len(plaintext),
+            "content_base64": base64.b64encode(plaintext).decode("ascii"),
+        }],
+        secrets_manager=object(),
+        cache_service=FakeCache([], {}),
+        now=2_040.0,
+    )
+
+    assert "native_render_payload" not in stored[0]
+    assert s3_initialize_modes == [False, False]
+    assert chat_bound[0]["native_render_payload"] == {
+        "app_id": "images",
+        "frontend_type": "image",
+        "content": {
+            "filename": "chart.png",
+            "s3_base_url": "https://dev-openmates-chatfiles.nbg1.your-objectstorage.com",
+            "files": {
+                "full": chat_bound[0]["native_render_payload"]["content"]["files"]["full"],
+                "original": chat_bound[0]["native_render_payload"]["content"]["files"]["original"],
+            },
+            "aes_key": "fake-aes-key",
+            "aes_nonce": "",
+            "file_size": len(plaintext),
+            "file_type": "image/png",
+            "is_authenticated": True,
+        },
+    }
+    assert chat_bound[0]["native_render_payload"]["content"]["files"]["full"]["s3_key"].endswith("_chart.png")
+    assert chat_bound[0]["native_render_payload"]["content"]["files"]["full"]["encryption"] == "test"
+
+
+def test_run_code_execution_stores_artifacts_without_provider_internals(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeClient:
+        def __init__(self):
+            self.values: dict[str, bytes] = {}
+            self.removed: list[tuple[str, str]] = []
+
+        async def get(self, key: str):
+            return self.values.get(key)
+
+        async def set(self, key: str, value: str, ex: int | None = None):
+            self.values[key] = value.encode("utf-8")
+
+        async def srem(self, key: str, value: str):
+            self.removed.append((key, value))
+
+    class FakeWorkerCache:
+        def __init__(self):
+            self.client_instance = FakeClient()
+            self.published: list[dict[str, object]] = []
+
+        @property
+        def client(self):
+            async def _client():
+                return self.client_instance
+
+            return _client()
+
+        async def publish_event(self, channel: str, payload: dict):
+            self.published.append({"channel": channel, "payload": payload})
+
+    class FakeSecretsManager:
+        async def initialize(self):
+            return None
+
+        async def aclose(self):
+            return None
+
+    fake_cache = FakeWorkerCache()
+    raw_artifact = {
+        "path": "outputs/chart.png",
+        "normalized_path": "outputs/chart.png",
+        "mime_type": "image/png",
+        "kind": "image",
+        "size_bytes": 4,
+        "content_base64": "ZGF0YQ==",
+        "sandbox_id": "sandbox-1",
+    }
+    persisted_artifact = {
+        "path": "outputs/chart.png",
+        "normalized_path": "outputs/chart.png",
+        "mime_type": "image/png",
+        "kind": "image",
+        "size_bytes": 4,
+        "status": "captured",
+        "asset_id": "execution-1",
+        "variant": "outputs-chart-png",
+        "download_url": "https://api.dev.openmates.org/download/execution-1/outputs-chart-png?token=signed",
+        "download_expires_at": 999,
+    }
+
+    async def fake_get_worker_cache_service():
+        return fake_cache
+
+    async def fake_get_e2b_api_key_async(_secrets_manager):
+        return "e2b-key"
+
+    def fake_run_code_in_e2b(*_args, **_kwargs):
+        return SimpleNamespace(
+            exit_code=0,
+            duration_seconds=1.2,
+            output_truncated=False,
+            sandbox_id="sandbox-1",
+            artifacts=[raw_artifact],
+            skipped_artifacts=[{"path": "outputs/.env", "reason": "hidden_or_secret_path"}],
+        )
+
+    async def fake_charge_run_credits(*_args, **_kwargs):
+        return 5
+
+    async def fake_persist_code_run_artifacts(**kwargs):
+        assert kwargs["artifacts"] == [raw_artifact]
+        return [persisted_artifact]
+
+    continuations: list[dict[str, object]] = []
+
+    async def fake_dispatch_code_run_async_continuation(**kwargs):
+        continuations.append(kwargs)
+
+    monkeypatch.setattr(code_run_task, "get_worker_cache_service", fake_get_worker_cache_service)
+    monkeypatch.setattr(code_run_task, "SecretsManager", FakeSecretsManager)
+    monkeypatch.setattr(code_run_task, "get_e2b_api_key_async", fake_get_e2b_api_key_async)
+    monkeypatch.setattr(code_run_task, "run_code_in_e2b", fake_run_code_in_e2b)
+    monkeypatch.setattr(code_run_task, "_charge_run_credits", fake_charge_run_credits)
+    monkeypatch.setattr(code_run_task, "_persist_code_run_artifacts", fake_persist_code_run_artifacts)
+    monkeypatch.setattr(code_run_task, "_dispatch_code_run_async_continuation", fake_dispatch_code_run_async_continuation)
+
+    code_run_task._run_code_execution(
+        "execution-1",
+        {
+            "user_id": USER_ID,
+            "user_id_hash": USER_HASH,
+            "chat_id": None,
+            "message_id": None,
+            "target_embed_id": None,
+            "target_path": "main.py",
+            "enable_internet": True,
+            "files": [{"path": "main.py", "content": "print('ok')", "language": "python", "is_target": True}],
+            "dependency_installs": [],
+            "active_run_key": "active-runs",
+            "active_run_owner": "execution-1",
+            "provider_active_run_key": "provider-runs",
+            "provider_active_run_owner": "execution-1",
+            "assistant_async_task": True,
+        },
+    )
+
+    stored = json.loads(fake_cache.client_instance.values["code_run_execution:execution-1"].decode("utf-8"))
+    assert stored["status"] == "finished"
+    assert stored["artifacts"] == [persisted_artifact]
+    assert stored["skipped_artifacts"] == [{"path": "outputs/.env", "reason": "hidden_or_secret_path"}]
+    assert "sandbox_id" not in stored
+    assert "content_base64" not in json.dumps(stored)
+    assert fake_cache.client_instance.removed == [("active-runs", "execution-1"), ("provider-runs", "execution-1")]
+    assert continuations
+    assert continuations[0]["async_task_id"] == "execution-1"
+    completed = continuations[0]["completed_results"][0]
+    assert completed["status"] == "finished"
+    assert completed["artifacts"] == [
+        {
+            "path": "outputs/chart.png",
+            "normalized_path": "outputs/chart.png",
+            "mime_type": "image/png",
+            "kind": "image",
+            "size_bytes": 4,
+            "status": "captured",
+            "asset_id": "execution-1",
+            "variant": "outputs-chart-png",
+            "download_expires_at": 999,
+        }
+    ]
+    assert "download_url" not in json.dumps(completed)
 
 
 @pytest.mark.anyio
@@ -833,6 +1241,7 @@ async def test_charge_run_credits_links_usage_to_chat(monkeypatch: pytest.Monkey
     assert requests[0]["json"]["credits"] == 5
     assert requests[0]["json"]["app_id"] == "code"
     assert requests[0]["json"]["skill_id"] == "run"
+    assert requests[0]["json"]["idempotency_key"].startswith("code-run:execution-1:")
     assert requests[0]["json"]["usage_details"]["chat_id"] == CHAT_ID
     assert requests[0]["json"]["usage_details"]["message_id"] == MESSAGE_ID
     usage_details = requests[0]["json"]["usage_details"]

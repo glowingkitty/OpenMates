@@ -11,6 +11,9 @@ const OPERATIONS = 'sub_chat_orchestration_operations';
 const CHATS = 'chats';
 const USERS = 'directus_users';
 const CHARGE_IDENTITIES = 'billing_charge_identities';
+const REFUND_IDENTITIES = 'billing_refund_identities';
+const SETTLEMENT_OUTBOX = 'billing_settlement_outbox';
+const SETTLEMENT_RETRY_DELAYS_MS = [5_000, 30_000, 120_000, 300_000];
 const USAGE = 'usage';
 const TEAM_ACCOUNTS = 'team_credit_accounts';
 const TEAM_CREDIT_EVENTS = 'team_credit_events';
@@ -68,8 +71,29 @@ const OPERATION_FIELDS = Object.freeze({
     'protocol_version', 'charge_id', 'user_id', 'hashed_user_id', 'app_id', 'skill_id',
     'requested_credits', 'charged_credits', 'expected_encrypted_balance', 'new_encrypted_balance', 'usage_entry',
   ]),
+  commit_personal_refund: new Set([
+    'protocol_version', 'refund_id', 'user_id', 'hashed_user_id', 'app_id', 'skill_id', 'credits_to_refund',
+    'expected_encrypted_balance', 'new_encrypted_balance',
+  ]),
   get_personal_charge: new Set([
     'protocol_version', 'charge_id', 'hashed_user_id', 'app_id', 'skill_id', 'requested_credits',
+  ]),
+  create_or_reuse_pending_settlement: new Set([
+    'protocol_version', 'charge_id', 'user_id', 'hashed_user_id', 'vault_key_id',
+    'encrypted_settlement_payload', 'settlement_payload_hash', 'retryable_error_code',
+  ]),
+  get_pending_settlement: new Set([
+    'protocol_version', 'outbox_id', 'charge_id', 'hashed_user_id',
+  ]),
+  replay_pending_settlement: new Set([
+    'protocol_version', 'outbox_id', 'charge_id', 'hashed_user_id',
+  ]),
+  complete_pending_settlement: new Set([
+    'protocol_version', 'outbox_id', 'charge_id', 'hashed_user_id',
+  ]),
+  transition_pending_settlement_to_manual_review: new Set([
+    'protocol_version', 'outbox_id', 'charge_id', 'hashed_user_id', 'attempts',
+    'retryable_error_code',
   ]),
   commit_team_charge: new Set([
     'protocol_version', 'event_id', 'hashed_team_id', 'actor_user_hash', 'credits',
@@ -712,6 +736,62 @@ async function commitPersonalCharge(database, raw, now) {
   });
 }
 
+async function commitPersonalRefund(database, raw, now) {
+  const body = operationBody(raw, 'commit_personal_refund');
+  const refundId = string(body.refund_id, 'invalid_refund_id', 255);
+  const userId = uuid(body.user_id, 'invalid_user_id');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  const appId = string(body.app_id, 'invalid_app_id', 100);
+  const skillId = string(body.skill_id, 'invalid_skill_id', 100);
+  const creditsToRefund = integer(body.credits_to_refund, 'invalid_refund_credits');
+  const expectedBalance = string(body.expected_encrypted_balance, 'invalid_expected_balance', 16_384);
+  const newBalance = string(body.new_encrypted_balance, 'invalid_new_balance', 16_384);
+  if (creditsToRefund <= 0) fail(400, 'invalid_refund_credits');
+  return database.transaction(async (trx) => {
+    let existing = await trx(REFUND_IDENTITIES).where({ refund_id: refundId }).forUpdate().first();
+    if (existing) {
+      if (existing.hashed_user_id !== ownerHash || existing.app_id !== appId
+        || existing.skill_id !== skillId || existing.refunded_credits !== creditsToRefund) {
+        fail(409, 'refund_identity_mismatch');
+      }
+      return {
+        refund_id: refundId, state: existing.state, idempotent: true,
+        refunded_credits: existing.refunded_credits,
+        encrypted_balance_after: existing.encrypted_balance_after,
+      };
+    }
+    const user = await trx(USERS).where({ id: userId }).forUpdate().first();
+    if (!user) fail(404, 'billing_user_not_found');
+    existing = await trx(REFUND_IDENTITIES).where({ refund_id: refundId }).first();
+    if (existing) {
+      if (existing.hashed_user_id !== ownerHash || existing.app_id !== appId
+        || existing.skill_id !== skillId || existing.refunded_credits !== creditsToRefund) {
+        fail(409, 'refund_identity_mismatch');
+      }
+      return {
+        refund_id: refundId, state: existing.state, idempotent: true,
+        refunded_credits: existing.refunded_credits,
+        encrypted_balance_after: existing.encrypted_balance_after,
+      };
+    }
+    if (user.encrypted_credit_balance !== expectedBalance) fail(409, 'stale_credit_balance');
+    const updated = await trx(USERS).where({ id: userId, encrypted_credit_balance: expectedBalance }).update({
+      encrypted_credit_balance: newBalance,
+    });
+    if (updated !== 1) fail(409, 'stale_credit_balance');
+    await trx(REFUND_IDENTITIES).insert({
+      id: randomUUID(), refund_id: refundId, hashed_user_id: ownerHash,
+      app_id: appId, skill_id: skillId, refunded_credits: creditsToRefund,
+      encrypted_balance_before: expectedBalance, encrypted_balance_after: newBalance,
+      state: 'committed', created_at: now, committed_at: now,
+    });
+    return {
+      refund_id: refundId, state: 'committed', idempotent: false,
+      refunded_credits: creditsToRefund, encrypted_balance_after: newBalance,
+    };
+  });
+}
+
 async function getPersonalCharge(database, raw) {
   const body = operationBody(raw, 'get_personal_charge');
   const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
@@ -730,6 +810,159 @@ async function getPersonalCharge(database, raw) {
     encrypted_balance_after: existing.encrypted_balance_after,
     usage_id: existing.usage_id, state: existing.state,
   };
+}
+
+const pendingSettlementResponse = (row, idempotent, claimed = false) => ({
+  outbox_id: row.id,
+  charge_id: row.charge_id,
+  user_id: row.user_id,
+  vault_key_id: row.vault_key_id,
+  encrypted_settlement_payload: row.encrypted_settlement_payload,
+  state: row.state,
+  attempts: row.attempts,
+  retryable_error_code: row.retryable_error_code,
+  idempotent,
+  claimed,
+});
+
+function assertPendingSettlementIdentity(row, { chargeId, ownerHash }) {
+  if (row.charge_id !== chargeId || row.hashed_user_id !== ownerHash) {
+    fail(409, 'settlement_identity_mismatch');
+  }
+}
+
+async function createOrReusePendingSettlement(database, raw, now) {
+  const body = operationBody(raw, 'create_or_reuse_pending_settlement');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const userId = uuid(body.user_id, 'invalid_user_id');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  const vaultKeyId = string(body.vault_key_id, 'invalid_vault_key_id', 64);
+  const encryptedPayload = string(body.encrypted_settlement_payload, 'invalid_settlement_payload', 65_535);
+  const payloadHash = string(body.settlement_payload_hash, 'invalid_settlement_payload_hash', 64);
+  if (!/^[a-f0-9]{64}$/.test(payloadHash)) fail(400, 'invalid_settlement_payload_hash');
+  const errorCode = string(body.retryable_error_code, 'invalid_retryable_error_code', 64);
+  return database.transaction(async (trx) => {
+    const committed = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).forUpdate().first();
+    if (committed) {
+      if (committed.hashed_user_id !== ownerHash) fail(409, 'charge_identity_mismatch');
+      return {
+        charge_id: chargeId, state: 'committed', idempotent: true,
+        charged_credits: committed.charged_credits,
+        encrypted_balance_after: committed.encrypted_balance_after,
+        usage_id: committed.usage_id,
+      };
+    }
+    const existing = await trx(SETTLEMENT_OUTBOX).where({ charge_id: chargeId }).forUpdate().first();
+    if (existing) {
+      assertPendingSettlementIdentity(existing, { chargeId, ownerHash });
+      if (existing.user_id !== userId || existing.vault_key_id !== vaultKeyId
+        || existing.settlement_payload_hash !== payloadHash) {
+        fail(409, 'settlement_identity_mismatch');
+      }
+      return pendingSettlementResponse(existing, true);
+    }
+    const row = {
+      id: randomUUID(), charge_id: chargeId, user_id: userId,
+      hashed_user_id: ownerHash, vault_key_id: vaultKeyId,
+      encrypted_settlement_payload: encryptedPayload,
+      settlement_payload_hash: payloadHash,
+      state: 'pending', attempts: 0,
+      retryable_error_code: errorCode, next_attempt_at: now,
+      created_at: now, updated_at: now, committed_at: null,
+    };
+    await trx(SETTLEMENT_OUTBOX).insert(row);
+    return pendingSettlementResponse(row, false);
+  });
+}
+
+async function getPendingSettlement(database, raw) {
+  const body = operationBody(raw, 'get_pending_settlement');
+  const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  const row = await database(SETTLEMENT_OUTBOX).where({ id: outboxId }).first();
+  if (!row) fail(404, 'settlement_not_found');
+  assertPendingSettlementIdentity(row, { chargeId, ownerHash });
+  return pendingSettlementResponse(row, true);
+}
+
+async function replayPendingSettlement(database, raw, now) {
+  const body = operationBody(raw, 'replay_pending_settlement');
+  const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  return database.transaction(async (trx) => {
+    const row = await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).forUpdate().first();
+    if (!row) fail(404, 'settlement_not_found');
+    assertPendingSettlementIdentity(row, { chargeId, ownerHash });
+    const committed = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).first();
+    if (committed) {
+      await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).update({
+        state: 'committed', committed_at: now, updated_at: now,
+      });
+      return {
+        charge_id: chargeId, state: 'committed', idempotent: true,
+        duplicate_usage_created: false,
+      };
+    }
+    if (row.state === 'manual_review') return pendingSettlementResponse(row, true);
+    if (row.state === 'retry_scheduled' && row.next_attempt_at
+      && new Date(row.next_attempt_at).getTime() > now.getTime()) {
+      return pendingSettlementResponse(row, true, false);
+    }
+    const nextAttempt = row.attempts + 1;
+    const retryDelay = SETTLEMENT_RETRY_DELAYS_MS[Math.min(
+      nextAttempt - 1,
+      SETTLEMENT_RETRY_DELAYS_MS.length - 1,
+    )];
+    const update = {
+      state: 'retry_scheduled', attempts: nextAttempt,
+      next_attempt_at: new Date(now.getTime() + retryDelay), updated_at: now,
+    };
+    await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).update(update);
+    return pendingSettlementResponse({ ...row, ...update }, false, true);
+  });
+}
+
+async function completePendingSettlement(database, raw, now) {
+  const body = operationBody(raw, 'complete_pending_settlement');
+  const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  return database.transaction(async (trx) => {
+    const row = await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).forUpdate().first();
+    if (!row) fail(404, 'settlement_not_found');
+    assertPendingSettlementIdentity(row, { chargeId, ownerHash });
+    const committed = await trx(CHARGE_IDENTITIES).where({ charge_id: chargeId }).first();
+    if (!committed) fail(409, 'charge_not_committed');
+    if (row.state !== 'committed') {
+      await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).update({
+        state: 'committed', committed_at: now, updated_at: now,
+      });
+    }
+    return { charge_id: chargeId, state: 'committed', idempotent: row.state === 'committed' };
+  });
+}
+
+async function transitionPendingSettlementToManualReview(database, raw, now) {
+  const body = operationBody(raw, 'transition_pending_settlement_to_manual_review');
+  const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const chargeId = string(body.charge_id, 'invalid_charge_id', 255);
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 128);
+  const attempts = integer(body.attempts, 'invalid_attempts');
+  const errorCode = string(body.retryable_error_code, 'invalid_retryable_error_code', 64);
+  return database.transaction(async (trx) => {
+    const row = await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).forUpdate().first();
+    if (!row) fail(404, 'settlement_not_found');
+    assertPendingSettlementIdentity(row, { chargeId, ownerHash });
+    if (row.state !== 'committed' && row.state !== 'manual_review') {
+      await trx(SETTLEMENT_OUTBOX).where({ id: outboxId }).update({
+        state: 'manual_review', attempts, retryable_error_code: errorCode,
+        next_attempt_at: null, updated_at: now,
+      });
+    }
+    return { state: row.state === 'committed' ? 'committed' : 'manual_review', alert_required: row.state !== 'committed' };
+  });
 }
 
 async function commitTeamCharge(database, raw) {
@@ -860,7 +1093,13 @@ export const operations = Object.freeze({
   fail_operation: failOperation,
   cleanup_expired_reservations: cleanupExpiredReservations,
   commit_personal_charge: commitPersonalCharge,
+  commit_personal_refund: commitPersonalRefund,
   get_personal_charge: getPersonalCharge,
+  create_or_reuse_pending_settlement: createOrReusePendingSettlement,
+  get_pending_settlement: getPendingSettlement,
+  replay_pending_settlement: replayPendingSettlement,
+  complete_pending_settlement: completePendingSettlement,
+  transition_pending_settlement_to_manual_review: transitionPendingSettlementToManualReview,
   commit_team_charge: commitTeamCharge,
   commit_team_credit_add: commitTeamCreditAdd,
 });

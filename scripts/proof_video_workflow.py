@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta, timezone
 import fcntl
 import hashlib
 import json
@@ -18,6 +19,7 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
+import time
 from typing import Any
 
 try:
@@ -50,10 +52,11 @@ def _resolve_control_plane_root(checkout_root: Path) -> Path:
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(REPO_ROOT)
+OPENCODE_RUNTIME_ROOT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "opencode-server"
 SESSIONS_FILE = CONTROL_PLANE_ROOT / ".claude/sessions.json"
 RESULTS_DIR = REPO_ROOT / "test-results"
 APPROVALS_DIR = RESULTS_DIR / "proof-video-approvals"
-PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
+PROOF_SOURCE_DIR = CONTROL_PLANE_ROOT / "test-results" / "proof-video-sources"
 REVIEW_BUDGETS_DIR = CONTROL_PLANE_ROOT / "test-results" / "proof-video-review-budgets"
 MAX_OUTPUT_SECONDS = 35.0
 MAX_ANALYSIS_FRAMES = 12
@@ -61,9 +64,14 @@ PERIODIC_FRAME_INTERVAL_SECONDS = 5
 MAX_REVIEW_FRAMES_PER_DEVICE = 12
 MAX_AI_REVIEW_CALLS = 6
 MAX_CUMULATIVE_SUBMITTED_FRAMES = 48
+REVIEW_RESERVATION_LEASE_SECONDS = 900
 MAX_AUTOMATIC_CORRECTION_ROUNDS = 2
 MAX_PRODUCT_CODE_CORRECTION_ROUNDS = 1
+REVIEWER_TIMEOUT_SECONDS = int(os.environ.get("OPENMATES_PROOF_REVIEW_TIMEOUT_SECONDS", "600"))
+REVIEWER_PROGRESS_INTERVAL_SECONDS = 30
+REVIEWER_ATTACH_URL = os.environ.get("OPENMATES_OPENCODE_SERVER_URL", "http://127.0.0.1:4096").strip()
 MIN_PLAYBACK_RATE = 0.75
+MAX_PLAYBACK_RATE = 4.0
 READING_WORDS_PER_SECOND = 2.5
 MARKER_TRIM_LEAD_SECONDS = 0.15
 SUPPORTED_DEVICE_PROFILES = {
@@ -73,6 +81,25 @@ SUPPORTED_DEVICE_PROFILES = {
     "web-laptop",
     "web-phone",
 }
+
+
+def _process_is_alive(pid: object) -> bool:
+    """Return whether a host process id still appears alive."""
+    try:
+        value = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if value <= 0:
+        return False
+    try:
+        os.kill(value, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+SUBJECTIVE_FRAME_ONLY_CATEGORIES = {"color", "contrast"}
+SUBJECTIVE_APPROVABLE_QUALITY_CATEGORIES = {"consistency", "readability", "visual_assets"}
 
 
 class WorkflowError(RuntimeError):
@@ -95,7 +122,22 @@ class PacingPlan:
 
 
 def _commit_matches(candidate: str, expected: str) -> bool:
-    return candidate == expected and len(expected) == 40
+    if len(candidate) != 40 or len(expected) != 40:
+        return False
+    if candidate == expected:
+        return True
+    try:
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", expected, candidate],
+            cwd=CONTROL_PLANE_ROOT,
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
 
 
 def resolve_current_context(
@@ -217,16 +259,13 @@ def canonical_contract(contract: dict[str, Any]) -> dict[str, Any]:
             raise WorkflowError(f"proof device {device} requires at least one assertion")
         if not any(device in item["devices"] for item in canonical_transcript):
             raise WorkflowError(f"proof device {device} requires at least one transcript item")
-    result = {
+    return {
         "schema_version": 2,
         "title": title.strip(),
         "transcript": canonical_transcript,
         "assertions": canonical_assertions,
         "devices": canonical_devices,
     }
-    if isinstance(contract.get("domain"), str) and contract["domain"].strip():
-        result["domain"] = contract["domain"].strip()
-    return result
 
 
 def contract_hash(contract: dict[str, Any]) -> str:
@@ -260,11 +299,13 @@ def approval_record_path(session_id: str, spec_name: str) -> Path:
     return APPROVALS_DIR / session_id / f"{Path(spec_name).stem}.json"
 
 
-def spec_owned_contract_path(session_id: str, spec_name: str) -> Path:
-    return APPROVALS_DIR / session_id / f"{Path(spec_name).stem}.spec-owned-contract.json"
-
-
-def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
+def record_contract_authorization(
+    *,
+    session_id: str,
+    spec_name: str,
+    contract_path: Path,
+    authorized_by: str = "tooling",
+) -> dict[str, Any]:
     contract = _load_json(contract_path)
     actual_hash = contract_hash(contract)
     if str(contract.get("contract_hash") or "") != actual_hash:
@@ -274,6 +315,7 @@ def record_contract_approval(*, session_id: str, spec_name: str, contract_path: 
         "spec_name": Path(spec_name).name,
         "contract_path": str(contract_path.resolve()),
         "contract_hash": actual_hash,
+        "authorized_by": authorized_by,
     }
     path = approval_record_path(session_id, spec_name)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -282,34 +324,27 @@ def record_contract_approval(*, session_id: str, spec_name: str, contract_path: 
     return record
 
 
-def record_spec_owned_contract_approval(*, session_id: str, spec_name: str, timeline_path: Path) -> dict[str, Any]:
-    timeline = _load_json(timeline_path)
-    timeline_hash = _file_sha256(timeline_path)
-    contract = write_contract(
-        spec_owned_contract_path(session_id, spec_name),
-        spec_timeline_contract(timeline, device_profile=str(timeline.get("device") or "")),
+def record_contract_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
+    """Backward-compatible wrapper for older callers.
+
+    Proof rendering no longer requires asking the user to approve a video
+    contract. The durable record remains useful as a hash-bound render
+    authorization so later steps can detect path/content tampering.
+    """
+    return record_contract_authorization(
+        session_id=session_id,
+        spec_name=spec_name,
+        contract_path=contract_path,
+        authorized_by="tooling",
     )
-    record = record_contract_approval(session_id=session_id, spec_name=spec_name, contract_path=spec_owned_contract_path(session_id, spec_name))
-    record.update(
-        {
-            "approval_source": "spec_timeline",
-            "proof_timeline_path": str(timeline_path.resolve()),
-            "proof_timeline_sha256": timeline_hash,
-            "device_profile": (contract.get("devices") or [""])[0],
-        }
-    )
-    path = approval_record_path(session_id, spec_name)
-    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    path.chmod(0o600)
-    return record
 
 
 def require_recorded_approval(*, session_id: str, spec_name: str, contract_path: Path) -> dict[str, Any]:
     record = _load_json(approval_record_path(session_id, spec_name))
     if record.get("session_id") != session_id or record.get("spec_name") != Path(spec_name).name:
-        raise WorkflowError("no recorded user approval exists for this session and spec")
+        raise WorkflowError("no recorded proof contract authorization exists for this session and spec")
     if record.get("contract_path") != str(contract_path.resolve()):
-        raise WorkflowError("approved contract path does not match the render contract")
+        raise WorkflowError("authorized contract path does not match the render contract")
     contract = load_approved_contract(contract_path, str(record.get("contract_hash") or ""))
     return contract
 
@@ -334,80 +369,55 @@ def approved_render_claims(contract: dict[str, Any], *, device_profile: str | No
         "acceptance_criteria": [assertion["id"] for assertion in assertions],
         "assertions": assertions,
         "contract_hash": contract_hash(canonical),
-        **({"domain": canonical["domain"]} if canonical.get("domain") else {}),
     }
-
-
-def spec_timeline_contract(timeline: dict[str, Any], *, device_profile: str | None = None) -> dict[str, Any]:
-    """Convert a spec-owned Playwright proof timeline into a canonical render contract."""
-
-    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
-    if contract.get("surface") != "web":
-        raise WorkflowError("spec-owned proof timeline must describe a web surface")
-    devices = contract.get("devices") if isinstance(contract.get("devices"), list) else []
-    if device_profile is None:
-        device_profile = str(timeline.get("device") or "")
-    if device_profile not in devices:
-        raise WorkflowError("spec-owned proof timeline device must be declared by the contract")
-
-    reached_checkpoints = {
-        str(item.get("checkpoint") or item.get("id") or "")
-        for item in timeline.get("checkpoint_frames", [])
-        if isinstance(item, dict)
-    }
-    reached_checkpoints.update(
-        str(item.get("id") or "")
-        for item in timeline.get("events", [])
-        if isinstance(item, dict) and item.get("kind") == "checkpoint"
-    )
-    passed_assertions = {
-        str(item.get("id") or "")
-        for item in timeline.get("assertion_results", [])
-        if isinstance(item, dict) and item.get("status") == "passed"
-    }
-
-    transcript: list[dict[str, Any]] = []
-    for cue in contract.get("transcript", []):
-        if not isinstance(cue, dict) or device_profile not in (cue.get("devices") or []):
-            continue
-        checkpoint = str(cue.get("checkpoint") or "")
-        if checkpoint not in reached_checkpoints:
-            raise WorkflowError(f"spec-owned proof transcript checkpoint was not reached: {checkpoint}")
-        transcript.append({"text": str(cue.get("text") or ""), "devices": [device_profile]})
-
-    assertions: list[dict[str, Any]] = []
-    for assertion in contract.get("assertions", []):
-        if not isinstance(assertion, dict) or device_profile not in (assertion.get("devices") or []):
-            continue
-        assertion_id = str(assertion.get("id") or "")
-        checkpoint = str(assertion.get("checkpoint") or "")
-        if checkpoint not in reached_checkpoints:
-            raise WorkflowError(f"spec-owned proof assertion checkpoint was not reached: {checkpoint}")
-        if assertion_id not in passed_assertions:
-            raise WorkflowError(f"spec-owned proof assertion did not pass: {assertion_id}")
-        assertions.append({"id": assertion_id, "description": str(assertion.get("visual") or ""), "devices": [device_profile]})
-
-    domain = str(contract.get("domain") or "")
-    canonical_input = {
-        "schema_version": 2,
-        "title": str(contract.get("title") or ""),
-        "transcript": transcript,
-        "assertions": assertions,
-        "devices": [device_profile],
-    }
-    if domain:
-        canonical_input["domain"] = domain
-    return canonical_contract(canonical_input)
 
 
 def spec_timeline_render_claims(timeline: dict[str, Any], *, device_profile: str | None = None) -> dict[str, Any]:
-    """Return caption and assertion claims from a validated spec-owned timeline."""
+    """Render proof-video claims from a Playwright-attached spec timeline."""
 
-    canonical = spec_timeline_contract(timeline, device_profile=device_profile)
-    claims = approved_render_claims(canonical, device_profile=canonical["devices"][0])
-    if canonical.get("domain"):
-        claims["domain"] = canonical["domain"]
-    return claims
+    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+    if not contract:
+        raise WorkflowError("spec proof timeline requires an embedded contract")
+    transcript_items = contract.get("transcript")
+    assertion_items = contract.get("assertions")
+    if not isinstance(transcript_items, list) or not transcript_items:
+        raise WorkflowError("spec proof timeline requires transcript items")
+    if not isinstance(assertion_items, list) or not assertion_items:
+        raise WorkflowError("spec proof timeline requires assertion items")
+
+    def targets_device(item: dict[str, Any]) -> bool:
+        devices = item.get("devices")
+        if device_profile and isinstance(devices, list):
+            return device_profile in {str(device) for device in devices}
+        return True
+
+    transcript: list[str] = []
+    for item in transcript_items:
+        if isinstance(item, str):
+            transcript.append(item.strip())
+        elif isinstance(item, dict) and targets_device(item):
+            transcript.append(str(item.get("text") or "").strip())
+    transcript = [text for text in transcript if text]
+
+    assertions: list[dict[str, str]] = []
+    for item in assertion_items:
+        if not isinstance(item, dict) or not targets_device(item):
+            continue
+        assertion_id = str(item.get("id") or "").strip()
+        description = str(item.get("description") or item.get("visual") or item.get("text") or "").strip()
+        if assertion_id and description:
+            assertions.append({"id": assertion_id, "description": description})
+    if not transcript or not assertions:
+        raise WorkflowError("spec proof timeline has no claims for the requested device")
+    contract_payload = json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        "caption_text": " ".join(transcript),
+        "expected_proof": " ".join(assertion["description"] for assertion in assertions),
+        "acceptance_criteria": [assertion["id"] for assertion in assertions],
+        "assertions": assertions,
+        "contract_hash": str(contract.get("contract_hash") or f"sha256:{hashlib.sha256(contract_payload).hexdigest()}"),
+        "domain": str(contract.get("domain") or ""),
+    }
 
 
 def marker_trim_start(*, ready_timestamp_seconds: float, lead_seconds: float = MARKER_TRIM_LEAD_SECONDS) -> float:
@@ -423,6 +433,9 @@ def calculate_pacing(*, source_duration_seconds: float, transcript_words: int) -
     if reading_seconds > MAX_OUTPUT_SECONDS:
         raise WorkflowError("transcript cannot fit the 35 second output limit; shorten the tutorial transcript")
     playback_rate = max(MIN_PLAYBACK_RATE, min(1.0, source_duration_seconds / reading_seconds))
+    playback_rate = max(playback_rate, source_duration_seconds / MAX_OUTPUT_SECONDS)
+    if playback_rate > MAX_PLAYBACK_RATE:
+        raise WorkflowError("source recording cannot fit the 35 second output limit")
     slowed_duration = source_duration_seconds / playback_rate
     hold = max(0.0, reading_seconds - slowed_duration)
     output = slowed_duration + hold
@@ -500,7 +513,7 @@ def route_defect(defect: str, *, prior_automatic_rerenders: int) -> dict[str, An
         return {
             "verdict": "product_defect",
             "return_stage": "implementation",
-            "automatic_correction": False,
+            "automatic_correction": True,
             "next_action": "return_to_failing_test",
         }
     return {
@@ -521,6 +534,7 @@ def reserve_review_budget(
     frame_index_hash: str = "",
     source_artifact_hash: str = "",
     caption_artifact_hash: str = "",
+    now: datetime | None = None,
 ) -> dict[str, Any]:
     """Reserve one persisted AI review call before inference starts."""
     if correction_round not in range(MAX_AUTOMATIC_CORRECTION_ROUNDS + 1):
@@ -534,7 +548,58 @@ def reserve_review_budget(
     if not 1 <= frame_count <= MAX_REVIEW_FRAMES_PER_DEVICE:
         raise WorkflowError(f"review frame count must be between 1 and {MAX_REVIEW_FRAMES_PER_DEVICE}")
 
+    now = now or datetime.now(timezone.utc)
     result = json.loads(json.dumps(budget)) if budget else {}
+
+    product_rounds = [int(value) for value in result.get("product_code_correction_rounds", [])]
+    reservations = result.setdefault("reservations", [])
+    if frame_index_hash and source_artifact_hash and any(
+        item.get("device") == device
+        and item.get("frame_index_hash") == frame_index_hash
+        and item.get("source_artifact_hash") == source_artifact_hash
+        and item.get("caption_artifact_hash", "") == caption_artifact_hash
+        and item.get("receipt_path")
+        for item in reservations
+        if isinstance(item, dict)
+    ):
+        raise WorkflowError("unchanged device evidence is already reviewed; use its cached receipt")
+    reservation_key = {
+        "device": device,
+        "correction_round": correction_round,
+        "frame_index_hash": frame_index_hash,
+        "source_artifact_hash": source_artifact_hash,
+        "caption_artifact_hash": caption_artifact_hash,
+        "budget_epoch": int(result.get("active_epoch", 0)),
+    }
+    existing_reservation = next(
+        (
+            item
+            for item in reservations
+            if isinstance(item, dict)
+            and all(item.get(key) == value for key, value in reservation_key.items())
+        ),
+        None,
+    )
+    if existing_reservation is not None:
+        if existing_reservation.get("receipt_path"):
+            raise WorkflowError("this device and correction round were already reviewed")
+        lease_value = str(existing_reservation.get("lease_expires_at") or "")
+        try:
+            lease_expires_at = datetime.fromisoformat(lease_value.replace("Z", "+00:00")) if lease_value else None
+        except ValueError as exc:
+            raise WorkflowError("stored review reservation has an invalid lease timestamp") from exc
+        if lease_expires_at is not None and lease_expires_at.tzinfo is None:
+            raise WorkflowError("stored review reservation has an invalid lease timestamp")
+        owner_pid = existing_reservation.get("lease_owner_pid")
+        if lease_expires_at is not None and now < lease_expires_at and _process_is_alive(owner_pid):
+            raise WorkflowError("proof-video review is already in progress for this device and correction round")
+        retry_count = int(existing_reservation.get("retry_count", 0))
+        existing_reservation["retry_count"] = retry_count + 1
+        existing_reservation["lease_expires_at"] = (
+            now + timedelta(seconds=REVIEW_RESERVATION_LEASE_SECONDS)
+        ).isoformat()
+        existing_reservation["lease_owner_pid"] = os.getpid()
+        return result
     calls = int(result.get("ai_review_calls", 0)) + 1
     submitted = int(result.get("submitted_frames", 0)) + frame_count
     if calls > MAX_AI_REVIEW_CALLS:
@@ -553,27 +618,14 @@ def reserve_review_budget(
         if len(product_rounds) >= MAX_PRODUCT_CODE_CORRECTION_ROUNDS:
             raise WorkflowError("product-code correction budget is exhausted; ask the user what to do next")
         product_rounds.append(correction_round)
-    reservations = result.setdefault("reservations", [])
-    if frame_index_hash and source_artifact_hash and any(
-        item.get("device") == device
-        and item.get("frame_index_hash") == frame_index_hash
-        and item.get("source_artifact_hash") == source_artifact_hash
-        and item.get("caption_artifact_hash", "") == caption_artifact_hash
-        and item.get("receipt_path")
-        for item in reservations
-        if isinstance(item, dict)
-    ):
-        raise WorkflowError("unchanged device evidence is already reviewed; use its cached receipt")
     reservation = {
-        "device": device,
-        "correction_round": correction_round,
-        "frame_index_hash": frame_index_hash,
-        "source_artifact_hash": source_artifact_hash,
-        "caption_artifact_hash": caption_artifact_hash,
+        **reservation_key,
         "budget_epoch": int(result.get("active_epoch", 0)),
     }
-    if reservation in reservations:
-        raise WorkflowError("this device and correction round were already reviewed")
+    reservation["lease_expires_at"] = (
+        now + timedelta(seconds=REVIEW_RESERVATION_LEASE_SECONDS)
+    ).isoformat()
+    reservation["lease_owner_pid"] = os.getpid()
     reservations.append(reservation)
     result.update(
         {
@@ -718,9 +770,20 @@ def load_cached_review(
             cached_manifest = _load_json(manifest_path)
             cached_request = _load_json(cached_run_dir / "review-request.json")
             cached_receipt = _load_json(receipt_path)
+            cached_review = cached_manifest.get("review") if isinstance(cached_manifest.get("review"), dict) else {}
+            cached_attempts = cached_review.get("attempts") if isinstance(cached_review.get("attempts"), list) else []
+            expected_review_status = "passed" if cached_receipt.get("status") == "passed" else "failed"
             try:
                 validate_review_request_files(cached_run_dir, cached_request)
-                require_review_receipt_integrity(cached_run_dir, cached_manifest)
+                if (
+                    cached_receipt not in cached_attempts
+                    or cached_review.get("receipt_sha256") != _file_sha256(receipt_path)
+                    or cached_review.get("status") != expected_review_status
+                    or cached_review.get("classified_status") != cached_receipt.get("status")
+                ):
+                    raise WorkflowError("stored review cache is not the manifest's canonical latest receipt")
+                if cached_receipt.get("status") == "passed":
+                    require_review_receipt_integrity(cached_run_dir, cached_manifest)
             except Exception as exc:
                 raise WorkflowError(f"stored review cache failed integrity validation: {exc}") from exc
             cached_device = str((cached_request.get("video_metadata") or {}).get("device_profile") or "unspecified-device")
@@ -744,6 +807,7 @@ def load_cached_review(
                 "manifest": cached_manifest,
                 "budget": budget,
                 "cached": True,
+                "cache_run_dir": str(cached_run_dir),
             }
     return None
 
@@ -788,6 +852,91 @@ def record_cached_review(
     raise WorkflowError("could not attach the review receipt to its budget reservation")
 
 
+def recover_persisted_review_cache(
+    path: Path,
+    *,
+    run_dir: Path,
+    request: dict[str, Any],
+    device: str,
+    correction_round: int,
+    frame_index_hash: str,
+    source_artifact_hash: str,
+    caption_artifact_hash: str,
+) -> bool:
+    """Attach a fully persisted review when a crash interrupted cache bookkeeping."""
+    try:
+        from scripts.spec_demo import review_request_hash
+    except ModuleNotFoundError:
+        from spec_demo import review_request_hash
+
+    receipt_path = run_dir / "review-receipt.json"
+    manifest_path = run_dir / "manifest.json"
+    if not path.is_file() or not receipt_path.is_file() or not manifest_path.is_file():
+        return False
+    budget = _load_json(path)
+    matching = next(
+        (
+            item
+            for item in budget.get("reservations", [])
+            if isinstance(item, dict)
+            and item.get("device") == device
+            and item.get("correction_round") == correction_round
+            and item.get("frame_index_hash") == frame_index_hash
+            and item.get("source_artifact_hash") == source_artifact_hash
+            and item.get("caption_artifact_hash", "") == caption_artifact_hash
+            and (
+                not item.get("receipt_path")
+                or (
+                    Path(str(item.get("receipt_path"))).resolve() == receipt_path.resolve()
+                    and item.get("receipt_sha256") != _file_sha256(receipt_path)
+                )
+            )
+        ),
+        None,
+    )
+    if matching is None:
+        return False
+    receipt = _load_json(receipt_path)
+    manifest = _load_json(manifest_path)
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    expected_review_status = "passed" if receipt.get("status") == "passed" else "failed"
+    if (
+        review.get("receipt_sha256") != _file_sha256(receipt_path)
+        or review.get("status") != expected_review_status
+        or review.get("classified_status") != receipt.get("status")
+        or receipt not in attempts
+        or receipt.get("frame_index_hash") != frame_index_hash
+        or receipt.get("review_request_hash") != review_request_hash(request)
+        or receipt.get("proof_group_id") != request.get("proof_group_id")
+        or receipt.get("proof_contract_hash") != request.get("proof_contract_hash")
+        or receipt.get("subject_commit") != request.get("subject_commit")
+        or receipt.get("source_artifact_hash") != source_artifact_hash
+        or str(receipt.get("caption_artifact_hash") or "") != caption_artifact_hash
+    ):
+        raise WorkflowError("persisted review receipt cannot be recovered because its provenance changed")
+    if receipt.get("status") == "passed":
+        try:
+            from scripts.spec_demo import require_review_receipt_integrity
+        except ModuleNotFoundError:
+            from spec_demo import require_review_receipt_integrity
+        try:
+            require_review_receipt_integrity(run_dir, manifest)
+        except Exception as exc:
+            raise WorkflowError(f"persisted passed review receipt failed integrity validation: {exc}") from exc
+    record_cached_review(
+        path,
+        device=device,
+        correction_round=correction_round,
+        frame_index_hash=frame_index_hash,
+        source_artifact_hash=source_artifact_hash,
+        caption_artifact_hash=caption_artifact_hash,
+        run_dir=run_dir,
+        status=str(receipt.get("status") or ""),
+    )
+    return True
+
+
 def review_defect_fingerprint(review: dict[str, Any]) -> str:
     failed_assertions = [
         {
@@ -803,6 +952,8 @@ def review_defect_fingerprint(review: dict[str, Any]) -> str:
             "id": item.get("id"),
             "category": item.get("category"),
             "severity": item.get("severity"),
+            "intent": item.get("intent"),
+            "quality_categories": sorted(map(str, item.get("quality_categories") or [])),
             "frames": sorted(map(str, item.get("frames") or [])),
         }
         for item in review.get("incidental_findings", [])
@@ -816,24 +967,133 @@ def review_defect_fingerprint(review: dict[str, Any]) -> str:
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
+def require_user_intent_for_subjective_visual_findings(review: dict[str, Any]) -> bool:
+    """Prevent frame-only color judgments from triggering automatic product edits."""
+    findings = [item for item in review.get("incidental_findings", []) if isinstance(item, dict)]
+    blocking = [item for item in findings if item.get("severity") == "blocking"]
+    subjective = [
+        item
+        for item in blocking
+        if item.get("intent") in {"obvious", "unclear"} and item.get("category") in SUBJECTIVE_FRAME_ONLY_CATEGORIES
+    ]
+    if not subjective:
+        return False
+
+    affected: dict[str, set[str]] = {}
+    for finding in subjective:
+        finding["intent"] = "unclear"
+        categories = set(map(str, finding.get("quality_categories") or []))
+        for frame in map(str, finding.get("frames") or []):
+            affected.setdefault(frame, set()).update(categories)
+
+    for frame_review in review.get("frame_reviews", []):
+        if not isinstance(frame_review, dict):
+            continue
+        checks = frame_review.get("checks")
+        if not isinstance(checks, dict):
+            continue
+        for category in affected.get(str(frame_review.get("frame") or ""), set()):
+            if checks.get(category) == "fail":
+                checks[category] = "uncertain"
+
+    if len(subjective) == len(blocking):
+        review["status"] = "uncertain"
+        review["return_stage"] = "review"
+        review["next_action"] = "Ask the user whether the frame-only color or contrast treatment is intentional."
+    return True
+
+
+def _matching_unclear_attempt_hash(attempts: list[Any], finding: dict[str, Any]) -> str:
+    try:
+        from scripts.spec_demo import review_attempt_sha256
+    except ModuleNotFoundError:
+        from spec_demo import review_attempt_sha256
+
+    expected_frames = list(map(str, finding.get("frames") or []))
+    expected_categories = list(map(str, finding.get("quality_categories") or []))
+    for attempt in reversed(attempts):
+        if not isinstance(attempt, dict) or attempt.get("status") != "uncertain":
+            continue
+        candidate = next(
+            (
+                item
+                for item in attempt.get("incidental_findings", [])
+                if isinstance(item, dict) and item.get("id") == finding.get("id")
+            ),
+            None,
+        )
+        if (
+            isinstance(candidate, dict)
+            and candidate.get("intent") == "unclear"
+            and candidate.get("category") == finding.get("category")
+            and candidate.get("severity") == finding.get("severity")
+            and candidate.get("confidence") == finding.get("confidence")
+            and candidate.get("observation") == finding.get("observation")
+            and list(map(str, candidate.get("frames") or [])) == expected_frames
+            and list(map(str, candidate.get("quality_categories") or [])) == expected_categories
+        ):
+            return review_attempt_sha256(attempt)
+    return ""
+
+
 def review_next_action(review: dict[str, Any], *, prior_defect_fingerprints: list[str]) -> dict[str, Any]:
     status = str(review.get("status") or "")
     if status == "passed":
-        return {"requires_user_input": False, "automatic_correction": False, "return_stage": "complete"}
+        return {
+            "requires_user_input": False,
+            "automatic_correction": False,
+            "return_stage": "complete",
+            "disposition": "publish",
+        }
     fingerprint = review_defect_fingerprint(review)
     repeated = fingerprint in prior_defect_fingerprints
     uncertain = status == "uncertain"
     confidence = review.get("confidence")
-    low_confidence_product = status == "product_defect" and (
-        isinstance(confidence, bool) or not isinstance(confidence, (int, float)) or confidence < 0.9
+    findings = [item for item in review.get("incidental_findings", []) if isinstance(item, dict)]
+    unclear_intent = any(item.get("intent") == "unclear" for item in findings)
+    uncertain_quality = any(
+        result == "uncertain"
+        for frame_review in review.get("frame_reviews", [])
+        if isinstance(frame_review, dict)
+        for result in (frame_review.get("checks") or {}).values()
     )
-    requires_user = uncertain or repeated or low_confidence_product
+    low_confidence_finding = any(
+        isinstance(item.get("confidence"), bool)
+        or not isinstance(item.get("confidence"), (int, float))
+        or item["confidence"] < 0.9
+        for item in findings
+    )
+    low_confidence_product = status == "product_defect" and (
+        isinstance(confidence, bool)
+        or not isinstance(confidence, (int, float))
+        or confidence < 0.9
+        or low_confidence_finding
+    )
+    requires_user = uncertain or repeated or low_confidence_product or unclear_intent or uncertain_quality
+    disposition = "ask_user" if requires_user else {
+        "capture_defect": "recapture",
+        "render_defect": "rerender",
+        "product_defect": "auto_fix",
+    }.get(status, "review")
+    return_stage = {
+        "recapture": "capture",
+        "rerender": "render",
+        "auto_fix": "implementation",
+        "ask_user": "review",
+    }.get(disposition, "review")
+    next_action = {
+        "recapture": "Recapture the required product state with visible transitions.",
+        "rerender": "Rerender the proof without changing product pixels or assertions.",
+        "auto_fix": "Add or strengthen a failing test, fix the product, deploy, and recapture replacement proof.",
+        "ask_user": "Show the representative blocker frame and ask the user for consent before product-code changes.",
+    }.get(disposition, "Review the classified defect.")
     return {
         "requires_user_input": requires_user,
         "automatic_correction": not requires_user and status in {"capture_defect", "render_defect", "product_defect"},
-        "return_stage": review.get("return_stage", "review"),
+        "return_stage": return_stage,
+        "disposition": disposition,
         "defect_fingerprint": fingerprint,
-        "next_action": review.get("next_action", "Ask the user what to do next."),
+        "next_action": next_action,
     }
 
 
@@ -842,49 +1102,234 @@ def proof_blocker_media(run_dir: Path, manifest: dict[str, Any], review_status: 
 
     if review_status == "passed":
         return {}
+
+    try:
+        from scripts.spec_demo import resolve_run_artifact_path
+    except ModuleNotFoundError:
+        from spec_demo import resolve_run_artifact_path
+
+    def resolve_artifact(value: str) -> Path:
+        return resolve_run_artifact_path(run_dir, value)
+
     video_value = str(manifest.get("video_path") or "")
     if not video_value:
         source = manifest.get("source") if isinstance(manifest.get("source"), dict) else {}
         video_value = str(source.get("artifact_path") or "")
-    video_path = Path(video_value)
-    if video_value and not video_path.is_absolute():
-        video_path = run_dir / video_path
+    video_path = resolve_artifact(video_value) if video_value else Path()
 
     record: dict[str, Any] = {
         "status": "required",
-        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
-        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
+        "reason": "Proof review did not pass; include the exact cited frame when reporting the blocker.",
+        "response_requirement": "Run image_upload_command and embed the returned image before asking for visual intent.",
     }
-    if not video_value or not video_path.is_file():
-        return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
 
-    caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
-    captions_value = str(caption_artifact.get("path") or "")
-    captions_path = Path(captions_value) if captions_value else None
-    if captions_path is not None and not captions_path.is_absolute():
-        captions_path = run_dir / captions_path
-
-    alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
-    if captions_path is not None and captions_path.is_file():
-        command.extend(
-            [
-                "--captions",
-                str(captions_path),
-                "--captions-language",
-                str(caption_artifact.get("language") or "und"),
-                "--captions-label",
-                str(caption_artifact.get("label") or "Captions"),
-            ]
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    latest_attempt = attempts[-1] if attempts and isinstance(attempts[-1], dict) else {}
+    findings = latest_attempt.get("incidental_findings") if isinstance(latest_attempt.get("incidental_findings"), list) else []
+    finding = next(
+        (item for item in findings if isinstance(item, dict) and item.get("intent") == "unclear"),
+        findings[0] if findings and isinstance(findings[0], dict) else {},
+    )
+    finding_frames = finding.get("frames") if isinstance(finding.get("frames"), list) else []
+    if finding.get("id"):
+        record["finding_id"] = str(finding["id"])
+    assertions = latest_attempt.get("assertions") if isinstance(latest_attempt.get("assertions"), list) else []
+    first_assertion = next(
+        (item for item in assertions if isinstance(item, dict) and item.get("verdict") != "supported"),
+        {},
+    )
+    assertion_frames = first_assertion.get("frames") if isinstance(first_assertion.get("frames"), list) else []
+    frame_reviews = latest_attempt.get("frame_reviews") if isinstance(latest_attempt.get("frame_reviews"), list) else []
+    nonpassing_review = next(
+        (
+            item
+            for item in frame_reviews
+            if isinstance(item, dict)
+            and isinstance(item.get("checks"), dict)
+            and any(value != "pass" for value in item["checks"].values())
+        ),
+        {},
+    )
+    fallback_frame = str(nonpassing_review.get("frame") or "")
+    reviewed_frames = latest_attempt.get("reviewed_frames") if isinstance(latest_attempt.get("reviewed_frames"), list) else []
+    image_value = next(
+        (
+            str(value)
+            for value in (
+                finding_frames[0] if finding_frames else "",
+                assertion_frames[0] if assertion_frames else "",
+                fallback_frame,
+                reviewed_frames[0] if reviewed_frames else "",
+            )
+            if value
+        ),
+        "",
+    )
+    image_path = resolve_artifact(image_value) if image_value else None
+    if image_path is not None and image_path.is_file():
+        record["image_path"] = str(image_path)
+        record["image_upload_command"] = " ".join(
+            shlex.quote(part)
+            for part in (
+                "python3",
+                "scripts/opencode_response_media.py",
+                str(image_path),
+                "--alt",
+                f"Blocked proof frame for {manifest.get('spec_id', 'session-proof')} ({review_status})",
+            )
         )
-        record["captions_path"] = str(captions_path)
-    command.extend(["--alt", alt])
-    return {
-        **record,
-        "media_status": "available",
-        "video_path": str(video_path),
-        "upload_command": " ".join(shlex.quote(part) for part in command),
+    if video_value and video_path.is_file():
+        caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
+        captions_value = str(caption_artifact.get("path") or "")
+        captions_path = resolve_artifact(captions_value) if captions_value else None
+        command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
+        if captions_path is not None and captions_path.is_file():
+            command.extend(
+                [
+                    "--captions",
+                    str(captions_path),
+                    "--captions-language",
+                    str(caption_artifact.get("language") or "und"),
+                    "--captions-label",
+                    str(caption_artifact.get("label") or "Captions"),
+                ]
+            )
+            record["captions_path"] = str(captions_path)
+        command.extend(["--alt", f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"])
+        record["video_path"] = str(video_path)
+        record["upload_command"] = " ".join(shlex.quote(part) for part in command)
+    elif video_value:
+        record["video_path"] = str(video_path)
+    record["image_status"] = "available" if record.get("image_upload_command") else "missing"
+    record["video_status"] = "available" if record.get("upload_command") else "missing"
+    record["media_status"] = (
+        "available" if record["image_status"] == "available" and record["video_status"] == "available" else "missing"
+    )
+    return record
+
+
+def approve_visual_intent(
+    *,
+    run_dir: Path,
+    finding_id: str,
+    reason: str,
+    approved_at: str,
+) -> dict[str, Any]:
+    """Convert one exact unclear finding into a hash-bound user-approved pass."""
+    try:
+        from scripts.spec_demo import MAX_REVIEW_ATTEMPTS, record_review_receipt
+    except ModuleNotFoundError:
+        from spec_demo import MAX_REVIEW_ATTEMPTS, record_review_receipt
+
+    receipt_path = run_dir / "review-receipt.json"
+    receipt = _load_json(receipt_path)
+    if receipt.get("status") != "uncertain":
+        raise WorkflowError("visual intent can only approve an uncertain review receipt")
+    receipt.pop("attempt_number", None)
+    findings = receipt.get("incidental_findings") if isinstance(receipt.get("incidental_findings"), list) else []
+    finding = next(
+        (item for item in findings if isinstance(item, dict) and item.get("id") == finding_id),
+        None,
+    )
+    if (
+        not isinstance(finding, dict)
+        or finding.get("intent") != "unclear"
+        or finding.get("category") not in SUBJECTIVE_FRAME_ONLY_CATEGORIES
+    ):
+        raise WorkflowError("visual intent approval requires one exact unclear color or contrast finding")
+    try:
+        approval_time = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise WorkflowError("visual intent approval requires a valid timezone-aware approved_at timestamp") from exc
+    if approval_time.tzinfo is None or approval_time.utcoffset() is None:
+        raise WorkflowError("visual intent approval requires a valid timezone-aware approved_at timestamp")
+    frames = [str(value) for value in finding.get("frames", [])]
+    categories = [str(value) for value in finding.get("quality_categories", [])]
+    if not categories or not set(categories).issubset(SUBJECTIVE_APPROVABLE_QUALITY_CATEGORIES):
+        raise WorkflowError("visual intent approval cannot resolve proof-alignment or structural quality categories")
+    if any(item.get("verdict") != "supported" for item in receipt.get("assertions", []) if isinstance(item, dict)):
+        raise WorkflowError("visual intent approval cannot override an unsupported proof assertion")
+    manifest = _load_json(run_dir / "manifest.json")
+    review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
+    attempts = review.get("attempts") if isinstance(review.get("attempts"), list) else []
+    replace_latest_attempt = len(attempts) >= MAX_REVIEW_ATTEMPTS
+    original_receipt_sha256 = _file_sha256(receipt_path)
+    if replace_latest_attempt:
+        original_receipt_sha256 = _matching_unclear_attempt_hash(attempts[:-1], finding)
+        if not original_receipt_sha256:
+            raise WorkflowError(
+                "review attempt budget is exhausted and no prior matching unclear receipt remains for approval provenance"
+            )
+    frame_reviews = receipt.get("frame_reviews") if isinstance(receipt.get("frame_reviews"), list) else []
+    for frame_review in frame_reviews:
+        if not isinstance(frame_review, dict) or str(frame_review.get("frame")) not in frames:
+            continue
+        checks = frame_review.get("checks") if isinstance(frame_review.get("checks"), dict) else {}
+        for category in categories:
+            if checks.get(category) != "uncertain":
+                raise WorkflowError("approved visual intent may only resolve uncertain frame categories")
+            checks[category] = "pass"
+        frame_review["observation"] = (
+            str(frame_review.get("observation") or "").rstrip()
+            + f" User approved {finding_id} as intentional design."
+        )
+    receipt["incidental_findings"] = [item for item in findings if item is not finding]
+    remaining_nonpassing = [
+        value
+        for frame_review in frame_reviews
+        if isinstance(frame_review, dict)
+        for value in (frame_review.get("checks") or {}).values()
+        if value != "pass"
+    ]
+    if receipt["incidental_findings"] or remaining_nonpassing:
+        raise WorkflowError("visual intent approval did not resolve every review uncertainty")
+    approval = {
+        "finding_id": finding_id,
+        "approved_by": "user",
+        "approved_at": approved_at,
+        "reason": reason.strip(),
+        "frames": frames,
+        "quality_categories": categories,
+        "original_receipt_sha256": original_receipt_sha256,
     }
+    receipt["approved_visual_intents"] = [
+        *[item for item in receipt.get("approved_visual_intents", []) if isinstance(item, dict)],
+        approval,
+    ]
+    receipt.update(
+        {
+            "status": "passed",
+            "return_stage": "complete",
+            "next_action": "Publish the user-approved proof.",
+            "workflow": {
+                "requires_user_input": False,
+                "automatic_correction": False,
+                "return_stage": "complete",
+                "disposition": "user_approved",
+                "next_action": "Publish the user-approved proof.",
+            },
+        }
+    )
+    budget_path = REVIEW_BUDGETS_DIR / f"{str(receipt.get('proof_group_id') or '').removeprefix('sha256:')}.json"
+    manifest_path = run_dir / "manifest.json"
+    original_files = _snapshot_files([receipt_path, manifest_path, budget_path])
+    try:
+        manifest = record_review_receipt(run_dir, receipt, replace_latest_attempt=replace_latest_attempt)
+        budget = record_cached_review(
+            budget_path,
+            device=str(receipt.get("device") or ""),
+            correction_round=int(receipt.get("correction_round") or 0),
+            frame_index_hash=str(receipt.get("frame_index_hash") or ""),
+            source_artifact_hash=str(receipt.get("source_artifact_hash") or ""),
+            caption_artifact_hash=str(receipt.get("caption_artifact_hash") or ""),
+            run_dir=run_dir,
+            status="passed",
+        )
+    except Exception:
+        _restore_file_snapshots(original_files)
+        raise
+    return {"status": "passed", "approval": approval, "manifest": manifest, "budget": budget}
 
 
 def _parse_reviewer_output(output: str) -> dict[str, Any]:
@@ -910,15 +1355,42 @@ def _parse_reviewer_output(output: str) -> dict[str, Any]:
     raise WorkflowError("proof-video reviewer did not return one valid JSON object")
 
 
-def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_round: int) -> tuple[dict[str, Any], str]:
+def _default_reviewer_runner(
+    prompt_path: Path,
+    *,
+    run_dir: Path,
+    correction_round: int,
+) -> tuple[dict[str, Any], str]:
+    run_dir = run_dir.resolve()
+    prompt_path = prompt_path.resolve()
     output_path = run_dir / f"review-output-round-{correction_round}.jsonl"
     opencode_bin = _resolve_opencode_bin()
     if not opencode_bin:
         raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
-    staged_prompt = REPO_ROOT / prompt_path.name
-    staged_frames = REPO_ROOT / "frames"
-    if staged_prompt.exists() or staged_prompt.is_symlink() or staged_frames.exists() or staged_frames.is_symlink():
-        raise WorkflowError("proof-video reviewer staging paths already exist; remove stale review-prompt or frames symlink")
+    try:
+        prompt_path.relative_to(run_dir)
+    except ValueError as exc:
+        raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
+    reviewer_root = next(
+        (
+            root.resolve()
+            for root in (CONTROL_PLANE_ROOT, REPO_ROOT, OPENCODE_RUNTIME_ROOT)
+            if run_dir.is_relative_to(root.resolve())
+        ),
+        None,
+    )
+    if reviewer_root is None:
+        raise WorkflowError("proof-video run directory must be inside the control-plane or active checkout")
+    reviewer_prompt_path = prompt_path.relative_to(reviewer_root)
+    prompt_payload = _load_json(prompt_path)
+    review_request = prompt_payload.get("review_request") if isinstance(prompt_payload.get("review_request"), dict) else {}
+    frames = review_request.get("frames") if isinstance(review_request.get("frames"), list) else []
+    attachment_paths = [prompt_path]
+    for frame in frames:
+        if isinstance(frame, dict) and frame.get("path"):
+            frame["read_path"] = str(reviewer_prompt_path.parent / str(frame["path"]))
+            attachment_paths.append((run_dir / str(frame["path"])).resolve())
+    prompt_path.write_text(json.dumps(prompt_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     command = [
         opencode_bin,
         "run",
@@ -928,23 +1400,54 @@ def _default_reviewer_runner(prompt_path: Path, *, run_dir: Path, correction_rou
         "json",
         "--agent",
         "proof-video-reviewer",
+        *(argument for path in attachment_paths for argument in ("--file", str(path))),
+        *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
         "--dir",
-        str(REPO_ROOT),
-        f"Read {prompt_path.name} in full and return only the required JSON review receipt.",
+        str(reviewer_root),
+        "Review the attached proof prompt and every attached frame, then return only the required JSON review receipt.",
     ]
-    try:
-        staged_prompt.symlink_to(prompt_path.resolve())
-        staged_frames.symlink_to((run_dir / "frames").resolve(), target_is_directory=True)
-        result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=600, check=False)
-    finally:
-        for staged in (staged_prompt, staged_frames):
-            if staged.is_symlink():
-                staged.unlink()
-    output = (result.stdout + result.stderr).strip()
-    output_path.write_text(output + ("\n" if output else ""), encoding="utf-8")
-    output_path.chmod(0o600)
-    if result.returncode != 0:
-        raise WorkflowError(f"proof-video reviewer failed with exit code {result.returncode}")
+    started_at = time.monotonic()
+    print(
+        f"Proof reviewer round {correction_round} started"
+        + (f" via {REVIEWER_ATTACH_URL}" if REVIEWER_ATTACH_URL else " in standalone pure mode")
+        + f"; timeout={REVIEWER_TIMEOUT_SECONDS}s.",
+        flush=True,
+    )
+    with output_path.open("w+", encoding="utf-8") as output_file:
+        output_path.chmod(0o600)
+        process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
+            command,
+            cwd=run_dir,
+            text=True,
+            stdout=output_file,
+            stderr=subprocess.STDOUT,
+        )
+        while True:
+            elapsed = time.monotonic() - started_at
+            remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
+            if remaining <= 0:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+                raise WorkflowError(
+                    f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
+                )
+            try:
+                returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
+                break
+            except subprocess.TimeoutExpired:
+                print(
+                    f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
+                    flush=True,
+                )
+        output_file.flush()
+        output_file.seek(0)
+        output = output_file.read().strip()
+    if returncode != 0:
+        raise WorkflowError(f"proof-video reviewer failed with exit code {returncode}; output: {output_path}")
     session_id = ""
     for line in output.splitlines():
         try:
@@ -965,13 +1468,19 @@ def review_run(
     reviewer_runner: Any = _default_reviewer_runner,
 ) -> dict[str, Any]:
     try:
-        from scripts.spec_demo import record_review_receipt, validate_review_request_files
+        from scripts.spec_demo import record_review_receipt, review_request_hash, validate_review_request_files
     except ModuleNotFoundError:
-        from spec_demo import record_review_receipt, validate_review_request_files
+        from spec_demo import record_review_receipt, review_request_hash, validate_review_request_files
 
-    canonical_runs_root = (RESULTS_DIR / "proof-videos").resolve()
-    if not run_dir.resolve().is_relative_to(canonical_runs_root):
-        raise WorkflowError(f"review run directory must be inside {canonical_runs_root}")
+    run_dir = run_dir.resolve()
+    canonical_runs_roots = {
+        (RESULTS_DIR / "proof-videos").resolve(),
+        (CONTROL_PLANE_ROOT / "test-results" / "proof-videos").resolve(),
+        (OPENCODE_RUNTIME_ROOT / "test-results" / "proof-videos").resolve(),
+    }
+    if not any(run_dir.is_relative_to(root) for root in canonical_runs_roots):
+        allowed_roots = ", ".join(str(root) for root in sorted(canonical_runs_roots))
+        raise WorkflowError(f"review run directory must be inside one of: {allowed_roots}")
     request = _load_json(run_dir / "review-request.json")
     existing_manifest = _load_json(run_dir / "manifest.json")
     try:
@@ -998,6 +1507,16 @@ def review_run(
     frame_hash = str(request.get("frame_index_hash") or "")
     source_hash = str((request.get("video_metadata") or {}).get("sha256") or "")
     caption_hash = str((request.get("video_metadata") or {}).get("captions_sha256") or "")
+    recovered_cache = recover_persisted_review_cache(
+        budget_path,
+        run_dir=run_dir,
+        request=request,
+        device=device,
+        correction_round=correction_round,
+        frame_index_hash=frame_hash,
+        source_artifact_hash=source_hash,
+        caption_artifact_hash=caption_hash,
+    )
     cached = load_cached_review(
         budget_path,
         proof_identity=proof_identity,
@@ -1009,20 +1528,47 @@ def review_run(
         caption_artifact_hash=caption_hash,
     )
     if cached is not None:
+        same_run = Path(str(cached.get("cache_run_dir") or "")).resolve() == run_dir.resolve()
         cached_receipt = {
             key: value
             for key, value in cached["receipt"].items()
             if key != "attempt_number"
         }
-        blocker_media = proof_blocker_media(run_dir, existing_manifest, str(cached_receipt.get("status") or ""))
+        subjective_boundary_applied = require_user_intent_for_subjective_visual_findings(cached_receipt)
+        if subjective_boundary_applied:
+            cached_receipt["workflow"] = review_next_action(cached_receipt, prior_defect_fingerprints=[])
+        blocker_manifest = {
+            **existing_manifest,
+            "review": {"attempts": [cached_receipt]},
+        }
+        blocker_media = proof_blocker_media(run_dir, blocker_manifest, str(cached_receipt.get("status") or ""))
         if blocker_media:
             workflow_record = cached_receipt.get("workflow") if isinstance(cached_receipt.get("workflow"), dict) else {}
             workflow_record["blocker_media"] = blocker_media
             cached_receipt["workflow"] = workflow_record
             cached["blocker_media"] = blocker_media
         cached["receipt"] = cached_receipt
-        cached["manifest"] = record_review_receipt(run_dir, cached_receipt)
+        cached["status"] = str(cached_receipt.get("status") or "")
+        if not same_run or subjective_boundary_applied:
+            replace_latest_attempt = same_run and subjective_boundary_applied
+            cached["manifest"] = record_review_receipt(
+                run_dir,
+                cached_receipt,
+                replace_latest_attempt=replace_latest_attempt,
+            )
+            cached["budget"] = record_cached_review(
+                budget_path,
+                device=device,
+                correction_round=correction_round,
+                frame_index_hash=frame_hash,
+                source_artifact_hash=source_hash,
+                caption_artifact_hash=caption_hash,
+                run_dir=run_dir,
+                status=cached["status"],
+            )
         return cached
+    if recovered_cache:
+        raise WorkflowError("persisted review cache recovery did not produce reusable evidence")
     budget = reserve_persisted_review_budget(
         budget_path,
         proof_identity=proof_identity,
@@ -1037,20 +1583,35 @@ def review_run(
 
     prompt = {
         "instructions": (
-            "Review every supplied frame. Evaluate every expected assertion and independently scan for obvious visual-integrity "
-            "defects including clipping, overlap, overflow, incorrect geometry or colors, stale loading, raw implementation text, "
-            "broken navigation, and unresponsive controls. Never omit a supplied frame or inspect the full video."
+            "Review every supplied frame. Before evaluating assertions, inspect each frame as a critical UI quality reviewer whose "
+            "goal is to find reasons the proof must not pass. Record every required frame_reviews category, then separately evaluate "
+            "the expected assertions and narration alignment. Scan for clipping, overlap, overflow, suspicious unused container space, "
+            "incorrect geometry or colors, low contrast or unreadable text, stale loading, raw implementation text, broken navigation, "
+            "missing or malformed icons, broken media, and unresponsive controls. Classify visible product defects as obvious only when "
+            "the UI is objectively broken; use unclear when design intent is plausible and user consent is required before code changes. "
+            "A frame-only judgment about color, typography hierarchy, font size, or contrast is subjective without deterministic measurement; "
+            "mark its intent unclear and the affected quality checks uncertain rather than requesting automatic product edits. "
+            "Never omit a supplied frame or inspect the full video."
             " Captions may be delivered as toggleable sidecar metadata rather than burned into the reviewed frames; do not report "
             "missing burned-in caption pixels as a defect unless the approved contract explicitly requires visible in-frame captions."
-            " Read each image from read_path, but cite its canonical path field in the JSON response."
+            " For every incidental finding, every listed quality category must be fail or uncertain on every cited frame; split findings "
+            "when cited frames have different non-passing category sets. Read each image from read_path, but cite its canonical path field "
+            "in the JSON response."
         ),
         "required_output": {
             "status": "passed|capture_defect|render_defect|product_defect|uncertain",
             "confidence": "number from 0 to 1",
             "frame_index_hash": request.get("frame_index_hash"),
             "reviewed_frames": "every canonical frame path exactly once",
+            "frame_reviews": (
+                "one item per frame with frame, checks, and observation; checks must include layout, readability, geometry, controls, "
+                "visual_assets, application_state, consistency, and proof_alignment, each pass|fail|uncertain"
+            ),
             "assertions": "one verdict for each expected_proof claim_id with id, verdict, frames, observation",
-            "incidental_findings": "list of id, category, severity, confidence, frames, observation",
+            "incidental_findings": (
+                "list of id, category, severity, confidence, intent=obvious|unclear, quality_categories, frames, observation; "
+                "every quality_categories value must be fail or uncertain on every cited frame, so split findings when category sets differ"
+            ),
             "return_stage": "complete|capture|render|implementation|review",
             "next_action": "one bounded next action",
         },
@@ -1060,6 +1621,7 @@ def review_run(
     prompt_path.write_text(json.dumps(prompt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     prompt_path.chmod(0o600)
     receipt, reviewer_session_id = reviewer_runner(prompt_path, run_dir=run_dir, correction_round=correction_round)
+    require_user_intent_for_subjective_visual_findings(receipt)
     if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
         raise WorkflowError("reviewer receipt did not preserve the canonical frame-index hash")
     if not reviewer_session_id:
@@ -1070,28 +1632,40 @@ def review_run(
     receipt["proof_group_id"] = request.get("proof_group_id")
     receipt["source_artifact_hash"] = (request.get("video_metadata") or {}).get("sha256")
     receipt["caption_artifact_hash"] = (request.get("video_metadata") or {}).get("captions_sha256")
+    receipt["review_request_hash"] = review_request_hash(request)
     receipt["subject_commit"] = request.get("subject_commit")
     receipt["correction_round"] = correction_round
     receipt["correction_kind"] = correction_kind
     prior_fingerprints = [str(value) for value in budget.get("defect_fingerprints", [])]
     decision = review_next_action(receipt, prior_defect_fingerprints=prior_fingerprints)
-    blocker_media = proof_blocker_media(run_dir, existing_manifest, str(receipt.get("status") or ""))
+    blocker_manifest = {
+        **existing_manifest,
+        "review": {"attempts": [receipt]},
+    }
+    blocker_media = proof_blocker_media(run_dir, blocker_manifest, str(receipt.get("status") or ""))
     if blocker_media:
         decision["blocker_media"] = blocker_media
     receipt["workflow"] = decision
-    if receipt.get("status") != "passed":
-        budget = append_persisted_defect_fingerprint(budget_path, decision["defect_fingerprint"])
-    manifest = record_review_receipt(run_dir, receipt)
-    budget = record_cached_review(
-        budget_path,
-        device=device,
-        correction_round=correction_round,
-        frame_index_hash=frame_hash,
-        source_artifact_hash=source_hash,
-        caption_artifact_hash=caption_hash,
-        run_dir=run_dir,
-        status=str(receipt.get("status") or ""),
-    )
+    manifest_path = run_dir / "manifest.json"
+    receipt_path = run_dir / "review-receipt.json"
+    persistence_snapshot = _snapshot_files([manifest_path, receipt_path, budget_path])
+    try:
+        if receipt.get("status") != "passed":
+            budget = append_persisted_defect_fingerprint(budget_path, decision["defect_fingerprint"])
+        manifest = record_review_receipt(run_dir, receipt)
+        budget = record_cached_review(
+            budget_path,
+            device=device,
+            correction_round=correction_round,
+            frame_index_hash=frame_hash,
+            source_artifact_hash=source_hash,
+            caption_artifact_hash=caption_hash,
+            run_dir=run_dir,
+            status=str(receipt.get("status") or ""),
+        )
+    except Exception:
+        _restore_file_snapshots(persistence_snapshot)
+        raise
     result = {"status": receipt.get("status"), "receipt": receipt, "manifest": manifest, "budget": budget}
     if blocker_media:
         result["blocker_media"] = blocker_media
@@ -1168,38 +1742,6 @@ def _local_test_runs() -> list[dict[str, Any]]:
     return [data for path in sorted(PROOF_SOURCE_DIR.glob("*.json"), reverse=True) if (data := _load_json(path))]
 
 
-def _context_run_records(context: ProofContext, runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [
-        run
-        for run in runs
-        if run.get("status") == "passed"
-        and run.get("spec") == context.spec_name
-        and run.get("source") == "scripts_tests"
-        and run.get("deployment_verified") is True
-        and str(run.get("git_sha") or "") == context.subject_commit
-        and context.source_run_id in {str(run.get("run_id") or ""), str(run.get("source_run_id") or "")}
-    ]
-
-
-def _spec_owned_timeline_path(context: ProofContext, runs: list[dict[str, Any]]) -> Path | None:
-    timeline_paths: list[Path] = []
-    for run in _context_run_records(context, runs):
-        value = str(run.get("proof_timeline_path") or "")
-        if not value:
-            continue
-        timeline_path = Path(value).resolve()
-        if not timeline_path.is_file():
-            raise WorkflowError(f"spec-owned proof timeline is missing: {value}")
-        expected_hash = str(run.get("proof_timeline_sha256") or "")
-        if expected_hash and _file_sha256(timeline_path) != expected_hash:
-            raise WorkflowError("spec-owned proof timeline hash changed")
-        if timeline_path not in timeline_paths:
-            timeline_paths.append(timeline_path)
-    if len(timeline_paths) > 1:
-        raise WorkflowError("multiple spec-owned proof timelines match this run; provide a narrower run ID")
-    return timeline_paths[0] if timeline_paths else None
-
-
 def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, source_video: Path | None = None) -> dict[str, Any]:
     matches = [
         run
@@ -1209,9 +1751,8 @@ def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, so
         and run.get("status") == "passed"
         and run.get("source") == "scripts_tests"
         and run.get("deployment_verified") is True
-        and str(run.get("git_sha") or "") == subject_commit
-        and str(run.get("deployment_reference") or "") == subject_commit
-        and len(subject_commit) == 40
+        and _commit_matches(str(run.get("git_sha") or ""), subject_commit)
+        and _commit_matches(str(run.get("deployment_reference") or ""), subject_commit)
     ]
     if source_video is not None:
         expected_source = source_video.resolve()
@@ -1222,7 +1763,7 @@ def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, so
         ]
     if len(matches) != 1:
         raise WorkflowError(
-            f"expected one deployed passing run for {spec_name} at {subject_commit} with run ID {run_id}, found {len(matches)}"
+            f"expected one deployed passing run for {spec_name} at or after {subject_commit} with run ID {run_id}, found {len(matches)}"
         )
     artifact_path = Path(str(matches[0].get("artifact_path") or ""))
     if not artifact_path.is_file() or _file_sha256(artifact_path) != matches[0].get("artifact_sha256"):
@@ -1236,6 +1777,18 @@ def _file_sha256(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return f"sha256:{digest.hexdigest()}"
+
+
+def _snapshot_files(paths: list[Path]) -> dict[Path, bytes | None]:
+    return {path: path.read_bytes() if path.is_file() else None for path in paths}
+
+
+def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
+    for path, content in snapshots.items():
+        if content is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(content)
 
 
 def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
@@ -1263,43 +1816,23 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
         test_runs=runs,
     )
     run_dir = RESULTS_DIR / "proof-videos" / context.session_id / Path(spec_name).stem
-    timeline_path = _spec_owned_timeline_path(context, runs)
-    if timeline_path is not None:
-        approval = record_spec_owned_contract_approval(
-            session_id=context.session_id,
-            spec_name=context.spec_name,
-            timeline_path=timeline_path,
-        )
-        return {
-            "status": "contract_approved",
-            "approval_source": "spec_timeline",
-            "context": asdict(context),
-            "run_dir": str(run_dir.relative_to(REPO_ROOT)),
-            "resource_limits": resource_limits(),
-            "contract_path": approval["contract_path"],
-            "contract_hash": approval["contract_hash"],
-            "proof_timeline_path": approval["proof_timeline_path"],
-            "proof_timeline_sha256": approval["proof_timeline_sha256"],
-            "device_profile": approval["device_profile"],
-            "next_action": "Spec-owned proof contract is already approved by the passing timeline; produce, review, and publish without a separate chat approval.",
-        }
     return {
-        "status": "awaiting_contract",
+        "status": "ready_for_contract",
         "context": asdict(context),
         "run_dir": str(run_dir.relative_to(REPO_ROOT)),
         "resource_limits": resource_limits(),
-        "next_action": "Draft the tutorial transcript and one to five visible assertions, show them to the user, then save the approved contract hash.",
+        "next_action": "Draft or reuse the tutorial transcript and one to five visible assertions, save the canonical contract, then run sessions.py proof-video produce-playwright. No separate user approval is required before rendering.",
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Prepare a focused, bounded OpenCode proof-video workflow.")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    start = subparsers.add_parser("start", help="Resolve current proof context and prepare the approval boundary.")
+    start = subparsers.add_parser("start", help="Resolve current proof context and prepare the contract boundary.")
     start.add_argument("--current", action="store_true", help="Infer the current sessions.py session from OPENCODE_SESSION_ID.")
     start.add_argument("--spec", required=True, help="Passing Playwright spec filename.")
     start.add_argument("--run-id", default="", help="Disambiguate matching passing runs when necessary.")
-    approve = subparsers.add_parser("approve", help="Persist the user-approved canonical proof contract.")
+    approve = subparsers.add_parser("approve", help="Persist the canonical proof contract authorization.")
     approve.add_argument("--session", required=True)
     approve.add_argument("--spec", required=True)
     approve.add_argument("--contract", type=Path, required=True)
@@ -1311,6 +1844,11 @@ def main(argv: list[str] | None = None) -> int:
         choices=("none", "mechanical", "capture", "product"),
         default="none",
     )
+    approve_intent = subparsers.add_parser("approve-intent", help="Bind explicit user approval to one unclear visual finding.")
+    approve_intent.add_argument("--run-dir", type=Path, required=True)
+    approve_intent.add_argument("--finding-id", required=True)
+    approve_intent.add_argument("--reason", required=True)
+    approve_intent.add_argument("--approved-at", required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "start":
@@ -1319,7 +1857,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(start_current(args.spec, run_id=args.run_id), indent=2, sort_keys=True))
             return 0
         if args.command == "approve":
-            print(json.dumps(record_contract_approval(session_id=args.session, spec_name=args.spec, contract_path=args.contract), indent=2, sort_keys=True))
+            print(json.dumps(record_contract_authorization(session_id=args.session, spec_name=args.spec, contract_path=args.contract), indent=2, sort_keys=True))
             return 0
         if args.command == "review":
             print(
@@ -1328,6 +1866,20 @@ def main(argv: list[str] | None = None) -> int:
                         run_dir=args.run_dir,
                         correction_round=args.correction_round,
                         correction_kind=args.correction_kind,
+                    ),
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 0
+        if args.command == "approve-intent":
+            print(
+                json.dumps(
+                    approve_visual_intent(
+                        run_dir=args.run_dir,
+                        finding_id=args.finding_id,
+                        reason=args.reason,
+                        approved_at=args.approved_at,
                     ),
                     indent=2,
                     sort_keys=True,

@@ -225,8 +225,10 @@ async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void>
 	await expect(async () => {
 		const overlayCountAfterClose = await overlays.count();
 		const visibleOverlaysAfterClose = await countVisibleOverlays();
+		const targetClosed = !await fullscreenOverlay.isVisible().catch(() => false);
 		expect(
-			overlayCountAfterClose < overlayCountBeforeClose
+			targetClosed
+				|| overlayCountAfterClose < overlayCountBeforeClose
 				|| visibleOverlaysAfterClose < visibleOverlaysBeforeClose
 		).toBe(true);
 	}).toPass({ timeout: 10000 });

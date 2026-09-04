@@ -2,7 +2,7 @@
 /**
  * Example chats loading test: verifies that hardcoded example chats render
  * for NEW USERS (clean browser context, no IndexedDB cache) in the
- * for-everyone demo chat.
+ * the public example-chat catalog.
  *
  * Architecture: Example chats are now static/hardcoded in exampleChatStore.ts
  * (no backend /v1/demo/chats API call). The ExampleChatsGroup component reads
@@ -173,67 +173,6 @@ test.describe('Example chats loading for new users', () => {
 				.filter(Boolean)
 		);
 	}
-
-	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
-	test('example chats appear in for-everyone intro chat', async ({ page }: { page: any }) => {
-		test.setTimeout(60000);
-
-		// ─── Console logging for diagnostics ──────────────────────────────
-		const consoleLogs: string[] = [];
-
-		page.on('console', (message: any) => {
-			const text = message.text();
-			consoleLogs.push(`[${message.type()}] ${text}`);
-		});
-
-		// ─── Navigate directly to the for-everyone intro chat ───────────────
-		await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
-		await page.waitForLoadState('networkidle');
-
-		// Allow time for the example chats component to render
-		await page.waitForTimeout(5000);
-
-		// ─── Verify the ExampleChatsGroup rendered with cards ────────────────
-		const exampleChatsWrapper = page.getByTestId('example-chats-group-wrapper');
-		const chatCards = page
-			.getByTestId('example-chats-group')
-			.locator('[data-testid="chat-embed-card"]');
-
-		const wrapperCount = await exampleChatsWrapper.count();
-		const cardCount = await chatCards.count();
-
-		// Log diagnostics
-		console.log('\n--- EXAMPLE CHATS DIAGNOSTICS ---');
-		console.log(`ExampleChatsGroup wrappers found: ${wrapperCount}`);
-		console.log(`Chat embed cards found: ${cardCount}`);
-
-		const exampleLogs = consoleLogs.filter(
-			(l) =>
-				l.includes('ExampleChatsGroup') ||
-				l.includes('exampleChat') ||
-				l.includes('example chat')
-		);
-		console.log(`\nRelevant console logs (${exampleLogs.length}):`);
-		exampleLogs.forEach((l) => console.log(`  ${l}`));
-		console.log('--- END DIAGNOSTICS ---\n');
-
-		// ─── Assertions ─────────────────────────────────────────────────────
-
-		// The ExampleChatsGroup wrapper must exist
-		expect(wrapperCount, 'ExampleChatsGroup wrapper should be visible').toBeGreaterThan(0);
-
-		// At least 1 example chat card should be rendered (6 are hardcoded)
-		expect(cardCount, 'Expected at least 1 example chat card for new users').toBeGreaterThan(0);
-
-		// Verify cards have titles
-		if (cardCount > 0) {
-			const firstCardTitle = await chatCards.first().getByTestId('card-title').textContent();
-			expect(
-				firstCardTitle?.trim().length,
-				'Chat card should have a non-empty title'
-			).toBeGreaterThan(0);
-		}
-	});
 
 	// contract-test: direct surface=gui.web assertions=public-example-chats.catalog.discoverable,public-example-chats.surface.semantic-parity
 	test('guest show-all examples uses expanded resume cards and global search covers every example', async ({
@@ -784,6 +723,9 @@ test.describe('Example chats loading for new users', () => {
 			message: 'grouped Deutschlandticket map should render all route polylines',
 			timeout: 15000
 		}).toBeGreaterThanOrEqual(5);
+		const initialRouteCount = Number(
+			await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')
+		);
 		await expect.poll(async () => mapView.getByTestId('embeds-map-view-map').getAttribute('data-map-hydrated'), {
 			message: 'grouped Deutschlandticket map should lazy-hydrate once visible',
 			timeout: 15000
@@ -794,6 +736,7 @@ test.describe('Example chats loading for new users', () => {
 		await expect(filterButton).toBeVisible();
 		await filterButton.click();
 		const filterMenu = mapView.getByTestId('embeds-map-view-filter-menu');
+		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
 		await expect(filterMenu).toContainText('Departure time');
 		await expect(filterMenu).toContainText('Duration');
 		await expect(filterMenu).toContainText('Stops');
@@ -805,14 +748,21 @@ test.describe('Example chats loading for new users', () => {
 			filterMenuBox!.x + filterMenuBox!.width,
 			'mobile map-view filter sheet should not be clipped off the right edge'
 		).toBeLessThanOrEqual(390);
-		expect(filterMenuBox!.height, 'mobile map-view filter sheet should stay compact and internally scrollable').toBeLessThanOrEqual(330);
+		expect(filterMenuBox!.height, 'mobile map-view filter panel should replace the full results body').toBeCloseTo(535, 0);
 		await expect(mapView.getByTestId('embeds-map-view-option-train-line-rb26')).toBeVisible();
 		await mapView.getByTestId('embeds-map-view-option-train-line-rb26').click();
 		await expect(mapView.getByTestId('embeds-map-view-filter-button')).toContainText('Filter (1)');
+		await filterButton.click();
+		await expect(filterMenu).toBeHidden();
+		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
+			message: 'train-line filtering should keep matching route polylines after returning to the map',
+			timeout: 15000
+		}).toBeGreaterThan(0);
 		await expect.poll(async () => Number(await mapView.getByTestId('embeds-map-view-map').getAttribute('data-route-count')), {
 			message: 'train-line filtering should reduce visible route polylines without reloading the chat',
 			timeout: 15000
-		}).toBeGreaterThan(0);
+		}).toBeLessThan(initialRouteCount);
+		await filterButton.click();
 		await mapView.getByTestId('embeds-map-view-clear-filters').click();
 
 		const fullscreenOverlay = await openFullscreen(page, firstTravelSearch);

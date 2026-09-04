@@ -9,6 +9,8 @@ primary-key columns.
 
 from __future__ import annotations
 
+# contract-test-file: infrastructure
+
 import importlib
 import importlib.util
 import sys
@@ -209,13 +211,18 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         assert payload["fields"] == ["*"]
 
     assert actions_by_collection == {
+        "account_export_jobs": {"create", "read", "update", "delete"},
+        "account_export_parts": {"create", "read", "update", "delete"},
         "anonymous_free_usage_budget": {"create", "read", "update", "delete"},
         "anonymous_free_usage_identity_daily": {"create", "read", "update", "delete"},
         "anonymous_free_usage_reservations": {"create", "read", "update", "delete"},
         "free_testing_credit_grants": {"create", "read", "update", "delete"},
         "free_testing_credits_budget": {"create", "read", "update", "delete"},
         "user_plan_key_wrappers": {"create", "read", "update", "delete"},
+        "user_plan_revisions": {"create", "read", "update", "delete"},
         "user_task_key_wrappers": {"create", "read", "update", "delete"},
+        "user_chat_preferences": {"create", "read", "update", "delete"},
+        "user_work_dependencies": {"create", "read", "update", "delete"},
     }
 
 
@@ -464,3 +471,73 @@ def test_chat_recovery_migration_is_required(monkeypatch, tmp_path: Path) -> Non
 
     with pytest.raises(RuntimeError, match="Required chat recovery migration is missing"):
         setup_schemas.apply_and_verify_chat_recovery_indexes()
+
+
+def test_user_chat_preference_migration_executes_and_verifies_all_indexes(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    setup_schemas = load_setup_schemas_module()
+    migration = tmp_path / "migrate_user_chat_preferences_indexes.sql"
+    migration.write_text(
+        "CREATE UNIQUE INDEX user_chat_preference_test ON user_chat_preferences (id);",
+        encoding="utf-8",
+    )
+    executed: list[tuple[str, Any]] = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def execute(self, query, params=None):
+            executed.append((str(query), params))
+
+        def fetchall(self):
+            return [(name,) for name in setup_schemas.USER_CHAT_PREFERENCE_INDEXES]
+
+    class FakeConnection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup_schemas, "USER_CHAT_PREFERENCE_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup_schemas, "connect_database", lambda: FakeConnection())
+
+    setup_schemas.apply_and_verify_user_chat_preference_indexes()
+
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert "FROM pg_indexes" in executed[1][0]
+    assert executed[1][1] == (list(setup_schemas.USER_CHAT_PREFERENCE_INDEXES),)
+
+
+def test_user_chat_preference_migration_is_packaged() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    migration_path = "migrate_user_chat_preferences_indexes.sql"
+    required_files = [
+        repo_root / "backend/core/docker-compose.yml",
+        repo_root / "backend/core/docker-compose.selfhost.yml",
+        repo_root / "backend/core/directus/Dockerfile.setup.selfhost",
+        repo_root / "frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml",
+    ]
+
+    for file_path in required_files:
+        assert migration_path in file_path.read_text(encoding="utf-8")
+
+
+def test_user_chat_preference_migration_runs_inside_setup_transaction() -> None:
+    migration = (
+        Path(__file__).resolve().parents[1]
+        / "core/directus/setup/migrate_user_chat_preferences_indexes.sql"
+    )
+
+    assert "CONCURRENTLY" not in migration.read_text(encoding="utf-8")

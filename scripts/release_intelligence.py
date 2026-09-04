@@ -47,6 +47,7 @@ DEFAULT_MAIN_REF = "origin/main"
 DEFAULT_DEV_REF = "origin/dev"
 DEFAULT_GEMINI_MODEL = "gemini-3-flash-preview"
 DEFAULT_LLM_RETRIES = 2
+API_CONTAINER_NAME = "api"
 
 SECTION_ORDER = [
     "features",
@@ -267,10 +268,6 @@ def get_env(name: str, dot_env: dict[str, str] | None = None, default: str = "")
 
 
 def load_gemini_api_key_from_vault() -> str | None:
-    compose_file = REPO_ROOT / "backend" / "core" / "docker-compose.yml"
-    env_file = REPO_ROOT / ".env"
-    if not compose_file.exists():
-        return None
     fetch_script = (
         "import asyncio\n"
         "from backend.core.api.app.utils.secrets_manager import SecretsManager\n"
@@ -282,13 +279,21 @@ def load_gemini_api_key_from_vault() -> str | None:
         "    print(key or '', end='')\n"
         "asyncio.run(main())\n"
     )
-    command = ["docker", "compose"]
-    if env_file.exists():
-        command.extend(["--env-file", str(env_file)])
-    command.extend(["-f", str(compose_file), "exec", "-T", "api", "python3", "-c", fetch_script])
+    command = ["docker", "exec", "-i", API_CONTAINER_NAME, "python3", "-c", fetch_script]
     try:
         result = subprocess.run(command, cwd=REPO_ROOT, text=True, capture_output=True, timeout=20, check=False)
-    except (OSError, subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
+        print(f"[release-intelligence] Vault key lookup timed out in container {API_CONTAINER_NAME}", file=sys.stderr)
+        return None
+    except OSError as exc:
+        print(f"[release-intelligence] Vault key lookup could not run Docker: {type(exc).__name__}", file=sys.stderr)
+        return None
+    if result.returncode != 0:
+        print(
+            f"[release-intelligence] Vault key lookup failed in container {API_CONTAINER_NAME} "
+            f"with exit code {result.returncode}",
+            file=sys.stderr,
+        )
         return None
     key = result.stdout.strip()
     return key or None
@@ -954,6 +959,72 @@ def generate_llm_summary(
     return normalize_summary(raw, known_commits, newsletter_include_commits_from_source(source))
 
 
+def build_deterministic_summary(source: dict[str, Any]) -> dict[str, Any]:
+    items: list[dict[str, Any]] = []
+    for section_items in (source.get("sections") or {}).values():
+        items.extend(item for item in section_items or [] if isinstance(item, dict))
+    for theme in source.get("themes") or []:
+        items.extend(item for item in theme.get("source_items") or [] if isinstance(item, dict))
+
+    def summary_item(item: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "text": str(item.get("title") or "Untitled change"),
+            "evidence": {"commits": [str(commit) for commit in item.get("commits") or []]},
+            "release_status": str(item.get("release_status") or "unknown"),
+        }
+
+    released: list[dict[str, Any]] = []
+    bug_fixes: list[dict[str, Any]] = []
+    unreleased: list[dict[str, Any]] = []
+    internal: list[dict[str, Any]] = []
+    for item in items:
+        compact = summary_item(item)
+        section = str(item.get("section") or "other")
+        ready = item.get("communication_status") == READY_COMMUNICATION_STATUS
+        if item.get("user_facing") and not ready:
+            unreleased.append(compact)
+        elif section == "bug_fixes" and ready:
+            bug_fixes.append(compact)
+        elif item.get("user_facing") and ready:
+            released.append(compact)
+        else:
+            internal.append(compact)
+
+    newsletter_include = [
+        {
+            "text": str(item.get("title") or "Untitled change"),
+            "evidence": {"commits": [str(commit) for commit in item.get("commits") or []]},
+            "reason": "Deterministically classified as released and ready for public communication.",
+        }
+        for item in (source.get("marketing_candidates") or {}).get("newsletter") or []
+    ]
+    newsletter_exclude = [
+        {
+            "text": item["text"],
+            "evidence": item["evidence"],
+            "reason": "Not classified as ready for public communication.",
+        }
+        for item in unreleased
+    ]
+    total = len(items)
+    return {
+        "status": "deterministic",
+        "overview": f"Deterministic release summary generated from {total} structured change items.",
+        "released_changes": released[:12],
+        "bug_fixes": bug_fixes[:12],
+        "unreleased_progress": unreleased[:12],
+        "internal_progress": internal[:12],
+        "newsletter_recommendation": {
+            "include": newsletter_include[:12],
+            "exclude": newsletter_exclude[:12],
+            "rationale": "Only deterministically released and communication-ready items are included.",
+        },
+        "social_video_recommendations": [],
+        "quality_notes": ["Generated without LLM interpretation; review grouped commit titles before publication."],
+        "validation_warnings": [],
+    }
+
+
 def newsletter_include_commits_from_source(source: dict[str, Any]) -> set[str]:
     refs: set[str] = set()
     for item in (source.get("marketing_candidates") or {}).get("newsletter") or []:
@@ -1569,6 +1640,14 @@ def compact_rollup_item(item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def portable_release_source_path(value: Any, cadence: str) -> str:
+    path = Path(str(value))
+    try:
+        return path.resolve().relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return f"docs/releases/{cadence}/{path.name}"
+
+
 def build_weekly_artifact(*, daily_artifacts: list[dict[str, Any]], week_start: date, week_end: date) -> dict[str, Any]:
     all_items: list[dict[str, Any]] = []
     daily_summaries: list[dict[str, Any]] = []
@@ -1577,7 +1656,7 @@ def build_weekly_artifact(*, daily_artifacts: list[dict[str, Any]], week_start: 
         daily_items = iter_daily_items(artifact)
         all_items.extend(daily_items)
         if artifact.get("_source_file"):
-            source_files.append(str(artifact["_source_file"]))
+            source_files.append(portable_release_source_path(artifact["_source_file"], "daily"))
         daily_summaries.append(
             {
                 "date": artifact.get("date"),
@@ -1665,7 +1744,7 @@ def build_monthly_artifact(*, weekly_artifacts: list[dict[str, Any]], month_star
 
     for artifact in weekly_artifacts:
         if artifact.get("_source_file"):
-            source_files.append(str(artifact["_source_file"]))
+            source_files.append(portable_release_source_path(artifact["_source_file"], "weekly"))
         summary = artifact.get("summary") or {}
         weekly_summaries.append(
             {
@@ -1837,7 +1916,7 @@ def daily_command(args: argparse.Namespace) -> int:
         assume_released=args.assume_released,
     )
     if args.no_llm:
-        artifact["llm_summary"] = {"status": "not_generated", "reason": "--no-llm was provided"}
+        artifact["llm_summary"] = build_deterministic_summary(build_daily_llm_source(artifact))
     else:
         artifact["llm_summary"] = generate_llm_summary(
             cadence="daily",
@@ -1867,7 +1946,7 @@ def weekly_command(args: argparse.Namespace) -> int:
     daily_artifacts = load_daily_artifacts(daily_dir, week_start, week_end)
     artifact = build_weekly_artifact(daily_artifacts=daily_artifacts, week_start=week_start, week_end=week_end)
     if args.no_llm:
-        artifact["llm_summary"] = {"status": "not_generated", "reason": "--no-llm was provided"}
+        artifact["llm_summary"] = build_deterministic_summary(build_weekly_llm_source(artifact, daily_artifacts))
     else:
         artifact["llm_summary"] = generate_llm_summary(
             cadence="weekly",
@@ -1898,7 +1977,7 @@ def monthly_command(args: argparse.Namespace) -> int:
     weekly_artifacts = load_weekly_artifacts(weekly_dir, month_start, month_end)
     artifact = build_monthly_artifact(weekly_artifacts=weekly_artifacts, month_start=month_start, month_end=month_end)
     if args.no_llm:
-        artifact["llm_summary"] = {"status": "not_generated", "reason": "--no-llm was provided"}
+        artifact["llm_summary"] = build_deterministic_summary(build_monthly_llm_source(artifact, weekly_artifacts))
     else:
         artifact["llm_summary"] = generate_llm_summary(
             cadence="monthly",
@@ -1915,6 +1994,15 @@ def monthly_command(args: argparse.Namespace) -> int:
         output_path = Path(args.output).resolve() if args.output else default_monthly_output_path(month_start)
         write_artifact(output_path, artifact)
         print(f"[release-intelligence] wrote {output_path.relative_to(REPO_ROOT) if output_path.is_relative_to(REPO_ROOT) else output_path}", file=sys.stderr)
+    return 0
+
+
+def notify_weekly_command(args: argparse.Namespace) -> int:
+    artifact_path = Path(args.artifact).resolve()
+    artifact = yaml.safe_load(artifact_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(artifact, dict) or artifact.get("cadence") != "weekly":
+        raise ReleaseSummaryError(f"Expected a weekly release-intelligence artifact: {artifact_path}")
+    post_weekly_discord_summary(artifact, dry_run=args.discord_dry_run)
     return 0
 
 
@@ -2000,6 +2088,11 @@ def build_parser() -> argparse.ArgumentParser:
     monthly.add_argument("--llm-retries", type=int, default=DEFAULT_LLM_RETRIES, help="Retry count for transient or malformed Gemini responses.")
     monthly.add_argument("--no-llm", action="store_true", help="Skip Gemini and emit deterministic source data only.")
     monthly.set_defaults(func=monthly_command)
+
+    notify_weekly = subparsers.add_parser("notify-weekly", help="Post one published weekly artifact to Discord.")
+    notify_weekly.add_argument("--artifact", required=True, help="Path to an existing weekly YAML artifact.")
+    notify_weekly.add_argument("--discord-dry-run", action="store_true", help="Print the Discord payload instead of sending it.")
+    notify_weekly.set_defaults(func=notify_weekly_command)
 
     pr_readiness = subparsers.add_parser("pr-readiness", help="List feature areas that require human release readiness confirmation before a dev to main PR.")
     pr_readiness.add_argument("--from-ref", default=DEFAULT_MAIN_REF, help="Lower git range bound, usually origin/main.")

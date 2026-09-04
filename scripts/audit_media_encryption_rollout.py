@@ -43,6 +43,7 @@ PACKAGING_CONTRACTS = {
 }
 
 MEDIA_WRITER_COMPOSE_SERVICES = (
+    "app-code-worker",
     "app-images-worker",
     "app-music-worker",
     "app-videos-worker",

@@ -21,7 +21,7 @@ import {
 } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 import {
   type MasterKeyStorageType,
@@ -94,12 +94,47 @@ interface LocalTeamKeysOnDisk {
   teams: Record<string, LocalTeamKeyEntry>;
 }
 
+interface TrustedAccountOnDisk {
+  accountId: string;
+}
+
 // ---------------------------------------------------------------------------
 // Filesystem helpers
 // ---------------------------------------------------------------------------
 
+const PROFILE_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const TRUSTED_ACCOUNT_FILE = "trusted_account.json";
+
+export function resolveStateDir(options: {
+  homeDir?: string;
+  stateDir?: string;
+  profile?: string;
+} = {}): string {
+  const homeDir = options.homeDir ?? homedir();
+  const stateDir = options.stateDir ?? process.env.OPENMATES_STATE_DIR?.trim();
+  if (stateDir) {
+    if (!isAbsolute(stateDir)) throw new Error("OPENMATES_STATE_DIR must be an absolute path.");
+    return resolve(stateDir);
+  }
+
+  const profile = options.profile ?? process.env.OPENMATES_PROFILE?.trim();
+  if (!profile) return join(homeDir, ".openmates");
+  if (!PROFILE_NAME_PATTERN.test(profile)) {
+    throw new Error("OPENMATES_PROFILE must contain only lowercase letters, numbers, and hyphens.");
+  }
+  return join(homeDir, ".openmates", "profiles", profile);
+}
+
 function getStateDir(): string {
-  return join(homedir(), ".openmates");
+  return resolveStateDir();
+}
+
+export function resolveKeyStorageId(storageId: string, profile = process.env.OPENMATES_PROFILE?.trim()): string {
+  if (!profile) return storageId;
+  if (!PROFILE_NAME_PATTERN.test(profile)) {
+    throw new Error("OPENMATES_PROFILE must contain only lowercase letters, numbers, and hyphens.");
+  }
+  return `profile:${profile}:${storageId}`;
 }
 
 function ensureStateDir(): string {
@@ -156,7 +191,7 @@ export function saveAnonymousId(anonymousId: string): void {
 export function saveSession(session: OpenMatesSession): void {
   const filePath = join(ensureStateDir(), "session.json");
 
-  const result = storeMasterKey(session.masterKeyExportedB64, session.hashedEmail);
+  const result = storeMasterKey(session.masterKeyExportedB64, resolveKeyStorageId(session.hashedEmail));
 
   const onDisk: SessionOnDisk = {
     apiUrl: session.apiUrl,
@@ -182,7 +217,7 @@ export function saveSession(session: OpenMatesSession): void {
   if (session.emailEncryptionKeyB64) {
     const emailKeyResult = storeMasterKey(
       session.emailEncryptionKeyB64,
-      `${session.hashedEmail}:email`,
+      resolveKeyStorageId(`${session.hashedEmail}:email`),
     );
     onDisk.emailEncryptionKeyStorage = emailKeyResult.type;
     if (emailKeyResult.type === "encrypted") {
@@ -220,13 +255,13 @@ export function loadSession(): OpenMatesSession | null {
   // Retrieve key from the appropriate tier
   switch (onDisk.masterKeyStorage) {
     case "keychain":
-      masterKey = retrieveMasterKey("keychain", onDisk.hashedEmail);
+      masterKey = retrieveMasterKey("keychain", resolveKeyStorageId(onDisk.hashedEmail));
       break;
 
     case "encrypted":
       masterKey = retrieveMasterKey(
         "encrypted",
-        onDisk.hashedEmail,
+        resolveKeyStorageId(onDisk.hashedEmail),
         onDisk.masterKeyEncrypted,
       );
       break;
@@ -255,10 +290,10 @@ export function clearSession(): void {
   // Read current storage type before deleting, so we can clean up the keychain
   const onDisk = readJsonFile<SessionOnDisk>(filePath);
   if (onDisk?.masterKeyStorage) {
-    deleteMasterKey(onDisk.masterKeyStorage, onDisk.hashedEmail);
+    deleteMasterKey(onDisk.masterKeyStorage, resolveKeyStorageId(onDisk.hashedEmail));
   }
   if (onDisk?.emailEncryptionKeyStorage) {
-    deleteMasterKey(onDisk.emailEncryptionKeyStorage, `${onDisk.hashedEmail}:email`);
+    deleteMasterKey(onDisk.emailEncryptionKeyStorage, resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
   }
   if (onDisk?.activeTeamId) {
     deleteLocalTeamKey(onDisk.hashedEmail, onDisk.activeTeamId);
@@ -286,7 +321,7 @@ function purgeLocalTeamKeys(hashedEmail: string | null): void {
   if (!keys) return;
 
   let changed = false;
-  const prefix = hashedEmail ? `${hashedEmail}:team:` : null;
+  const prefix = hashedEmail ? resolveKeyStorageId(`${hashedEmail}:team:`) : null;
   for (const [storageId, entry] of Object.entries(keys.teams)) {
     if (prefix && !storageId.startsWith(prefix)) continue;
     deleteMasterKey(entry.storage, storageId);
@@ -315,11 +350,11 @@ function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
   if (!onDisk.emailEncryptionKeyStorage) return onDisk.emailEncryptionKeyB64 ?? null;
   switch (onDisk.emailEncryptionKeyStorage) {
     case "keychain":
-      return retrieveMasterKey("keychain", `${onDisk.hashedEmail}:email`);
+      return retrieveMasterKey("keychain", resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
     case "encrypted":
       return retrieveMasterKey(
         "encrypted",
-        `${onDisk.hashedEmail}:email`,
+        resolveKeyStorageId(`${onDisk.hashedEmail}:email`),
         onDisk.emailEncryptionKeyEncrypted,
       );
     case "plaintext":
@@ -410,7 +445,7 @@ const LOCAL_TEAM_KEYS_FILE = "team_keys.json";
 
 function teamKeyStorageId(hashedEmail: string, teamId: string): string {
   const digest = createHash("sha256").update(teamId).digest("hex").slice(0, 32);
-  return `${hashedEmail}:team:${digest}`;
+  return resolveKeyStorageId(`${hashedEmail}:team:${digest}`);
 }
 
 export function saveLocalTeamKey(hashedEmail: string, teamId: string, teamKeyB64: string): void {
@@ -453,7 +488,7 @@ export function pruneLocalTeamArtifacts(hashedEmail: string, teamIds: string[]):
   const keys = readJsonFile<LocalTeamKeysOnDisk>(keysFilePath);
   if (keys) {
     let changed = false;
-    const prefix = `${hashedEmail}:team:`;
+    const prefix = resolveKeyStorageId(`${hashedEmail}:team:`);
     for (const storageId of Object.keys(keys.teams)) {
       if (storageId.startsWith(prefix) && !allowedKeyIds.has(storageId)) {
         deleteMasterKey("keychain", storageId);
@@ -508,4 +543,30 @@ export function isSyncCacheFresh(maxAgeMs = 300_000, teamId?: string | null): bo
   const cache = loadSyncCache(teamId);
   if (!cache) return false;
   return Date.now() - cache.syncedAt < maxAgeMs;
+}
+
+export function loadTrustedAccountId(): string | null {
+  const trusted = readJsonFile<TrustedAccountOnDisk>(join(getStateDir(), TRUSTED_ACCOUNT_FILE));
+  return typeof trusted?.accountId === "string" && trusted.accountId.trim()
+    ? trusted.accountId.trim()
+    : null;
+}
+
+export function saveTrustedAccountId(accountId: string): void {
+  const normalized = accountId.trim();
+  if (!normalized) throw new Error("Cannot trust an empty OpenMates account ID.");
+  const existing = loadTrustedAccountId();
+  if (existing && existing !== normalized) {
+    throw new Error("OpenMates account mismatch: this CLI profile is already trusted for another account.");
+  }
+  writeJsonFile(join(ensureStateDir(), TRUSTED_ACCOUNT_FILE), { accountId: normalized });
+}
+
+export function assertTrustedAccountId(expectedAccountId: string | null, actualAccountId: string): void {
+  if (!expectedAccountId) {
+    throw new Error("This CLI profile is not trusted yet. Run `openmates login` and approve the intended account.");
+  }
+  if (expectedAccountId !== actualAccountId) {
+    throw new Error("OpenMates account mismatch: refusing authenticated access from this CLI profile.");
+  }
 }

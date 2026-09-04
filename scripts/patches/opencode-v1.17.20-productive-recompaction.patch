@@ -1,0 +1,143 @@
+diff --git a/packages/opencode/src/session/prompt.ts b/packages/opencode/src/session/prompt.ts
+index 5336a82a9..98f7bfa4c 100644
+--- a/packages/opencode/src/session/prompt.ts
++++ b/packages/opencode/src/session/prompt.ts
+@@ -99,6 +99,32 @@ function isOrphanedInterruptedTool(part: SessionV1.ToolPart) {
+   return part.state.status === "error" && part.state.metadata?.interrupted === true
+ }
+ 
++export function shouldStopAutomaticCompactionRetry(
++  messages: SessionV1.WithParts[],
++  currentUserID: MessageID,
++) {
++  const userIndex = messages.findLastIndex(
++    (message) => message.info.role === "user" && message.info.id === currentUserID,
++  )
++  if (userIndex < 0) return false
++  const user = messages[userIndex]
++  if (
++    user.info.role !== "user" ||
++    !user.parts.some(
++      (part) => part.type === "text" && part.synthetic && part.metadata?.compaction_continue === true,
++    )
++  ) {
++    return false
++  }
++  return !messages.slice(userIndex + 1).some(
++    (message) =>
++      message.info.role === "assistant" &&
++      message.info.summary !== true &&
++      message.info.time.completed !== undefined &&
++      message.info.error === undefined,
++  )
++}
++
+ export interface Interface {
+   readonly cancel: (sessionID: SessionID) => Effect.Effect<void>
+   readonly prompt: (input: PromptInput) => Effect.Effect<SessionV1.WithParts, Image.Error>
+@@ -1319,14 +1345,10 @@ const layer = Layer.effect(
+ 
+             if (result === "stop") return "break" as const
+             if (result === "compact") {
+-              const resumedAfterCompaction = lastUserMsg?.parts.some(
+-                (part) =>
+-                  part.type === "text" && part.synthetic && part.metadata?.compaction_continue === true,
+-              )
+-              if (resumedAfterCompaction) {
++              if (shouldStopAutomaticCompactionRetry(msgs, lastUser.id)) {
+                 handle.message.error = new SessionV1.ContextOverflowError({
+                   message:
+-                    "Conversation still exceeds the provider context limit after compaction; automatic continuation stopped to prevent a retry loop",
++                    "Conversation still exceeds the provider context limit immediately after compaction; automatic continuation stopped to prevent a retry loop",
+                 }).toObject()
+                 handle.message.finish = "error"
+                 yield* sessions.updateMessage(handle.message)
+diff --git a/packages/opencode/test/session/compaction-retry.test.ts b/packages/opencode/test/session/compaction-retry.test.ts
+new file mode 100644
+index 000000000..4788ec214
+--- /dev/null
++++ b/packages/opencode/test/session/compaction-retry.test.ts
+@@ -0,0 +1,83 @@
++import { expect, test } from "bun:test"
++import { ModelV2 } from "@opencode-ai/core/model"
++import { ProviderV2 } from "@opencode-ai/core/provider"
++import { SessionV1 } from "@opencode-ai/core/v1/session"
++import { MessageID, PartID, SessionID } from "../../src/session/schema"
++import { shouldStopAutomaticCompactionRetry } from "../../src/session/prompt"
++
++const sessionID = SessionID.make("ses_retry")
++const userID = MessageID.make("msg_retry_user")
++
++function automaticContinuation(): SessionV1.WithParts {
++  return {
++    info: {
++      id: userID,
++      role: "user",
++      sessionID,
++      time: { created: 1 },
++      agent: "build",
++      model: {
++        providerID: ProviderV2.ID.make("openai"),
++        modelID: ModelV2.ID.make("gpt-5.5"),
++      },
++    },
++    parts: [
++      {
++        id: PartID.make("prt_retry_user"),
++        messageID: userID,
++        sessionID,
++        type: "text",
++        text: "Continue",
++        synthetic: true,
++        metadata: { compaction_continue: true },
++      },
++    ],
++  }
++}
++
++function assistant(options: { completed?: boolean; error?: boolean } = {}): SessionV1.WithParts {
++  const id = MessageID.make(`msg_retry_assistant_${options.completed}_${options.error}`)
++  return {
++    info: {
++      id,
++      parentID: userID,
++      role: "assistant",
++      sessionID,
++      mode: "build",
++      agent: "build",
++      path: { cwd: "/repo", root: "/repo" },
++      cost: 0,
++      tokens: { input: 1, output: 1, reasoning: 0, cache: { read: 0, write: 0 } },
++      modelID: ModelV2.ID.make("gpt-5.5"),
++      providerID: ProviderV2.ID.make("openai"),
++      time: { created: 2, ...(options.completed ? { completed: 3 } : {}) },
++      ...(options.error
++        ? { error: { name: "ContextOverflowError", data: { message: "overflow" } } }
++        : {}),
++    },
++    parts: [],
++  } as SessionV1.WithParts
++}
++
++test("stops an immediate overflow after synthetic compaction continuation", () => {
++  expect(shouldStopAutomaticCompactionRetry([automaticContinuation()], userID)).toBe(true)
++  expect(
++    shouldStopAutomaticCompactionRetry(
++      [automaticContinuation(), assistant({ completed: true, error: true })],
++      userID,
++    ),
++  ).toBe(true)
++})
++
++test("allows another compaction after productive post-compaction progress", () => {
++  expect(
++    shouldStopAutomaticCompactionRetry([automaticContinuation(), assistant({ completed: true })], userID),
++  ).toBe(false)
++})
++
++test("does not apply the retry guard to an ordinary user prompt", () => {
++  const message = automaticContinuation()
++  const part = message.parts[0]
++  if (part?.type === "text") part.synthetic = false
++  expect(shouldStopAutomaticCompactionRetry([message], userID)).toBe(false)
++})

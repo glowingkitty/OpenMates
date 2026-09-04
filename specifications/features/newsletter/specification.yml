@@ -1,0 +1,100 @@
+schema_version: 1
+id: feature.newsletter
+version: 1
+status: draft
+title: Newsletter Subscription
+summary: >
+  OpenMates lets a person subscribe an email address through double opt-in,
+  manage newsletter categories, unsubscribe with a recipient-held token, and
+  subscribe again later without exposing subscription state or persisting
+  plaintext email addresses.
+
+scope:
+  includes:
+    - Public newsletter subscribe, confirmation, unsubscribe, and repeat-subscription lifecycle.
+    - Origin checks, rate limits, recipient-held tokens, and privacy-safe subscriber storage.
+    - REST, CLI, web, and implemented Apple subscription settings.
+    - Category defaults and migration semantics for confirmed subscribers.
+  excludes:
+    - Newsletter campaign authoring, scheduling, content, analytics, and provider dashboards.
+    - Transactional account, reminder, billing, security, or workflow notifications.
+    - SDK newsletter management, which is intentionally not exposed.
+
+models:
+  NewsletterSubscription:
+    hashed_email:
+      type: base64_sha256_email
+      required: true
+      constraints: {lookup_key: true, plaintext_lookup: forbidden}
+    encrypted_email_address:
+      type: encrypted_string
+      required_after_confirmation: true
+      constraints: {plaintext_persisted: forbidden}
+    confirmed_at:
+      type: timestamp
+      nullable: true
+    unsubscribe_token:
+      type: secret_token
+      nullable: true
+      constraints: {recipient_held: true}
+    categories:
+      type: newsletter_category_map
+      nullable: true
+      constraints: {unknown_categories_send: forbidden, explicit_opt_out_preserved: true}
+
+assertions:
+  - id: newsletter.lifecycle.double-opt-in
+    type: behavior
+    must: A valid subscription request sends a confirmation message and does not create a confirmed subscription until the recipient-held confirmation token succeeds; confirmation sends the welcome message and makes the subscription active.
+    depends_on: [models.NewsletterSubscription, examples.double_opt_in]
+  - id: newsletter.lifecycle.unsubscribe-resubscribe
+    type: behavior
+    must: A valid recipient-held unsubscribe token removes the active subscription, and the same email identity can later start and complete a new double-opt-in subscription.
+    depends_on: [models.NewsletterSubscription.unsubscribe_token, examples.unsubscribe_resubscribe]
+  - id: newsletter.privacy.identity-and-token-boundary
+    type: privacy
+    must: Durable subscriber identity uses a hash plus encrypted email address rather than plaintext email, public responses do not reveal ignored or existing subscription state, and confirmation or unsubscribe succeeds only with its unguessable recipient-held token.
+    depends_on: [models.NewsletterSubscription, examples.privacy_boundaries]
+  - id: newsletter.surface.semantic-parity
+    type: parity
+    must: REST, CLI, web, and implemented Apple newsletter settings preserve the same subscribe and category semantics; REST, CLI, and web preserve confirmation and unsubscribe token semantics, while SDKs do not expose newsletter management.
+    depends_on: [applies_to, examples.surface_parity]
+  - id: newsletter.categories.default-and-migration
+    type: privacy
+    must: Confirmed subscribers receive canonical openmates_events and software_updates preferences; missing preferences use the approved defaults, an explicit legacy updates opt-out migrates to opt-out for both new categories, explicit new-category choices are never overwritten, and unknown categories fail closed for delivery.
+    depends_on: [models.NewsletterSubscription.categories, examples.category_migration]
+
+applies_to:
+  rest_api:
+    required: true
+    role: Origin-checked, rate-limited subscribe and token lifecycle routes are canonical.
+  cli:
+    required: true
+    parity: semantic
+    role: Supports subscribe, confirm, unsubscribe, and category commands through the canonical routes.
+  sdks:
+    required: false
+    role: Newsletter management is intentionally excluded from npm and pip SDK facades.
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true, role: supports the complete subscription and token-link lifecycle}
+      apple: {required: true, role: supports implemented subscription and category settings}
+    exceptions:
+      - id: apple-token-link-web-handoff
+        implementation: apple
+        reason: Apple exposes subscription and category settings but does not own confirmation or unsubscribe token links.
+        equivalent_outcome: Confirmation and unsubscribe links may hand off to the canonical web token surface without changing token semantics.
+
+examples:
+  file: examples.yml
+  required_groups:
+    - double_opt_in
+    - unsubscribe_resubscribe
+    - privacy_boundaries
+    - surface_parity
+    - category_migration

@@ -28,6 +28,10 @@ from backend.shared.python_utils.generated_assets import (
     cache_s3_file_keys,
     index_generated_asset,
 )
+from backend.shared.python_utils.storage_availability import (
+    initialize_task_storage,
+    require_storage_available,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -158,8 +162,10 @@ async def _async_render_remotion(task: BaseServiceTask, arguments: dict[str, Any
     task_id = task.request.id
     log_prefix = f"[Task ID: {task_id}]"
     started_at = time.monotonic()
-    await task.initialize_services()
     try:
+        await task.initialize_core_services()
+        s3_service = await initialize_task_storage(task)
+        await require_storage_available(s3_service)
         embed_id = str(arguments.get("embed_id") or "")
         user_id = str(arguments.get("user_id") or "")
         user_id_hash = str(arguments.get("user_id_hash") or _hash_value(user_id))

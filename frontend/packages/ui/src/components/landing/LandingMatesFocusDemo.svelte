@@ -95,7 +95,7 @@
     {#key activeStage}
     <LandingSubslideMotion {playing} durationMs={activeStageDurationMs} stage={activeStage}>
       {#if activeStage === 'mates-copy'}
-        <p class="story-copy" data-testid="landing-mates-copy">{$text('demo_chats.for_everyone.landing_mates_experts')}</p>
+        <p class="story-copy" data-testid="landing-mates-copy">{$text('guest_onboarding.landing_mates_experts')}</p>
       {:else if activeStage === 'mates' || reducedMotion}
         <div class="story-stage">
           <div class="scroll-window mates-window">
@@ -111,7 +111,7 @@
           </div>
         </div>
       {:else if activeStage === 'focus-copy'}
-        <p class="story-copy" data-testid="landing-focus-copy">{$text('demo_chats.for_everyone.landing_mates_focus_modes')}</p>
+        <p class="story-copy" data-testid="landing-focus-copy">{$text('guest_onboarding.landing_mates_focus_modes')}</p>
       {:else}
         <div class="story-stage">
           <div class="scroll-window focus-window">

@@ -104,6 +104,7 @@ def _client(service: object, *, credits: int = 0) -> TestClient:
     return TestClient(app)
 
 
+# contract-test: supporting surface=rest_api assertions=account-import.persistence.client-encrypted,account-import.review.confirmed-results
 def test_production_service_factory_wires_scanner_compressor_and_durable_metadata() -> None:
     directus = SimpleNamespace()
     request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(
@@ -124,6 +125,7 @@ def test_production_service_factory_wires_scanner_compressor_and_durable_metadat
     assert service.require_billing_for_paid is True
 
 
+# contract-test: direct surface=rest_api assertions=account-import.persistence.client-encrypted,account-import.review.confirmed-results
 def test_scan_endpoint_returns_sanitized_messages_without_directus_plaintext_writes() -> None:
     service = FakeImportService()
     response = _client(service).post(
@@ -145,11 +147,13 @@ def test_scan_endpoint_returns_sanitized_messages_without_directus_plaintext_wri
     assert response.status_code == 200
     body = response.json()
     assert body["credits_reserved"] == 1
+    assert body["messages_blocked"] == []
     assert body["chats"][0]["messages"][0]["content"] == "Synthetic sanitized content."
     service.directus.create_item.assert_not_awaited()
     service.directus.update_item.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=account-import.review.confirmed-results,account-import.persistence.client-encrypted
 def test_real_service_route_flow_preview_confirm_scan_compress_persist_complete() -> None:
     service = AccountImportService(
         scanner=lambda content, **_: {
@@ -237,6 +241,7 @@ def test_real_service_route_flow_preview_confirm_scan_compress_persist_complete(
     assert "plaintext" not in repr(service.job_store.records)
 
 
+# contract-test: direct surface=rest_api assertions=account-import.source.explicit-selection
 def test_preview_accepts_other_selected_source() -> None:
     response = _client(AccountImportService()).post(
         "/v1/account-imports/preview",
@@ -251,6 +256,7 @@ def test_preview_accepts_other_selected_source() -> None:
     assert response.status_code == 200
 
 
+# contract-test: direct surface=rest_api assertions=account-import.persistence.client-encrypted
 def test_persist_encrypted_endpoint_writes_only_client_encrypted_fields() -> None:
     service = FakeImportService()
     client = _client(service)
@@ -293,6 +299,7 @@ def test_persist_encrypted_endpoint_writes_only_client_encrypted_fields() -> Non
     assert "content" not in directus.chat.created_messages[0]
 
 
+# contract-test: direct surface=rest_api assertions=account-import.review.confirmed-results,account-import.persistence.client-encrypted
 def test_persist_encrypted_rolls_back_chat_when_any_message_write_fails() -> None:
     service = FakeImportService()
     client = _client(service)
@@ -320,6 +327,7 @@ def test_persist_encrypted_rolls_back_chat_when_any_message_write_fails() -> Non
     assert response.json()["failures"][0]["reason"] == "message_create_failed"
 
 
+# contract-test: direct surface=rest_api assertions=account-import.review.confirmed-results,account-import.persistence.client-encrypted
 def test_persist_encrypted_rolls_back_request_when_metadata_acknowledgement_fails() -> None:
     service = FakeImportService()
     service.record_encrypted_persistence = AsyncMock(side_effect=RuntimeError("metadata unavailable"))
@@ -348,6 +356,7 @@ def test_persist_encrypted_rolls_back_request_when_metadata_acknowledgement_fail
 
 @pytest.mark.anyio
 @pytest.mark.parametrize("source", ["openmates", "chatgpt", "claude", "gemini", "opencode", "other"])
+# contract-test: direct surface=rest_api assertions=account-import.source.explicit-selection,account-import.persistence.client-encrypted
 async def test_all_roles_and_sources_are_scanned_message_by_message(source: str) -> None:
     calls: list[tuple[str, str]] = []
 

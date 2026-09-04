@@ -22,12 +22,13 @@ KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 
 USER_PLAN_FIELDS = (
     "id,plan_id,hashed_user_id,hashed_team_id,status,primary_chat_id,hashed_primary_chat_id,"
-    "linked_project_hashes,current_phase_id,current_step_id,current_task_id,"
-    "continuation_state,approval_state,planner_focus_id,version,created_at,updated_at,completed_at,"
-    "encrypted_plan_key,encrypted_title,encrypted_slug,slug_lookup_hash,encrypted_summary,encrypted_goal,"
+    "linked_project_hashes,"
+    "continuation_state,approval_state,submitted_revision_id,approved_revision_id,approved_at,approved_by_hash,"
+    "planner_focus_id,version,created_at,updated_at,completed_at,"
+    "encrypted_title,encrypted_slug,slug_lookup_hash,encrypted_goal,"
     "encrypted_scope_in,encrypted_scope_out,encrypted_linked_project_ids,encrypted_assumptions,"
     "encrypted_open_questions,encrypted_constraints,encrypted_decisions,encrypted_risks,"
-    "encrypted_user_flows,encrypted_current_focus,encrypted_reference_patterns,"
+    "encrypted_user_flows,encrypted_reference_patterns,"
     "encrypted_context,encrypted_continuation_policy"
 )
 
@@ -39,7 +40,7 @@ USER_PLAN_KEY_WRAPPER_FIELDS = (
 )
 
 CRITERION_FIELDS = (
-    "id,plan_id,criterion_id,type,status,required,linked_step_ids,linked_task_ids,"
+    "id,plan_id,criterion_id,type,status,required,linked_task_ids,"
     "verification_ids,coverage_status,verification_scope,version,created_at,updated_at,"
     "encrypted_text,encrypted_evidence,encrypted_coverage_note,encrypted_waiver_reason"
 )
@@ -55,7 +56,7 @@ VERIFICATION_FIELDS = (
 
 ASSUMPTION_FIELDS = (
     "id,plan_id,assumption_id,category,status,required_before,linked_sub_chat_id,"
-    "linked_task_id,linked_step_ids,linked_criterion_ids,source_count,version,"
+    "linked_task_id,linked_criterion_ids,source_count,version,"
     "created_at,updated_at,encrypted_text,encrypted_corrected_text,"
     "encrypted_evidence_summary,encrypted_blocker_reason,encrypted_waiver_reason,encrypted_sources"
 )
@@ -94,6 +95,22 @@ VERIFICATION_ARTIFACT_FIELDS = (
 EXECUTION_CONTEXT_FIELDS = (
     "id,plan_id,hashed_user_id,hashed_primary_chat_id,context_version,created_at,"
     "expires_at,consumed_at,vault_encrypted_context"
+)
+
+# These collections cannot outlive their owning Plan. User Tasks intentionally
+# are absent: their plan_id is a link, not ownership.
+PLAN_CHILD_COLLECTIONS = (
+    ("user_plan_revisions", {"hashed_user_id": "owner", "hashed_team_id": None}),
+    ("user_plan_acceptance_criteria", {}),
+    ("user_plan_verifications", {}),
+    ("user_plan_execution_contexts", {"hashed_user_id": "owner"}),
+    ("user_plan_assumptions", {}),
+    ("user_plan_reference_patterns", {}),
+    ("user_plan_learnings", {}),
+    ("user_plan_verification_runs", {}),
+    ("user_plan_verification_artifacts", {}),
+    ("user_plan_activity", {}),
+    ("user_plan_artifacts", {}),
 )
 
 
@@ -229,10 +246,11 @@ class UserPlanMethods:
         team_id: str | None = None,
         limit: int = 100,
     ) -> list[dict[str, Any]]:
+        requested_limit = max(1, min(limit, 500))
         params: dict[str, Any] = {
             "fields": USER_PLAN_FIELDS,
             "sort": "-updated_at",
-            "limit": max(1, min(limit, 500)),
+            "limit": -1 if project_id else requested_limit,
         }
         if team_id:
             params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
@@ -245,10 +263,16 @@ class UserPlanMethods:
             params["filter[status][_in]"] = ["active", "executing", "blocked"]
         if chat_id:
             params["filter[hashed_primary_chat_id][_eq]"] = hash_id(chat_id)
-        if project_id:
-            params["filter[linked_project_hashes][_contains]"] = hash_id(project_id)
         response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
-        return response if isinstance(response, list) else []
+        plans = response if isinstance(response, list) else []
+        if project_id:
+            project_hash = hash_id(project_id)
+            plans = [plan for plan in plans if project_hash in _coerce_hashes(plan.get("linked_project_hashes"))]
+            plans = plans[:requested_limit]
+        for plan in plans:
+            if "key_wrappers" not in plan:
+                plan["key_wrappers"] = await self.list_plan_key_wrappers(user_id, str(plan.get("plan_id") or ""))
+        return plans
 
     async def summarize_plan_metadata(self, user_id: str, team_id: str | None = None) -> dict[str, Any]:
         params: dict[str, Any] = {
@@ -303,7 +327,10 @@ class UserPlanMethods:
             params["filter[hashed_team_id][_null]"] = True
         response = await self.directus_service.get_items("user_plans", params=params, no_cache=True)
         if response and isinstance(response, list):
-            return response[0]
+            plan = response[0]
+            if "key_wrappers" not in plan:
+                plan["key_wrappers"] = await self.list_plan_key_wrappers(user_id, plan_id)
+            return plan
         return None
 
     async def create_plan(self, user_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -322,7 +349,7 @@ class UserPlanMethods:
             "created_at": now,
             "updated_at": payload.get("updated_at", now),
         }
-        if key_wrappers and not _validate_wrapper_set(
+        if not _validate_wrapper_set(
             key_wrappers,
             primary_chat_hash=record.get("hashed_primary_chat_id"),
             project_hashes=_coerce_hashes(record.get("linked_project_hashes")),
@@ -342,7 +369,7 @@ class UserPlanMethods:
                 await self._delete_created_plan_with_wrappers(data, created_wrappers)
                 return None
             created_wrappers.append(created_wrapper)
-        return data
+        return {**data, "key_wrappers": created_wrappers}
 
     async def _delete_created_plan_with_wrappers(self, plan_row: dict[str, Any], wrappers: list[dict[str, Any]]) -> None:
         for wrapper in wrappers:
@@ -390,7 +417,7 @@ class UserPlanMethods:
             project_hashes=_coerce_hashes(plan.get("linked_project_hashes")),
         ):
             return None
-        existing_wrappers = await self.list_plan_key_wrappers(user_id, plan_id)
+        existing_wrappers = list(plan.get("key_wrappers") or [])
         created_wrappers: list[dict[str, Any]] = []
         for wrapper in wrappers:
             created_wrapper = await self.create_plan_key_wrapper(user_id, plan_id, wrapper)
@@ -464,7 +491,7 @@ class UserPlanMethods:
         ):
             return None
         if key_wrappers is not None:
-            existing_wrappers = await self.list_plan_key_wrappers(user_id, plan_id)
+            existing_wrappers = list(existing.get("key_wrappers") or [])
             for wrapper in key_wrappers:
                 created_wrapper = await self.create_plan_key_wrapper(user_id, plan_id, wrapper)
                 if not created_wrapper:
@@ -480,7 +507,10 @@ class UserPlanMethods:
             return None
         if not await self._delete_key_wrappers(existing_wrappers):
             raise RuntimeError("Failed to delete old user plan key wrappers")
-        return updated
+        return {
+            **updated,
+            "key_wrappers": created_wrappers if key_wrappers is not None else list(existing.get("key_wrappers") or []),
+        }
 
     async def _ensure_slug_lookup_available(self, slug_lookup_hash: str | None, user_id: str, *, exclude_row_id: str | None = None) -> None:
         if not slug_lookup_hash:
@@ -504,6 +534,55 @@ class UserPlanMethods:
                     logger.error("Failed to delete old user plan key wrapper")
                     all_deleted = False
         return all_deleted
+
+    async def delete_plan(self, plan_id: str, user_id: str) -> bool:
+        """Delete a Plan and only the collections it exclusively owns."""
+        plan = await self.get_plan(plan_id, user_id)
+        if not plan:
+            return False
+        owner_hash = hash_id(user_id)
+        if not await self._delete_plan_children(plan_id, owner_hash):
+            raise RuntimeError("Failed to delete plan-owned records")
+        row_id = plan.get("id")
+        if not row_id:
+            raise RuntimeError("Plan record is missing its Directus id")
+        if not await self.directus_service.delete_item("user_plans", row_id):
+            raise RuntimeError("Failed to delete plan")
+        return True
+
+    async def _delete_plan_children(self, plan_id: str, owner_hash: str) -> bool:
+        """Delete exact Plan children one at a time so partial cleanup can retry."""
+        collection_filters = [
+            ("user_plan_key_wrappers", {"hashed_plan_id": hash_id(plan_id), "hashed_user_id": owner_hash}),
+            *[
+                (
+                    collection,
+                    {
+                        "plan_id": plan_id,
+                        **{
+                            field: owner_hash if value == "owner" else {"_null": True}
+                            for field, value in scope.items()
+                        },
+                    },
+                )
+                for collection, scope in PLAN_CHILD_COLLECTIONS
+            ],
+        ]
+        for collection, filters in collection_filters:
+            rows = await self.directus_service.get_items(
+                collection,
+                params={"filter": {field: value if isinstance(value, dict) else {"_eq": value} for field, value in filters.items()}, "fields": "id", "limit": -1},
+                no_cache=True,
+            )
+            if not isinstance(rows, list):
+                logger.error("Failed to list plan-owned records from %s", collection)
+                return False
+            for row in rows:
+                row_id = row.get("id")
+                if not row_id or not await self.directus_service.delete_item(collection, row_id):
+                    logger.error("Failed to delete plan-owned record from %s", collection)
+                    return False
+        return True
 
     async def create_criterion(self, plan_id: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         record = {

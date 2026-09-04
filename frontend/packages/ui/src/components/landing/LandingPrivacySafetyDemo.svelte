@@ -52,13 +52,13 @@
     entries: [
       {
         id: 'landing-trip-lisbon',
-        title: $text('demo_chats.for_everyone.landing_privacy_previous_trips'),
+        title: $text('guest_onboarding.landing_privacy_previous_trips'),
         subtitle: 'Lisbon · 2025',
         selected: true,
       },
       {
         id: 'landing-trip-favorites',
-        title: $text('demo_chats.for_everyone.landing_privacy_favorite_places'),
+        title: $text('guest_onboarding.landing_privacy_favorite_places'),
         subtitle: 'Coast · cafés · museums',
         selected: true,
       },
@@ -124,16 +124,16 @@
 >
   {#if reducedMotion}
     <div class="privacy-summary" data-testid="landing-privacy-summary">
-      <div><LockIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_saved_data')}</span></div>
-      <div><MessageIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_pii')}</span></div>
-      <div><MemoryIcon size={22} /> <span>{$text('demo_chats.for_everyone.landing_privacy_memory_result')}</span></div>
+      <div><LockIcon size={22} /> <span>{$text('guest_onboarding.landing_privacy_saved_data')}</span></div>
+      <div><MessageIcon size={22} /> <span>{$text('guest_onboarding.landing_privacy_pii')}</span></div>
+      <div><MemoryIcon size={22} /> <span>{$text('guest_onboarding.landing_privacy_memory_result')}</span></div>
     </div>
   {:else}
     {#key activeStage}
       <LandingSubslideMotion playing={playing} durationMs={activeStageDurationMs} stage={activeStage}>
         {#if activeStage === 'saved-data-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-saved-data-copy">
-            <p>{$text('demo_chats.for_everyone.landing_privacy_saved_data')}</p>
+            <p>{$text('guest_onboarding.landing_privacy_saved_data')}</p>
           </div>
         {:else if activeStage === 'encryption-lock'}
           <div class="privacy-stage encryption-stage" data-testid="landing-privacy-encryption">
@@ -150,12 +150,12 @@
           </div>
         {:else if activeStage === 'pii-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-pii-copy">
-            <p>{$text('demo_chats.for_everyone.landing_privacy_pii')}</p>
+            <p>{$text('guest_onboarding.landing_privacy_pii')}</p>
           </div>
         {:else if activeStage === 'pii-detection'}
           <div class="privacy-stage message-stage">
             <div class="user-message-shell" data-testid="landing-privacy-pii-message" data-pii-state={piiDetectionState}>
-              {$text('demo_chats.for_everyone.landing_privacy_email_request')}
+              {$text('guest_onboarding.landing_privacy_email_request')}
               {#if piiDetectionState === 'placeholder'}
                 <span class="pii-restored pii-hidden pii-value-enter" data-testid="landing-privacy-pii-placeholder">[EMAIL_1]</span>
               {:else}
@@ -165,7 +165,7 @@
           </div>
         {:else if activeStage === 'originals-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-originals-copy">
-            <p>{$text('demo_chats.for_everyone.landing_privacy_originals')}</p>
+            <p>{$text('guest_onboarding.landing_privacy_originals')}</p>
           </div>
         {:else if activeStage === 'pii-reveal'}
           <div class="privacy-stage reveal-stage" data-testid="landing-privacy-pii-reveal" data-pii-state={piiRevealState}>
@@ -175,7 +175,7 @@
                 <div class="mate-message-content" data-testid="landing-privacy-assistant-message">
                   <div class="chat-mate-name" data-testid="landing-privacy-assistant-name">{$text('mates.business_development')}</div>
                   <div class="chat-message-text">
-                    {$text('demo_chats.for_everyone.landing_privacy_email_response')}
+                    {$text('guest_onboarding.landing_privacy_email_response')}
                     {#if piiRevealState === 'placeholder'}
                       <span class="pii-restored pii-hidden">[EMAIL_1]</span>
                     {:else}
@@ -188,12 +188,12 @@
           </div>
         {:else if activeStage === 'personalized-copy'}
           <div class="privacy-stage copy-stage" data-testid="landing-privacy-personalized-copy">
-            <p>{$text('demo_chats.for_everyone.landing_privacy_memory_result')}</p>
+            <p>{$text('guest_onboarding.landing_privacy_memory_result')}</p>
           </div>
         {:else if activeStage === 'trip-request'}
           <div class="privacy-stage message-stage">
             <div class="user-message-shell trip-request" data-testid="landing-privacy-trip-request">
-              {$text('demo_chats.for_everyone.landing_privacy_trip_request')}
+              {$text('guest_onboarding.landing_privacy_trip_request')}
             </div>
           </div>
         {:else}

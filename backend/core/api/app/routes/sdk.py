@@ -49,6 +49,10 @@ from backend.core.api.app.services.team_chat_ai_service import should_trigger_te
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.shared.python_utils.client_ciphertext import validate_client_encrypted_chat_payload
+from backend.shared.python_utils.app_memory_policy import (
+    REMOVED_APP_MEMORY_ERROR,
+    is_removed_app_memory,
+)
 from backend.shared.providers.google_calendar.oauth import GoogleOAuthTokenExchangeError
 from backend.shared.providers.revolut_business.oauth import RevolutBusinessTokenExchangeError
 
@@ -1019,6 +1023,8 @@ async def _dispatch_sdk_surface(
         memory_context_filter = {"hashed_team_id": {"_eq": hashlib.sha256(str(team_id).encode()).hexdigest()}} if team_id else {"hashed_user_id": {"_eq": hashed_user_id}, "hashed_team_id": {"_null": True}}
         if not parts and request.method == "GET":
             app_id = request.query_params.get("app_id")
+            if is_removed_app_memory(app_id):
+                return {"memories": []}
             item_type = request.query_params.get("item_type")
             filters: dict[str, Any] = dict(memory_context_filter)
             if app_id:
@@ -1034,9 +1040,14 @@ async def _dispatch_sdk_surface(
             apps_routes = _sdk_route_module("apps_api")
 
             apps = await _sdk_route_handler(apps_routes.list_apps)(request=request, user_info={"user_id": user.id})
-            return {"apps": _jsonable(apps)}
+            serialized_apps = _jsonable(apps)
+            if isinstance(serialized_apps, dict) and isinstance(serialized_apps.get("apps"), list):
+                return serialized_apps
+            return {"apps": serialized_apps}
         if not parts and request.method == "POST":
             entry = (body or {}).get("entry") or body or {}
+            if is_removed_app_memory(entry.get("app_id")):
+                raise HTTPException(status_code=410, detail=REMOVED_APP_MEMORY_ERROR)
             team_id = team_id or entry.get("team_id")
             if team_id:
                 try:
@@ -1063,6 +1074,8 @@ async def _dispatch_sdk_surface(
                 await directus_service.create_item("user_app_settings_and_memories", payload)
             return {"success": True, "id": entry_id}
         if len(parts) == 1 and request.method == "PATCH":
+            if is_removed_app_memory((body or {}).get("app_id")):
+                raise HTTPException(status_code=410, detail=REMOVED_APP_MEMORY_ERROR)
             if team_id:
                 try:
                     await directus_service.team.require_team_role(str(team_id), str(user.id), {"owner", "admin", "member"})
@@ -1074,6 +1087,8 @@ async def _dispatch_sdk_surface(
             )
             if not existing:
                 raise HTTPException(status_code=404, detail="Memory not found")
+            if is_removed_app_memory(existing[0].get("app_id")):
+                raise HTTPException(status_code=410, detail=REMOVED_APP_MEMORY_ERROR)
             payload = {**{key: value for key, value in (body or {}).items() if key != "team_id"}, "hashed_user_id": hashed_user_id, "hashed_team_id": hashlib.sha256(str(team_id).encode()).hexdigest() if team_id else None}
             updated = await directus_service.update_item("user_app_settings_and_memories", parts[0], payload)
             if not updated:

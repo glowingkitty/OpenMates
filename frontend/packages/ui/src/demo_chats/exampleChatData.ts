@@ -54,8 +54,6 @@ import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcr
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
 import { frontendDeveloperCareerPivotChat } from "./data/example_chats/frontend-developer-career-pivot";
-import { memoryAiCommunicationStyleChat } from "./data/example_chats/memory-ai-communication-style";
-import { memoryAiLearningPreferencesChat } from "./data/example_chats/memory-ai-learning-preferences";
 import { memoryBooksFavoriteBooksChat } from "./data/example_chats/memory-books-favorite-books";
 import { memoryBooksCurrentlyReadingChat } from "./data/example_chats/memory-books-currently-reading";
 import { memoryBooksToReadListChat } from "./data/example_chats/memory-books-to-read-list";
@@ -112,6 +110,7 @@ import { berlinMitteWorkFriendlyRestaurantsChat } from "./data/example_chats/ber
 import { openMeteoWeatherNotebookChat } from "./data/example_chats/open-meteo-weather-notebook";
 import { audioGenerateOpenmatesSuccessChimeChat } from "./data/example_chats/audio-generate-openmates-success-chime";
 import { audioSpeakOpenmatesWelcomeMessageChat } from "./data/example_chats/audio-speak-openmates-welcome-message";
+import { openmatesWorkspaceWelcomeChat } from "./data/example_chats/openmates-workspace-welcome";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   giganticAirplanesChat,
@@ -161,8 +160,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   usEggPricesDeepResearchChat,
   frameworkStoreReputationCheckChat,
   frontendDeveloperCareerPivotChat,
-  memoryAiCommunicationStyleChat,
-  memoryAiLearningPreferencesChat,
   memoryBooksFavoriteBooksChat,
   memoryBooksCurrentlyReadingChat,
   memoryBooksToReadListChat,
@@ -218,6 +215,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   openMeteoWeatherNotebookChat,
   audioGenerateOpenmatesSuccessChimeChat,
   audioSpeakOpenmatesWelcomeMessageChat,
+  openmatesWorkspaceWelcomeChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Internal deterministic fixtures used by tests and direct hash navigation only.

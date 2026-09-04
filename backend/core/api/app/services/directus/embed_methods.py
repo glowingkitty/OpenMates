@@ -12,6 +12,8 @@ Scalability notes:
 import logging
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import hashlib
+import os
+from datetime import datetime, timezone
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.directus.directus import DirectusService
@@ -941,16 +943,23 @@ class EmbedMethods:
             embed_uuid_ids = [e.get('embed_id') for e in embeds_to_delete if e.get('embed_id')]
 
             # ------------------------------------------------------------------
-            # Step 4: Delete S3 files, then Directus records
+            # Step 4: Persist regional deletion authority, then delete Directus records.
             # ------------------------------------------------------------------
-            if s3_service:
-                await self._delete_s3_files_for_embeds(embeds_to_delete, s3_service)
+            deleting_ids = {embed.get('id') for embed in embeds_to_delete}
+            surviving_embeds = [
+                embed for embed in all_embeds if embed.get('id') not in deleting_ids
+            ]
+            tombstones = await self._persist_s3_tombstones_for_embeds(
+                embeds_to_delete,
+                surviving_embeds=surviving_embeds,
+            )
 
             success = await self.directus_service.bulk_delete_items(
                 collection='embeds', item_ids=directus_ids
             )
 
             if success:
+                await self._activate_s3_tombstones(tombstones)
                 deleted_embed_uuid_ids = embed_uuid_ids
                 logger.info(
                     f"Successfully deleted {len(directus_ids)} embed(s) for "
@@ -1023,54 +1032,23 @@ class EmbedMethods:
             record = records[0]
             directus_id = record.get('id')
             file_size_bytes = int(record.get('file_size_bytes') or 0)
-            files_metadata = record.get('files_metadata')
 
-            # Step 2: Delete S3 variant files (original, full, preview).
-            # files_metadata structure: {"original": {"s3_key": "...", ...}, "full": {...}, "preview": {...}}
-            if s3_service and files_metadata and isinstance(files_metadata, dict):
-                s3_deleted = 0
-                s3_failed = 0
-                for variant_name, variant_data in files_metadata.items():
-                    if not isinstance(variant_data, dict):
-                        continue
-                    s3_key = variant_data.get('s3_key')
-                    if not s3_key:
-                        continue
-                    try:
-                        await s3_service.delete_file(
-                            bucket_key='chatfiles',
-                            file_key=s3_key,
-                        )
-                        s3_deleted += 1
-                        logger.debug(
-                            f"{log_prefix} Deleted S3 object chatfiles/{s3_key} (variant: {variant_name})."
-                        )
-                    except Exception as s3_err:
-                        s3_failed += 1
-                        logger.warning(
-                            f"{log_prefix} Failed to delete S3 object chatfiles/{s3_key}: {s3_err}"
-                        )
-                logger.info(
-                    f"{log_prefix} S3 deletion: {s3_deleted} deleted, {s3_failed} failed."
-                )
-            elif not s3_service:
-                logger.warning(
-                    f"{log_prefix} No s3_service provided — S3 files not deleted. "
-                    "Directus record will be removed; billing reconciliation will not reclaim S3 storage."
-                )
+            # Step 2: Persist regional purge authority for every uploaded variant.
+            tombstones = await self._persist_upload_tombstones([record])
 
             # Step 3: Delete the upload_files Directus record.
             if directus_id:
                 success = await self.directus_service.delete_item('upload_files', directus_id)
                 if success:
+                    await self._activate_s3_tombstones(tombstones)
                     logger.info(
                         f"{log_prefix} Deleted upload_files record {directus_id} "
                         f"({file_size_bytes:,} bytes freed)."
                     )
                 else:
-                    logger.warning(f"{log_prefix} Failed to delete upload_files record {directus_id}.")
-                    # Still return bytes_freed so the storage counter is decremented
-                    # (even if the record lingers, the weekly billing job will reconcile)
+                    raise RuntimeError(
+                        f"Failed to delete upload_files record {directus_id}"
+                    )
 
             return file_size_bytes
 
@@ -1104,7 +1082,7 @@ class EmbedMethods:
             # We build an _in filter which is most efficient for bulk lookups.
             params = {
                 'filter[embed_id][_in]': ','.join(embed_ids),
-                'fields': 'id,embed_id,file_size_bytes',
+                'fields': 'id,embed_id,file_size_bytes,files_metadata',
                 'limit': -1,
             }
             records = await self.directus_service.get_items(
@@ -1127,6 +1105,8 @@ class EmbedMethods:
                 f"freeing {total_bytes_freed:,} bytes."
             )
 
+            tombstones = await self._persist_upload_tombstones(records)
+
             success = await self.directus_service.bulk_delete_items(
                 collection='upload_files', item_ids=directus_ids
             )
@@ -1135,6 +1115,8 @@ class EmbedMethods:
                     f"Bulk delete of upload_files failed for embed_ids: {embed_ids[:5]}..."
                 )
                 return 0
+
+            await self._activate_s3_tombstones(tombstones)
 
             return total_bytes_freed
 
@@ -1190,6 +1172,7 @@ class EmbedMethods:
                 )
                 return []
             
+            original_response = list(response)
             directus_ids = [embed.get('id') for embed in response if embed.get('id')]
             embed_uuid_ids = [embed.get('embed_id') for embed in response if embed.get('embed_id')]
             
@@ -1222,9 +1205,14 @@ class EmbedMethods:
             if not directus_ids:
                 return []
             
-            # Delete associated S3 files before deleting embed records
-            if s3_service:
-                await self._delete_s3_files_for_embeds(response, s3_service)
+            deleting_ids = {embed.get('id') for embed in response}
+            surviving_embeds = [
+                embed for embed in original_response if embed.get('id') not in deleting_ids
+            ]
+            tombstones = await self._persist_s3_tombstones_for_embeds(
+                response,
+                surviving_embeds=surviving_embeds,
+            )
             
             # Delete associated embed_keys for these embeds
             for embed_uuid_id in embed_uuid_ids:
@@ -1237,6 +1225,7 @@ class EmbedMethods:
             success = await self.directus_service.bulk_delete_items(collection='embeds', item_ids=directus_ids)
             
             if success:
+                await self._activate_s3_tombstones(tombstones)
                 deleted_embed_ids = embed_uuid_ids
                 logger.info(
                     f"Successfully deleted {len(directus_ids)} embeds for hashed_message_id: "
@@ -1368,44 +1357,9 @@ class EmbedMethods:
             )
 
             # ──────────────────────────────────────────────────────────────────
-            # Step 2: Delete each S3 object referenced in files_metadata.
-            # files_metadata structure:
-            #   {"original": {"s3_key": "...", ...}, "full": {...}, "preview": {...}}
-            # All three variants live in the "chatfiles" bucket.
+            # Step 2: Persist regional purge authority for every uploaded variant.
             # ──────────────────────────────────────────────────────────────────
-            s3_deleted = 0
-            s3_failed = 0
-            for record in records:
-                files_metadata = record.get('files_metadata')
-                if not files_metadata or not isinstance(files_metadata, dict):
-                    continue
-                for variant_name, variant_data in files_metadata.items():
-                    if not isinstance(variant_data, dict):
-                        continue
-                    s3_key = variant_data.get('s3_key')
-                    if not s3_key:
-                        continue
-                    try:
-                        await s3_service.delete_file(
-                            bucket_key='chatfiles',
-                            file_key=s3_key,
-                        )
-                        s3_deleted += 1
-                        logger.debug(
-                            f"[StorageBilling] Deleted S3 object chatfiles/{s3_key} "
-                            f"(variant: {variant_name}) for user {user_id}."
-                        )
-                    except Exception as s3_err:
-                        s3_failed += 1
-                        logger.warning(
-                            f"[StorageBilling] Failed to delete S3 object chatfiles/{s3_key} "
-                            f"for user {user_id}: {s3_err}"
-                        )
-
-            logger.info(
-                f"[StorageBilling] S3 deletion for user {user_id}: "
-                f"{s3_deleted} objects deleted, {s3_failed} failures."
-            )
+            tombstones = await self._persist_upload_tombstones(records)
 
             # ──────────────────────────────────────────────────────────────────
             # Step 3: Compute bytes freed and bulk-delete Directus records.
@@ -1427,6 +1381,8 @@ class EmbedMethods:
                     f"Failed to bulk-delete upload_files records for user {user_id}."
                 )
 
+            await self._activate_s3_tombstones(tombstones)
+
             logger.info(
                 f"[StorageBilling] Purge complete for user {user_id}: "
                 f"{len(directus_ids)} Directus records deleted, "
@@ -1441,44 +1397,86 @@ class EmbedMethods:
             )
             raise
 
-    async def _delete_s3_files_for_embeds(self, embeds: list, s3_service) -> None:
-        """
-        Delete S3 files associated with embeds (e.g., generated images).
-        
-        Reads the s3_file_keys field from each embed record and deletes the corresponding
-        S3 objects. Failures are logged but do not prevent embed deletion.
-        
-        Args:
-            embeds: List of embed dicts (must include 's3_file_keys' field)
-            s3_service: S3UploadService instance
-        """
-        total_deleted = 0
-        total_failed = 0
-        
-        for embed in embeds:
-            s3_file_keys = embed.get('s3_file_keys')
-            if not s3_file_keys or not isinstance(s3_file_keys, list):
-                continue
-            
-            embed_id = embed.get('embed_id', 'unknown')
-            
-            for file_entry in s3_file_keys:
-                if not isinstance(file_entry, dict):
-                    continue
-                    
-                bucket_key = file_entry.get('bucket')
-                file_key = file_entry.get('key')
-                
-                if not bucket_key or not file_key:
-                    continue
-                
-                try:
-                    await s3_service.delete_file(bucket_key=bucket_key, file_key=file_key)
-                    total_deleted += 1
-                    logger.debug(f"Deleted S3 file for embed {embed_id}: {bucket_key}/{file_key}")
-                except Exception as e:
-                    total_failed += 1
-                    logger.warning(f"Failed to delete S3 file for embed {embed_id}: {bucket_key}/{file_key}: {e}")
-        
-        if total_deleted > 0 or total_failed > 0:
-            logger.info(f"S3 cleanup for embed deletion: {total_deleted} files deleted, {total_failed} failures")
+    async def _persist_s3_tombstones_for_embeds(
+        self,
+        embeds: list,
+        *,
+        surviving_embeds: list,
+    ) -> list[dict[str, Any]]:
+        """Persist regional purge authority before deleting embed reference rows."""
+        from backend.core.api.app.services.storage_reference_service import (
+            collect_storage_references,
+            find_surviving_storage_references,
+            persist_reference_safe_tombstones,
+        )
+        from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+
+        deleting = collect_storage_references(embeds=embeds, uploads=[])
+        surviving = await find_surviving_storage_references(
+            directus_service=self.directus_service,
+            candidates=deleting.references,
+            excluded_ids={
+                "embeds": {str(embed["id"]) for embed in embeds if embed.get("id")},
+            },
+        )
+        explicit_survivors = collect_storage_references(
+            embeds=surviving_embeds,
+            uploads=[],
+        )
+        surviving.references.update(explicit_survivors.references)
+        surviving.ambiguous.extend(explicit_survivors.ambiguous)
+        tombstones = await persist_reference_safe_tombstones(
+            directus_service=self.directus_service,
+            deleting=deleting,
+            surviving=surviving,
+            regions=parse_storage_regions(os.getenv("S3_REGIONS")),
+            now=datetime.now(timezone.utc),
+        )
+        if tombstones:
+            logger.info(
+                "Persisted %d storage tombstone(s) before embed reference deletion",
+                len(tombstones),
+            )
+        return tombstones
+
+    async def _persist_upload_tombstones(self, uploads: list) -> list[dict[str, Any]]:
+        """Persist regional purge authority before deleting upload reference rows."""
+        from backend.core.api.app.services.storage_reference_service import (
+            collect_storage_references,
+            find_surviving_storage_references,
+            persist_reference_safe_tombstones,
+        )
+        from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+
+        deleting = collect_storage_references(embeds=[], uploads=uploads)
+        surviving = await find_surviving_storage_references(
+            directus_service=self.directus_service,
+            candidates=deleting.references,
+            excluded_ids={
+                "upload_files": {str(upload["id"]) for upload in uploads if upload.get("id")},
+            },
+        )
+        tombstones = await persist_reference_safe_tombstones(
+            directus_service=self.directus_service,
+            deleting=deleting,
+            surviving=surviving,
+            regions=parse_storage_regions(os.getenv("S3_REGIONS")),
+            now=datetime.now(timezone.utc),
+        )
+        if tombstones:
+            logger.info(
+                "Persisted %d storage tombstone(s) before upload reference deletion",
+                len(tombstones),
+            )
+        return tombstones
+
+    async def _activate_s3_tombstones(self, tombstones: list[dict[str, Any]]) -> None:
+        from backend.core.api.app.services.storage_reference_service import (
+            activate_storage_tombstones,
+        )
+
+        await activate_storage_tombstones(
+            directus_service=self.directus_service,
+            tombstones=tombstones,
+            now=datetime.now(timezone.utc),
+        )

@@ -7,6 +7,7 @@
 	import { chatDB } from '../../services/db';
 	import { chatKeyManager } from '../../services/encryption/ChatKeyManager';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
+	import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../../services/e2eTestHooks';
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
 	import { tooltip } from '../../actions/tooltip';
@@ -95,6 +96,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
 	let lastActiveChatIdForDisplay: string | null = $state(getLastActiveChatIdForDisplay()); // Keeps the last active chat visible after returning to new-chat mode
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
+	let _draftChatIdToSelectAfterUpdate: string | null = $state(null);
+	let _draftSelectionExpectedActiveId: string | null | undefined = $state(undefined);
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
@@ -1973,9 +1976,21 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
 			if (value.newlyCreatedChatIdToSelect) {
-				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
-				_chatIdToSelectAfterUpdate = value.newlyCreatedChatIdToSelect;
+				const persistedChatId = value.newlyCreatedChatIdToSelect;
+				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${persistedChatId}`);
 				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
+				const selectedChatId = activeChatStore.get();
+				if (selectedChatId && selectedChatId !== persistedChatId) {
+					recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'chat_list', result: 'skipped' });
+					console.debug('[Chats] Skipping stale persisted draft activation because another chat is selected:', {
+						persistedChatId,
+						selectedChatId
+					});
+					return;
+				}
+				_chatIdToSelectAfterUpdate = persistedChatId;
+				_draftChatIdToSelectAfterUpdate = persistedChatId;
+				_draftSelectionExpectedActiveId = selectedChatId;
 				
 				// Attempt selection after ensuring the list is updated
 				await updateChatListFromDB();
@@ -2957,14 +2972,35 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
 
 		// Attempt to re-select a chat if one was queued for selection
 		if (_chatIdToSelectAfterUpdate) {
-			const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === _chatIdToSelectAfterUpdate); // Corrected variable
+			const queuedChatId = _chatIdToSelectAfterUpdate;
+			const isDraftActivation = _draftChatIdToSelectAfterUpdate === queuedChatId;
+			const expectedActiveChatId = isDraftActivation ? _draftSelectionExpectedActiveId : undefined;
+			_chatIdToSelectAfterUpdate = null;
+			if (isDraftActivation) {
+				_draftChatIdToSelectAfterUpdate = null;
+				_draftSelectionExpectedActiveId = undefined;
+				await waitForE2EDraftSelectionCommit(queuedChatId, 'chat_list');
+				const latestSelectedChatId = activeChatStore.get();
+				if (latestSelectedChatId !== expectedActiveChatId) {
+					recordE2EDraftSelectionDecision({ chatId: queuedChatId, consumer: 'chat_list', result: 'skipped' });
+					console.debug('[Chats] Skipping persisted draft activation because selection changed while refreshing:', {
+						persistedChatId: queuedChatId,
+						expectedActiveChatId,
+						latestSelectedChatId
+					});
+					return;
+				}
+			}
+			const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === queuedChatId); // Corrected variable
 			if (chatToSelect) {
-				console.debug(`[Chats] Selecting chat after list update: ${_chatIdToSelectAfterUpdate}`);
+				if (isDraftActivation) {
+					recordE2EDraftSelectionDecision({ chatId: queuedChatId, consumer: 'chat_list', result: 'applied' });
+				}
+				console.debug(`[Chats] Selecting chat after list update: ${queuedChatId}`);
 				await handleChatClick(chatToSelect, false); // System-initiated selection, don't close menu
 			} else {
-				console.warn(`[Chats] Chat ID ${_chatIdToSelectAfterUpdate} not found for selection after list update.`);
+				console.warn(`[Chats] Chat ID ${queuedChatId} not found for selection after list update.`);
 			}
-			_chatIdToSelectAfterUpdate = null; // Clear the queued selection ID
 		}
 		// If no specific chat was queued, try to maintain previous selection
 		else if (previouslySelectedChatId) {
@@ -4675,13 +4711,13 @@ async function updateChatListFromDBInternal(force = false, limit?: number) {
     the hover effect on desktop where it's intentional user feedback.
     */
     @media (hover: hover) {
-        .chat-item:hover {
-            background-color: var(--color-grey-25); /* Slightly different hover */
+        .chat-item:hover:not(.active) {
+            background-color: var(--color-grey-10);
         }
     }
 
     .chat-item.active {
-        background-color: var(--color-grey-30);
+        background-color: var(--color-grey-0);
     }
 
     /* Incognito chat styling */

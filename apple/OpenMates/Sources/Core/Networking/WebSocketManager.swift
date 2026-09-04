@@ -12,9 +12,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var pingTimer: Timer?
     private let decoder = JSONDecoder()
     private var connectTask: Task<Void, Never>?
+    private var connectionGeneration = 0
     private var activeConnectionKey: ConnectionKey?
     private var didOpenCurrentSocket = false
     private var messageWaiters: [UUID: MessageWaiter] = [:]
+    private let streamEventDispatcher = OrderedStreamEventDispatcher()
     private(set) var recoveryCoordinator: ChatCompletionRecoveryCoordinator?
     private lazy var session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -34,12 +36,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     private var sessionId: String?
     private var authToken: String?
     private var activeSyncState: SyncClientState = .empty
+    private var syncStateProvider: (() -> SyncClientState)?
     private var shouldReconnect = false
     private var maxReconnectAttempts = 10
     private var reconnectDelay: TimeInterval = 1.0
 
     override init() {
         super.init()
+    }
+
+    func configureSyncStateProvider(_ provider: @escaping () -> SyncClientState) {
+        syncStateProvider = provider
     }
 
     func connect(
@@ -59,6 +66,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             }
         }
 
+        connectionGeneration += 1
+        let generation = connectionGeneration
         connectTask?.cancel()
         pingTimer?.invalidate()
         pingTimer = nil
@@ -77,6 +86,11 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             guard let self else { return }
             let baseURL = await APIClient.shared.baseURL
             let origin = await APIClient.shared.webAppURL.absoluteString
+            guard Self.shouldContinueConnectionAttempt(
+                expectedGeneration: generation,
+                currentGeneration: connectionGeneration,
+                isCancelled: Task.isCancelled
+            ) else { return }
             guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else { return }
             components.scheme = components.scheme == "https" ? "wss" : "ws"
             components.path = "/v1/ws"
@@ -95,10 +109,17 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 request.setValue(value, forHTTPHeaderField: key)
             }
 
-            webSocketTask = session.webSocketTask(with: request)
-            webSocketTask?.resume()
+            let connectingTask = session.webSocketTask(with: request)
+            webSocketTask = connectingTask
+            connectingTask.resume()
 
-            guard await waitForOpenSocket(), !Task.isCancelled else {
+            guard await waitForOpenSocket(connectingTask, generation: generation),
+                  Self.shouldContinueConnectionAttempt(
+                      expectedGeneration: generation,
+                      currentGeneration: connectionGeneration,
+                      isCancelled: Task.isCancelled
+                  ) else {
+                guard generation == connectionGeneration else { return }
                 print("[WS] Connection probe failed before sync request")
                 handleDisconnect()
                 return
@@ -107,13 +128,16 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             connectionState = .connected
             reconnectDelay = 1.0
             startPingTimer()
-            receiveMessages()
+            receiveMessages(from: connectingTask)
             await recoveryCoordinator?.handleTransportConnected()
-            try? await requestPhasedSync(syncState: syncState)
+            let currentSyncState = syncStateProvider?() ?? activeSyncState
+            activeSyncState = currentSyncState
+            try? await requestPhasedSync(syncState: currentSyncState)
         }
     }
 
     func disconnect() {
+        connectionGeneration += 1
         shouldReconnect = false
         connectTask?.cancel()
         connectTask = nil
@@ -221,15 +245,35 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         )
     }
 
-    private func waitForOpenSocket() async -> Bool {
+    func requestChatContentBatch(chatId: String) async throws -> WebSocketResponse {
+        try await sendAndWait(
+            WSOutboundMessage(
+                type: "request_chat_content_batch",
+                payload: ["chat_ids": [chatId]]
+            ),
+            responseType: "chat_content_batch_response",
+            timeout: .seconds(20)
+        ) { fields in
+            guard let messages = fields["messages_by_chat_id"] as? [String: Any] else { return false }
+            return messages[chatId] != nil
+        }
+    }
+
+    private func waitForOpenSocket(
+        _ connectingTask: URLSessionWebSocketTask,
+        generation: Int
+    ) async -> Bool {
         for _ in 0..<30 {
-            if Task.isCancelled { return false }
+            guard Self.shouldContinueConnectionAttempt(
+                expectedGeneration: generation,
+                currentGeneration: connectionGeneration,
+                isCancelled: Task.isCancelled
+            ) else { return false }
             if didOpenCurrentSocket { return true }
             try? await Task.sleep(for: .milliseconds(100))
         }
-        guard let task = webSocketTask else { return false }
         return await withCheckedContinuation { continuation in
-            task.sendPing { error in
+            connectingTask.sendPing { error in
                 if let error {
                     print("[WS] Open probe ping failed: \(error.localizedDescription)")
                     continuation.resume(returning: false)
@@ -242,14 +286,18 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
     // MARK: - Receive loop
 
-    private func receiveMessages() {
-        webSocketTask?.receive { [weak self] result in
+    private func receiveMessages(from receivingTask: URLSessionWebSocketTask?) {
+        receivingTask?.receive { [weak self, weak receivingTask] result in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, let receivingTask,
+                      Self.isCurrentSocket(
+                          callbackTaskIdentifier: receivingTask.taskIdentifier,
+                          currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+                      ) else { return }
                 switch result {
                 case .success(let message):
                     self.handleRawMessage(message)
-                    self.receiveMessages()
+                    self.receiveMessages(from: receivingTask)
                 case .failure(let error):
                     print("[WS] Receive error: \(error.localizedDescription)")
                     self.handleDisconnect()
@@ -291,12 +339,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             let chatId = msg.stringField("chat_id") ?? ""
             let taskId = msg.stringField("ai_task_id") ?? msg.stringField("task_id") ?? ""
             let userMsgId = msg.stringField("user_message_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .taskInitiated(chatId: chatId, taskId: taskId, userMessageId: userMsgId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .taskInitiated(chatId: chatId, taskId: taskId, userMessageId: userMsgId),
+                for: chatId
+            )
 
         case "ai_typing_started":
             let chatId = msg.stringField("chat_id") ?? ""
@@ -311,12 +357,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
                 userMessageId: msg.stringField("user_message_id"),
                 encryptedChatKey: msg.stringField("encrypted_chat_key")
             )
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .typingStarted(chatId: chatId, messageId: messageId, metadata: metadata),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .typingStarted(chatId: chatId, messageId: messageId, metadata: metadata),
+                for: chatId
+            )
             NotificationCenter.default.post(
                 name: .wsMessageReceived, object: nil,
                 userInfo: ["type": msg.type, "raw": raw]
@@ -333,136 +377,116 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
             let modelName = msg.stringField("model_name")
             let rejectionReason = msg.stringField("rejection_reason")
             recoveryCoordinator?.handleTerminalStream(msg.fields)
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .chunk(
-                        chatId: chatId,
-                        messageId: messageId,
-                        sequence: sequence,
-                        content: content,
-                        isFinal: isFinal,
-                        userMessageId: userMessageId,
-                        category: category,
-                        modelName: modelName,
-                        rejectionReason: rejectionReason
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .chunk(
+                    chatId: chatId,
+                    messageId: messageId,
+                    sequence: sequence,
+                    content: content,
+                    isFinal: isFinal,
+                    userMessageId: userMessageId,
+                    category: category,
+                    modelName: modelName,
+                    rejectionReason: rejectionReason
+                ),
+                for: chatId
+            )
 
         case "thinking_chunk":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
             let content = msg.stringField("content") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .thinkingChunk(chatId: chatId, messageId: messageId, content: content),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .thinkingChunk(chatId: chatId, messageId: messageId, content: content),
+                for: chatId
+            )
 
         case "thinking_complete":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .thinkingComplete(chatId: chatId, messageId: messageId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .thinkingComplete(chatId: chatId, messageId: messageId),
+                for: chatId
+            )
 
         case "ai_message_ready":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .messageReady(chatId: chatId, messageId: messageId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .messageReady(chatId: chatId, messageId: messageId),
+                for: chatId
+            )
 
         case "awaiting_user_input":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id") ?? msg.stringField("task_id") ?? ""
             let question = msg.stringField("question") ?? ""
             guard !chatId.isEmpty, !messageId.isEmpty, !question.isEmpty else { break }
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .chunk(
-                        chatId: chatId,
-                        messageId: messageId,
-                        sequence: 0,
-                        content: question,
-                        isFinal: true,
-                        userMessageId: msg.stringField("user_message_id"),
-                        category: nil,
-                        modelName: nil,
-                        rejectionReason: nil
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .chunk(
+                    chatId: chatId,
+                    messageId: messageId,
+                    sequence: 0,
+                    content: question,
+                    isFinal: true,
+                    userMessageId: msg.stringField("user_message_id"),
+                    category: nil,
+                    modelName: nil,
+                    rejectionReason: nil
+                ),
+                for: chatId
+            )
 
         case "preprocessing_step":
             let chatId = msg.stringField("chat_id") ?? ""
             let step = msg.stringField("step") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .preprocessingStep(chatId: chatId, step: step, data: nil),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .preprocessingStep(chatId: chatId, step: step, data: nil),
+                for: chatId
+            )
 
         case "ai_typing_ended":
             let chatId = msg.stringField("chat_id") ?? ""
             let messageId = msg.stringField("message_id")
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .typingEnded(chatId: chatId, messageId: messageId),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .typingEnded(chatId: chatId, messageId: messageId),
+                for: chatId
+            )
 
         case "message_queued":
             let chatId = msg.stringField("chat_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .messageQueued(
-                        chatId: chatId,
-                        taskId: msg.stringField("task_id"),
-                        userMessageId: msg.stringField("user_message_id"),
-                        message: msg.stringField("message")
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .messageQueued(
+                    chatId: chatId,
+                    taskId: msg.stringField("task_id"),
+                    userMessageId: msg.stringField("user_message_id"),
+                    message: msg.stringField("message")
+                ),
+                for: chatId
+            )
 
         case "ai_task_cancel_requested":
             let chatId = msg.stringField("chat_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .cancelRequested(chatId: chatId, taskId: msg.stringField("task_id")),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .cancelRequested(chatId: chatId, taskId: msg.stringField("task_id")),
+                for: chatId
+            )
 
         case "post_processing_completed":
             let chatId = msg.stringField("chat_id") ?? ""
             let taskId = msg.stringField("task_id") ?? ""
-            Task {
-                await StreamingClient.shared.dispatch(
-                    .postProcessingCompleted(
-                        chatId: chatId,
-                        taskId: taskId,
-                        followUpSuggestions: msg.stringArrayField("follow_up_request_suggestions") ?? [],
-                        newChatSuggestions: msg.stringArrayField("new_chat_request_suggestions") ?? [],
-                        chatSummary: msg.stringField("chat_summary"),
-                        chatTags: msg.stringArrayField("chat_tags") ?? [],
-                        updatedTitle: msg.stringField("updated_chat_title")
-                    ),
-                    for: chatId
-                )
-            }
+            streamEventDispatcher.enqueue(
+                .postProcessingCompleted(
+                    chatId: chatId,
+                    taskId: taskId,
+                    followUpSuggestions: msg.stringArrayField("follow_up_request_suggestions") ?? [],
+                    newChatSuggestions: msg.stringArrayField("new_chat_request_suggestions") ?? [],
+                    chatSummary: msg.stringField("chat_summary"),
+                    chatTags: msg.stringArrayField("chat_tags") ?? [],
+                    updatedTitle: msg.stringField("updated_chat_title")
+                ),
+                for: chatId
+            )
 
         case "request_chat_history":
             NotificationCenter.default.post(
@@ -577,11 +601,18 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         pingTimer?.invalidate()
         pingTimer = Timer.scheduledTimer(withTimeInterval: 25, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.webSocketTask?.sendPing { error in
+                guard let self, let pingTask = self.webSocketTask else { return }
+                let taskIdentifier = pingTask.taskIdentifier
+                pingTask.sendPing { error in
                     if let error {
                         print("[WS] Ping error: \(error.localizedDescription)")
-                        Task { @MainActor in
-                            self?.handleDisconnect()
+                        Task { @MainActor [weak self] in
+                            guard let self,
+                                  Self.isCurrentSocket(
+                                      callbackTaskIdentifier: taskIdentifier,
+                                      currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+                                  ) else { return }
+                            self.handleDisconnect()
                         }
                     }
                 }
@@ -592,6 +623,8 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
     // MARK: - Reconnect
 
     private func handleDisconnect() {
+        connectionGeneration += 1
+        let reconnectGeneration = connectionGeneration
         pingTimer?.invalidate()
         pingTimer = nil
         webSocketTask = nil
@@ -612,13 +645,36 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
 
         connectionState = .reconnecting(attempt: currentAttempt)
 
-        Task {
-            try? await Task.sleep(for: .seconds(reconnectDelay))
+        let delay = reconnectDelay
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self,
+                  Self.shouldContinueConnectionAttempt(
+                      expectedGeneration: reconnectGeneration,
+                      currentGeneration: connectionGeneration,
+                      isCancelled: Task.isCancelled
+                  ), shouldReconnect else { return }
             reconnectDelay = min(reconnectDelay * 2, 30)
             if let sessionId {
                 connect(sessionId: sessionId, token: authToken, syncState: activeSyncState)
             }
         }
+    }
+
+    static func isCurrentSocket(
+        callbackTaskIdentifier: Int,
+        currentTaskIdentifier: Int?
+    ) -> Bool {
+        guard let currentTaskIdentifier else { return false }
+        return callbackTaskIdentifier == currentTaskIdentifier
+    }
+
+    static func shouldContinueConnectionAttempt(
+        expectedGeneration: Int,
+        currentGeneration: Int,
+        isCancelled: Bool
+    ) -> Bool {
+        !isCancelled && expectedGeneration == currentGeneration
     }
 
     nonisolated func urlSession(
@@ -627,7 +683,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         didOpenWithProtocol protocol: String?
     ) {
         Task { @MainActor [weak self] in
-            guard let self, self.webSocketTask?.taskIdentifier == webSocketTask.taskIdentifier else { return }
+            guard let self, Self.isCurrentSocket(
+                callbackTaskIdentifier: webSocketTask.taskIdentifier,
+                currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+            ) else { return }
             self.didOpenCurrentSocket = true
         }
     }
@@ -639,7 +698,10 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         reason: Data?
     ) {
         Task { @MainActor [weak self] in
-            guard let self, self.webSocketTask?.taskIdentifier == webSocketTask.taskIdentifier else { return }
+            guard let self, Self.isCurrentSocket(
+                callbackTaskIdentifier: webSocketTask.taskIdentifier,
+                currentTaskIdentifier: self.webSocketTask?.taskIdentifier
+            ) else { return }
             self.handleDisconnect()
         }
     }

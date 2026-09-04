@@ -27,6 +27,15 @@ def minimal_graph():
     }
 
 
+def blank_graph():
+    return {
+        "version": 1,
+        "trigger_node_id": None,
+        "nodes": [],
+        "edges": [],
+    }
+
+
 def template_import_payload():
     return {
         "template_version": 1,
@@ -46,7 +55,7 @@ def assert_public_workflow_slug(workflow, slug):
     assert "slug_lookup_hash" not in workflow
 
 
-# contract-test: direct surface=sdks.pip assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
+# contract-test: direct surface=sdks.pip assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
 def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     requests_seen = []
     graph = minimal_graph()
@@ -83,7 +92,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/v1/projects?include_archived=true"):
             return FakeResponse({"projects": [{"project_id": PROJECT_ID, "encrypted_project_key": encrypted_project_key, "encrypted_name": _encrypt_aes_gcm_text("Project", project_key)}]})
         if url.endswith("/v1/workflows"):
-            return FakeResponse({"workflows": [{"id": "wf-1", "title": "Morning", **encrypted_slug_fields}]})
+            return FakeResponse({"workflows": [{"id": "wf-1", "title": "Morning", "category": "science", "icon": "cloud-rain", **encrypted_slug_fields}]})
         if url.endswith("/v1/workflows/temporary"):
             return FakeResponse({"workflows": [{"id": "wf-temp", "title": "Temporary", "lifecycle": "temporary", **encrypted_temp_slug_fields}]})
         if url.endswith("/v1/workflows/capabilities"):
@@ -134,7 +143,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
         if url.endswith("/runs/run-1/respond"):
             assert json == {"step_id": "ask", "input": {"answer": "Berlin"}}
             return FakeResponse({"run": {"id": "run-1", "status": "completed"}})
-        return FakeResponse({"workflow": {"id": "wf-1", "title": json.get("title", "Morning"), "graph": graph, **encrypted_slug_fields}})
+        return FakeResponse({"workflow": {"id": "wf-1", "title": json.get("title", "Morning"), "enabled": json.get("enabled", True), "graph": json.get("graph", graph), **encrypted_slug_fields}})
 
     def fake_patch(url, *, json, headers, timeout):
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
@@ -160,6 +169,8 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     listed_workflow = client.workflows.list()[0]
     temporary_workflow = client.workflows.temporary()[0]
     assert listed_workflow["id"] == "wf-1"
+    assert listed_workflow["category"] == "science"
+    assert listed_workflow["icon"] == "cloud-rain"
     assert temporary_workflow["id"] == "wf-temp"
     assert_public_workflow_slug(listed_workflow, "morning")
     assert_public_workflow_slug(temporary_workflow, "temporary")
@@ -173,6 +184,7 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     assert client.workflows.validate_yaml("title: Morning\n")["draft_valid"] is True
     created_from_yaml = client.workflows.create_from_yaml("title: Morning\n")["workflow"]
     updated_from_yaml = client.workflows.update_from_yaml("wf-1", "title: Updated\n")["workflow"]
+    blank_workflow = client.workflows.create(title="Blank", graph=blank_graph(), enabled=False)
     created_workflow = client.workflows.create(
         title="Morning",
         graph=graph,
@@ -190,13 +202,15 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     kept_workflow = client.workflows.keep("wf-1")
     assert created_from_yaml["id"] == "wf-yaml"
     assert updated_from_yaml["title"] == "Updated"
+    assert blank_workflow["graph"]["trigger_node_id"] is None
+    assert blank_workflow["graph"]["nodes"] == []
     assert created_workflow["id"] == "wf-1"
     assert fetched_workflow["id"] == "wf-1"
     assert updated_workflow["id"] == "wf-1"
     assert enabled_workflow["id"] == "wf-1"
     assert disabled_workflow["id"] == "wf-1"
     assert kept_workflow["id"] == "wf-1"
-    for workflow in [created_from_yaml, updated_from_yaml, created_workflow, fetched_workflow, updated_workflow, enabled_workflow, disabled_workflow, kept_workflow]:
+    for workflow in [created_from_yaml, updated_from_yaml, blank_workflow, created_workflow, fetched_workflow, updated_workflow, enabled_workflow, disabled_workflow, kept_workflow]:
         assert_public_workflow_slug(workflow, "morning")
     assert client.workflows.run("wf-1", idempotency_key="stable-run-1", mode="test", input_data={"dry": True})["id"] == "run-1"
     assert client.workflows.runs("wf-1")[0]["id"] == "run-1"
@@ -228,6 +242,9 @@ def test_pip_sdk_workflow_methods_use_shared_workflows_api(monkeypatch):
     workflow_input = next(request for request in requests_seen if request["method"] == "POST" and request["url"].endswith("/v1/workflows/input"))
     assert workflow_input["json"] == {"input_type": "text", "text": "alert me if it rains", "selected_project_id": PROJECT_ID}
     workflow_create = next(request for request in requests_seen if request["method"] == "POST" and request["url"].endswith("/v1/workflows") and request["json"].get("title") == "Morning")
+    blank_create = next(request for request in requests_seen if request["method"] == "POST" and request["url"].endswith("/v1/workflows") and request["json"].get("title") == "Blank")
+    assert blank_create["json"]["graph"] == blank_graph()
+    assert blank_create["json"]["enabled"] is False
     assert workflow_create["json"]["source_chat_id"] == CHAT_ID
     assert isinstance(workflow_create["json"].get("encrypted_slug"), str)
     assert isinstance(workflow_create["json"].get("slug_lookup_hash"), str)

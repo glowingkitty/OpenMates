@@ -25,6 +25,7 @@ function findNodes(node: any, type: string): any[] {
 }
 
 describe("createAssistantRenderPlan", () => {
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it("commits safe complete blocks with final embed semantics and keeps one mutable tail", () => {
     const markdown = [
       "Use [the event](embed:event-ref).",
@@ -42,6 +43,7 @@ describe("createAssistantRenderPlan", () => {
     expect(findNodes(plan.committed[1].document, "embedPreviewLarge")).toHaveLength(1);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("does not target committed blocks when only the mutable tail grows", () => {
     const first = createAssistantRenderPlan("First paragraph.\n\nStill", { phase: "streaming" });
     const later = createAssistantRenderPlan("First paragraph.\n\nStill writing", {
@@ -57,6 +59,7 @@ describe("createAssistantRenderPlan", () => {
     ]);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it.each([
     "An [unfinished link](embed:",
     "```json\n{\"type\":\"app_skill_use\"",
@@ -72,6 +75,7 @@ describe("createAssistantRenderPlan", () => {
     expect(plan.tail?.markdown).toBe(tail);
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("retains heading-adjacent result views across cumulative snapshots", () => {
     const chunks = [
       "Here are the results.\n\n",

@@ -11,17 +11,14 @@ final class AuthSecurityParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,auth.surface.first-party-boundary
     func testUnauthenticatedAuthEntryExposesLoginIdentifiers() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["--ui-test-disable-auth-cache"]
+        app.launchArguments = ["--ui-test-disable-auth-cache", "--ui-test-open-login"]
         app.launch()
 
-        let loginSignupButton = app.buttons["header-login-signup-btn"]
-        XCTAssertTrue(loginSignupButton.waitForExistence(timeout: 15))
-        loginSignupButton.tap()
-
         let loginTab = app.buttons["auth-login-tab"]
-        XCTAssertTrue(loginTab.waitForExistence(timeout: 10))
+        XCTAssertTrue(loginTab.waitForExistence(timeout: 15))
         loginTab.tap()
 
         XCTAssertTrue(app.buttons["auth-signup-tab"].waitForExistence(timeout: 5))

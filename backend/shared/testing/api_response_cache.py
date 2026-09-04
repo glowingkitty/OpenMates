@@ -19,6 +19,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from backend.shared.testing.mock_context import (
+    get_record_candidate_root,
+    get_replay_candidate_root,
+    is_record_mode,
+    record_cache_hit,
+    record_cache_miss,
+)
+
 logger = logging.getLogger(__name__)
 
 # Root directory for cached API responses
@@ -72,15 +80,23 @@ class ApiResponseCache:
     def __init__(self, root: Optional[Path] = None):
         self.root = root or CACHE_ROOT
 
-    def _cache_dir(self, group_id: str, category: str) -> Path:
+    def _cache_dir(
+        self, group_id: str, category: str, root: Optional[Path] = None
+    ) -> Path:
         """Get the cache directory for a given group and category."""
         # Sanitize category for filesystem (replace / with __)
         safe_category = category.replace("/", "__")
-        return self.root / group_id / safe_category
+        return (root or self.root) / group_id / safe_category
 
-    def _cache_path(self, group_id: str, category: str, fingerprint: str) -> Path:
+    def _cache_path(
+        self,
+        group_id: str,
+        category: str,
+        fingerprint: str,
+        root: Optional[Path] = None,
+    ) -> Path:
         """Get the full path for a cached response file."""
-        return self._cache_dir(group_id, category) / f"{fingerprint}.json"
+        return self._cache_dir(group_id, category, root=root) / f"{fingerprint}.json"
 
     def load(self, group_id: str, category: str, fingerprint: str) -> Optional[Dict[str, Any]]:
         """
@@ -89,8 +105,17 @@ class ApiResponseCache:
         Returns:
             The cached response dict, or None if not found.
         """
+        if is_record_mode():
+            # Recording must never consume committed cassettes.
+            record_cache_miss()
+            return None
+
+        selected_run_root = get_replay_candidate_root()
         path = self._cache_path(group_id, category, fingerprint)
+        if selected_run_root is not None:
+            path = self._cache_path(group_id, category, fingerprint, root=selected_run_root)
         if not path.exists():
+            record_cache_miss()
             return None
 
         try:
@@ -100,42 +125,12 @@ class ApiResponseCache:
                 f"[LiveMock] Cache HIT: {category}/{fingerprint} "
                 f"(group={group_id}, recorded={data.get('recorded_at', '?')})"
             )
+            record_cache_hit()
             return data
         except (json.JSONDecodeError, OSError) as e:
             logger.warning(f"[LiveMock] Failed to load cache {path}: {e}")
+            record_cache_miss()
             return None
-
-    def load_compatible_llm_response(
-        self,
-        group_id: str,
-        category: str,
-        request_summary: Dict[str, Any],
-        excluded_fingerprint: Optional[str] = None,
-    ) -> Optional[Dict[str, Any]]:
-        """Load a compatible LLM cassette when exact fingerprinting drifts."""
-        for candidate_category in self._compatible_llm_categories(category, request_summary):
-            cache_dir = self._cache_dir(group_id, candidate_category)
-            if not cache_dir.exists():
-                continue
-
-            for path in sorted(cache_dir.glob("*.json")):
-                if excluded_fingerprint and path.stem == excluded_fingerprint:
-                    continue
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                except (json.JSONDecodeError, OSError) as e:
-                    logger.warning(f"[LiveMock] Failed to inspect cache {path}: {e}")
-                    continue
-
-                if self._llm_request_summary_matches(request_summary, data.get("request", {})):
-                    logger.info(
-                        f"[LiveMock] Cache FALLBACK HIT: {candidate_category}/{path.stem} "
-                        f"(group={group_id}, exact_miss={excluded_fingerprint or '?'})"
-                    )
-                    return data
-
-        return None
 
     def save(
         self,
@@ -158,7 +153,18 @@ class ApiResponseCache:
         Returns:
             Path to the saved cache file.
         """
-        cache_dir = self._cache_dir(group_id, category)
+        root = self.root
+        if is_record_mode():
+            candidate_root = get_record_candidate_root()
+            if candidate_root is None:
+                raise RuntimeError(
+                    "Live mock record mode requires a request-scoped candidate cache root"
+                )
+            root = candidate_root
+
+        # Save uses the candidate root only in record mode; ordinary fixture setup
+        # and replay retain the canonical root unchanged.
+        cache_dir = self._cache_dir(group_id, category, root=root)
         cache_dir.mkdir(parents=True, exist_ok=True)
 
         cache_entry = {
@@ -170,7 +176,7 @@ class ApiResponseCache:
             "response": response_data,
         }
 
-        path = self._cache_path(group_id, category, fingerprint)
+        path = self._cache_path(group_id, category, fingerprint, root=root)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(cache_entry, f, indent=2, ensure_ascii=False, default=str)
 
@@ -320,80 +326,6 @@ class ApiResponseCache:
             normalized_lines.append(line)
 
         return "\n".join(normalized_lines) if changed else content
-
-    @staticmethod
-    def _llm_request_summary_matches(expected: Dict[str, Any], candidate: Any) -> bool:
-        if not isinstance(candidate, dict):
-            return False
-
-        # Tool availability can drift as companion skills and account settings
-        # evolve. The mock group plus exact final message still scopes replay to
-        # the intended test flow without invalidating otherwise compatible data.
-        stable_keys = ("model", "tool_choice")
-        for key in stable_keys:
-            candidate_value = candidate.get(key)
-            expected_value = expected.get(key)
-            if key == "model":
-                candidate_value = ApiResponseCache._normalize_llm_model_for_match(candidate_value)
-                expected_value = ApiResponseCache._normalize_llm_model_for_match(expected_value)
-            if candidate_value != expected_value:
-                return False
-
-        expected_tool_names = expected.get("tool_names")
-        candidate_tool_names = candidate.get("tool_names")
-        if expected_tool_names and candidate_tool_names and candidate_tool_names != expected_tool_names:
-            return False
-
-        expected_last = expected.get("last_message_preview")
-        candidate_last = candidate.get("last_message_preview")
-        expected_last_hash = expected.get("last_message_hash")
-        candidate_last_hash = candidate.get("last_message_hash")
-        if expected_last_hash and candidate_last_hash and expected_last_hash == candidate_last_hash:
-            return True
-        if expected_last is None and candidate_last is None:
-            return True
-        if not isinstance(expected_last, dict) or not isinstance(candidate_last, dict):
-            return False
-
-        if candidate_last.get("role") != expected_last.get("role"):
-            return False
-
-        candidate_content = candidate_last.get("content")
-        expected_content = expected_last.get("content")
-        if candidate_content == expected_content:
-            return not (expected_last_hash and candidate_last_hash)
-
-        normalized_candidate = ApiResponseCache._normalize_llm_text_for_match(candidate_content)
-        normalized_expected = ApiResponseCache._normalize_llm_text_for_match(expected_content)
-        return (
-            normalized_candidate == normalized_expected
-            and (normalized_candidate != candidate_content or normalized_expected != expected_content)
-        )
-
-    @staticmethod
-    def _compatible_llm_categories(category: str, request_summary: Dict[str, Any]) -> list[str]:
-        categories = [category]
-        model = request_summary.get("model")
-        if isinstance(model, str):
-            normalized = ApiResponseCache._normalize_llm_model_for_match(model)
-            if normalized and normalized != model:
-                categories.append(f"llm/{normalized}")
-
-        for prefix in ("llm/", "llm_non_stream/"):
-            if category.startswith(prefix):
-                category_model = category.removeprefix(prefix)
-                normalized = ApiResponseCache._normalize_llm_model_for_match(category_model)
-                if normalized and normalized != category_model:
-                    categories.append(f"{prefix}{normalized}")
-
-        return list(dict.fromkeys(categories))
-
-    @staticmethod
-    def _normalize_llm_model_for_match(model: Any) -> Any:
-        if not isinstance(model, str):
-            return model
-        return model.rsplit("/", 1)[-1]
-
 
 # Singleton cache instance
 _shared_cache: Optional[ApiResponseCache] = None

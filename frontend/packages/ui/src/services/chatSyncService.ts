@@ -101,8 +101,8 @@ export class ChatSynchronizationService extends EventTarget {
   private cachePrimed = false;
   private initialSyncAttempted = false;
   // Tracks whether a full phased sync has ever completed this session.
-  // When true, reconnects skip the full re-sync and only re-verify cache status.
-  // Reset on logout/forced-logout — NOT on transient WS disconnects.
+  // Reset on logout/forced-logout, but kept across transient disconnects so
+  // recovery-specific behavior can distinguish first-load from reconnect sync.
   private hasCompletedInitialSync = false;
   private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
@@ -317,11 +317,12 @@ export class ChatSynchronizationService extends EventTarget {
 
         if (this.hasCompletedInitialSync && !isLoggingOutNow) {
           // SHORT DISCONNECT (pong timeout, brief network blip): Sync already completed
-          // this session. Keep cachePrimed and initialSyncAttempted so reconnect skips
-          // a redundant full phased sync. The reconnect path (connected=true) will
-          // re-verify cache status and only re-sync if the server cache went cold.
+          // this session. Keep cachePrimed, but clear initialSyncAttempted so reconnect
+          // can run the version-aware phased sync and discover events missed while the
+          // socket was down, including draft-only chats created from another client.
+          this.initialSyncAttempted = false;
           console.info(
-            "[ChatSyncService] Preserving sync state — initial sync already completed this session.",
+            "[ChatSyncService] Preserving cache state and allowing reconnect sync.",
           );
         } else {
           // Reset hasCompletedInitialSync on logout so re-login does a full sync.
@@ -602,7 +603,7 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("draft_deleted", (payload) =>
       chatUpdateHandlers.handleDraftDeletedImpl(
         this,
-        payload as { chat_id: string },
+        payload as { chat_id: string; draft_v?: number },
       ),
     );
     webSocketService.on("new_chat_message", (payload) =>

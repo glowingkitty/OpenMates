@@ -176,6 +176,84 @@ def test_advanced_base_conflict_is_explicit_and_leaves_dev_unchanged(monkeypatch
     assert "origin/dev" in item["next_action"]
 
 
+def test_selected_upstream_nonoverlapping_hunks_merge_automatically(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source_a, _source_b, _base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+
+    base_lines = [f"line {index}\n" for index in range(1, 13)]
+    (root / "a.txt").write_text("".join(base_lines), encoding="utf-8")
+    git(root, "add", "a.txt")
+    git(root, "commit", "-m", "multi-line base")
+    git(root, "push", "origin", "dev")
+    source = tmp_path / "source-overlap"
+    source_base = git(root, "rev-parse", "HEAD")
+    git(root, "worktree", "add", "--detach", str(source), source_base)
+    source_lines = base_lines.copy()
+    source_lines[9] = "source edit\n"
+    (source / "a.txt").write_text("".join(source_lines), encoding="utf-8")
+
+    upstream_lines = base_lines.copy()
+    upstream_lines[0] = "upstream edit\n"
+    (root / "a.txt").write_text("".join(upstream_lines), encoding="utf-8")
+    git(root, "add", "a.txt")
+    git(root, "commit", "-m", "advance selected file")
+    git(root, "push", "origin", "dev")
+    final_base = git(root, "rev-parse", "origin/dev")
+
+    metadata = {"path": str(source), "base_commit": source_base}
+    files = ["a.txt"]
+    patch_id = sessions._worktree_patch_id(metadata, files)
+
+    prepared = sessions._prepare_integration_worktree("cccc", metadata, files, patch_id, final_base)
+    checkout = Path(prepared["path"])
+
+    merged_lines = (checkout / "a.txt").read_text(encoding="utf-8").splitlines()
+    assert merged_lines[0] == "upstream edit"
+    assert merged_lines[9] == "source edit"
+    assert git(root, "rev-parse", "origin/dev") == final_base
+    assert git(root, "status", "--porcelain", "-uall") == ""
+
+    sessions._remove_integration_worktree(prepared)
+
+
+def test_stale_worktree_rebase_blocks_deletion_amplification(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, source_a, _source_b, base = create_fixture(tmp_path)
+    integrations = root / ".openmates-agent-worktrees"
+    integrations.mkdir()
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", root)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", integrations)
+    (source_a / "a.txt").write_text("a0\nspeech toggle\n", encoding="utf-8")
+    (root / "a.txt").write_text("a0\nmodel selector\nplus button\nsend button\n", encoding="utf-8")
+    git(root, "add", "a.txt")
+    git(root, "commit", "-m", "add composer controls")
+    git(root, "push", "origin", "dev")
+    current_dev = git(root, "rev-parse", "origin/dev")
+
+    metadata = {
+        "path": str(source_a),
+        "base_commit": base,
+        # Reproduces partial deploy metadata advancing globally while this file
+        # remains based on the worktree's older HEAD.
+        "merged_commit": current_dev,
+    }
+    files = ["a.txt"]
+    patch_id = sessions._worktree_patch_id(metadata, files)
+
+    with pytest.raises(sessions.IntegrationConflict, match="Deletion amplification detected") as exc_info:
+        sessions._prepare_integration_worktree("aaaa", metadata, files, patch_id, current_dev)
+
+    assert "a.txt (0 intended, 3 integrated)" in str(exc_info.value)
+    assert git(root, "rev-parse", "origin/dev") == current_dev
+    assert git(root, "status", "--porcelain", "-uall") == ""
+
+
 def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     first_checkout = tmp_path / "integration-first"
@@ -201,9 +279,14 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     commands: list[tuple[list[str], str | None]] = []
     releases: list[str] = []
     removed: list[str] = []
+    protocol_refs: list[str] = []
+    fast_forwarded: list[str] = []
+    sync_ready_refs: list[str] = []
 
     monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: next(fetched))
-    monkeypatch.setattr(sessions, "_prepare_integration_worktree", lambda *_args: prepared_first)
+    monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", protocol_refs.append)
+    monkeypatch.setattr(sessions, "_create_worktree_checkpoint_commit", lambda *_args: "checkpoint")
+    monkeypatch.setattr(sessions, "_prepare_integration_worktree", lambda *_args, **_kwargs: prepared_first)
     monkeypatch.setattr(sessions, "_rebuild_integration_worktree", lambda *_args: prepared_second)
     monkeypatch.setattr(sessions, "_bootstrap_integration_for_files", lambda *_args: None)
     monkeypatch.setattr(
@@ -224,6 +307,8 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
     monkeypatch.setattr(sessions, "_mark_worktree_deployed", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "_find_related_docs", lambda _files: [])
+    monkeypatch.setattr(sessions, "_fast_forward_control_plane", fast_forwarded.append)
+    monkeypatch.setattr(sessions, "_enforce_control_plane_sync_ready", sync_ready_refs.append)
 
     def fake_run_cmd(command, cwd=None, timeout=120):
         commands.append((command, cwd))
@@ -253,6 +338,9 @@ def test_finalization_rebuilds_and_reruns_gates_before_detached_push(monkeypatch
     )
 
     assert gate_checkouts == [first_checkout, second_checkout]
+    assert protocol_refs == ["dev-one", "dev-two", "dev-two"]
+    assert sync_ready_refs == ["dev-two"]
     assert (["git", "push", "origin", "HEAD:refs/heads/dev"], str(second_checkout)) in commands
+    assert fast_forwarded == ["commit-two"]
     assert releases == ["", "commit-two"]
     assert removed == ["integration-second"]

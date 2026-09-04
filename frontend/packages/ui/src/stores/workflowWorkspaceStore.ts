@@ -11,12 +11,18 @@ import { getApiEndpoint } from "../config/api";
 export type WorkflowNodeType =
   | "schedule_trigger"
   | "manual_trigger"
+  | "webhook_trigger"
+  | "event_trigger"
   | "app_skill_action"
   | "decision"
   | "repeat"
   | "create_chat_report"
+  | "start_new_chat"
   | "send_notification"
   | "send_email_notification"
+  | "ask_user"
+  | "wait"
+  | "custom_code"
   | "end";
 
 export type WorkflowNode = {
@@ -28,7 +34,7 @@ export type WorkflowNode = {
 
 export type WorkflowGraph = {
   version: number;
-  trigger_node_id: string;
+  trigger_node_id: string | null;
   nodes: WorkflowNode[];
   edges: Array<{ from: string; to: string; branch?: string }>;
   limits?: Record<string, unknown>;
@@ -38,6 +44,8 @@ export type WorkflowSummary = {
   id: string;
   title: string;
   description?: string | null;
+  category?: string;
+  icon?: string;
   status: string;
   enabled: boolean;
   trigger_summary?: string | null;
@@ -76,25 +84,49 @@ export type WorkflowVersionHistory = {
   };
 };
 
+export type WorkflowNodeRun = {
+  id: string;
+  run_id: string;
+  workflow_id: string;
+  node_id: string;
+  node_type: WorkflowNodeType;
+  status: string;
+  started_at?: number | null;
+  finished_at?: number | null;
+  skipped_reason?: string | null;
+  error_code?: string | null;
+  error_summary?: string | null;
+  input_summary?: Record<string, unknown>;
+  output_summary?: Record<string, unknown>;
+  credit_cost?: number;
+};
+
 export type WorkflowRun = {
   id: string;
+  workflow_id: string;
+  version_id: string;
   status: string;
   trigger_type: string;
   started_at?: number | null;
+  finished_at?: number | null;
+  error_summary?: string | null;
   content_retention_mode?: "last_5" | "none";
   content_available?: boolean;
   content_storage?: "durable" | "ephemeral" | "deleted" | null;
   content_expires_at?: number | null;
-  node_runs?: Array<{
-    node_id: string;
-    status: string;
-    output_summary?: Record<string, unknown>;
-  }>;
+  cancellation_requested_at?: number | null;
+  cancelled_at?: number | null;
+  node_runs?: WorkflowNodeRun[];
+};
+
+export type WorkflowRunDetail = WorkflowRun & {
+  output_summary?: Record<string, unknown>;
 };
 
 export type WorkflowRequestInit = {
   method?: string;
   body?: string;
+  headers?: Record<string, string>;
 };
 
 type WorkspaceLoadStatus = "idle" | "loading" | "refreshing" | "ready" | "error";
@@ -157,9 +189,13 @@ export async function workflowApiRequest<T>(
   const headers = new Headers();
   headers.set("Accept", "application/json");
   headers.set("Content-Type", "application/json");
+  for (const [name, value] of Object.entries(init.headers ?? {})) {
+    headers.set(name, value);
+  }
+  const requestInit = { method: init.method, body: init.body };
 
   const response = await fetch(getApiEndpoint(path), {
-    ...init,
+    ...requestInit,
     credentials: "include",
     headers,
   });
@@ -433,6 +469,7 @@ export const workflowWorkspaceStore = {
     const data = await workflowApiRequest<{ run: WorkflowRun }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
       method: "POST",
       body: JSON.stringify({ mode: "test", input: {} }),
+      headers: { "Idempotency-Key": `${workflowId}-${crypto.randomUUID()}` },
     });
     assertCurrentGeneration(requestGeneration);
     cacheRevision += 1;
@@ -448,6 +485,48 @@ export const workflowWorkspaceStore = {
       };
     });
     return data.run;
+  },
+
+  async getWorkflowRun(workflowId: string, runId: string): Promise<WorkflowRunDetail> {
+    const data = await workflowApiRequest<{ run: WorkflowRunDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}`,
+    );
+    store.update((state) => {
+      const existingRuns = state.runsByWorkflowId[workflowId] ?? [];
+      const hasRun = existingRuns.some((run) => run.id === runId);
+      const workflowRuns = hasRun
+        ? existingRuns.map((run) => run.id === runId ? data.run : run)
+        : [data.run, ...existingRuns];
+      return {
+        ...state,
+        workflows: state.workflows.map((workflow) => (
+          workflow.id === workflowId ? { ...workflow, last_run_status: data.run.status } : workflow
+        )),
+        runs: state.selectedWorkflowId === workflowId ? workflowRuns : state.runs,
+        runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: workflowRuns },
+      };
+    });
+    return data.run;
+  },
+
+  async cancelWorkflowRun(workflowId: string, runId: string): Promise<"cancellation_requested" | "cancelled"> {
+    const data = await workflowApiRequest<{ run_id: string; status: "cancellation_requested" | "cancelled" }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/runs/${encodeURIComponent(runId)}/cancel`,
+      { method: "POST", body: JSON.stringify({}) },
+    );
+    cacheRevision += 1;
+    store.update((state) => {
+      const updateRuns = (items: WorkflowRun[]) => items.map((run) => (
+        run.id === runId ? { ...run, status: data.status } : run
+      ));
+      const workflowRuns = updateRuns(state.runsByWorkflowId[workflowId] ?? []);
+      return {
+        ...state,
+        runs: state.selectedWorkflowId === workflowId ? workflowRuns : state.runs,
+        runsByWorkflowId: { ...state.runsByWorkflowId, [workflowId]: workflowRuns },
+      };
+    });
+    return data.status;
   },
 
   reset(): void {

@@ -56,6 +56,10 @@ export interface CodeRunStreamUrlParams {
   token: string;
 }
 
+export interface CodeRunFinalStatusFormatOptions {
+  includeOutput?: boolean;
+}
+
 export async function buildCodeRunRequestsFromFlags(flags: CodeRunFlags): Promise<CodeRunRequestPayload[]> {
   if (flags.chat || flags.targetEmbed) {
     if (!flags.chat || !flags.targetEmbed) {
@@ -176,6 +180,27 @@ export function buildCodeRunStreamUrl(params: CodeRunStreamUrlParams): string {
   return `${base}/v1/code/run/${encodeURIComponent(params.executionId)}/stream?${query.toString()}`;
 }
 
+export function formatCodeRunFinalStatusOutput(
+  status: Record<string, unknown>,
+  options: CodeRunFinalStatusFormatOptions = {},
+): string {
+  let output = "";
+  if (options.includeOutput !== false && typeof status.output === "string" && status.output.length > 0) {
+    output += status.output.endsWith("\n") ? status.output : `${status.output}\n`;
+  }
+  const artifactLines = formatCodeRunArtifactLines(status.artifacts);
+  if (artifactLines.length > 0) {
+    if (output.length > 0 && !output.endsWith("\n\n")) output += "\n";
+    output += `Artifacts:\n${artifactLines.join("\n")}\n`;
+  }
+  const skippedLines = formatCodeRunSkippedArtifactLines(status.skipped_artifacts);
+  if (skippedLines.length > 0) {
+    if (output.length > 0 && !output.endsWith("\n\n")) output += "\n";
+    output += `Skipped artifacts:\n${skippedLines.join("\n")}\n`;
+  }
+  return output;
+}
+
 export function normalizeCodeRunPath(rawPath: string): string {
   const path = rawPath.trim().replace(/\\/g, "/");
   if (!path || path.includes("\0") || path.startsWith("/") || path.startsWith("~/") || /^[A-Za-z]:\//.test(path)) {
@@ -236,6 +261,41 @@ function toList(value: string | string[] | undefined): string[] {
   if (Array.isArray(value)) return value.flatMap((item) => item.split("\n")).filter(Boolean);
   if (typeof value === "string") return value.split("\n").filter(Boolean);
   return [];
+}
+
+function formatCodeRunArtifactLines(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => item !== null && typeof item === "object" && !Array.isArray(item))
+    .map((artifact) => {
+      const path = stringValue(artifact.normalized_path) || stringValue(artifact.path) || "artifact";
+      const mimeType = stringValue(artifact.mime_type) || "application/octet-stream";
+      const sizeBytes = numberValue(artifact.size_bytes);
+      const size = sizeBytes === null ? "unknown size" : `${sizeBytes} bytes`;
+      const downloadUrl = stringValue(artifact.download_url);
+      return downloadUrl
+        ? `- ${path} (${mimeType}, ${size}; signed download available via --json)`
+        : `- ${path} (${mimeType}, ${size})`;
+    });
+}
+
+function formatCodeRunSkippedArtifactLines(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => item !== null && typeof item === "object" && !Array.isArray(item))
+    .map((artifact) => {
+      const path = stringValue(artifact.normalized_path) || stringValue(artifact.path) || "artifact";
+      const reason = stringValue(artifact.reason) || "skipped";
+      return `- ${path} (${reason})`;
+    });
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function numberValue(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function matchesAny(path: string, patterns: string[]): boolean {

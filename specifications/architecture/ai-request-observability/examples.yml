@@ -1,0 +1,144 @@
+schema_version: 1
+specification: architecture.ai-request-observability@1
+
+trace_propagation:
+  - id: browser-ws-celery-worker-linked
+    given:
+      request: authenticated_chat_turn
+      browser_span: message_send_active
+      websocket_payload: {_traceparent: present}
+      celery_task: ai.ask
+    expect:
+      trace_tree:
+        includes: [client.chat.send, api.ws.message_received, celery.produce.ai.ask, worker.celery.ai.ask, ai.turn]
+        parent_child_context_preserved: true
+        issue_report_trace_ring_contains_turn_trace: true
+  - id: missing-worker-trace-visible
+    given: {api_span_present: true, worker_span_present: false}
+    expect: {debug_cli_reports_gap: worker_span_missing, false_complete_waterfall: false}
+
+default_aggregate_metrics:
+  - id: all-turns-identity-free-histograms
+    input:
+      phase: preprocessing
+      duration_ms: 2410
+      model_family: fast_routing_llm
+      request_class: tool
+      user_id: user-123
+      chat_id: chat-456
+      trace_id: trace-789
+    expect:
+      metric_sample:
+        included: [phase, duration_bucket_or_histogram, model_family, request_class, status_class]
+        excluded: [user_id, chat_id, trace_id]
+  - id: token-and-size-distributions
+    input: {input_tokens: 39521, message_count: 18, prompt_chars: 158000}
+    expect:
+      dashboard_dimensions: [request_class, model_family, phase]
+      per_user_breakdown: absent
+      raw_content: absent
+
+diagnostic_traces:
+  - id: m9jh3-shaped-waterfall
+    given:
+      request_class: multi_tool
+      tools: [web_search, image_search]
+      issue_scope: operator_reported_latency
+    expect:
+      spans:
+        required: [ai.turn, ai.queue, ai.prepare, ai.preprocess, ai.main.iteration, ai.tool, ai.finalize]
+      metadata:
+        allowed: [duration_ms, ttft_ms, stream_duration_ms, token_count, message_count, character_count, request_count, result_count, retry_count, status_class]
+        forbidden: [prompt_text, response_text, tool_arguments, tool_results, urls, filenames]
+  - id: sampled-success-uses-buckets
+    given: {request: successful_regular_user_turn, diagnostic_mode: false}
+    expect:
+      exact_counts: absent
+      buckets: present
+      trace_identifier_scope: one_request_only
+      stable_product_identifiers: absent
+  - id: explicit-diagnostic-exact-counts
+    given: {request: opted_in_or_operator_incident_turn, diagnostic_mode: true}
+    expect:
+      exact_counts: [tokens, character_totals, message_count, result_count]
+      exact_non_sensitive_ids: [model_id, app_id, skill_id]
+      exact_sensitive_tool_names: collapsed_or_omitted
+      expires: true
+  - id: repeated-provider-tool-aggregation
+    given: {main_iterations: 4, provider_calls: 4, tool_calls: 2, terminal_class: completed}
+    expect:
+      cli_rows:
+        main_iteration: {count: 4, total_and_max_visible: true}
+        provider: {count: 4, total_and_max_visible: true}
+        tool: {count: 2, total_and_max_visible: true}
+      overwritten_repeated_spans: false
+      completion_timing: [first_token, final_marker, worker_tail]
+
+privacy_boundaries:
+  - id: prohibited-fields-dropped
+    input:
+      span_attrs:
+        prompt_text: hello
+        response_text: answer
+        tool_arguments: {query: private search}
+        url: https://example.invalid/private
+        filename: private.pdf
+        user_id: user-123
+        chat_id: chat-456
+        cache_key: user_profile:user-123
+        phase_duration_ms: 100
+    expect:
+      exported_attrs:
+        included: [phase_duration_ms]
+        excluded: [prompt_text, response_text, tool_arguments, url, filename, user_id, chat_id, cache_key]
+  - id: sensitive-capability-collapsed
+    input: {tool_id: health-search_appointments, diagnostic_mode: false}
+    expect: {capability_category: sensitive_capability, exact_tool_id: absent}
+  - id: error-span-no-raw-user-id
+    input: {span_status: ERROR, enduser_id: user-123, exception_message: provider returned private text}
+    expect: {raw_user_id: absent, raw_exception_message: absent, normalized_error_class: present}
+
+retention_and_access:
+  - id: openobserve-retention-verified
+    given: {openobserve_version: v0.70.0-rc3, configured_retention_days: 14}
+    expect: {retention_probe_passes: true, policy_maximum_days_not_exceeded: true}
+  - id: diagnostic-query-audited
+    given: {operator: admin, query: trace_waterfall, trace_id: request_scoped_id}
+    expect: {audit_event_written: true, query_scope: one_request, raw_content_returned: false}
+  - id: no-third-party-observability
+    given: {telemetry_destination: OpenMates_self_hosted_OpenObserve}
+    expect: {external_analytics_provider: absent, eu_self_hosted_path: true}
+
+dashboards_and_cli:
+  - id: dashboard-shows-ai-latency-components
+    given: {window: 24h, environment: production}
+    expect:
+      charts: [turn_duration_p95, queue_delay_p95, preprocessing_p95, main_ttft_p95, tool_duration_p95, finalization_p95, token_distribution, iteration_distribution]
+      raw_user_breakdown: absent
+  - id: debug-cli-waterfall-redacted
+    given: {command: debug.py trace request --id trace-id, trace_contains_ai_turn: true}
+    expect:
+      output_sections: [summary, phase_waterfall, model_iterations, tools, finalization, missing_spans]
+      forbidden: [prompt_text, response_text, tool_arguments, tool_results, urls, filenames, raw_ids]
+
+notification_delivery:
+  - id: discord-primary-suppresses-email
+    given: {discord_configured: true, discord_connected: true, server_admin_email_enabled: true}
+    expect: {discord: accepted, server_admin_email: not_attempted, duplicate_logical_alert: false}
+  - id: enabled-email-fallback
+    given: {discord_configured: false, discord_connected: false, server_admin_email_enabled: true}
+    expect: {discord: unavailable, server_admin_email: attempted, content_free: true}
+  - id: disabled-email-does-not-fallback
+    given: {discord_configured: false, discord_connected: false, server_admin_email_enabled: false}
+    expect: {discord: unavailable, server_admin_email: disabled, false_delivery_success: false}
+
+no_behavior_change:
+  - id: observability-does-not-change-processing
+    given: {same_request: true, telemetry_enabled: [false, true]}
+    expect:
+      prompt_changed: false
+      model_selection_changed: false
+      tool_selection_changed: false
+      billing_changed: false
+      persisted_message_changed: false
+      user_visible_response_changed_by_telemetry: false

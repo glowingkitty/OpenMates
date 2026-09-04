@@ -115,7 +115,14 @@ async def get_current_user_ws(
             logger.debug(f"WebSocket auth: Looking for session key '{session_cache_key}'")
             session_data = await cache_service.get(session_cache_key)
         session_user_id = canonical_session_user_id(session_data)
-        user_data = {"user_id": session_user_id} if session_user_id else None
+        cached_user_profile = (
+            await cache_service.get_user_by_id(session_user_id) if session_user_id else None
+        )
+        user_data = dict(cached_user_profile) if isinstance(cached_user_profile, dict) else {}
+        if session_user_id:
+            user_data["user_id"] = session_user_id
+        else:
+            user_data = None
         logger.debug(f"WebSocket auth: Cache lookup result: {'Found' if user_data else 'Not Found'}")
         
         if not user_data:

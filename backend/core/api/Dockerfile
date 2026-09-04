@@ -30,6 +30,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the entire 'backend' directory from the host into '/app/backend' in the image.
 # This makes the 'backend' module available for import.
 COPY backend /app/backend
+COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py
+COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
+COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY frontend/apps/web_app/static/favicon.png /app/frontend/apps/web_app/static/favicon.png
 COPY frontend/packages/ui/src/i18n/locales /app/frontend/packages/ui/src/i18n/locales

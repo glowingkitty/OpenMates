@@ -17,9 +17,16 @@ on:
       - .github/workflows/app-skill-cli-smoke.yml
       - backend/apps/tasks/**
       - backend/apps/workflows/**
+      - backend/core/api/app/routes/user_tasks.py
+      - backend/core/api/app/services/directus/user_task_methods.py
+      - backend/core/api/app/services/user_task_service.py
       - frontend/packages/openmates-cli/**
+      - packages/openmates-python/**
       - scripts/openmates_cli_test_account.mjs
       - scripts/verify_app_skill_cli_smoke.py
+      - scripts/verify_task_activity_api_live.py
+      - scripts/verify_tasks_cli_smoke.py
+      - scripts/verify_sdk_tasks_live_smoke.mjs
 
 concurrency:
   group: app-skill-cli-smoke-${{ github.ref }}
@@ -44,13 +51,22 @@ jobs:
         with:
           node-version: 24
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - uses: pnpm/action-setup@v4
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          pnpm install --frozen-lockfile
+          python -m pip install -e packages/openmates-python
 
       - name: Build CLI
         run: pnpm --filter openmates build
+
+      - name: Audit CLI and SDK parity
+        run: python3 scripts/audit_sdk_cli_parity.py
 
       - name: Run real-dev typed task/workflow smoke
         shell: bash
@@ -67,5 +83,90 @@ jobs:
         with:
           name: app-skill-cli-smoke-${{ github.run_id }}
           path: test-results/app-skill-cli-smoke.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  activity-smoke:
+    needs: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - surface: api
+            account: "19"
+          - surface: cli
+            account: "20"
+          - surface: sdk
+            account: "18"
+    env:
+      OPENMATES_API_URL: https://api.dev.openmates.org
+      OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
+      OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.account)] }}
+      OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.account)] }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          python -m pip install -e packages/openmates-python
+
+      - name: Build CLI and SDK
+        run: pnpm --filter openmates build
+
+      - name: Audit CLI and SDK parity
+        run: python3 scripts/audit_sdk_cli_parity.py
+
+      - name: Run real-dev Task Activity API contract smoke
+        if: matrix.surface == 'api'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          python3 scripts/verify_task_activity_api_live.py \
+            --api-url "$OPENMATES_API_URL" \
+            | tee test-results/task-activity-api.json
+
+      - name: Run real-dev Task Activity CLI contract smoke
+        if: matrix.surface == 'cli'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          python3 scripts/verify_tasks_cli_smoke.py \
+            --api-url "$OPENMATES_API_URL" \
+            --skip-build \
+            --activity-only \
+            | tee test-results/task-activity-cli.json
+
+      - name: Run real-dev Task Activity SDK contract smoke
+        if: matrix.surface == 'sdk'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          node --experimental-strip-types \
+            --loader ./frontend/packages/openmates-cli/tests/loader.mjs \
+            scripts/verify_sdk_tasks_live_smoke.mjs \
+            --activity-only \
+            | tee test-results/task-activity-sdk.json
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: task-activity-${{ matrix.surface }}-${{ github.run_id }}
+          path: test-results/task-activity-*.json
           if-no-files-found: ignore
           retention-days: 14

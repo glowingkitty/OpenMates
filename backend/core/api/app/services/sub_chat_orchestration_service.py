@@ -32,7 +32,13 @@ ORCHESTRATION_OPERATIONS = {
     "fail_operation",
     "cleanup_expired_reservations",
     "commit_personal_charge",
+    "commit_personal_refund",
     "get_personal_charge",
+    "create_or_reuse_pending_settlement",
+    "get_pending_settlement",
+    "replay_pending_settlement",
+    "complete_pending_settlement",
+    "transition_pending_settlement_to_manual_review",
     "commit_team_charge",
     "commit_team_credit_add",
 }

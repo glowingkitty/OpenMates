@@ -1,0 +1,60 @@
+schema_version: 1
+specification: feature.specifications@1
+
+specification_boundaries:
+  - id: specification-is-not-a-plan
+    input: {record: feature.teams, contains: [goal, requirements, flows, applies_to]}
+    expect: {tasks: absent, execution_progress: absent, check_run_logs: absent}
+
+specification_revisions:
+  - id: approval-binds-exact-revision
+    input: {specification: feature.teams, revision: 4, content_hash: hash-4}
+    expect: {revision_4_approved: true, editable_in_place: false}
+
+specification_composition:
+  - id: reusable-ui-specification
+    input: {behavior: shared_checkout, substantial: true, reusable: true, independent_owner: payments}
+    expect: {ui_specification_allowed: true}
+  - id: small-ui-detail-stays-governed
+    input: {behavior: rename_button_label, reusable: false, independently_versioned: false}
+    expect: {separate_ui_specification_required: false}
+
+specification_ui_requirements:
+  - id: ux-applicability
+    input: {category: accessibility, applies_to: {channels: [gui], devices: [phone], audiences: [screen_reader_users]}}
+    expect: {requirement_applicability_visible: true}
+
+specification_flows:
+  - id: marketing-campaign-flow
+    input: {category: marketing_claim, flow_id: launch-campaign, applies_to: {markets: [de], channels: [gui, cli]}}
+    expect: {flow_is_versioned: true}
+
+specification_model_placement:
+  - id: finance-ledger-model
+    input: {model_kind: financial_ledger, applies_to: {systems: [billing], teams: [finance]}}
+    expect: {extensible_model_kind_allowed: true}
+
+specification_human_presentation:
+  - id: research-protocol-readable
+    input: {category: research_method, viewer: researcher}
+    expect: {readable_text: true, raw_yaml_visible_by_default: false}
+
+specification_diagrams:
+  - id: operations-event-runbook
+    input: {model_kind: runbook, applies_to: {locations: [berlin], artifacts: [event_brief]}}
+    expect: {diagram_source_replacement: false, operational_context_visible: true}
+
+specification_project_embed:
+  - id: specification-preview-in-project
+    input: {project: project-1, item: feature.teams, viewport: laptop}
+    expect: {preview_visible: true, approval_state_visible: true}
+
+specification_links:
+  - id: plan-links-specification-revision
+    input: {plan: launch-event, specification: feature.specifications, revision: 1}
+    expect: {exact_revision_reference_present: true}
+
+specification_surface_parity:
+  - id: canonical-channels-remain-stable
+    input: {applies_to: {channels: [rest_api, cli, sdks, gui]}}
+    expect: {canonical_machine_identifiers_preserved: true}

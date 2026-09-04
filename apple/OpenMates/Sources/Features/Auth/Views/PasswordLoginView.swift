@@ -184,6 +184,7 @@ struct PasswordLoginView: View {
                     stayLoggedIn: stayLoggedIn
                 )
             } catch AuthError.tfaRequired {
+                NativeDiagnostics.info("phase=passwordLogin.revealTFA", category: "auth")
                 revealTfaField(passwordError: nil)
             } catch AuthError.invalidTwoFactorCode {
                 errorMessage = AppStrings.codeWrong
@@ -191,10 +192,16 @@ struct PasswordLoginView: View {
                 focusedField = .tfa
                 AccessibilityAnnouncement.announce(AppStrings.codeWrong)
             } catch AuthError.invalidCredentials {
+                NativeDiagnostics.warning("phase=passwordLogin.failed errorType=invalidCredentials", category: "auth")
                 handlePasswordAuthFailure()
             } catch let error as APIError {
+                NativeDiagnostics.warning("phase=passwordLogin.failed errorType=APIError", category: "auth")
                 handlePasswordAuthFailure(fallback: error.localizedDescription)
             } catch {
+                NativeDiagnostics.warning(
+                    "phase=passwordLogin.failed errorType=\(type(of: error))",
+                    category: "auth"
+                )
                 handlePasswordAuthFailure(fallback: AppStrings.loginFailed)
             }
             isLoading = false

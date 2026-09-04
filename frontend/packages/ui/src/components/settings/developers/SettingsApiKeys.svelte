@@ -5,7 +5,6 @@
     import SettingsButton from '../elements/SettingsButton.svelte';
     import SettingsButtonGroup from '../elements/SettingsButtonGroup.svelte';
     import SettingsCard from '../elements/SettingsCard.svelte';
-    import SettingsCheckboxList from '../elements/SettingsCheckboxList.svelte';
     import SettingsCodeBlock from '../elements/SettingsCodeBlock.svelte';
     import SettingsConfirmBlock from '../elements/SettingsConfirmBlock.svelte';
     import SettingsDetailRow from '../elements/SettingsDetailRow.svelte';
@@ -16,6 +15,7 @@
     import SettingsLoadingState from '../elements/SettingsLoadingState.svelte';
     import SettingsPageContainer from '../elements/SettingsPageContainer.svelte';
     import SettingsSectionHeading from '../elements/SettingsSectionHeading.svelte';
+    import { appSkillsStore } from '../../../stores/appSkillsStore';
     import {
         encryptWithMasterKeyDirect,
         decryptWithMasterKey,
@@ -48,13 +48,84 @@
     type CreditPeriod = 'unlimited' | 'daily' | 'weekly' | 'monthly' | 'lifetime';
     type ExpirationPreset = '7d' | '30d' | '90d' | '1y' | 'never';
     type AppsMode = 'all' | 'selected';
-    type ScopeOption = {
-        id: string;
-        label: string;
-        description?: string;
-        icon?: string;
-        checked: boolean;
-    };
+    type ScopeDefinition = { id: string; labelKey: string };
+    type ScopeCategory = { id: string; labelKey: string; icon: string; scopes: ScopeDefinition[] };
+
+    const SCOPE_CATEGORIES: ScopeCategory[] = [
+        {
+            id: 'chat', labelKey: 'settings.api_keys.category_chats', icon: 'chat', scopes: [
+                { id: 'chat:create_incognito', labelKey: 'settings.api_keys.scope_chat_create_incognito' },
+                { id: 'chat:create_saved', labelKey: 'settings.api_keys.scope_chat_create_saved' },
+                { id: 'chat:read_existing', labelKey: 'settings.api_keys.scope_chat_read_existing' },
+                { id: 'chat:append_existing', labelKey: 'settings.api_keys.scope_chat_append_existing' },
+                { id: 'chat:delete', labelKey: 'settings.api_keys.scope_chat_delete' },
+                { id: 'chat:share', labelKey: 'settings.api_keys.scope_chat_share' },
+                { id: 'chat:export', labelKey: 'settings.api_keys.scope_chat_export' },
+            ]
+        },
+        {
+            id: 'tasks', labelKey: 'settings.api_keys.category_tasks', icon: 'task', scopes: [
+                { id: 'task:read', labelKey: 'settings.api_keys.scope_task_read' },
+                { id: 'task:read_metadata', labelKey: 'settings.api_keys.scope_task_read_metadata' },
+                { id: 'task:create', labelKey: 'settings.api_keys.scope_task_create' },
+                { id: 'task:write', labelKey: 'settings.api_keys.scope_task_write' },
+            ]
+        },
+        {
+            id: 'projects', labelKey: 'settings.api_keys.category_projects', icon: 'project', scopes: [
+                { id: 'project:read', labelKey: 'settings.api_keys.scope_project_read' },
+                { id: 'project:create', labelKey: 'settings.api_keys.scope_project_create' },
+                { id: 'project:write', labelKey: 'settings.api_keys.scope_project_write' },
+            ]
+        },
+        {
+            id: 'plans', labelKey: 'settings.api_keys.category_plans', icon: 'planning', scopes: [
+                { id: 'plan:read', labelKey: 'settings.api_keys.scope_plan_read' },
+                { id: 'plan:read_metadata', labelKey: 'settings.api_keys.scope_plan_read_metadata' },
+                { id: 'plan:create', labelKey: 'settings.api_keys.scope_plan_create' },
+                { id: 'plan:write', labelKey: 'settings.api_keys.scope_plan_write' },
+            ]
+        },
+        {
+            id: 'workflows', labelKey: 'settings.api_keys.category_workflows', icon: 'create', scopes: [
+                { id: 'workflow:read', labelKey: 'settings.api_keys.scope_workflow_read' },
+                { id: 'workflow:create', labelKey: 'settings.api_keys.scope_workflow_create' },
+                { id: 'workflow:write', labelKey: 'settings.api_keys.scope_workflow_write' },
+                { id: 'workflow:execute', labelKey: 'settings.api_keys.scope_workflow_execute' },
+            ]
+        },
+        {
+            id: 'memories', labelKey: 'settings.api_keys.category_memories', icon: 'settings_memories', scopes: [
+                { id: 'memory:read', labelKey: 'settings.api_keys.scope_memory_read' },
+                { id: 'memory:write', labelKey: 'settings.api_keys.scope_memory_write' },
+            ]
+        },
+        {
+            id: 'account', labelKey: 'settings.api_keys.category_account_export', icon: 'download', scopes: [
+                { id: 'account:export', labelKey: 'settings.api_keys.scope_account_export' },
+                { id: 'account:import', labelKey: 'settings.api_keys.scope_account_import' },
+            ]
+        },
+        {
+            id: 'developer', labelKey: 'settings.api_keys', icon: 'key', scopes: [
+                { id: 'developer:api_keys:read', labelKey: 'settings.api_keys.scope_api_keys_read' },
+                { id: 'developer:api_keys:create', labelKey: 'settings.api_keys.scope_api_keys_create' },
+                { id: 'developer:api_keys:revoke', labelKey: 'settings.api_keys.scope_api_keys_revoke' },
+            ]
+        },
+        {
+            id: 'developer', labelKey: 'common.devices', icon: 'devices', scopes: [
+                { id: 'developer:devices:read', labelKey: 'settings.api_keys.scope_devices_read' },
+                { id: 'developer:devices:approve', labelKey: 'settings.api_keys.scope_devices_approve' },
+                { id: 'developer:devices:revoke', labelKey: 'settings.api_keys.scope_devices_revoke' },
+            ]
+        },
+    ];
+
+    const FIXED_SCOPES = SCOPE_CATEGORIES.flatMap((category) => category.scopes.map((scope) => scope.id));
+    const APP_SCOPE_OPTIONS = Object.values(appSkillsStore.getState().apps)
+        .filter((app) => !app.internal && app.skills.length > 0)
+        .sort((left, right) => left.id.localeCompare(right.id));
 
     let {
         activeSettingsView = API_KEYS_ROOT_PATH,
@@ -70,15 +141,10 @@
     let showCreatedKey = $state(false);
     let creatingKey = $state(false);
     let fullAccess = $state(true);
-    let chatCreateIncognito = $state(true);
-    let chatCreateSaved = $state(true);
-    let chatReadExisting = $state(true);
-    let chatAppendExisting = $state(true);
-    let chatDelete = $state(true);
-    let chatShare = $state(true);
-    let memoryRead = $state(true);
-    let appsMode = $state<AppsMode>('all');
-    let allowedSkillText = $state('web:search');
+    let selectedScopes = $state<Record<string, boolean>>(createEmptyScopeSelection());
+    let appsMode = $state<AppsMode>('selected');
+    let selectedApps = $state<Record<string, boolean>>({});
+    let selectedAppSkills = $state<Record<string, boolean>>({});
     let creditPeriod = $state<CreditPeriod>('unlimited');
     let creditAmount = $state('1000');
     let expirationPreset = $state<ExpirationPreset>('never');
@@ -93,7 +159,6 @@
     });
     let isDetailView = $derived(Boolean(selectedApiKeyId));
     let selectedApiKey = $derived(apiKeys.find((key) => key.id === selectedApiKeyId) ?? null);
-
     let creditPeriodOptions = $derived([
         { value: 'unlimited', label: $text('settings.api_keys.credit_unlimited') },
         { value: 'daily', label: $text('settings.api_keys.credit_daily') },
@@ -110,51 +175,8 @@
         { value: 'never', label: $text('settings.api_keys.expiration_never') },
     ]);
 
-    let appsModeOptions = $derived([
-        { value: 'all', label: $text('settings.api_keys.apps_all') },
-        { value: 'selected', label: $text('settings.api_keys.apps_selected') },
-    ]);
-
-    let scopeOptions = $derived<ScopeOption[]>([
-        {
-            id: 'chatCreateIncognito',
-            label: $text('settings.api_keys.scope_chat_create_incognito'),
-            checked: chatCreateIncognito,
-        },
-        {
-            id: 'chatCreateSaved',
-            label: $text('settings.api_keys.scope_chat_create_saved'),
-            checked: chatCreateSaved,
-        },
-        {
-            id: 'chatReadExisting',
-            label: $text('settings.api_keys.scope_chat_read_existing'),
-            checked: chatReadExisting,
-        },
-        {
-            id: 'chatAppendExisting',
-            label: $text('settings.api_keys.scope_chat_append_existing'),
-            checked: chatAppendExisting,
-        },
-        {
-            id: 'chatDelete',
-            label: $text('settings.api_keys.scope_chat_delete'),
-            checked: chatDelete,
-        },
-        {
-            id: 'chatShare',
-            label: $text('settings.api_keys.scope_chat_share'),
-            checked: chatShare,
-        },
-        {
-            id: 'memoryRead',
-            label: $text('settings.api_keys.scope_memory_read'),
-            checked: memoryRead,
-        },
-    ]);
-
     onMount(() => {
-        loadApiKeys();
+        if (!isCreateView) loadApiKeys();
     });
 
     async function normalizeApiKey(key: Record<string, unknown>): Promise<ApiKey> {
@@ -252,25 +274,32 @@
         return result;
     }
 
-    function buildScopes() {
-        return {
-            chat: [
-                chatCreateIncognito ? 'chat:create_incognito' : null,
-                chatCreateSaved ? 'chat:create_saved' : null,
-                chatReadExisting ? 'chat:read_existing' : null,
-                chatAppendExisting ? 'chat:append_existing' : null,
-                chatDelete ? 'chat:delete' : null,
-                chatShare ? 'chat:share' : null,
-            ].filter(Boolean),
-            memories: memoryRead ? ['memory:read'] : [],
+    function createEmptyScopeSelection() {
+        return Object.fromEntries(FIXED_SCOPES.map((scope) => [scope, false]));
+    }
+
+    function buildScopes(): Record<string, unknown> {
+        if (fullAccess) return {};
+
+        const scopes: Record<string, unknown> = {
+            chat: [], tasks: [], projects: [], plans: [], workflows: [], memories: [], account: [], developer: [],
             apps: {
                 mode: appsMode,
                 allowed_skills: appsMode === 'selected'
-                    ? allowedSkillText.split(',').map((item) => item.trim()).filter(Boolean)
+                    ? Object.entries(selectedAppSkills).filter(([, selected]) => selected).map(([skill]) => skill)
                     : [],
-                allowed_apps: [],
+                allowed_apps: appsMode === 'selected'
+                    ? Object.entries(selectedApps).filter(([, selected]) => selected).map(([app]) => app)
+                    : [],
             },
         };
+        for (const category of SCOPE_CATEGORIES) {
+            const groupScopes = scopes[category.id] as string[];
+            for (const scope of category.scopes) {
+                if (selectedScopes[scope.id]) groupScopes.push(scope.id);
+            }
+        }
+        return scopes;
     }
 
     function buildCreditLimit() {
@@ -291,18 +320,44 @@
         createdKey = '';
         showCreatedKey = false;
         fullAccess = true;
-        chatCreateIncognito = true;
-        chatCreateSaved = true;
-        chatReadExisting = true;
-        chatAppendExisting = true;
-        chatDelete = true;
-        chatShare = true;
-        memoryRead = true;
-        appsMode = 'all';
-        allowedSkillText = 'web:search';
+        resetLimitedScopes();
         creditPeriod = 'unlimited';
         creditAmount = '1000';
         expirationPreset = 'never';
+    }
+
+    function resetLimitedScopes() {
+        selectedScopes = createEmptyScopeSelection();
+        appsMode = 'selected';
+        selectedApps = {};
+        selectedAppSkills = {};
+    }
+
+    function toggleFullAccess() {
+        fullAccess = !fullAccess;
+        if (!fullAccess) resetLimitedScopes();
+    }
+
+    function toggleScope(scope: string) {
+        selectedScopes[scope] = !selectedScopes[scope];
+    }
+
+    function toggleApp(appId: string) {
+        selectedApps[appId] = !selectedApps[appId];
+        if (selectedApps[appId]) {
+            for (const skill of APP_SCOPE_OPTIONS.find((app) => app.id === appId)?.skills ?? []) {
+                selectedAppSkills[`${appId}:${skill.id}`] = false;
+            }
+        }
+    }
+
+    function toggleAppSkill(appId: string, skillId: string) {
+        const key = `${appId}:${skillId}`;
+        selectedAppSkills[key] = !selectedAppSkills[key];
+    }
+
+    function testIdPart(value: string): string {
+        return value.replaceAll('_', '-');
     }
 
     async function hashApiKey(key: string): Promise<string> {
@@ -431,7 +486,7 @@
     }
 
     function describeAccess(key: ApiKey) {
-        return key.full_access ? $text('settings.api_keys.full_access') : $text('settings.api_keys.restricted_access');
+        return key.full_access ? $text('settings.api_keys.full_access') : $text('settings.api_keys.limited_access');
     }
 
     function navigateToApiKeys(direction = 'forward') {
@@ -473,16 +528,6 @@
             title: $text('common.devices')
         });
     }
-
-    function updateScopeOption(id: string, checked: boolean) {
-        if (id === 'chatCreateIncognito') chatCreateIncognito = checked;
-        if (id === 'chatCreateSaved') chatCreateSaved = checked;
-        if (id === 'chatReadExisting') chatReadExisting = checked;
-        if (id === 'chatAppendExisting') chatAppendExisting = checked;
-        if (id === 'chatDelete') chatDelete = checked;
-        if (id === 'chatShare') chatShare = checked;
-        if (id === 'memoryRead') memoryRead = checked;
-    }
 </script>
 
 {#if isCreateView}
@@ -523,33 +568,76 @@
                 subtitleTop={$text('settings.api_keys.full_access_description')}
                 hasToggle={true}
                 checked={fullAccess}
-                data-testid="api-key-full-access-toggle"
-                onClick={() => fullAccess = !fullAccess}
+                data-testid="api-key-full-access"
+                onClick={toggleFullAccess}
             />
             {#if fullAccess}
                 <SettingsInfoBox type="warning" ariaLabel={$text('settings.api_keys.full_access_warning_title')}>
                     <p>{$text('settings.api_keys.full_access_warning')}</p>
                 </SettingsInfoBox>
             {:else}
-                <SettingsCheckboxList
-                    options={scopeOptions}
-                    dataTestid="api-key-scope-options"
-                    onChange={updateScopeOption}
-                />
-                <SettingsDropdown
-                    value={appsMode}
-                    options={appsModeOptions}
-                    ariaLabel={$text('settings.api_keys.apps_access')}
-                    dataTestid="api-key-apps-mode-select"
-                    onChange={(value) => appsMode = value as AppsMode}
-                />
-                {#if appsMode === 'selected'}
-                    <SettingsInput
-                        type="text"
-                        placeholder={$text('settings.api_keys.allowed_skills_placeholder')}
-                        bind:value={allowedSkillText}
-                        dataTestid="api-key-allowed-skills-input"
+                {#each SCOPE_CATEGORIES as category}
+                    <SettingsSectionHeading title={$text(category.labelKey)} icon={category.icon} />
+                    <SettingsCard padding="sm" ariaLabel={$text(category.labelKey)}>
+                        {#each category.scopes as scope}
+                            <SettingsItem
+                                type="subsubmenu"
+                                title={$text(scope.labelKey)}
+                                subtitleTop={scope.id}
+                                hasToggle={true}
+                                checked={selectedScopes[scope.id]}
+                                data-testid={`api-key-scope-${scope.id.replaceAll(':', '-').replaceAll('_', '-')}`}
+                                onClick={() => toggleScope(scope.id)}
+                            />
+                        {/each}
+                    </SettingsCard>
+                {/each}
+                <SettingsSectionHeading title={$text('settings.api_keys.category_app_skills')} icon="skill" />
+                <SettingsCard padding="sm" ariaLabel={$text('settings.api_keys.category_app_skills')}>
+                    <SettingsItem
+                        type="subsubmenu"
+                        title={$text('settings.api_keys.apps_all')}
+                        subtitleTop={$text('settings.api_keys.apps_access')}
+                        hasToggle={true}
+                        checked={appsMode === 'all'}
+                        data-testid="api-key-all-app-skills"
+                        onClick={() => appsMode = appsMode === 'all' ? 'selected' : 'all'}
                     />
+                </SettingsCard>
+                {#if appsMode === 'selected'}
+                    {#each APP_SCOPE_OPTIONS as app}
+                        <SettingsSectionHeading
+                            title={app.name_translation_key ? $text(app.name_translation_key) : (app.name ?? app.id)}
+                            icon="apps"
+                        />
+                        <SettingsCard
+                            padding="sm"
+                            ariaLabel={app.name_translation_key ? $text(app.name_translation_key) : (app.name ?? app.id)}
+                        >
+                            <SettingsItem
+                                type="subsubmenu"
+                                title={$text('settings.api_keys.apps_all')}
+                                subtitleTop={app.id}
+                                hasToggle={true}
+                                checked={selectedApps[app.id] ?? false}
+                                data-testid={`api-key-app-${testIdPart(app.id)}-all-skills`}
+                                onClick={() => toggleApp(app.id)}
+                            />
+                            {#if !selectedApps[app.id]}
+                                {#each app.skills as skill}
+                                    <SettingsItem
+                                        type="subsubmenu"
+                                        title={$text(skill.name_translation_key)}
+                                        subtitleTop={`${app.id}:${skill.id}`}
+                                        hasToggle={true}
+                                        checked={selectedAppSkills[`${app.id}:${skill.id}`] ?? false}
+                                        data-testid={`api-key-app-${testIdPart(app.id)}-skill-${testIdPart(skill.id)}`}
+                                        onClick={() => toggleAppSkill(app.id, skill.id)}
+                                    />
+                                {/each}
+                            {/if}
+                        </SettingsCard>
+                    {/each}
                 {/if}
             {/if}
 

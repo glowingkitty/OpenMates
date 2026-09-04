@@ -15,6 +15,7 @@ import asyncio
 import time
 import os
 import uuid
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
@@ -54,6 +55,13 @@ from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
     is_learning_mode_enabled,
     learning_mode_context_from_preferences,
+)
+from backend.shared.python_utils.tracing.ai_observability import (
+    AICompletionTiming,
+    AI_QUEUE_ENQUEUED_AT_HEADER,
+    ai_phase_span,
+    record_ai_completion_timing,
+    record_ai_queue_span,
 )
 from .stream_consumer import _consume_main_processing_stream
 
@@ -662,7 +670,8 @@ async def _finalize_legacy_cutover_admission(
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
-    skill_config: AskSkillDefaultConfig
+    skill_config: AskSkillDefaultConfig,
+    completion_timing: Optional[AICompletionTiming] = None,
 ):
     """
     Asynchronous core logic for processing the AI skill ask task.
@@ -670,6 +679,10 @@ async def _async_process_ai_skill_ask_task(
     Returns a dictionary with processing results and status flags.
     """
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
+    # These fields are client-constructible on the request model, so never trust
+    # their inbound values. Only a validated marker below may repopulate them.
+    request_data.live_mock_mode = None
+    request_data.live_mock_group = None
 
     # Local flags for interruption, to be returned
     task_was_revoked = False
@@ -684,32 +697,33 @@ async def _async_process_ai_skill_ask_task(
     encryption_service_instance = None
 
     try:
-        secrets_manager = SecretsManager()
-        await secrets_manager.initialize()
-        logger.info(f"[Task ID: {task_id}] SecretsManager initialized.")
+        with ai_phase_span("setup"):
+            secrets_manager = SecretsManager()
+            await secrets_manager.initialize()
+            logger.info(f"[Task ID: {task_id}] SecretsManager initialized.")
 
-        # PERFORMANCE OPTIMIZATION: Try to use worker-level cache service first
-        # Falls back to creating a new instance if the worker-level service is unavailable
-        try:
-            from backend.core.api.app.tasks.celery_config import get_worker_cache_service
-            cache_service_instance = await get_worker_cache_service()
-            logger.info(f"[Task ID: {task_id}] Using worker-level CacheService (connection pooling)")
-        except Exception as e:
-            logger.warning(f"[Task ID: {task_id}] Could not get worker-level CacheService ({e}), creating new instance")
-            cache_service_instance = CacheService()
-            await cache_service_instance.client 
-            logger.info(f"[Task ID: {task_id}] CacheService initialized (new instance)")
-        
-        encryption_service_instance = EncryptionService(
-            cache_service=cache_service_instance
-        )
-        logger.info(f"[Task ID: {task_id}] EncryptionService initialized.")
+            # PERFORMANCE OPTIMIZATION: Try to use worker-level cache service first
+            # Falls back to creating a new instance if the worker-level service is unavailable
+            try:
+                from backend.core.api.app.tasks.celery_config import get_worker_cache_service
+                cache_service_instance = await get_worker_cache_service()
+                logger.info(f"[Task ID: {task_id}] Using worker-level CacheService (connection pooling)")
+            except Exception as e:
+                logger.warning(f"[Task ID: {task_id}] Could not get worker-level CacheService ({e}), creating new instance")
+                cache_service_instance = CacheService()
+                await cache_service_instance.client
+                logger.info(f"[Task ID: {task_id}] CacheService initialized (new instance)")
 
-        directus_service_instance = DirectusService(
-            cache_service=cache_service_instance,
-            encryption_service=encryption_service_instance 
-        )
-        logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
+            encryption_service_instance = EncryptionService(
+                cache_service=cache_service_instance
+            )
+            logger.info(f"[Task ID: {task_id}] EncryptionService initialized.")
+
+            directus_service_instance = DirectusService(
+                cache_service=cache_service_instance,
+                encryption_service=encryption_service_instance
+            )
+            logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
         if request_data.is_sub_chat:
             if not all((
@@ -1174,29 +1188,45 @@ async def _async_process_ai_skill_ask_task(
                         from backend.apps.ai.testing.mock_replay import set_active_fixture_recorder
                         set_active_fixture_recorder(_fixture_recorder)
 
-    # Detect <<<TEST_LIVE_MOCK:group_id>>> or <<<TEST_LIVE_RECORD:group_id>>> markers.
-    # Unlike TEST_MOCK (which skips the pipeline entirely), live mock runs the FULL
-    # pipeline but intercepts external API calls (LLM providers, skill HTTP requests)
-    # with cached record-and-replay responses. This tests everything except the parts
-    # that cost money.
-    # SECURITY: Only works when SERVER_ENVIRONMENT != "production" AND MOCK_EXTERNAL_APIS=true.
-    if os.getenv("MOCK_EXTERNAL_APIS") == "true" and not _test_marker:
-        from backend.shared.testing.mock_context import detect_live_marker, strip_live_marker, activate_mock_mode
-        if request_data.message_history:
-            last_user_msg = next(
-                (m for m in reversed(request_data.message_history) if m.role == "user"),
-                None,
-            )
-            if last_user_msg:
-                _live_marker = detect_live_marker(last_user_msg.content)
-                if _live_marker:
-                    live_mode, live_group = _live_marker
-                    last_user_msg.content = strip_live_marker(last_user_msg.content)
-                    activate_mock_mode(live_mode, live_group)
-                    logger.info(
-                        f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
-                        f"group='{live_group}' — full pipeline with cached API responses"
-                    )
+    # Detect signed, server-authorized live replay/record markers. Unlike TEST_MOCK,
+    # live mock runs the full pipeline and intercepts only external provider calls.
+    _live_marker = None
+    from backend.shared.testing.mock_context import resolve_live_marker_or_raise, strip_live_marker, activate_mock_mode
+
+    if request_data.message_history:
+        last_user_msg = next(
+            (m for m in reversed(request_data.message_history) if m.role == "user"),
+            None,
+        )
+        if last_user_msg:
+            marker_content = last_user_msg.content
+            _live_marker = resolve_live_marker_or_raise(marker_content, request_data.user_id)
+            if _live_marker and _test_marker:
+                raise RuntimeError("Cannot combine TEST_MOCK/TEST_RECORD with TEST_LIVE marker")
+            if _live_marker:
+                live_mode, live_group, live_run_id = _live_marker
+                last_user_msg.content = strip_live_marker(last_user_msg.content)
+                if request_data.current_user_content:
+                    request_data.current_user_content = strip_live_marker(request_data.current_user_content)
+                candidate_root = None
+                candidate_base = Path(
+                    os.getenv("LIVE_MOCK_CANDIDATE_ROOT", "/tmp/openmates-live-mock-candidates")
+                )
+                if live_mode in {"record", "mock"} and live_run_id:
+                    candidate_root = candidate_base / live_run_id / "cache"
+                activate_mock_mode(
+                    live_mode,
+                    live_group,
+                    candidate_root=candidate_root,
+                    candidate_run_id=live_run_id,
+                    task_id=task_id,
+                )
+                request_data.live_mock_mode = live_mode
+                request_data.live_mock_group = live_group
+                logger.info(
+                    f"[Task ID: {task_id}] LIVE {live_mode.upper()}: "
+                    f"group='{live_group}' — full pipeline with cached API responses"
+                )
 
     # --- MOCK BRANCH: Skip compression + preprocessing + main processing ---
     # When a TEST_MOCK marker is detected, replay pre-recorded fixture data and jump
@@ -1298,12 +1328,13 @@ async def _async_process_ai_skill_ask_task(
                         )
 
                     # Run compression
-                    compression_result = await compress_chat_history(
-                        message_history=message_dicts_for_compression,
-                        task_id=task_id,
-                        secrets_manager=secrets_manager,
-                        compression_threshold=compression_threshold,
-                    )
+                    with ai_phase_span("compression"):
+                        compression_result = await compress_chat_history(
+                            message_history=message_dicts_for_compression,
+                            task_id=task_id,
+                            secrets_manager=secrets_manager,
+                            compression_threshold=compression_threshold,
+                        )
 
                     if compression_result.was_compressed and compression_result.summary_content:
                         compression_performed = True
@@ -1479,20 +1510,21 @@ async def _async_process_ai_skill_ask_task(
             )
             is_new_chat_for_preprocessing = not request_data.chat_has_title
 
-            preprocessing_result = await handle_preprocessing(
-                request_data=request_data, # This now contains chat_has_title boolean flag from the client
-                skill_config=skill_config,
-                base_instructions=base_instructions,
-                cache_service=cache_service_instance,
-                secrets_manager=secrets_manager,
-                directus_service=directus_service_instance, # Passed for reuse
-                encryption_service=encryption_service_instance, # Passed for reuse
-                user_app_settings_and_memories_metadata=user_app_memories_metadata,
-                discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-                user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
-                preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
-                is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
-            )
+            with ai_phase_span("preprocess"):
+                preprocessing_result = await handle_preprocessing(
+                    request_data=request_data, # This now contains chat_has_title boolean flag from the client
+                    skill_config=skill_config,
+                    base_instructions=base_instructions,
+                    cache_service=cache_service_instance,
+                    secrets_manager=secrets_manager,
+                    directus_service=directus_service_instance, # Passed for reuse
+                    encryption_service=encryption_service_instance, # Passed for reuse
+                    user_app_settings_and_memories_metadata=user_app_memories_metadata,
+                    discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
+                    user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
+                    preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
+                    is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
+                )
 
             # --- TEST RECORD: capture preprocessing result ---
             if _fixture_recorder and preprocessing_result:
@@ -1922,26 +1954,28 @@ async def _async_process_ai_skill_ask_task(
 
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
-            aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
-                task_id=task_id,
-                request_data=request_data,
-                preprocessing_result=preprocessing_result,
-                base_instructions=base_instructions,
-                directus_service=directus_service_instance,
-                encryption_service=encryption_service_instance,
-                user_vault_key_id=user_vault_key_id,
-                all_mates_configs=all_mates_configs,
-                discovered_apps_metadata=discovered_apps_metadata,
-                cache_service=cache_service_instance,
-                secrets_manager=secrets_manager,
-                # Pass always-include skills from skill config - these skills are ALWAYS available
-                # to the main LLM regardless of preprocessing preselection.
-                # This is a safety net for critical skills like web-search that should be available
-                # for follow-up queries even when preprocessing fails to detect the user's intent.
-                always_include_skills=skill_config.always_include_skills if skill_config else None,
-                user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
-                skill_config_dict=skill_config_dict,
-            )
+            with ai_phase_span("main"):
+                aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
+                    task_id=task_id,
+                    request_data=request_data,
+                    preprocessing_result=preprocessing_result,
+                    base_instructions=base_instructions,
+                    directus_service=directus_service_instance,
+                    encryption_service=encryption_service_instance,
+                    user_vault_key_id=user_vault_key_id,
+                    all_mates_configs=all_mates_configs,
+                    discovered_apps_metadata=discovered_apps_metadata,
+                    cache_service=cache_service_instance,
+                    secrets_manager=secrets_manager,
+                    # Pass always-include skills from skill config - these skills are ALWAYS available
+                    # to the main LLM regardless of preprocessing preselection.
+                    # This is a safety net for critical skills like web-search that should be available
+                    # for follow-up queries even when preprocessing fails to detect the user's intent.
+                    always_include_skills=skill_config.always_include_skills if skill_config else None,
+                    user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
+                    skill_config_dict=skill_config_dict,
+                    completion_timing=completion_timing,
+                )
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
 
             # --- TEST RECORD: capture final response and save fixture ---
@@ -2193,14 +2227,15 @@ async def _async_process_ai_skill_ask_task(
                     skill_config_dict = skill_config.model_dump() if hasattr(skill_config, 'model_dump') else {}
                     
                     # Dispatch new task via Celery
-                    new_task_result = celery_config.app.send_task(
-                        name='apps.ai.tasks.skill_ask',
-                        kwargs={
-                            "request_data_dict": combined_request.model_dump(),
-                            "skill_config_dict": skill_config_dict
-                        },
-                        queue='app_ai'
-                    )
+                    with ai_phase_span("queue_handoff"):
+                        new_task_result = celery_config.app.send_task(
+                            name='apps.ai.tasks.skill_ask',
+                            kwargs={
+                                "request_data_dict": combined_request.model_dump(),
+                                "skill_config_dict": skill_config_dict
+                            },
+                            queue='app_ai'
+                        )
                     
                     logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {new_task_result.id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
                     
@@ -2336,28 +2371,29 @@ async def _async_process_ai_skill_ask_task(
             elif getattr(request_data, 'current_chat_title', None):
                 current_title_for_postproc = request_data.current_chat_title
 
-            postprocessing_result = await handle_postprocessing(
-                task_id=task_id,
-                user_message=last_user_message,
-                assistant_response=aggregated_final_response,
-                chat_summary=chat_summary,
-                chat_tags=chat_tags,
-                message_history=postprocessing_message_history,
-                base_instructions=base_instructions,
-                secrets_manager=secrets_manager,
-                cache_service=cache_service_instance,
-                available_app_ids=available_app_ids,
+            with ai_phase_span("postprocess"):
+                postprocessing_result = await handle_postprocessing(
+                    task_id=task_id,
+                    user_message=last_user_message,
+                    assistant_response=aggregated_final_response,
+                    chat_summary=chat_summary,
+                    chat_tags=chat_tags,
+                    message_history=postprocessing_message_history,
+                    base_instructions=base_instructions,
+                    secrets_manager=secrets_manager,
+                    cache_service=cache_service_instance,
+                    available_app_ids=available_app_ids,
 
-                available_skills=available_skills_for_postproc,
-                is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
-                is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
-                output_language=chat_output_language,
-                user_system_language=user_system_language,
-                current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
-                follow_up_suggestions_enabled=follow_up_suggestions_enabled,
-                quick_tips_enabled=quick_tips_enabled,
-                learning_mode_context=effective_learning_mode_context,
-            )
+                    available_skills=available_skills_for_postproc,
+                    is_incognito=getattr(request_data, 'is_incognito', False),  # Pass incognito flag
+                    is_sub_chat=getattr(request_data, 'is_sub_chat', False),  # Pass sub-chat flag
+                    output_language=chat_output_language,
+                    user_system_language=user_system_language,
+                    current_chat_title=current_title_for_postproc,  # OPE-265: For title update evaluation
+                    follow_up_suggestions_enabled=follow_up_suggestions_enabled,
+                    quick_tips_enabled=quick_tips_enabled,
+                    learning_mode_context=effective_learning_mode_context,
+                )
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
                 postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(
@@ -2412,7 +2448,8 @@ async def _async_process_ai_skill_ask_task(
                 logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
-            await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
+            with ai_phase_span("postprocess.delivery"):
+                await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
             logger.info(f"[Task ID: {task_id}] Published post-processing results to Redis channel '{postprocessing_channel}'")
 
             # --- Cache daily inspiration topic suggestions ---
@@ -2585,6 +2622,9 @@ async def _async_process_ai_skill_ask_task(
 )
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
+    record_ai_queue_span(
+        (getattr(self.request, "headers", None) or {}).get(AI_QUEUE_ENQUEUED_AT_HEADER)
+    )
     # Conditionally log request and skill config data based on environment
     # Even in development, we sanitize sensitive data (message_history, chat_tags, chat_summary, etc.)
     # to show only counts and lengths, not actual content
@@ -2602,12 +2642,23 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     # Custom flags on 'self' are no longer initialized here,
     # their status will be derived from the async helper's return value.
 
+    completion_timing = AICompletionTiming.start()
+    turn_scope = ai_phase_span("turn")
+    turn_span = turn_scope.__enter__()
+
     try:
-        request_data = AskSkillRequest(**request_data_dict)
-        skill_config = AskSkillDefaultConfig(**skill_config_dict)
+        with ai_phase_span("prepare"):
+            request_data = AskSkillRequest(**request_data_dict)
+            skill_config = AskSkillDefaultConfig(**skill_config_dict)
     except ValidationError as e:
         logger.error(f"[Task ID: {task_id}] Validation error for input data: {e}", exc_info=True)
         self.update_state(state='FAILURE', meta={'exc_type': 'ValidationError', 'exc_message': str(e.errors())})
+        record_ai_completion_timing(
+            turn_span,
+            worker_tail_ms=completion_timing.worker_tail_ms(),
+            terminal_class="failed_before_main",
+        )
+        turn_scope.__exit__(None, None, None)
         raise Ignore()
 
     # Idempotency dedup is now handled globally by `DedupedTask.__call__`
@@ -2624,12 +2675,18 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
     
     task_result_dict: Optional[Dict[str, Any]] = None
     legacy_completion_requires_persistence = False
+    terminal_class = "worker_interrupted"
     try:
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
         task_result_dict = loop.run_until_complete(
-            _async_process_ai_skill_ask_task(task_id, request_data, skill_config) # 'self' is not passed
+            _async_process_ai_skill_ask_task(
+                task_id,
+                request_data,
+                skill_config,
+                completion_timing=completion_timing,
+            )
         )
         legacy_completion_requires_persistence = completion_requires_persistence(
             task_result_dict
@@ -2652,6 +2709,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
         # Handle results that indicate logical failure within the async logic
         if isinstance(task_result_dict, dict) and task_result_dict.get("_celery_task_state") == "FAILURE":
+            terminal_class = "failed_before_main"
             failure_meta = {k: v for k, v in task_result_dict.items() if k not in ["_celery_task_state", "task_id"]}
             failure_meta['exc_type'] = str(task_result_dict.get('reason', 'AsyncLogicError'))
             failure_meta['exc_message'] = str(task_result_dict.get('message', 'Async task indicated failure.'))
@@ -2668,6 +2726,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         
         # If successful or partially successful (due to interruption)
         if isinstance(task_result_dict, dict):
+            terminal_class = (
+                "revoked" if task_result_dict.get("interrupted_by_revocation")
+                else "soft_limited" if task_result_dict.get("interrupted_by_soft_time_limit")
+                else "completed"
+            )
             success_meta = {
                 'status_message': task_result_dict.get('status'),
                 'preprocessing_summary': task_result_dict.get('preprocessing_summary'),
@@ -2698,6 +2761,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.warning(f"[Task ID: {task_id}] Soft time limit exceeded in synchronous task wrapper.")
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        terminal_class = "revoked" if was_revoked else "soft_limited"
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -2746,6 +2810,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Runtime error from async task execution: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        terminal_class = "revoked" if was_revoked else (
+            "billing_failed" if completion_timing.billing_failed
+            else "failed_during_main" if completion_timing.first_token_ms is not None
+            else "failed_before_main"
+        )
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -2793,6 +2862,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         logger.error(f"[Task ID: {task_id}] Unhandled exception in synchronous task wrapper: {e}", exc_info=True)
         # Check if the task was revoked (user-initiated cancellation) to use appropriate embed status
         was_revoked = self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+        terminal_class = "revoked" if was_revoked else (
+            "billing_failed" if completion_timing.billing_failed
+            else "failed_during_main" if completion_timing.first_token_ms is not None
+            else "failed_before_main"
+        )
         # CRITICAL: Clean up active_ai_task marker and processing embeds before failing
         # This ensures the typing indicator stops and embeds don't get stuck in "processing" state
         try:
@@ -2863,5 +2937,13 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 deactivate_mock_mode()
             except ImportError:
                 pass
+        record_ai_completion_timing(
+            turn_span,
+            first_token_ms=completion_timing.first_token_ms,
+            final_marker_ms=completion_timing.final_marker_ms,
+            worker_tail_ms=completion_timing.worker_tail_ms(),
+            terminal_class=terminal_class,
+        )
+        turn_scope.__exit__(None, None, None)
         loop.close()
         logger.info(f"[Task ID: {task_id}] Async event loop closed.")

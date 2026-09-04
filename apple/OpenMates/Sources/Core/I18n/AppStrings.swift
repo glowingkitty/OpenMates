@@ -83,7 +83,7 @@ enum AppStrings {
     static var typeMessage: String { L("enter_message.placeholder.touch") }
     static var typeFollowup: String { L("enter_message.placeholder.followup_touch") }
     static var startTyping: String { L("chat.start_typing") }
-    static var aiResponding: String { L("chat.ai_responding") }
+    static var aiResponding: String { L("enter_message.processing") }
     static var stopResponse: String { L("chat.stop_response") }
     static var messageQueued: String { L("enter_message.message_queued") }
     static var loadEarlierMessages: String { L("chat.load_earlier") }
@@ -1014,13 +1014,9 @@ enum AppStrings {
     static var showHiddenChats: String { L("chats.hidden_chats.show_hidden_chats") }
 
     // MARK: - Demo chats — intro
-    static var demoForEveryoneTitle: String { L("demo_chats.for_everyone.title") }
-    static var demoForEveryoneDescription: String { L("demo_chats.for_everyone.description") }
     static var teaserLine1: String { L("demo_chats.for_everyone.teaser_line1") }
     static var teaserLine2: String { L("demo_chats.for_everyone.teaser_line2") }
     static var teaserLine3: String { L("demo_chats.for_everyone.teaser_line3") }
-    static var demoForDevelopersTitle: String { L("demo_chats.for_developers.title") }
-    static var demoForDevelopersDescription: String { L("demo_chats.for_developers.description") }
     static var demoWhoDevTitle: String { L("demo_chats.who_develops_openmates.title") }
     static var demoWhoDevDescription: String { L("demo_chats.who_develops_openmates.description") }
     static var demoAnnouncementsV09Title: String { L("demo_chats.announcements_introducing_openmates_v09.title") }

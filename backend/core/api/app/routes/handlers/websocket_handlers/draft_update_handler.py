@@ -163,9 +163,33 @@ async def handle_update_draft(
             user_id, chat_id, encrypted_draft_str, new_user_draft_v,
             encrypted_draft_preview=draft_preview_from_payload
         )
-        if not update_success:
+        if update_success is None:
             logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
-            # Log error but continue, version was incremented.
+            await websocket.send_json(
+                {
+                    "type": "draft_update_receipt",
+                    "payload": {
+                        "chat_id": chat_id,
+                        "draft_v": new_user_draft_v,
+                        "success": False,
+                    },
+                }
+            )
+            return
+        if update_success is False:
+            logger.info(f"Skipped superseded user draft update for user {user_id}, chat {chat_id}.")
+            await websocket.send_json(
+                {
+                    "type": "draft_update_receipt",
+                    "payload": {
+                        "chat_id": chat_id,
+                        "draft_v": new_user_draft_v,
+                        "success": True,
+                        "superseded": True,
+                    },
+                }
+            )
+            return
 
         draft_metadata: Dict[str, Any] = {}
         if "ideabucket" in payload or "ideabucket_processing_window_id" in payload:

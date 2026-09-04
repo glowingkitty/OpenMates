@@ -8,6 +8,78 @@ logger = logging.getLogger(__name__)
 class ChatCacheMixin:
     """Mixin for new chat sync architecture caching methods"""
 
+    _INCREMENT_DRAFT_VERSION_LUA = """
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
+    local next_version = math.max(dedicated, general) + tonumber(ARGV[2])
+    redis.call('HSET', KEYS[2], ARGV[1], next_version)
+    redis.call('HSETNX', KEYS[2], 'messages_v', 0)
+    redis.call('HSETNX', KEYS[2], 'title_v', 0)
+    redis.call('EXPIRE', KEYS[2], ARGV[3])
+    return next_version
+    """
+
+    _INCREMENT_AND_TOMBSTONE_DRAFT_LUA = """
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
+    local next_version = math.max(dedicated, general) + 1
+    redis.call('HSET', KEYS[1],
+      'draft_v', next_version,
+      'encrypted_draft_md', 'null',
+      'encrypted_draft_preview', 'null',
+      'deleted', 'true')
+    redis.call('HSET', KEYS[2], ARGV[1], next_version)
+    redis.call('HSETNX', KEYS[2], 'messages_v', 0)
+    redis.call('HSETNX', KEYS[2], 'title_v', 0)
+    redis.call('EXPIRE', KEYS[1], ARGV[2])
+    redis.call('EXPIRE', KEYS[2], ARGV[3])
+    return next_version
+    """
+
+    _UPDATE_VERSIONED_DRAFT_IF_CURRENT_LUA = """
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
+    local incoming_version = tonumber(ARGV[2])
+    local deleted = redis.call('HGET', KEYS[1], 'deleted')
+    if dedicated > incoming_version or general > incoming_version then
+      return 0
+    end
+    if deleted == 'true' and dedicated >= incoming_version then
+      return 0
+    end
+    redis.call('HSET', KEYS[1],
+      'draft_v', incoming_version,
+      'encrypted_draft_md', ARGV[3],
+      'encrypted_draft_preview', ARGV[4])
+    if ARGV[3] ~= 'null' then
+      redis.call('HSET', KEYS[1], 'deleted', 'false')
+    end
+    redis.call('HSET', KEYS[2], ARGV[1], incoming_version)
+    redis.call('HSETNX', KEYS[2], 'messages_v', 0)
+    redis.call('HSETNX', KEYS[2], 'title_v', 0)
+    redis.call('EXPIRE', KEYS[1], ARGV[5])
+    redis.call('EXPIRE', KEYS[2], ARGV[6])
+    return 1
+    """
+
+    _TOMBSTONE_DRAFT_IF_CURRENT_LUA = """
+    local dedicated = tonumber(redis.call('HGET', KEYS[1], 'draft_v') or '0') or 0
+    local general = tonumber(redis.call('HGET', KEYS[2], ARGV[1]) or '0') or 0
+    local tombstone_version = tonumber(ARGV[2])
+    if dedicated > tombstone_version or general > tombstone_version then
+      return 0
+    end
+    redis.call('HSET', KEYS[1],
+      'draft_v', tombstone_version,
+      'encrypted_draft_md', 'null',
+      'encrypted_draft_preview', 'null',
+      'deleted', 'true')
+    redis.call('HSET', KEYS[2], ARGV[1], tombstone_version)
+    redis.call('EXPIRE', KEYS[1], ARGV[3])
+    redis.call('EXPIRE', KEYS[2], ARGV[4])
+    return 1
+    """
+
     def get_chat_key(self, chat_id: str) -> str:
         """
         Returns a generic cache key for a chat, primarily identified by its chat_id.
@@ -437,47 +509,18 @@ class ChatCacheMixin:
         versions_key = self._get_chat_versions_key(user_id, chat_id)
         user_specific_draft_version_field = f"user_draft_v:{user_id}"
         
-        new_draft_version_for_dedicated_key: Optional[int] = None
         try:
-            # Check if the dedicated draft key's draft_v field exists
-            dedicated_draft_v_exists = await client.hexists(draft_key, "draft_v")
-
-            current_version_base = 0 # Default base if no version info found
-            if not dedicated_draft_v_exists:
-                # Dedicated draft_v doesn't exist. Try to get a base from the general versions key.
-                logger.debug(f"Dedicated draft_v missing for {draft_key}. Checking general versions key {versions_key} field {user_specific_draft_version_field}.")
-                general_versions_data_bytes = await client.hget(versions_key, user_specific_draft_version_field)
-                if general_versions_data_bytes:
-                    try:
-                        current_version_base = int(general_versions_data_bytes.decode('utf-8'))
-                        logger.debug(f"Found base version {current_version_base} from general versions key for {draft_key}.")
-                        # Explicitly set this base in the dedicated draft key.
-                        # Hincrby will then increment this value.
-                        await client.hset(draft_key, "draft_v", current_version_base)
-                    except ValueError:
-                        logger.warning(f"Could not parse version from general key for {draft_key}. Defaulting base to 0 for hincrby.")
-                        # current_version_base remains 0, hincrby will effectively start from increment_by
-                else:
-                    logger.debug(f"No base version found in general versions key for {draft_key}. Hincrby will start from 0 + increment_by.")
-                    # current_version_base remains 0, hincrby will effectively start from increment_by
-            
-            # Increment in the dedicated draft key.
-            # If "draft_v" was just set from general key, hincrby increments it.
-            # If "draft_v" existed, hincrby increments it.
-            # If "draft_v" did not exist and no base found, hincrby creates it starting from 0 + increment_by.
-            new_draft_version_for_dedicated_key = await client.hincrby(draft_key, "draft_v", increment_by)
-            await client.expire(draft_key, self.USER_DRAFT_TTL)
-
-            # Now, ensure the general versions key is also updated consistently to match the new authoritative version.
-            await client.hset(versions_key, user_specific_draft_version_field, new_draft_version_for_dedicated_key)
-            
-            # Ensure base messages_v and title_v fields exist in the general versions key if the key itself is new or was missing fields.
-            await client.hsetnx(versions_key, "messages_v", 0)
-            await client.hsetnx(versions_key, "title_v", 0)
-            await client.expire(versions_key, self.CHAT_VERSIONS_TTL) # Refresh TTL for the general versions key
-            
-            logger.debug(f"Incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version_for_dedicated_key}. Synced with general versions key.")
-            return new_draft_version_for_dedicated_key
+            new_draft_version = await client.eval(
+                self._INCREMENT_DRAFT_VERSION_LUA,
+                2,
+                draft_key,
+                versions_key,
+                user_specific_draft_version_field,
+                increment_by,
+                self.CHAT_VERSIONS_TTL,
+            )
+            logger.debug(f"Atomically incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version}.")
+            return int(new_draft_version)
         except Exception as e:
             logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return None
@@ -485,64 +528,44 @@ class ChatCacheMixin:
     async def update_user_draft_in_cache(
         self, user_id: str, chat_id: str, encrypted_draft_md: Optional[str],
         draft_version: int, encrypted_draft_preview: Optional[str] = None
-    ) -> bool:
+    ) -> Optional[bool]:
         """
         Updates the user's draft content, preview, and version in their dedicated draft cache key.
         The encrypted_draft_preview is stored alongside the draft so initial_sync can include it
         when syncing draft-only chats to other devices.
         Sets TTL for the draft key.
+
+        Returns True when the draft is written, False when a newer version or
+        tombstone already superseded it, and None when Redis could not complete
+        the operation.
         """
         client = await self.client
         if not client:
-            return False
+            return None
         key = self._get_user_chat_draft_key(user_id, chat_id)
+        versions_key = self._get_chat_versions_key(user_id, chat_id)
+        version_field = f"user_draft_v:{user_id}"
         try:
-            existing_version_bytes = await client.hget(key, "draft_v")
-            if existing_version_bytes:
-                try:
-                    if isinstance(existing_version_bytes, bytes):
-                        existing_version_value = existing_version_bytes.decode('utf-8')
-                    else:
-                        existing_version_value = str(existing_version_bytes)
-                    existing_version = int(existing_version_value)
-                    existing_deleted = await client.hget(key, "deleted")
-                    if isinstance(existing_deleted, bytes):
-                        existing_deleted = existing_deleted.decode("utf-8")
-                    if existing_deleted == "true" and existing_version >= draft_version:
-                        logger.info(
-                            f"Skipping stale draft cache write over tombstone for user {user_id}, chat {chat_id}: "
-                            f"incoming version {draft_version}, tombstone version {existing_version}"
-                        )
-                        return True
-                    if existing_version > draft_version:
-                        logger.info(
-                            f"Skipping stale draft cache write for user {user_id}, chat {chat_id}: "
-                            f"incoming version {draft_version}, cached version {existing_version}"
-                        )
-                        return True
-                except ValueError:
-                    logger.warning(f"Could not parse existing draft version for user {user_id}, chat {chat_id}. Overwriting cache entry.")
-
-            cache_payload: Dict[str, Any] = {"draft_v": draft_version}
-            if encrypted_draft_md is None:
-                cache_payload["encrypted_draft_md"] = "null"  # Store null as a string "null"
+            was_written = await client.eval(
+                self._UPDATE_VERSIONED_DRAFT_IF_CURRENT_LUA,
+                2,
+                key,
+                versions_key,
+                version_field,
+                draft_version,
+                encrypted_draft_md if encrypted_draft_md is not None else "null",
+                encrypted_draft_preview if encrypted_draft_preview is not None else "null",
+                self.USER_DRAFT_TTL,
+                self.CHAT_VERSIONS_TTL,
+            )
+            if was_written:
+                logger.debug(f"Updated draft for user {user_id}, chat {chat_id} with version {draft_version}")
             else:
-                cache_payload["encrypted_draft_md"] = encrypted_draft_md
-                cache_payload["deleted"] = "false"
-
-            # Store preview for cross-device sync (chat list display on other devices)
-            if encrypted_draft_preview is None:
-                cache_payload["encrypted_draft_preview"] = "null"
-            else:
-                cache_payload["encrypted_draft_preview"] = encrypted_draft_preview
-
-            await client.hmset(key, cache_payload)
-            await client.expire(key, self.USER_DRAFT_TTL)
-            logger.debug(f"Updated draft for user {user_id}, chat {chat_id} with version {draft_version}")
-            return True
+                logger.info(f"Skipped stale draft cache write for user {user_id}, chat {chat_id} at version {draft_version}")
+            return bool(was_written)
         except Exception as e:
             logger.error(f"Error updating draft for user {user_id}, chat {chat_id}: {e}")
-            return False
+            return None
 
     async def tombstone_user_draft_in_cache(self, user_id: str, chat_id: str, draft_version: int) -> bool:
         """Stores a versioned deletion marker for a user's draft."""
@@ -553,19 +576,46 @@ class ChatCacheMixin:
         versions_key = self._get_chat_versions_key(user_id, chat_id)
         user_specific_draft_version_field = f"user_draft_v:{user_id}"
         try:
-            await client.hmset(key, {
-                "draft_v": draft_version,
-                "encrypted_draft_md": "null",
-                "encrypted_draft_preview": "null",
-                "deleted": "true",
-            })
-            await client.expire(key, self.USER_DRAFT_TTL)
-            await client.hset(versions_key, user_specific_draft_version_field, draft_version)
-            await client.expire(versions_key, self.CHAT_VERSIONS_TTL)
-            return True
+            was_tombstoned = await client.eval(
+                self._TOMBSTONE_DRAFT_IF_CURRENT_LUA,
+                2,
+                key,
+                versions_key,
+                user_specific_draft_version_field,
+                draft_version,
+                self.USER_DRAFT_TTL,
+                self.CHAT_VERSIONS_TTL,
+            )
+            return bool(was_tombstoned)
         except Exception as e:
             logger.error(f"Error tombstoning draft for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return False
+
+    async def increment_and_tombstone_user_draft(self, user_id: str, chat_id: str) -> Optional[int]:
+        """Atomically reserves the next draft version and stores its deletion marker."""
+        client = await self.client
+        if not client:
+            return None
+        draft_key = self._get_user_chat_draft_key(user_id, chat_id)
+        versions_key = self._get_chat_versions_key(user_id, chat_id)
+        version_field = f"user_draft_v:{user_id}"
+        try:
+            deleted_draft_v = await client.eval(
+                self._INCREMENT_AND_TOMBSTONE_DRAFT_LUA,
+                2,
+                draft_key,
+                versions_key,
+                version_field,
+                self.USER_DRAFT_TTL,
+                self.CHAT_VERSIONS_TTL,
+            )
+            return int(deleted_draft_v)
+        except Exception as e:
+            logger.error(
+                f"Error atomically tombstoning draft for user {user_id}, chat {chat_id}: {e}",
+                exc_info=True,
+            )
+            return None
 
     async def is_user_draft_tombstoned(self, user_id: str, chat_id: str) -> bool:
         """Returns True when the user's draft cache key is an explicit deletion marker."""

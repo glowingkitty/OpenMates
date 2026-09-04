@@ -1,4 +1,49 @@
 import { expect, test } from './helpers/cookie-audit';
+// contract-test-file: tooling
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+
+const COMPONENT_CAPTURE_PROOF = defineVideoProof({
+	id: 'url-configured-component-capture',
+	title: 'URL-configured component capture',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'configured-preview',
+			text: 'Open a component preview URL with custom text, width, theme, and background settings.',
+			checkpoint: 'configured-preview',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'capture-ready',
+			text: 'The selected component renders by itself on the requested background, ready for a screenshot.',
+			checkpoint: 'configured-preview',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'component-only',
+			checkpoint: 'configured-preview',
+			visual: 'Only the configured notification and its custom background are visible, without preview controls.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'custom-content',
+			checkpoint: 'configured-preview',
+			visual: 'The URL-provided notification title and message are readable.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
+
 /**
  * Tests for the /dev/preview/ component preview system.
  * Runs against the deployed dev instance (app.dev.openmates.org).
@@ -88,6 +133,109 @@ test.describe('Component Preview System', () => {
 		// Should navigate to the component preview with toolbar
 		await expect(page.getByTestId('preview-toolbar')).toBeVisible({ timeout: 10000 });
 		await expect(page.getByTestId('breadcrumb-name')).toHaveText('WebSearchEmbedPreview');
+	});
+
+	test('capture URL renders only the configured component on a custom background', async ({ page }, testInfo) => {
+		const proof = createVideoProofRuntime(COMPONENT_CAPTURE_PROOF, {
+			device: PROOF_DEVICE,
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => page.screenshot({ type: 'png' })
+		});
+		const props = JSON.stringify({
+			notification: {
+				id: 'capture-notification',
+				type: 'warning',
+				title: 'URL configured warning',
+				message: 'Rendered from query parameters.',
+				duration: 0,
+				dismissible: true
+			}
+		});
+		const params = new URLSearchParams({
+			variant: 'warning',
+			theme: 'light',
+			background: '#dbeafe',
+			width: '420',
+			props,
+			chrome: '0'
+		});
+
+		const response = await page.goto(`/dev/preview/Notification?${params}`, {
+			waitUntil: 'networkidle'
+		});
+		expect(response?.status()).toBe(200);
+
+		const canvas = page.getByTestId('component-preview-canvas');
+		await expect(canvas).toHaveAttribute('data-preview-ready', 'true');
+		await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
+		await expect(page.getByTestId('preview-status-bar')).toHaveCount(0);
+		await expect(canvas.getByText('URL configured warning')).toBeVisible();
+		await expect(canvas.getByText('Rendered from query parameters.')).toBeVisible();
+
+		const canvasBackground = await canvas.evaluate(
+			(element) => window.getComputedStyle(element).backgroundColor
+		);
+		expect(canvasBackground).toBe('rgb(219, 234, 254)');
+		await expect(page.getByTestId('component-preview-viewport')).toHaveCSS('max-width', '420px');
+		expect(await page.locator('html').getAttribute('data-theme')).toBe('light');
+		const canvasBox = await canvas.boundingBox();
+		const viewportBox = await page.getByTestId('component-preview-viewport').boundingBox();
+		expect(canvasBox).not.toBeNull();
+		expect(viewportBox).not.toBeNull();
+		expect(Math.abs(viewportBox!.x + viewportBox!.width / 2 - (canvasBox!.x + canvasBox!.width / 2))).toBeLessThan(2);
+		expect(Math.abs(viewportBox!.y + viewportBox!.height / 2 - (canvasBox!.y + canvasBox!.height / 2))).toBeLessThan(2);
+		await proof.checkpoint('configured-preview');
+	});
+
+	test('message input capture does not combine empty-state and action-row microphone controls', async ({ page }) => {
+		const params = new URLSearchParams({
+			theme: 'light',
+			background: '#dbeafe',
+			width: '680',
+			chrome: '0'
+		});
+
+		await page.goto(`/dev/preview/enter_message/MessageInput?${params}`, {
+			waitUntil: 'networkidle'
+		});
+
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute(
+			'data-preview-ready',
+			'true'
+		);
+		await expect(page.getByTestId('action-buttons')).toBeVisible();
+		await expect(page.getByTestId('record-audio-button')).toBeVisible();
+		await expect(page.getByTestId('guest-cta-mic-button')).toBeHidden();
+	});
+
+	test('client-side preview navigation reapplies URL configuration', async ({ page }) => {
+		await page.goto('/dev/preview/Notification?background=%23dbeafe', {
+			waitUntil: 'networkidle'
+		});
+		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute(
+			'data-preview-ready',
+			'true'
+		);
+
+		await page.evaluate(() => {
+			const link = document.createElement('a');
+			link.href =
+				'/dev/preview/interactive_questions/InteractiveQuestionContainer?variant=input_form&background=%23dbeafe&width=768&chrome=0';
+			link.dataset.testid = 'preview-spa-navigation';
+			link.textContent = 'Open configured preview';
+			document.body.appendChild(link);
+		});
+		await page.getByTestId('preview-spa-navigation').click();
+
+		const canvas = page.getByTestId('component-preview-canvas');
+		await expect(canvas).toHaveAttribute('data-preview-ready', 'true');
+		await expect(canvas.getByText('Please introduce yourself to the assistant')).toBeVisible();
+		await expect(page.getByTestId('component-preview-viewport')).toHaveCSS('max-width', '768px');
+		await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
+		const canvasBackground = await canvas.evaluate(
+			(element) => window.getComputedStyle(element).backgroundColor
+		);
+		expect(canvasBackground).toBe('rgb(219, 234, 254)');
 	});
 
 	test('website fullscreen highlights source quote text', async ({ page }) => {

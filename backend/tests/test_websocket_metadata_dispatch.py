@@ -9,6 +9,8 @@ otherwise a send can time out before its durable ACK is emitted.
 
 import importlib
 import asyncio
+import hashlib
+import json
 import sys
 from types import ModuleType, SimpleNamespace
 
@@ -103,6 +105,8 @@ def _install_websockets_import_stubs(monkeypatch):
             "handle_get_compressed_chat_old_messages",
             "handle_store_chat_compression_checkpoint",
         ],
+        "assistant_speech_handler": ["handle_assistant_speech_event"],
+        "chat_model_preference_handler": ["handle_chat_model_preference"],
     }
     for module_name, names in handler_modules.items():
         _stub_module(monkeypatch, f"{base}.{module_name}", **{name: _noop_async for name in names})
@@ -146,6 +150,159 @@ def _load_websockets_module(monkeypatch):
     return importlib.import_module(module_name)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("status", "extra_status"),
+    [
+        ("queued", {}),
+        ("ready", {"generated_asset_id": "asset-1", "duration_seconds": 1.2}),
+        ("error", {"error": "Speech is temporarily unavailable.", "retryable": True}),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.failure.nonblocking-visible-resumable
+async def test_assistant_speech_status_listener_routes_safe_updates_only_to_owner_active_chat(
+    monkeypatch,
+    status,
+    extra_status,
+):
+    websockets = _load_websockets_module(monkeypatch)
+    owner_id = "owner-1"
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    sent = []
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return object()
+
+            return connected_client()
+
+        async def subscribe_to_channel(self, channel):
+            assert channel == "chat_stream::*"
+            yield {
+                "channel": "chat_stream::chat-1",
+                "data": {
+                    "type": "assistant_speech_status",
+                    "chat_id": "chat-1",
+                    "user_id_hash": owner_hash,
+                    "message_id": "message-1",
+                    "payload": {
+                        "segment_id": "segment-1",
+                        "status": status,
+                        "sequence": 0,
+                        "speakable_text": "must not leave the worker",
+                        **extra_status,
+                    },
+                },
+            }
+
+    class Manager:
+        active_connections = {
+            owner_id: {"owner-active": object(), "owner-other-chat": object()},
+            "other-user": {"other-active": object()},
+        }
+
+        def get_connections_for_user(self, user_id):
+            return self.active_connections.get(user_id, {})
+
+        def get_active_chat(self, _user_id, device_hash):
+            return {"owner-active": "chat-1", "owner-other-chat": "chat-2", "other-active": "chat-1"}.get(device_hash)
+
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    monkeypatch.setattr(websockets, "manager", Manager())
+    await websockets.listen_for_ai_chat_streams(SimpleNamespace(state=SimpleNamespace(cache_service=Cache())))
+
+    assert sent == [
+        (
+            {
+                "type": "assistant_speech_status",
+                "payload": {
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
+                    "segment_id": "segment-1",
+                    "status": status,
+                    "sequence": 0,
+                    **extra_status,
+                },
+            },
+            owner_id,
+            "owner-active",
+        ),
+    ]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=assistant-speech.access.first-party-owner-scoped,assistant-speech.acknowledgement.deterministic-free
+async def test_assistant_speech_acknowledgement_routes_only_safe_static_metadata_to_owner(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+    owner_id = "owner-1"
+    owner_hash = hashlib.sha256(owner_id.encode()).hexdigest()
+    sent = []
+
+    class Cache:
+        @property
+        def client(self):
+            async def connected_client():
+                return object()
+
+            return connected_client()
+
+        async def subscribe_to_channel(self, channel):
+            assert channel == "chat_stream::*"
+            yield {
+                "channel": "chat_stream::chat-1",
+                "data": {
+                    "type": "assistant_speech_acknowledgement",
+                    "chat_id": "chat-1",
+                    "user_id_hash": owner_hash,
+                    "message_id": "message-1",
+                    "payload": {
+                        "clip_id": "hiro-en-US-general-1",
+                        "audio_url": "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
+                        "text": "must not leave the server",
+                        "provider_voice_id": "must-not-leak",
+                    },
+                },
+            }
+
+    class Manager:
+        active_connections = {
+            owner_id: {"owner-active": object(), "owner-other-chat": object()},
+            "other-user": {"other-active": object()},
+        }
+
+        def get_connections_for_user(self, user_id):
+            return self.active_connections.get(user_id, {})
+
+        def get_active_chat(self, _user_id, device_hash):
+            return {"owner-active": "chat-1", "owner-other-chat": "chat-2", "other-active": "chat-1"}.get(device_hash)
+
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    monkeypatch.setattr(websockets, "manager", Manager())
+    await websockets.listen_for_ai_chat_streams(SimpleNamespace(state=SimpleNamespace(cache_service=Cache())))
+
+    assert sent == [
+        (
+            {
+                "type": "assistant_speech_acknowledgement",
+                "payload": {
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
+                    "clip_id": "hiro-en-US-general-1",
+                    "audio_url": "/audio/assistant-acknowledgements/hiro/en-US/general-1.mp3",
+                },
+            },
+            owner_id,
+            "owner-active",
+        ),
+    ]
+
+
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
 def test_sync_metadata_chats_is_scheduled_without_awaiting(monkeypatch):
     websockets = _load_websockets_module(monkeypatch)
@@ -183,6 +340,66 @@ def test_sync_metadata_chats_is_scheduled_without_awaiting(monkeypatch):
     assert task.done() is False
     assert len(created_coroutines) == 1
     assert handler_awaited is False
+
+
+# contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,assistant-speech.failure.nonblocking-visible-resumable
+@pytest.mark.asyncio
+async def test_pending_embed_replay_is_capped_per_connection(monkeypatch):
+    websockets = _load_websockets_module(monkeypatch)
+    sent = []
+
+    async def no_sleep(_seconds):
+        return None
+
+    class RedisClient:
+        async def get(self, key):
+            embed_id = key.removeprefix("embed:")
+            return json.dumps(
+                {
+                    "status": "finished",
+                    "vault_key_id": "vault-1",
+                    "encrypted_content": f"ciphertext-{embed_id}",
+                    "chat_id": "chat-1",
+                    "message_id": "message-1",
+                }
+            )
+
+    class Cache:
+        async def get_pending_embed_ids(self, _user_id):
+            return [f"embed-{index}" for index in range(5)]
+
+        @property
+        def client(self):
+            async def connected_client():
+                return RedisClient()
+
+            return connected_client()
+
+        async def remove_pending_embed(self, *_args):
+            raise AssertionError("fresh pending embeds must not be removed by capped replay")
+
+    class Encryption:
+        async def decrypt_with_user_key(self, encrypted_content, _vault_key_id):
+            return f"plaintext for {encrypted_content}"
+
+    class Manager:
+        async def send_personal_message(self, message, user_id, device_fingerprint_hash):
+            sent.append((message, user_id, device_fingerprint_hash))
+
+    monkeypatch.setattr(websockets.asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(websockets, "MAX_PENDING_EMBED_REPLAY_PER_CONNECTION", 2)
+
+    await websockets._deliver_pending_embeds(
+        Cache(),
+        Encryption(),
+        Manager(),
+        "owner-1",
+        hashlib.sha256(b"owner-1").hexdigest(),
+        "device-1",
+    )
+
+    assert [event[0]["payload"]["embed_id"] for event in sent] == ["embed-0", "embed-1"]
+    assert all(event[0]["type"] == "send_embed_data" for event in sent)
 
 
 # contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only

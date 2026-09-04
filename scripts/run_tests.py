@@ -46,9 +46,11 @@ import base64
 import hashlib
 import importlib.util
 import json
+import math
 import mimetypes
 import os
 import re
+import signal
 import secrets
 import shutil
 import subprocess
@@ -59,17 +61,27 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import Future, ThreadPoolExecutor
+from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from contextlib import contextmanager
+from datetime import date, datetime, timezone
 from html import escape
 from pathlib import Path
 from typing import Callable, Optional
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 try:
     from scripts import sessions as session_control
+    from scripts import daily_ai_cache_backfill
+    from scripts import daily_ai_test_policy
+    from scripts.spec_demo import sweep_publications as _sweep_spec_demo_publications
 except ModuleNotFoundError:
     import sessions as session_control
+    import daily_ai_cache_backfill
+    import daily_ai_test_policy
+    from spec_demo import sweep_publications as _sweep_spec_demo_publications
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -100,6 +112,7 @@ def _resolve_control_plane_root(checkout_root: Path) -> Path:
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
+STORAGE_AUDIT_CANDIDATE_DIR = RESULTS_DIR / "storage-audit-candidate"
 TEST_RECORDINGS_DIR = RESULTS_DIR / "recordings" / "latest"
 DAILY_ARTIFACT_RETENTION_DAYS = 7
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
@@ -131,13 +144,15 @@ GH_BRANCH = "dev"
 MAX_ACCOUNTS = 27
 ACCOUNT_PREFLIGHT_SPEC = "test-account-preflight.spec.ts"
 PROVISION_AUTH_ACCOUNTS_SPEC = "cli-provision-auth-accounts.spec.ts"
+PLAYWRIGHT_ACCOUNT_NOT_REQUIRED_MARKER = "// playwright-account: not_required reason=isolated_component_preview"
+ACCOUNT_FREE_WORKFLOW_ACCOUNT = 0
+PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
 E2E_GIFT_CARD_REDEMPTION_SPEC = "settings-gift-card-redemption.spec.ts"
 E2E_GIFT_CARD_REDEMPTION_CREDITS = 321
 E2E_GIFT_CARD_SEED_RETRIES = 5
 E2E_GIFT_CARD_CODE_CHARSET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 E2E_CREDIT_GUARD_DEFAULT_MINIMUM = 20_000
 E2E_CREDIT_GUARD_DEFAULT_TARGET = 50_000
-PREFLIGHT_RETRY_BATCH_SIZE = 3
 BACKEND_LIVE_MOCK_PREFLIGHT_CONTAINERS = (
     "api",
     "app-ai-worker",
@@ -176,13 +191,26 @@ NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
 CREDENTIAL_UPDATE_ARTIFACT_NAMES = frozenset({"new_otp_key.txt", "api_key.txt"})
 POLL_INTERVAL = 15  # seconds between status checks
 DAILY_STATUS_INTERVAL_SECONDS = 30 * 60
+DAILY_AI_BACKFILL_PATH_ENV_VARS = (
+    "DAILY_AI_CANDIDATE_ROOT",
+    "DAILY_AI_RUNTIME_CACHE_ROOT",
+    "DAILY_AI_CLAIM_ROOT",
+    "DAILY_AI_SOURCE_ROOT",
+)
 RUN_TIMEOUT = 1800  # 30 min max per batch
 PROD_SMOKE_RUN_TIMEOUT = 1800  # 30 min — prod-smoke.yml has its own 25-min job cap
 VITEST_TIMEOUT = 300  # seconds — vitest must complete in 5 min or be killed
 VERCEL_WAIT_TIMEOUT = 1200  # 20 min max to wait for dev deployment before E2E specs
 VERCEL_WAIT_POLL_INTERVAL = 15
 APPLE_REMOTE_TIMEOUT = 7200  # seconds — Xcode test/build runs can be slow on the remote Mac
+ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS = 15 * 60
+ACCOUNT_PREFLIGHT_CACHE_PATH = CONTROL_PLANE_ROOT / "test-results" / "account-preflight-cache.json"
+ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH = Path("/tmp/openmates-account-preflight-cache.lock")
+SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT = 3
 MAX_ERROR_SNIPPET = 600
+GITHUB_DISPATCH_RATE_LIMIT_RESERVE = 25
+GITHUB_MUTATING_REQUEST_INTERVAL_SECONDS = 1.0
+GITHUB_DISPATCH_INCIDENT_KEY = "infrastructure::github-actions-dispatch"
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 TEST_RECORDINGS_BUCKET_KEY = "test_recordings"
 TEST_RECORDINGS_S3_PREFIX = "latest"
@@ -248,6 +276,165 @@ def discover_release_gate_specs() -> list[str]:
 
 
 RELEASE_GATE_SPECS = discover_release_gate_specs()
+
+CRITICAL_TEST_CATEGORIES = frozenset({"billing", "signup_auth", "core_chat"})
+CORE_CHAT_CRITICAL_SPEC_PATTERNS = ("*chat*.spec.ts",)
+CRITICAL_TEST_REGISTRY: tuple[dict[str, object], ...] = (
+    {"spec": "chat-flow.spec.ts", "category": "core_chat", "reason": "Primary authenticated chat journey.", "active": True},
+    {"spec": "anonymous-free-chat.spec.ts", "category": "core_chat", "reason": "Primary anonymous chat journey.", "active": True},
+    {"spec": "signup-2fa-reconnect-preview.spec.ts", "category": "signup_auth", "reason": "Signup reconnect and 2FA recovery.", "active": True},
+    {"spec": "signup-flow-bank-transfer.spec.ts", "category": "signup_auth", "reason": "Signup with bank-transfer billing setup.", "active": True},
+    {"spec": "signup-flow-passkey.spec.ts", "category": "signup_auth", "reason": "Passkey signup and authentication.", "active": True},
+    {"spec": "signup-flow-stripe-eu.spec.ts", "category": "signup_auth", "reason": "EU Stripe signup journey.", "active": True},
+    {"spec": "signup-flow-stripe-managed.spec.ts", "category": "signup_auth", "reason": "Managed Stripe signup journey.", "active": True},
+    {"spec": "signup-free-testing-credits.spec.ts", "category": "signup_auth", "reason": "Free-credit signup entitlement.", "active": True},
+    {"spec": "signup-skip-2fa-flow.spec.ts", "category": "signup_auth", "reason": "Signup path without optional 2FA.", "active": True},
+    {"spec": "buy-credits-flow.spec.ts", "category": "billing", "reason": "Primary credit purchase journey.", "active": True},
+    {"spec": "referral-signup-purchase.spec.ts", "category": "billing", "reason": "Referral attribution through purchase.", "active": True},
+    {"spec": "saved-payment-invoice-flow.spec.ts", "category": "billing", "reason": "Saved payment and invoice journey.", "active": True},
+    {"spec": "settings-buy-credits-bank-transfer.spec.ts", "category": "billing", "reason": "Settings bank-transfer purchase.", "active": True},
+    {"spec": "settings-buy-credits-stripe-eu.spec.ts", "category": "billing", "reason": "Settings EU Stripe purchase.", "active": True},
+    {"spec": "settings-buy-credits-stripe-managed.spec.ts", "category": "billing", "reason": "Settings managed Stripe purchase.", "active": True},
+    {"spec": "settings-gift-card-bank-transfer.spec.ts", "category": "billing", "reason": "Gift-card bank-transfer journey.", "active": True},
+    {"spec": "settings-gift-card-redemption.spec.ts", "category": "billing", "reason": "Gift-card redemption and credit application.", "active": True},
+    {"spec": "settings-support-bank-transfer.spec.ts", "category": "billing", "reason": "Support payment by bank transfer.", "active": True},
+    {"spec": "settings-support-stripe.spec.ts", "category": "billing", "reason": "Support payment by Stripe.", "active": True},
+    {"spec": "usage-token-breakdown.spec.ts", "category": "billing", "reason": "Usage and charged-token accounting.", "active": True},
+)
+
+REVIEWED_BROAD_CHAT_SPECS = frozenset({
+    "apple-chat-history-contracts.spec.ts",
+    "apple-chat-ui-contracts.spec.ts",
+    "apple-cross-client-chat.spec.ts",
+    "background-chat-notification.spec.ts",
+    "chat-error-report-consent.spec.ts",
+    "chat-header-navigation-order.spec.ts",
+    "chat-key-wrapper-migration.spec.ts",
+    "chat-management-flow.spec.ts",
+    "chat-rendering-parity-oracle.spec.ts",
+    "chat-replay-demo-mode.spec.ts",
+    "chat-response-processing-ui.spec.ts",
+    "chat-scroll-streaming.spec.ts",
+    "chat-search-flow.spec.ts",
+    "chat-settings-flow.spec.ts",
+    "chat-streaming-render-performance.spec.ts",
+    "chat-sync-empty-indexeddb-recovery.spec.ts",
+    "cli-workflows-ai-chat-real.spec.ts",
+    "daily-inspiration-chat-flow.spec.ts",
+    "example-chat-clone.spec.ts",
+    "example-chat-logout-preserve.spec.ts",
+    "example-chat-settings-usage.spec.ts",
+    "example-chat-speech.spec.ts",
+    "example-chats-load.spec.ts",
+    "explain-in-new-chat.spec.ts",
+    "focus-mode-example-chats.spec.ts",
+    "hidden-chats-flow.spec.ts",
+    "import-chats.spec.ts",
+    "long-chat-history.spec.ts",
+    "models3d-example-chat.spec.ts",
+    "new-chat-pinned-sort.spec.ts",
+    "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts",
+    "recent-chats-dedup.spec.ts",
+    "reminder-new-chat.spec.ts",
+    "reminder-same-chat.spec.ts",
+    "seo-demo-chat.spec.ts",
+    "share-chat-flow.spec.ts",
+    "shared-chat-embed-assets.spec.ts",
+    "shared-chat-open.spec.ts",
+    "show-more-chats-flow.spec.ts",
+    "stop-new-chat-draft.spec.ts",
+    "sub-chats-flow.spec.ts",
+    "sub-chats-real-inference.spec.ts",
+    "task-workflow-example-chats.spec.ts",
+    "tasks-chat-settings-parity.spec.ts",
+    "unauthenticated-chat-navigation.spec.ts",
+    "webhook-incoming-chat.spec.ts",
+})
+CRITICAL_TEST_REGISTRY = (
+    *CRITICAL_TEST_REGISTRY,
+    *tuple(
+        {
+            "spec": spec,
+            "category": "core_chat",
+            "reason": "Reviewed as specialized broad chat coverage rather than a primary critical journey.",
+            "active": False,
+        }
+        for spec in sorted(REVIEWED_BROAD_CHAT_SPECS)
+    ),
+)
+
+
+def audit_critical_test_registry() -> list[str]:
+    """Return deterministic registry defects without dispatching tests."""
+    issues: list[str] = []
+    seen: set[str] = set()
+    classified_specs: set[str] = set()
+    for entry in CRITICAL_TEST_REGISTRY:
+        spec = str(entry.get("spec") or "")
+        category = str(entry.get("category") or "")
+        reason = str(entry.get("reason") or "").strip()
+        if not isinstance(entry.get("active"), bool):
+            issues.append(f"invalid active flag for {spec}")
+        if not spec or spec in seen:
+            issues.append(f"duplicate or empty critical spec: {spec or '<empty>'}")
+        seen.add(spec)
+        classified_specs.add(spec)
+        if category not in CRITICAL_TEST_CATEGORIES:
+            issues.append(f"invalid critical category for {spec}: {category}")
+        if not reason:
+            issues.append(f"missing critical reason for {spec}")
+        if not (SPEC_DIR / spec).is_file():
+            issues.append(f"classified critical-candidate spec is missing: {spec}")
+
+    likely_critical = set(RELEASE_GATE_SPECS) - {"dev-smoke/dev-smoke-reachability.spec.ts"}
+    likely_critical.update(
+        path.relative_to(SPEC_DIR).as_posix()
+        for pattern in CORE_CHAT_CRITICAL_SPEC_PATTERNS
+        for path in SPEC_DIR.rglob(pattern)
+    )
+    for spec in sorted(likely_critical - classified_specs):
+        issues.append(f"likely critical spec is unclassified: {spec}")
+    return issues
+
+
+def daily_playwright_phases(all_specs: list[str]) -> dict[str, list[str]]:
+    """Partition a daily Playwright run into ordered critical and broad phases."""
+    available = set(all_specs)
+    critical = [
+        str(entry["spec"])
+        for entry in CRITICAL_TEST_REGISTRY
+        if entry.get("active") is True and entry["spec"] in available
+    ]
+    critical_set = set(critical)
+    return {
+        "critical": critical,
+        "broad": [spec for spec in all_specs if spec not in critical_set],
+    }
+
+
+def execute_daily_playwright_phases(
+    phases: dict[str, list[str]],
+    run_phase: Callable[[str, list[str]], SuiteResult],
+    registry_issues: Optional[list[str]] = None,
+) -> dict[str, SuiteResult]:
+    """Execute all daily phases even when registry metadata needs repair."""
+    results = {
+        "critical": run_phase("critical", phases["critical"]),
+        "broad": run_phase("broad", phases["broad"]),
+    }
+    if registry_issues:
+        reason = "; ".join(registry_issues)
+        results["registry"] = SuiteResult(
+            status="failed",
+            tests=[{
+                "name": "critical-test-registry",
+                "file": "scripts/run_tests.py",
+                "status": "infrastructure_incident",
+                "error": reason,
+            }],
+            reason=reason,
+        )
+    return results
 
 
 def print_core_journey_matrix() -> None:
@@ -316,6 +503,8 @@ class SpecResult:
     debug_artifacts: list[str] = field(default_factory=list)
     debug_output_summary: Optional[str] = None
     environment_blocker: Optional[str] = None
+    test_key: Optional[str] = None
+    parent_incident_key: Optional[str] = None
 
 
 @dataclass
@@ -348,11 +537,98 @@ class SeededGiftCard:
     credits_value: int
 
 
+@dataclass
+class DispatchCircuit:
+    """Thread-safe one-way circuit for a run-wide GitHub dispatch incident."""
+    is_open: bool = False
+    incident_code: str = ""
+    reset_at: Optional[int] = None
+    _incident_claimed: bool = False
+    _remaining_requests: Optional[int] = None
+    _budget_configured: bool = False
+    _next_mutating_request_at: float = 0.0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    def wait_for_mutating_request_slot(self) -> None:
+        """Globally serialize GitHub workflow dispatches across worker threads."""
+        with self._lock:
+            now = time.monotonic()
+            scheduled_at = max(now, self._next_mutating_request_at)
+            self._next_mutating_request_at = scheduled_at + GITHUB_MUTATING_REQUEST_INTERVAL_SECONDS
+        delay = scheduled_at - now
+        if delay > 0:
+            time.sleep(delay)
+
+    def _open_locked(self, incident_code: str, reset_at: Optional[int]) -> bool:
+        if self.is_open:
+            return False
+        self.is_open = True
+        self.incident_code = incident_code
+        self.reset_at = reset_at
+        return True
+
+    def open_rate_limit(self, reset_at: Optional[int] = None) -> bool:
+        with self._lock:
+            return self._open_locked("github_actions_rate_limit", reset_at)
+
+    def open_budget_unknown(self) -> bool:
+        with self._lock:
+            if self._budget_configured:
+                return False
+            return self._open_locked("github_actions_budget_unknown", None)
+
+    def configure_budget(self, remaining: int, reset_at: Optional[int]) -> None:
+        with self._lock:
+            if self._budget_configured:
+                return
+            self._remaining_requests = remaining
+            self.reset_at = reset_at
+            self._budget_configured = True
+
+    def reserve_requests(self, count: int) -> bool:
+        """Atomically reserve dispatch calls while preserving the safety floor."""
+        with self._lock:
+            if self.is_open:
+                return False
+            if not self._budget_configured or self._remaining_requests is None:
+                self._open_locked("github_actions_budget_unknown", None)
+                return False
+            if self._remaining_requests - count < GITHUB_DISPATCH_RATE_LIMIT_RESERVE:
+                self._open_locked("github_actions_rate_limit", self.reset_at)
+                return False
+            self._remaining_requests -= count
+            return True
+
+    def snapshot(self) -> dict[str, object]:
+        with self._lock:
+            return {
+                "open": self.is_open,
+                "incident_code": self.incident_code,
+                "reset_at": self.reset_at,
+            }
+
+    def claim_incident(self) -> bool:
+        """Return True once so parallel suites emit one parent incident."""
+        with self._lock:
+            if not self.is_open or self._incident_claimed:
+                return False
+            self._incident_claimed = True
+            return True
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown", "not_started"}
+PROBLEM_STATUSES = {
+    "failed",
+    "dispatch_error",
+    "timeout",
+    "result_unknown",
+    "not_started",
+    "infrastructure_incident",
+    "blocked_by_parent",
+}
 
 
 def _is_problem_status(status: str) -> bool:
@@ -368,7 +644,33 @@ def _problem_count(summary: dict) -> int:
         + int(summary.get("timeout", 0))
         + int(summary.get("result_unknown", 0))
         + int(summary.get("not_started", 0))
+        + int(summary.get("infrastructure_incident", 0))
+        + int(summary.get("blocked_by_parent", 0))
     )
+
+
+def _exit_code_for_summary(summary: dict) -> int:
+    """Fail the runner for every status that requires operator attention."""
+    return 1 if _problem_count(summary) > 0 else 0
+
+
+def _is_github_rate_limit_error(detail: str) -> bool:
+    normalized = detail.lower()
+    return "rate limit" in normalized and ("403" in normalized or "exceeded" in normalized)
+
+
+def github_dispatch_error_category(detail: str) -> str:
+    """Reduce provider output to a stable category safe for logs and artifacts."""
+    normalized = detail.lower()
+    if _is_github_rate_limit_error(detail):
+        return "rate_limited"
+    if "401" in normalized or "unauthorized" in normalized or "authentication" in normalized:
+        return "authentication_failed"
+    if "403" in normalized or "permission" in normalized or "forbidden" in normalized:
+        return "permission_denied"
+    if "timeout" in normalized or "timed out" in normalized:
+        return "transport_timeout"
+    return "workflow_dispatch_failed"
 
 
 def _problem_summary_label(summary: dict) -> str:
@@ -530,6 +832,18 @@ def _plain_notification_text(value: str) -> str:
         .replace("🟢", "OK")
         .replace("•", "-")
     )
+
+
+def _cache_backfill_notification_line(result: RunResult) -> str | None:
+    """Render structural cache-backfill state without forwarding failure details."""
+    backfill = result.flags.get("cache_backfill")
+    if not isinstance(backfill, dict):
+        return None
+    status = str(backfill.get("status") or "unknown")
+    spec = str(backfill.get("spec") or "")
+    group = str(backfill.get("cache_group") or "")
+    suffix = f" ({spec}, {group})" if spec and group else ""
+    return f"Cache backfill: {status}{suffix}"
 
 
 def _limit_discord_failure_embeds(embeds: list[dict], color: int) -> list[dict]:
@@ -757,7 +1071,12 @@ def _load_tests_control_module():
     return module
 
 
-def _record_unified_test_state(data: dict, *, source: str = "scripts_tests", workflow: str = "") -> None:
+def _record_unified_test_state(
+    data: dict,
+    *,
+    source: str = "scripts_tests",
+    workflow: str = "",
+) -> None:
     """Update scripts/tests.py state files without making this runner depend on it."""
     try:
         module = _load_tests_control_module()
@@ -767,7 +1086,7 @@ def _record_unified_test_state(data: dict, *, source: str = "scripts_tests", wor
 
 
 def _test_control_source_for_flags(flags: dict) -> tuple[str, str]:
-    """Return the test-control source/workflow tuple for a runner result."""
+    """Return the canonical control-plane source for one runner result."""
     if flags.get("daily"):
         return "daily_runner", "daily"
     return "scripts_tests", ""
@@ -936,6 +1255,181 @@ def _full_git_sha(git_ref: str) -> str:
         ).strip()
     except (OSError, subprocess.SubprocessError):
         return git_ref
+
+
+@dataclass(frozen=True)
+class DailyCacheBackfillPaths:
+    """Explicit host paths shared by preflight, recording, replay, and promotion."""
+
+    candidate_root: Path
+    runtime_cache_root: Path
+    claim_base: Path
+    claim_root: Path
+    source_root: Path
+
+
+class DailyRunInterrupted(BaseException):
+    """Raised from a terminal signal so daily finalization can still notify."""
+
+    def __init__(self, signum: int) -> None:
+        self.signum = signum
+        self.signal_name = signal.Signals(signum).name
+        super().__init__(f"daily runner interrupted by {self.signal_name}")
+
+
+@contextmanager
+def _daily_terminal_signal_handlers(enabled: bool):
+    """Convert terminal signals into a normal daily failure-finalization path."""
+
+    if not enabled or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    previous = {signum: signal.getsignal(signum) for signum in (signal.SIGTERM, signal.SIGINT)}
+
+    def interrupt(signum: int, _frame: object) -> None:
+        raise DailyRunInterrupted(signum)
+
+    try:
+        for signum in previous:
+            signal.signal(signum, interrupt)
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
+def _resolve_daily_cache_backfill_paths(run_date: date) -> DailyCacheBackfillPaths:
+    """Resolve one checkout-independent path set and reject inferred fallbacks."""
+
+    configured = {name: os.getenv(name, "").strip() for name in DAILY_AI_BACKFILL_PATH_ENV_VARS}
+    missing = [name for name, value in configured.items() if not value]
+    if missing:
+        raise daily_ai_cache_backfill.BackfillValidationError(
+            "daily cache backfill requires explicit paths: " + ", ".join(missing)
+        )
+    paths = {name: Path(value).expanduser() for name, value in configured.items()}
+    relative = [name for name, path in paths.items() if not path.is_absolute()]
+    if relative:
+        raise daily_ai_cache_backfill.BackfillValidationError(
+            "daily cache backfill paths must be absolute: " + ", ".join(relative)
+        )
+    resolved = {name: path.resolve() for name, path in paths.items()}
+    candidate_root = resolved["DAILY_AI_CANDIDATE_ROOT"]
+    runtime_cache_root = resolved["DAILY_AI_RUNTIME_CACHE_ROOT"]
+    claim_base = resolved["DAILY_AI_CLAIM_ROOT"]
+    source_root = resolved["DAILY_AI_SOURCE_ROOT"]
+    if candidate_root == runtime_cache_root:
+        raise daily_ai_cache_backfill.BackfillValidationError("candidate and runtime cache roots must differ")
+    if claim_base == candidate_root or candidate_root in claim_base.parents:
+        raise daily_ai_cache_backfill.BackfillValidationError("claim root must stay outside the candidate mount")
+    return DailyCacheBackfillPaths(
+        candidate_root=candidate_root,
+        runtime_cache_root=runtime_cache_root,
+        claim_base=claim_base,
+        claim_root=claim_base / f"daily-{run_date.strftime('%Y%m%d')}",
+        source_root=source_root,
+    )
+
+
+def _probe_writable_directory(path: Path, label: str) -> None:
+    """Prove host write access without creating a claim or retaining content."""
+
+    path.mkdir(parents=True, exist_ok=True)
+    probe = path / f".backfill-preflight-{uuid4().hex}"
+    try:
+        with probe.open("x", encoding="utf-8") as handle:
+            handle.write("{}\n")
+    except OSError as exc:
+        raise daily_ai_cache_backfill.BackfillValidationError(f"{label} is not host-writable") from exc
+    finally:
+        probe.unlink(missing_ok=True)
+
+
+def _source_root_commit(source_root: Path) -> str:
+    """Resolve the source checkout's deployed dev commit for promotion pinning."""
+
+    try:
+        fetch = subprocess.run(
+            ["git", "fetch", "origin", "dev:refs/remotes/origin/dev"],
+            cwd=source_root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        if fetch.returncode != 0:
+            return ""
+        return subprocess.check_output(
+            ["git", "-C", str(source_root), "rev-parse", "origin/dev"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _daily_cache_backfill_preflight(git_ref: str, run_date: date) -> dict[str, object]:
+    """Validate the zero-paid control path without claiming or dispatching."""
+
+    try:
+        paths = _resolve_daily_cache_backfill_paths(run_date)
+        if not paths.candidate_root.is_dir():
+            raise daily_ai_cache_backfill.BackfillValidationError("candidate cache root is missing")
+        if not os.access(paths.candidate_root, os.R_OK | os.X_OK):
+            raise daily_ai_cache_backfill.BackfillValidationError("candidate cache root is not readable")
+        _probe_writable_directory(paths.runtime_cache_root, "runtime cache root")
+        _probe_writable_directory(paths.claim_base, "claim root")
+        if not (paths.source_root / "scripts" / "sessions.py").is_file():
+            raise daily_ai_cache_backfill.BackfillValidationError("source root lacks scripts/sessions.py")
+        full_sha = _full_git_sha(git_ref)
+        if not re.fullmatch(r"[a-f0-9]{40}", full_sha):
+            raise daily_ai_cache_backfill.BackfillValidationError("deployed commit did not resolve to a full SHA")
+        if _source_root_commit(paths.source_root) != full_sha:
+            raise daily_ai_cache_backfill.BackfillValidationError("source root is not pinned to the deployed dev commit")
+        claim_phase = "none"
+        claim_path = paths.claim_root / "backfill-claim.json"
+        if claim_path.is_file():
+            try:
+                claim = json.loads(claim_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise daily_ai_cache_backfill.BackfillValidationError("daily claim is unreadable") from exc
+            claim_phase = str(claim.get("phase") or "invalid")
+        return {
+            "status": "passed",
+            "full_commit_sha": full_sha,
+            "claim_phase": claim_phase,
+            "candidate_dispatches": 0,
+            "paid_provider_calls": 0,
+        }
+    except daily_ai_cache_backfill.BackfillValidationError as exc:
+        return {
+            "status": "failed",
+            "detail": str(exc),
+            "candidate_dispatches": 0,
+            "paid_provider_calls": 0,
+        }
+
+
+def _cache_backfill_suite(result: dict[str, object]) -> SuiteResult:
+    """Represent backfill as a real suite so failures affect daily status."""
+
+    status = str(result.get("status") or "failed")
+    test_status = (
+        "passed"
+        if status in {"promoted", "runtime_promoted"}
+        else "skipped"
+        if status == "skipped"
+        else "failed"
+    )
+    test: dict[str, object] = {
+        "name": str(result.get("spec") or "daily-cache-backfill"),
+        "file": "scripts/daily_ai_cache_backfill.py",
+        "status": test_status,
+        "duration_seconds": 0,
+    }
+    if test_status == "failed":
+        test["error"] = "Cache backfill failed; inspect the content-free run receipt"
+    return SuiteResult(status=test_status, tests=[test], duration_seconds=0)
 
 
 def _read_env_file() -> dict[str, str]:
@@ -1143,6 +1637,31 @@ def _deployment_matches_commit(deployment: dict, git_sha: str, *, exact: bool) -
     return bool(requested and deployed_sha and (deployed_sha.startswith(requested) or requested.startswith(deployed_sha)))
 
 
+def _requested_commit_is_stale_dev_ancestor(git_sha: str) -> bool:
+    """Return true only when Git proves the requested commit predates origin/dev."""
+    try:
+        requested = subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", git_sha],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        current_dev = subprocess.check_output(
+            ["git", "-C", str(PROJECT_ROOT), "rev-parse", "origin/dev"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+        if not requested or not current_dev or requested == current_dev:
+            return False
+        return subprocess.run(
+            ["git", "-C", str(PROJECT_ROOT), "merge-base", "--is-ancestor", requested, current_dev],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> tuple[bool, str]:
     """Block Playwright dispatch until Vercel has deployed the current dev commit."""
     if _get_env("OPENMATES_SKIP_VERCEL_WAIT", dot_env).lower() == "true":
@@ -1182,6 +1701,14 @@ def _wait_for_vercel_deployment(git_sha: str, dot_env: dict[str, str]) -> tuple[
             continue
 
         if deployment is None:
+            if last_status == "not found" and _requested_commit_is_stale_dev_ancestor(git_sha):
+                reason = (
+                    f"No Vercel deployment exists for stale dev ancestor {git_sha}. "
+                    "Verify the relevant files are unchanged, then rerun against current origin/dev; "
+                    "waiting cannot create a deployment for an older commit."
+                )
+                _log(reason, "ERROR")
+                return False, reason
             if last_status != "not found":
                 _log("Vercel deployment not visible yet")
             last_status = "not found"
@@ -1245,7 +1772,7 @@ def _not_started_playwright_specs(specs: list[str], reason: str) -> list[dict]:
 
 
 def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | None = None) -> str:
-    """Return a dispatch-blocking error for missing or uncommitted specs."""
+    """Return a dispatch-blocking error for specs absent from the tested source."""
     if not spec_name.endswith(".spec.ts"):
         return f"Playwright specs must end with .spec.ts: {spec_name}"
 
@@ -1255,7 +1782,7 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
     except ValueError:
         return f"Spec path escapes Playwright spec directory: {spec_name}"
 
-    if not spec_path.is_file():
+    if not deployed_git_ref and not spec_path.is_file():
         try:
             display_path = str(spec_path.relative_to(PROJECT_ROOT))
         except ValueError:
@@ -1266,6 +1793,22 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
         rel_path = str(spec_path.relative_to(PROJECT_ROOT))
     except ValueError:
         return f"Spec file is outside the repository: {spec_path}"
+
+    # Exact/deployed-commit runs execute in GitHub Actions from this ref. The
+    # immutable control runtime may legitimately predate a newly deployed spec,
+    # so its working tree must not override the requested commit's tree.
+    if deployed_git_ref:
+        deployed = subprocess.run(
+            ["git", "cat-file", "-e", f"{deployed_git_ref}:{rel_path}"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if deployed.returncode == 0:
+            return ""
+        return f"Spec file not found at deployed commit {deployed_git_ref}: {rel_path}"
+
     tracked = subprocess.run(
         ["git", "ls-files", "--error-unmatch", rel_path],
         cwd=PROJECT_ROOT,
@@ -1274,23 +1817,53 @@ def _validate_requested_playwright_spec(spec_name: str, deployed_git_ref: str | 
         timeout=30,
     )
     if tracked.returncode != 0:
-        deployed = None
-        if deployed_git_ref:
-            deployed = subprocess.run(
-                ["git", "cat-file", "-e", f"{deployed_git_ref}:{rel_path}"],
-                cwd=PROJECT_ROOT,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-        if deployed is not None and deployed.returncode == 0:
-            return ""
         return (
             f"Spec file is untracked and cannot run in GitHub Actions until deployed: {rel_path}. "
             "Track it in the active session and deploy with scripts/sessions.py deploy first."
         )
 
     return ""
+
+
+def _read_playwright_spec_source(spec_name: str, deployed_git_ref: str | None = None) -> str:
+    """Return the selected committed spec source, or empty text to fail closed."""
+    spec_path = (SPEC_DIR / spec_name).resolve()
+    try:
+        rel_path = spec_path.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return ""
+
+    if deployed_git_ref:
+        committed = subprocess.run(
+            ["git", "show", f"{deployed_git_ref}:{rel_path}"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return committed.stdout if committed.returncode == 0 else ""
+
+    try:
+        return spec_path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def _playwright_spec_requires_account(spec_name: str, deployed_git_ref: str | None = None) -> bool:
+    """Return False only for the exact committed isolated-component opt-out marker."""
+    source = _read_playwright_spec_source(spec_name, deployed_git_ref)
+    return PLAYWRIGHT_ACCOUNT_NOT_REQUIRED_MARKER not in source.splitlines()
+
+
+def _playwright_account_requirements_for_specs(
+    specs: list[str],
+    deployed_git_ref: str | None = None,
+) -> dict[str, bool]:
+    """Map specs to the fail-closed account requirement used for dispatch."""
+    return {
+        spec: _playwright_spec_requires_account(spec, deployed_git_ref)
+        for spec in specs
+    }
 
 
 def _safe_write_json(path: Path, data: dict) -> None:
@@ -1578,7 +2151,32 @@ class GitHubActionsClient:
     def __init__(self, git_sha: Optional[str] = None) -> None:
         self.last_dispatch_error: Optional[str] = None
         self.git_sha = git_sha
+        self.dispatch_circuit = DispatchCircuit()
         self._check_gh()
+
+    def refresh_dispatch_budget(self, required_requests: int) -> dict[str, object]:
+        """Open the circuit before bulk dispatch when GitHub core budget is insufficient."""
+        rc = subprocess.run(
+            ["gh", "api", "rate_limit", "--jq", ".resources.core"],
+            capture_output=True,
+            text=True,
+        )
+        if rc.returncode != 0:
+            self.dispatch_circuit.open_budget_unknown()
+            self.last_dispatch_error = "GitHub Actions request budget could not be verified"
+            return self.dispatch_circuit.snapshot()
+        try:
+            budget = json.loads(rc.stdout)
+            remaining = int(budget.get("remaining"))
+            reset_at = int(budget.get("reset"))
+        except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+            self.dispatch_circuit.open_budget_unknown()
+            self.last_dispatch_error = "GitHub Actions request budget metadata was invalid"
+            return self.dispatch_circuit.snapshot()
+        self.dispatch_circuit.configure_budget(remaining, reset_at)
+        if not self.dispatch_circuit.reserve_requests(required_requests):
+            self.last_dispatch_error = "GitHub Actions request budget is insufficient for this dispatch phase"
+        return {**self.dispatch_circuit.snapshot(), "remaining": remaining}
 
     def _check_gh(self) -> None:
         """Verify gh CLI is available and authenticated."""
@@ -1602,12 +2200,47 @@ class GitHubActionsClient:
         allow_credential_updates: bool = True,
         seeded_gift_card_code: Optional[str] = None,
         proof_video_profile: str = "",
+        daily_ai_run_id: str = "",
+        requires_account: bool = True,
     ) -> Optional[int]:
         """
         Dispatch a single spec workflow run.
         Returns the run ID or None on failure.
         """
+        dispatch_token = self.request_spec_dispatch(
+            spec,
+            account,
+            use_mocks,
+            record_live_fixtures,
+            create_account_slot=create_account_slot,
+            allow_credential_updates=allow_credential_updates,
+            seeded_gift_card_code=seeded_gift_card_code,
+            proof_video_profile=proof_video_profile,
+            daily_ai_run_id=daily_ai_run_id,
+            requires_account=requires_account,
+        )
+        if dispatch_token is None:
+            return None
+        return self.resolve_dispatch_tokens({dispatch_token: spec}).get(dispatch_token)
+
+    def request_spec_dispatch(
+        self,
+        spec: str,
+        account: int,
+        use_mocks: bool = True,
+        record_live_fixtures: bool = False,
+        create_account_slot: Optional[int] = None,
+        allow_credential_updates: bool = True,
+        seeded_gift_card_code: Optional[str] = None,
+        proof_video_profile: str = "",
+        daily_ai_run_id: str = "",
+        requires_account: bool = True,
+    ) -> Optional[str]:
+        """Submit a workflow without serially waiting for GitHub's run ID."""
         self.last_dispatch_error = None
+        if self.dispatch_circuit.is_open:
+            self.last_dispatch_error = "GitHub Actions dispatch circuit is open"
+            return None
         dispatch_token = f"rt-{os.getpid()}-{time.time_ns()}-{account}"
 
         # playwright-spec.yml: lightweight 1-job workflow per spec
@@ -1621,6 +2254,7 @@ class GitHubActionsClient:
             "-f", f"use_live_mocks={'true' if use_mocks else 'false'}",
             "-f", f"record_live_fixtures={'true' if record_live_fixtures else 'false'}",
             "-f", f"allow_credential_updates={'true' if allow_credential_updates else 'false'}",
+            "-f", f"requires_account={'true' if requires_account else 'false'}",
             "-f", f"dispatch_token={dispatch_token}",
         ]
         if self.git_sha:
@@ -1631,47 +2265,88 @@ class GitHubActionsClient:
             command.extend(["-f", f"seeded_gift_card_code={seeded_gift_card_code}"])
         if proof_video_profile:
             command.extend(["-f", f"proof_video_profile={proof_video_profile}"])
+        if daily_ai_run_id:
+            command.extend(["-f", f"daily_ai_run_id={daily_ai_run_id}"])
 
+        self.dispatch_circuit.wait_for_mutating_request_slot()
         rc = subprocess.run(
             command,
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
             detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()
-            self.last_dispatch_error = f"Dispatch failed: {detail}"
-            _log(f"Dispatch failed for {spec}: {detail}", "ERROR")
+            if _is_github_rate_limit_error(detail):
+                self.dispatch_circuit.open_rate_limit()
+                self.last_dispatch_error = "GitHub Actions rate limit blocked workflow dispatch"
+            else:
+                category = github_dispatch_error_category(detail)
+                self.last_dispatch_error = f"GitHub Actions workflow dispatch failed ({category})"
+            _log(f"Dispatch failed for {spec}: {self.last_dispatch_error}", "ERROR")
             return None
+        return dispatch_token
 
-        # Wait for GitHub to register the run, then find the exact dispatch.
-        # Concurrent OpenMates sessions can dispatch this workflow at the same
-        # time, so "newest run after dispatch" can attach to another spec.
-        for attempt in range(6):
+    def resolve_dispatch_tokens(self, pending: dict[str, str]) -> dict[str, int]:
+        """Resolve many dispatch tokens with one workflow-list query per poll."""
+        resolved: dict[str, int] = {}
+        for _attempt in range(6):
+            if not pending:
+                break
             time.sleep(2)
-            run_id = _matching_dispatched_run_id(self._recent_runs(limit=50), dispatch_token)
-            if run_id is not None:
-                return run_id
-
-        _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
-        self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
-        return None
+            runs = self._recent_runs(limit=max(50, min(100, len(pending) * 3)))
+            if self.last_dispatch_error:
+                break
+            for token in list(pending):
+                run_id = _matching_dispatched_run_id(runs, token)
+                if run_id is not None:
+                    resolved[token] = run_id
+                    pending.pop(token)
+        for token, spec in pending.items():
+            _log(f"Could not capture run ID for {spec} after dispatch", "WARN")
+        if pending and not self.last_dispatch_error:
+            self.last_dispatch_error = "Workflow dispatched, but GitHub did not expose a new run ID in time"
+        return resolved
 
     def _recent_runs(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[dict]:
-        """Get the most recent runs for a workflow."""
+        """Get runs directly without the extra workflow-list lookup from `gh run list`."""
+        workflow_id = urllib.parse.quote(workflow, safe="")
         rc = subprocess.run(
-            ["gh", "run", "list",
-             "--repo", GH_REPO,
-             "--workflow", workflow,
-             "--limit", str(limit),
-             "--json", "databaseId,displayTitle"],
-            capture_output=True, text=True,
+            [
+                "gh",
+                "api",
+                f"repos/{GH_REPO}/actions/workflows/{workflow_id}/runs?per_page={limit}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
         )
         if rc.returncode != 0:
+            detail = (rc.stderr or rc.stdout or "GitHub workflow-runs query failed").strip()
+            if _is_github_rate_limit_error(detail):
+                self.dispatch_circuit.open_rate_limit()
+                self.last_dispatch_error = "GitHub Actions rate limit blocked workflow run discovery"
+            else:
+                self.last_dispatch_error = (
+                    f"GitHub Actions workflow run discovery failed ({github_dispatch_error_category(detail)})"
+                )
+            _log(self.last_dispatch_error, "ERROR")
             return []
         try:
             data = json.loads(rc.stdout)
         except json.JSONDecodeError:
+            self.last_dispatch_error = "GitHub Actions workflow run discovery returned invalid JSON"
             return []
-        return data if isinstance(data, list) else []
+        runs = data.get("workflow_runs") if isinstance(data, dict) else None
+        if not isinstance(runs, list):
+            self.last_dispatch_error = "GitHub Actions workflow run discovery returned an invalid payload"
+            return []
+        return [
+            {
+                "databaseId": run.get("id"),
+                "displayTitle": run.get("display_title") or run.get("name") or "",
+            }
+            for run in runs
+            if isinstance(run, dict)
+        ]
 
     def _recent_run_ids(self, limit: int = 5, workflow: str = WORKFLOW_NAME) -> list[int]:
         """Get the most recent run IDs for a workflow."""
@@ -1866,24 +2541,98 @@ def _account_for_spec_in_batch(
     return normal_account_slots[normal_index % len(normal_account_slots)]
 
 
+def _cached_preflight_slots(now: float | None = None) -> set[int]:
+    current = time.time() if now is None else now
+    ACCOUNT_PREFLIGHT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH.open("a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            payload = json.loads(ACCOUNT_PREFLIGHT_CACHE_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        slots = payload.get("slots") if isinstance(payload, dict) else {}
+        if not isinstance(slots, dict):
+            return set()
+        return {
+            int(slot)
+            for slot, checked_at in slots.items()
+            if str(slot).isdigit() and current - float(checked_at or 0) <= ACCOUNT_PREFLIGHT_CACHE_TTL_SECONDS
+        }
+
+
+def _update_preflight_cache(passed_slots: set[int], failed_slots: set[int] | None = None) -> None:
+    ACCOUNT_PREFLIGHT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ACCOUNT_PREFLIGHT_CACHE_LOCK_PATH.open("a+") as lock_file:
+        fcntl.flock(lock_file, fcntl.LOCK_EX)
+        try:
+            payload = json.loads(ACCOUNT_PREFLIGHT_CACHE_PATH.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        slots = payload.get("slots") if isinstance(payload, dict) else None
+        slots = dict(slots) if isinstance(slots, dict) else {}
+        now = time.time()
+        for slot in passed_slots:
+            slots[str(slot)] = now
+        for slot in failed_slots or set():
+            slots.pop(str(slot), None)
+        temporary = ACCOUNT_PREFLIGHT_CACHE_PATH.with_suffix(".tmp")
+        temporary.write_text(json.dumps({"slots": slots}, sort_keys=True) + "\n", encoding="utf-8")
+        os.replace(temporary, ACCOUNT_PREFLIGHT_CACHE_PATH)
+
+
 def build_playwright_dispatch_plan(
     specs: list[str],
     batch_size: int,
     normal_account_slots: tuple[int, ...] = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS,
+    requires_account_by_spec: Optional[dict[str, bool]] = None,
 ) -> list[tuple[int, str, int]]:
     """Build (batch_index, spec, account) tuples using the credential-isolation policy."""
+    account_requirements = {
+        spec: requires_account_by_spec.get(spec, True)
+        if requires_account_by_spec is not None else True
+        for spec in specs
+    }
     effective_batch_size = _effective_playwright_batch_size(batch_size, normal_account_slots)
     if effective_batch_size <= 0:
+        if specs and all(not requires_account for requires_account in account_requirements.values()):
+            return [(0, spec, ACCOUNT_FREE_WORKFLOW_ACCOUNT) for spec in specs]
         return []
     plan: list[tuple[int, str, int]] = []
-    for batch_idx, start in enumerate(range(0, len(specs), effective_batch_size)):
-        normal_index = 0
-        for spec in specs[start:start + effective_batch_size]:
+    batch_idx = 0
+    normal_index = 0
+    account_required_specs_in_batch = 0
+    for spec in specs:
+        requires_account = account_requirements[spec]
+        if requires_account and account_required_specs_in_batch >= effective_batch_size:
+            batch_idx += 1
+            normal_index = 0
+            account_required_specs_in_batch = 0
+        if requires_account:
             account = _account_for_spec_in_batch(spec, normal_index, normal_account_slots)
+            account_required_specs_in_batch += 1
             if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
                 normal_index += 1
-            plan.append((batch_idx, spec, account))
+        else:
+            account = ACCOUNT_FREE_WORKFLOW_ACCOUNT
+        plan.append((batch_idx, spec, account))
     return plan
+
+
+def _preflight_accounts_for_specs(
+    specs: list[str],
+    batch_size: int,
+    requires_account_by_spec: Optional[dict[str, bool]] = None,
+) -> list[int]:
+    """Preflight only account slots that the pending Playwright plan can use."""
+    return list(dict.fromkeys(
+        account
+        for _batch_index, _spec, account in build_playwright_dispatch_plan(
+            specs,
+            batch_size,
+            requires_account_by_spec=requires_account_by_spec,
+        )
+        if account != ACCOUNT_FREE_WORKFLOW_ACCOUNT
+    ))
 
 
 def _passed_preflight_slots(results: list[SpecResult]) -> frozenset[int]:
@@ -1901,9 +2650,19 @@ def _passed_normal_preflight_slots(results: list[SpecResult]) -> tuple[int, ...]
     return tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
 
 
+def _single_spec_fallback_accounts(failed_account: int) -> list[int]:
+    """Bound failover so one unhealthy slot cannot fan out to every account."""
+    return [
+        slot
+        for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+        if slot != failed_account
+    ][:SINGLE_SPEC_PREFLIGHT_FALLBACK_LIMIT]
+
+
 def _apply_preflight_account_availability(
     specs: list[str],
     preflight_results: list[SpecResult],
+    requires_account_by_spec: Optional[dict[str, bool]] = None,
 ) -> tuple[list[str], list[SpecResult], tuple[int, ...], Optional[str]]:
     """Filter out specs whose reserved account is unavailable.
 
@@ -1914,11 +2673,26 @@ def _apply_preflight_account_availability(
     """
     passed_slots = _passed_preflight_slots(preflight_results)
     normal_slots = tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot in passed_slots)
-    missing_normal_slots = tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot not in passed_slots)
+    uses_normal_slots = any(
+        (requires_account_by_spec.get(spec, True) if requires_account_by_spec is not None else True)
+        and spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC
+        for spec in specs
+    )
+    missing_normal_slots = (
+        tuple(slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS if slot not in passed_slots)
+        if uses_normal_slots else ()
+    )
     blocked: list[SpecResult] = []
     runnable: list[str] = []
 
     for spec in specs:
+        requires_account = (
+            requires_account_by_spec.get(spec, True)
+            if requires_account_by_spec is not None else True
+        )
+        if not requires_account:
+            runnable.append(spec)
+            continue
         reserved_slot = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(spec)
         if reserved_slot is not None and reserved_slot not in passed_slots:
             blocked.append(SpecResult(
@@ -1963,7 +2737,10 @@ class BatchRunner:
         allow_credential_updates: bool = True,
         seeded_gift_cards: Optional[dict[str, SeededGiftCard]] = None,
         proof_video_profile: str = "",
+        daily_ai_run_id: str = "",
+        requires_account_by_spec: Optional[dict[str, bool]] = None,
         progress_callback: Optional[Callable[[SuiteResult], None]] = None,
+        coordinate_accounts: bool | None = None,
     ) -> None:
         self.client = client
         self.specs = specs
@@ -1976,13 +2753,24 @@ class BatchRunner:
         self.allow_credential_updates = allow_credential_updates
         self.seeded_gift_cards = seeded_gift_cards or {}
         self.proof_video_profile = proof_video_profile
+        self.daily_ai_run_id = daily_ai_run_id
+        self.requires_account_by_spec = requires_account_by_spec or {}
         self.progress_callback = progress_callback
+        external_account_lease_held = os.environ.get(PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV) == "1"
+        self.coordinate_accounts = (
+            isinstance(client, GitHubActionsClient) and not external_account_lease_held
+            if coordinate_accounts is None
+            else coordinate_accounts
+        )
+
+    def _spec_requires_account(self, spec: str) -> bool:
+        return self.requires_account_by_spec.get(spec, True)
 
     @staticmethod
     def _suite_from_results(results: list[SpecResult], duration_seconds: float) -> SuiteResult:
-        tests = [BatchRunner._spec_result_to_dict(r) for r in results]
-        has_failures = any(_is_problem_status(r.status) for r in results)
-        all_skipped = bool(results) and all(r.status == "skipped" for r in results)
+        tests = [BatchRunner._spec_result_to_dict(result) for result in results]
+        has_failures = any(_is_problem_status(result.status) for result in results)
+        all_skipped = bool(results) and all(result.status == "skipped" for result in results)
         return SuiteResult(
             status="skipped" if all_skipped else "failed" if has_failures else "passed",
             tests=tests,
@@ -1990,54 +2778,123 @@ class BatchRunner:
         )
 
     def _emit_progress(self, all_results: list[SpecResult], suite_start: float) -> None:
-        if self.progress_callback is None:
-            return
-        self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
+        if self.progress_callback is not None:
+            self.progress_callback(self._suite_from_results(all_results, time.time() - suite_start))
+
+    def _dispatch_circuit_snapshot(self) -> dict[str, object]:
+        circuit = getattr(self.client, "dispatch_circuit", None)
+        return circuit.snapshot() if circuit is not None else {"open": False}
+
+    @staticmethod
+    def _dispatch_blocked_result(spec: str) -> SpecResult:
+        return SpecResult(
+            name=spec,
+            file=spec,
+            status="blocked_by_parent",
+            error="Blocked by GitHub Actions dispatch infrastructure incident",
+            parent_incident_key=GITHUB_DISPATCH_INCIDENT_KEY,
+        )
+
+    def _dispatch_incident_result(self) -> SpecResult:
+        snapshot = self._dispatch_circuit_snapshot()
+        return SpecResult(
+            name="github-actions-dispatch",
+            file="scripts/run_tests.py",
+            status="infrastructure_incident",
+            error=str(snapshot.get("incident_code") or "github_actions_dispatch_unavailable"),
+            test_key=GITHUB_DISPATCH_INCIDENT_KEY,
+        )
+
+    def _claim_dispatch_incident_result(self) -> list[SpecResult]:
+        circuit = getattr(self.client, "dispatch_circuit", None)
+        if circuit is None or not circuit.claim_incident():
+            return []
+        return [self._dispatch_incident_result()]
 
     def run_all_batches(self) -> SuiteResult:
-        """Execute all specs in batches. Returns aggregated SuiteResult."""
+        """Continuously refill independent account lanes until every spec finishes."""
         if not self.specs:
             return SuiteResult(status="skipped", reason="no specs to run")
 
         all_results: list[SpecResult] = []
         effective_batch_size = _effective_playwright_batch_size(self.batch_size, self.normal_account_slots)
         if effective_batch_size <= 0:
-            return SuiteResult(status="failed", reason="no available normal Playwright account slots")
-        total_batches = (len(self.specs) + effective_batch_size - 1) // effective_batch_size
+            if all(not self._spec_requires_account(spec) for spec in self.specs):
+                effective_batch_size = self.batch_size if self.batch_size > 0 else len(self.specs)
+            else:
+                return SuiteResult(status="failed", reason="no available normal Playwright account slots")
         suite_start = time.time()
+        refresh_budget = getattr(self.client, "refresh_dispatch_budget", None)
+        if callable(refresh_budget):
+            refresh_budget(len(self.specs))
+        if self._dispatch_circuit_snapshot().get("open"):
+            return self._suite_from_results(
+                [*self._claim_dispatch_incident_result(), *[self._dispatch_blocked_result(spec) for spec in self.specs]],
+                time.time() - suite_start,
+            )
+        pending = deque(enumerate(self.specs))
+        completed: dict[int, SpecResult] = {}
+        state_lock = threading.Lock()
+        stop_dispatch = threading.Event()
+        worker_slots = self.normal_account_slots[:min(effective_batch_size, len(self.specs))]
+        if not worker_slots:
+            worker_slots = (ACCOUNT_FREE_WORKFLOW_ACCOUNT,) * min(effective_batch_size, len(self.specs))
 
-        for batch_idx in range(total_batches):
-            start = batch_idx * effective_batch_size
-            end = min(start + effective_batch_size, len(self.specs))
-            batch_specs = self.specs[start:end]
+        _log(f"Dynamic Playwright queue: {len(self.specs)} specs across {len(worker_slots)} account workers")
 
-            print()
-            _log(f"Batch {batch_idx + 1}/{total_batches}: {len(batch_specs)} specs")
-
-            batch_results = self._run_batch(batch_specs, batch_idx)
-            all_results.extend(batch_results)
-
-            # Check for failures (batch-level fail-fast)
-            batch_failures = [r for r in batch_results if r.status == "failed"]
-            if batch_failures and self.fail_fast and batch_idx < total_batches - 1:
-                remaining_specs = self.specs[end:]
-                _log(
-                    f"{len(batch_failures)} failure(s) in batch {batch_idx + 1} — "
-                    f"skipping {len(remaining_specs)} remaining specs (fail-fast)",
-                    "WARN",
+        def worker(preferred_account: int) -> None:
+            while not stop_dispatch.is_set():
+                with state_lock:
+                    if self._dispatch_circuit_snapshot().get("open"):
+                        stop_dispatch.set()
+                        return
+                    if not pending:
+                        return
+                    spec_index, spec = pending.popleft()
+                batch_results = self._run_batch(
+                    [spec],
+                    spec_index,
+                    account_overrides=[preferred_account],
                 )
-                for spec in remaining_specs:
-                    all_results.append(SpecResult(
-                        name=spec, file=spec, status="not_started",
-                        error=f"Skipped: fail-fast after batch {batch_idx + 1}",
-                    ))
-                self._emit_progress(all_results, suite_start)
-                break
+                result = batch_results[0] if batch_results else SpecResult(
+                    name=spec,
+                    file=spec,
+                    status="dispatch_error",
+                    error="Dynamic worker returned no result",
+                )
+                if self._dispatch_circuit_snapshot().get("open") and result.status == "dispatch_error":
+                    result = self._dispatch_blocked_result(spec)
+                with state_lock:
+                    completed[spec_index] = result
+                    ordered_progress = [completed[index] for index in sorted(completed)]
+                    self._emit_progress(ordered_progress, suite_start)
+                    if self.fail_fast and result.status == "failed":
+                        stop_dispatch.set()
+                    if self._dispatch_circuit_snapshot().get("open"):
+                        stop_dispatch.set()
 
-            self._emit_progress(all_results, suite_start)
+        with ThreadPoolExecutor(max_workers=len(worker_slots), thread_name_prefix="playwright-account") as executor:
+            futures = [executor.submit(worker, account) for account in worker_slots]
+            for future in futures:
+                future.result()
 
-        duration = time.time() - suite_start
-        return self._suite_from_results(all_results, duration)
+        if pending:
+            for spec_index, spec in pending:
+                completed[spec_index] = (
+                    self._dispatch_blocked_result(spec)
+                    if self._dispatch_circuit_snapshot().get("open")
+                    else SpecResult(
+                        name=spec,
+                        file=spec,
+                        status="not_started",
+                        error="Skipped: fail-fast after an earlier dynamic account lane failed",
+                    )
+                )
+        all_results = [completed[index] for index in sorted(completed)]
+        if self._dispatch_circuit_snapshot().get("open"):
+            all_results = [*self._claim_dispatch_incident_result(), *all_results]
+        self._emit_progress(all_results, suite_start)
+        return self._suite_from_results(all_results, time.time() - suite_start)
 
     def _run_batch(
         self,
@@ -2047,65 +2904,206 @@ class BatchRunner:
     ) -> list[SpecResult]:
         """Dispatch and wait for a single batch of specs."""
         # Dispatch all specs in this batch
-        dispatched: list[tuple[str, int, int]] = []  # (spec, account, run_id)
+        dispatched: list[tuple[str, int, int, bool]] = []  # (spec, account, run_id, requires_account)
+        pending_dispatches: dict[str, tuple[str, int, bool]] = {}
         dispatch_errors: list[SpecResult] = []
         normal_account_index = 0
+        account_leases: dict[int, tuple[str, set[str]]] = {}
+        lease_owner = os.environ.get("OPENCODE_SESSION_ID", "scheduled-test-runner")
+
+        def claim_account(preferred: int, *, reserved: bool) -> int:
+            if not self.coordinate_accounts:
+                return preferred
+            if preferred in account_leases:
+                return preferred
+            candidates = [preferred] if reserved else [
+                *self.normal_account_slots[self.normal_account_slots.index(preferred):],
+                *self.normal_account_slots[:self.normal_account_slots.index(preferred)],
+            ]
+            while True:
+                for candidate in candidates:
+                    if candidate in account_leases:
+                        continue
+                    lease_id = f"playwright-account-{candidate}-{uuid4().hex[:10]}"
+                    resources = {f"playwright-account:{candidate}"}
+                    try:
+                        session_control.acquire_test_resource_lease(
+                            lease_id,
+                            lease_owner,
+                            resources,
+                            timeout=0,
+                            poll=1,
+                            mode="exclusive",
+                        )
+                    except RuntimeError:
+                        continue
+                    account_leases[candidate] = (lease_id, resources)
+                    return candidate
+                _log("All eligible Playwright accounts are busy; waiting for a released lane", "WARN")
+                time.sleep(5)
+
+        def release_account_leases() -> None:
+            for lease_id, _resources in account_leases.values():
+                try:
+                    session_control.release_test_resource_lease(lease_id)
+                except RuntimeError as exc:
+                    _log(f"Could not release Playwright account lease {lease_id}: {exc}", "WARN")
 
         for i, spec in enumerate(specs):
-            if account_overrides is not None:
+            requires_account = self._spec_requires_account(spec)
+            if not requires_account:
+                account = ACCOUNT_FREE_WORKFLOW_ACCOUNT
+            elif spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC[spec]
+            elif account_overrides is not None:
                 account = account_overrides[i]
             elif spec == ACCOUNT_PREFLIGHT_SPEC:
                 account = i + 1
             else:
                 account = _account_for_spec_in_batch(spec, normal_account_index, self.normal_account_slots)
-            if spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
+            if requires_account and spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC and spec != ACCOUNT_PREFLIGHT_SPEC:
                 normal_account_index += 1
-            _log(f"  Dispatching {spec} (account {account})")
+            if requires_account and spec != ACCOUNT_PREFLIGHT_SPEC:
+                account = claim_account(
+                    account,
+                    reserved=spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC,
+                )
+            account_label = f"account {account}" if requires_account else "account-free"
+            _log(f"  Dispatching {spec} ({account_label})")
 
-            create_account_slot = self.create_account_slot if spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
-            seeded_gift_card = self.seeded_gift_cards.get(spec)
-            run_id = self.client.dispatch_spec(
-                spec,
-                account,
-                self.use_mocks,
-                self.record_live_fixtures,
-                create_account_slot=create_account_slot,
-                allow_credential_updates=self.allow_credential_updates,
-                seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
-                proof_video_profile=self.proof_video_profile,
-            )
-            if run_id is None:
-                # Retry once
-                time.sleep(5)
+            create_account_slot = self.create_account_slot if requires_account and spec == PROVISION_AUTH_ACCOUNTS_SPEC else None
+            seeded_gift_card = self.seeded_gift_cards.get(spec) if requires_account else None
+            allow_credential_updates = self.allow_credential_updates and requires_account
+            if hasattr(self.client, "request_spec_dispatch"):
+                dispatch_token = self.client.request_spec_dispatch(
+                    spec,
+                    account,
+                    self.use_mocks,
+                    self.record_live_fixtures,
+                    create_account_slot=create_account_slot,
+                    allow_credential_updates=allow_credential_updates,
+                    seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                    proof_video_profile=self.proof_video_profile,
+                    daily_ai_run_id=self.daily_ai_run_id,
+                    requires_account=requires_account,
+                )
+            else:
                 run_id = self.client.dispatch_spec(
                     spec,
                     account,
                     self.use_mocks,
                     self.record_live_fixtures,
                     create_account_slot=create_account_slot,
-                    allow_credential_updates=self.allow_credential_updates,
+                    allow_credential_updates=allow_credential_updates,
                     seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
                     proof_video_profile=self.proof_video_profile,
+                    daily_ai_run_id=self.daily_ai_run_id,
+                    requires_account=requires_account,
                 )
+                dispatch_token = f"immediate:{run_id}" if run_id is not None else None
+            circuit = getattr(self.client, "dispatch_circuit", None)
+            retry_admitted = True
+            if dispatch_token is None and circuit is not None:
+                retry_admitted = circuit.reserve_requests(1)
+            if (
+                dispatch_token is None
+                and not self.record_live_fixtures
+                and not self._dispatch_circuit_snapshot().get("open")
+                and retry_admitted
+            ):
+                # Retry once
+                time.sleep(5)
+                if hasattr(self.client, "request_spec_dispatch"):
+                    dispatch_token = self.client.request_spec_dispatch(
+                        spec,
+                        account,
+                        self.use_mocks,
+                        self.record_live_fixtures,
+                        create_account_slot=create_account_slot,
+                        allow_credential_updates=allow_credential_updates,
+                        seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                        proof_video_profile=self.proof_video_profile,
+                        daily_ai_run_id=self.daily_ai_run_id,
+                        requires_account=requires_account,
+                    )
+                else:
+                    run_id = self.client.dispatch_spec(
+                        spec,
+                        account,
+                        self.use_mocks,
+                        self.record_live_fixtures,
+                        create_account_slot=create_account_slot,
+                        allow_credential_updates=allow_credential_updates,
+                        seeded_gift_card_code=seeded_gift_card.code if seeded_gift_card else None,
+                        proof_video_profile=self.proof_video_profile,
+                        daily_ai_run_id=self.daily_ai_run_id,
+                        requires_account=requires_account,
+                    )
+                    dispatch_token = f"immediate:{run_id}" if run_id is not None else None
 
-            if run_id is None:
+            if dispatch_token is None:
                 dispatch_errors.append(SpecResult(
                     name=spec, file=spec, status="dispatch_error",
                     error=self.client.last_dispatch_error or "Failed to dispatch workflow after retry",
-                    account=account,
                 ))
             else:
-                dispatched.append((spec, account, run_id))
+                pending_dispatches[dispatch_token] = (spec, account, requires_account)
 
-            # Small delay between dispatches to avoid rate limiting
-            if (i + 1) % 5 == 0:
-                time.sleep(1)
+        immediate = {
+            token: int(token.partition(":")[2])
+            for token in pending_dispatches
+            if token.startswith("immediate:")
+        }
+        unresolved = {
+            token: spec
+            for token, (spec, _account, _requires_account) in pending_dispatches.items()
+            if token not in immediate
+        }
+        resolved = {
+            **immediate,
+            **(self.client.resolve_dispatch_tokens(unresolved) if unresolved else {}),
+        }
+        for token, (spec, account, requires_account) in pending_dispatches.items():
+            run_id = resolved.get(token)
+            if run_id is None:
+                dispatch_errors.append(SpecResult(
+                    name=spec,
+                    file=spec,
+                    status="dispatch_error",
+                    error=self.client.last_dispatch_error or "Workflow run ID was not resolved",
+                ))
+            else:
+                dispatched.append((spec, account, run_id, requires_account))
 
         if not dispatched:
+            release_account_leases()
             return dispatch_errors
 
+        lease_heartbeat_stop = threading.Event()
+
+        def renew_account_leases() -> None:
+            while not lease_heartbeat_stop.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
+                for lease_id, resources in account_leases.values():
+                    try:
+                        session_control.renew_test_resource_lease(
+                            lease_id,
+                            lease_owner,
+                            resources,
+                            mode="exclusive",
+                        )
+                    except RuntimeError as exc:
+                        _log(f"Playwright account lease renewal failed: {exc}", "ERROR")
+                        return
+
+        lease_heartbeat = threading.Thread(
+            target=renew_account_leases,
+            name="playwright-account-lease-heartbeat",
+            daemon=True,
+        )
+        lease_heartbeat.start()
+
         # Wait for all dispatched runs
-        run_ids = [rid for _, _, rid in dispatched]
+        run_ids = [rid for _, _, rid, _requires_account in dispatched]
         _log(f"  Waiting for {len(run_ids)} runs...")
         statuses = self.client.wait_for_runs(run_ids, self.fail_fast)
         print()  # Clear the polling line
@@ -2114,7 +3112,7 @@ class BatchRunner:
         results: list[SpecResult] = list(dispatch_errors)
         artifact_dir = Path(tempfile.mkdtemp(prefix="pw-artifacts-"))
 
-        for spec, account, rid in dispatched:
+        for spec, account, rid, requires_account in dispatched:
             status_data = statuses.get(rid, {})
             conclusion = status_data.get("conclusion", "unknown")
 
@@ -2216,10 +3214,12 @@ class BatchRunner:
                 "not_started": "⊘",
             }.get(status, "?")
             _log(f"  {icon} {spec} (run {rid})", "OK" if status == "passed" else "ERROR")
+            if requires_account and status not in {"passed", "skipped"}:
+                _update_preflight_cache(set(), {account})
 
             results.append(SpecResult(
                 name=spec, file=spec, status=status,
-                error=error, run_id=rid, account=account, account_email=account_email,
+                error=error, run_id=rid, account=account if requires_account else None, account_email=account_email,
                 retries=retries, flaky=flaky, attempt_statuses=attempt_statuses,
                 playwright_errors=pw_errors,
                 steps=pw_steps,
@@ -2235,6 +3235,9 @@ class BatchRunner:
 
         # Cleanup artifact dir
         shutil.rmtree(artifact_dir, ignore_errors=True)
+        lease_heartbeat_stop.set()
+        lease_heartbeat.join(timeout=1)
+        release_account_leases()
         return results
 
     @staticmethod
@@ -2624,6 +3627,7 @@ class BatchRunner:
             screenshot_records.append({"file": copied_name, "source": src.as_posix()})
 
         thumbnail = None
+        thumbnail_source = "none"
         step_screenshots = [p for p in copied_screenshots if "test-failed" not in p.lower()]
         thumbnail_candidates = step_screenshots or copied_screenshots
         if thumbnail_candidates:
@@ -2631,6 +3635,7 @@ class BatchRunner:
             thumb_source = dest / thumb_source_rel
             thumbnail = f"thumbnail{thumb_source.suffix.lower()}"
             shutil.copy2(thumb_source, dest / thumbnail)
+            thumbnail_source = "fallback"
 
         if step_log_source:
             shutil.copy2(step_log_source, dest / "step-log.json")
@@ -2638,32 +3643,232 @@ class BatchRunner:
             shutil.copy2(raw_json_sources[0], dest / "playwright.json")
 
         proof_timeline_path: Optional[Path] = None
+        proof_video_file: Optional[str] = None
         if raw_json_sources:
             report = json.loads(raw_json_sources[0].read_text(encoding="utf-8"))
-            proof_attachment_groups: list[list[dict[str, object]]] = []
+            timing_sources = list(art_path.rglob("playwright-video-timing.json"))
+            if len(timing_sources) != 1:
+                raise RuntimeError("Playwright artifact requires one finalized video timing manifest")
+            timing_manifest = json.loads(timing_sources[0].read_text(encoding="utf-8"))
+            if timing_manifest.get("schema_version") != 1 or not isinstance(timing_manifest.get("videos"), list):
+                raise RuntimeError("Playwright finalized video timing manifest is invalid")
+            finalized_at_by_suffix: dict[str, float] = {}
+            for timing_record in timing_manifest["videos"]:
+                if not isinstance(timing_record, dict) or not isinstance(timing_record.get("path"), str):
+                    raise RuntimeError("Playwright finalized video timing record is invalid")
+                finalized_at_value = timing_record.get("finalized_at_epoch_ms")
+                if (
+                    not isinstance(finalized_at_value, (int, float))
+                    or isinstance(finalized_at_value, bool)
+                    or not math.isfinite(finalized_at_value)
+                ):
+                    raise RuntimeError("Playwright finalized video timestamp is invalid")
+                suffix = str(timing_record["path"]).split("test-results/", 1)[-1]
+                if suffix in finalized_at_by_suffix:
+                    raise RuntimeError("Playwright finalized video timing path is duplicated")
+                finalized_at_by_suffix[suffix] = float(finalized_at_value)
+            proof_attachment_groups: list[dict[str, object]] = []
+            thumbnail_requests: list[dict[str, object]] = []
+
+            def collect_explicit_thumbnails(value: object) -> None:
+                if isinstance(value, dict):
+                    results = value.get("results")
+                    if isinstance(results, list):
+                        candidates: list[tuple[str, dict[str, object]]] = []
+                        for result in results:
+                            if not isinstance(result, dict):
+                                continue
+                            attachments = result.get("attachments")
+                            if not isinstance(attachments, list):
+                                continue
+                            matches = [
+                                item
+                                for item in attachments
+                                if isinstance(item, dict)
+                                and item.get("name") == "openmates-test-thumbnail-metadata"
+                                and item.get("contentType") == "application/vnd.openmates.test-thumbnail+json"
+                            ]
+                            if len(matches) > 1:
+                                raise RuntimeError("Playwright result contains multiple explicit test thumbnails")
+                            if matches:
+                                proof_timelines = [
+                                    item
+                                    for item in attachments
+                                    if isinstance(item, dict)
+                                    and item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                                ]
+                                if len(proof_timelines) > 1:
+                                    raise RuntimeError("Explicit test thumbnail result contains multiple proof timelines")
+                                video_attachments = [
+                                    item
+                                    for item in attachments
+                                    if isinstance(item, dict)
+                                    and str(item.get("contentType") or "").startswith("video/")
+                                ]
+                                if len(video_attachments) != 1:
+                                    raise RuntimeError("Explicit test thumbnail requires one result video")
+                                candidates.append((str(result.get("status") or ""), {
+                                    "metadata": matches[0],
+                                    "video": video_attachments[0],
+                                    "proof_timeline": proof_timelines[0] if proof_timelines else None,
+                                    "start_time": result.get("startTime"),
+                                    "duration_ms": result.get("duration"),
+                                }))
+                        if candidates:
+                            selected = next(
+                                (attachment for status, attachment in reversed(candidates) if status == "passed"),
+                                candidates[-1][1],
+                            )
+                            thumbnail_requests.append(selected)
+                    for key, child in value.items():
+                        if key != "results":
+                            collect_explicit_thumbnails(child)
+                elif isinstance(value, list):
+                    for child in value:
+                        collect_explicit_thumbnails(child)
 
             def collect_timeline_attachments(value: object) -> None:
                 if isinstance(value, dict):
-                    attachments = value.get("attachments")
-                    if isinstance(attachments, list):
-                        group = [item for item in attachments if isinstance(item, dict)]
-                        if any(
-                            item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
-                            for item in group
-                        ):
-                            proof_attachment_groups.append(group)
+                    results = value.get("results")
+                    if isinstance(results, list):
+                        candidates: list[dict[str, object]] = []
+                        for result in results:
+                            if not isinstance(result, dict) or not isinstance(result.get("attachments"), list):
+                                continue
+                            group = [item for item in result["attachments"] if isinstance(item, dict)]
+                            if any(
+                                item.get("contentType") == "application/vnd.openmates.proof-timeline+json"
+                                for item in group
+                            ):
+                                candidates.append({
+                                    "attachments": group,
+                                    "status": result.get("status"),
+                                    "start_time": result.get("startTime"),
+                                    "duration_ms": result.get("duration"),
+                                })
+                        if candidates:
+                            proof_attachment_groups.append(next(
+                                (candidate for candidate in reversed(candidates) if candidate.get("status") == "passed"),
+                                candidates[-1],
+                            ))
                     for key, child in value.items():
-                        if key == "attachments":
+                        if key == "results":
                             continue
                         collect_timeline_attachments(child)
                 elif isinstance(value, list):
                     for child in value:
                         collect_timeline_attachments(child)
 
+            collect_explicit_thumbnails(report)
             collect_timeline_attachments(report)
+            artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
+            proof_result = next(
+                (group for group in reversed(proof_attachment_groups) if group.get("status") == "passed"),
+                proof_attachment_groups[-1] if proof_attachment_groups else {},
+            )
             if len(proof_attachment_groups) > 1:
-                raise RuntimeError("Playwright report contains ambiguous proof timeline attachment groups")
-            proof_group = proof_attachment_groups[0] if proof_attachment_groups else []
+                raise RuntimeError("Playwright report contains ambiguous proof timeline test groups")
+            proof_group = proof_result.get("attachments") if isinstance(proof_result.get("attachments"), list) else []
+            if len(thumbnail_requests) > 1:
+                raise RuntimeError("Playwright report contains multiple explicit test thumbnails")
+            if thumbnail_requests:
+                request = thumbnail_requests[0]
+                explicit_thumbnail = request["metadata"]
+                if not isinstance(explicit_thumbnail, dict):
+                    raise RuntimeError("Explicit test thumbnail metadata is invalid")
+                body = explicit_thumbnail.get("body")
+                attachment_path = explicit_thumbnail.get("path")
+                if isinstance(body, str):
+                    metadata_bytes = base64.b64decode(body, validate=True)
+                elif isinstance(attachment_path, str):
+                    attachment_name = Path(attachment_path).name
+                    sources = [path for path in artifact_files if path.name == attachment_name]
+                    if len(sources) != 1:
+                        raise RuntimeError("Explicit test thumbnail metadata file is missing")
+                    metadata_bytes = sources[0].read_bytes()
+                else:
+                    raise RuntimeError("Explicit test thumbnail metadata has no content")
+                metadata = json.loads(metadata_bytes.decode("utf-8"))
+                if metadata.get("schema_version") != 2:
+                    raise RuntimeError("Explicit test thumbnail metadata schema must be version 2")
+                viewport = metadata.get("viewport")
+                clip = metadata.get("clip")
+                if not isinstance(viewport, dict) or not isinstance(clip, dict):
+                    raise RuntimeError("Explicit test thumbnail geometry is invalid")
+                geometry = [viewport.get("width"), viewport.get("height"), clip.get("x"), clip.get("y"), clip.get("width"), clip.get("height")]
+                if not all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in geometry):
+                    raise RuntimeError("Explicit test thumbnail geometry must use non-negative integers")
+                if viewport["width"] <= 0 or viewport["height"] <= 0 or clip["width"] <= 0 or clip["height"] <= 0:
+                    raise RuntimeError("Explicit test thumbnail geometry must be positive")
+                if clip["x"] + clip["width"] > viewport["width"] or clip["y"] + clip["height"] > viewport["height"]:
+                    raise RuntimeError("Explicit test thumbnail crop exceeds the recorded viewport")
+                video_attachment = request.get("video")
+                video_attachment_path = video_attachment.get("path") if isinstance(video_attachment, dict) else None
+                if not isinstance(video_attachment_path, str):
+                    raise RuntimeError("Explicit test thumbnail video path is missing")
+                video_attachment_suffix = video_attachment_path.split("test-results/", 1)[-1]
+                matching_video_records = [
+                    record
+                    for record in video_records
+                    if str(record.get("source") or "").split("test-results/", 1)[-1] == video_attachment_suffix
+                ]
+                if len(matching_video_records) != 1:
+                    raise RuntimeError("Explicit test thumbnail video artifact is missing or ambiguous")
+                video_record = matching_video_records[0]
+                video_path = dest / str(video_record["file"])
+                probe = subprocess.run(
+                    ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(video_path)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if probe.returncode != 0:
+                    raise RuntimeError(f"Explicit test thumbnail video probe failed: {probe.stderr.strip()}")
+                video_duration = float(probe.stdout.strip())
+                captured_at_value = metadata.get("captured_at_epoch_ms")
+                if (
+                    not isinstance(captured_at_value, (int, float))
+                    or isinstance(captured_at_value, bool)
+                    or not math.isfinite(captured_at_value)
+                ):
+                    raise RuntimeError("Explicit test thumbnail timestamp is invalid")
+                captured_at_ms = float(captured_at_value)
+                finalized_at_epoch_ms = finalized_at_by_suffix.get(video_attachment_suffix)
+                if finalized_at_epoch_ms is None:
+                    raise RuntimeError("Explicit test thumbnail finalized video timestamp is missing")
+                video_start_epoch_ms = finalized_at_epoch_ms - video_duration * 1000
+                timestamp = (captured_at_ms - video_start_epoch_ms) / 1000
+                if not math.isfinite(timestamp) or timestamp < 0 or timestamp >= video_duration:
+                    raise RuntimeError("Explicit test thumbnail timestamp is outside the completed video")
+                thumbnail = "thumbnail.png"
+                video_filter = (
+                    f"scale={viewport['width']}:{viewport['height']}:flags=lanczos,"
+                    f"crop={clip['width']}:{clip['height']}:{clip['x']}:{clip['y']},"
+                    "scale=1280:800:flags=lanczos"
+                )
+                extraction = subprocess.run(
+                    ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error", "-i", str(video_path), "-ss", f"{timestamp:.3f}", "-frames:v", "1", "-vf", video_filter, str(dest / thumbnail)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                if extraction.returncode != 0 or not (dest / thumbnail).is_file():
+                    raise RuntimeError(f"Explicit test thumbnail video extraction failed: {extraction.stderr.strip()}")
+                thumbnail_source = "video_frame"
+            for item in proof_group:
+                attachment_path = item.get("path")
+                if not str(item.get("contentType") or "").startswith("video/") or not isinstance(attachment_path, str):
+                    continue
+                attachment_suffix = attachment_path.split("test-results/", 1)[-1]
+                matches = [
+                    record
+                    for record in video_records
+                    if str(record.get("source") or "").split("test-results/", 1)[-1] == attachment_suffix
+                ]
+                if len(matches) != 1:
+                    raise RuntimeError("Playwright proof video artifact is missing or ambiguous")
+                proof_video_file = str(matches[0].get("file") or "") or None
+                break
             timeline_attachments = [
                 item
                 for item in proof_group
@@ -2681,7 +3886,6 @@ class BatchRunner:
                 if name in proof_frame_attachments:
                     raise RuntimeError(f"Playwright proof result contains duplicate frame attachment: {name}")
                 proof_frame_attachments[name] = item
-            artifact_files = [path for path in art_path.rglob("*") if path.is_file()]
             for attachment in timeline_attachments:
                 proof_timeline_path = dest / "proof-timeline.json"
                 body = attachment.get("body")
@@ -2707,6 +3911,62 @@ class BatchRunner:
                     raise RuntimeError("Spec proof timeline is missing checkpoint frame attachments")
                 frames_dest = dest / "proof-frames"
                 frames_dest.mkdir(parents=True, exist_ok=True)
+                proof_video_duration: Optional[float] = None
+                map_proof_timestamp: Optional[Callable[[object, str], float]] = None
+                if timeline_payload.get("schema_version") == 2:
+                    if not proof_video_file:
+                        raise RuntimeError("Spec proof checkpoint video is missing")
+                    probe = subprocess.run(
+                        [
+                            "ffprobe", "-v", "error", "-show_entries", "format=duration",
+                            "-of", "default=noprint_wrappers=1:nokey=1", str(dest / proof_video_file),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    if probe.returncode != 0:
+                        raise RuntimeError(f"Spec proof video probe failed: {probe.stderr.strip()}")
+                    proof_video_duration = float(probe.stdout.strip())
+                    proof_video_record = next(
+                        (record for record in video_records if record.get("file") == proof_video_file),
+                        None,
+                    )
+                    if proof_video_record is None:
+                        raise RuntimeError("Spec proof video source metadata is missing")
+                    proof_video_suffix = str(proof_video_record.get("source") or "").split("test-results/", 1)[-1]
+                    proof_finalized_at_epoch_ms = finalized_at_by_suffix.get(proof_video_suffix)
+                    if proof_finalized_at_epoch_ms is None:
+                        raise RuntimeError("Spec proof finalized video timestamp is missing")
+                    proof_video_start_epoch_ms = proof_finalized_at_epoch_ms - proof_video_duration * 1000
+
+                    def to_video_timestamp(value: object, label: str) -> float:
+                        if (
+                            not isinstance(value, (int, float))
+                            or isinstance(value, bool)
+                            or not math.isfinite(value)
+                        ):
+                            raise RuntimeError(f"Spec proof {label} timestamp is invalid")
+                        timestamp = (float(value) - proof_video_start_epoch_ms) / 1000
+                        if timestamp < 0 or timestamp >= proof_video_duration:
+                            raise RuntimeError(f"Spec proof {label} timestamp is outside the completed video")
+                        return timestamp
+
+                    map_proof_timestamp = to_video_timestamp
+                    for event in timeline_payload.get("events") or []:
+                        if not isinstance(event, dict):
+                            raise RuntimeError("Spec proof timeline event metadata is invalid")
+                        if event.get("kind") == "action":
+                            event["start_ms"] = round(to_video_timestamp(event.get("start_at_epoch_ms"), "action start") * 1000)
+                            event["end_ms"] = round(to_video_timestamp(event.get("end_at_epoch_ms"), "action end") * 1000)
+                        else:
+                            event["at_ms"] = round(to_video_timestamp(event.get("captured_at_epoch_ms"), "event") * 1000)
+                    for assertion in timeline_payload.get("assertion_results") or []:
+                        if not isinstance(assertion, dict):
+                            raise RuntimeError("Spec proof assertion result metadata is invalid")
+                        assertion["at_ms"] = round(to_video_timestamp(
+                            assertion.get("captured_at_epoch_ms"), "assertion"
+                        ) * 1000)
                 for frame_record in checkpoint_frames:
                     if not isinstance(frame_record, dict):
                         raise RuntimeError("Spec proof checkpoint frame metadata is invalid")
@@ -2715,25 +3975,48 @@ class BatchRunner:
                     if not re.fullmatch(r"[A-Za-z0-9._-]+", checkpoint):
                         raise RuntimeError("Spec proof checkpoint frame has an invalid checkpoint id")
                     attachment = proof_frame_attachments.get(attachment_name)
-                    if attachment is None:
-                        raise RuntimeError(f"Spec proof checkpoint frame attachment is missing: {checkpoint}")
-                    frame_body = attachment.get("body")
-                    frame_path = attachment.get("path")
-                    if isinstance(frame_body, str):
-                        frame_bytes = base64.b64decode(frame_body, validate=True)
-                    elif isinstance(frame_path, str):
-                        attachment_basename = Path(frame_path).name
-                        frame_sources = [path for path in artifact_files if path.name == attachment_basename]
-                        if len(frame_sources) != 1:
-                            raise RuntimeError(f"Spec proof checkpoint frame file is missing: {checkpoint}")
-                        frame_bytes = frame_sources[0].read_bytes()
-                    else:
-                        raise RuntimeError(f"Spec proof checkpoint frame has no content: {checkpoint}")
-                    actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
-                    if actual_hash != frame_record.get("sha256"):
-                        raise RuntimeError(f"Spec proof checkpoint frame hash changed: {checkpoint}")
                     target = frames_dest / f"{checkpoint}.png"
-                    target.write_bytes(frame_bytes)
+                    if attachment is None:
+                        captured_at_ms = frame_record.get("captured_at_epoch_ms")
+                        if map_proof_timestamp is None:
+                            raise RuntimeError(f"Spec proof checkpoint frame timestamp is invalid: {checkpoint}")
+                        timestamp = map_proof_timestamp(captured_at_ms, f"checkpoint {checkpoint}")
+                        frame_record["at_ms"] = round(timestamp * 1000)
+                        extraction = subprocess.run(
+                            [
+                                "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+                                "-i", str(dest / proof_video_file), "-ss", f"{timestamp:.3f}",
+                                "-frames:v", "1", str(target),
+                            ],
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        if extraction.returncode != 0 or not target.is_file():
+                            raise RuntimeError(
+                                f"Spec proof checkpoint video extraction failed: {checkpoint}: {extraction.stderr.strip()}"
+                            )
+                        frame_bytes = target.read_bytes()
+                    else:
+                        frame_body = attachment.get("body")
+                        frame_path = attachment.get("path")
+                        if isinstance(frame_body, str):
+                            frame_bytes = base64.b64decode(frame_body, validate=True)
+                        elif isinstance(frame_path, str):
+                            attachment_basename = Path(frame_path).name
+                            frame_sources = [path for path in artifact_files if path.name == attachment_basename]
+                            if len(frame_sources) != 1:
+                                raise RuntimeError(f"Spec proof checkpoint frame file is missing: {checkpoint}")
+                            frame_bytes = frame_sources[0].read_bytes()
+                        else:
+                            raise RuntimeError(f"Spec proof checkpoint frame has no content: {checkpoint}")
+                        expected_hash = frame_record.get("sha256")
+                        actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
+                        if actual_hash != expected_hash:
+                            raise RuntimeError(f"Spec proof checkpoint frame hash changed: {checkpoint}")
+                        target.write_bytes(frame_bytes)
+                    actual_hash = f"sha256:{hashlib.sha256(frame_bytes).hexdigest()}"
+                    frame_record["sha256"] = actual_hash
                     frame_record["path"] = str(target.resolve())
                 proof_timeline_path.write_text(
                     json.dumps(timeline_payload, sort_keys=True, separators=(",", ":")) + "\n",
@@ -2748,7 +4031,9 @@ class BatchRunner:
             "screenshot_files": copied_screenshots,
             "screenshot_records": screenshot_records,
             "thumbnail_file": thumbnail,
+            "thumbnail_source": thumbnail_source,
             "proof_timeline_file": proof_timeline_path.name if proof_timeline_path else None,
+            "proof_video_file": proof_video_file,
         }
         (dest / "artifact-meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
         return str(proof_timeline_path) if proof_timeline_path else None
@@ -2795,6 +4080,10 @@ class BatchRunner:
             d["debug_output_summary"] = r.debug_output_summary
         if r.environment_blocker:
             d["environment_blocker"] = r.environment_blocker
+        if r.test_key:
+            d["test_key"] = r.test_key
+        if r.parent_incident_key:
+            d["parent_incident_key"] = r.parent_incident_key
         return d
 
 
@@ -2830,6 +4119,7 @@ class ResultAggregator:
     ) -> RunResult:
         total = passed = failed = skipped = not_started = 0
         dispatch_error = timeout = result_unknown = 0
+        infrastructure_incident = blocked_by_parent = 0
         suites_dict = {}
 
         for name, suite in suites.items():
@@ -2857,6 +4147,10 @@ class ResultAggregator:
                     result_unknown += 1
                 elif st == "not_started":
                     not_started += 1
+                elif st == "infrastructure_incident":
+                    infrastructure_incident += 1
+                elif st == "blocked_by_parent":
+                    blocked_by_parent += 1
                 else:
                     skipped += 1
 
@@ -2873,6 +4167,9 @@ class ResultAggregator:
                 "dispatch_error": dispatch_error,
                 "timeout": timeout,
                 "result_unknown": result_unknown,
+                "executed_product_failed": failed + timeout + result_unknown,
+                "infrastructure_incident": infrastructure_incident,
+                "blocked_by_parent": blocked_by_parent,
                 "skipped": skipped,
                 "not_started": not_started,
             },
@@ -2884,6 +4181,7 @@ class ResultAggregator:
     def save(result: RunResult) -> None:
         """Save results to test-results/."""
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
         data = ResultAggregator.to_dict(result)
 
         # Write timestamped run file
@@ -2905,15 +4203,13 @@ class ResultAggregator:
 
     @staticmethod
     def save_progress(result: RunResult) -> None:
-        """Persist a partial run snapshot without replacing the final last-run file."""
+        """Persist partial results without replacing the final run artifact."""
         RESULTS_DIR.mkdir(parents=True, exist_ok=True)
         data = ResultAggregator.to_dict(result)
-        progress_flags = dict(data.get("flags") or {})
-        progress_flags["in_progress"] = True
-        data["flags"] = progress_flags
+        data["flags"] = {**dict(data.get("flags") or {}), "in_progress": True}
         _safe_write_json(RESULTS_DIR / "last-run-progress.json", data)
         try:
-            source, workflow = _test_control_source_for_flags(progress_flags)
+            source, workflow = _test_control_source_for_flags(data["flags"])
             _record_unified_test_state(data, source=source, workflow=workflow)
         except Exception as exc:
             _log(f"Could not update unified test progress: {exc}", "WARN")
@@ -2966,6 +4262,7 @@ class NotificationService:
 
     def __init__(self) -> None:
         self.dot_env = _read_env_file()
+        self.coordinate_runtime = True
         self.admin_email = _get_env("ADMIN_NOTIFY_EMAIL", self.dot_env)
         self.internal_token = _get_env("INTERNAL_API_SHARED_TOKEN", self.dot_env)
         self.brevo_api_key = _get_env("BREVO_API_KEY", self.dot_env)
@@ -3001,19 +4298,14 @@ class NotificationService:
             f"Trigger: {'Scheduled (daily)' if os.environ.get('DAILY_RUN_ENVIRONMENT') else 'Manual'}"
         )
 
-        if self.brevo_api_key:
-            self._send_via_brevo(subject, body)
-        elif self.internal_token:
-            self._send_via_internal_api("dispatch-test-start-email", {
-                "recipient_email": self.admin_email,
-                "environment": environment,
-                "trigger_type": "Scheduled (daily)",
-                "git_sha": git_sha,
-                "git_branch": git_branch,
-                "started_at": started_at,
-            })
-        else:
-            _log("No email credentials available — skipping start email", "WARN")
+        self._send_email(subject, body, "dispatch-test-start-email", {
+            "recipient_email": self.admin_email,
+            "environment": environment,
+            "trigger_type": "Scheduled (daily)" if os.environ.get("DAILY_RUN_ENVIRONMENT") else "Manual",
+            "git_sha": git_sha,
+            "git_branch": git_branch,
+            "started_at": started_at,
+        })
 
     def send_daily_discord_status(
         self,
@@ -3067,7 +4359,53 @@ class NotificationService:
         except Exception as error:
             _log(f"Daily Discord status POST failed: {error}", "ERROR")
 
-    def send_summary_email(self, result: RunResult) -> None:
+    def send_daily_skip_notification(
+        self,
+        git_sha: str,
+        git_branch: str,
+        environment: str,
+        run_id: str,
+        reason: str,
+    ) -> None:
+        """Post a visible terminal status when no daily tests are dispatched."""
+        if not self.discord_webhook_url:
+            _log("DISCORD_WEBHOOK_DEV_NIGHTLY not set — skipping daily skip notification", "DEBUG")
+            return
+
+        payload = {
+            "username": "OpenMates Server",
+            "avatar_url": "https://openmates.org/favicon.png",
+            "embeds": [{
+                "title": f"⏭️ {environment} nightly — skipped",
+                "description": (
+                    f"**Reason:** {reason}\n"
+                    "**Tests dispatched:** none\n"
+                    f"**Run ID:** `{run_id}`\n"
+                    f"**Git:** `{git_sha[:8]}@{git_branch}`"
+                ),
+                "color": 0xF59E0B,
+            }],
+        }
+        try:
+            request = urllib.request.Request(
+                self.discord_webhook_url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "OpenMates-TestRunner/1.0 (https://github.com/glowingkitty/OpenMates)",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                response.read()
+            _log("Daily Discord skip notification posted")
+        except urllib.error.HTTPError as error:
+            body = error.read().decode("utf-8", errors="replace") if error.fp else ""
+            _log(f"Daily Discord skip notification POST failed: HTTP {error.code} — {body[:300]}", "ERROR")
+        except Exception as error:
+            _log(f"Daily Discord skip notification POST failed: {error}", "ERROR")
+
+    def send_summary_email(self, result: RunResult) -> bool:
         """Send test summary email after run completes, plus Discord fallback.
 
         The email and Discord sends are INDEPENDENT: neither awaits the other
@@ -3079,7 +4417,7 @@ class NotificationService:
         status = "All tests passed" if problem_count == 0 else _problem_summary_label(s)
         subject = f"[OpenMates] {status} ({result.environment})"
 
-        # --- Email path (existing) ---
+        email_receipt = {"configured": False, "status": "unconfigured", "transport": "none"}
         if not self.admin_email:
             _log("ADMIN_NOTIFY_EMAIL not set — skipping summary email", "WARN")
         else:
@@ -3087,21 +4425,71 @@ class NotificationService:
             html = self._build_summary_html(result)
             text = self._build_summary_text(result)
 
+            payload = self._build_internal_api_payload(result)
             if self.brevo_api_key:
-                self._send_via_brevo(subject, text, html)
+                try:
+                    provider_accepted = bool(self._send_via_brevo(subject, text, html))
+                except Exception as exc:
+                    provider_accepted = False
+                    _log(f"Brevo summary notification failed: {type(exc).__name__}", "ERROR")
+                if provider_accepted:
+                    email_receipt = {"configured": True, "status": "provider_accepted", "transport": "brevo"}
+                elif self.internal_token:
+                    try:
+                        queued = bool(self._send_via_internal_api("dispatch-test-summary-email", payload))
+                    except Exception as exc:
+                        queued = False
+                        _log(f"Internal summary queue failed: {type(exc).__name__}", "WARN")
+                    email_receipt = {
+                        "configured": True,
+                        "status": "queued_unconfirmed" if queued else "failed",
+                        "transport": "internal_api",
+                    }
+                else:
+                    email_receipt = {"configured": True, "status": "failed", "transport": "brevo"}
             elif self.internal_token:
-                # Fall back to internal API
-                payload = self._build_internal_api_payload(result)
-                self._send_via_internal_api("dispatch-test-summary-email", payload)
+                try:
+                    queued = bool(self._send_via_internal_api("dispatch-test-summary-email", payload))
+                except Exception as exc:
+                    queued = False
+                    _log(f"Internal summary queue failed: {type(exc).__name__}", "WARN")
+                email_receipt = {
+                    "configured": True,
+                    "status": "queued_unconfirmed" if queued else "failed",
+                    "transport": "internal_api",
+                }
             else:
                 _log("No email credentials available — skipping summary email", "WARN")
 
-        # --- Discord fallback (OPE-76) ---
-        # Fires for EVERY run — nightly success gives a visible heartbeat so we
-        # notice if the whole pipeline goes quiet. Failures get a louder ping.
-        self._send_summary_to_discord(result)
+        try:
+            discord_delivered = bool(self._send_summary_to_discord(result))
+        except Exception as exc:
+            discord_delivered = False
+            _log(f"Discord summary notification failed: {type(exc).__name__}", "ERROR")
+        discord_configured = bool(self.discord_webhook_url)
+        discord_receipt = {
+            "configured": discord_configured,
+            "status": "provider_accepted" if discord_delivered else "failed" if discord_configured else "unconfigured",
+            "transport": "webhook" if discord_configured else "none",
+        }
 
-        self.send_urgent_essential_failure_email(result)
+        result.flags["email_delivered"] = email_receipt["status"] == "provider_accepted"
+        result.flags["discord_delivered"] = discord_delivered
+        result.flags["notification_channels"] = {
+            "email": email_receipt,
+            "discord": discord_receipt,
+        }
+
+        try:
+            self.send_urgent_essential_failure_email(result)
+        except Exception as exc:
+            _log(f"Urgent essential-flow notification failed: {type(exc).__name__}", "ERROR")
+        configured_receipts = [email_receipt, discord_receipt]
+        return all(
+            receipt["status"] == "provider_accepted"
+            for receipt in configured_receipts
+            if receipt["configured"]
+        ) and any(receipt["configured"] for receipt in configured_receipts)
 
     def send_urgent_essential_failure_email(self, result: RunResult) -> None:
         """Send a separate admin email when signup, login, or chat flow fails."""
@@ -3204,7 +4592,16 @@ class NotificationService:
 
     # --- Private methods ---
 
-    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> None:
+    def _send_email(self, subject: str, text: str, endpoint: str, payload: dict) -> bool:
+        """Send a non-summary email through the best configured transport."""
+        if getattr(self, "brevo_api_key", ""):
+            return self._send_via_brevo(subject, text)
+        if getattr(self, "internal_token", ""):
+            return self._send_via_internal_api(endpoint, payload)
+        _log("No email credentials available — skipping email", "WARN")
+        return False
+
+    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> bool:
         """Send email directly via Brevo API."""
         payload = {
             "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
@@ -3229,11 +4626,13 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email sent via Brevo to {self.admin_email}")
+            return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
+        return False
 
     def _is_essential_test(self, test_entry: dict, suite_name: str = "") -> bool:
         searchable = " ".join(
@@ -3279,7 +4678,7 @@ class NotificationService:
         screenshots: Optional[list[Path]] = None,
         state_file: Optional[Path] = None,
         suite_name_for_dedup: Optional[str] = None,
-    ) -> None:
+    ) -> bool:
         """Post a test run summary to a Discord webhook.
 
         Independent of the email path — catches and logs all errors rather than
@@ -3306,7 +4705,7 @@ class NotificationService:
 
         if not webhook_url:
             _log(f"{env_var_name} not set — skipping Discord summary", "DEBUG")
-            return
+            return False
 
         s = result.summary
         problem_count = _problem_count(s)
@@ -3315,7 +4714,7 @@ class NotificationService:
         # Hourly modes silence green runs to avoid channel flooding.
         if all_passed and not post_on_success:
             _log(f"Discord ({mode_label}): green run, suppressed (post_on_success=False)")
-            return
+            return True
 
         # Dedup: skip the summary entirely on a repeat tick where the
         # exact same set of tests is failing with the exact same root
@@ -3365,7 +4764,7 @@ class NotificationService:
                         f"({new_summary_hash}) — summary suppressed "
                         f"({new_suppressed}/{RENOTIFY_AFTER_TICKS - 1})"
                     )
-                    return
+                    return True
                 else:
                     # Quiet window exhausted — let the post through as a
                     # "still failing" reminder and reset the counter.
@@ -3405,6 +4804,9 @@ class NotificationService:
             f"**Skipped:** {s['skipped']}",
             f"**Duration:** {dur_min}m {dur_sec}s   **Git:** `{result.git_sha[:8]}@{result.git_branch}`",
         ]
+        cache_backfill_line = _cache_backfill_notification_line(result)
+        if cache_backfill_line:
+            description_parts.append(f"**{cache_backfill_line}**")
         if run_url:
             description_parts.append(f"**Run:** [GitHub Actions]({run_url})")
         description = _fit_discord_description(description_parts)
@@ -3500,11 +4902,13 @@ class NotificationService:
                     _save_discord_state(state_file, persisted)
                 except Exception as state_err:
                     _log(f"Discord summary state write failed: {state_err}", "WARN")
+            return True
         except urllib.error.HTTPError as e:
             err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
             _log(f"Discord summary POST failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
         except Exception as e:
             _log(f"Discord summary POST failed: {e}", "ERROR")
+        return False
 
     def post_dry_run_notify(
         self,
@@ -4175,7 +5579,7 @@ class NotificationService:
             )
         return (posted, edited, recovered)
 
-    def _send_via_internal_api(self, endpoint: str, payload: dict) -> None:
+    def _send_via_internal_api(self, endpoint: str, payload: dict) -> bool:
         """Send via internal API as fallback."""
         url = f"{self.internal_api_url}/internal/{endpoint}"
         try:
@@ -4187,8 +5591,10 @@ class NotificationService:
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
             _log(f"Email dispatched via internal API ({endpoint})")
+            return True
         except Exception as e:
             _log(f"Internal API email dispatch failed: {e}", "WARN")
+            return False
 
     def _build_summary_html(self, result: RunResult) -> str:
         """Build a simple HTML email for test results."""
@@ -4215,6 +5621,9 @@ class NotificationService:
 <tr><td style="padding:4px 12px 4px 0;color:#888">Git</td><td>{git_ref}</td></tr>
 <tr><td style="padding:4px 12px 4px 0;color:#888">Environment</td><td>{environment}</td></tr>
 </table>"""
+        cache_backfill_line = _cache_backfill_notification_line(result)
+        if cache_backfill_line:
+            html += f"<p>{escape(cache_backfill_line)}</p>"
 
         if problem_count:
             html += '<h3 style="color:#ef4444;margin-top:20px">Failures by suite and product area</h3>'
@@ -4253,6 +5662,9 @@ class NotificationService:
             f"Git: {result.git_sha}@{result.git_branch}",
             "",
         ]
+        cache_backfill_line = _cache_backfill_notification_line(result)
+        if cache_backfill_line:
+            lines.extend([cache_backfill_line, ""])
 
         if _problem_count(s) > 0:
             lines.append("Failures by suite and product area:")
@@ -4274,6 +5686,25 @@ class NotificationService:
         """Build payload for /internal/dispatch-test-summary-email."""
         payload = self._build_openobserve_payload(result)
         payload["recipient_email"] = self.admin_email
+        problem_count = _problem_count(result.summary)
+        problem_label = _problem_summary_label(result.summary)
+        status_label = "All tests passed" if problem_count == 0 else problem_label
+        payload["subject_override"] = f"[OpenMates] {status_label} ({result.environment})"
+        payload["summary_copy"] = {
+            "header_failure": problem_label,
+            "status_failure": problem_label.upper(),
+        }
+        payload["failure_groups"] = [
+            {
+                "title": str(group["title"]),
+                "description": _plain_notification_text(str(group["description"])),
+            }
+            for group in _build_discord_failure_embeds(
+                result.suites,
+                color=0xEF4444,
+                truncate_descriptions=True,
+            )
+        ]
         return payload
 
     def _build_openobserve_payload(self, result: RunResult) -> dict:
@@ -4752,13 +6183,6 @@ def _run_prod_smoke_suite(
     dry_run: bool = False,
 ) -> int:
     """Dispatch one selected prod-smoke.yml suite and notify from dev server."""
-    if not force and _docker_restarted_recently():
-        _log(
-            f"Docker restarted within the last {DOCKER_GRACE_MINUTES} min "
-            f"— skipping {mode_label} smoke run to avoid false failures"
-        )
-        return 0
-
     git_sha, git_branch = _git_info()
     run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -6239,8 +7663,10 @@ class TestOrchestrator:
         self.suite = args.suite
         self.spec = args.spec
         self.core_journeys = args.core_journeys
+        self.critical_journeys = getattr(args, "critical_journeys", False)
         self.only_failed = args.only_failed
         self.daily = args.daily
+        self.backfill_only = getattr(args, "daily_cache_backfill_only", False)
         self.force = args.force
         self.environment = args.environment
         self.max_concurrent = args.max_concurrent
@@ -6270,6 +7696,18 @@ class TestOrchestrator:
         self._progress_start_time = 0.0
         self._daily_status_stop = threading.Event()
         self._daily_status_thread: Optional[threading.Thread] = None
+        self.github_dispatch_circuit = DispatchCircuit()
+
+    def _share_dispatch_circuit(self, client: object) -> DispatchCircuit:
+        circuit = getattr(self, "github_dispatch_circuit", None)
+        if circuit is None:
+            circuit = DispatchCircuit()
+            self.github_dispatch_circuit = circuit
+        try:
+            setattr(client, "dispatch_circuit", circuit)
+        except AttributeError:
+            pass
+        return circuit
 
     def _send_daily_status_updates(self, start_time: float) -> None:
         """Post Discord status every 30 minutes until the daily run finishes."""
@@ -6311,6 +7749,24 @@ class TestOrchestrator:
         if self._daily_status_thread and self._daily_status_thread is not threading.current_thread():
             self._daily_status_thread.join(timeout=35)
 
+    def run(self) -> int:
+        """Execute the run and turn fatal daily errors into terminal results."""
+        with _daily_terminal_signal_handlers(self.daily and not self.dry_run):
+            try:
+                return self._run()
+            except DailyRunInterrupted as exc:
+                phase = getattr(self, "current_phase", "unknown")
+                _log(f"Daily runner interrupted during {phase}: {exc.signal_name}", "ERROR")
+                return self._finalize_daily_runner_failure(exc)
+            except Exception as exc:
+                if not self.daily or self.dry_run:
+                    raise
+                phase = getattr(self, "current_phase", "unknown")
+                _log(f"Daily runner crashed during {phase}: {type(exc).__name__}: {exc}", "ERROR")
+                return self._finalize_daily_runner_failure(exc)
+            finally:
+                self._stop_daily_status_updates()
+
     def _result_flags(self, *, in_progress: bool = False, progress_phase: str = "") -> dict:
         flags = {
             "suite": self.suite,
@@ -6324,7 +7780,100 @@ class TestOrchestrator:
             flags["in_progress"] = True
         if progress_phase:
             flags["progress_phase"] = progress_phase
+        critical_phase = getattr(self, "critical_phase", None)
+        if critical_phase:
+            flags["critical_phase"] = critical_phase
+        cache_backfill = getattr(self, "cache_backfill", None)
+        if cache_backfill:
+            flags["cache_backfill"] = cache_backfill
         return flags
+
+    def _run_daily_cache_backfill(self) -> dict[str, object]:
+        """Backfill one receipt-proven cache candidate without blocking the suite."""
+        run_date = datetime.now(timezone.utc).date()
+        plan = daily_ai_test_policy.daily_backfill_plan(run_date)
+        if plan is None:
+            return {"status": "skipped", "reason": "no_backfill_pending_specs"}
+        preflight = _daily_cache_backfill_preflight(self.git_sha, run_date)
+        if preflight.get("status") != "passed":
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": str(preflight.get("detail") or "backfill preflight failed"),
+            }
+        if self.environment != "development":
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": "automatic cache backfill is only supported in development",
+            }
+        if _get_env("OPENMATES_SKIP_VERCEL_WAIT", self.dot_env).lower() == "true":
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": "automatic cache backfill cannot skip the Vercel deployment gate",
+            }
+        deployment_ready, deployment_reason = _wait_for_vercel_deployment(
+            str(preflight["full_commit_sha"]), self.dot_env
+        )
+        if not deployment_ready:
+            return {
+                "status": "failed",
+                "spec": plan.spec,
+                "cache_group": plan.cache_group,
+                "detail": deployment_reason or "Vercel deployment was not ready before cache backfill",
+            }
+        paths = _resolve_daily_cache_backfill_paths(run_date)
+        run_root = paths.candidate_root / plan.candidate_run_id
+
+        client = GitHubActionsClient(git_sha=str(preflight["full_commit_sha"]))
+
+        def dispatch(spec: str, record: bool, candidate_run_id: str) -> tuple[dict[str, object], Path]:
+            run_id = client.dispatch_spec(
+                spec,
+                account=NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0],
+                use_mocks=True,
+                record_live_fixtures=record,
+                daily_ai_run_id=candidate_run_id,
+            )
+            if run_id is None:
+                raise daily_ai_cache_backfill.BackfillValidationError(
+                    client.last_dispatch_error or "candidate dispatch failed"
+                )
+            outcome = client.wait_for_runs([run_id], fail_fast=True).get(run_id, {})
+            if outcome.get("conclusion") != "success":
+                raise daily_ai_cache_backfill.BackfillValidationError("candidate Playwright run did not pass")
+            return daily_ai_cache_backfill.build_receipt(
+                run_root, plan, mode="record" if record else "replay"
+            )
+
+        deployed_commit: list[str] = []
+
+        def persist(expected_cache_sha256: str) -> str:
+            commit = daily_ai_cache_backfill.deploy_candidate_cache(
+                paths.source_root,
+                paths.runtime_cache_root / plan.cache_group,
+                plan,
+                expected_cache_sha256,
+            )
+            deployed_commit.append(commit)
+            return commit
+
+        result = daily_ai_cache_backfill.run_backfill(
+            plan,
+            dispatch=dispatch,
+            runtime_cache_root=paths.runtime_cache_root,
+            source_cache_root=None,
+            claim_root=paths.claim_root,
+            candidate_run_root=run_root,
+            persist=persist,
+        )
+        if result.get("status") == "runtime_promoted" and deployed_commit:
+            return {**result, "status": "promoted", "commit_sha": deployed_commit[0]}
+        return result
 
     def _save_progress_snapshot(
         self,
@@ -6346,15 +7895,52 @@ class TestOrchestrator:
         ResultAggregator.save_progress(result)
 
     def _save_playwright_progress_snapshot(self, playwright_result: SuiteResult) -> None:
-        progress_suites = {**self._progress_suites, "playwright": playwright_result}
-        self._save_progress_snapshot(progress_suites, self._progress_start_time, "Playwright")
+        self._save_progress_snapshot(
+            {**self._progress_suites, "playwright": playwright_result},
+            self._progress_start_time,
+            "Playwright",
+        )
 
-    def run(self) -> int:
-        """Execute the test run and always stop the daily status heartbeat."""
-        try:
-            return self._run()
-        finally:
-            self._stop_daily_status_updates()
+    def _finalize_daily_runner_failure(self, exc: BaseException) -> int:
+        """Persist and notify an orchestration failure instead of going silent."""
+        interrupted = isinstance(exc, DailyRunInterrupted)
+        suites = dict(self._progress_suites)
+        suites["orchestration"] = SuiteResult(
+            status="failed",
+            tests=[{
+                "name": "daily-runner",
+                "file": "scripts/run_tests.py",
+                "status": "failed",
+                "duration_seconds": 0,
+                "error": f"{type(exc).__name__}: {exc}"[:MAX_ERROR_SNIPPET],
+            }],
+            duration_seconds=0,
+            reason=(
+                f"Runner interrupted during {getattr(self, 'current_phase', 'unknown')}"
+                if interrupted
+                else f"Runner crashed during {getattr(self, 'current_phase', 'unknown')}"
+            ),
+        )
+        flags = self._result_flags()
+        if interrupted:
+            flags["runner_interrupted"] = True
+            flags["interrupt_signal"] = exc.signal_name
+        else:
+            flags["runner_crashed"] = True
+        result = ResultAggregator.build_run_result(
+            suites=suites,
+            run_id=self.run_id,
+            git_sha=self.git_sha,
+            git_branch=self.git_branch,
+            environment=self.environment,
+            duration=max(0, time.time() - self._progress_start_time),
+            flags=flags,
+        )
+        ResultAggregator.save(result)
+        self._stop_daily_status_updates()
+        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
+        ResultAggregator.save(result)
+        return 1
 
     def _run(self) -> int:
         """Execute the test run. Returns exit code (0=pass, 1=fail)."""
@@ -6382,11 +7968,12 @@ class TestOrchestrator:
 
         start_time = time.time()
         status_start_time = time.monotonic()
-        if self.daily:
+        if self.daily and not self.dry_run:
             self._start_daily_status_updates(status_start_time)
         suites: dict[str, SuiteResult] = {}
         self._progress_suites = suites
         self._progress_start_time = start_time
+        backfill_only = getattr(self, "backfill_only", False)
 
         # Archive previous failure screenshots before starting a new run
         screenshots_dir = RESULTS_DIR / "screenshots"
@@ -6401,33 +7988,65 @@ class TestOrchestrator:
                 current_dir.rename(archive_dest)
                 _log(f"Archived previous screenshots to screenshots/{prev_date}/")
 
-        # Run all suites via GitHub Actions (prevents dev server overload)
-        if not self.spec and self.suite in ("all", "vitest"):
-            self.current_phase = "vitest"
-            suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "vitest")
+        parallel_daily = self.daily and not backfill_only and not self.spec and self.suite == "all" and not self.dry_run
+        parallel_futures: dict[str, Future[SuiteResult]] = {}
+        executor: ThreadPoolExecutor | None = None
+        if parallel_daily:
+            # GitHub unit workflows and the single-lane remote Mac use separate
+            # capacity. Starting them together shortens the nightly critical
+            # path without increasing Xcode/simulator concurrency on the Mac.
+            executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="nightly-suite")
+            parallel_futures = {
+                "vitest": executor.submit(self._run_unit_suite_via_gha, "vitest.yml", "vitest-results"),
+                "pytest_unit": executor.submit(self._run_unit_suite_via_gha, "pytest-unit.yml", "pytest-results"),
+                "apple_remote": executor.submit(self._run_apple_remote_nightly),
+            }
 
-        if not self.spec and self.suite in ("all", "pytest"):
-            self.current_phase = "pytest"
-            suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
-            self._save_progress_snapshot(suites, start_time, "pytest")
+        try:
+            if not backfill_only and not parallel_daily and not self.spec and self.suite in ("all", "vitest"):
+                self.current_phase = "vitest"
+                suites["vitest"] = self._run_unit_suite_via_gha("vitest.yml", "vitest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+                self._save_progress_snapshot(suites, start_time, "vitest")
 
-        if not self.spec and self.suite in ("all", "cli"):
-            self.current_phase = "CLI integration"
-            suites["cli"] = self._run_cli_integration()
-            self._save_progress_snapshot(suites, start_time, "CLI integration")
+            if not backfill_only and not parallel_daily and not self.spec and self.suite in ("all", "pytest"):
+                self.current_phase = "pytest"
+                suites["pytest_unit"] = self._run_unit_suite_via_gha("pytest-unit.yml", "pytest-results") if not self.dry_run else SuiteResult(status="skipped", reason="dry run")
+                self._save_progress_snapshot(suites, start_time, "pytest")
 
-        # Run Playwright via GitHub Actions
-        if self.suite in ("all", "playwright"):
-            self.current_phase = "Playwright"
-            suites["playwright"] = self._run_playwright()
-            self._save_progress_snapshot(suites, start_time, "Playwright")
+            if not backfill_only and not self.spec and self.suite in ("all", "cli"):
+                self.current_phase = "CLI integration"
+                suites["cli"] = self._run_cli_integration()
+                self._save_progress_snapshot(suites, start_time, "CLI integration")
 
-        # Run native Apple checks only for nightly cron or explicit --suite apple.
-        if not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
-            self.current_phase = "Apple remote"
-            suites["apple_remote"] = self._run_apple_remote_nightly()
-            self._save_progress_snapshot(suites, start_time, "Apple remote")
+            if self.daily and not self.spec and self.suite == "all":
+                self.current_phase = "cache backfill"
+                self.cache_backfill = (
+                    {"status": "skipped", "reason": "dry_run"}
+                    if self.dry_run
+                    else self._run_daily_cache_backfill()
+                )
+                suites["cache_backfill"] = _cache_backfill_suite(self.cache_backfill)
+                if self.cache_backfill.get("status") == "failed":
+                    _log(f"Daily cache backfill failed: {self.cache_backfill.get('detail', 'unknown error')}", "ERROR")
+                self._save_progress_snapshot(suites, start_time, "cache backfill")
+
+            if not backfill_only and self.suite in ("all", "playwright"):
+                self.current_phase = "Playwright"
+                suites["playwright"] = self._run_playwright()
+                self._save_progress_snapshot(suites, start_time, "Playwright")
+
+            if not backfill_only and not parallel_daily and not self.spec and (self.suite == "apple" or (self.daily and self.suite == "all")):
+                self.current_phase = "Apple remote"
+                suites["apple_remote"] = self._run_apple_remote_nightly()
+                self._save_progress_snapshot(suites, start_time, "Apple remote")
+
+            for suite_name, future in parallel_futures.items():
+                self.current_phase = f"collecting {suite_name}"
+                suites[suite_name] = future.result()
+                self._save_progress_snapshot(suites, start_time, self.current_phase)
+        finally:
+            if executor is not None:
+                executor.shutdown(wait=True, cancel_futures=False)
 
         # Aggregate results
         self.current_phase = "finalizing results"
@@ -6460,7 +8079,7 @@ class TestOrchestrator:
             self._stop_daily_status_updates()
             self._daily_post_run(result)
 
-        return 1 if result.summary["failed"] > 0 else 0
+        return _exit_code_for_summary(result.summary)
 
     def _sync_obsidian_test_results(self) -> None:
         """Best-effort sync of latest test status into the local Obsidian vault."""
@@ -6504,7 +8123,18 @@ class TestOrchestrator:
                 reason="apple_remote.py missing",
             )
 
-        _log(f"Apple Remote: {len(commands)} command(s), serialized")
+        subject_commit = _full_git_sha(self.git_sha)
+        pinned_commands: list[tuple[str, tuple[str, ...]]] = []
+        for name, remote_args in commands:
+            args = list(remote_args)
+            if name == "sync-repo" and subject_commit:
+                args.extend(["--commit", subject_commit])
+            elif name in {"test-ios", "test-macos", "verify-watch-startup"} and subject_commit:
+                args.extend(["--expected-commit", subject_commit])
+            pinned_commands.append((name, tuple(args)))
+        commands = pinned_commands
+
+        _log(f"Apple Remote: {len(commands)} command(s), serialized on one 8 GB Mac lane")
         if self.dry_run:
             for name, remote_args in commands:
                 print(f"    {name}: python3 scripts/apple_remote.py {' '.join(remote_args)}")
@@ -6569,25 +8199,77 @@ class TestOrchestrator:
         _log(f"  {suite_label}: dispatching to GitHub Actions...")
 
         client = GitHubActionsClient()
+        circuit = self._share_dispatch_circuit(client)
+        refresh_budget = getattr(client, "refresh_dispatch_budget", None)
+        if callable(refresh_budget):
+            refresh_budget(1)
+        if circuit.is_open:
+            tests = []
+            if circuit.claim_incident():
+                tests.append({
+                    "name": "github-actions-dispatch",
+                    "file": "scripts/run_tests.py",
+                    "status": "infrastructure_incident",
+                    "duration_seconds": 0,
+                    "error": circuit.incident_code,
+                    "test_key": GITHUB_DISPATCH_INCIDENT_KEY,
+                })
+            tests.append({
+                "name": f"{suite_label}-dispatch",
+                "status": "blocked_by_parent",
+                "duration_seconds": 0,
+                "error": "Blocked by GitHub Actions dispatch infrastructure incident",
+                "parent_incident_key": GITHUB_DISPATCH_INCIDENT_KEY,
+            })
+            return SuiteResult(status="failed", tests=tests)
 
         # Record pre-dispatch run IDs to find the new one
         pre_ids = client._recent_run_ids(limit=5, workflow=workflow_file)
 
-        dispatch_command = ["gh", "workflow", "run", workflow_file, "--repo", GH_REPO, "--ref", GH_BRANCH]
+        dispatch_command = [
+            "gh", "workflow", "run", workflow_file,
+            "--repo", GH_REPO,
+            "--ref", GH_BRANCH,
+            "-f", f"checkout_ref={_full_git_sha(getattr(self, 'git_sha', ''))}",
+        ]
         if self.campaign_test_labels and workflow_file in {"pytest-unit.yml", "vitest.yml"}:
             input_name = "test_targets_json" if workflow_file == "pytest-unit.yml" else "test_files_json"
             dispatch_command.extend(["-f", f"{input_name}={json.dumps(self.campaign_test_labels, separators=(',', ':'))}"])
+        circuit.wait_for_mutating_request_slot()
         rc = subprocess.run(
             dispatch_command,
             capture_output=True, text=True,
         )
         if rc.returncode != 0:
             detail = (rc.stderr or rc.stdout or "unknown gh workflow error").strip()[:500]
-            _log(f"  {suite_label}: dispatch failed: {detail[:200]}", "ERROR")
+            if _is_github_rate_limit_error(detail):
+                circuit.open_rate_limit()
+                tests = []
+                if circuit.claim_incident():
+                    tests.append({
+                        "name": "github-actions-dispatch",
+                        "file": "scripts/run_tests.py",
+                        "status": "infrastructure_incident",
+                        "duration_seconds": 0,
+                        "error": circuit.incident_code,
+                        "test_key": GITHUB_DISPATCH_INCIDENT_KEY,
+                    })
+                tests.append({
+                    "name": f"{suite_label}-dispatch",
+                    "status": "blocked_by_parent",
+                    "duration_seconds": 0,
+                    "error": "Blocked by GitHub Actions dispatch infrastructure incident",
+                    "parent_incident_key": GITHUB_DISPATCH_INCIDENT_KEY,
+                })
+                _log(f"  {suite_label}: GitHub Actions dispatch rate-limited", "ERROR")
+                return SuiteResult(status="failed", tests=tests)
+            category = github_dispatch_error_category(detail)
+            safe_error = f"GitHub Actions workflow dispatch failed ({category})"
+            _log(f"  {suite_label}: {safe_error}", "ERROR")
             return SuiteResult(
                 status="failed",
                 tests=[{"name": f"{suite_label}-dispatch", "status": "dispatch_error",
-                        "duration_seconds": 0, "error": f"Dispatch failed: {detail}"}],
+                        "duration_seconds": 0, "error": safe_error}],
             )
 
         # Find the new run ID
@@ -6782,7 +8464,44 @@ class TestOrchestrator:
 
         return all_tests
 
+    @contextmanager
+    def _dev_runtime_read_lease(self, phase: str):
+        if (
+            not getattr(self, "coordinate_runtime", False)
+            or self.environment == "production"
+            or os.environ.get("OPENMATES_DOCKER_TEST_LEASE_HELD") == "1"
+        ):
+            yield
+            return
+        lease_id = f"runner-{phase}-{os.getpid()}-{uuid4().hex[:8]}"
+        owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
+        resources = {session_control.DOCKER_RESOURCE_DEV_STACK}
+        session_control.acquire_test_resource_lease(
+            lease_id,
+            owner,
+            resources,
+            mode="shared",
+        )
+        stop = threading.Event()
+
+        def heartbeat() -> None:
+            while not stop.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
+                session_control.renew_test_resource_lease(lease_id, owner, resources, mode="shared")
+
+        thread = threading.Thread(target=heartbeat, name=f"{phase}-runtime-lease", daemon=True)
+        thread.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            thread.join(timeout=1)
+            session_control.release_test_resource_lease(lease_id)
+
     def _run_playwright(self) -> SuiteResult:
+        with self._dev_runtime_read_lease("playwright"):
+            return self._run_playwright_with_runtime()
+
+    def _run_playwright_with_runtime(self) -> SuiteResult:
         """Run Playwright specs via GitHub Actions."""
         try:
             specs = self._discover_specs()
@@ -6809,13 +8528,33 @@ class TestOrchestrator:
         if not specs and not clear_backend_mock_preflight:
             return SuiteResult(status="skipped", reason="no specs to run")
 
+        account_requirements_ref = self.git_sha if self.environment == "development" else None
+        requires_account_by_spec = _playwright_account_requirements_for_specs(
+            specs,
+            account_requirements_ref,
+        )
+        account_free_specs = [spec for spec in specs if not requires_account_by_spec.get(spec, True)]
+        if account_free_specs:
+            _log(
+                "Playwright account-free dispatch: "
+                f"{len(account_free_specs)} spec(s) skip account preflight and credentials"
+            )
+
         effective_batch_size = _effective_playwright_batch_size(self.max_concurrent)
         _log(f"Playwright: {len(specs)} spec(s) via GitHub Actions (batch size: {effective_batch_size})")
 
         if self.dry_run:
             _log("Dry run — would dispatch these specs:")
             plan_account_slots = (self.account,) if self.account is not None else NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
-            for _batch_idx, spec, account in build_playwright_dispatch_plan(specs, self.max_concurrent, plan_account_slots):
+            for _batch_idx, spec, account in build_playwright_dispatch_plan(
+                specs,
+                self.max_concurrent,
+                plan_account_slots,
+                requires_account_by_spec,
+            ):
+                if not requires_account_by_spec.get(spec, True):
+                    print(f"    account-free  {spec}")
+                    continue
                 reserved = " reserved" if spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC else ""
                 print(f"    account {account:02d}{reserved}  {spec}")
             return SuiteResult(status="skipped", reason="dry run")
@@ -6876,80 +8615,89 @@ class TestOrchestrator:
         client = GitHubActionsClient(
             git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
         )
+        self._share_dispatch_circuit(client)
 
         blocked_preflight_results: list[SpecResult] = []
         preflight_reason: Optional[str] = None
         normal_account_slots = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
+        account_required_specs = [spec for spec in specs if requires_account_by_spec.get(spec, True)]
 
         if not self.spec:
-            preflight = self._run_account_preflight(client)
-            preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
-            specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
-                _apply_preflight_account_availability(specs, preflight_results)
-            )
-            if not normal_account_slots:
-                return SuiteResult(
-                    status="failed",
-                    tests=[BatchRunner._spec_result_to_dict(result) for result in blocked_preflight_results],
-                    duration_seconds=preflight.duration_seconds,
-                    reason=(preflight_reason or "No available normal Playwright account slots"),
+            if account_required_specs:
+                preflight_accounts = _preflight_accounts_for_specs(
+                    specs,
+                    self.max_concurrent,
+                    requires_account_by_spec,
                 )
-            if preflight.status == "failed" and all(
-                result.status == "passed" for result in preflight_results if result.account is not None
-            ):
-                return preflight
-            if preflight_reason:
-                _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
-        elif self.spec == ACCOUNT_PREFLIGHT_SPEC:
-            return self._run_account_preflight(
-                client,
-                accounts=[self.account] if self.account is not None else None,
-            )
-        elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
-            reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
-            if self.account is not None and reserved_account is not None and self.account != reserved_account:
-                return SuiteResult(
-                    status="failed",
-                    tests=[{
-                        "name": self.spec,
-                        "status": "failed",
-                        "duration_seconds": 0,
-                        "error": f"{self.spec} requires reserved account slot {reserved_account}; received --account {self.account}",
-                    }],
-                    reason=f"Reserved-account spec requires slot {reserved_account}",
+                preflight = self._run_account_preflight(client, accounts=preflight_accounts)
+                preflight_results = [self._dict_to_spec_result(test) for test in preflight.tests]
+                specs, blocked_preflight_results, normal_account_slots, preflight_reason = (
+                    _apply_preflight_account_availability(
+                        specs,
+                        preflight_results,
+                        requires_account_by_spec,
+                    )
                 )
-
-            account = self.account if self.account is not None else _account_for_spec_in_batch(self.spec, 0)
-            preflight = self._run_account_preflight(client, accounts=[account])
-            if preflight.status == "failed":
-                if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
-                    return preflight
-
-                fallback_accounts = [
-                    slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
-                    if slot != account
-                ]
-                fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
-                fallback_slots = _passed_normal_preflight_slots([
-                    self._dict_to_spec_result(test)
-                    for test in fallback_preflight.tests
-                ])
-                if not fallback_slots:
+                account_required_specs = [spec for spec in specs if requires_account_by_spec.get(spec, True)]
+                if not normal_account_slots and account_required_specs:
                     return SuiteResult(
                         status="failed",
-                        tests=[*preflight.tests, *fallback_preflight.tests],
-                        duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
-                        reason="No healthy normal Playwright account slots after single-spec preflight fallback",
+                        tests=[BatchRunner._spec_result_to_dict(result) for result in blocked_preflight_results],
+                        duration_seconds=preflight.duration_seconds,
+                        reason=(preflight_reason or "No available normal Playwright account slots"),
+                    )
+                if preflight_reason:
+                    _log(f"Account preflight limited dispatch: {preflight_reason}", "WARN")
+            else:
+                _log("Playwright account preflight skipped: all selected specs are account-free")
+        elif self.spec == ACCOUNT_PREFLIGHT_SPEC and self.account is not None:
+            return self._run_account_preflight(client, accounts=[self.account])
+        elif self.spec and self.spec != ACCOUNT_PREFLIGHT_SPEC:
+            if not requires_account_by_spec.get(self.spec, True):
+                if self.account is not None:
+                    _log(f"{self.spec} is account-free; ignoring --account {self.account}", "WARN")
+            else:
+                reserved_account = RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.get(self.spec)
+                if self.account is not None and reserved_account is not None and self.account != reserved_account:
+                    return SuiteResult(
+                        status="failed",
+                        tests=[{
+                            "name": self.spec,
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": f"{self.spec} requires reserved account slot {reserved_account}; received --account {self.account}",
+                        }],
+                        reason=f"Reserved-account spec requires slot {reserved_account}",
                     )
 
-                normal_account_slots = (fallback_slots[0],)
-                preflight_reason = (
-                    f"Selected normal account slot {account} failed preflight; "
-                    f"using fallback slot {fallback_slots[0]} for {self.spec}"
-                )
-                _log(preflight_reason, "WARN")
-            else:
-                normal_account_slots = (account,)
+                account = self.account if self.account is not None else _account_for_spec_in_batch(self.spec, 0)
+                preflight = self._run_account_preflight(client, accounts=[account])
+                if preflight.status == "failed":
+                    if self.account is not None or self.spec in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC:
+                        return preflight
+
+                    fallback_accounts = _single_spec_fallback_accounts(account)
+                    fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
+                    fallback_slots = _passed_normal_preflight_slots([
+                        self._dict_to_spec_result(test)
+                        for test in fallback_preflight.tests
+                    ])
+                    if not fallback_slots:
+                        return SuiteResult(
+                            status="failed",
+                            tests=[*preflight.tests, *fallback_preflight.tests],
+                            duration_seconds=round(preflight.duration_seconds + fallback_preflight.duration_seconds, 1),
+                            reason="No healthy normal Playwright account slots after single-spec preflight fallback",
+                        )
+
+                    normal_account_slots = (fallback_slots[0],)
+                    preflight_reason = (
+                        f"Selected normal account slot {account} failed preflight; "
+                        f"using fallback slot {fallback_slots[0]} for {self.spec}"
+                    )
+                    _log(preflight_reason, "WARN")
+                else:
+                    normal_account_slots = (account,)
 
         try:
             seeded_gift_cards = _seed_playwright_fixtures_for_specs(specs, self.environment)
@@ -6982,10 +8730,58 @@ class TestOrchestrator:
             allow_credential_updates=not bool(getattr(self, "core_journeys", False)),
             seeded_gift_cards=seeded_gift_cards,
             proof_video_profile=self.proof_video_profile,
+            daily_ai_run_id=(
+                f"daily_canary_{datetime.now(timezone.utc).strftime('%Y%m%d')}"
+                if getattr(self, "daily", False)
+                else ""
+            ),
+            requires_account_by_spec=requires_account_by_spec,
             progress_callback=self._save_playwright_progress_snapshot,
+            coordinate_accounts=self.account is None,
         )
+
         try:
-            result = runner.run_all_batches()
+            if getattr(self, "daily", False) and not self.spec:
+                registry_issues = audit_critical_test_registry()
+                phases = daily_playwright_phases(specs)
+
+                def run_daily_phase(phase: str, phase_specs: list[str]) -> SuiteResult:
+                    self.current_phase = f"Playwright {phase}"
+                    runner.specs = phase_specs
+                    runner.fail_fast = False
+                    return runner.run_all_batches()
+
+                phase_results = execute_daily_playwright_phases(phases, run_daily_phase, registry_issues)
+                critical_result = phase_results["critical"]
+                self.critical_phase = {
+                    "status": "failed" if registry_issues else critical_result.status,
+                    "spec_count": len(phases["critical"]),
+                }
+                if registry_issues:
+                    self.critical_phase["reason"] = "registry_audit_failed"
+                broad_result = phase_results["broad"]
+                registry_result = phase_results.get("registry")
+                combined_tests = [
+                    *(registry_result.tests if registry_result else []),
+                    *critical_result.tests,
+                    *broad_result.tests,
+                ]
+                incident_seen = False
+                deduplicated_tests = []
+                for test in combined_tests:
+                    if test.get("status") == "infrastructure_incident":
+                        if incident_seen:
+                            continue
+                        incident_seen = True
+                    deduplicated_tests.append(test)
+                result = SuiteResult(
+                    status="failed" if any(_is_problem_status(str(test.get("status") or "")) for test in deduplicated_tests) else "passed",
+                    tests=deduplicated_tests,
+                    duration_seconds=round(critical_result.duration_seconds + broad_result.duration_seconds, 1),
+                    reason=registry_result.reason if registry_result else None,
+                )
+            else:
+                result = runner.run_all_batches()
         finally:
             _cleanup_e2e_gift_cards(seeded_gift_cards)
 
@@ -7003,16 +8799,21 @@ class TestOrchestrator:
                 if result.reason else preflight_reason
             )
 
-        # Aggregate storage-audit snapshots from this run into cookies.yml.
+        # Aggregate storage-audit snapshots into review candidates outside the
+        # tracked checkout. Runtime/test worktrees must remain immutable.
         # Skipped for single-spec runs (--spec) since coverage is intentionally
-        # narrow and would prune entries from other flows. The merger never
-        # clobbers human-maintained fields (purpose / consent_exempt / etc).
+        # narrow and would not produce a representative inventory. The merger
+        # preserves unobserved entries and human-maintained fields.
         if not self.spec:
             self._merge_cookie_audits()
 
         return result
 
     def _run_cli_integration(self) -> SuiteResult:
+        with self._dev_runtime_read_lease("cli"):
+            return self._run_cli_integration_with_runtime()
+
+    def _run_cli_integration_with_runtime(self) -> SuiteResult:
         """Run CLI integration checks through a registered GitHub Actions workflow.
 
         GitHub only allows dispatching workflow files that already exist on the
@@ -7029,16 +8830,14 @@ class TestOrchestrator:
         client = GitHubActionsClient(
             git_sha=_full_git_sha(self.git_sha) if self.environment == "development" else None,
         )
+        self._share_dispatch_circuit(client)
         account = NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS[0]
         preflight_reason: Optional[str] = None
         preflight_duration = 0.0
         preflight = self._run_account_preflight(client, accounts=[account])
         preflight_duration += preflight.duration_seconds
         if preflight.status == "failed":
-            fallback_accounts = [
-                slot for slot in NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS
-                if slot != account
-            ]
+            fallback_accounts = _single_spec_fallback_accounts(account)
             fallback_preflight = self._run_account_preflight(client, accounts=fallback_accounts)
             preflight_duration += fallback_preflight.duration_seconds
             fallback_slots = _passed_normal_preflight_slots([
@@ -7142,7 +8941,14 @@ class TestOrchestrator:
         """Validate each configured persistent E2E account before normal specs."""
         started = time.time()
         target_accounts = accounts or list(range(1, MAX_ACCOUNTS + 1))
-        _log(f"Playwright account preflight: {len(target_accounts)} account slot(s)")
+        cache_allowed = self.spec not in RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC
+        cached_slots = _cached_preflight_slots() if cache_allowed else set()
+        cached_accounts = [account for account in target_accounts if account in cached_slots]
+        pending_accounts = [account for account in target_accounts if account not in cached_slots]
+        _log(
+            f"Playwright account preflight: {len(target_accounts)} account slot(s) "
+            f"({len(cached_accounts)} cached, {len(pending_accounts)} live)"
+        )
         runner = BatchRunner(
             client=client,
             specs=[ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
@@ -7150,38 +8956,30 @@ class TestOrchestrator:
             fail_fast=False,
             use_mocks=self.use_mocks,
         )
-        results = runner._run_batch(
-            [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+        results = [
+            SpecResult(
+                name=ACCOUNT_PREFLIGHT_SPEC,
+                file=ACCOUNT_PREFLIGHT_SPEC,
+                status="passed",
+                account=account,
+                duration_seconds=0,
+            )
+            for account in cached_accounts
+        ]
+        live_results = runner._run_batch(
+            [ACCOUNT_PREFLIGHT_SPEC] * len(pending_accounts),
             0,
-            account_overrides=target_accounts,
-        )
-        failed_accounts = [result.account for result in results if result.status != "passed" and result.account]
-        if failed_accounts:
-            _log(
-                "Playwright account preflight: retrying failed slot(s) with reduced concurrency: "
-                + ", ".join(str(account) for account in failed_accounts),
-                "WARN",
-            )
-            results_by_account = {result.account: result for result in results if result.account}
-            for start in range(0, len(failed_accounts), PREFLIGHT_RETRY_BATCH_SIZE):
-                retry_accounts = failed_accounts[start:start + PREFLIGHT_RETRY_BATCH_SIZE]
-                retry_results = runner._run_batch(
-                    [ACCOUNT_PREFLIGHT_SPEC] * len(retry_accounts),
-                    0,
-                    account_overrides=retry_accounts,
-                )
-                results_by_account.update(
-                    (result.account, result) for result in retry_results if result.account
-                )
-            results = [results_by_account.get(account) for account in target_accounts]
-            results = [result for result in results if result is not None]
-        if self._repair_missing_preflight_account_ids(results):
+            account_overrides=pending_accounts,
+        ) if pending_accounts else []
+        results.extend(live_results)
+        if self._repair_missing_preflight_account_ids(live_results):
             _log("Playwright account preflight: rerunning repaired account slot(s)")
-            results = runner._run_batch(
-                [ACCOUNT_PREFLIGHT_SPEC] * len(target_accounts),
+            live_results = runner._run_batch(
+                [ACCOUNT_PREFLIGHT_SPEC] * len(pending_accounts),
                 0,
-                account_overrides=target_accounts,
+                account_overrides=pending_accounts,
             )
+            results = [result for result in results if result.account in cached_accounts] + live_results
         failures = [r for r in results if r.status != "passed"]
         if failures:
             failed_slots = ", ".join(str(r.account) for r in failures)
@@ -7199,17 +8997,10 @@ class TestOrchestrator:
                 reason=credit_guard_error,
             )
 
-        if getattr(self, "daily", False):
-            cleanup_error = self._cleanup_stale_signup_accounts(results)
-            if cleanup_error:
-                _log(f"E2E account cleanup failed: {cleanup_error}", "ERROR")
-                results.append(SpecResult(
-                    name="dev-stale-signup-cleanup",
-                    file="scripts/cleanup_dev_signup_accounts.py",
-                    status="failed",
-                    error=cleanup_error,
-                ))
-                failures.append(results[-1])
+        _update_preflight_cache(
+            {int(result.account) for result in results if result.status == "passed" and result.account is not None},
+            {int(result.account) for result in failures if result.account is not None},
+        )
 
         return SuiteResult(
             status="failed" if failures else "passed",
@@ -7217,54 +9008,6 @@ class TestOrchestrator:
             duration_seconds=round(time.time() - started, 1),
             reason=f"Account preflight failed for slot(s): {failed_slots}" if failures else None,
         )
-
-    def _cleanup_stale_signup_accounts(self, results: list[SpecResult]) -> Optional[str]:
-        """Delete only old incomplete zero-content dev signups after protecting all slots."""
-        if self.environment != "development":
-            return None
-
-        accounts_by_slot = {
-            result.account: result.account_email
-            for result in results
-            if result.account is not None and result.account_email
-        }
-        missing_slots = [slot for slot in range(1, MAX_ACCOUNTS + 1) if slot not in accounts_by_slot]
-        if missing_slots:
-            return "configured account email missing for slot(s): " + ", ".join(str(slot) for slot in missing_slots)
-
-        script_path = PROJECT_ROOT / "scripts" / "cleanup_dev_signup_accounts.py"
-        payload = [
-            {"slot": slot, "email": accounts_by_slot[slot]}
-            for slot in range(1, MAX_ACCOUNTS + 1)
-        ]
-        try:
-            proc = subprocess.run(
-                [
-                    sys.executable,
-                    str(script_path),
-                    "--apply",
-                    "--auto-safe",
-                    "--automated-daily-cleanup",
-                    "--protected-accounts-json",
-                    "-",
-                    "--require-protected-count",
-                    str(MAX_ACCOUNTS),
-                ],
-                input=json.dumps(payload),
-                capture_output=True,
-                text=True,
-                timeout=600,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            return f"cleanup execution failed: {exc}"
-
-        output = (proc.stdout or "").strip()
-        if output:
-            for line in output.splitlines():
-                _log(f"E2E account cleanup: {line}")
-        if proc.returncode != 0:
-            return (proc.stderr or output or "unknown cleanup error").strip()[:MAX_ERROR_SNIPPET]
-        return None
 
     def _repair_missing_preflight_account_ids(self, results: list[SpecResult]) -> bool:
         """Repair configured E2E accounts that fail preflight due to missing account_id."""
@@ -7379,13 +9122,19 @@ class TestOrchestrator:
 
     @staticmethod
     def _merge_cookie_audits() -> None:
-        """Run scripts/merge_storage_audits.py to update cookies.yml."""
+        """Generate reviewable storage inventories without dirtying source."""
         merger = PROJECT_ROOT / "scripts" / "merge_storage_audits.py"
         if not merger.is_file():
             return
         try:
             proc = subprocess.run(
-                [sys.executable, str(merger)],
+                [
+                    sys.executable,
+                    str(merger),
+                    "--output-dir",
+                    str(STORAGE_AUDIT_CANDIDATE_DIR),
+                    "--retain-unobserved",
+                ],
                 cwd=str(PROJECT_ROOT),
                 capture_output=True,
                 text=True,
@@ -7400,19 +9149,8 @@ class TestOrchestrator:
         except Exception as e:
             _log(f"merge_storage_audits failed to run: {e}", "WARN")
 
-    # Specs excluded from daily / all-spec runs.
-    # These are utility specs (e.g. account provisioning) that should only be
-    # triggered manually via --spec.
-    EXCLUDED_SPECS = {
-        "create-test-account.spec.ts",
-        "deep-research-real-inference.spec.ts",
-        PROVISION_AUTH_ACCOUNTS_SPEC,
-        "default-model-settings-proof.spec.ts",
-        "proof-audio-speech-example.spec.ts",
-        "selfhost-smoke.spec.ts",
-        "sub-chats-real-inference.spec.ts",
-        ACCOUNT_PREFLIGHT_SPEC,
-    }
+    # Canonical policy also keeps costly real-inference scenarios manual-only.
+    EXCLUDED_SPECS = daily_ai_test_policy.excluded_specs()
 
     def _discover_specs(self) -> list[str]:
         """Find which specs to run."""
@@ -7428,6 +9166,12 @@ class TestOrchestrator:
         if self.core_journeys:
             return list(RELEASE_GATE_SPECS)
 
+        if self.critical_journeys:
+            issues = audit_critical_test_registry()
+            if issues:
+                raise RuntimeError("; ".join(issues))
+            return [str(entry["spec"]) for entry in CRITICAL_TEST_REGISTRY if entry.get("active") is True]
+
         if self.only_failed:
             failed = ResultAggregator.load_failed_specs()
             self.only_failed_synthetic_files = tuple(f for f in failed if not f.endswith(".spec.ts"))
@@ -7437,9 +9181,21 @@ class TestOrchestrator:
                 _log(f"Found {len(specs)} previously failed spec(s)")
             return specs
 
-        # All specs, minus excluded utility specs
+        # All ordinary specs, minus manual utility/proof/expensive policy entries.
         spec_files = sorted(SPEC_DIR.glob("*.spec.ts"))
-        return [f.name for f in spec_files if f.name not in self.EXCLUDED_SPECS]
+        specs = daily_ai_test_policy.discover_specs(
+            (file.name for file in spec_files), spec_dir=SPEC_DIR
+        )
+        if not self.daily:
+            return specs
+
+        canaries = daily_ai_test_policy.daily_plan(
+            (file.name for file in spec_files),
+            datetime.now(timezone.utc).date(),
+            scheduled=True,
+            record_mode=self.record_live_fixtures,
+        )
+        return [*specs, *(spec for spec in canaries.selected if spec not in specs)]
 
     def _daily_gate(self) -> bool:
         """Check if daily run should proceed. Returns False to skip."""
@@ -7447,6 +9203,13 @@ class TestOrchestrator:
         if _get_env("E2E_DAILY_RUN_ENABLED", self.notification.dot_env) != "true":
             _log("E2E_DAILY_RUN_ENABLED is not set — skipping test run")
             _log("Set E2E_DAILY_RUN_ENABLED=true on the dev server to enable tests")
+            self.notification.send_daily_skip_notification(
+                self.git_sha,
+                self.git_branch,
+                self.environment,
+                self.run_id,
+                "E2E_DAILY_RUN_ENABLED is disabled.",
+            )
             return False
 
         # Commit-activity gate
@@ -7466,6 +9229,13 @@ class TestOrchestrator:
             if count == 0:
                 _log("No git commits in the last 24 hours — skipping test run")
                 _log("Use --force to run regardless")
+                self.notification.send_daily_skip_notification(
+                    self.git_sha,
+                    self.git_branch,
+                    self.environment,
+                    self.run_id,
+                    "No git commits in the last 24 hours.",
+                )
                 return False
             _log(f"Found {count} commit(s) in last 24 hours — proceeding")
 
@@ -7483,14 +9253,6 @@ class TestOrchestrator:
         # Push to OpenObserve
         _log("Pushing to OpenObserve...")
         self.notification.push_to_openobserve(result)
-
-        # Archive daily result
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        archive = RESULTS_DIR / f"daily-run-{today}.json"
-        last_run = RESULTS_DIR / "last-run.json"
-        if last_run.is_file():
-            shutil.copy2(str(last_run), str(archive))
-            _log(f"Archived to {archive.name}")
 
         # Bound daily JSON and screenshot growth to one week. The canonical
         # latest results remain separate from these dated archives.
@@ -7513,7 +9275,14 @@ class TestOrchestrator:
         # Keep daily runs notification-only. Follow-up fixing must be started
         # separately so one day's remediation can never hold tomorrow's lock.
         _log("Sending summary email...")
-        self.notification.send_summary_email(result)
+        result.flags["notifications_complete"] = bool(self.notification.send_summary_email(result))
+        ResultAggregator.save(result)
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        archive = RESULTS_DIR / f"daily-run-{today}.json"
+        last_run = RESULTS_DIR / "last-run.json"
+        if last_run.is_file():
+            shutil.copy2(str(last_run), str(archive))
+            _log(f"Archived to {archive.name}")
         if _problem_count(result.summary) > 0:
             _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
 
@@ -7554,26 +9323,30 @@ class TestOrchestrator:
 
 
 def _run_with_dev_stack_lease(args, callback):
-    production_mode = bool(
-        args.environment == "production"
-        or args.hourly_prod
-        or args.prod_free_hourly
-        or args.prod_paid_chat
-        or args.prod_app_skill
-    )
-    if production_mode or args.dry_run or os.environ.get("OPENMATES_DOCKER_TEST_LEASE_HELD") == "1":
-        return callback()
-    lease_id = f"runner-{os.getpid()}-{int(time.time())}"
-    owner = os.environ.get("OPENCODE_SESSION_ID", "local-test-runner")
-    session_control.acquire_test_resource_lease(
-        lease_id,
-        owner,
-        {session_control.DOCKER_RESOURCE_DEV_STACK},
-    )
-    try:
-        return callback()
-    finally:
-        session_control.release_test_resource_lease(lease_id)
+    del args
+    return callback()
+
+
+def _maintain_spec_demo_publications(now: datetime | None = None) -> dict[str, int]:
+    """Retry or expire pending demo publications in every managed worktree."""
+    totals = {"scanned": 0, "retried": 0, "delivered": 0, "expired_deleted": 0}
+    roots = [CONTROL_PLANE_ROOT / "test-results/spec-demos"]
+    worktree_root = CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
+    if worktree_root.is_dir():
+        roots.extend(path / "test-results/spec-demos" for path in worktree_root.iterdir() if path.is_dir())
+    for root in roots:
+        try:
+            result = _sweep_spec_demo_publications(
+                root,
+                now=now or datetime.now(timezone.utc),
+            )
+        except Exception as exc:
+            _log(f"Spec demonstration publication maintenance failed for {root}: {exc}", "WARN")
+            continue
+        for key in totals:
+            totals[key] += result[key]
+    return totals
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -7588,11 +9361,17 @@ def main() -> int:
                         help="Rerun only tests that failed in last-run.json")
     parser.add_argument("--daily", action="store_true",
                         help="Daily cron mode (commit gate, emails, OpenObserve)")
+    parser.add_argument("--daily-cache-backfill-only", action="store_true",
+                        help="Run only the bounded daily cache backfill with normal terminal notifications")
+    parser.add_argument("--daily-cache-backfill-preflight", action="store_true",
+                        help="Validate cache paths, commit pinning, and claims without dispatching or spending")
     parser.add_argument("--hourly-dev", action="store_true",
                         help="Hourly DEV smoke (4 specs, post on failure to "
                              "DISCORD_WEBHOOK_DEV_SMOKE). See OPE-349.")
     parser.add_argument("--core-journeys", action="store_true",
                         help="Run the canonical release core journeys through normal commit-pinned orchestration")
+    parser.add_argument("--critical-journeys", action="store_true",
+                        help="Run the audited daily critical billing, signup/auth, and core-chat registry")
     parser.add_argument("--hourly-prod", action="store_true",
                         help="Hourly PROD smoke (dispatches prod-smoke.yml, "
                              "free reachability suite; legacy alias for --prod-free-hourly).")
@@ -7658,16 +9437,50 @@ def main() -> int:
         args.prod_paid_chat,
         args.prod_app_skill,
         args.core_journeys,
+        args.critical_journeys,
     ))
     if mode_flags > 1:
         _log(
             "Pass at most one of: --daily, --hourly-dev, --hourly-prod, "
-            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill, --core-journeys",
+            "--prod-free-hourly, --prod-paid-chat, --prod-app-skill, --core-journeys, --critical-journeys",
             "ERROR",
         )
         return 2
+    non_daily_modes = any((
+        args.hourly_dev,
+        args.hourly_prod,
+        args.prod_free_hourly,
+        args.prod_paid_chat,
+        args.prod_app_skill,
+        args.core_journeys,
+        args.critical_journeys,
+    ))
+    dedicated_mode_conflict = any((
+        args.suite != "all",
+        args.spec,
+        args.only_failed,
+        args.dry_run_notify,
+        args.no_mocks,
+        args.record_live_fixtures,
+        args.proof_video_profile,
+        args.dry_run,
+        args.account is not None,
+        args.create_account_slot is not None,
+    ))
+    if args.daily_cache_backfill_preflight and (mode_flags or dedicated_mode_conflict):
+        _log("--daily-cache-backfill-preflight cannot be combined with test execution modes", "ERROR")
+        return 2
+    if args.daily_cache_backfill_only and (non_daily_modes or dedicated_mode_conflict):
+        _log("--daily-cache-backfill-only cannot be combined with another test selection", "ERROR")
+        return 2
+    if args.daily_cache_backfill_only:
+        args.daily = True
+        args.suite = "all"
     if args.core_journeys and args.spec:
         _log("--core-journeys cannot be combined with --spec", "ERROR")
+        return 2
+    if args.critical_journeys and args.spec:
+        _log("--critical-journeys cannot be combined with --spec", "ERROR")
         return 2
     if args.account is not None and not args.spec:
         _log("--account requires --spec so one GitHub Actions run maps to one explicit test-account slot", "ERROR")
@@ -7677,8 +9490,13 @@ def main() -> int:
         return 2
     if args.core_journeys:
         args.suite = "playwright"
+    if args.critical_journeys:
+        args.suite = "playwright"
     if args.no_mocks and args.record_live_fixtures:
         _log("--record-live-fixtures requires live-mock markers; do not combine it with --no-mocks", "ERROR")
+        return 2
+    if args.daily and args.record_live_fixtures:
+        _log("--daily cannot use --record-live-fixtures; scheduled record mode is forbidden", "ERROR")
         return 2
 
     # Always source .env into the process so cron jobs (which only run via
@@ -7687,6 +9505,18 @@ def main() -> int:
     for k, v in dot_env.items():
         if k not in os.environ:
             os.environ[k] = v
+
+    if args.daily_cache_backfill_preflight:
+        git_sha, git_branch = _git_info()
+        git_sha, _git_branch = _daily_git_info(git_sha, git_branch)
+        result = _daily_cache_backfill_preflight(git_sha, datetime.now(timezone.utc).date())
+        print(json.dumps(result, sort_keys=True))
+        return 0 if result.get("status") == "passed" else 1
+
+    if args.hourly_dev or args.daily:
+        maintenance = _maintain_spec_demo_publications()
+        if maintenance["retried"] or maintenance["expired_deleted"]:
+            _log(f"Spec demonstration publication maintenance: {maintenance}")
 
     # --dry-run-notify: short-circuit before any spec dispatch.
     if args.dry_run_notify:
@@ -7776,6 +9606,14 @@ def main() -> int:
             fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except (IOError, OSError):
             _log("Another instance is already running — exiting")
+            git_sha, git_branch = _git_info()
+            NotificationService().send_daily_skip_notification(
+                git_sha,
+                git_branch,
+                args.environment,
+                datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "Another daily test instance still holds the runner lock.",
+            )
             return 0
 
     try:

@@ -22,6 +22,150 @@ enter_your_message:
   sv: "Ange ditt meddelande"
   he: הקלד את ההודעה שלך
   verified_by_human: []
+model_selector.model_selection:
+  context: Heading for the message composer AI model picker
+  en: Model selection
+  de: Modellauswahl
+  zh: 模型选择
+  es: Selección de modelo
+  fr: Sélection du modèle
+  pt: Seleção de modelo
+  ru: Выбор модели
+  ja: モデル選択
+  ko: 모델 선택
+  it: Selezione modello
+  tr: Model seçimi
+  vi: Chọn mô hình
+  id: Pilihan model
+  pl: Wybór modelu
+  nl: Modelselectie
+  ar: اختيار النموذج
+  hi: मॉडल चयन
+  th: การเลือกโมเดล
+  cs: Výběr modelu
+  sv: Modellval
+  he: בחירת מודל
+  verified_by_human: []
+model_selector.model_details:
+  context: Accessible label for opening details about an AI model
+  en: Open model details
+  de: Modelldetails öffnen
+  zh: 打开模型详情
+  es: Abrir detalles del modelo
+  fr: Ouvrir les détails du modèle
+  pt: Abrir detalhes do modelo
+  ru: Открыть сведения о модели
+  ja: モデルの詳細を開く
+  ko: 모델 세부정보 열기
+  it: Apri dettagli modello
+  tr: Model ayrıntılarını aç
+  vi: Mở chi tiết mô hình
+  id: Buka detail model
+  pl: Otwórz szczegóły modelu
+  nl: Modeldetails openen
+  ar: فتح تفاصيل النموذج
+  hi: मॉडल विवरण खोलें
+  th: เปิดรายละเอียดโมเดล
+  cs: Otevřít podrobnosti modelu
+  sv: Öppna modelldetaljer
+  he: פתיחת פרטי המודל
+  verified_by_human: []
+model_selector.unavailable_reset:
+  context: Error shown when a chat's saved exact AI model is unavailable and the composer resets to Auto
+  en: The selected model is unavailable. This chat now uses Auto.
+  de: Das ausgewählte Modell ist nicht verfügbar. Dieser Chat verwendet jetzt Auto.
+  zh: 所选模型不可用。此聊天现在使用自动模式。
+  es: El modelo seleccionado no está disponible. Este chat ahora usa Automático.
+  fr: Le modèle sélectionné est indisponible. Cette discussion utilise maintenant Auto.
+  pt: O modelo selecionado não está disponível. Este chat agora usa Automático.
+  ru: Выбранная модель недоступна. Теперь в этом чате используется Авто.
+  ja: 選択したモデルは利用できません。このチャットでは自動が使用されます。
+  ko: 선택한 모델을 사용할 수 없습니다. 이제 이 채팅은 자동을 사용합니다.
+  it: Il modello selezionato non è disponibile. Questa chat ora usa Auto.
+  tr: Seçilen model kullanılamıyor. Bu sohbet artık Otomatik kullanıyor.
+  vi: Mô hình đã chọn không khả dụng. Cuộc trò chuyện này hiện dùng Tự động.
+  id: Model yang dipilih tidak tersedia. Chat ini sekarang menggunakan Otomatis.
+  pl: Wybrany model jest niedostępny. Ten czat używa teraz trybu Auto.
+  nl: Het geselecteerde model is niet beschikbaar. Deze chat gebruikt nu Automatisch.
+  ar: النموذج المحدد غير متاح. تستخدم هذه المحادثة الآن الوضع التلقائي.
+  hi: चुना गया मॉडल उपलब्ध नहीं है। यह चैट अब ऑटो का उपयोग करती है।
+  th: โมเดลที่เลือกไม่พร้อมใช้งาน แชทนี้ใช้โหมดอัตโนมัติแล้ว
+  cs: Vybraný model není k dispozici. Tento chat nyní používá automatický režim.
+  sv: Den valda modellen är inte tillgänglig. Chatten använder nu Auto.
+  he: המודל שנבחר אינו זמין. הצ'אט משתמש כעת במצב אוטומטי.
+  verified_by_human: []
+model_selector.load_failed:
+  context: Error shown when a chat's saved model setting cannot be loaded and Auto is used instead
+  en: Could not load this chat's model setting. Auto is being used.
+  de: Die Modelleinstellung dieses Chats konnte nicht geladen werden. Auto wird verwendet.
+  zh: 无法加载此聊天的模型设置。现已使用自动模式。
+  es: No se pudo cargar la configuración de modelo de este chat. Se usará Automático.
+  fr: Impossible de charger le modèle de cette discussion. Le mode Auto est utilisé.
+  pt: Não foi possível carregar a configuração de modelo deste chat. O modo Automático será usado.
+  ru: Не удалось загрузить настройку модели этого чата. Используется режим Авто.
+  ja: このチャットのモデル設定を読み込めませんでした。自動を使用します。
+  ko: 이 채팅의 모델 설정을 불러오지 못했습니다. 자동을 사용합니다.
+  it: Impossibile caricare l'impostazione del modello di questa chat. Verrà usato Auto.
+  tr: Bu sohbetin model ayarı yüklenemedi. Otomatik kullanılacak.
+  vi: Không thể tải cài đặt mô hình của cuộc trò chuyện này. Chế độ Tự động sẽ được dùng.
+  id: Pengaturan model chat ini tidak dapat dimuat. Mode Otomatis akan digunakan.
+  pl: Nie udało się wczytać ustawienia modelu tego czatu. Używany jest tryb Auto.
+  nl: De modelinstelling van deze chat kon niet worden geladen. Automatisch wordt gebruikt.
+  ar: تعذر تحميل إعداد النموذج لهذه المحادثة. سيتم استخدام الوضع التلقائي.
+  hi: इस चैट की मॉडल सेटिंग लोड नहीं हो सकी। ऑटो का उपयोग किया जा रहा है।
+  th: โหลดการตั้งค่าโมเดลของแชทนี้ไม่ได้ ระบบจะใช้โหมดอัตโนมัติ
+  cs: Nastavení modelu tohoto chatu se nepodařilo načíst. Použije se automatický režim.
+  sv: Det gick inte att läsa in chattens modellinställning. Auto används.
+  he: לא ניתן לטעון את הגדרת המודל של הצ'אט. נעשה שימוש במצב אוטומטי.
+  verified_by_human: []
+model_selector.save_failed:
+  context: Error shown when the selected chat model cannot be saved
+  en: Could not save the selected model. Select it again.
+  de: Das ausgewählte Modell konnte nicht gespeichert werden. Wähle es erneut aus.
+  zh: 无法保存所选模型。请重新选择。
+  es: No se pudo guardar el modelo seleccionado. Selecciónalo de nuevo.
+  fr: Impossible d'enregistrer le modèle sélectionné. Sélectionnez-le à nouveau.
+  pt: Não foi possível salvar o modelo selecionado. Selecione-o novamente.
+  ru: Не удалось сохранить выбранную модель. Выберите её снова.
+  ja: 選択したモデルを保存できませんでした。もう一度選択してください。
+  ko: 선택한 모델을 저장하지 못했습니다. 다시 선택하세요.
+  it: Impossibile salvare il modello selezionato. Selezionalo di nuovo.
+  tr: Seçilen model kaydedilemedi. Yeniden seçin.
+  vi: Không thể lưu mô hình đã chọn. Hãy chọn lại.
+  id: Model yang dipilih tidak dapat disimpan. Pilih lagi.
+  pl: Nie udało się zapisać wybranego modelu. Wybierz go ponownie.
+  nl: Het geselecteerde model kon niet worden opgeslagen. Selecteer het opnieuw.
+  ar: تعذر حفظ النموذج المحدد. حدده مرة أخرى.
+  hi: चुना गया मॉडल सेव नहीं हो सका। इसे फिर से चुनें।
+  th: บันทึกโมเดลที่เลือกไม่ได้ โปรดเลือกอีกครั้ง
+  cs: Vybraný model se nepodařilo uložit. Vyberte jej znovu.
+  sv: Det gick inte att spara den valda modellen. Välj den igen.
+  he: לא ניתן לשמור את המודל שנבחר. יש לבחור אותו שוב.
+  verified_by_human: []
+model_selector.loading_wait:
+  context: Error shown when sending is blocked briefly while the selected model is still loading
+  en: Model selection is still loading. Send again in a moment.
+  de: Die Modellauswahl wird noch geladen. Sende die Nachricht gleich erneut.
+  zh: 模型选择仍在加载。请稍后重新发送。
+  es: La selección de modelo aún se está cargando. Envía de nuevo en un momento.
+  fr: Le modèle est encore en cours de chargement. Renvoyez dans un instant.
+  pt: A seleção de modelo ainda está carregando. Envie novamente em instantes.
+  ru: Выбор модели ещё загружается. Отправьте сообщение снова через мгновение.
+  ja: モデル選択を読み込み中です。少し待ってからもう一度送信してください。
+  ko: 모델 선택을 아직 불러오는 중입니다. 잠시 후 다시 보내세요.
+  it: La selezione del modello è ancora in caricamento. Invia di nuovo tra poco.
+  tr: Model seçimi hâlâ yükleniyor. Birazdan yeniden gönderin.
+  vi: Lựa chọn mô hình vẫn đang tải. Hãy gửi lại sau giây lát.
+  id: Pilihan model masih dimuat. Kirim lagi sebentar lagi.
+  pl: Wybór modelu nadal się wczytuje. Wyślij ponownie za chwilę.
+  nl: De modelselectie wordt nog geladen. Verstuur over een moment opnieuw.
+  ar: لا يزال اختيار النموذج قيد التحميل. أرسل مرة أخرى بعد لحظات.
+  hi: मॉडल चयन अभी लोड हो रहा है। कुछ देर में फिर भेजें।
+  th: กำลังโหลดการเลือกโมเดล โปรดส่งอีกครั้งในอีกสักครู่
+  cs: Výběr modelu se stále načítá. Za chvíli zprávu odešlete znovu.
+  sv: Modellvalet läses fortfarande in. Skicka igen om en stund.
+  he: בחירת המודל עדיין נטענת. יש לשלוח שוב בעוד רגע.
+  verified_by_human: []
 click_to_enter_message:
   context: Placeholder text shown when message field is not focused
   en: Click here to ask anything
@@ -189,6 +333,102 @@ send:
   cs: Odeslat
   sv: "Skicka"
   he: שלח
+  verified_by_human: []
+speech_on:
+  context: Brief status label and accessible name when automatic assistant speech is enabled for the chat
+  en: Speech turned on
+  de: Sprachausgabe an
+  zh: 语音已开启
+  es: Voz activada
+  fr: Lecture vocale activée
+  pt: Voz ativada
+  ru: Озвучивание включено
+  ja: 音声読み上げオン
+  ko: 음성 켜짐
+  it: Voce attiva
+  tr: Ses açık
+  vi: Đã bật giọng nói
+  id: Suara aktif
+  pl: Mowa włączona
+  nl: Spraak aan
+  ar: الصوت مفعّل
+  hi: वाणी चालू
+  th: เปิดเสียงพูด
+  cs: Hlas zapnutý
+  sv: Tal på
+  he: הקראה פעילה
+  verified_by_human: []
+speech_off:
+  context: Brief status label and accessible name when automatic assistant speech is disabled for the chat
+  en: Speech turned off
+  de: Sprachausgabe aus
+  zh: 语音已关闭
+  es: Voz desactivada
+  fr: Lecture vocale désactivée
+  pt: Voz desativada
+  ru: Озвучивание выключено
+  ja: 音声読み上げオフ
+  ko: 음성 꺼짐
+  it: Voce disattivata
+  tr: Ses kapalı
+  vi: Đã tắt giọng nói
+  id: Suara nonaktif
+  pl: Mowa wyłączona
+  nl: Spraak uit
+  ar: الصوت متوقف
+  hi: वाणी बंद
+  th: ปิดเสียงพูด
+  cs: Hlas vypnutý
+  sv: Tal av
+  he: הקראה כבויה
+  verified_by_human: []
+speech_enable:
+  context: Accessible button label and hover tooltip when assistant response speech is off
+  en: Speak responses
+  de: Sprachantworten aktivieren
+  zh: 开启回复朗读
+  es: Leer respuestas
+  fr: Lire les réponses
+  pt: Ler respostas
+  ru: Озвучивать ответы
+  ja: 回答を読み上げる
+  ko: 응답 읽기
+  it: Leggi le risposte
+  tr: Yanıtları seslendir
+  vi: Đọc câu trả lời
+  id: Bacakan respons
+  pl: Czytaj odpowiedzi
+  nl: Antwoorden voorlezen
+  ar: قراءة الردود
+  hi: जवाब पढ़ें
+  th: อ่านคำตอบ
+  cs: Číst odpovědi
+  sv: Läs upp svar
+  he: הקראת תשובות
+  verified_by_human: []
+speech_disable:
+  context: Accessible button label and hover tooltip when assistant response speech is on
+  en: Turn off speaking
+  de: Sprachausgabe ausschalten
+  zh: 关闭回复朗读
+  es: Desactivar lectura
+  fr: Désactiver la lecture
+  pt: Desativar leitura
+  ru: Выключить озвучивание
+  ja: 読み上げをオフにする
+  ko: 음성 읽기 끄기
+  it: Disattiva lettura
+  tr: Seslendirmeyi kapat
+  vi: Tắt đọc câu trả lời
+  id: Matikan pembacaan
+  pl: Wyłącz czytanie
+  nl: Voorlezen uitschakelen
+  ar: إيقاف القراءة
+  hi: बोलना बंद करें
+  th: ปิดการอ่าน
+  cs: Vypnout čtení
+  sv: Stäng av uppläsning
+  he: כיבוי הקראה
   verified_by_human: []
 buy_credits:
   context: Button text shown instead of Send when a signed-in user has zero credits

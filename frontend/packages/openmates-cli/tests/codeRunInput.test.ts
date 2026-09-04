@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import {
   buildCodeRunRequestsFromFlags,
   buildCodeRunStreamUrl,
+  formatCodeRunFinalStatusOutput,
 } from "../src/codeRunInput.ts";
 
 const testDir = join(tmpdir(), `openmates-code-run-${Date.now()}`);
@@ -32,6 +33,7 @@ describe("codeRunInput", () => {
     delete (globalThis as typeof globalThis & { fetch?: unknown }).fetch;
   });
 
+  // contract-test: direct surface=cli assertions=code-run.request.validated,code-run.output.direct-transient
   it("builds inline code requests with internet enabled by default", async () => {
     const requests = await buildCodeRunRequestsFromFlags({
       language: "python",
@@ -53,6 +55,7 @@ describe("codeRunInput", () => {
     }]);
   });
 
+  // contract-test: direct surface=cli assertions=code-run.request.validated,code-run.output.direct-transient
   it("packages local files and disables internet with noInternet", async () => {
     const filePath = join(testDir, "app.py");
     writeFileSync(filePath, "print('file')\n");
@@ -69,6 +72,7 @@ describe("codeRunInput", () => {
     assert.equal(requests[0].files[0].content_base64, b64("print('file')\n"));
   });
 
+  // contract-test: supporting surface=cli assertions=code-run.request.validated
   it("packages directories with default ignores and explicit excludes", async () => {
     mkdirSync(join(testDir, "project", "__pycache__"), { recursive: true });
     mkdirSync(join(testDir, "project", "src"), { recursive: true });
@@ -88,6 +92,7 @@ describe("codeRunInput", () => {
     assert.equal(requests[0].files.find((file) => file.path === "main.py")?.is_target, true);
   });
 
+  // contract-test: supporting surface=cli assertions=code-run.request.validated,code-run.surface-parity
   it("downloads raw URL files client-side", async () => {
     (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = async () => new Response("print('url')\n", { status: 200 });
 
@@ -105,6 +110,7 @@ describe("codeRunInput", () => {
     }]);
   });
 
+  // contract-test: supporting surface=cli assertions=code-run.request.validated,code-run.surface-parity
   it("downloads public GitHub repo include paths client-side", async () => {
     const fetchedUrls: string[] = [];
     (globalThis as typeof globalThis & { fetch: typeof fetch }).fetch = async (url) => {
@@ -124,6 +130,7 @@ describe("codeRunInput", () => {
     assert.equal(requests[0].files[0].is_target, true);
   });
 
+  // contract-test: direct surface=cli assertions=code-run.request.validated
   it("rejects unsafe local paths before upload", async () => {
     await assert.rejects(
       () => buildCodeRunRequestsFromFlags({ entry: "../main.py", file: [join(testDir, "main.py")] }),
@@ -131,6 +138,7 @@ describe("codeRunInput", () => {
     );
   });
 
+  // contract-test: supporting surface=cli assertions=code-run.execution.stream-status-visible,code-run.surface-parity
   it("builds authenticated Code Run stream URLs for CLI sessions", () => {
     const url = buildCodeRunStreamUrl({
       apiUrl: "https://api.dev.openmates.org",
@@ -140,5 +148,22 @@ describe("codeRunInput", () => {
     });
 
     assert.equal(url, "wss://api.dev.openmates.org/v1/code/run/exec-1/stream?sessionId=cli-session&token=ws-token");
+  });
+
+  // contract-test: direct surface=cli assertions=code-run.output.direct-transient,code-run.surface-parity
+  it("formats final terminal output and artifact metadata for human CLI output", () => {
+    assert.equal(
+      formatCodeRunFinalStatusOutput({
+        output: "ok\n",
+        artifacts: [{
+          normalized_path: "outputs/summary.csv",
+          mime_type: "text/csv",
+          size_bytes: 12,
+          download_url: "https://example.test/download/summary.csv",
+        }],
+        skipped_artifacts: [{ path: "outputs/.env", reason: "hidden_path" }],
+      }),
+      "ok\n\nArtifacts:\n- outputs/summary.csv (text/csv, 12 bytes; signed download available via --json)\n\nSkipped artifacts:\n- outputs/.env (hidden_path)\n",
+    );
   });
 });

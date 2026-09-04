@@ -1,0 +1,93 @@
+{
+  "commands": [
+    {
+      "command": "python3 -m pytest backend/tests/test_ai_request_observability.py backend/tests/test_caching_llm_wrapper.py backend/tests/test_daily_ai_test_budget.py backend/tests/test_import_live_mock_cache.py scripts/tests/test_daily_ai_test_policy.py -q",
+      "result": "58 passed",
+      "status": "passed"
+    },
+    {
+      "command": "python3 scripts/tests.py run --spec daily-ai-fixed-canary.spec.ts --gate-deploy --expected-commit 40f16fb9042651581fe6f876c15ea587b88a3904",
+      "run_id": "GitHub Actions 33324072487",
+      "status": "passed_after_deploy",
+      "url": "https://github.com/glowingkitty/OpenMates/actions/runs/33324072487"
+    },
+    {
+      "command": "python3 scripts/tests.py run --spec daily-ai-rotating-canary.spec.ts --gate-deploy --expected-commit 40f16fb9042651581fe6f876c15ea587b88a3904",
+      "run_id": "GitHub Actions 33324074011",
+      "status": "passed_after_deploy",
+      "url": "https://github.com/glowingkitty/OpenMates/actions/runs/33324074011"
+    }
+  ],
+  "deployment_reference": "Vercel dpl_4jfMsrbdeRarYdVUidXeZnoPodzN",
+  "privacy": {
+    "content_free": true,
+    "excluded": [
+      "prompts",
+      "generated_responses",
+      "tool_payloads",
+      "user_ids",
+      "chat_ids",
+      "credentials",
+      "cache_keys",
+      "raw_provider_errors"
+    ]
+  },
+  "run_id": "fd78-current-direct-proof-20260830T1705Z",
+  "schema_version": 1,
+  "status": "passed",
+  "subject_commit": "40f16fb9042651581fe6f876c15ea587b88a3904",
+  "summary": "Focused CLI-surface pytest proof and fixed plus rotating deployed canaries passed for cost-safe daily AI assertions.",
+  "tests": [
+    {
+      "name": "test_cached_non_stream_provider_replays_cached_response_without_real_provider",
+      "path": "backend/tests/test_caching_llm_wrapper.py",
+      "status": "passed"
+    },
+    {
+      "name": "test_cached_stream_provider_raises_on_fingerprint_miss_without_real_provider",
+      "path": "backend/tests/test_caching_llm_wrapper.py",
+      "status": "passed"
+    },
+    {
+      "name": "daily fixed real-inference canary completes the full chat pipeline",
+      "path": "frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts",
+      "status": "passed"
+    },
+    {
+      "name": "daily rotating real-inference canary completes its selected semantic scenario",
+      "path": "frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts",
+      "status": "passed"
+    },
+    {
+      "name": "test_real_budget_fails_before_thirteenth_default_call",
+      "path": "backend/tests/test_daily_ai_test_budget.py",
+      "status": "passed"
+    },
+    {
+      "name": "test_ordinary_requests_do_not_consult_test_budget",
+      "path": "backend/tests/test_daily_ai_test_budget.py",
+      "status": "passed"
+    },
+    {
+      "name": "test_promotion_replaces_group_only_after_staging_candidate",
+      "path": "backend/tests/test_import_live_mock_cache.py",
+      "status": "passed"
+    },
+    {
+      "name": "test_runner_daily_discovery_uses_policy_and_rejects_record_mode",
+      "path": "scripts/tests/test_daily_ai_test_policy.py",
+      "status": "passed"
+    },
+    {
+      "name": "test_phase_spans_form_a_content_free_hierarchy",
+      "path": "backend/tests/test_ai_request_observability.py",
+      "status": "passed"
+    },
+    {
+      "name": "test_queue_span_uses_internal_timestamp_without_request_identity",
+      "path": "backend/tests/test_ai_request_observability.py",
+      "status": "passed"
+    }
+  ],
+  "timestamp": "2026-08-30T17:05:07Z"
+}

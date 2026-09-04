@@ -141,7 +141,15 @@ actor APIClient {
         headers: [String: String]? = nil
     ) async throws -> T {
         let data = try await request(method, path: path, body: body, headers: headers)
-        return try decoder.decode(T.self, from: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            NativeDiagnostics.error(
+                "API response decoding failed response_type=\(String(describing: T.self)) error_type=\(type(of: error))",
+                category: "network"
+            )
+            throw error
+        }
     }
 
     func request<T: Decodable>(
@@ -253,6 +261,10 @@ actor APIClient {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            NativeDiagnostics.warning(
+                "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode)",
+                category: "network"
+            )
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
             throw APIError.httpError(
                 status: httpResponse.statusCode,

@@ -13,6 +13,7 @@ import re
 from subprocess import CompletedProcess
 import sys
 from types import SimpleNamespace
+import urllib.parse
 
 import pytest
 
@@ -101,13 +102,21 @@ def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, m
 def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkeypatch) -> None:
     captured = {}
 
-    monkeypatch.setattr("time.sleep", lambda _seconds: None)
+    class Response:
+        status = 204
 
-    def capture_popen(command, **kwargs):
-        captured["command"] = command
-        return FakeProcess()
+        def __enter__(self):
+            return self
 
-    monkeypatch.setattr(_zellij_utils.subprocess, "Popen", capture_popen)
+        def __exit__(self, *_args):
+            return False
+
+    def capture_urlopen(request, timeout):
+        captured["request"] = request
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", capture_urlopen)
 
     assert _zellij_utils.resume_opencode_session(
         "resume-example",
@@ -116,12 +125,154 @@ def test_resume_opencode_session_uses_existing_session_id(tmp_path: Path, monkey
         "Continue the interrupted review.",
     )
 
-    command = captured["command"]
-    assert command[command.index("--session") + 1] == "ses_existing"
-    assert "--title" not in command
-    assert command[command.index("--agent") + 1] == "plan"
-    assert "--auto" not in command
-    assert "claude" not in " ".join(command).lower()
+    request = captured["request"]
+    assert request.method == "POST"
+    assert "/session/ses_existing/prompt_async?" in request.full_url
+    assert urllib.parse.parse_qs(urllib.parse.urlparse(request.full_url).query) == {
+        "directory": [_zellij_utils.OPENCODE_CONTROL_PLANE_RUNTIME],
+    }
+    assert json.loads(request.data) == {
+        "agent": "plan",
+        "parts": [{"type": "text", "text": "Continue the interrupted review."}],
+    }
+    assert captured["timeout"] == 15
+
+
+def test_resume_opencode_session_preserves_captured_model(tmp_path: Path, monkeypatch) -> None:
+    captured = {}
+
+    class Response:
+        status = 204
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    def capture_urlopen(request, timeout):
+        captured["request"] = request
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", capture_urlopen)
+    monkeypatch.setattr(_zellij_utils.subprocess, "Popen", lambda *_args, **_kwargs: FakeProcess())
+
+    assert _zellij_utils.resume_opencode_session(
+        "resume-example",
+        "ses_existing",
+        str(tmp_path),
+        permission_mode="execute",
+        provider_id="openai",
+        model_id="gpt-5.6-sol",
+        variant="medium",
+    )
+
+    assert json.loads(captured["request"].data)["model"] == {
+        "providerID": "openai",
+        "modelID": "gpt-5.6-sol",
+    }
+    assert json.loads(captured["request"].data)["variant"] == "medium"
+
+
+def test_restart_capture_keeps_only_busy_top_level_sessions(tmp_path: Path, monkeypatch) -> None:
+    responses = {
+        "/session/status": {
+            "ses_parent": {"type": "busy"},
+            "ses_child": {"type": "retry"},
+            "ses_idle": {"type": "idle"},
+        },
+        "/session/ses_parent": {
+            "id": "ses_parent",
+            "parentID": None,
+            "title": "Active task",
+            "directory": "/repo",
+            "time": {"updated": 123},
+        },
+        "/session/ses_parent/message?limit=10": [
+            {"info": {"role": "assistant", "agent": "build", "providerID": "openai", "modelID": "gpt-5.6-sol", "variant": "medium"}}
+        ],
+        "/session/ses_child": {
+            "id": "ses_child",
+            "parentID": "ses_parent",
+            "title": "Reviewer child",
+            "time": {"updated": 124},
+        },
+    }
+    monkeypatch.setattr(sessions, "_opencode_api_json", lambda path, timeout=15: responses[path])
+    monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
+    manifest_path = tmp_path / "restart.json"
+
+    manifest = sessions.capture_opencode_restart_manifest(manifest_path)
+
+    assert [entry["session_id"] for entry in manifest["sessions"]] == ["ses_parent"]
+    assert manifest["sessions"][0]["permission_mode"] == "execute"
+    assert manifest["sessions"][0]["model_id"] == "gpt-5.6-sol"
+    assert json.loads(manifest_path.read_text(encoding="utf-8")) == manifest
+
+
+def test_opencode_api_requests_are_pinned_to_canonical_project(monkeypatch) -> None:
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self):
+            return b"{}"
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["timeout"] = timeout
+        return Response()
+
+    monkeypatch.setattr(sessions.urllib.request, "urlopen", fake_urlopen)
+
+    assert sessions._opencode_api_json("/session/status") == {}
+    assert captured["timeout"] == 15
+    assert f"directory={sessions.urllib.parse.quote(str(sessions.CONTROL_PLANE_ROOT), safe='')}" in captured["url"]
+
+
+def test_restart_resume_is_exactly_once_and_verified(tmp_path: Path, monkeypatch) -> None:
+    manifest_path = tmp_path / "restart.json"
+    manifest_path.write_text(json.dumps({
+        "version": 1,
+        "sessions": [{
+            "session_id": "ses_parent",
+            "updated_before_restart": 100,
+            "permission_mode": "execute",
+            "provider_id": "openai",
+            "model_id": "gpt-5.6-sol",
+            "variant": "medium",
+            "resume_sent_at": None,
+            "resume_verified_at": None,
+        }],
+    }), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(sessions, "prepare_opencode_restore", lambda _session_id: {
+        "cwd": "/repo/worktree",
+        "repository_session_id": "abcd",
+        "advanced": False,
+    })
+    monkeypatch.setitem(
+        sys.modules,
+        "_zellij_utils",
+        SimpleNamespace(resume_opencode_session=lambda **kwargs: calls.append(kwargs) or True),
+    )
+    monkeypatch.setattr(sessions, "_opencode_api_json", lambda path, timeout=15: (
+        {"ses_parent": {"type": "busy"}} if path == "/session/status" else {"time": {"updated": 101}}
+    ))
+    monkeypatch.setattr(sessions, "_now_iso", lambda: "now")
+
+    first = sessions.resume_opencode_restart_manifest(manifest_path)
+    second = sessions.resume_opencode_restart_manifest(manifest_path)
+
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == "gpt-5.6-sol"
+    assert first["sessions"][0]["resume_verified_at"] == "now"
+    assert second["sessions"][0]["resume_sent_at"] == "now"
 
 
 def test_find_opencode_session_id_ignores_older_same_title(tmp_path: Path, monkeypatch) -> None:
@@ -228,12 +379,20 @@ def test_restore_command_never_references_claude_launcher() -> None:
     assert "zellij attach" not in command
 
 
-def test_server_restart_fails_closed_when_session_discovery_fails() -> None:
+def test_server_restart_captures_exact_busy_set_and_never_rebuilds_docker() -> None:
     source = (Path(sessions.__file__).parents[1] / "scripts/server-restart.sh").read_text(encoding="utf-8")
 
-    assert "command -v opencode" in source
+    capture_index = source.index("opencode-restart capture")
+    stop_index = source.index('send-keys --pane-id "$server_pane" "Ctrl c"')
+    resume_index = source.index("opencode-restart resume")
+
+    assert capture_index < stop_index < resume_index
     assert "command -v jq" in source
-    assert "if ! session_json=" in source
+    assert "docker compose" not in source
+    assert "tmux" not in source
+    assert 'GIT_COMMON_DIR="$(git -C "$SCRIPT_CHECKOUT" rev-parse --path-format=absolute --git-common-dir)"' in source
+    assert 'OPENCODE_PROJECT_ROOT="$PROJECT_DIR"' in source
+    assert '.terminal_command // ""' in source
 
 
 def test_active_automation_never_spawns_claude_cli() -> None:
@@ -341,31 +500,24 @@ def test_spawn_chat_execute_readonly_has_consistent_prompt(tmp_path: Path, monke
     assert "Use sessions.py deploy" not in captured["prompt"]
 
 
-def test_spawn_chat_rejects_contradictory_execute_prompt(tmp_path: Path, monkeypatch) -> None:
+def test_spawn_chat_mode_is_authoritative_over_prompt_wording(tmp_path: Path, monkeypatch) -> None:
+    canonical = tmp_path / "canonical"
+    canonical.mkdir()
+    captured = {}
     monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path / "worktree")
-    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "canonical")
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", canonical)
+    monkeypatch.setitem(sys.modules, "_zellij_utils", _zellij_utils)
+    monkeypatch.setattr(_zellij_utils, "spawn_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
+    monkeypatch.setattr(_zellij_utils, "find_opencode_session_id", lambda *_args, **_kwargs: "ses_worker")
 
-    with pytest.raises(SystemExit, match="--mode execute cannot be combined"):
-        sessions.cmd_spawn_chat(SimpleNamespace(
-            prompt="Read-only investigation. Do not edit files.",
-            prompt_file=None,
-            name="bad-worker",
-            mode="execute",
-            linear_issue=None,
-            no_deploy_instructions=False,
-        ))
+    sessions.cmd_spawn_chat(SimpleNamespace(
+        prompt="Implement the fix, but do not edit unrelated product files or deploy until verification passes.",
+        prompt_file=None,
+        name="scoped-worker",
+        mode="execute",
+        linear_issue=None,
+        no_deploy_instructions=False,
+    ))
 
-
-def test_spawn_chat_rejects_contradictory_execute_readonly_prompt(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path / "worktree")
-    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", tmp_path / "canonical")
-
-    with pytest.raises(SystemExit, match="--mode execute-readonly cannot be combined"):
-        sessions.cmd_spawn_chat(SimpleNamespace(
-            prompt="Implement the fix directly and use sessions.py deploy when done.",
-            prompt_file=None,
-            name="bad-readonly-worker",
-            mode="execute-readonly",
-            linear_issue=None,
-            no_deploy_instructions=False,
-        ))
+    assert captured["permission_mode"] == "execute"
+    assert "do not edit unrelated product files" in captured["prompt"]

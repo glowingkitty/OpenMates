@@ -26,6 +26,7 @@ models:
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-06-01" # Pinned model release date (2506 suffix = June 2025)
+    capability_level: "low"
     allow_auto_select: false # Pinned preprocessing model — not for auto-selection
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       openrouter: "mistralai/mistral-small-3.2-24b-instruct"
@@ -71,6 +72,7 @@ models:
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-06-01" # Mistral Small 4 release date
+    capability_level: "medium"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-small-latest"
@@ -121,6 +123,7 @@ models:
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-04-28" # Mistral Medium 3.5 release date
+    capability_level: "high"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "mistral-medium-3.5"
@@ -169,6 +172,7 @@ models:
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-12-01" # Model release date (derived from model ID suffix 2512)
+    capability_level: "low"
     allow_auto_select: false # Not for auto-selection - for preprocessing/postprocessing only
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "ministral-8b-2512"
@@ -241,6 +245,7 @@ models:
     country_origin: "FR" # ISO 3166-1 alpha-2 country code for model origin (France)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-12-01" # Model release date (derived from model ID suffix 2512)
+    capability_level: "medium"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "devstral-2512"

@@ -298,7 +298,7 @@ Before finishing, verify:
 
 ## When to Escalate to a Full Spec
 
-Use `specify` before implementation if the focus mode changes runtime behavior,
+Use `create-plan` before implementation if the focus mode changes runtime behavior,
 adds new persistence, introduces new API routes, changes activation/deactivation
 semantics, touches encryption/privacy-sensitive data flows, or requires new app
 skills/providers. Pure prompt/content additions can usually follow this skill

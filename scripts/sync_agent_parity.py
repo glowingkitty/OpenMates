@@ -32,7 +32,7 @@ OPENCODE_AGENT_MODELS = {
     "apple-performance-detective": "openai/gpt-5.6-sol",
     "chat-sync-detective": "openai/gpt-5.6-sol",
     "code-reviewer": "openai/gpt-5.6-terra",
-    "contract-verifier": "openai/gpt-5.6-terra",
+    "specification-verifier": "openai/gpt-5.6-terra",
     "e2e-test-investigator": "openai/gpt-5.6-terra",
     "embed-rendering-investigator": "openai/gpt-5.6-terra",
     "encryption-flow-tracer": "openai/gpt-5.6-sol",
@@ -193,10 +193,11 @@ def render_opencode_agent(source: Path) -> str:
             [
                 "  read:",
                 '    "*": deny',
-                '    "review-prompt-round-*.json": allow',
-                '    "frames/*": allow',
+                '    "test-results/proof-videos/**/review-prompt-round-*.json": allow',
+                '    "test-results/proof-videos/**/frames/*": allow',
                 "  grep: deny",
                 "  glob: deny",
+                "  task: deny",
                 "  external_directory: deny",
             ]
         )

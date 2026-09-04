@@ -141,6 +141,9 @@ export function resetLocalLogoutState(): void {
   }
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent("forceCloseSettings"));
+    // Component-local chat and landing state cannot be reset through stores alone.
+    // Keep this signal canonical so every logout caller restores the same guest UI.
+    window.dispatchEvent(new CustomEvent("userLoggingOut"));
   }
 
   authStore.set({
@@ -418,6 +421,8 @@ export async function login(
                 data.user.default_ai_model_simple ?? null,
               default_ai_model_complex:
                 data.user.default_ai_model_complex ?? null,
+              default_ai_model_most_demanding:
+                data.user.default_ai_model_most_demanding ?? null,
               default_app_skill_models:
                 data.user.default_app_skill_models ?? {},
               follow_up_suggestions_enabled:

@@ -1,0 +1,51 @@
+name: openmates-engineering-control-plane
+
+services:
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: engineering_control_plane
+      POSTGRES_USER: engineering_control_plane
+      POSTGRES_PASSWORD: ${ENGINEERING_CONTROL_PLANE_DB_PASSWORD:?set ENGINEERING_CONTROL_PLANE_DB_PASSWORD}
+    volumes:
+      - engineering_control_plane_postgres:/var/lib/postgresql/data
+    networks:
+      - engineering_control_plane
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U engineering_control_plane -d engineering_control_plane"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ../..
+      dockerfile: backend/engineering_control_plane/Dockerfile
+    restart: unless-stopped
+    environment:
+      ENGINEERING_CONTROL_PLANE_DATABASE_URL: postgresql://engineering_control_plane:${ENGINEERING_CONTROL_PLANE_DB_PASSWORD}@database:5432/engineering_control_plane
+      ENGINEERING_CONTROL_PLANE_IDENTITIES_JSON: ${ENGINEERING_CONTROL_PLANE_IDENTITIES_JSON:?set ENGINEERING_CONTROL_PLANE_IDENTITIES_JSON}
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${ENGINEERING_CONTROL_PLANE_PORT:-8091}:8000"
+    networks:
+      - engineering_control_plane
+      - host_access
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+
+networks:
+  engineering_control_plane:
+    internal: true
+  host_access:
+    driver: bridge
+
+volumes:
+  engineering_control_plane_postgres:
+    name: openmates_engineering_control_plane_postgres

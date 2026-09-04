@@ -1,96 +1,86 @@
-"""
-Lifecycle policy management for S3 buckets.
+"""Lifecycle policy management for S3 buckets.
+
+Rules are grouped by physical bucket so logical surfaces that share a bucket do
+not overwrite each other's retention. Prefix-specific compliance retention is
+defined in config.py and reconciled in one deterministic update.
 """
 import logging
-from botocore.exceptions import ClientError
+import re
+from collections import defaultdict
 from typing import Dict
 
-logger = logging.getLogger(__name__)
+from botocore.exceptions import ClientError
 
-def apply_lifecycle_policies(s3_client, bucket_configs: Dict[str, Dict]):
-    """
-    Apply lifecycle policies to S3 buckets.
-    
-    Args:
-        s3_client: The boto3 S3 client
-        bucket_configs: Dictionary of bucket configurations
-    """
+logger = logging.getLogger(__name__)
+MANAGED_RULE_ID_PREFIX = 'OpenMates-'
+LEGACY_MANAGED_RULE_ID = re.compile(r'^ExpireAfter\d+Days$')
+
+
+def build_lifecycle_rules(bucket_configs: Dict[str, Dict]) -> list[dict]:
+    """Build deterministic lifecycle rules for logical configs in one bucket."""
+    rules = []
+    for bucket_key, bucket_config in sorted(bucket_configs.items()):
+        lifecycle_days = bucket_config.get('lifecycle_policy')
+        if not isinstance(lifecycle_days, int) or lifecycle_days <= 0:
+            continue
+        prefix = bucket_config.get('lifecycle_prefix', '')
+        label = ''.join(part.capitalize() for part in bucket_key.replace('_logs', '').split('_'))
+        rules.append({
+            'ID': f'{MANAGED_RULE_ID_PREFIX}Expire{label}After{lifecycle_days}Days',
+            'Status': 'Enabled',
+            'Filter': {'Prefix': prefix},
+            'Expiration': {'Days': lifecycle_days},
+        })
+    return sorted(rules, key=lambda rule: (rule['Filter']['Prefix'], rule['ID']))
+
+
+def apply_lifecycle_policies(s3_client, bucket_configs: Dict[str, Dict], environment: str = 'production'):
+    """Apply grouped lifecycle policies while preserving unmanaged rules."""
     try:
+        grouped_configs = defaultdict(dict)
+        name_field = 'dev_name' if environment == 'development' else 'name'
         for bucket_key, bucket_config in bucket_configs.items():
-            bucket_name = bucket_config['name']
-            lifecycle_days = bucket_config.get('lifecycle_policy')
-            
-            # Skip if no lifecycle policy is defined
-            if not lifecycle_days:
+            grouped_configs[bucket_config[name_field]][bucket_key] = bucket_config
+
+        for bucket_name, logical_configs in sorted(grouped_configs.items()):
+            rules = build_lifecycle_rules(logical_configs)
+            if not rules:
                 continue
-            
             try:
-                logger.info(f"Applying lifecycle policy to bucket: {bucket_name} (expire after {lifecycle_days} days)")
-                
-                # Create lifecycle configuration
-                lifecycle_config = {
-                    'Rules': [
-                        {
-                            'ID': f'ExpireAfter{lifecycle_days}Days',
-                            'Status': 'Enabled',
-                            'Prefix': '',  # Apply to all objects
-                            'Expiration': {
-                                'Days': lifecycle_days
-                            }
-                        }
-                    ]
-                }
-                
-                # Apply lifecycle configuration
+                unmanaged_rules = _get_unmanaged_lifecycle_rules(s3_client, bucket_name)
+                combined_rules = unmanaged_rules + rules
+                logger.info(
+                    "Applying %s managed lifecycle rule(s) while preserving %s unmanaged rule(s)",
+                    len(rules),
+                    len(unmanaged_rules),
+                )
                 s3_client.put_bucket_lifecycle_configuration(
                     Bucket=bucket_name,
-                    LifecycleConfiguration=lifecycle_config
+                    LifecycleConfiguration={'Rules': combined_rules},
                 )
-                
-                logger.info(f"Successfully applied lifecycle policy to bucket: {bucket_name}")
+                logger.info("Successfully applied lifecycle policy")
             except ClientError as e:
                 error_code = e.response['Error']['Code']
-                logger.warning(f"Failed to apply lifecycle policy to bucket {bucket_name}: {error_code}")
-                # Don't raise exception here, as this is not critical for the service to function
+                logger.warning("Failed to apply lifecycle policy: error_code=%s", error_code)
             except Exception as e:
-                logger.error(f"Error applying lifecycle policy to bucket {bucket_name}: {str(e)}")
+                logger.error("Error applying lifecycle policy: error_class=%s", type(e).__name__)
     except Exception as e:
-        logger.error(f"Error applying lifecycle policies: {str(e)}")
+        logger.error("Error applying lifecycle policies: error_class=%s", type(e).__name__)
 
-def apply_lifecycle_policy_to_bucket(s3_client, bucket_name: str, days: int):
-    """
-    Apply a lifecycle policy to a specific bucket.
-    
-    Args:
-        s3_client: The boto3 S3 client
-        bucket_name: The name of the bucket
-        days: The number of days after which objects should expire
-    """
+
+def _get_unmanaged_lifecycle_rules(s3_client, bucket_name: str) -> list[dict]:
+    """Read existing rules and retain everything not owned by OpenMates."""
     try:
-        logger.info(f"Applying lifecycle policy to bucket: {bucket_name} (expire after {days} days)")
-        
-        # Create lifecycle configuration
-        lifecycle_config = {
-            'Rules': [
-                {
-                    'ID': f'ExpireAfter{days}Days',
-                    'Status': 'Enabled',
-                    'Prefix': '',  # Apply to all objects
-                    'Expiration': {
-                        'Days': days
-                    }
-                }
-            ]
-        }
-        
-        # Apply lifecycle configuration
-        s3_client.put_bucket_lifecycle_configuration(
-            Bucket=bucket_name,
-            LifecycleConfiguration=lifecycle_config
-        )
-        
-        logger.info(f"Successfully applied lifecycle policy to bucket: {bucket_name}")
-        return True
-    except Exception as e:
-        logger.error(f"Error applying lifecycle policy to bucket {bucket_name}: {str(e)}")
-        return False
+        response = s3_client.get_bucket_lifecycle_configuration(Bucket=bucket_name)
+    except ClientError as exc:
+        error_code = str(exc.response.get('Error', {}).get('Code', ''))
+        if error_code in {'404', 'NoSuchLifecycleConfiguration'}:
+            return []
+        raise
+    rules = response.get('Rules', [])
+    return [
+        rule
+        for rule in rules
+        if not str(rule.get('ID', '')).startswith(MANAGED_RULE_ID_PREFIX)
+        and not LEGACY_MANAGED_RULE_ID.fullmatch(str(rule.get('ID', '')))
+    ]

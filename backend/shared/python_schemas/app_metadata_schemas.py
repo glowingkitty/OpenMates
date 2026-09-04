@@ -94,6 +94,14 @@ class AppSkillDefinition(BaseModel):
     description_translation_key: str  # Required: Translation key for skill description (e.g., "app_translations.web.skills.search.description")
     class_path: Optional[str] = None  # e.g., "apps.ai.skills.ask_skill.AskSkill" - omitted for unimplemented placeholders
     default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented skill ships off by default.")
+    parallel_safe: bool = Field(
+        default=False,
+        description=(
+            "Permit concurrent execution only when the skill is read-only, has no ordering "
+            "dependency on other calls in the model batch, and cannot mutate account, payment, "
+            "or workspace state. Defaults to false."
+        ),
+    )
     pricing: Optional[AppPricing] = None
     providers: Optional[List[ProviderRef]] = None  # Optional list of provider references — used for provider-level pricing lookup and availability checks
     icon_image: Optional[str] = Field(default=None, description="Filename of the skill icon shown in Apps settings.")
@@ -119,6 +127,9 @@ class AppSkillDefinition(BaseModel):
     full_model_reference: Optional[str] = Field(default=None, description="Optional full model reference (e.g., 'google/gemini-3-pro-image-preview') used for model-specific pricing.")
     default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
     tool_schema: Optional[Dict[str, Any]] = None  # Optional: Tool schema in JSON Schema format for function calling (required for skills used as tools, optional for entry-point skills like ai.ask)
+    sdk_exposed: Optional[bool] = Field(default=None, description="Expose this skill in generated SDK facades even when the generic REST POST route is hidden behind a custom route.")
+    sdk_tool_schema: Optional[Dict[str, Any]] = Field(default=None, description="Optional SDK-specific request schema when the assistant tool schema differs from the custom REST route.")
+    sdk_output_schema: Optional[Dict[str, Any]] = Field(default=None, description="Optional SDK-specific result schema for generated SDK metadata.")
     # Fields to exclude from LLM inference (but keep in full results for UI rendering)
     # Supports dot notation for nested fields (e.g., "meta_url.favicon", "thumbnail.original")
     exclude_fields_for_llm: Optional[List[str]] = Field(default=None, description="List of field paths to exclude from LLM inference. Full data is kept in chat history for UI rendering.")

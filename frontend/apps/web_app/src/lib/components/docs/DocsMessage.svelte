@@ -72,7 +72,7 @@
 
 <div class="chat-history-content has-messages has-header" data-testid="docs-content-scroll" bind:this={messageContainer}>
 	<div class="chat-message assistant docs-message">
-		<!-- OpenMates logo avatar — same as demo-for-everyone intro chat -->
+		<!-- OpenMates logo avatar used for assistant-authored documentation -->
 		<div class="mate-profile openmates_official" style="animation: none; opacity: 1;"></div>
 
 		<div class="message-align-left">

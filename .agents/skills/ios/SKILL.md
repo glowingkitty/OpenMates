@@ -84,7 +84,7 @@ python3 scripts/sessions.py start --mode <feature|bug> --task "<task>"
 When working without Xcode/Mac access:
 
 1. Read `docs/architecture/apple/parity-matrix.md` if it exists.
-2. For broad UI parity work, read `docs/specs/apple-ui-parity-program/spec.yml` and use its chat-first inventory before adding one-off native tests.
+2. For broad UI parity work, read `docs/plans/apple-ui-parity-program/plan.yml` and use its chat-first inventory before adding one-off native tests.
 3. Run or update `scripts/apple_parity_audit.py` to compare web `data-testid` values with Apple `.accessibilityIdentifier(...)` values and refresh `test-results/apple-parity-inventory.json`.
 4. For chat parity, run `scripts/apple_chat_parity_audit.py`; it verifies the chat guardrails and the `programs.apple_ui_parity_program` inventory section.
 5. Read the relevant web Playwright specs and source files.

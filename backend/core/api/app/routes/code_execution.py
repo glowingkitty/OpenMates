@@ -24,7 +24,6 @@ from urllib.parse import quote
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from toon_format import decode as toon_decode
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.core.api.app.models.user import User
@@ -437,6 +436,8 @@ async def _get_embed_metadata(
 
 def _decode_toon_content(plaintext_toon: str) -> dict[str, Any] | None:
     try:
+        from toon_format import decode as toon_decode
+
         decoded = toon_decode(plaintext_toon)
     except Exception:
         return None
@@ -1245,6 +1246,7 @@ async def start_code_run_execution(
     dependency_installs: list[CodeRunDependencyInstall],
     api_key_hash: str | None = None,
     device_hash: str | None = None,
+    assistant_async_task: bool = False,
 ) -> CodeRunStartResponse:
     if current_user.credits < RUN_CREDITS_PER_MINUTE:
         raise HTTPException(status_code=402, detail="Not enough credits to run code")
@@ -1304,6 +1306,7 @@ async def start_code_run_execution(
         "dependency_installs": [install.model_dump() for install in dependency_installs],
         "api_key_hash": api_key_hash,
         "device_hash": device_hash,
+        "assistant_async_task": assistant_async_task,
         "active_run_key": active_key,
         "active_run_owner": execution_id,
         "provider_active_run_key": _provider_active_run_key(),
@@ -1466,6 +1469,10 @@ async def stream_code_run_status(
             await websocket.send_json(payload)
             update_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
             if update_payload.get("status") in TERMINAL_RUN_STATUSES:
+                raw = await client.get(_execution_key(execution_id))
+                if raw:
+                    data = json.loads(raw.decode("utf-8") if isinstance(raw, bytes) else raw)
+                    await websocket.send_json({"type": "code_run_snapshot", "payload": data})
                 break
     except WebSocketDisconnect:
         logger.debug("Code Run stream disconnected for execution %s", execution_id)

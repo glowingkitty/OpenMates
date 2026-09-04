@@ -5,15 +5,17 @@
 #
 # Spec: docs/specs/plans-v1/spec.yml
 
+import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_plan_ask_pipeline
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
+from backend.core.api.app.services.directus.user_plan_methods import hash_id
 from backend.core.api.app.services.feature_availability_guards import ensure_plans_enabled
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.services.team_workspace_service import move_workspace_record_to_team
@@ -23,6 +25,13 @@ from backend.core.api.app.services.user_plan_service import (
     UserPlanService,
 )
 from backend.core.api.app.services.user_task_service import UserTaskService
+from backend.core.api.app.services.user_work_control_service import (
+    DirectusWorkControlRepository,
+    UserWorkControlService,
+    WorkControlPermissionError,
+    validate_assumption_resolution_evidence,
+    validate_browser_approval,
+)
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
 
@@ -59,16 +68,13 @@ class PlanVerificationTaskKeyWrapperRequest(BaseModel):
 
 class UserPlanCreateRequest(BaseModel):
     plan_id: str = Field(min_length=1)
-    encrypted_plan_key: str | None = None
     encrypted_title: str = Field(min_length=1)
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
-    encrypted_summary: str | None = None
-    encrypted_goal: str | None = None
+    encrypted_goal: str = Field(min_length=1)
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
     encrypted_user_flows: str | None = None
-    encrypted_current_focus: str | None = None
     encrypted_linked_project_ids: str | None = None
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
@@ -81,28 +87,21 @@ class UserPlanCreateRequest(BaseModel):
     status: PlanStatus = "draft"
     primary_chat_id: str | None = None
     linked_project_ids: list[str] = Field(default_factory=list)
-    current_phase_id: str | None = None
-    current_step_id: str | None = None
-    current_task_id: str | None = None
     continuation_state: str | None = None
-    approval_state: str | None = None
     planner_focus_id: str | None = None
     created_at: int
     updated_at: int
-    key_wrappers: list[UserPlanKeyWrapperRequest] = Field(default_factory=list)
+    key_wrappers: list[UserPlanKeyWrapperRequest] = Field(min_length=1)
 
 
 class UserPlanUpdateRequest(BaseModel):
-    encrypted_plan_key: str | None = None
     encrypted_title: str | None = None
     encrypted_slug: str | None = Field(default=None, min_length=1)
     slug_lookup_hash: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
-    encrypted_summary: str | None = None
     encrypted_goal: str | None = None
     encrypted_scope_in: str | None = None
     encrypted_scope_out: str | None = None
     encrypted_user_flows: str | None = None
-    encrypted_current_focus: str | None = None
     encrypted_linked_project_ids: str | None = None
     encrypted_assumptions: str | None = None
     encrypted_open_questions: str | None = None
@@ -115,11 +114,7 @@ class UserPlanUpdateRequest(BaseModel):
     status: PlanStatus | None = None
     primary_chat_id: str | None = None
     linked_project_ids: list[str] | None = None
-    current_phase_id: str | None = None
-    current_step_id: str | None = None
-    current_task_id: str | None = None
     continuation_state: str | None = None
-    approval_state: str | None = None
     planner_focus_id: str | None = None
     updated_at: int | None = None
     version: int | None = None
@@ -136,8 +131,6 @@ class UserPlanMoveRequest(BaseModel):
 
 class PlanActivationRequest(BaseModel):
     chat_id: str | None = None
-    current_step_id: str | None = None
-    current_task_id: str | None = None
     updated_at: int | None = None
     version: int | None = None
     key_wrappers: list[UserPlanKeyWrapperRequest] | None = None
@@ -155,7 +148,6 @@ class PlanCriterionRequest(BaseModel):
     type: str = "functional"
     status: CriterionStatus = "pending"
     required: bool = True
-    linked_step_ids: list[str] = Field(default_factory=list)
     linked_task_ids: list[str] = Field(default_factory=list)
     verification_ids: list[str] = Field(default_factory=list)
     coverage_status: str = "uncovered"
@@ -207,7 +199,6 @@ class PlanVerificationRequest(BaseModel):
     encrypted_red_phase_reason: str | None = None
     primary_chat_id: str | None = None
     linked_project_ids: list[str] = Field(default_factory=list)
-    plan_step_id: str | None = None
     assignee_type: str = "user"
     created_at: int
     updated_at: int | None = None
@@ -266,7 +257,6 @@ class PlanAssumptionRequest(BaseModel):
     required_before: str = "implementation"
     linked_sub_chat_id: str | None = None
     linked_task_id: str | None = None
-    linked_step_ids: list[str] = Field(default_factory=list)
     linked_criterion_ids: list[str] = Field(default_factory=list)
     source_count: int = 0
     encrypted_corrected_text: str | None = None
@@ -290,6 +280,21 @@ class PlanAssumptionUpdateRequest(BaseModel):
     encrypted_waiver_reason: str | None = None
     encrypted_sources: str | None = None
     updated_at: int | None = None
+
+
+class WorkDependencyRequest(BaseModel):
+    target_ref: str = Field(pattern=r"^(plan|task):[^:]+$")
+
+
+class PlanRevisionSubmissionRequest(BaseModel):
+    fingerprint: str = Field(min_length=1)
+    encrypted_snapshot: str = Field(min_length=1)
+    created_at: int
+
+
+class PlanRevisionApprovalRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    revision_id: str = Field(min_length=1)
 
 
 class PlanReferencePatternRequest(BaseModel):
@@ -441,6 +446,42 @@ async def _current_user(request: Request, response: Response) -> User:
     )
 
 
+async def _current_session_user(request: Request, response: Response) -> User:
+    """Work-control endpoints are first-party session routes, never API-key routes."""
+    return await get_current_user(
+        directus_service=request.app.state.directus_service,
+        cache_service=request.app.state.cache_service,
+        refresh_token=request.cookies.get("auth_refresh_token"),
+        response=response,
+        request=request,
+    )
+
+
+def _work_control_service(request: Request, user_id: str) -> UserWorkControlService:
+    return UserWorkControlService(
+        DirectusWorkControlRepository(
+            user_id=user_id,
+            plan_methods=request.app.state.directus_service.user_plan,
+            task_methods=request.app.state.directus_service.user_task,
+            directus_service=request.app.state.directus_service,
+            cache_service=request.app.state.cache_service,
+        )
+    )
+
+
+def _require_browser_approval(request: Request) -> None:
+    """Require the authenticated cookie session and a configured web-app Origin."""
+    validate_browser_approval(
+        getattr(request.state, "auth_source", None), request.headers.get("origin"), set(getattr(request.app.state, "allowed_origins", []) or [])
+    )
+
+
+async def _invalidate_material_plan(request: Request, user_id: str, plan_id: str, updated_at: int | None) -> dict[str, Any]:
+    return await _work_control_service(request, user_id).invalidate_for_material_edit(
+        plan_id, updated_at=int(updated_at or time.time())
+    )
+
+
 def _handle_plan_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
@@ -450,6 +491,8 @@ def _handle_plan_error(exc: Exception) -> None:
         raise HTTPException(status_code=409, detail="PLAN_SLUG_CONFLICT") from exc
     if isinstance(exc, UserPlanNotFoundError):
         raise HTTPException(status_code=404, detail="Plan not found") from exc
+    if isinstance(exc, WorkControlPermissionError):
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     raise exc
@@ -604,7 +647,16 @@ async def ask_user_plans(
             for encrypted_update in encrypted_updates:
                 patch = encrypted_update.patch.model_dump(exclude_unset=True)
                 before = await service.plan_methods.get_plan(encrypted_update.plan_id, current_user.id)
-                plan = await service.update_plan(encrypted_update.plan_id, current_user.id, patch)
+                work_control = _work_control_service(request, current_user.id)
+                if patch.get("status") == "archived":
+                    async with work_control.delete_guard(f"plan:{encrypted_update.plan_id}") as lease:
+                        if lease is not None:
+                            await lease.assert_held()
+                        plan = await service.update_plan(encrypted_update.plan_id, current_user.id, patch)
+                else:
+                    plan = await service.update_plan(encrypted_update.plan_id, current_user.id, patch)
+                if set(patch) - {"status", "updated_at", "version"}:
+                    plan = await _invalidate_material_plan(request, current_user.id, encrypted_update.plan_id, patch.get("updated_at"))
                 plans.append(plan)
                 entries.append({
                     "object_type": "plan",
@@ -657,14 +709,14 @@ async def restore_user_plan_from_history(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        result = await history_service.restore_object_to_entry(
-            user_id=current_user.id,
-            object_type="plan",
-            object_id=plan_id,
-            entry_id=body.entry_id,
-            state=body.state,
-            source="cli",
-        )
+        async with _work_control_service(request, current_user.id).restore_delete_guard(
+            history_service, user_id=current_user.id, object_type="plan", object_id=plan_id, entry_id=body.entry_id, state=body.state
+        ) as lease:
+            if lease is not None:
+                await lease.assert_held()
+            result = await history_service.restore_object_to_entry(
+                user_id=current_user.id, object_type="plan", object_id=plan_id, entry_id=body.entry_id, state=body.state, source="cli"
+            )
         return {"plan": result.get("object"), "history": result}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -683,7 +735,18 @@ async def update_user_plan(
     current_user = await _current_user(request, response)
     try:
         before = await service.plan_methods.get_plan(plan_id, current_user.id)
-        plan = await service.update_plan(plan_id, current_user.id, body.model_dump(exclude_unset=True))
+        patch = body.model_dump(exclude_unset=True)
+        work_control = _work_control_service(request, current_user.id)
+        if patch.get("status") == "archived":
+            async with work_control.delete_guard(f"plan:{plan_id}") as lease:
+                if lease is not None:
+                    await lease.assert_held()
+                plan = await service.update_plan(plan_id, current_user.id, patch)
+        else:
+            plan = await service.update_plan(plan_id, current_user.id, patch)
+        if set(patch) - {"status", "updated_at", "version"}:
+            await _invalidate_material_plan(request, current_user.id, plan_id, patch.get("updated_at"))
+            plan = await service.get_plan(plan_id, current_user.id)
         history = await _record_plan_history(
             history_service,
             current_user.id,
@@ -692,6 +755,127 @@ async def update_user_plan(
             redacted_summary="Updated 1 plan",
         )
         return {"plan": plan, "history": history}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.delete("/{plan_id}")
+@limiter.limit("30/minute")
+async def delete_user_plan(
+    request: Request,
+    response: Response,
+    plan_id: str,
+    version: int,
+    service: UserPlanService = Depends(get_user_plan_service),
+    history_service: WorkspaceChangeHistoryService = Depends(get_workspace_history_service),
+) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        before = await service.plan_methods.get_plan(plan_id, current_user.id)
+        if not before:
+            raise UserPlanNotFoundError("Plan not found")
+        if int(before.get("version") or 0) != version:
+            raise UserPlanConflictError("Plan was modified by another client")
+        async with _work_control_service(request, current_user.id).delete_guard(f"plan:{plan_id}") as lease:
+            if lease is not None:
+                await lease.assert_held()
+            await service.delete_plan(plan_id, current_user.id)
+        history = await _record_plan_history(
+            history_service,
+            current_user.id,
+            action_type="delete",
+            entries=[{"object_type": "plan", "object_id": plan_id, "operation": "delete", "before": before}],
+            redacted_summary="Deleted 1 plan",
+        )
+        return {"deleted": True, "plan_id": plan_id, "history": history}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/dependencies")
+@limiter.limit("30/minute")
+async def add_plan_dependency(request: Request, response: Response, plan_id: str, body: WorkDependencyRequest) -> dict[str, Any]:
+    """First-party session or approved-device route; standard rate limit, no credits."""
+    current_user = await _current_user(request, response)
+    try:
+        edge = await _work_control_service(request, current_user.id).add_dependency(f"plan:{plan_id}", body.target_ref)
+        plan = await _invalidate_material_plan(request, current_user.id, plan_id, None)
+        return {"dependency": edge, "plan": plan}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.delete("/{plan_id}/dependencies/{target_kind}/{target_id}")
+@limiter.limit("30/minute")
+async def remove_plan_dependency(request: Request, response: Response, plan_id: str, target_kind: Literal["plan", "task"], target_id: str) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        await _work_control_service(request, current_user.id).remove_dependency(f"plan:{plan_id}", f"{target_kind}:{target_id}")
+        plan = await _invalidate_material_plan(request, current_user.id, plan_id, None)
+        return {"deleted": True, "plan": plan}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.get("/{plan_id}/dependencies")
+@limiter.limit("60/minute")
+async def list_plan_dependencies(request: Request, response: Response, plan_id: str) -> dict[str, Any]:
+    """First-party/API-key read; owner-scoped safe dependency metadata only."""
+    current_user = await _current_user(request, response)
+    try:
+        return await _work_control_service(request, current_user.id).dependency_read_model(f"plan:{plan_id}")
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/revisions")
+@limiter.limit("30/minute")
+async def submit_plan_revision(request: Request, response: Response, plan_id: str, body: PlanRevisionSubmissionRequest) -> dict[str, Any]:
+    current_user = await _current_user(request, response)
+    try:
+        revision = await _work_control_service(request, current_user.id).submit_revision(
+            plan_id, body.fingerprint, body.encrypted_snapshot, created_at=body.created_at
+        )
+        return {"revision": revision}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.get("/{plan_id}/revisions")
+@limiter.limit("60/minute")
+async def list_plan_revisions(request: Request, response: Response, plan_id: str) -> dict[str, Any]:
+    """First-party/API-key read; snapshots remain ciphertext for local decrypt/diff."""
+    current_user = await _current_user(request, response)
+    try:
+        control = _work_control_service(request, current_user.id)
+        await control.approval_read_model(plan_id)
+        revisions = await control.repository.list_revisions(plan_id)
+        return {"revisions": revisions}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.get("/{plan_id}/approval-status")
+@limiter.limit("60/minute")
+async def get_plan_approval_status(request: Request, response: Response, plan_id: str) -> dict[str, Any]:
+    """First-party/API-key read; approval mutation remains browser-session-only."""
+    current_user = await _current_user(request, response)
+    try:
+        return {"approval": await _work_control_service(request, current_user.id).approval_read_model(plan_id)}
+    except Exception as exc:
+        _handle_plan_error(exc)
+
+
+@router.post("/{plan_id}/revisions/approve")
+@limiter.limit("20/minute")
+async def approve_plan_revision(request: Request, response: Response, plan_id: str, body: PlanRevisionApprovalRequest) -> dict[str, Any]:
+    current_user = await _current_session_user(request, response)
+    try:
+        _require_browser_approval(request)
+        plan = await _work_control_service(request, current_user.id).approve_revision(
+            plan_id, body.revision_id, approver_hash=hash_id(current_user.id)
+        )
+        return {"plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -706,6 +890,7 @@ async def move_user_plan_to_team(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
+        await _work_control_service(request, current_user.id).ensure_unlinked(f"plan:{plan_id}")
         plan = await move_workspace_record_to_team(
             directus_service=request.app.state.directus_service,
             actor_user_id=current_user.id,
@@ -777,6 +962,9 @@ async def activate_user_plan(
         patch.pop("chat_id", None)
     try:
         before = await service.plan_methods.get_plan(plan_id, current_user.id)
+        blockers = await _work_control_service(request, current_user.id).plan_execution_blockers(plan_id)
+        if blockers:
+            raise ValueError(f"Plan activation is blocked: {blockers}")
         plan = await service.activate_plan(plan_id, current_user.id, patch)
         history = await _record_plan_history(
             history_service,
@@ -840,6 +1028,9 @@ async def complete_user_plan(
     current_user = await _current_user(request, response)
     try:
         before = await service.plan_methods.get_plan(plan_id, current_user.id)
+        blockers = await _work_control_service(request, current_user.id).plan_execution_blockers(plan_id)
+        if blockers:
+            return {"plan": None, "blocked_by": blockers}
         result = await service.complete_plan(plan_id, current_user.id, body.model_dump(exclude_unset=True))
         plan = result.get("plan")
         if plan:
@@ -875,7 +1066,8 @@ async def create_plan_criterion(
             entries=[{"object_type": "plan", "object_id": plan_id, "operation": "update", "after": {"criterion": criterion}}],
             redacted_summary="Added 1 plan criterion",
         )
-        return {"criterion": criterion, "history": history}
+        plan = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
+        return {"criterion": criterion, "history": history, "plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -909,7 +1101,8 @@ async def update_plan_criterion(
     current_user = await _current_user(request, response)
     try:
         criterion = await service.update_criterion(plan_id, current_user.id, criterion_id, body.model_dump(exclude_unset=True))
-        return {"criterion": criterion}
+        plan = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
+        return {"criterion": criterion, "plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -925,7 +1118,9 @@ async def delete_plan_criterion(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        return await service.delete_criterion(plan_id, current_user.id, criterion_id)
+        result = await service.delete_criterion(plan_id, current_user.id, criterion_id)
+        result["plan"] = await _invalidate_material_plan(request, current_user.id, plan_id, None)
+        return result
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -941,7 +1136,9 @@ async def create_plan_verification(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        return await service.create_verification(plan_id, current_user.id, body.model_dump(exclude_unset=True))
+        result = await service.create_verification(plan_id, current_user.id, body.model_dump(exclude_unset=True))
+        result["plan"] = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
+        return result
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -975,6 +1172,10 @@ async def update_plan_verification(
     current_user = await _current_user(request, response)
     try:
         verification = await service.update_verification(plan_id, current_user.id, verification_id, body.model_dump(exclude_unset=True))
+        patch = body.model_dump(exclude_unset=True)
+        if set(patch) - {"status", "score", "confidence", "updated_at"}:
+            plan = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
+            return {"verification": verification, "plan": plan}
         return {"verification": verification}
     except Exception as exc:
         _handle_plan_error(exc)
@@ -991,7 +1192,9 @@ async def delete_plan_verification(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        return await service.delete_verification(plan_id, current_user.id, verification_id)
+        result = await service.delete_verification(plan_id, current_user.id, verification_id)
+        result["plan"] = await _invalidate_material_plan(request, current_user.id, plan_id, None)
+        return result
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -1007,8 +1210,13 @@ async def create_plan_assumption(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        assumption = await service.create_assumption(plan_id, current_user.id, body.model_dump())
-        return {"assumption": assumption}
+        if body.linked_sub_chat_id:
+            _work_control_service(request, current_user.id).validate_linked_sub_chat_id(body.linked_sub_chat_id)
+        payload = body.model_dump()
+        validate_assumption_resolution_evidence(payload)
+        assumption = await service.create_assumption(plan_id, current_user.id, payload)
+        plan = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
+        return {"assumption": assumption, "plan": plan}
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -1041,7 +1249,21 @@ async def update_plan_assumption(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        assumption = await service.update_assumption(plan_id, current_user.id, assumption_id, body.model_dump(exclude_unset=True))
+        if body.linked_sub_chat_id:
+            _work_control_service(request, current_user.id).validate_linked_sub_chat_id(body.linked_sub_chat_id)
+        patch = body.model_dump(exclude_unset=True)
+        existing = next(
+            (item for item in await service.plan_methods.list_assumptions(plan_id) if item.get("assumption_id") == assumption_id),
+            None,
+        )
+        if existing is None:
+            raise ValueError("Plan assumption not found")
+        validate_assumption_resolution_evidence({**existing, **patch})
+        assumption = await service.update_assumption(plan_id, current_user.id, assumption_id, patch)
+        material_fields = set(patch) - {"updated_at"}
+        if material_fields & set(patch):
+            plan = await _invalidate_material_plan(request, current_user.id, plan_id, body.updated_at)
+            return {"assumption": assumption, "plan": plan}
         return {"assumption": assumption}
     except Exception as exc:
         _handle_plan_error(exc)
@@ -1058,7 +1280,9 @@ async def delete_plan_assumption(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        return await service.delete_assumption(plan_id, current_user.id, assumption_id)
+        result = await service.delete_assumption(plan_id, current_user.id, assumption_id)
+        result["plan"] = await _invalidate_material_plan(request, current_user.id, plan_id, None)
+        return result
     except Exception as exc:
         _handle_plan_error(exc)
 

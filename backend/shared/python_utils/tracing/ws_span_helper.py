@@ -42,9 +42,14 @@ except ImportError:
 
 # Import ws_trace_context for parent context extraction (also guarded)
 _extract_ws_trace_context = None
+_TRACEPARENT_FIELD = "_traceparent"
 try:
-    from backend.shared.python_utils.tracing.ws_trace_context import extract_ws_trace_context as _extract_fn
+    from backend.shared.python_utils.tracing.ws_trace_context import (
+        TRACEPARENT_FIELD as _traceparent_field,
+        extract_ws_trace_context as _extract_fn,
+    )
     _extract_ws_trace_context = _extract_fn
+    _TRACEPARENT_FIELD = _traceparent_field
 except ImportError:
     pass
 
@@ -78,10 +83,20 @@ def start_ws_handler_span(
         return None, None
 
     try:
-        # Extract parent context from payload if available
-        parent_ctx = None
+        # A frame without valid client context starts a request-scoped trace.
+        # It must not inherit the long-lived WebSocket connection span.
+        parent_ctx = _context.Context()
+        raw_traceparent = payload.get(_TRACEPARENT_FIELD) if payload is not None else None
         if payload is not None and _extract_ws_trace_context is not None:
-            parent_ctx = _extract_ws_trace_context(payload)
+            extracted_ctx = _extract_ws_trace_context(payload)
+            parts = str(raw_traceparent or "").split("-")
+            extracted_span_ctx = _trace.get_current_span(extracted_ctx).get_span_context()
+            try:
+                expected_trace_id = int(parts[1], 16) if len(parts) == 4 else 0
+            except ValueError:
+                expected_trace_id = 0
+            if extracted_span_ctx.is_valid and extracted_span_ctx.trace_id == expected_trace_id:
+                parent_ctx = extracted_ctx
 
         # Resolve user attributes with safe defaults
         is_admin = False
@@ -102,11 +117,10 @@ def start_ws_handler_span(
                 "enduser.debug_opted_in": bool(debug_opted_in),
             },
         }
-        if parent_ctx is not None:
-            span_kwargs["context"] = parent_ctx
+        span_kwargs["context"] = parent_ctx
 
         span = tracer.start_span(**span_kwargs)
-        token = _context.attach(_context.set_value("current-span", span))
+        token = _context.attach(_trace.set_span_in_context(span, parent_ctx))
 
         return span, token
 
@@ -133,7 +147,7 @@ def end_ws_handler_span(
     """
     try:
         if error is not None and span is not None and _StatusCode is not None:
-            span.set_status(_StatusCode.ERROR, str(error))
+            span.set_status(_StatusCode.ERROR)
     except Exception:
         pass
 

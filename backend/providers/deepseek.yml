@@ -25,10 +25,11 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-04-23" # Model release date from OpenRouter/Together listing
+    capability_level: "high"
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
-      together: "deepseek-ai/DeepSeek-V4-Pro"
+      together: "deepseek-ai/DeepSeek-V4-Pro-0813"
       openrouter: "deepseek/deepseek-v4-pro"
     input_types:
       - text
@@ -38,7 +39,7 @@ models:
     servers:
       - id: "together"
         name: "Together AI"
-        model_id: "deepseek-ai/DeepSeek-V4-Pro"
+        model_id: "deepseek-ai/DeepSeek-V4-Pro-0813"
         region: "US" # Server region for UI display
       - id: "openrouter"
         name: "OpenRouter API"
@@ -74,6 +75,7 @@ models:
     country_origin: "CN" # ISO 3166-1 alpha-2 country code for model origin (China)
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-04-23" # Model release date from OpenRouter
+    capability_level: "medium"
     allow_auto_select: true
     reasoning: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing

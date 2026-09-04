@@ -32,6 +32,7 @@ struct ChatStreamingLifecycleState: Equatable {
     var queuedMessageText: String?
     var errorMessage: String?
     private var lastSequenceByMessageId: [String: Int] = [:]
+    private var completedMessageIds = Set<String>()
 
     var isActive: Bool {
         switch phase {
@@ -93,10 +94,13 @@ struct ChatStreamingLifecycleState: Equatable {
             }
 
         case .chunk(let chatId, let messageId, let sequence, _, let isFinal, let userMessageId, _, _, _):
-            if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
-                return false
+            guard !completedMessageIds.contains(messageId) else { return false }
+            if !isFinal {
+                if let lastSequence = lastSequenceByMessageId[messageId], sequence <= lastSequence {
+                    return false
+                }
+                lastSequenceByMessageId[messageId] = sequence
             }
-            lastSequenceByMessageId[messageId] = sequence
             self.chatId = chatId
             self.messageId = messageId
             if let userMessageId, !userMessageId.isEmpty {
@@ -104,26 +108,43 @@ struct ChatStreamingLifecycleState: Equatable {
             }
             phase = isFinal ? .completed : .streaming
             if isFinal {
+                completedMessageIds.insert(messageId)
                 isThinkingStreaming = false
             }
 
         case .messageReady(let chatId, let messageId):
+            guard let activeMessageId = self.messageId, messageId == activeMessageId else {
+                return false
+            }
             self.chatId = chatId
             self.messageId = messageId
+            completedMessageIds.insert(messageId)
             phase = .completed
             isThinkingStreaming = false
             queuedMessageText = nil
 
         case .typingEnded(let chatId, let messageId):
             self.chatId = chatId
+            if phase == .streaming, messageId == nil {
+                return false
+            }
+            if let messageId, let activeMessageId = self.messageId, messageId != activeMessageId {
+                return false
+            }
             if let messageId { self.messageId = messageId }
-            if phase == .typing || phase == .thinking || phase == .processing {
+            if phase == .typing || phase == .thinking || phase == .processing || phase == .streaming {
                 phase = .completed
+                if let completedMessageId = self.messageId {
+                    completedMessageIds.insert(completedMessageId)
+                }
             }
             isThinkingStreaming = false
             queuedMessageText = nil
 
         case .messageQueued(let chatId, let taskId, let userMessageId, let message):
+            if let activeTaskId = self.taskId, taskId != activeTaskId {
+                return false
+            }
             self.chatId = chatId
             self.taskId = taskId ?? self.taskId
             self.userMessageId = userMessageId ?? self.userMessageId
@@ -131,6 +152,9 @@ struct ChatStreamingLifecycleState: Equatable {
             phase = .queued
 
         case .cancelRequested(let chatId, let taskId):
+            if let activeTaskId = self.taskId, taskId != activeTaskId {
+                return false
+            }
             self.chatId = chatId
             self.taskId = taskId ?? self.taskId
             phase = .cancelling
@@ -138,6 +162,9 @@ struct ChatStreamingLifecycleState: Equatable {
             queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, let taskId, _, _, _, _, _):
+            if let activeTaskId = self.taskId, taskId != activeTaskId {
+                return false
+            }
             self.chatId = chatId
             self.taskId = taskId
             phase = .completed
@@ -158,10 +185,29 @@ struct ChatStreamingLifecycleState: Equatable {
 
     mutating func completeFromAuthoritativeSync(messageId authoritativeMessageId: String) -> Bool {
         guard messageId == authoritativeMessageId else { return false }
+        completedMessageIds.insert(authoritativeMessageId)
         phase = .completed
         isThinkingStreaming = false
         queuedMessageText = nil
         return true
+    }
+}
+
+enum ChatStreamingPresentationPolicy {
+    static func shouldMaterializeAssistant(
+        content: String,
+        thinkingContent: String,
+        embedCount: Int
+    ) -> Bool {
+        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !thinkingContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || embedCount > 0
+    }
+}
+
+enum ChatFollowUpSuggestionPolicy {
+    static func reconcile(current: [String], incoming: [String]) -> [String] {
+        incoming.isEmpty ? current : incoming
     }
 }
 
@@ -172,6 +218,11 @@ enum ChatOpeningFallbackPolicy {
         }
         return lastMessageAt != nil
     }
+}
+
+private enum ChatContentHydrationError: Error, Equatable {
+    case websocketUnavailable
+    case invalidResponse
 }
 
 @MainActor
@@ -345,25 +396,63 @@ final class ChatViewModel: ObservableObject {
 
         chat = loadedChat
         var rawMessages = syncedMessages.sorted { $0.createdAt < $1.createdAt }
+        var hydrationEmbeds = syncedEmbeds
         if rawMessages.isEmpty && shouldFetchMissingSyncedMessages(for: loadedChat) {
             do {
-                rawMessages = try await api.request(.get, path: "/v1/chats/\(loadedChat.id)/messages")
-                rawMessages.sort { $0.createdAt < $1.createdAt }
+                guard let wsManager else {
+                    throw ChatContentHydrationError.websocketUnavailable
+                }
+                let response = try await wsManager.requestChatContentBatch(chatId: loadedChat.id)
+                let batch = try ChatContentBatchPayload.decode(response.fields)
+                guard generation == loadGeneration, chat?.id == loadedChat.id else { return }
+                if let userId = await AuthManager.currentUserId(),
+                   let masterKey = try? await CryptoManager.shared.loadMasterKey(for: userId) {
+                    await ChatKeyManager.shared.loadChatKey(
+                        chatId: loadedChat.id,
+                        wrappers: batch.chatKeyWrappers,
+                        masterKey: masterKey
+                    )
+                }
+                if !batch.embedKeys.isEmpty {
+                    EmbedKeyManager.shared.store(batch.embedKeys, source: "chatContentBatch")
+                    OfflineStore.shared.persistEmbedKeys(batch.embedKeys)
+                }
+                let batchMessages = try batch.messages(for: loadedChat.id)
+                rawMessages = ChatContentBatchPayload.mergedMessages(
+                    snapshot: batchMessages,
+                    preserving: chatStore?.messages(for: loadedChat.id) ?? []
+                )
+                hydrationEmbeds = batch.embeds(for: loadedChat.id)
+                chatStore?.applySyncedContent(
+                    messagesByChat: [loadedChat.id: rawMessages],
+                    embedsByChat: [loadedChat.id: hydrationEmbeds]
+                )
+                if let messagesVersion = batch.messagesVersion(for: loadedChat.id) {
+                    chatStore?.advanceMessagesVersion(chatId: loadedChat.id, to: messagesVersion)
+                    loadedChat = chatStore?.chat(for: loadedChat.id) ?? loadedChat
+                    chat = loadedChat
+                }
                 NativeSyncPerfLog.info(
-                    "phase=loadSyncedChatMessageFallback chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count)"
+                    "phase=loadSyncedChatContentBatch chat=\(loadedChat.id.prefix(8)) messages=\(rawMessages.count) embeds=\(hydrationEmbeds.count) embedKeys=\(batch.embedKeys.count) wrappers=\(batch.chatKeyWrappers.count)"
                 )
             } catch {
-                self.error = error.localizedDescription
+                if let hydrationError = error as? ChatContentHydrationError {
+                    self.error = hydrationError == .websocketUnavailable
+                        ? AppStrings.reconnecting
+                        : AppStrings.genericProcessingError
+                } else {
+                    self.error = error.localizedDescription
+                }
                 isLoading = false
                 NativeSyncPerfLog.warning(
-                    "phase=loadSyncedChatMessageFallbackFailed chat=\(loadedChat.id.prefix(8)) error=\(error.localizedDescription)"
+                    "phase=loadSyncedChatContentBatchFailed chat=\(loadedChat.id.prefix(8)) error=\(error.localizedDescription)"
                 )
                 return
             }
             guard generation == loadGeneration else { return }
         }
         openingMetrics.initialMessagesReceived = rawMessages.count
-        openingMetrics.initialEmbedsReceived = syncedEmbeds.count
+        openingMetrics.initialEmbedsReceived = hydrationEmbeds.count
         allMessages = rawMessages
         let visibleRawMessages = visibleWindow(from: rawMessages, anchorMessageId: loadedChat.lastVisibleMessageId)
         let decryptedMessages = await decryptMessages(visibleRawMessages, chatId: loadedChat.id)
@@ -375,7 +464,10 @@ final class ChatViewModel: ObservableObject {
         let directEmbedRefs = embedded.messages.flatMap { $0.embedRefs ?? [] }.count
         embedRecords = existingRecords.merging(embedded.records) { _, new in new }
         let renderedMessages = mergeVisibleMessagesWithActiveStream(embedded.messages, chatId: loadedChat.id)
-        followUpSuggestions = extractFollowUpSuggestions(from: renderedMessages)
+        followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+            current: followUpSuggestions,
+            incoming: extractFollowUpSuggestions(from: renderedMessages)
+        )
 
         messages = renderedMessages
         hasOlderMessages = chatStore?.hasOlderMessages(for: loadedChat.id, before: embedded.messages.first?.id) ?? (visibleWindowStartIndex > 0)
@@ -389,7 +481,7 @@ final class ChatViewModel: ObservableObject {
         )
         openingMetrics.firstUsefulRenderMs = NativeSyncPerfLog.ms(since: start)
         scheduleEmbedHydration(
-            syncedEmbeds: syncedEmbeds,
+            syncedEmbeds: hydrationEmbeds,
             referencedIds: referencedIds,
             chatId: loadedChat.id,
             generation: generation,
@@ -912,7 +1004,10 @@ final class ChatViewModel: ObservableObject {
             chat = updatedChat
             chatStore?.upsertChat(updatedChat)
             appendOrReplaceLocalMessage(assistant)
-            followUpSuggestions = response.followUpSuggestions
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+                current: followUpSuggestions,
+                incoming: response.followUpSuggestions
+            )
             isStreaming = false
             streamingContent = ""
             streamingMessageId = nil
@@ -1030,22 +1125,26 @@ final class ChatViewModel: ObservableObject {
     // MARK: - Streaming subscription
 
     private func subscribeToStream(chatId: String) {
-        streamTask?.cancel()
-        streamTask = Task {
+        var previousStreamTask = streamTask
+        streamTask = Task { [weak self] in
             let stream = await StreamingClient.shared.streamForChat(chatId)
+            previousStreamTask?.cancel()
+            previousStreamTask = nil
             for await event in stream {
                 guard !Task.isCancelled else { break }
-                handleStreamEvent(event)
+                guard let self else { break }
+                self.handleStreamEvent(event)
             }
         }
     }
 
-    private func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
+    func handleStreamEvent(_ event: StreamingClient.StreamEvent) {
         guard streamingLifecycle.apply(event) else { return }
         switch event {
         case .taskInitiated(_, _, _):
             isStreaming = true
             streamingContent = ""
+            streamingMessageId = nil
 
         case .typingStarted(let chatId, let messageId, let metadata):
             streamingMessageId = messageId
@@ -1058,8 +1157,6 @@ final class ChatViewModel: ObservableObject {
             if let modelName = metadata?.modelName {
                 assistantModelNameByMessageId[messageId] = modelName
             }
-            ensureStreamingAssistantMessage(chatId: chatId, messageId: messageId, metadata: metadata)
-
         case .chunk(let chatId, let messageId, _, let content, let isFinal, let userMessageId, let category, let modelName, let rejectionReason):
             streamingMessageId = messageId
             if let userMessageId {
@@ -1096,7 +1193,10 @@ final class ChatViewModel: ObservableObject {
                 } else {
                     appendOrReplaceLocalMessage(assistantMessage)
                 }
-                followUpSuggestions = extractFollowUpSuggestions(from: allMessages)
+                followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+                    current: followUpSuggestions,
+                    incoming: extractFollowUpSuggestions(from: allMessages)
+                )
                 isStreaming = false
                 streamingContent = ""
                 streamingMessageId = nil
@@ -1114,6 +1214,14 @@ final class ChatViewModel: ObservableObject {
                     }
                 }
             } else {
+                guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+                    content: displayContent,
+                    thinkingContent: streamingLifecycle.thinkingContent,
+                    embedCount: 0
+                ) else {
+                    isStreaming = true
+                    return
+                }
                 let partialAssistantMessage = Message(
                     id: messageId, chatId: chatId, role: rejectionReason == nil ? .assistant : .system,
                     content: displayContent, encryptedContent: nil,
@@ -1137,6 +1245,8 @@ final class ChatViewModel: ObservableObject {
         case .messageReady(let chatId, let messageId):
             completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .preprocessingStep(_, _, _):
@@ -1147,6 +1257,8 @@ final class ChatViewModel: ObservableObject {
                 completePartialAssistantIfNeeded(chatId: chatId, messageId: messageId)
             }
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .messageQueued(_, _, _, let message):
@@ -1155,11 +1267,16 @@ final class ChatViewModel: ObservableObject {
 
         case .cancelRequested(_, _):
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .postProcessingCompleted(let chatId, _, let followUps, let newSuggestions, let summary, let tags, let updatedTitle):
             guard chat?.id == chatId else { return }
-            followUpSuggestions = Array(followUps.prefix(18))
+            followUpSuggestions = ChatFollowUpSuggestionPolicy.reconcile(
+                current: followUpSuggestions,
+                incoming: Array(followUps.prefix(18))
+            )
             Task { @MainActor in
                 await sendPipeline.sendPostProcessingMetadata(
                     chatId: chatId,
@@ -1172,11 +1289,15 @@ final class ChatViewModel: ObservableObject {
                     chatStore: chatStore
                 )
             }
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
 
         case .error(let msg):
             error = msg
             isStreaming = false
+            streamingContent = ""
+            streamingMessageId = nil
             streamingLifecycle.queuedMessageText = nil
         }
     }
@@ -1198,6 +1319,11 @@ final class ChatViewModel: ObservableObject {
         messageId: String,
         metadata: StreamingClient.ChatMetadata?
     ) {
+        guard ChatStreamingPresentationPolicy.shouldMaterializeAssistant(
+            content: streamingContent,
+            thinkingContent: streamingLifecycle.thinkingContent,
+            embedCount: 0
+        ) else { return }
         guard !messages.contains(where: { $0.id == messageId }) else { return }
         appendOrReplaceTransientMessage(Message(
             id: messageId,
@@ -1521,6 +1647,7 @@ final class ChatViewModel: ObservableObject {
     }
 
     deinit {
+        streamTask?.cancel()
         if let observer = embedRefreshObserver {
             NotificationCenter.default.removeObserver(observer)
         }
@@ -2061,6 +2188,67 @@ final class ChatViewModel: ObservableObject {
     }
 }
 
+struct ChatContentBatchPayload: Decodable {
+    let messagesByChatId: [String: [String]]
+    let versionsByChatId: [String: [String: Int]]
+    let embeds: [EmbedRecord]
+    let embedKeys: [EmbedKeyRecord]
+    let chatKeyWrappers: [ChatKeyWrapperRecord]
+
+    static func decode(_ fields: [String: Any]) throws -> ChatContentBatchPayload {
+        guard JSONSerialization.isValidJSONObject(fields) else {
+            throw ChatContentHydrationError.invalidResponse
+        }
+        let data = try JSONSerialization.data(withJSONObject: fields)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(ChatContentBatchPayload.self, from: data)
+    }
+
+    func messages(for chatId: String) throws -> [Message] {
+        guard let encodedMessages = messagesByChatId[chatId] else {
+            throw ChatContentHydrationError.invalidResponse
+        }
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try encodedMessages.map { encoded in
+            guard let data = encoded.data(using: .utf8) else {
+                throw ChatContentHydrationError.invalidResponse
+            }
+            return try decoder.decode(Message.self, from: data)
+        }
+    }
+
+    func messagesVersion(for chatId: String) -> Int? {
+        versionsByChatId[chatId]?["messages_v"]
+    }
+
+    static func mergedMessages(snapshot: [Message], preserving existing: [Message]) -> [Message] {
+        var messagesById = Dictionary(uniqueKeysWithValues: snapshot.map { ($0.id, $0) })
+        for message in existing {
+            messagesById[message.id] = message
+        }
+        return messagesById.values.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func embeds(for chatId: String) -> [EmbedRecord] {
+        let hashedChatId = ChatKeyWrapperRecord.hashedChatId(for: chatId)
+        return embeds.filter { embed in
+            embed.hashedChatId == hashedChatId ||
+                embed.rawData?["chat_id"]?.value as? String == chatId ||
+                embed.rawData?["chatId"]?.value as? String == chatId
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case messagesByChatId
+        case versionsByChatId
+        case embeds
+        case embedKeys
+        case chatKeyWrappers
+    }
+}
+
 struct UploadFileResponse: Decodable {
     let embedId: String
     let filename: String
@@ -2394,28 +2582,6 @@ enum PublicChatContent {
         let createdAt = "2026-04-20T12:00:00Z"
 
         switch id {
-        case "demo-for-everyone":
-            return publicChat(
-                id: id,
-                title: AppStrings.demoForEveryoneTitle,
-                appId: "ai",
-                createdAt: createdAt,
-                messages: [
-                    assistant(id: "for-everyone-1", chatId: id, contentKey: "demo_chats.for_everyone.message", createdAt: createdAt, appId: "ai")
-                ],
-                followUpKeys: demoFollowUpKeys("for_everyone")
-            )
-        case "demo-for-developers":
-            return publicChat(
-                id: id,
-                title: AppStrings.demoForDevelopersTitle,
-                appId: "code",
-                createdAt: createdAt,
-                messages: [
-                    assistant(id: "for-developers-1", chatId: id, contentKey: "demo_chats.for_developers.message", createdAt: createdAt, appId: "code")
-                ],
-                followUpKeys: demoFollowUpKeys("for_developers")
-            )
         case "demo-who-develops-openmates":
             return publicChat(
                 id: id,
@@ -3126,8 +3292,7 @@ enum PublicChatContent {
             "[[dev_focus_modes_group]]",
             "[[settings_memories_group]]",
             "[[dev_settings_memories_group]]",
-            "[[ai_models_group]]",
-            "[[for_developers_embed]]"
+            "[[ai_models_group]]"
         ]
         var cleaned = content
         let embedPlaceholderPattern = #"\[\[embed(?:ref)?:[^\]]+\]\]"#

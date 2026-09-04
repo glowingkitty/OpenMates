@@ -255,7 +255,7 @@ skills:
     class_path: backend.apps.audio.skills.speak_skill.SpeakSkill
     providers:
       - name: ElevenLabs
-    full_model_reference: elevenlabs/eleven_multilingual_v2
+    full_model_reference: elevenlabs/eleven_v3
     pricing:
       per_second: 2
     tool_schema:
@@ -305,9 +305,9 @@ skills:
                 default: mp3_44100_128
               model:
                 type: string
-                enum: [eleven_multilingual_v2, eleven_flash_v2_5]
-                default: eleven_multilingual_v2
-                description: ElevenLabs TTS model. Multilingual v2 is the higher-quality default; Flash v2.5 is the lower-cost explicit option.
+                enum: [eleven_v3, eleven_multilingual_v2, eleven_flash_v2_5]
+                default: eleven_v3
+                description: ElevenLabs TTS model. Eleven v3 is the highest-quality default; Multilingual v2 provides stable long-form speech and Flash v2.5 is the lower-cost option.
             required:
               - text
               - provider

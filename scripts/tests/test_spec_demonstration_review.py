@@ -10,7 +10,9 @@ Tests: python3 -m pytest scripts/tests/test_spec_demonstration_review.py.
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -47,10 +49,32 @@ def runner_provenance(request: dict[str, object]) -> dict[str, object]:
         "proof_contract_hash": request["proof_contract_hash"],
         "proof_group_id": request["proof_group_id"],
         "source_artifact_hash": metadata["sha256"],
+        "review_request_hash": "sha256:" + hashlib.sha256(
+            json.dumps(request, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
         "subject_commit": request["subject_commit"],
         "correction_round": 0,
         "correction_kind": "none",
         "workflow": {"requires_user_input": False},
+    }
+
+
+def frame_quality_review(frame: str, result: str = "pass", **overrides: str) -> dict[str, object]:
+    checks = {
+            "layout": result,
+            "readability": result,
+            "geometry": result,
+            "controls": result,
+            "visual_assets": result,
+            "application_state": result,
+            "consistency": result,
+            "proof_alignment": result,
+    }
+    checks.update(overrides)
+    return {
+        "frame": frame,
+        "checks": checks,
+        "observation": "Completed the independent critical UI scan.",
     }
 
 
@@ -76,7 +100,7 @@ def test_review_frame_times_combine_periodic_and_event_boundaries() -> None:
     )
 
     assert {0.0, 3.0, 6.0, 9.0, 10.0}.issubset(times)
-    assert {1.2, 5.0, 7.75}.issubset(times)
+    assert {2.0, 4.5, 7.75}.issubset(times)
     assert len(times) <= module.MAX_REVIEW_FRAMES_PER_DEVICE
 
 
@@ -84,6 +108,7 @@ def test_periodic_interval_can_only_be_shorter_than_five_seconds() -> None:
     module = load_module()
 
     assert module.build_review_frame_times(duration_seconds=4, interval_seconds=1)[-1] == 4.0
+    assert module.END_FRAME_OFFSET_SECONDS == 0.5
     with pytest.raises(module.DemonstrationError, match="five seconds"):
         module.build_review_frame_times(duration_seconds=6, interval_seconds=6)
 
@@ -319,6 +344,7 @@ def test_review_receipt_rejects_uncited_frames_and_blocking_incidental_pass(tmp_
         "confidence": 0.98,
         "frame_index_hash": request["frame_index_hash"],
         "reviewed_frames": ["frames/frame.png"],
+        "frame_reviews": [frame_quality_review("frames/frame.png")],
         "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/missing.png"], "observation": "Visible."}],
         "incidental_findings": [],
         "return_stage": "complete",
@@ -334,17 +360,29 @@ def test_review_receipt_rejects_uncited_frames_and_blocking_incidental_pass(tmp_
         module.record_review_receipt(tmp_path, receipt)
 
     receipt["assertions"][0]["frames"] = ["frames/frame.png"]
+    missing_frame_reviews = dict(receipt)
+    missing_frame_reviews.pop("frame_reviews")
+    with pytest.raises(module.DemonstrationError, match="frame_reviews"):
+        module.record_review_receipt(tmp_path, missing_frame_reviews)
+
+    receipt["frame_reviews"] = [frame_quality_review("frames/frame.png", geometry="fail")]
     receipt["incidental_findings"] = [
         {
             "id": "UI-1",
             "category": "clipping",
             "severity": "blocking",
             "confidence": 0.98,
+            "intent": "obvious",
+            "quality_categories": ["geometry", "readability"],
             "frames": ["frames/frame.png"],
             "observation": "The header is clipped.",
         }
     ]
-    with pytest.raises(module.DemonstrationError, match="blocking incidental"):
+    with pytest.raises(module.DemonstrationError, match="matching non-passing"):
+        module.record_review_receipt(tmp_path, receipt)
+
+    receipt["incidental_findings"][0]["quality_categories"] = ["geometry"]
+    with pytest.raises(module.DemonstrationError, match="unresolved incidental"):
         module.record_review_receipt(tmp_path, receipt)
 
 
@@ -379,6 +417,7 @@ def test_review_receipt_requires_every_frame_and_exact_assertion_schema(tmp_path
         "confidence": 0.99,
         "frame_index_hash": request["frame_index_hash"],
         "reviewed_frames": ["frames/first.png"],
+        "frame_reviews": [frame_quality_review("frames/first.png"), frame_quality_review("frames/second.png")],
         "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/first.png"], "observation": "Visible."}],
         "incidental_findings": [],
         "return_stage": "complete",
@@ -392,3 +431,106 @@ def test_review_receipt_requires_every_frame_and_exact_assertion_schema(tmp_path
     receipt["assertions"][0]["unexpected"] = True
     with pytest.raises(module.DemonstrationError, match="canonical schema"):
         module.record_review_receipt(tmp_path, receipt)
+
+
+def test_passed_review_rejects_uncertain_frame_quality(tmp_path: Path) -> None:
+    module = load_module()
+    frame_path = tmp_path / "frames" / "frame.png"
+    frame_path.parent.mkdir()
+    frame_path.write_bytes(b"frame")
+    request = module.build_review_request(
+        spec_id="example",
+        subject_commit="abc1234",
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": module.sha256_file(frame_path)}],
+        video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
+    )
+    (tmp_path / "review-request.json").write_text(__import__("json").dumps(request), encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        __import__("json").dumps({"expected_proof": request["expected_proof"], "review": {"status": "pending", "attempts": []}}),
+        encoding="utf-8",
+    )
+    receipt = {
+        **runner_provenance(request),
+        "status": "passed",
+        "confidence": 0.8,
+        "frame_index_hash": request["frame_index_hash"],
+        "reviewed_frames": ["frames/frame.png"],
+        "frame_reviews": [frame_quality_review("frames/frame.png", "uncertain")],
+        "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+        "incidental_findings": [],
+        "return_stage": "complete",
+        "next_action": "Publish.",
+    }
+
+    with pytest.raises(module.DemonstrationError, match="quality scan"):
+        module.record_review_receipt(tmp_path, receipt)
+
+
+def test_visual_intent_approval_requires_matching_prior_uncertain_receipt(tmp_path: Path) -> None:
+    module = load_module()
+    frame_path = tmp_path / "frames" / "frame.png"
+    frame_path.parent.mkdir()
+    frame_path.write_bytes(b"frame")
+    request = module.build_review_request(
+        spec_id="example",
+        subject_commit="abc1234",
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": module.sha256_file(frame_path)}],
+        video_metadata={"duration_seconds": 1.0, "sha256": VIDEO_HASH, "width": 320, "height": 240},
+        narration_audio=narration_audio(),
+    )
+    (tmp_path / "review-request.json").write_text(__import__("json").dumps(request), encoding="utf-8")
+    (tmp_path / "manifest.json").write_text(
+        __import__("json").dumps({"expected_proof": request["expected_proof"], "review": {"status": "pending", "attempts": []}}),
+        encoding="utf-8",
+    )
+    uncertain = {
+        **runner_provenance(request),
+        "status": "uncertain",
+        "confidence": 0.9,
+        "frame_index_hash": request["frame_index_hash"],
+        "reviewed_frames": ["frames/frame.png"],
+        "frame_reviews": [frame_quality_review("frames/frame.png", geometry="uncertain")],
+        "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame.png"], "observation": "Visible."}],
+        "incidental_findings": [
+            {
+                "id": "UI-1",
+                "category": "geometry",
+                "severity": "warning",
+                "confidence": 0.9,
+                "intent": "unclear",
+                "quality_categories": ["geometry"],
+                "frames": ["frames/frame.png"],
+                "observation": "The partial item may be intentional.",
+            }
+        ],
+        "return_stage": "review",
+        "next_action": "Ask the user.",
+    }
+    module.record_review_receipt(tmp_path, uncertain)
+    approved = {
+        **uncertain,
+        "status": "passed",
+        "frame_reviews": [frame_quality_review("frames/frame.png")],
+        "incidental_findings": [],
+        "return_stage": "complete",
+        "next_action": "Publish.",
+        "approved_visual_intents": [
+            {
+                "finding_id": "UI-1",
+                "approved_by": "user",
+                "approved_at": "2026-08-25T23:43:00Z",
+                "reason": "Intentional carousel affordance.",
+                "frames": ["frames/frame.png"],
+                "quality_categories": ["geometry"],
+                "original_receipt_sha256": "sha256:" + "f" * 64,
+            }
+        ],
+    }
+
+    with pytest.raises(module.DemonstrationError, match="prior uncertain review receipt"):
+        module.record_review_receipt(tmp_path, approved)

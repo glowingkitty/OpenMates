@@ -57,7 +57,7 @@ claims:
 - Celery workers (`app-ai-worker`, `app-images-worker`, `app-pdf-worker`, `task-worker`, `user-init-worker`, `user-tasks-worker`, `core-worker`, `workflow-worker`, `task-scheduler`) run their own queues for long-running, parallelizable, or autoscaled work — they earn their RAM
 - Infrastructure services (cache, vault, monitoring) are co-located in the same Compose stack
 - The preview server runs on a separate VM for security isolation (blocks SSRF, prevents hotlinking)
-- Image-mode server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification.
+- Server operations are owned by the CLI, not the web UI. The CLI packages runtime templates, creates pre-update backups, applies service-scoped image or source updates, manages host-level Caddyfile drift, and owns post-update/periodic runtime verification. Final update success requires the host-owned email adapter to deliver one versioned completion message to the configured admin; unavailable or exhausted delivery degrades without rollback.
 
 ## CLI-Managed Roles
 
@@ -138,6 +138,13 @@ Grafana and a backup-service are defined but commented out.
 The host CLI invokes `backend/scripts/runtime_health_verifier.py` inside the role's Python container after Compose readiness and every five minutes thereafter. This is an internal container-exec contract, not a public HTTP endpoint. Independent checks run concurrently after required service and HTTP baselines pass, with a single 60-second global deadline.
 
 Core chat plumbing is tested with a dedicated provider-free Celery task routed to `app_ai`; it exercises dispatch, worker execution, result transport, and Redis without model inference or user records. Celery Beat writes a no-spend scheduler heartbeat through the `health_check` queue. Database, cache, Vault, upload antivirus, and preview renderer checks use role-specific operational probes.
+
+Object storage is an optional degraded dependency for core API and text-AI
+liveness. API startup configures the S3 client locally, records remote bucket
+or CORS reconciliation failures, and retries reconciliation in the background.
+Storage-required tasks initialize storage lazily and must pass the shared
+availability guard before paid provider work or charging; no durable local
+fallback is permitted.
 
 The host owns incident state and notification delivery so API/Celery failure cannot suppress stale detection. It installs separate systemd monitor and watchdog timers, stores mode-`0600` atomic state under `<install>/.openmates/runtime-health/`, and sends independently retried email, Discord, or signed webhook events. Generic webhook delivery pins a validated public address, rejects redirects/private networks, and includes replay-bounded HMAC headers.
 

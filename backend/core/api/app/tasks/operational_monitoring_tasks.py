@@ -27,12 +27,14 @@ from backend.core.api.app.services.operational_monitoring import (
     build_operational_snapshot,
     collect_active_alerts,
     collect_activity_and_transactions,
+    collect_billing_readiness,
+    collect_provider_health,
     collect_resource_series,
     create_delivery_receipt,
     deliver_with_retries,
     render_operational_report_png,
     report_subject,
-    resolve_operational_discord_webhook,
+    resolve_operations_discord_destination,
     resolve_operational_environment,
     snapshot_sha256,
     summarize_delivery_state,
@@ -54,8 +56,8 @@ def _environment() -> str:
     )
 
 
-def _discord_webhook(environment: str) -> str | None:
-    return resolve_operational_discord_webhook(environment, os.environ)
+def _discord_destination(environment: str) -> dict:
+    return resolve_operations_discord_destination(environment, os.environ)
 
 
 async def _send_discord(webhook_url: str, content: str, png: bytes) -> bool:
@@ -108,6 +110,34 @@ async def generate_and_deliver_operational_report(
         if isinstance(activity_result, Exception):
             raise activity_result
         activity, processing, cloud = activity_result
+        provider_health = None
+        billing_readiness = None
+        if selected_environment != "self_host":
+            try:
+                provider_health = await collect_provider_health(cache, now=now)
+            except Exception as exc:
+                logger.warning("Operational provider-health collection unavailable: %s", type(exc).__name__)
+                provider_health = {
+                    "status": "unavailable", "healthy_count": 0, "unavailable_names": [],
+                    "skipped_names": [], "stale_names": [], "checked_at": now.isoformat(),
+                }
+                collection_issues.append({
+                    "fingerprint": "ProviderHealthUnavailable", "severity": "warning", "active": True,
+                    "count": 1, "last_seen": now.isoformat(),
+                })
+            try:
+                billing_readiness = await collect_billing_readiness(cache, now=now)
+            except Exception as exc:
+                logger.warning("Operational billing-readiness collection unavailable: %s", type(exc).__name__)
+                billing_readiness = {
+                    "status": "unavailable", "eu_card": "unavailable", "managed": "unavailable",
+                    "catalog_gaps": [], "missing_events": [], "checked_at": now.isoformat(),
+                }
+            if billing_readiness["status"] != "healthy":
+                collection_issues.append({
+                    "fingerprint": "BillingReadinessDegraded", "severity": "warning", "active": True,
+                    "count": 1, "last_seen": now.isoformat(),
+                })
         issues = alerts_result if isinstance(alerts_result, list) else []
         if isinstance(alerts_result, Exception):
             logger.warning("Operational alert collection unavailable: %s", type(alerts_result).__name__)
@@ -122,6 +152,8 @@ async def generate_and_deliver_operational_report(
             resource_series=resource_series,
             activity_counts=activity,
             processing_transactions=processing,
+            provider_health=provider_health,
+            billing_readiness=billing_readiness,
             billing=cloud,
             telemetry_freshness={
                 "resource_metrics": "fresh" if any(resource_series.values()) else "stale",
@@ -164,6 +196,8 @@ async def generate_and_deliver_operational_report(
                             "window_end": snapshot["window_end"],
                             "activity": activity,
                             "processing": processing,
+                            "provider_health": provider_health,
+                            "billing_readiness": billing_readiness,
                             "cloud": cloud,
                             "issues": snapshot["prioritized_issues"],
                             "freshness": snapshot["telemetry_freshness"],
@@ -187,12 +221,15 @@ async def generate_and_deliver_operational_report(
                 ))
 
         if "discord" in selected_channels:
-            webhook = _discord_webhook(selected_environment)
+            discord_destination = _discord_destination(selected_environment)
+            webhook = discord_destination["url"]
             if not webhook:
                 receipts.append(create_delivery_receipt(
                     environment=selected_environment, report_id=report_id, report_sha256=report_hash,
                     channel="discord", state="unavailable", attempt_count=0, occurred_at=now,
                     sanitized_failure_class="missing_discord_webhook",
+                    destination_source=discord_destination["source"],
+                    fallback_used=discord_destination["fallback_used"],
                 ))
             else:
                 accepted, attempts, failure_class = await deliver_with_retries(
@@ -209,6 +246,8 @@ async def generate_and_deliver_operational_report(
                     environment=selected_environment, report_id=report_id, report_sha256=report_hash,
                     channel="discord", state="accepted" if accepted else "failed", attempt_count=attempts,
                     occurred_at=now, sanitized_failure_class=failure_class,
+                    destination_source=discord_destination["source"],
+                    fallback_used=discord_destination["fallback_used"],
                 ))
 
         result = {

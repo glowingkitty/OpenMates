@@ -8,6 +8,7 @@
 import asyncio
 import copy
 import importlib
+import ast
 import inspect
 import json
 import sys
@@ -109,6 +110,32 @@ wikipedia_stub = types.ModuleType("backend.shared.providers.wikipedia.wikipedia_
 wikipedia_stub.normalize_wikipedia_language = lambda language: language
 _install_stub("backend.shared.providers.wikipedia.wikipedia_api", wikipedia_stub)
 
+wikipedia_context_stub = types.ModuleType("backend.apps.ai.processing.wikipedia_context")
+wikipedia_context_stub.WIKIPEDIA_CONTEXT_UNAVAILABLE_MARKER = "__wikipedia_context_unavailable__"
+wikipedia_context_stub.WIKIPEDIA_CONTEXT_UNAVAILABLE_MESSAGE = "Wikipedia unavailable."
+wikipedia_context_stub.WIKIPEDIA_CONTEXT_UNAVAILABLE_REJECTION_REASON = "wikipedia_context_unavailable"
+wikipedia_context_stub.WikipediaSafetyUnavailableError = RuntimeError
+wikipedia_context_stub.format_wikipedia_reference_context = lambda references: ""
+
+async def _resolve_wikipedia_reference_context(*_args, **_kwargs):
+    return []
+
+wikipedia_context_stub.resolve_wikipedia_reference_context = _resolve_wikipedia_reference_context
+_install_stub("backend.apps.ai.processing.wikipedia_context", wikipedia_context_stub)
+
+tracing_stub = types.ModuleType("backend.shared.python_utils.tracing.ai_observability")
+
+class _SpanStub:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+tracing_stub.ai_phase_span = lambda *_args, **_kwargs: _SpanStub()
+tracing_stub.observe_ai_stream = lambda *_args, **_kwargs: _SpanStub()
+_install_stub("backend.shared.python_utils.tracing.ai_observability", tracing_stub)
+
 secrets_stub = types.ModuleType("backend.core.api.app.utils.secrets_manager")
 secrets_stub.SecretsManager = object
 _install_stub("backend.core.api.app.utils.secrets_manager", secrets_stub)
@@ -196,14 +223,30 @@ _get_variable_preflight_reserved_credits = main_processor._get_variable_prefligh
 
 def test_chat_skill_dispatch_threads_secrets_manager_context() -> None:
     source = inspect.getsource(main_processor.handle_main_processing)
-    dispatch_marker = source.index("execute_skill_with_multiple_requests(")
+    dispatch_calls = [
+        node
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "execute_skill_with_multiple_requests"
+    ]
 
-    assert "secrets_manager=secrets_manager" in source[dispatch_marker:dispatch_marker + 700]
+    assert dispatch_calls
+    assert all(
+        any(
+            keyword.arg == "secrets_manager"
+            and isinstance(keyword.value, ast.Name)
+            and keyword.value.id == "secrets_manager"
+            for keyword in call.keywords
+        )
+        for call in dispatch_calls
+    )
 
 
 def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
     request = SimpleNamespace(orchestration_id="orchestration-1")
 
+    assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is True
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
     assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
     assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
@@ -212,6 +255,7 @@ def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
 def test_root_async_skills_remain_available_without_orchestration() -> None:
     request = SimpleNamespace(orchestration_id=None)
 
+    assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is False
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
 
 

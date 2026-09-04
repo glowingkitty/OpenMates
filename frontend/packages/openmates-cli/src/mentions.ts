@@ -36,6 +36,7 @@ export type MentionType =
   | "focus_mode"
   | "settings_memory"
   | "settings_memory_entry"
+  | "wikipedia"
   | "file_path"
   | "unknown";
 
@@ -105,6 +106,37 @@ export interface MentionContext {
   memoryEntries: MemoryEntryInfo[];
 }
 
+export interface WikipediaMentionSearchResult {
+  page_id: number;
+  key: string;
+  title: string;
+  description?: string;
+  disambiguation: boolean;
+  language: string;
+}
+
+export type WikipediaMentionSearch = (
+  query: string,
+  language: string,
+  limit: number,
+) => Promise<WikipediaMentionSearchResult[]>;
+
+export class WikipediaMentionResolutionError extends Error {
+  readonly code: "too_many_references" | "no_results" | "disambiguation" | "unavailable";
+  readonly alternatives: string[];
+
+  constructor(
+    code: WikipediaMentionResolutionError["code"],
+    message: string,
+    alternatives: string[] = [],
+  ) {
+    super(message);
+    this.name = "WikipediaMentionResolutionError";
+    this.code = code;
+    this.alternatives = alternatives;
+  }
+}
+
 // ── Model aliases (mirrors mentionSearchService.ts:308-313) ────────────
 
 /**
@@ -115,7 +147,7 @@ export interface MentionContext {
  * Backend resolution: preprocessor.py lines 1664-1686
  */
 export const MODEL_ALIASES: Record<string, string> = {
-  best: "claude-fable-5",
+  best: "gpt-6-astra",
   fast: "qwen3-235b-a22b-2507",
 };
 
@@ -135,7 +167,12 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-opus-5", name: "Claude Opus 5" },
   { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+  { id: "gpt-6-astra", name: "GPT-6 Astra" },
   { id: "gpt-5.4", name: "GPT-5.4" },
+  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+  { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
+  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
+  { id: "gpt-5.6-sol-max", name: "GPT-5.6 Sol Max" },
   { id: "gpt-oss-120b", name: "GPT-OSS-120b" },
   { id: "gpt-oss-20b", name: "GPT-OSS-20b" },
   { id: "gemma-4-31b", name: "Gemma 4 31B" },
@@ -147,6 +184,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro" },
   { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" },
   { id: "qwen3-235b-a22b-2507", name: "Qwen 3 256b" },
+  { id: "qwen-3.8-27b", name: "Qwen 3.8 27B" },
   { id: "kimi-k2.5", name: "Kimi K2.5" },
   { id: "kimi-k2.6", name: "Kimi K2.6" },
   { id: "kimi-k3", name: "Kimi K3" },
@@ -168,6 +206,11 @@ export const CHAT_MODELS: ModelInfo[] = [
  * Also handles file paths like @/home/user/.env or @./config.ts.
  */
 const MENTION_REGEX = /(?:^|\s)@(\/[^\s]+|\.\/[^\s]+|~\/[^\s]+|[^\s@]+)/g;
+const WIKIPEDIA_REFERENCE_LIMIT = 3;
+const WIKIPEDIA_SEARCH_LIMIT = 5;
+const WIKIPEDIA_TOKEN_PATTERN = /^wiki:(.+)$/i;
+const CANONICAL_WIKIPEDIA_TOKEN_PATTERN = /^wikipedia:[a-z]{2,10}:[^\s]+$/i;
+const WIKIPEDIA_TRAILING_PUNCTUATION = new Set([".", ",", ";", "!", "?"]);
 
 /**
  * Extract raw @mention tokens from message text.
@@ -197,6 +240,114 @@ function isFilePath(token: string): boolean {
 
 function isTaskShortIdMention(token: string): boolean {
   return /^TASK-[A-Za-z0-9_-]+[.,;:!?)]?$/.test(token);
+}
+
+function normalizeWikipediaLanguage(language: string): string {
+  const normalized = language.trim().toLowerCase().split(/[-_]/)[0];
+  return /^[a-z]{2,10}$/.test(normalized) ? normalized : "en";
+}
+
+function splitWikipediaTokenBody(rawBody: string): { body: string; suffix: string } {
+  let body = rawBody;
+  let suffix = "";
+  while (body) {
+    const last = body.at(-1) ?? "";
+    if (WIKIPEDIA_TRAILING_PUNCTUATION.has(last)) {
+      body = body.slice(0, -1);
+      suffix = `${last}${suffix}`;
+      continue;
+    }
+    if (last === ")") {
+      const openCount = (body.match(/\(/g) ?? []).length;
+      const closeCount = (body.match(/\)/g) ?? []).length;
+      if (closeCount > openCount) {
+        body = body.slice(0, -1);
+        suffix = `${last}${suffix}`;
+        continue;
+      }
+    }
+    break;
+  }
+  return { body, suffix };
+}
+
+function parseWikipediaToken(token: string, defaultLanguage: string): {
+  language: string;
+  query: string;
+  suffix: string;
+} | null {
+  const match = token.match(WIKIPEDIA_TOKEN_PATTERN);
+  if (!match) return null;
+
+  const { body, suffix } = splitWikipediaTokenBody(match[1]);
+  const separator = body.indexOf(":");
+  const possibleLanguage = separator > 0 ? body.slice(0, separator) : "";
+  const hasLanguage = /^[a-z]{2,10}(?:[-_][a-z]{2,10})?$/i.test(possibleLanguage);
+  const language = normalizeWikipediaLanguage(hasLanguage ? possibleLanguage : defaultLanguage);
+  const query = (hasLanguage ? body.slice(separator + 1) : body).trim();
+  if (!query) return null;
+  return { language, query, suffix };
+}
+
+export async function resolveWikipediaMentions(
+  message: string,
+  defaultLanguage: string,
+  search: WikipediaMentionSearch,
+): Promise<MentionParseResult> {
+  const tokens = extractMentionTokens(message);
+  const wikipediaTokens = tokens
+    .map((token) => ({ token, parsed: parseWikipediaToken(token, defaultLanguage) }))
+    .filter((entry): entry is { token: string; parsed: NonNullable<ReturnType<typeof parseWikipediaToken>> } => entry.parsed !== null);
+
+  if (wikipediaTokens.length > WIKIPEDIA_REFERENCE_LIMIT) {
+    throw new WikipediaMentionResolutionError(
+      "too_many_references",
+      `A message can contain at most ${WIKIPEDIA_REFERENCE_LIMIT} Wikipedia references.`,
+    );
+  }
+
+  let processedMessage = message;
+  const resolved: ResolvedMention[] = [];
+  for (const { token, parsed } of wikipediaTokens) {
+    let results: WikipediaMentionSearchResult[];
+    try {
+      results = await search(parsed.query, parsed.language, WIKIPEDIA_SEARCH_LIMIT);
+    } catch (error) {
+      throw new WikipediaMentionResolutionError(
+        "unavailable",
+        `Wikipedia lookup failed for @${token}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    const first = results[0];
+    if (!first) {
+      throw new WikipediaMentionResolutionError("no_results", `No Wikipedia article matched @${token}.`);
+    }
+    if (first.disambiguation) {
+      const alternatives = results
+        .filter((result) => !result.disambiguation)
+        .map((result) => `@wiki:${parsed.language}:${result.key}`)
+        .slice(0, 5);
+      throw new WikipediaMentionResolutionError(
+        "disambiguation",
+        `Wikipedia reference @${token} is ambiguous. Choose a specific article.`,
+        alternatives,
+      );
+    }
+
+    const wireSyntax = `@wikipedia:${parsed.language}:${encodeURIComponent(first.key)}`;
+    processedMessage = processedMessage.replace(
+      new RegExp(`@${escapeRegExp(token)}(?=\\s|$)`, "g"),
+      `${wireSyntax}${parsed.suffix}`,
+    );
+    resolved.push({
+      original: `@${token}`,
+      type: "wikipedia",
+      wireSyntax,
+      displayName: `@wiki:${parsed.language}:${first.title}`,
+    });
+  }
+
+  return { processedMessage, resolved, filePaths: [], unresolved: [] };
 }
 
 /**
@@ -459,6 +610,10 @@ export function parseMentions(
 
     if (isTaskShortIdMention(token)) {
       continue; // Backend task context resolution handles @TASK-* references.
+    }
+
+    if (WIKIPEDIA_TOKEN_PATTERN.test(token) || CANONICAL_WIKIPEDIA_TOKEN_PATTERN.test(token)) {
+      continue; // Async CLI resolution handles @wiki; canonical directives pass through.
     }
 
     // Try to resolve against known mentions

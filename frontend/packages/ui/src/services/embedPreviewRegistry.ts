@@ -80,6 +80,48 @@ function normalizeEmbedIds(value: unknown): string[] {
   return value.split("|").map((id) => id.trim()).filter(Boolean);
 }
 
+function firstText(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return undefined;
+}
+
+function firstNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+  }
+  return undefined;
+}
+
+function firstBoolean(...values: unknown[]): boolean | undefined {
+  for (const value of values) {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
+    }
+  }
+  return undefined;
+}
+
+function nestedRecord(record: Record<string, unknown>, key: string): Record<string, unknown> | null {
+  const value = record[key];
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function stringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  if (typeof value === "string") return value.split(/[|,]/).map((item) => item.trim()).filter(Boolean);
+  return [];
+}
+
 export function parentPreviewProps(
   decodedContent: Record<string, unknown>,
   embedData: Record<string, unknown>,
@@ -525,6 +567,184 @@ resolvers.set("design-icon-result", designIconResultResolver);
 resolvers.set("icon_result", designIconResultResolver);
 resolvers.set("app:design:icon_result", designIconResultResolver);
 
+// ── Direct / child: maps place ───────────────────────────────────────────────
+
+const mapsPlaceResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/maps/MapLocationEmbedPreview.svelte");
+  const location = nestedRecord(decodedContent, "location");
+  const venue = nestedRecord(decodedContent, "venue");
+  return {
+    component,
+    props: {
+      id: embedId,
+      displayName: firstText(decodedContent.displayName, decodedContent.display_name, decodedContent.name, decodedContent.title),
+      formattedAddress: firstText(decodedContent.formattedAddress, decodedContent.formatted_address, decodedContent.address, location?.address, venue?.address),
+      rating: firstNumber(decodedContent.rating, decodedContent.stars, decodedContent.review_score),
+      userRatingCount: firstNumber(decodedContent.userRatingCount, decodedContent.user_rating_count, decodedContent.review_count, decodedContent.rating_count),
+      placeType: firstText(decodedContent.placeType, decodedContent.place_type, decodedContent.category, decodedContent.type),
+      imageUrl: firstText(decodedContent.imageUrl, decodedContent.image_url, decodedContent.photo_url, decodedContent.thumbnail),
+      status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("maps-place", mapsPlaceResolver);
+resolvers.set("map-location", mapsPlaceResolver);
+resolvers.set("place", mapsPlaceResolver);
+resolvers.set("app:maps:place", mapsPlaceResolver);
+resolvers.set("app:maps:location", mapsPlaceResolver);
+
+// ── Direct / child: travel connection ────────────────────────────────────────
+
+const travelConnectionResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/travel/TravelConnectionEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      price: decodedContent.price ?? decodedContent.total_price,
+      currency: decodedContent.currency || "EUR",
+      fare: decodedContent.fare,
+      fareIsPartial: firstBoolean(decodedContent.fare_is_partial, decodedContent.fareIsPartial),
+      transportMethod: firstText(decodedContent.transport_method, decodedContent.transportMethod, decodedContent.mode) || "airplane",
+      tripType: firstText(decodedContent.trip_type, decodedContent.tripType) || "one_way",
+      origin: firstText(decodedContent.origin, decodedContent.origin_name, decodedContent.from),
+      destination: firstText(decodedContent.destination, decodedContent.destination_name, decodedContent.to),
+      departure: firstText(decodedContent.departure, decodedContent.scheduled_departure),
+      arrival: firstText(decodedContent.arrival, decodedContent.scheduled_arrival),
+      duration: firstText(decodedContent.duration, decodedContent.duration_minutes),
+      stops: firstNumber(decodedContent.stops, decodedContent.transfers, decodedContent.transfer_count),
+      arrivalDelayMinutes: firstNumber(decodedContent.arrival_delay_minutes, decodedContent.arrivalDelayMinutes),
+      hasCancellation: firstBoolean(decodedContent.has_cancellation, decodedContent.hasCancellation),
+      carriers: stringList(decodedContent.carriers ?? decodedContent.carrier),
+      bookingProvider: firstText(decodedContent.booking_provider, decodedContent.provider, decodedContent.source_provider),
+      airlineLogo: firstText(decodedContent.airline_logo, decodedContent.logo_url, decodedContent.provider_logo),
+      carrierCodes: stringList(decodedContent.carrier_codes ?? decodedContent.carrier_code),
+      bookableSeats: firstNumber(decodedContent.bookable_seats, decodedContent.bookableSeats),
+      optimization: decodedContent.optimization,
+      isCheapest: firstBoolean(decodedContent.is_cheapest, decodedContent.isCheapest),
+      status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("travel-connection", travelConnectionResolver);
+resolvers.set("travel-route", travelConnectionResolver);
+resolvers.set("connection", travelConnectionResolver);
+
+// ── Direct / child: health appointment ───────────────────────────────────────
+
+const healthAppointmentResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/health/HealthAppointmentEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      slotDatetime: firstText(decodedContent.slotDatetime, decodedContent.slot_datetime, decodedContent.start_time, decodedContent.date_start),
+      name: firstText(decodedContent.name, decodedContent.doctor_name, decodedContent.title),
+      speciality: firstText(decodedContent.speciality, decodedContent.specialty, decodedContent.category),
+      address: firstText(decodedContent.address, decodedContent.formatted_address),
+      insurance: firstText(decodedContent.insurance, decodedContent.insurance_sector),
+      telehealth: firstBoolean(decodedContent.telehealth, decodedContent.is_telehealth) ?? false,
+      rating: firstNumber(decodedContent.rating, decodedContent.review_score),
+      ratingCount: firstNumber(decodedContent.ratingCount, decodedContent.rating_count, decodedContent.review_count),
+      price: firstNumber(decodedContent.price, decodedContent.service_price),
+      providerPlatform: firstText(decodedContent.providerPlatform, decodedContent.provider_platform, decodedContent.provider),
+      additionalSlotCount: firstNumber(decodedContent.additionalSlotCount, decodedContent.additional_slot_count) ?? 0,
+      status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("health-appointment", healthAppointmentResolver);
+resolvers.set("app:health:appointment", healthAppointmentResolver);
+
+// ── Direct / child: travel stay ──────────────────────────────────────────────
+
+const travelStayResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  embedData,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/travel/TravelStayEmbedPreview.svelte");
+  return {
+    component,
+    props: {
+      id: embedId,
+      name: firstText(decodedContent.name, decodedContent.title, decodedContent.property_name),
+      thumbnail: firstText(decodedContent.thumbnail, decodedContent.image_url, decodedContent.photo_url),
+      hotelClass: firstNumber(decodedContent.hotelClass, decodedContent.hotel_class, decodedContent.stars),
+      overallRating: firstNumber(decodedContent.overallRating, decodedContent.overall_rating, decodedContent.rating),
+      reviews: firstNumber(decodedContent.reviews, decodedContent.review_count),
+      currency: decodedContent.currency || "EUR",
+      ratePerNight: firstNumber(decodedContent.ratePerNight, decodedContent.rate_per_night, decodedContent.price, decodedContent.min_price),
+      totalRate: firstNumber(decodedContent.totalRate, decodedContent.total_rate, decodedContent.total_price),
+      amenities: stringList(decodedContent.amenities),
+      isCheapest: firstBoolean(decodedContent.isCheapest, decodedContent.is_cheapest) ?? false,
+      ecoCertified: firstBoolean(decodedContent.ecoCertified, decodedContent.eco_certified) ?? false,
+      freeCancellation: firstBoolean(decodedContent.freeCancellation, decodedContent.free_cancellation) ?? false,
+      status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("travel-stay", travelStayResolver);
+resolvers.set("travel-hotel", travelStayResolver);
+resolvers.set("app:travel:stay", travelStayResolver);
+
+// ── Direct / child: fitness result ───────────────────────────────────────────
+
+const fitnessResultResolver: PreviewResolver = async ({
+  embedId,
+  decodedContent,
+  onFullscreen,
+}) => {
+  const { default: component } =
+    await import("../components/embeds/fitness/FitnessResultEmbedPreview.svelte");
+  const skillId = firstText(decodedContent.skill_id, decodedContent.skillId) || "search_locations";
+  return {
+    component,
+    props: {
+      id: embedId,
+      result: {
+        ...decodedContent,
+        embed_id: embedId,
+      },
+      skillId,
+      isMobile: false,
+      onFullscreen,
+    },
+  };
+};
+resolvers.set("fitness-location", fitnessResultResolver);
+resolvers.set("fitness-class", fitnessResultResolver);
+resolvers.set("app:fitness:location", fitnessResultResolver);
+resolvers.set("app:fitness:class", fitnessResultResolver);
+
 // ── Direct / auto-converted: code ─────────────────────────────────────────────
 
 const codeResolver: PreviewResolver = async ({
@@ -674,6 +894,10 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
   if ((type === "icon_result" || type === "design-icon-result") && resolvers.has(type)) {
     return type;
   }
+
+  // Child/direct embeds often carry the parent skill_id that created them. Prefer
+  // the concrete embed type so child route/place cards don't render as parent searches.
+  if (type && type !== "app_skill_use" && resolvers.has(type)) return type;
 
   // 1. Specific app:skill key
   if (appId && skillId) {

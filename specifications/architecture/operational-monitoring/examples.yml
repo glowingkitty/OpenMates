@@ -1,0 +1,167 @@
+schema_version: 1
+specification: architecture.operational-monitoring@2
+
+daily_snapshots:
+  - id: compact-dev-last-24-hours
+    given:
+      environment: development
+      observed_window: 24h
+      telemetry_fresh: true
+    expect:
+      graph_series: [cpu, memory, disk_used, disk_free]
+      activity_counts: [chats, messages, embeds, usage_entries]
+      processing_scope: ai_response_recovery_jobs
+      processing_outcomes: [created, completed, invalidated, non_terminal_over_15m]
+      provider_health: [healthy_count, unavailable_names, skipped_names, stale_names, freshness]
+      billing:
+        rolling_24h: [purchase_count, credits_sold, usage_committed, usage_failed]
+        purchase_source: privacy_safe_durable_settlement_ledger
+        current_open_issues: [bank_review, failed_refunds, chargebacks, incomplete_settlements]
+        readiness: [eu_card, managed_payments, stripe_account, active_prices, webhook_destination, required_events, freshness]
+      maximum_prioritized_issues: 3
+      source_data: real_observed_data
+  - id: incomplete-purchase-settlement-is-not-exact
+    given: {environment: development, unresolved_purchase_settlements: 1}
+    expect: {billing_status: unavailable, exact_totals_claimed: false}
+  - id: compact-production-last-24-hours
+    given: {environment: production, observed_window: 24h}
+    expect:
+      environment_label: production
+      report_shape: one_graph_plus_scan_first_summary
+      raw_user_content: absent
+
+self_host_activation:
+  - id: configured-email-enables-digest
+    given: {environment: self_host, admin_email_defined: true, email_service_available: true}
+    expect: {daily_digest_scheduled: true, email_attempted: true, billing_field: absent, billing_section: absent}
+  - id: missing-admin-email-visible
+    given: {environment: self_host, admin_email_defined: false, email_service_available: true}
+    expect: {daily_digest_sent: false, configuration_status: missing_admin_email, false_success: false}
+  - id: unavailable-email-service-visible
+    given: {environment: self_host, admin_email_defined: true, email_service_available: false}
+    expect: {daily_digest_sent: false, configuration_status: email_service_unavailable, false_success: false}
+
+delivery_tests:
+  - id: real-dev-email-and-discord
+    given:
+      environment: development
+      current_server_data_window: 24h
+      admin_email_defined: true
+      discord_webhook_configured: true
+    expect:
+      email: {clearly_labeled_test: true, snapshot_attached_or_inline: true, result_recorded: independently}
+      discord: {clearly_labeled_test: true, compact_snapshot: true, result_recorded: independently}
+      fixture_data: forbidden
+  - id: one-channel-failure-is-visible
+    given: {email_result: accepted, discord_result: failed}
+    expect: {overall_result: partial_failure, email_result_preserved: true, discord_failure_visible: true}
+  - id: stale-digest-becomes-incident
+    given: {expected_daily_report: true, last_success_age: 26h}
+    expect: {incident: firing, reason: daily_report_stale}
+
+urgent_alerts:
+  - id: api-down-bypasses-api
+    given: {environment: production, api_reachable: false, alert: api_down}
+    expect: {critical_notification_path_depends_on_api: false, notification_attempted: true}
+  - id: no-limit-container-does-not-fire-infinite-memory
+    given: {container_memory_bytes: 500000000, container_memory_limit_bytes: 0}
+    expect: {memory_percentage_alert: absent, infinite_value: forbidden}
+  - id: sustained-disk-warning
+    given: {disk_used_percent: 87, duration: 20m}
+    expect: {severity: warning, notification_after_confirmation_window: true}
+  - id: disk-critical-and-recovery
+    given: {disk_used_percent: 96, then_disk_used_percent: 70}
+    expect: {firing_events: 1, resolved_events: 1, duplicate_firing_events: 0}
+
+privacy_boundaries:
+  - id: aggregate-only-operator-report
+    input:
+      counts: {messages: 42, chats: 7, embeds: 5, usage_entries: 38}
+      available_private_fields: [user_id, encrypted_message, encrypted_title, payment_id, webhook_url]
+    expect:
+      included: [counts]
+      excluded: [user_id, encrypted_message, encrypted_title, payment_id, webhook_url]
+
+environment_isolation:
+  - id: dev-destination-cannot-look-like-production
+    given: {source_environment: development, destination: dev_ops_channel}
+    expect: {subject_prefix: DEV, incident_namespace: development, production_destination_used: false}
+  - id: production-report-is-explicit
+    given: {source_environment: production, destination: production_ops_channel}
+    expect: {subject_prefix: PROD, incident_namespace: production, dev_destination_used: false}
+
+provider_and_billing_readiness:
+  - id: configured-provider-status-is-fresh
+    given:
+      environment: production
+      providers:
+        healthy: [stripe, openai]
+        unavailable: [example_provider]
+        skipped: [vercel]
+        stale: []
+    expect:
+      healthy_count: 2
+      unavailable_names: [example_provider]
+      skipped_names: [vercel]
+      overall_provider_status: degraded
+      private_credentials: absent
+      raw_provider_errors: absent
+  - id: managed-webhook-event-missing
+    given:
+      environment: production
+      stripe_account_read: true
+      active_prices_complete: true
+      webhook_destination_enabled: true
+      enabled_events: [payment_intent.succeeded, payment_intent.payment_failed]
+      required_managed_event: checkout.session.completed
+    expect:
+      eu_card_readiness: healthy
+      managed_payments_readiness: unavailable
+      billing_readiness: degraded
+      payment_object_created: false
+      urgent_transition_on_new_failure: true
+  - id: complete-read-only-payment-readiness
+    given:
+      environment: production
+      stripe_account_read: true
+      expected_active_prices: complete
+      webhook_destination_enabled: true
+      required_events: complete
+      payment_routes_registered: true
+      required_workers_healthy: true
+      settlement_issues: 0
+      readiness_fresh: true
+    expect:
+      eu_card_readiness: healthy
+      managed_payments_readiness: healthy
+      payment_object_created: false
+
+canonical_operations_channel:
+  - id: dedicated-production-operations-destination
+    given:
+      environment: production
+      canonical_operations_destination_configured: true
+      legacy_prod_smoke_destination_configured: true
+    expect:
+      daily_status_destination: canonical_operations_destination
+      urgent_transition_destination: canonical_operations_destination
+      payment_readiness_destination: canonical_operations_destination
+      degraded_services_destination: canonical_operations_destination
+      legacy_fallback_used: false
+      daily_all_clear_sent: true
+  - id: legacy-production-fallback
+    given:
+      environment: production
+      canonical_operations_destination_configured: false
+      legacy_prod_smoke_destination_configured: true
+    expect:
+      selected_destination: legacy_prod_smoke_destination
+      fallback_visible_in_delivery_state: true
+  - id: missing-production-destination
+    given:
+      environment: production
+      canonical_operations_destination_configured: false
+      legacy_prod_smoke_destination_configured: false
+    expect:
+      false_delivery_success: false
+      configuration_incident: missing_production_operations_destination

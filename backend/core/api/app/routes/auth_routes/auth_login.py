@@ -943,7 +943,7 @@ async def login(
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_otp = user_profile.get("last_opened")
                 
-                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
+                # If last_opened is an EARLY signup path, reset it to the neutral new-chat state.
                 # This prevents users from getting stuck in signup flow after OTP login when
                 # signupStore data (email, username) is no longer available.
                 # 
@@ -959,8 +959,8 @@ async def login(
                     "/signup/password", "#signup/password",
                 ]
                 if last_opened_path_otp and any(last_opened_path_otp.startswith(step) for step in early_signup_steps):
-                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_otp} (early signup path). Resetting to 'demo-for-everyone' after OTP login.")
-                    last_opened_path_otp = "demo-for-everyone"
+                    logger.info(f"User {user_id[:6]}... has an early signup last_opened path. Resetting to '/chat/new' after OTP login.")
+                    last_opened_path_otp = "/chat/new"
                     # Update Directus and cache with the new last_opened value and signup_completed flag
                     try:
                         update_success = await directus_service.update_user(user_id, {
@@ -973,7 +973,7 @@ async def login(
                                 "signup_completed": True
                             })
                             user_profile["last_opened"] = last_opened_path_otp
-                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                            logger.info(f"Successfully reset last_opened to '/chat/new' for user {user_id[:6]}...")
                         else:
                             logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                     except Exception as e:
@@ -1264,7 +1264,7 @@ async def login(
                 # Dispatch warm_user_cache task if not already primed (fallback - should have started in /lookup)
                 last_opened_path_backup = user_profile.get("last_opened")
                 
-                # CRITICAL FIX: If last_opened is an EARLY signup path, reset it to demo-for-everyone
+                # If last_opened is an EARLY signup path, reset it to the neutral new-chat state.
                 # This prevents users from getting stuck in signup flow after backup code login when
                 # signupStore data (email, username) is no longer available.
                 # 
@@ -1280,8 +1280,8 @@ async def login(
                     "/signup/password", "#signup/password",
                 ]
                 if last_opened_path_backup and any(last_opened_path_backup.startswith(step) for step in early_signup_steps):
-                    logger.info(f"User {user_id[:6]}... has last_opened={last_opened_path_backup} (early signup path). Resetting to 'demo-for-everyone' after backup code login.")
-                    last_opened_path_backup = "demo-for-everyone"
+                    logger.info(f"User {user_id[:6]}... has an early signup last_opened path. Resetting to '/chat/new' after backup code login.")
+                    last_opened_path_backup = "/chat/new"
                     # Update Directus and cache with the new last_opened value and signup_completed flag
                     try:
                         update_success = await directus_service.update_user(user_id, {
@@ -1294,7 +1294,7 @@ async def login(
                                 "signup_completed": True
                             })
                             user_profile["last_opened"] = last_opened_path_backup
-                            logger.info(f"Successfully reset last_opened to 'demo-for-everyone' for user {user_id[:6]}...")
+                            logger.info(f"Successfully reset last_opened to '/chat/new' for user {user_id[:6]}...")
                         else:
                             logger.warning(f"Failed to update last_opened in Directus for user {user_id[:6]}... - user may still see signup flow")
                     except Exception as e:
@@ -1606,10 +1606,6 @@ async def finalize_login_session(
                     cached_user_data["last_online_timestamp"] = current_time
                     # Store stay_logged_in preference for session endpoint to use
                     cached_user_data["stay_logged_in"] = login_data.stay_logged_in
-                    # Store country code for session-level location change detection
-                    # This enables the session endpoint to detect suspicious country changes mid-session
-                    if country_code and country_code not in ("Local", "Unknown", None):
-                        cached_user_data["last_session_country"] = country_code
                     # Set token_expiry so the /session endpoint knows when to refresh the access token.
                     # Without this, token_expiry defaults to 0 → expires_soon is always True → every
                     # /session call rotates the refresh token, causing race-condition logouts.
@@ -1640,9 +1636,6 @@ async def finalize_login_session(
                         user_profile["last_online_timestamp"] = current_time
                         # Set token_expiry so /session knows when the access token needs refreshing.
                         user_profile["token_expiry"] = current_time + ACCESS_TOKEN_TTL_SECONDS
-                        # Store country code for session-level location change detection
-                        if country_code and country_code not in ("Local", "Unknown", None):
-                            user_profile["last_session_country"] = country_code
                         # Ensure user_id is in the profile for set_user to work
                         if "user_id" not in user_profile and "id" in user_profile:
                             user_profile["user_id"] = user_profile["id"]
@@ -1672,6 +1665,9 @@ async def finalize_login_session(
                 "device_name": derive_device_name(user_agent),
                 "ip_truncated": truncate_ip(client_ip),
                 "country_code": country_code or "Unknown",
+                # Server-only risk baseline. Client metadata registration keeps
+                # this field while removing the plaintext display location.
+                "security_country_code": country_code or "Unknown",
                 "city": device_location_str.split(",")[0].strip() if device_location_str else None,
                 "encrypted_meta": None,
                 "encrypted_meta_iv": None,
@@ -1688,7 +1684,12 @@ async def finalize_login_session(
     return refresh_token  # Return refresh token for WebSocket auth (Safari iOS compatibility)
 
 
-@router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_auth_client)])
+@router.post(
+    "/lookup",
+    response_model=UserLookupResponse,
+    response_model_exclude_none=True,
+    dependencies=[Depends(verify_auth_client)],
+)
 @limiter.limit("120/minute")
 async def lookup_user(
     request: Request,

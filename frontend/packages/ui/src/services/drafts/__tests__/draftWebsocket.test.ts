@@ -74,6 +74,8 @@ const mocks = vi.hoisted(() => {
   return {
     chatDB: {
       getRawChat: vi.fn(async () => ({ chat_id: 'chat-1', draft_v: 0 })),
+      getChat: vi.fn(),
+      updateChat: vi.fn(),
       upsertRawChat: vi.fn(async () => {
         store.update((current) => ({
           ...current,
@@ -131,6 +133,7 @@ describe('draftWebsocket chat_draft_updated', () => {
     unregisterWebSocketHandlers();
   });
 
+  // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.persistence.local-first-encrypted
   it('preserves newer local editor content when a stale server echo arrives after an embed insert', async () => {
     registerWebSocketHandlers();
     const handler = mocks.handlers.get('chat_draft_updated');
@@ -148,5 +151,26 @@ describe('draftWebsocket chat_draft_updated', () => {
 
     expect(mocks.setContent).not.toHaveBeenCalled();
     expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative
+  it('preserves a local draft newer than the reconnect tombstone', async () => {
+    mocks.chatDB.getChat.mockResolvedValue({
+      chat_id: 'chat-1',
+      encrypted_draft_md: 'new-local-draft',
+      encrypted_draft_preview: 'new-local-preview',
+      draft_v: 5,
+    });
+    registerWebSocketHandlers();
+    const handler = mocks.handlers.get('draft_versions_response');
+    expect(handler).toBeTruthy();
+
+    await handler?.({
+      versions: { 'chat-1': 0 },
+      tombstone_versions: { 'chat-1': 4 },
+    });
+
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(mocks.chatMetadataCache.invalidateChat).not.toHaveBeenCalled();
   });
 });

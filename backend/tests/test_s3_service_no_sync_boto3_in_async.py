@@ -16,6 +16,8 @@
 # `self.client.<method>()` or `<name>.put_object/get_object/delete_object(...)`
 # that is NOT wrapped in asyncio.to_thread / loop.run_in_executor.
 
+# contract-test-file: infrastructure
+
 from __future__ import annotations
 
 import ast
@@ -237,12 +239,19 @@ def test_known_async_methods_are_covered():
     """
     KNOWN_ASYNC_METHODS: Set[str] = {
         "initialize",
+        "reconcile_configuration",
+        "check_availability",
         "_initialize_buckets",
+        "_reconcile_regional_bucket_policies",
+        "_persist_replication_outbox",
         "upload_file",
+        "upload_temporary_file",
         "upload_file_stream",
         "delete_file",
+        "verify_regional_object",
         "get_file",
         "get_file_stream",
+        "get_replicated_file_stream",
     }
 
     tree = ast.parse(SERVICE_FILE.read_text(), filename=str(SERVICE_FILE))
@@ -264,3 +273,32 @@ def test_known_async_methods_are_covered():
         "every boto3 client call in `await asyncio.to_thread(...)`. Then add "
         "the method name to KNOWN_ASYNC_METHODS in this test."
     )
+
+
+def test_client_only_initialization_guards_startup_bucket_configuration() -> None:
+    tree = ast.parse(SERVICE_FILE.read_text(), filename=str(SERVICE_FILE))
+    service_class = next(
+        node for node in tree.body
+        if isinstance(node, ast.ClassDef) and node.name == "S3UploadService"
+    )
+    initialize = next(
+        node for node in service_class.body
+        if isinstance(node, ast.AsyncFunctionDef) and node.name == "initialize"
+    )
+
+    kwarg_names = [argument.arg for argument in initialize.args.kwonlyargs]
+    assert "configure_buckets" in kwarg_names
+    configure_default = initialize.args.kw_defaults[kwarg_names.index("configure_buckets")]
+    assert isinstance(configure_default, ast.Constant) and configure_default.value is True
+
+    guarded_calls = {
+        call.func.attr if isinstance(call.func, ast.Attribute) else call.func.id
+        for branch in initialize.body
+        if isinstance(branch, ast.If)
+        and isinstance(branch.test, ast.Name)
+        and branch.test.id == "configure_buckets"
+        for call in ast.walk(branch)
+        if isinstance(call, ast.Call)
+        and isinstance(call.func, (ast.Attribute, ast.Name))
+    }
+    assert guarded_calls == {"reconcile_configuration"}

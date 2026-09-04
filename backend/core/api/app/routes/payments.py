@@ -170,6 +170,82 @@ async def _current_credit_balance_for_response(
     )
     return int(decrypted_credits)
 
+
+_PAYMENT_SETTLEMENT_USER_FIELDS = [
+    "vault_key_id",
+    "encrypted_credit_balance",
+    "stripe_customer_id",
+    "last_opened",
+    "country_code",
+]
+
+
+def _has_payment_settlement_balance_projection(user_data: Optional[Dict[str, Any]]) -> bool:
+    return (
+        isinstance(user_data, dict)
+        and bool(user_data.get("vault_key_id"))
+        and user_data.get("credits") is not None
+    )
+
+
+async def _get_payment_settlement_user_data(
+    user_id: str,
+    *,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+) -> Dict[str, Any]:
+    user_data = await cache_service.get_user_by_id(user_id)
+    if _has_payment_settlement_balance_projection(user_data):
+        return user_data
+
+    logger.warning(
+        "Payment settlement user cache miss or partial profile for user %s; fetching direct fields from Directus.",
+        user_id,
+    )
+    direct_fields = await directus_service.get_user_fields_direct(
+        user_id,
+        _PAYMENT_SETTLEMENT_USER_FIELDS,
+    )
+    if (
+        not direct_fields
+        or not direct_fields.get("vault_key_id")
+        or not direct_fields.get("encrypted_credit_balance")
+    ):
+        logger.error("Payment settlement user profile unavailable for user %s", user_id)
+        raise HTTPException(status_code=500, detail="User data temporarily unavailable")
+
+    decrypted_credits = await encryption_service.decrypt_with_user_key(
+        direct_fields["encrypted_credit_balance"],
+        direct_fields["vault_key_id"],
+    )
+    try:
+        current_credits = int(float(decrypted_credits))
+    except (TypeError, ValueError) as exc:
+        logger.error(
+            "Payment settlement credit balance is invalid for user %s: %s",
+            user_id,
+            exc,
+        )
+        raise HTTPException(status_code=500, detail="Could not read current balance") from exc
+
+    refreshed_user_data = dict(user_data or {})
+    refreshed_user_data.update(
+        {
+            "vault_key_id": direct_fields["vault_key_id"],
+            "credits": current_credits,
+            "encrypted_credit_balance": direct_fields["encrypted_credit_balance"],
+        }
+    )
+    for optional_field in ("stripe_customer_id", "last_opened", "country_code"):
+        if direct_fields.get(optional_field) is not None:
+            refreshed_user_data[optional_field] = direct_fields[optional_field]
+
+    cache_success = await cache_service.set_user(refreshed_user_data, user_id=user_id)
+    if not cache_success:
+        logger.warning("Could not refresh payment settlement user cache for user %s", user_id)
+    return refreshed_user_data
+
 class CreateOrderRequest(BaseModel):
     currency: str
     credits_amount: int
@@ -776,9 +852,12 @@ async def verify_apple_transaction(
                 purchase_type="credit_purchase",
                 credits_sold=credits_to_add,
             )
-            user_cache_data = await cache_service.get_user_by_id(user_id)
-            if user_cache_data is None:
-                user_cache_data = {}
+            user_cache_data = await _get_payment_settlement_user_data(
+                user_id,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            )
 
             vault_key_id = user_cache_data.get("vault_key_id")
             if not vault_key_id:
@@ -1994,13 +2073,18 @@ async def payment_webhook(
                 await cache_service.update_order_status(webhook_order_id, "failed_invalid_cache_data")
                 return {"status": "cache_data_invalid"}
 
-            user_cache_data = await cache_service.get_user_by_id(user_id)
-            
             # Check if this order has already been processed
             order_status = cached_order_data.get("status")
             if order_status == "completed":
                 logger.info(f"Order {webhook_order_id} already completed. Skipping duplicate webhook.")
                 return {"status": "already_completed"}
+
+            user_cache_data = await _get_payment_settlement_user_data(
+                user_id,
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            )
             
             # Check if payment is in progress, but allow processing if it's for the same order (retry scenario)
             # or if the flag has been set for more than 5 minutes (stale flag)
@@ -2038,9 +2122,6 @@ async def payment_webhook(
                     logger.warning(f"User {user_id} already has a payment in progress for a different order ({pending_order_id}). Skipping webhook for {webhook_order_id}.")
                     return {"status": "skipped_payment_in_progress"}
 
-            if user_cache_data is None:
-                user_cache_data = {}
-            
             # Set payment in progress flag with timestamp
             user_cache_data["payment_in_progress"] = True
             user_cache_data["payment_in_progress_timestamp"] = int(time.time())
@@ -7152,16 +7233,22 @@ async def _handle_revolut_business_webhook(
             return {"status": "processing_error"}
 
     # ── Credit purchase path ─────────────────────────────────────────
-    user_cache_data = await cache_service.get_user_by_id(user_id)
-    if not user_cache_data:
-        logger.error(f"User {user_id} not found in cache for bank transfer {order_id}")
+    try:
+        user_cache_data = await _get_payment_settlement_user_data(
+            user_id,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+        )
+    except Exception as profile_error:
+        logger.error(f"User {user_id} unavailable for bank transfer {order_id}: {profile_error}")
         await _notify_admin_bank_transfer_processing_error(
             cache_service=cache_service,
             order_id=order_id,
             reference=reference,
             order_type=order_type,
             transaction_id=transaction_id,
-            error="user_cache_missing",
+            error="user_profile_unavailable",
         )
         # Return 500 so Revolut retries
         raise HTTPException(status_code=500, detail="User data temporarily unavailable")

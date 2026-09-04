@@ -51,6 +51,24 @@ anonymous_free_usage_budget:
       default: 0
       note: "Reserved/finalized anonymous credits consumed in the current UTC month."
 
+    daily_window_date:
+      type: string
+      length: 16
+      nullable: true
+      note: "UTC date key owning daily_used_credits; rollover is serialized by the distributed budget lock."
+
+    weekly_window_start:
+      type: string
+      length: 16
+      nullable: true
+      note: "UTC Monday date key owning weekly_used_credits."
+
+    monthly_window_month:
+      type: string
+      length: 16
+      nullable: true
+      note: "UTC YYYY-MM key owning monthly_used_credits."
+
     updated_by_admin_user_id:
       type: string
       length: 128

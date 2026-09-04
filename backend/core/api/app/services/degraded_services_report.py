@@ -7,11 +7,14 @@
 
 import json
 import os
+import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import httpx
+
+from backend.core.api.app.services.operational_monitoring import resolve_operations_discord_destination
 
 DEGRADED_SERVICES_REPORT_LOOKBACK_HOURS = 24
 DEGRADED_SERVICES_REPORT_MIN_OCCURRENCES = 3
@@ -19,6 +22,21 @@ DEGRADED_SERVICES_REPORT_QUERY_LIMIT = 1000
 DEGRADED_SERVICES_REPORT_TOP_MESSAGES = 12
 DEGRADED_SERVICES_DISCORD_LIMIT = 1900
 DEGRADED_SERVICES_DISCORD_TIMEOUT_SECONDS = 10.0
+SENSITIVE_LOG_PATTERNS = (
+    (re.compile(r"\b(?:acct|pi|ch|re|in|cs|sub|cus|evt|pm|seti)_[A-Za-z0-9_]+\b"), "[REDACTED_ID]"),
+    (re.compile(r"\b(?:sk|rk|pk)_(?:live|test)_[A-Za-z0-9_]+\b"), "[REDACTED_SECRET]"),
+    (re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE), "[REDACTED_EMAIL]"),
+    (re.compile(r"\bBasic\s+[A-Za-z0-9+/=]+", re.IGNORECASE), "[REDACTED_SECRET]"),
+    (re.compile(r"https?://\S+", re.IGNORECASE), "[REDACTED_URL]"),
+    (re.compile(r"\b(?:bearer|password|passwd|token|secret|api[_ -]?key)\s*[:=]?\s*\S+", re.IGNORECASE), "[REDACTED_SECRET]"),
+)
+
+
+def redact_degraded_log_message(message: str) -> str:
+    redacted = message
+    for pattern, replacement in SENSITIVE_LOG_PATTERNS:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
 
 
 def extract_exact_log_message(raw_message: str) -> tuple[str, str]:
@@ -72,7 +90,7 @@ def build_degraded_issue_report(
         if not is_degraded_report_candidate(level, exact_message):
             continue
 
-        grouped[(service, level, logger_name, exact_message)] += 1
+        grouped[(service, level, logger_name, redact_degraded_log_message(exact_message))] += 1
 
     issues = [
         {
@@ -120,14 +138,8 @@ def format_degraded_report_message(
 
 
 def select_degraded_report_webhook_url(environment: str) -> Optional[str]:
-    explicit = os.getenv("DISCORD_WEBHOOK_DEGRADED_SERVICES", "").strip()
-    if explicit:
-        return explicit
-
-    env_lower = environment.lower()
-    if env_lower in {"production", "prod"}:
-        return os.getenv("DISCORD_WEBHOOK_PROD_SMOKE", "").strip() or None
-    return os.getenv("DISCORD_WEBHOOK_DEV_SMOKE", "").strip() or None
+    normalized = "production" if environment.lower() == "prod" else environment.lower()
+    return resolve_operations_discord_destination(normalized, os.environ)["url"]
 
 
 async def send_discord_degraded_report(content: str, webhook_url: str) -> None:

@@ -22,10 +22,13 @@ XCODE_PROJECT = REPO_ROOT / "apple" / "OpenMates.xcodeproj" / "project.pbxproj"
 MAIN_INFO_PLIST = REPO_ROOT / "apple" / "OpenMates" / "Resources" / "Info.plist"
 WATCH_INFO_PLIST = REPO_ROOT / "apple" / "OpenMatesWatch" / "Info.plist"
 MAIN_ENTITLEMENTS = REPO_ROOT / "apple" / "OpenMates" / "Resources" / "OpenMatesPasskey.entitlements"
+NOTIFICATION_SERVICE_ENTITLEMENTS = REPO_ROOT / "apple" / "OpenMatesNotificationService" / "OpenMatesNotificationService.entitlements"
+PUSH_NOTIFICATION_MANAGER = REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Core" / "Networking" / "PushNotificationManager.swift"
+NOTIFICATION_PREVIEW_CRYPTO = REPO_ROOT / "apple" / "OpenMates" / "Sources" / "Core" / "Networking" / "NotificationPreviewCrypto.swift"
 APPLE_REMOTE = REPO_ROOT / "scripts" / "apple_remote.py"
 
 APPLE_RELEASE_PATH_RE = re.compile(
-    r"^(apple/project\.yml|apple/OpenMates\.xcodeproj/project\.pbxproj|apple/.+(?:Info\.plist|\.entitlements|\.xcassets)|scripts/apple_remote\.py|scripts/tests/test_apple_remote_testflight\.py|scripts/tests/test_app_version_parity\.py)"
+    r"^(apple/project\.yml|apple/OpenMates\.xcodeproj/project\.pbxproj|apple/.+(?:Info\.plist|\.entitlements|\.xcassets)|apple/OpenMates/Sources/Core/Networking/(?:PushNotificationManager|NotificationPreviewCrypto)\.swift|scripts/apple_remote\.py|scripts/tests/test_apple_remote_testflight\.py|scripts/tests/test_app_version_parity\.py)"
 )
 REQUIRED_BUNDLE_IDS = {
     "org.openmates.app",
@@ -33,6 +36,7 @@ REQUIRED_BUNDLE_IDS = {
     "org.openmates.app.sharemacos",
     "org.openmates.app.widget",
     "org.openmates.app.watch",
+    "org.openmates.app.notification-service",
 }
 REQUIRED_WATCH_TERMS = {
     "project.yml embeds modern Watch app": "- target: OpenMatesWatch",
@@ -42,6 +46,7 @@ REQUIRED_WATCH_TERMS = {
     "project.yml keeps Watch out of top-level install": "SKIP_INSTALL: YES",
 }
 REQUIRED_XCODE_TERMS = {
+    "Xcode embeds notification service extension": "OpenMatesNotificationService.appex in Embed Foundation Extensions",
     "Xcode embeds Watch content under Watch folder": 'dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";',
     "Xcode embeds the Watch app product": "OpenMatesWatch.app in Embed Watch Content",
     "Xcode uses modern Watch application product": 'productType = "com.apple.product-type.application";',
@@ -67,11 +72,25 @@ REQUIRED_MAIN_PLIST_TERMS = {
     "main app declares microphone usage": "NSMicrophoneUsageDescription",
     "main app declares export compliance": "ITSAppUsesNonExemptEncryption",
 }
+REQUIRED_NOTIFICATION_PLIST_TERMS = {
+    "notification service declares extension point": "com.apple.usernotifications.service",
+    "notification service declares principal class": "NSExtensionPrincipalClass",
+}
+REQUIRED_NOTIFICATION_ENTITLEMENT_TERMS = {
+    "notification service keeps shared keychain group": "$(AppIdentifierPrefix)org.openmates.app",
+    "notification service keeps shared App Group": "group.org.openmates.app.shared",
+}
 REQUIRED_ENTITLEMENT_TERMS = {
+    "main app declares APNs environment": "aps-environment",
     "main app keeps shared App Group": "group.org.openmates.app.shared",
     "main app keeps associated domains entitlement": "com.apple.developer.associated-domains",
     "main app keeps production webcredential domain": "webcredentials:openmates.org",
     "main app keeps dev webcredential domain": "$(OPENMATES_DEV_WEBCREDENTIALS)",
+}
+REQUIRED_NOTIFICATION_SERVICE_TERMS = {
+    "project.yml declares notification service target": "OpenMatesNotificationService:",
+    "project.yml embeds notification service extension": "- target: OpenMatesNotificationService",
+    "project.yml uses notification service source": "- path: OpenMatesNotificationService",
 }
 REQUIRED_TESTFLIGHT_TERMS = {
     "TestFlight upload requires --whats-new or --whats-new-file": "TestFlight uploads require --whats-new or --whats-new-file",
@@ -109,6 +128,11 @@ def _missing_terms(path: Path, terms: dict[str, str]) -> list[str]:
     if not text:
         return [f"missing required file: {_rel(path)}"]
     return [f"{_rel(path)} missing {label}: {term}" for label, term in terms.items() if term not in text]
+
+
+def missing_text_terms(subject: str, text: str, terms: dict[str, str]) -> list[str]:
+    """Return deterministic missing-term issues for in-memory mutation tests."""
+    return [f"{subject} missing {label}: {term}" for label, term in terms.items() if term not in text]
 
 
 def _forbidden_terms(path: Path, terms: dict[str, str]) -> list[str]:
@@ -200,6 +224,44 @@ def target_source_membership_issues(project_text: str, xcode_text: str) -> list[
     ]
 
 
+def notification_service_membership_issues(project_text: str, xcode_text: str) -> list[str]:
+    """Validate the notification extension target, embed, and shared crypto sources."""
+    target = "OpenMatesNotificationService"
+    issues: list[str] = []
+    if f"/* {target} */ = {{" not in xcode_text:
+        issues.append(f"{_rel(XCODE_PROJECT)} missing {target} native target")
+    if f"{target}.appex in Embed Foundation Extensions" not in xcode_text:
+        issues.append(f"{_rel(XCODE_PROJECT)} does not embed {target}")
+    project_sources = set(_project_target_sources(project_text, target))
+    required_project_sources = {
+        "OpenMatesNotificationService",
+        "OpenMates/Sources/Core/Crypto/KeychainHelper.swift",
+        "OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift",
+    }
+    for source in sorted(required_project_sources - project_sources):
+        issues.append(f"{_rel(PROJECT_YML)} {target} missing source: {source}")
+
+    phase = _target_source_phase(xcode_text, target)
+    required_xcode_sources = {
+        "NotificationService.swift",
+        "KeychainHelper.swift",
+        "NotificationPreviewCrypto.swift",
+    }
+    actual_xcode_sources = set(re.findall(r"/\* ([^*/]+\.swift) in Sources \*/", phase))
+    for source in sorted(required_xcode_sources - actual_xcode_sources):
+        issues.append(f"{_rel(XCODE_PROJECT)} {target} sources missing {source}")
+    return issues
+
+
+def push_logging_issues(contents: dict[Path, str]) -> list[str]:
+    """Reject ad-hoc push logs that can accidentally expose device tokens."""
+    return [
+        f"{_rel(path)} contains forbidden full push token logging"
+        for path, text in contents.items()
+        if 'print("[Push]' in text
+    ]
+
+
 def _has_relevant_path(paths: list[Path]) -> bool:
     return any(APPLE_RELEASE_PATH_RE.search(_rel(path)) for path in paths)
 
@@ -215,11 +277,19 @@ def audit_paths(paths: list[Path]) -> list[str]:
     issues.extend(_forbidden_terms(XCODE_PROJECT, FORBIDDEN_XCODE_TERMS))
     issues.extend(_missing_terms(WATCH_INFO_PLIST, REQUIRED_WATCH_PLIST_TERMS))
     issues.extend(_missing_terms(MAIN_INFO_PLIST, REQUIRED_MAIN_PLIST_TERMS))
+    issues.extend(_missing_terms(REPO_ROOT / "apple" / "OpenMatesNotificationService" / "Info.plist", REQUIRED_NOTIFICATION_PLIST_TERMS))
     issues.extend(_missing_terms(MAIN_ENTITLEMENTS, REQUIRED_ENTITLEMENT_TERMS))
+    issues.extend(_missing_terms(NOTIFICATION_SERVICE_ENTITLEMENTS, REQUIRED_NOTIFICATION_ENTITLEMENT_TERMS))
+    issues.extend(_missing_terms(PROJECT_YML, REQUIRED_NOTIFICATION_SERVICE_TERMS))
     issues.extend(_missing_terms(APPLE_REMOTE, REQUIRED_TESTFLIGHT_TERMS))
     issues.extend(_bundle_id_issues())
     issues.extend(_native_target_issues())
     issues.extend(target_source_membership_issues(_read(PROJECT_YML), _read(XCODE_PROJECT)))
+    issues.extend(notification_service_membership_issues(_read(PROJECT_YML), _read(XCODE_PROJECT)))
+    issues.extend(push_logging_issues({
+        PUSH_NOTIFICATION_MANAGER: _read(PUSH_NOTIFICATION_MANAGER),
+        NOTIFICATION_PREVIEW_CRYPTO: _read(NOTIFICATION_PREVIEW_CRYPTO),
+    }))
     return issues
 
 

@@ -76,10 +76,10 @@ def test_proof_video_reviewer_is_callable_as_primary_and_subagent(tmp_path: Path
 
     assert "mode: all" in rendered
     assert '"*": deny' in rendered
-    assert "review-prompt-round-*.json" in rendered
-    assert "frames/*" in rendered
-    assert "**/test-results/proof-videos/**" not in rendered
+    assert '"test-results/proof-videos/**/review-prompt-round-*.json": allow' in rendered
+    assert '"test-results/proof-videos/**/frames/*": allow' in rendered
     assert "grep: deny" in rendered
     assert "glob: deny" in rendered
+    assert "task: deny" in rendered
     assert "bash: deny" in rendered
     assert "edit: deny" in rendered

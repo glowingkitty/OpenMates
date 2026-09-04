@@ -83,7 +83,10 @@ from backend.core.api.app.routes.auth_routes.auth_utils import (
     has_pending_signup_gift_card,
 )
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
-from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.routes.auth_routes.auth_common import (
+    set_session_security_country,
+    verify_authenticated_user,
+)
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.models.user import User
@@ -2350,7 +2353,7 @@ async def verify_device_passkey(
     
     try:
         # Step 1: Verify the user has a valid session (same as OTP device verification)
-        is_auth, user_data, _, auth_status = await verify_authenticated_user(
+        is_auth, user_data, refresh_token, auth_status = await verify_authenticated_user(
             request, cache_service, directus_service, require_known_device=False
         )
         
@@ -2527,14 +2530,17 @@ async def verify_device_passkey(
             logger.error(f"Failed to add device hash for user {user_id[:6]}...: {update_msg}")
             # Continue - user has successfully verified
         
-        # Update last_session_country after successful device verification
-        # This ensures the new country is stored so it won't trigger re-auth again on next session check
-        if country_code and country_code not in ("Local", "Unknown", None):
-            try:
-                await cache_service.update_user(user_id, {"last_session_country": country_code})
-                logger.debug(f"Updated last_session_country to {country_code} for user {user_id[:6]}... after passkey device verification.")
-            except Exception as e:
-                logger.error(f"Failed to update last_session_country for user {user_id}: {e}", exc_info=True)
+        # Advance only the verified logical session's country baseline.
+        try:
+            await set_session_security_country(
+                cache_service,
+                user_id,
+                refresh_token,
+                country_code,
+                stay_logged_in=bool(user_data.get("stay_logged_in", False)),
+            )
+        except Exception as e:
+            logger.error(f"Failed to update session security country for user {user_id}: {e}", exc_info=True)
         
         # Step 7: Log compliance event
         compliance_service.log_auth_event_safe(

@@ -35,6 +35,14 @@ def _snapshot(environment: str = "development", **overrides):
         },
         "activity_counts": {"chats": 7, "messages": 42, "embeds": 5, "usage_entries": 38},
         "processing_transactions": {"created": 42, "completed": 39, "invalidated": 2, "non_terminal_over_15m": 1},
+        "provider_health": {
+            "status": "degraded",
+            "healthy_count": 2,
+            "unavailable_names": ["example_provider"],
+            "skipped_names": ["vercel"],
+            "stale_names": [],
+            "checked_at": WINDOW_END.isoformat(),
+        },
         "billing": {
             "status": "degraded",
             "purchase_count": 3,
@@ -93,6 +101,7 @@ def test_compact_svg_and_png_render_deterministically():
     assert first_svg == second_svg
     assert first_svg.startswith("<svg")
     assert "CPU" in first_svg and "Memory" in first_svg and "Disk" in first_svg
+    assert "Providers:" in first_svg and "Payment readiness:" in first_svg
     assert png.startswith(b"\x89PNG\r\n\x1a\n")
     assert len(png) < 2_000_000
 
@@ -178,7 +187,7 @@ def test_delivery_receipts_are_channel_specific_and_redacted():
     assert monitoring.summarize_delivery_state([email, discord]) == "partial_failure"
     assert set(email) == {
         "environment", "report_id", "report_sha256", "channel", "state",
-        "attempt_count", "occurred_at", "sanitized_failure_class",
+        "attempt_count", "occurred_at", "sanitized_failure_class", "destination_source", "fallback_used",
     }
 
 
@@ -187,6 +196,107 @@ def test_environment_subjects_are_explicit_and_isolated():
     assert monitoring.report_subject("development").startswith("[OpenMates DEV]")
     assert monitoring.report_subject("production").startswith("[OpenMates PROD]")
     assert monitoring.report_subject("self_host").startswith("[OpenMates SELF-HOST]")
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.providers.current-availability,operational-monitoring.content.privacy-boundary
+def test_provider_health_groups_nonhealthy_names_and_rejects_stale_as_healthy():
+    records = {
+        "openai": {"status": "healthy", "last_check": WINDOW_END.timestamp()},
+        "stripe": {"status": "healthy", "last_check": WINDOW_END.timestamp()},
+        "example_provider": {"status": "unhealthy", "last_check": WINDOW_END.timestamp()},
+        "vercel": {"status": "skipped", "last_check": WINDOW_END.timestamp()},
+        "stale_provider": {"status": "healthy", "last_check": (WINDOW_END - timedelta(hours=1)).timestamp()},
+    }
+
+    summary = monitoring.summarize_provider_health(
+        records,
+        now=WINDOW_END,
+        stale_after=timedelta(minutes=15),
+    )
+
+    assert summary == {
+        "status": "degraded",
+        "healthy_count": 2,
+        "unavailable_names": ["example_provider"],
+        "skipped_names": ["vercel"],
+        "stale_names": ["stale_provider"],
+        "checked_at": WINDOW_END.isoformat(),
+    }
+    assert "last_error" not in str(summary)
+
+
+def test_provider_health_never_treats_empty_or_missing_inventory_as_healthy():
+    assert monitoring.summarize_provider_health({}, now=WINDOW_END)["status"] == "unavailable"
+
+    summary = monitoring.summarize_provider_health(
+        {"openai": {"status": "healthy", "last_check": WINDOW_END.timestamp()}},
+        now=WINDOW_END,
+        expected_names=["openai", "missing_provider"],
+    )
+
+    assert summary["status"] == "degraded"
+    assert summary["unavailable_names"] == ["missing_provider"]
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.billing.no-spend-readiness,operational-monitoring.content.privacy-boundary
+@pytest.mark.asyncio
+async def test_billing_readiness_omits_internal_destination_checks_from_snapshot():
+    class FakeClient:
+        async def get(self, _key):
+            return monitoring.json.dumps({
+                "readiness": {
+                    "status": "degraded",
+                    "eu_card": "healthy",
+                    "managed_payments": "unavailable",
+                    "missing_products": [],
+                    "missing_events": ["checkout.session.completed"],
+                    "checked_at": WINDOW_END.isoformat(),
+                    "checks": {"destination_enabled": True},
+                },
+            })
+
+    class FakeCache:
+        client = _completed_value(FakeClient())
+
+    readiness = await monitoring.collect_billing_readiness(FakeCache(), now=WINDOW_END)
+    snapshot = _snapshot(billing_readiness=readiness)
+
+    assert readiness["eu_card"] == "healthy"
+    assert "checks" not in snapshot["billing_readiness"]
+    assert "destination" not in monitoring.serialize_operational_snapshot(snapshot)
+
+
+def test_provider_health_is_visible_in_discord_summary():
+    summary = monitoring.build_operational_discord_summary(
+        _snapshot(),
+        test=False,
+        report_id="operational-production-provider-health",
+    )
+
+    assert "Providers: 2 healthy" in summary
+    assert "unavailable example_provider" in summary
+    assert "skipped vercel" in summary
+    assert len(summary.splitlines()) <= 5
+
+
+def test_discord_summary_bounds_large_provider_inventory_without_silent_slicing():
+    provider_health = {
+        "status": "degraded",
+        "healthy_count": 0,
+        "unavailable_names": [f"provider_{index:03d}_with_a_long_but_safe_name" for index in range(100)],
+        "skipped_names": [],
+        "stale_names": [],
+        "checked_at": WINDOW_END.isoformat(),
+    }
+
+    summary = monitoring.build_operational_discord_summary(
+        _snapshot(provider_health=provider_health),
+        test=False,
+        report_id="bounded-provider-summary",
+    )
+
+    assert len(summary) <= 2000
+    assert "+95 more" in summary
 
 
 @pytest.mark.asyncio

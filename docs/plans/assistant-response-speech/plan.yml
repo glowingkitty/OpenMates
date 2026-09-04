@@ -1,0 +1,1379 @@
+schema_version: 3
+id: assistant-response-speech
+title: Assistant Response Speech
+status: approved
+
+specification_refs:
+  - id: feature.assistant-response-speech
+    version: 5
+    role: primary
+    fingerprint: 3f66240297ca59d6a809d4e849b1a7487fa699e555402266e5f3d40af4b24184
+  - id: feature.public-example-chats
+    version: 4
+    role: inherited
+    fingerprint: e53c1ac327993825e19716c865be2aff5f1e37dd8f79f1f01035d1113463ec4e
+
+specification_impact:
+  classification: semantic_change
+  specification_update_required: true
+  affected_assertions:
+    - assistant-speech.preference.chat-scoped-default-off
+    - assistant-speech.preference.voice-recording-visible-activation
+    - assistant-speech.acknowledgement.deterministic-free
+    - assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds
+    - assistant-speech.voice.fixed-versioned-mate-profile
+    - assistant-speech.segmentation.one-file-per-segment
+    - assistant-speech.segmentation.immutable-source
+    - assistant-speech.projection.deterministic-semantic
+    - assistant-speech.projection.no-cleanup-inference
+    - assistant-speech.execution.text-stream-independent
+    - assistant-speech.execution.app-skill-progressive
+    - assistant-speech.execution.first-segment-progressive
+    - assistant-speech.playback.single-queue-segment-control
+    - assistant-speech.playback.deterministic-chapter-labels
+    - assistant-speech.playback.pinned-full-response-waveform
+    - assistant-speech.playback.two-second-idle-grace
+    - assistant-speech.playback.os-controls-best-effort
+    - assistant-speech.playback.autoplay-recovery-visible
+    - assistant-speech.on-demand.generate-missing-only
+    - assistant-speech.cli.owner-generated-existing-messages
+    - assistant-speech.public-example.reviewed-fixture-playback
+    - assistant-speech.access.first-party-owner-scoped
+    - assistant-speech.safety.provider-after-approval
+    - assistant-speech.privacy.transient-plaintext-encrypted-audio
+    - assistant-speech.billing.segment-success-once
+    - assistant-speech.failure.nonblocking-visible-resumable
+    - assistant-speech.lifecycle.disable-delete-invalidate
+    - assistant-speech.surface.semantic-parity
+  reason: >
+    This feature establishes a new permanent contract for automatically and
+    manually speaking assistant responses without changing the existing
+    explicit user-invoked audio.speak app-skill contract.
+
+documentation_impact:
+  generated_reference:
+    status: regenerate
+    reason: Contract registry, assertion index, coverage, and generated capability references must include assistant response speech.
+    documents:
+      - specifications/generated/registry.yml
+      - specifications/generated/assertion-index.yml
+      - specifications/generated/coverage.yml
+  user_docs:
+    status: update_required
+    reason: Users need documentation for chat-scoped auto-speak, voice-recording activation, credit charging, replay, controls, privacy, and failure behavior.
+    documents:
+      - docs/user-guide/assistant-response-speech.md
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+  semantic_layer:
+    status: update_required
+    reason: Chat streaming, mate metadata, speech segments, embed summaries, billing attribution, and first-party playback gain durable semantics.
+    documents:
+      - docs/architecture/assistant-response-speech.md
+      - backend/apps/ai
+      - backend/apps/audio
+      - frontend/packages/ui/src/i18n
+
+goal: >
+  Let authenticated users enable speech for one chat and hear each immutable
+  assistant paragraph or structured summary as its own encrypted, independently
+  skippable ElevenLabs audio file, while text streaming remains authoritative
+  and unaffected, replay is free, generation is billed through one character-based
+  aggregate per assistant message, paired CLI owners can generate historical-message audio,
+  and reviewed public examples can replay separately published fixtures.
+
+scope:
+  in:
+    - A chat-scoped Auto speak response control in the message composer, off by default and synchronized across the user's devices.
+    - Completing a voice-recording embed visibly enables Auto speak response for that chat and briefly highlights the control.
+    - Deterministic selection of a free prerecorded acknowledgement from mate voice, response language, and request category.
+    - Fixed versioned ElevenLabs voice profiles for built-in mates with deterministic multilingual fallback.
+    - Immutable speech segments for prose paragraphs, localized app-use announcements, and structured embed, code, or table summaries.
+    - One ElevenLabs request and encrypted private chatfiles S3 object per generated segment, with one idempotent character-based usage row per assistant message.
+    - Speech generation and playback run in parallel with and never block assistant text streaming or persistence.
+    - User-message rendering, rainbow state, optional thinking, app-skill Processing previews, embeds, and text publish before related speech work and never wait for app-skill or audio completion.
+    - Prerecorded acknowledgement and generated app-use clips use a passive top waveform; replay and track controls appear only for durable response paragraphs and summaries.
+    - The responsive Figma-defined top player stays visible with localized Loading state while more response audio can arrive.
+    - Progressive playback begins after the first segment is ready and automatically follows manifest order.
+    - A compact Speak action on every assistant response expands its localized label on hover/focus, generates only missing or invalidated segments, and reuses matching durable files.
+    - The Speak response action sits beside the mate name in the assistant identity row rather than in the generated-by footer.
+    - The web client starts the prerecorded acknowledgement or shows autoplay recovery within five seconds of an accepted auto-speak send, while a separate real-provider smoke records ElevenLabs generation latency.
+    - "`openmates chats speak` generates or reuses private encrypted segments for one or all existing assistant messages in an owner-accessible chat."
+    - The example-chat conversion workflow can explicitly publish reviewed segment copies to immutable public S3 fixture keys.
+    - One existing landing-linked example chat receives reviewed public speech fixtures that play for logged-out visitors without generation or credits.
+    - One active response queue with play, pause, close, previous chapter, and next chapter controls; Close dismisses local playback without cancelling requested generation.
+    - A responsive waveform bar matching Figma node 5903:75417, with deterministic chapter labels, desktop mate identity, mobile-prioritized controls, transcript emphasis, and a flat-to-real waveform transition for a selected pending chapter.
+    - Best-effort web Media Session controls plus complete in-app fallback controls and visible autoplay recovery.
+    - Safe visible retry, credit, provider, storage, and cancellation behavior without browser-speech or provider fallback.
+    - Message/chat deletion and source/voice-version invalidation clean up only affected speech assets.
+    - Web implementation and proof before user confirmation, then Apple native parity including background and lock-screen controls where supported.
+  out:
+    - A combined message-level audio file.
+    - Anonymous or developer API-key generation, public npm/pip SDK generation, and public access to source private encrypted speech objects.
+    - User-selectable voices, raw ElevenLabs voice IDs, voice cloning, or impersonation.
+    - Reading raw JSON, raw URLs, protocol fences, code syntax, or full table markup aloud.
+    - A general-purpose Groq, Gemini, or other LLM rewrite/cleanup pass before TTS.
+    - Browser speech synthesis or a second provider as an automatic fallback.
+    - Changing audio.speak app-skill request or response semantics.
+
+context_discovery:
+  github_issues:
+    - No matching issue was returned by the authenticated gh CLI search for speak assistant response, text to speech, ElevenLabs, or auto speak.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/elevenlabs-audio-skills/plan.yml
+    - docs/plans/cross-device-chat-completion-recovery/plan.yml
+    - specifications/features/assistant-response-speech/specification.yml
+    - specifications/features/app-skills/audio-speak/specification.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/features/billing/specification.yml
+  code_patterns:
+    - backend/apps/ai/utils/stream_utils.py already aggregates provider output at blank-line paragraph boundaries.
+    - backend/apps/ai/tasks/stream_consumer.py publishes cumulative text snapshots and performs final corrections, so current snapshots are not immutable speech sources.
+    - backend/apps/audio/tasks/speak_task.py already provides ElevenLabs execution, encrypted generated-asset storage, duration billing, and chat/message attribution patterns.
+    - backend/shared/providers/elevenlabs/client.py already owns the provider boundary and server-side voice IDs.
+    - frontend/packages/ui/src/components/embeds/audio/audioEmbedCrypto.ts already fetches and decrypts private generated audio.
+    - frontend/packages/ui/src/components/enter_message/ActionButtons.svelte and MessageInput.svelte own composer actions and recording lifecycle.
+    - frontend/packages/ui/src/components/ChatMessage.svelte owns assistant message identity and footer actions.
+    - frontend RecordingEmbedFullscreen.svelte and audioWaveform.ts provide real normalized waveform samples, progress, and click-to-seek visual language.
+    - Apple media renderers already use AVAudioPlayer for encrypted generated audio but do not provide response-level queues.
+  tests:
+    - backend/tests/test_stream_paragraph_contract.py
+    - backend/tests/test_stream_consumer_publish_coalescing.py
+    - backend/tests/test_rest_api_audio.py
+    - backend/tests/test_media_generation_safety.py
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingMessageBlocks.test.ts
+    - frontend/apps/web_app/tests/skill-audio-generate-speak.spec.ts
+    - frontend/apps/web_app/tests/audio-recording.spec.ts
+    - apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+    - apple/OpenMates/Sources/Features/Chat/ViewModels/ChatViewModel.swift
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/MediaRenderers.swift
+    - apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+  parity_expectations:
+    - Apple begins only after the live first-party API, backend, web, visual-smoke, proof-video, and user-confirmation gates pass.
+    - Apple preserves chat-scoped preference, recording activation, paragraph files, progressive queueing, on-demand reuse, charging, and visible failure semantics.
+    - Apple preserves the pinned full-response waveform bar, current-paragraph highlight, and direct paragraph navigation.
+    - Apple provides native background and lock-screen previous/next paragraph controls where the operating system permits.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py test-ios or build-ios after web user confirmation
+  intentional_native_differences:
+    - Native player and lock-screen chrome may differ from web Media Session UI while preserving equivalent queue actions and state.
+
+clarification:
+  rounds:
+    - question: How long should Auto speak response remain enabled?
+      answer: It remains enabled for the current chat until explicitly disabled.
+    - question: What should happen when the user adds a voice-recording embed?
+      answer: Enable speech for that chat by default and briefly make the message-input speech control glow.
+    - question: Should generated speech be durable?
+      answer: Store encrypted durable files, charge successful generation once, and make replay free.
+    - question: What content should be narrated?
+      answer: Speak prose plus deterministic producer-supplied summaries for code, tables, maps, calendars, and embeds.
+    - question: How should voices and failures behave?
+      answer: Use one fixed curated voice per mate; speech failures remain visible and nonblocking while text and speech run as parallel tasks.
+    - question: Should one message become one audio file?
+      answer: No. Every paragraph or structured summary gets its own ElevenLabs request and encrypted S3 file.
+    - question: How should acknowledgement, app-use, thinking, skill previews, response text, and waveform controls progress from the user's perspective?
+      answer: The user message and rainbow state appear first; optional thinking streams independently while a prerecorded acknowledgement plays with a passive top waveform; app previews appear in Processing state before skill completion and a generated app-use clip plays when ready; regular paragraphs stream without waiting for audio, each complete encrypted paragraph audio plays when ready, only replayable response tracks expose controls, and the top bar closes after a two-second idle gap but reopens for later audio.
+  vision_summary: >
+    Assistant response speech is an optional chat-scoped companion to the
+    authoritative text stream. It uses deterministic semantic projection, one
+    durable encrypted file per paragraph or summary, curated mate voices,
+     progressive queue playback, and message-level character billing without
+    adding a general cleanup model or exposing encrypted chat history.
+  approved_by_user: true
+
+voice_selection:
+  status: approved
+  provider: elevenlabs
+  provider_model_id: eleven_v3_conversational
+  acknowledgement_text_status: approved
+  rollout_languages:
+    - {order: 1, locale: en-US, status: approved}
+    - {order: 2, locale: de-DE, status: approved}
+    - {order: 3, locale: es-ES, status: planned}
+    - {order: 4, locale: fr-FR, status: planned}
+  acknowledgement_text_proposal:
+    - category: general
+      variants:
+        - {en-US: "Sure, let's take a look.", de-DE: "Klar, schauen wir es uns an."}
+        - {en-US: "Alright, let's work on it.", de-DE: "Alles klar, gehen wir es an."}
+        - {en-US: "Okay, I'll help you with that.", de-DE: "Okay, ich helfe dir dabei."}
+    - category: lookup
+      variants:
+        - {en-US: "Sure, I'll look that up.", de-DE: "Klar, ich schaue das nach."}
+        - {en-US: "Okay, let me check.", de-DE: "Okay, ich sehe kurz nach."}
+        - {en-US: "Got it, I'll find the details.", de-DE: "Alles klar, ich suche die Details heraus."}
+    - category: reasoning
+      variants:
+        - {en-US: "Okay, let me think for a moment.", de-DE: "Okay, lass mich kurz nachdenken."}
+        - {en-US: "Sure, I'll work through it step by step.", de-DE: "Klar, ich gehe das Schritt für Schritt durch."}
+        - {en-US: "Got it, I'll take a closer look.", de-DE: "Alles klar, ich sehe mir das genauer an."}
+    - category: action
+      variants:
+        - {en-US: "Okay, I'm on it.", de-DE: "Okay, mache ich."}
+        - {en-US: "Sure, I'll take care of that.", de-DE: "Klar, ich kümmere mich darum."}
+        - {en-US: "Got it, I'll get started.", de-DE: "Alles klar, ich lege los."}
+  assignments:
+    - mate_id: hiro
+      status: confirmed
+      provider_voice_name: Otani
+      provider_voice_id: 3JDquces8E8bkmvbh6Bc
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=3JDquces8E8bkmvbh6Bc
+    - mate_id: leon
+      status: confirmed
+      provider_voice_name: Robert
+      provider_voice_id: BtWabtumIemAotTjP5sk
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=BtWabtumIemAotTjP5sk
+    - mate_id: burton
+      status: confirmed_for_trial
+      provider_voice_name: Nassim
+      provider_voice_id: repzAAjoKlgcT2oOAIWt
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=repzAAjoKlgcT2oOAIWt
+    - mate_id: suki
+      status: confirmed
+      provider_voice_name: Ayesha
+      provider_voice_id: 0ZOhGcBopt9S6GBK8tnj
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=0ZOhGcBopt9S6GBK8tnj
+    - mate_id: denise
+      status: confirmed
+      provider_voice_name: Amelia
+      provider_voice_id: ZF6FPAbjXT4488VcRRnw
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=ZF6FPAbjXT4488VcRRnw
+    - mate_id: monika
+      status: confirmed
+      provider_voice_name: Cassidy
+      provider_voice_id: 56AoDkrOh6qfVPDXZ7Pt
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=56AoDkrOh6qfVPDXZ7Pt
+    - mate_id: melvin
+      status: confirmed
+      provider_voice_name: Bryan
+      provider_voice_id: bPMKpgEe88vKSwusXTMU
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=bPMKpgEe88vKSwusXTMU
+    - mate_id: scarlett
+      status: confirmed
+      provider_voice_name: Nichalia Schwartz
+      provider_voice_id: XfNU2rGpBa01ckF309OY
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=XfNU2rGpBa01ckF309OY
+    - mate_id: finn
+      status: confirmed
+      provider_voice_name: Adam Stone
+      provider_voice_id: NFG5qt843uXKj4pFvR7C
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=NFG5qt843uXKj4pFvR7C
+    - mate_id: ace
+      status: confirmed
+      provider_voice_name: Juniper
+      provider_voice_id: aMSt68OGf4xUZAnLpTU8
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=aMSt68OGf4xUZAnLpTU8
+    - mate_id: lisa
+      status: confirmed
+      provider_voice_name: Brittney
+      provider_voice_id: pjcYQlDFKMbcOUp6F5GD
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=pjcYQlDFKMbcOUp6F5GD
+    - mate_id: elton
+      status: confirmed
+      provider_voice_name: Peter
+      provider_voice_id: TumdjBNWanlT3ysvclWh
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=TumdjBNWanlT3ysvclWh
+    - mate_id: mark
+      status: confirmed
+      provider_voice_name: Hale
+      provider_voice_id: dXtC3XhB9GtPusIpNtQx
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=dXtC3XhB9GtPusIpNtQx
+    - mate_id: colin
+      status: confirmed
+      provider_voice_name: Otto
+      provider_voice_id: FTNCalFNG5bRnkkaP5Ug
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=FTNCalFNG5bRnkkaP5Ug
+    - mate_id: george
+      status: confirmed
+      provider_voice_name: David Castlemore
+      provider_voice_id: XjLkpWUlnhS8i7gGz3lZ
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=XjLkpWUlnhS8i7gGz3lZ
+    - mate_id: makani
+      status: confirmed
+      provider_voice_name: Halley
+      provider_voice_id: eBvoGh8YGJn1xokno71w
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=eBvoGh8YGJn1xokno71w
+    - mate_id: sophia
+      status: confirmed
+      provider_voice_name: Shelley
+      provider_voice_id: 4CrZuIW9am7gYAxgo2Af
+      audition_url: https://elevenlabs.io/app/voice-library?voiceId=4CrZuIW9am7gYAxgo2Af
+
+implementation_state:
+  subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-04T08:10:34Z"
+    reason: User explicitly approved feature.assistant-response-speech@5 fingerprint 3f66240297ca59d6a809d4e849b1a7487fa699e555402266e5f3d40af4b24184 from its exact-fingerprint review PDF; current feature.public-example-chats@4 remains inherited.
+  plan:
+    status: not_required
+    approved_at: ""
+    reason: The technical plan introduces no material architecture, privacy, security, migration, rollout, or provider decision beyond the explicitly approved permanent contract and waveform amendment.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use a dedicated assistant-response speech contract and leave audio.speak unchanged.
+    reason: Automatic response narration has chat, streaming, queue, persistence, and billing semantics that do not belong to an explicit app-skill request.
+    decided_at: "2026-08-31T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Generate and store one encrypted audio file per immutable paragraph or structured summary segment.
+    reason: Per-segment files enable progressive playback, skipping, targeted retries, reuse, and exact billing attribution.
+    decided_at: "2026-08-31T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Use deterministic speech projection and producer-supplied summaries without a general cleanup LLM.
+    reason: This minimizes latency, provider disclosure, cost, and factual drift.
+    decided_at: "2026-08-31T00:00:00Z"
+  - id: D-4
+    status: superseded
+    decision: Limit generation access to authenticated first-party clients and expose no public SDK surface.
+    reason: Superseded by D-9 after the paired CLI was approved as a first-party owner client.
+    decided_at: "2026-08-31T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Complete API/backend and web proof before Apple implementation.
+    reason: Repository phase gates require shared server behavior and reviewed web behavior before native parity.
+    decided_at: "2026-08-31T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: Use Eleven v3 for assistant-response speech while leaving the explicit audio.speak app skill on Eleven Multilingual v2.
+    reason: Eleven v3 has the same published per-character price as Multilingual v2, supports more languages, and better fits expressive paragraph narration; compare v3 Conversational only after the full assistant-response speech specification is complete.
+    decided_at: "2026-08-31T00:00:00Z"
+  - id: D-7
+    status: active
+    decision: Daily deployed web verification replays a recorded realistic AI and app-skill chat and uses committed acknowledgement MP3 bytes for generated speech segments only inside the exact live-mock request context.
+    reason: The full inference, skill, encrypted asset, WebSocket, and playback pipeline must remain regression-tested without recurring LLM, app-provider, or ElevenLabs cost; production and unmarked requests must remain on the normal provider and billing path.
+    decided_at: "2026-09-01T00:00:00Z"
+  - id: D-8
+    status: active
+    decision: Complete and encrypt each Eleven v3 paragraph segment before client playback instead of relaying partial provider audio.
+    reason: Eleven v3 supports HTTP streaming, but user-visible chunk relay would require a new encrypted streaming transport and would bypass the complete durable asset, waveform, duration, replay, and exactly-once settlement boundary; the standard TTS WebSocket endpoint also does not support eleven_v3.
+    decided_at: "2026-09-01T00:00:00Z"
+  - id: D-9
+    status: active
+    decision: Allow paired `openmates chats speak` generation for owner-accessible existing chats while keeping anonymous and developer API-key generation forbidden.
+    reason: The CLI already participates in first-party encrypted chat access and can locally project decrypted messages without weakening owner authorization.
+    decided_at: "2026-09-01T00:00:00Z"
+  - id: D-10
+    status: active
+    decision: Publish public example audio only as reviewed immutable fixture copies, separate from source private encrypted speech objects.
+    reason: Logged-out playback requires public bytes, but generation, source objects, keys, owner metadata, and private paths must remain inaccessible.
+    decided_at: "2026-09-01T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Research existing chat streaming, audio storage, billing, playback, provider, and OS media-control behavior before defining the permanent contract.
+    outcome: succeeded
+    recorded_at: "2026-08-31T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Create, validate, generate indexes for, and explicitly approve feature.assistant-response-speech@1 before drafting implementation work.
+    outcome: succeeded
+    recorded_at: "2026-08-31T00:00:00Z"
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Deploy the deterministic transcription fixture and rerun the canonical web voice journey against that exact commit.
+  command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+  expected_outcome: The same sent recording message finalizes with the exact fixture title and transcript before and after reload, then completes assistant speech controls.
+  blocker: null
+  last_verified_commit: 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4
+
+scenarios:
+  - id: S-1
+    title: User enables speech for one chat
+    given:
+      - Alice has Chat A and Chat B with Auto speak response off.
+    when:
+      - Alice enables Auto speak response in Chat A.
+    then:
+      - Chat A remains enabled across Alice's devices until she disables it.
+      - Chat B remains disabled.
+  - id: S-2
+    title: Voice recording visibly enables speech
+    given:
+      - Auto speak response is off in the current chat.
+    when:
+      - Alice completes a voice-recording embed in the composer.
+    then:
+      - Auto speak response becomes enabled before send.
+      - The speech control briefly highlights without blocking recording, transcription, editing, or send.
+      - Sending while transcription finishes preserves one message ID and finalizes the transcript in place.
+      - The prerecorded acknowledgement starts or autoplay recovery appears within five seconds after send acceptance.
+  - id: S-3
+    title: Automatic response speaks progressively
+    given:
+      - Auto speak response is enabled and a mate has a valid fixed voice profile.
+    when:
+      - The assistant streams three prose paragraphs.
+    then:
+      - A deterministic prerecorded acknowledgement plays with a passive top waveform without waiting for optional thinking or incurring a runtime charge.
+      - Each immutable paragraph creates one ElevenLabs request and one encrypted S3 file.
+      - Paragraph one plays only when its complete encrypted file is ready while later text and audio continue independently.
+  - id: S-4
+    title: App and embed content is spoken naturally
+    given:
+      - The response uses Web, Images, and Travel and includes a map and code block.
+    when:
+      - Speakable segments are projected.
+    then:
+      - App previews appear in Processing state before provider completion.
+      - A localized generated app-use announcement names the selected apps and plays in passive waveform mode when ready.
+      - Prose is preserved and raw JSON, URLs, protocol, and code syntax are omitted.
+      - The map and code use factual structured summaries or localized fallback announcements.
+  - id: S-5
+    title: User speaks a historical response
+    given:
+      - An assistant response has no generated speech files and is decrypted on Alice's authorized client.
+    when:
+      - Alice selects Speak.
+    then:
+      - The client submits deterministic missing segments through the owner-scoped first-party surface.
+      - Playback begins after the first segment is ready.
+      - A later replay reuses matching files and charges nothing.
+      - The Speak response action is beside the mate name and absent from the generated-by footer.
+  - id: S-6
+    title: User controls paragraph playback
+    given:
+      - A response queue has one ready chapter and later ready or generating chapters.
+    when:
+      - Alice pauses, resumes, closes, skips forward, or skips backward in app or through supported OS controls.
+    then:
+      - The responsive Figma-defined bar overlays the active-chat history below its action buttons and keeps the composer and transcript reachable.
+      - Passive Confirmation and Using apps clips are labeled but cannot be revisited through replay navigation.
+      - Replayable chapters use a nearest heading or localized Part N/semantic fallback label and highlight the current transcript segment only while playing.
+      - Selecting a generating chapter immediately shows it with Loading and a flat waveform, transitions to real samples, and autoplays when ready unless paused or closed.
+      - Pausing reveals Play and Close; Close hides local playback while requested generation continues and persists.
+      - Unsupported Media Session controls do not remove in-app controls.
+      - Starting another response queue stops the previous local playback without deleting files or cancelling requested generation.
+  - id: S-7
+    title: Speech failure never affects text
+    given:
+      - Paragraphs one and two are ready and paragraph three fails credit preflight, safety, provider, or storage processing.
+    when:
+      - The text response continues and completes.
+    then:
+      - The speech queue stops visibly at paragraph three and Auto speak response disables for that chat.
+      - Earlier paragraph files remain replayable.
+      - Retry resumes at the first failed or missing segment without duplicate charges.
+  - id: S-8
+    title: Browser blocks delayed autoplay
+    given:
+      - Paragraph one is ready but the browser rejects automatic play.
+    when:
+      - The queue enters blocked_by_autoplay.
+    then:
+      - Auto speak response stays enabled and the ready queue is preserved.
+      - One Tap to continue audio action appears without regeneration or another charge.
+  - id: S-9
+    title: Speech assets follow message lifecycle
+    given:
+      - An assistant message has five encrypted paragraph files.
+    when:
+      - The message is changed, its voice profile version changes, or the message/chat is deleted.
+    then:
+      - Only mismatched segments are invalidated and regenerated.
+      - Message or chat deletion removes associated manifests, records, and S3 files.
+  - id: S-10
+    title: Web and Apple preserve semantics
+    given:
+      - API, backend, and web gates have passed and the user confirms web behavior.
+    when:
+      - Apple parity is implemented.
+    then:
+      - Apple preserves preference, queue, segment, billing, privacy, and failure semantics.
+      - Native background controls are provided where supported.
+  - id: S-11
+    title: CLI generates speech for existing assistant messages
+    given:
+      - Alice's paired CLI can decrypt an existing owner-accessible chat.
+    when:
+      - Alice runs `openmates chats speak <chat> --message <message>` or `--all`.
+    then:
+      - The CLI projects eligible assistant content locally and requests only missing or invalidated private segments.
+      - It reports generated, reused, failed, and charged segments without printing plaintext, keys, provider IDs, or private object paths.
+  - id: S-12
+    title: Logged-out visitor plays reviewed example speech
+    given:
+      - A landing-linked example was converted from a real CLI chat whose private speech segments are ready.
+      - A reviewer explicitly approved publication of selected message audio.
+    when:
+      - The conversion workflow publishes immutable public S3 fixture copies and a logged-out visitor selects Speak.
+    then:
+      - Ordered paragraph audio plays without login, generation, provider calls, or credits.
+      - The fixture exposes no source private object reference, encryption material, owner metadata, or storage credential.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Auto speak response is an encrypted synchronized chat-scoped setting that is off by default and never enables unrelated chats.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.preference.chat-scoped-default-off]
+  - id: AC-2
+    scenario: S-2
+    text: Completing a voice-recording embed enables speech for that chat and visibly highlights the control without blocking composer behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.preference.voice-recording-visible-activation]
+  - id: AC-3
+    scenario: S-3
+    text: The acknowledgement is deterministically selected, prerecorded, voice/language/category appropriate, and free at runtime.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-PROJECTION]
+    specification_assertions: [assistant-speech.acknowledgement.deterministic-free, assistant-speech.voice.fixed-versioned-mate-profile]
+  - id: AC-4
+    scenario: S-3
+    text: Every immutable paragraph or summary receives one stable segment, one ElevenLabs request, and one encrypted S3 object, with no combined message audio file.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-WORKER, V-REST-DEV]
+    specification_assertions: [assistant-speech.segmentation.one-file-per-segment, assistant-speech.segmentation.immutable-source]
+  - id: AC-5
+    scenario: S-3
+    text: User-message rendering, rainbow state, optional thinking, app-skill Processing previews, embeds, and every assistant text chunk publish before related speech work; none wait for app-skill or audio completion, while playback begins after each complete encrypted segment is ready without waiting for later segments.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-STREAMING, T-VITEST-SPEECH-QUEUE]
+    specification_assertions: [assistant-speech.execution.text-stream-independent, assistant-speech.execution.app-skill-progressive, assistant-speech.execution.first-segment-progressive]
+  - id: AC-6
+    scenario: S-4
+    text: Deterministic projection preserves prose and uses structured summaries while excluding raw JSON, protocol, URLs, code syntax, and general-purpose cleanup inference.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-PROJECTION]
+    specification_assertions: [assistant-speech.projection.deterministic-semantic, assistant-speech.projection.no-cleanup-inference]
+  - id: AC-7
+    scenario: S-5
+    text: Speak generates only missing or invalidated historical segments, starts after segment one, and replays matching durable files for no additional charge.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-SPEECH-COMPONENT, T-PLAYWRIGHT-SPEECH, V-REST-DEV]
+    specification_assertions: [assistant-speech.on-demand.generate-missing-only, assistant-speech.billing.segment-success-once]
+  - id: AC-8
+    scenario: S-6
+    text: One active queue supports Figma-defined play, pause, close, previous, and next chapter controls plus best-effort OS controls; Close dismisses playback without cancelling requested generation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH-COMPONENT, T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.os-controls-best-effort]
+  - id: AC-14
+    scenario: S-6
+    text: A responsive bar matching Figma node 5903:75417 overlays active-chat history below chat actions; it labels passive clips, persists with Loading while more audio may arrive, transitions a selected pending chapter from flat to real waveform, emphasizes the playing transcript chapter, and never moves the composer.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH-COMPONENT, T-PLAYWRIGHT-SPEECH, V-FIGMA-ARTIFACT-REVIEW, V-UI-VISUAL-SMOKE]
+    specification_assertions: [assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace]
+  - id: AC-9
+    scenario: S-7
+    text: Credit, safety, provider, and storage failures are visible and resumable, preserve successful files, disable chat auto-speak, and never affect text completion.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-WORKER, T-PY-SPEECH-STREAMING]
+    specification_assertions: [assistant-speech.failure.nonblocking-visible-resumable, assistant-speech.safety.provider-after-approval, assistant-speech.execution.text-stream-independent]
+  - id: AC-10
+    scenario: S-8
+    text: Autoplay rejection preserves enabled state and ready audio and exposes one user-gesture recovery without regeneration or charging.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.playback.autoplay-recovery-visible]
+  - id: AC-11
+    scenario: S-7
+    text: Generation is authenticated, owner-scoped, rate-limited, budget-preflighted, safety-approved, minimally disclosed, and successful-generation-only billed per segment.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-API, V-REST-DEV]
+    specification_assertions: [assistant-speech.access.first-party-owner-scoped, assistant-speech.safety.provider-after-approval, assistant-speech.privacy.transient-plaintext-encrypted-audio, assistant-speech.billing.segment-success-once]
+  - id: AC-12
+    scenario: S-9
+    text: Disable, message deletion, chat deletion, source changes, and voice-version changes stop, cancel, delete, or invalidate only the correct segment work and assets.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-SPEECH-WORKER]
+    specification_assertions: [assistant-speech.lifecycle.disable-delete-invalidate, assistant-speech.segmentation.immutable-source]
+  - id: AC-13
+    scenario: S-10
+    text: Web and Apple preserve the approved speech semantics with documented platform-only media-control differences.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids: [V-APPLE-PARITY, V-USER-CONFIRMATION]
+    specification_assertions: [assistant-speech.surface.semantic-parity, assistant-speech.playback.os-controls-best-effort]
+  - id: AC-15
+    scenario: S-11
+    text: A paired authenticated CLI owner can generate or reuse private encrypted speech for one or all existing assistant messages and receives a safe terminal summary.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-SPEECH, V-CLI-DEV]
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.access.first-party-owner-scoped]
+  - id: AC-16
+    scenario: S-12
+    text: One landing-linked public example exposes reviewed immutable public S3 speech fixtures that logged-out visitors can play without generation, credits, or private metadata exposure.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-EXAMPLE-SPEECH-PUBLISH, T-PLAYWRIGHT-EXAMPLE-SPEECH]
+    specification_assertions: [assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+  - id: AC-17
+    scenario: S-2
+    text: The canonical web journey sends a completed or still-finalizing voice recording as one stable user message, finalizes its transcript in place, and presents prerecorded acknowledgement playback or explicit autoplay recovery within five seconds of send acceptance.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.preference.voice-recording-visible-activation, assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds]
+  - id: AC-18
+    scenario: S-5
+    text: Every eligible assistant response places the compact Speak response action beside the mate name, never in the generated-by footer, while preserving hover, focus, touch accessibility, generation, and reuse behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-PLAYWRIGHT-SPEECH]
+    specification_assertions: [assistant-speech.on-demand.generate-missing-only]
+
+assumptions:
+  - id: A-1
+    text: Existing generated-audio encryption, chatfiles S3 indexing, and chat/message billing attribution can be reused without weakening the client-encrypted chat boundary.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/audio/tasks/speak_task.py and backend/apps/audio/tasks/common.py
+        summary: Existing audio.speak workers already encrypt generated audio, index private files, and charge with chat and message metadata.
+  - id: A-2
+    text: ElevenLabs request IDs or previous text can preserve continuity across separate paragraph requests.
+    category: provider
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: ElevenLabs official Text-to-Speech stream and request-stitching documentation reviewed through Context7
+        summary: The API supports previous_request_ids, previous_text, and streaming output for separately generated text segments.
+  - id: A-3
+    text: Web Media Session previous-track and next-track controls are best-effort and cannot replace in-app controls.
+    category: browser
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: MDN Media Session API and setActionHandler documentation reviewed 2026-08-31
+        summary: Media Session actions exist but the API is not Baseline and autoplay remains user-agent controlled.
+  - id: A-4
+    text: A dedicated encrypted_auto_speak_response ciphertext field can carry the chat-scoped preference through Directus, cache, WebSocket metadata revisions, phased sync, web IndexedDB, and Apple persistence without plaintext storage or a destructive migration.
+    category: encryption_sync
+    required_before: implementation
+    status: corrected
+    evidence:
+      - source: backend/core/directus/schemas/chats.yml and encrypted chat metadata/sync handlers
+        summary: Existing metadata is explicit per encrypted field, so an additive encrypted column plus version-aware web/Apple sync support is required; missing ciphertext safely means false for legacy chats.
+  - id: A-5
+    text: Provider-neutral voice profile keys and versions can live in backend mate frontmatter after typed loader support, while a separate backend-only audio resolver owns ElevenLabs voice IDs and settings.
+    category: metadata
+    required_before: implementation
+    status: corrected
+    evidence:
+      - source: backend/apps/ai/mates/*.md and backend/apps/ai/utils/mate_utils.py
+        summary: Mate frontmatter is the canonical runtime source but currently discards unknown voice fields; typed VoiceProfile support and a separate backend-only provider resolver are required.
+
+contracts:
+  api:
+    - route: "Existing authenticated first-party chat WebSocket: request assistant speech segments"
+      access_model: first-party client surface only
+      auth: authenticated owner session or approved first-party device auth
+      owner_scope: chat and assistant message must belong to the authenticated user
+      rate_limits: per-user and per-chat segment dispatch limits plus bounded segment count and text length
+      credit_budget_limits: character-based preflight before each ElevenLabs dispatch; one successful message aggregate only
+      encryption_boundary: accepts only current transient speakable segment plaintext derived from client-encrypted chat content; no unrelated chat plaintext; returns status and encrypted generated-asset metadata
+    - route: "Existing authenticated first-party chat WebSocket: stream speech segment status"
+      access_model: first-party client surface only
+      auth: active owner chat subscription
+      owner_scope: status is delivered only to authorized devices for the active chat/message
+      rate_limits: bounded status events; no client-controlled provider polling loop
+      credit_budget_limits: no charge for status delivery or replay
+      encryption_boundary: carries IDs, state, duration, safe errors, and encrypted asset metadata; never segment plaintext, provider credentials, or raw diagnostics
+  data:
+    - Chat speech preference is synchronized as encrypted chat metadata and defaults false when absent.
+    - Speech manifests contain message, voice-version, source-version, ordered segment IDs, and operational states but no durable segment plaintext.
+    - Every ready segment references exactly one AES-GCM encrypted private chatfiles S3 object and one upload_files ownership record.
+    - Segment idempotency binds chat ID, assistant message ID, source hash, voice profile version, and sequence.
+    - Deleting a message or chat deletes its speech manifest, segment records, and generated S3 objects.
+  ui_states:
+    - Auto speak off, enabled, recording-trigger highlight, acknowledgement playing, waiting for first segment, playing, paused, waiting for next segment, autoplay blocked, failed, retrying, and completed.
+    - Assistant message Speak, Pause, Resume, Stop, Previous paragraph, Next paragraph, Retry, and chat usage actions.
+    - Pinned active-chat speech bar with full-response waveform, active paragraph highlight, generating paragraph state, progress, and direct paragraph selection.
+  privacy_security:
+    - Generation is available only to authenticated first-party web, Apple, and paired CLI owner clients; anonymous, developer API-key, and public SDK generation remain forbidden.
+    - Public examples contain only explicitly reviewed immutable fixture copies and never source private object references or encryption material.
+    - Deterministic projection and a minimal non-rewriting semantic safety decision run before ElevenLabs.
+    - Segment plaintext, provider IDs, credentials, encryption keys, safety reasoning, raw embeds, and unrelated chat content are excluded from durable logs and provider payloads.
+    - Existing privacy disclosures must accurately identify ElevenLabs processing and generated-audio retention/deletion behavior.
+
+tests:
+  - id: T-CONTRACT-SPEECH
+    type: unit
+    file: specifications/features/assistant-response-speech/specification.yml
+    command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech
+    covers: [AC-1, AC-3, AC-4, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13]
+    assertions:
+      - The permanent contract and examples validate under the exact approved fingerprint.
+    specification_assertions: [assistant-speech.segmentation.one-file-per-segment, assistant-speech.execution.text-stream-independent, assistant-speech.surface.semantic-parity]
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence: {status: not_applicable, reason: Contract was approved before implementation-spec drafting., timestamp: "2026-08-31T00:00:00Z"}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-PY-SPEECH-PROJECTION
+    type: pytest
+    file: backend/tests/test_assistant_speech_projection.py
+    command: python3 -m pytest backend/tests/test_assistant_speech_projection.py
+    covers: [AC-3, AC-6]
+    assertions:
+      - Acknowledgement selection is deterministic and free.
+      - Paragraph, app, link, citation, code, table, map, calendar, and unknown embed projections produce safe expected speech.
+      - Projection calls no cleanup LLM and persists no plaintext.
+    specification_assertions: [assistant-speech.acknowledgement.deterministic-free, assistant-speech.voice.fixed-versioned-mate-profile, assistant-speech.projection.deterministic-semantic, assistant-speech.projection.no-cleanup-inference]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because backend.apps.ai.assistant_speech is not implemented."}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
+  - id: T-PY-SPEECH-WORKER
+    type: pytest
+    file: backend/tests/test_assistant_speech_worker.py
+    command: python3 -m pytest backend/tests/test_assistant_speech_worker.py
+    covers: [AC-4, AC-9, AC-11, AC-12]
+    assertions:
+      - Each segment dispatches once and stores one encrypted object; all successful segments contribute to one idempotent message-level character-priced usage row.
+      - Cache/replay, cancellation, retry, insufficient credit, safety, provider, storage, invalidation, and deletion paths preserve exact segment semantics.
+      - No combined message audio object or durable segment plaintext is written.
+      - Binary audio replay is enabled only for the exact marked non-production live-mock group; production, unmarked, and unrelated test groups cannot bypass provider or billing behavior.
+    specification_assertions: [assistant-speech.segmentation.one-file-per-segment, assistant-speech.segmentation.immutable-source, assistant-speech.safety.provider-after-approval, assistant-speech.privacy.transient-plaintext-encrypted-audio, assistant-speech.billing.segment-success-once, assistant-speech.failure.nonblocking-visible-resumable, assistant-speech.lifecycle.disable-delete-invalidate]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because backend.apps.audio.assistant_speech is not implemented."}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
+  - id: T-PY-SPEECH-STREAMING
+    type: pytest
+    file: backend/tests/test_assistant_speech_streaming.py
+    command: python3 -m pytest backend/tests/test_assistant_speech_streaming.py
+    covers: [AC-5, AC-9]
+    assertions:
+      - User-message, rainbow, optional thinking, app-skill Processing preview, embed, and assistant text events publish before related speech observation or dispatch.
+      - A blocked app-skill provider cannot prevent its Processing preview from reaching the device.
+      - Immutable speech events do not delay or mutate cumulative assistant text events.
+      - First-segment readiness is published before later text/audio completion.
+      - Speech failures and cancellation do not fail or truncate text persistence.
+    specification_assertions: [assistant-speech.execution.text-stream-independent, assistant-speech.execution.app-skill-progressive, assistant-speech.execution.first-segment-progressive, assistant-speech.failure.nonblocking-visible-resumable]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because backend.apps.ai.assistant_speech.streaming is not implemented."}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
+  - id: T-PY-SPEECH-API
+    type: pytest
+    file: backend/tests/test_assistant_speech_api.py
+    command: python3 -m pytest backend/tests/test_assistant_speech_api.py
+    covers: [AC-11]
+    assertions:
+      - Unauthenticated, wrong-owner, wrong-role, oversized, rate-limited, and insufficient-budget requests fail before provider dispatch.
+      - Authorized requests expose only safe status and encrypted asset metadata.
+    specification_assertions: [assistant-speech.access.first-party-owner-scoped, assistant-speech.safety.provider-after-approval, assistant-speech.privacy.transient-plaintext-encrypted-audio]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py", run_id: local-pytest-6d4a-assistant-speech-red, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Collection failed because assistant_speech_handler is not implemented."}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 -m pytest backend/tests/test_assistant_speech_projection.py backend/tests/test_assistant_speech_worker.py backend/tests/test_assistant_speech_streaming.py backend/tests/test_assistant_speech_api.py -q", run_id: local-pytest-6d4a-assistant-speech-green-20260831, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:58:00Z", summary: "38 passed, 6 skipped across the four focused assistant speech suites."}
+  - id: T-VITEST-SPEECH-QUEUE
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    command: pnpm --filter @openmates/ui test -- assistantSpeechQueue.test.ts
+    covers: [AC-5, AC-8, AC-10, AC-14]
+    assertions:
+      - Queue starts from the first ready segment, waits in order, skips by segment, and stops a prior response queue.
+      - Media Session handlers are feature-detected and in-app controls remain authoritative.
+      - Autoplay rejection preserves queue and enabled state without regeneration.
+      - Composite waveform regions are duration-proportional, preserve active highlighting as segments arrive, and select exact paragraph boundaries.
+      - Acknowledgement and app-use clips use passive waveform mode; replayable response tracks alone expose navigation controls.
+      - The bar remains appendable for a two-second idle grace, cancels dismissal when audio arrives, and reopens for audio arriving after dismissal.
+    specification_assertions: [assistant-speech.execution.first-segment-progressive, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.os-controls-best-effort, assistant-speech.playback.autoplay-recovery-visible]
+    red_phase:
+      required: true
+      expected: fail
+      evidence: {status: skipped_with_reason, command: "python3 scripts/tests.py run --suite vitest", run_id: remote-vitest-dev-before-assistant-speech, subject_commit: bf2058edca36e2a95cd559a880a82d78cd71d2cc, timestamp: "2026-08-31T00:00:00Z", reason: "Permitted remote Vitest ran deployed dev and could not include the uncommitted red test; static import targets missing assistantSpeechQueue.ts and will be exercised after the test-only source reaches dev."}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --gate-deploy --expected-commit 6c45ca0795c8980b89cd250ed3ff6b67feabc5da", run_id: "2026-08-31T23:13:10Z", subject_commit: 6c45ca0795c8980b89cd250ed3ff6b67feabc5da, timestamp: "2026-08-31T23:15:43Z", summary: "All nine AssistantSpeechQueue tests passed; the broader suite had five unrelated failures."}
+  - id: T-PLAYWRIGHT-SPEECH
+    type: playwright
+    file: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-1, AC-2, AC-7, AC-8, AC-10, AC-14, AC-17, AC-18]
+    assertions:
+      - Chat-scoped control toggles and voice recording visibly enables it before the recording is sent.
+      - Sending the voice recording preserves one user message ID while its transcript finalizes in place.
+      - Prerecorded acknowledgement playback or explicit autoplay recovery is visible within five seconds after send acceptance.
+      - A real response produces progressive chapter playback with Speak, pause, close, previous, next, replay, pending-waveform transition, and autoplay recovery states.
+      - Closing and reopening the response reuses ready files, and clip or segment navigation visibly changes the active region.
+      - Speak response is beside the mate name and absent from the generated-by footer.
+      - The assistant message and app preview Processing state render before the app skill completes, and text continues without waiting for audio.
+      - The responsive active-chat top bar overlays history below the chat action buttons, uses labeled passive mode for acknowledgement/app-use clips, persists with Loading while response audio is pending, and does not move the composer on phone or laptop.
+      - Reload and another owner client reuse synchronized preference and encrypted ready files without another provider charge.
+      - The daily flow replays a recorded realistic AI and weather app-skill exchange and committed binary audio through the normal encrypted asset path with no paid external calls.
+      - The muted Speak responses control fades to the speaking icon with Speech turned on, fades back through Turn off speaking with Speech turned off, and recording completion performs the same on transition.
+    specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds, assistant-speech.execution.app-skill-progressive, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4", run_id: "33860487023", subject_commit: 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4, timestamp: "2026-09-04T00:00:00Z", reason: "Chromium's silent fake microphone produced no transcript, exposing the placeholder title and unavailable transcript instead of finalized metadata."}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+  - id: T-PLAYWRIGHT-SPEECH-COMPONENT
+    type: playwright
+    file: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
+    command: python3 scripts/tests.py run --spec assistant-speech-player.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    preview_path: /dev/preview/AssistantSpeechPlayer
+    covers: [AC-7, AC-8, AC-14]
+    assertions:
+      - The default component preview matches the approved Figma hierarchy in phone and laptop layouts with no transcript or action obstruction.
+      - Playing, paused, passive Confirmation, Using apps, Loading, selected-pending, ready-waveform, and autoplay-blocked variants expose the approved labels and controls.
+      - Hover and keyboard focus smoothly reveal Speak response while touch retains an accessible name.
+      - Selecting a generating chapter immediately shows its flat placeholder waveform, then transitions to ready samples and autoplays unless paused or closed.
+      - Close hides local playback without dispatching cancellation, while disabling Auto speak remains the cancellation action.
+    specification_assertions: [assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
+    red_phase: {required: true, expected: fail, evidence: {}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
+  - id: T-CLI-SPEECH
+    type: unit
+    file: frontend/packages/openmates-cli/tests/chats-speak.test.ts
+    command: pnpm --filter openmates test -- chats-speak.test.ts
+    covers: [AC-15]
+    assertions:
+      - Message and all-message selection use owner-session chat decryption and deterministic projection.
+      - Missing segments are generated, matching ready segments are reused, and safe JSON/text summaries omit plaintext and private metadata.
+      - Missing session, wrong role, wrong owner, and terminal segment failures are visible and nonzero.
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.access.first-party-owner-scoped]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-EXAMPLE-SPEECH-PUBLISH
+    type: unit
+    file: scripts/tests/create_example_chat_from_share.test.mjs
+    command: node --test scripts/tests/create_example_chat_from_share.test.mjs
+    covers: [AC-16]
+    assertions:
+      - Public speech publication requires explicit reviewed input and immutable public object metadata.
+      - Generated example data contains ordered public segments but no private paths, encryption material, owner metadata, or provider identifiers.
+    specification_assertions: [assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PLAYWRIGHT-EXAMPLE-SPEECH
+    type: playwright
+    file: frontend/apps/web_app/tests/example-chat-speech.spec.ts
+    command: python3 scripts/tests.py run --spec example-chat-speech.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-16]
+    assertions:
+      - A landing-linked example renders Speak for a selected assistant message to logged-out visitors.
+      - Public paragraph audio plays with synchronized controls and no auth or generation request.
+    specification_assertions: [assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+
+verifications:
+  - id: V-REST-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-4, AC-7, AC-11]
+    status: passed
+    evidence: {command: "OPENMATES_LIVE_ASSISTANT_SPEECH_SMOKE=1 node scripts/verify_assistant_speech_live_smoke.mjs --api-url https://api.dev.openmates.org", run_id: assistant-speech-live-20260831T225606Z, subject_commit: 0b14d8145239f0b04452f53d5567f8b011109424, timestamp: "2026-08-31T22:56:36Z", artifact: docs/plans/assistant-response-speech/artifacts/2026-08-31/assistant-speech-live-20260831T225606Z.json, summary: "Authenticated owner request queued one segment, received a safe ready status, acknowledged deletion, deleted the chat, and exposed neither plaintext nor encrypted-audio internals."}
+  - id: V-ELEVENLABS-LATENCY
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers: [AC-17]
+    status: pending
+    evidence:
+      command: OPENMATES_LIVE_ASSISTANT_SPEECH_SMOKE=1 node scripts/verify_assistant_speech_live_smoke.mjs --api-url https://api.dev.openmates.org
+      expected: The manifest records accepted_latency_ms and real_elevenlabs_path_ready_latency_ms for the complete unmocked ElevenLabs-backed path without misrepresenting it as provider-only timing or exposing plaintext.
+  - id: V-CLI-DEV
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-11, AC-15]
+    status: passed
+    evidence: {command: "node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs ./frontend/packages/openmates-cli/src/cli.ts chats speak <chat-id> --message <assistant-message-id> --json", run_id: assistant-speech-billing-live-20260902T131024Z, subject_commit: 64a0d02034a7662b03e94ff6b19ee800f4ffe16b, timestamp: "2026-09-02T13:10:24Z", summary: "Real paired dev CLI generated one encrypted segment; usage details contained exactly one 3-credit assistant_response_speech entry attributed to elevenlabs/eleven_v3_conversational for 29 submitted characters. Immediate replay returned generated_segments=0, reused_segments=1, and charged_segments=0. The temporary chat was deleted."}
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2, AC-7, AC-8, AC-10, AC-14]
+    status: pending
+    evidence: {}
+  - id: V-FIGMA-ARTIFACT-REVIEW
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-8, AC-14]
+    status: pending
+    evidence: {reference: test-results/figma/assistant-speech-playback/assistant-speech-playback-reference.png, figma_node: '5903:75417'}
+  - id: V-PROOF-VIDEO
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-2, AC-4, AC-5, AC-7, AC-8, AC-10, AC-14]
+    status: pending
+    evidence: {}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-13]
+    status: pending
+    evidence: {}
+  - id: V-APPLE-PARITY
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-13]
+    status: pending
+    evidence: {}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: mixed
+    reason: The feature changes visible web and Apple chat controls, progressive audio playback, and browser/native media controls.
+    classified_at: "2026-08-31T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show the chat-scoped Auto speak response control and visible voice-recording activation.
+      expected_proof: Phone and laptop web captures show the default-off control, manual activation, recording-trigger glow, and no effect on another chat.
+      scenario_ids: [S-1, S-2]
+      acceptance_criteria: [AC-1, AC-2]
+    - id: NARR-2
+      purpose: Show text and paragraph audio progressing independently.
+      expected_proof: User message, rainbow state, optional thinking, app preview Processing state, acknowledgement, and app-use audio progress independently; later assistant text streams while each complete encrypted paragraph becomes playable, and the full-width top bar transitions from passive waveform to replayable tracks below the chat action buttons without moving the composer.
+      scenario_ids: [S-3, S-6]
+      acceptance_criteria: [AC-4, AC-5, AC-8, AC-14]
+    - id: NARR-3
+      purpose: Show on-demand generation, durable replay, structured summaries, and autoplay recovery.
+      expected_proof: Speak generates only missing paragraph/summary files, replay uses existing files, raw embed payloads are not spoken, and a blocked browser shows Tap to continue audio.
+      scenario_ids: [S-4, S-5, S-8]
+      acceptance_criteria: [AC-6, AC-7, AC-10]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: pending
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+
+implementation_notes:
+  plan_path: docs/plans/assistant-response-speech/plan.yml
+  specification_refs:
+    - feature.assistant-response-speech@5 fingerprint 3f66240297ca59d6a809d4e849b1a7487fa699e555402266e5f3d40af4b24184
+  affected_specification_assertions:
+    - assistant-speech.preference.chat-scoped-default-off
+    - assistant-speech.preference.voice-recording-visible-activation
+    - assistant-speech.acknowledgement.deterministic-free
+    - assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds
+    - assistant-speech.voice.fixed-versioned-mate-profile
+    - assistant-speech.segmentation.one-file-per-segment
+    - assistant-speech.segmentation.immutable-source
+    - assistant-speech.projection.deterministic-semantic
+    - assistant-speech.projection.no-cleanup-inference
+    - assistant-speech.execution.text-stream-independent
+    - assistant-speech.execution.app-skill-progressive
+    - assistant-speech.execution.first-segment-progressive
+    - assistant-speech.playback.single-queue-segment-control
+    - assistant-speech.playback.deterministic-chapter-labels
+    - assistant-speech.playback.pinned-full-response-waveform
+    - assistant-speech.playback.two-second-idle-grace
+    - assistant-speech.playback.os-controls-best-effort
+    - assistant-speech.playback.autoplay-recovery-visible
+    - assistant-speech.on-demand.generate-missing-only
+    - assistant-speech.access.first-party-owner-scoped
+    - assistant-speech.safety.provider-after-approval
+    - assistant-speech.privacy.transient-plaintext-encrypted-audio
+    - assistant-speech.billing.segment-success-once
+    - assistant-speech.failure.nonblocking-visible-resumable
+    - assistant-speech.lifecycle.disable-delete-invalidate
+    - assistant-speech.surface.semantic-parity
+  contract_classification: new_specification
+  surface_proof:
+    - Authenticated first-party API/WebSocket proof against https://api.dev.openmates.org covers happy path, wrong owner, unauthenticated, rate, budget, safety, storage, retry, and deletion behavior.
+    - Deterministic audit proves no public CLI, npm SDK, or pip SDK assistant-speech generation facade exists in V1.
+    - Deployed web Playwright plus laptop/mobile visual smoke proves the composer toggle, recording glow, pinned full-response waveform, queue controls, autoplay recovery, and durable replay.
+    - User confirmation follows reviewed web proof; Apple remote test/build and native proof follow user confirmation.
+  documentation_impact:
+    - Add architecture and user guides and update ElevenLabs privacy disclosures and localized feature strings.
+  existing_patterns:
+    - backend/apps/ai/utils/stream_utils.py paragraph aggregation.
+    - backend/apps/ai/tasks/stream_consumer.py structural event publication.
+    - backend/apps/audio/tasks/speak_task.py ElevenLabs safety, storage, and billing.
+    - backend/apps/audio/tasks/common.py encrypted generated-asset helpers.
+    - frontend audioEmbedCrypto.ts encrypted audio loading and Blob URL lifecycle.
+    - frontend streamingMessageBlocks.ts deterministic semantic block parsing.
+    - Apple MediaRenderers.swift encrypted AVAudioPlayer playback.
+  architecture: >
+    Add a first-party assistant-speech domain that receives immutable semantic
+    segments from AI streaming or authorized historical-message projection,
+    queues one safeguarded ElevenLabs job per segment, stores each result as one
+    encrypted generated asset with idempotent billing, and publishes ordered
+    status events. Web and Apple clients share manifest semantics but own their
+    local single-response playback queue and platform media controls.
+  data_flow:
+    - The owner client sends the chat-scoped enabled state with a user turn; recording completion updates the encrypted chat preference first.
+    - Preprocessing chooses a deterministic prerecorded acknowledgement from request category, language, and mate voice metadata.
+    - Main processing emits normal cumulative text plus separate immutable semantic speech-segment events without awaiting speech work.
+    - The speech worker validates owner/message scope, safety, idempotency, credit headroom, and voice profile before one ElevenLabs request.
+    - The worker encrypts one segment file, indexes its exact submitted-character count, and publishes a safe ready/error event; final settlement charges one message aggregate.
+    - The client starts segment zero when ready, advances in manifest order, and exposes in-app plus supported OS controls.
+    - The client concatenates encrypted duration-aligned paragraph waveform summaries into one pinned active-chat visualization while retaining separate audio files.
+    - Speak on historical content submits only deterministic missing segment plaintext from the authorized decrypted client.
+    - Disable, retry, source changes, voice-version changes, and deletion operate at segment/manifest scope.
+  migration_and_rollout:
+    - No destructive Directus migration is planned; A-4 must prove the encrypted chat metadata envelope can carry the preference before implementation.
+    - Existing assistant messages have no manifests and generate deterministic segments on first Speak.
+    - Roll out disabled by default per chat; the recording trigger enables only the current chat and remains visible.
+    - Versioned voice profiles and source hashes invalidate only mismatched generated segments.
+  observability:
+    - Log content-free manifest and segment IDs, state transitions, duration, provider request ID, billing usage ID, retry class, and safe error category.
+    - Never log speakable text, waveform samples, keys, provider credentials, safety reasoning, raw embed payloads, or unrelated chat content.
+    - Track time to first ready segment, segment generation latency, queue underruns, autoplay blocks, provider/storage failures, and billing reconciliation without user identity in default metrics.
+  assumptions_to_check:
+    - A-4 by tracing encrypted chat metadata serialization, sync, reload, and Apple compatibility before changing schemas.
+    - A-5 by tracing mate metadata generation and server-only provider configuration before adding voice fields.
+  risks_and_open_questions:
+    - Full-response waveform cannot be complete before the final manifest; the approved bar expands over all known segments and becomes complete at finalization.
+    - Request stitching may serialize provider work enough to create queue underruns; measure time-to-first and inter-segment wait before tuning concurrency.
+    - Browser autoplay and Media Session behavior differs by platform; retain complete in-app controls and explicit recovery.
+    - Historical on-demand plaintext must remain a first-party owner-scoped transient boundary and may not become a developer endpoint.
+    - Real Eleven v3 Conversational latency must be recorded separately from fixture-backed daily and Playwright evidence before the web journey is complete.
+  technical_plan_approval:
+    required: false
+    reason: All material boundaries are already explicit in the approved permanent contract; remaining choices are implementation details verified by tests.
+  demonstration_plan:
+    capture_source: Deployed audio-recording-and-speech.spec.ts runs for phone 390x844 and laptop 1440x900, followed by Apple iPhone portrait and iPad landscape evidence after user confirmation.
+    captions: Write exact device-scoped WebVTT captions only after normal green gates; captions remain toggleable and never reduce the clean frame.
+    review: Provide bounded frames plus complete captions to the reviewer; never place the full video in model context and do not run proof-specific PII replacement.
+    publication: Upload approved video and WebVTT through scripts/opencode_response_media.py and embed every returned snippet in the completion response.
+  affected_files:
+    - path: specifications/features/assistant-response-speech
+      reason: Approved permanent behavior and examples.
+    - path: docs/plans/assistant-response-speech/plan.yml
+      reason: Executable implementation and evidence ledger.
+    - path: backend/apps/ai
+      reason: Immutable speech-segment emission parallel to text streaming.
+    - path: backend/apps/audio
+      reason: Assistant segment worker, storage, safety, and billing reuse.
+    - path: backend/shared/python_schemas
+      reason: Shared manifest, segment, request, and status event schemas.
+    - path: backend/core/api/app/routes
+      reason: Authenticated owner-scoped first-party WebSocket/API handling.
+    - path: frontend/packages/ui/src
+      reason: Chat preference, deterministic projection, playback queue, composer/message controls, and pinned full-response waveform bar.
+    - path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+      reason: Canonical deployed voice-recording-to-assistant-speech user-flow verification and proof source.
+    - path: apple/OpenMates
+      reason: Native preference, queue, controls, and parity tests after web confirmation.
+    - path: docs/architecture/assistant-response-speech.md
+      reason: Durable data flow, privacy boundary, and operational behavior.
+  verification_strategy:
+    - Validate and approve the permanent contract and executable spec first.
+    - Write focused backend and frontend tests and record expected red evidence before product implementation.
+    - Prove authenticated happy path, unauthorized/wrong-owner, rate, budget, safety, storage, and deletion behavior against the real dev API/WebSocket.
+    - Deterministically verify no CLI or public SDK generation surface was added.
+    - Deploy web, run the focused Playwright spec, inspect laptop/mobile visual smoke, and produce reviewed phone/laptop proof videos.
+    - Obtain user confirmation before Apple implementation and remote native verification.
+  verification_order:
+    - Contract and spec validation plus exact approval.
+    - Backend unit/contract red tests.
+    - Real authenticated first-party API/WebSocket and paired CLI dev-server proof; public SDK generation remains unexposed.
+    - Reviewed example publication to immutable public S3 fixtures, followed by logged-out playback verification.
+    - Backend green tests for projection, streaming independence, worker, billing, privacy, and lifecycle.
+    - Frontend queue Vitest.
+    - Scoped dev deploy and deployed Playwright.
+    - Reviewed laptop/mobile visual smoke and phone/laptop proof videos.
+    - User confirmation of deployed web behavior.
+    - Apple implementation, remote test/build, and native proof last.
+
+tasks:
+  - id: TASK-1
+    title: Approve contract and executable spec
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9, S-10]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14]
+    expected_files:
+      - specifications/features/assistant-response-speech/specification.yml
+      - specifications/features/assistant-response-speech/examples.yml
+      - docs/plans/assistant-response-speech/plan.yml
+    verification_ids: [T-CONTRACT-SPEECH]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    ownership:
+      files: [specifications/features/assistant-response-speech/specification.yml, specifications/features/assistant-response-speech/examples.yml, docs/plans/assistant-response-speech/plan.yml]
+      shared_files: [specifications/generated/registry.yml, specifications/generated/assertion-index.yml, specifications/generated/coverage.yml]
+    specification_assertions: [assistant-speech.surface.semantic-parity]
+    surfaces: [contract, spec]
+    independently_deployable: false
+  - id: TASK-2
+    title: Confirm storage and metadata assumptions and write red tests
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-1, S-3, S-4, S-7, S-9]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-5, AC-6, AC-9, AC-11, AC-12]
+    expected_files:
+      - backend/tests/test_assistant_speech_projection.py
+      - backend/tests/test_assistant_speech_worker.py
+      - backend/tests/test_assistant_speech_streaming.py
+      - backend/tests/test_assistant_speech_api.py
+      - frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts
+    verification_ids: [T-PY-SPEECH-PROJECTION, T-PY-SPEECH-WORKER, T-PY-SPEECH-STREAMING, T-PY-SPEECH-API, T-VITEST-SPEECH-QUEUE]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    ownership:
+      files: [backend/tests/test_assistant_speech_projection.py, backend/tests/test_assistant_speech_worker.py, backend/tests/test_assistant_speech_streaming.py, backend/tests/test_assistant_speech_api.py, frontend/packages/ui/src/services/__tests__/assistantSpeechQueue.test.ts]
+      shared_files: []
+    specification_assertions: [assistant-speech.projection.deterministic-semantic, assistant-speech.segmentation.one-file-per-segment, assistant-speech.execution.text-stream-independent, assistant-speech.playback.pinned-full-response-waveform]
+    surfaces: [backend, gui.web]
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement immutable speech projection and mate voice metadata
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-3, S-4]
+      acceptance_criteria: [AC-3, AC-4, AC-5, AC-6]
+    expected_files:
+      - backend/apps/ai
+      - backend/apps/audio
+      - backend/shared/python_schemas
+    verification_ids: [T-PY-SPEECH-PROJECTION, T-PY-SPEECH-STREAMING]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    ownership:
+      files: [backend/apps/ai, backend/apps/audio, backend/shared/python_schemas]
+      shared_files: [backend/apps/ai/tasks/stream_consumer.py, backend/apps/ai/processing/main_processor.py]
+    specification_assertions: [assistant-speech.acknowledgement.deterministic-free, assistant-speech.voice.fixed-versioned-mate-profile, assistant-speech.segmentation.immutable-source, assistant-speech.projection.deterministic-semantic, assistant-speech.projection.no-cleanup-inference, assistant-speech.execution.text-stream-independent]
+    surfaces: [first_party_websocket, backend]
+    independently_deployable: false
+  - id: TASK-4
+    title: Implement segment worker, encrypted storage, billing, retry, and lifecycle
+    status: done
+    phase: complete
+    covers:
+      scenarios: [S-3, S-5, S-7, S-9]
+      acceptance_criteria: [AC-4, AC-5, AC-7, AC-9, AC-11, AC-12]
+    expected_files:
+      - backend/apps/audio
+      - backend/core/api/app/routes
+      - backend/shared/python_utils
+    verification_ids: [T-PY-SPEECH-WORKER, T-PY-SPEECH-API, V-REST-DEV]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    ownership:
+      files: [backend/apps/audio, backend/core/api/app/routes, backend/shared/python_utils]
+      shared_files: [backend/apps/audio/tasks/common.py, backend/core/api/app/routes/websockets.py]
+    specification_assertions: [assistant-speech.segmentation.one-file-per-segment, assistant-speech.execution.first-segment-progressive, assistant-speech.access.first-party-owner-scoped, assistant-speech.safety.provider-after-approval, assistant-speech.privacy.transient-plaintext-encrypted-audio, assistant-speech.billing.segment-success-once, assistant-speech.failure.nonblocking-visible-resumable, assistant-speech.lifecycle.disable-delete-invalidate]
+    surfaces: [first_party_websocket, backend]
+    independently_deployable: true
+  - id: TASK-5
+    title: Implement web preference, controls, queue, and historical Speak
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-5, S-6, S-7, S-8]
+      acceptance_criteria: [AC-1, AC-2, AC-5, AC-7, AC-8, AC-9, AC-10, AC-14, AC-17, AC-18]
+    expected_files:
+      - frontend/packages/ui/src
+      - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    verification_ids: [T-VITEST-SPEECH-QUEUE, T-PLAYWRIGHT-SPEECH, V-ELEVENLABS-LATENCY]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    ownership:
+      files: [frontend/packages/ui/src, frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts]
+      shared_files: [frontend/packages/ui/src/components/enter_message/MessageInput.svelte, frontend/packages/ui/src/components/ChatMessage.svelte]
+    specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.os-controls-best-effort, assistant-speech.playback.autoplay-recovery-visible, assistant-speech.on-demand.generate-missing-only]
+    surfaces: [gui.web]
+    independently_deployable: false
+  - id: TASK-6
+    title: Deploy and verify web with visual and proof evidence
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-2, S-3, S-4, S-5, S-6, S-7, S-8, S-9]
+      acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7, AC-8, AC-9, AC-10, AC-11, AC-12, AC-14, AC-17, AC-18]
+    expected_files:
+      - docs/plans/assistant-response-speech/plan.yml
+      - test-results
+    verification_ids: [V-REST-DEV, V-ELEVENLABS-LATENCY, T-PLAYWRIGHT-SPEECH, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO, V-USER-CONFIRMATION]
+    dependencies: [TASK-5]
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    ownership:
+      files: [docs/plans/assistant-response-speech/plan.yml]
+      shared_files: []
+    specification_assertions: [assistant-speech.surface.semantic-parity]
+    surfaces: [rest_api, gui.web, proof]
+    independently_deployable: true
+  - id: TASK-7
+    title: Implement and verify Apple parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios: [S-10]
+      acceptance_criteria: [AC-13]
+    expected_files:
+      - apple/OpenMates
+      - apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift
+    verification_ids: [V-APPLE-PARITY]
+    dependencies: [TASK-6]
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    ownership:
+      files: [apple/OpenMates, apple/OpenMatesUITests/ChatHistoryAudioParityUITests.swift]
+      shared_files: []
+    specification_assertions: [assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.os-controls-best-effort, assistant-speech.surface.semantic-parity]
+    surfaces: [gui.apple]
+    independently_deployable: true
+  - id: TASK-8
+    title: Complete docs, audits, and final spec verification
+    status: pending
+    phase: running_checks
+    covers:
+      scenarios: [S-1, S-3, S-4, S-5, S-7, S-9, S-10]
+      acceptance_criteria: [AC-1, AC-3, AC-4, AC-6, AC-7, AC-9, AC-11, AC-12, AC-13]
+    expected_files:
+      - docs/architecture/assistant-response-speech.md
+      - docs/user-guide/assistant-response-speech.md
+      - shared/docs/privacy_policy.yml
+      - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    verification_ids: [T-CONTRACT-SPEECH, V-CLI-DEV, V-PROOF-VIDEO, V-APPLE-PARITY]
+    dependencies: [TASK-7]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [docs/architecture/assistant-response-speech.md, docs/user-guide/assistant-response-speech.md, shared/docs/privacy_policy.yml, frontend/packages/ui/src/i18n/sources/legal/privacy.yml]
+      shared_files: [docs/plans/assistant-response-speech/plan.yml]
+    specification_assertions: [assistant-speech.privacy.transient-plaintext-encrypted-audio, assistant-speech.billing.segment-success-once, assistant-speech.surface.semantic-parity]
+    surfaces: [documentation, contract, gui.web, gui.apple]
+    independently_deployable: true
+  - id: TASK-9
+    title: Add CLI historical speech and reviewed example publication red tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12]
+      acceptance_criteria: [AC-15, AC-16]
+    expected_files:
+      - frontend/packages/openmates-cli/tests/chats-speak.test.ts
+      - scripts/tests/create_example_chat_from_share.test.mjs
+      - frontend/apps/web_app/tests/example-chat-speech.spec.ts
+    verification_ids: [T-CLI-SPEECH, T-EXAMPLE-SPEECH-PUBLISH, T-PLAYWRIGHT-EXAMPLE-SPEECH]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: [TASK-10]
+    ownership:
+      files: [frontend/packages/openmates-cli/tests/chats-speak.test.ts, scripts/tests/create_example_chat_from_share.test.mjs, frontend/apps/web_app/tests/example-chat-speech.spec.ts]
+      shared_files: []
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    surfaces: [cli, tooling, gui.web]
+    independently_deployable: false
+  - id: TASK-10
+    title: Implement CLI speech and one public landing example
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios: [S-11, S-12]
+      acceptance_criteria: [AC-15, AC-16]
+    expected_files:
+      - frontend/packages/openmates-cli/src
+      - scripts/create-example-chat-from-share.mjs
+      - .claude/skills/add-example-chat/SKILL.md
+      - frontend/packages/ui/src/demo_chats
+    verification_ids: [T-CLI-SPEECH, V-CLI-DEV, T-EXAMPLE-SPEECH-PUBLISH, T-PLAYWRIGHT-EXAMPLE-SPEECH, V-UI-VISUAL-SMOKE, V-PROOF-VIDEO]
+    dependencies: [TASK-9]
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files: [frontend/packages/openmates-cli/src, scripts/create-example-chat-from-share.mjs, .claude/skills/add-example-chat/SKILL.md, frontend/packages/ui/src/demo_chats]
+      shared_files: [frontend/packages/ui/src/components/ChatMessage.svelte]
+    specification_assertions: [assistant-speech.cli.owner-generated-existing-messages, assistant-speech.public-example.reviewed-fixture-playback, public-example-chats.speech.reviewed-public-playback]
+    surfaces: [first_party_websocket, cli, tooling, gui.web]
+    independently_deployable: true

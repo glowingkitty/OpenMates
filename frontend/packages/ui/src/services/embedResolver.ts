@@ -335,6 +335,12 @@ export async function resolveEmbed(
     // Second, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
     const cachedEmbed = await embedStore.get(`embed:${bareId}`);
     if (cachedEmbed) {
+      // A matching chat key can arrive later during phased reload. Keep this
+      // transient state retryable instead of poisoning the permanent error set.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime-only flag from EmbedStore
+      if ((cachedEmbed as any)._decryptionPending) {
+        return null;
+      }
       // If decryption failed (key mismatch), register as known error to stop the infinite
       // retry loop — every subsequent get() would re-read the IDB entry without the cached
       // _decryptionFailed flag and retry decryption endlessly (see embedStore.ts Fix 1).

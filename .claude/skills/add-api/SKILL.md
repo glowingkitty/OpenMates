@@ -39,7 +39,7 @@ Before writing any code:
 
 ### Step 1b: Create Provider Contract Spec
 
-Before writing provider code, run `specify` or create an inline spec according
+Before writing provider code, run `create-plan` or create an inline Plan according
 to `docs/contributing/guides/spec-driven-development.md`.
 
 New provider integrations normally require a full spec because they affect

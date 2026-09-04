@@ -5,8 +5,8 @@ export {};
  * Stacked global notification contract coverage.
  *
  * Uses the existing E2E debug session gate to inject local notification-store
- * entries on the deployed app, then verifies the shared stack depth, inert back
- * cards, and front-card dismissal promotion on phone and laptop proof profiles.
+ * entries on the deployed app, then verifies newest-first stack depth, inert
+ * back cards, and front-card dismissal promotion on proof profiles.
  */
 
 const { test, expect } = require('./helpers/cookie-audit');
@@ -15,6 +15,7 @@ const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const E2E_ADD_NOTIFICATIONS_EVENT = 'openmates:e2e:add-notifications';
 const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
 const E2E_NOTIFICATION_STACK_READY_KEY = 'openmates_e2e_notification_stack_ready';
+const E2E_NOTIFICATION_ACTION_EVENT = 'openmates:e2e:notification-action';
 const PROOF_VISIBLE_STATE_MS = 2000;
 
 // contract-test: direct surface=gui.web assertions=notifications.web.stacked-deck
@@ -25,7 +26,7 @@ test('global notifications stack behind the front card, show activity, and promo
 	await page.addInitScript((key: string) => {
 		sessionStorage.setItem(key, JSON.stringify({ runId: 'notification-stack', token: 'local-e2e' }));
 	}, E2E_LOG_FORWARDING_SESSION_KEY);
-	await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
+	await page.goto(getE2EDebugUrl('/#chat-id=demo-who-develops-openmates'), { waitUntil: 'domcontentloaded' });
 	await page.waitForFunction((key: string) => Boolean(sessionStorage.getItem(key)), E2E_LOG_FORWARDING_SESSION_KEY, {
 		timeout: 10000
 	});
@@ -61,9 +62,8 @@ test('global notifications stack behind the front card, show activity, and promo
 						{
 							type: 'info',
 							title: 'First stacked notification',
-							message: 'This front notification stays readable and interactive.',
-							duration: 0,
-							isProcessing: true
+							message: 'This oldest notification waits behind newer cards.',
+							duration: 0
 						},
 						{
 							type: 'success',
@@ -74,8 +74,9 @@ test('global notifications stack behind the front card, show activity, and promo
 						{
 							type: 'warning',
 							title: 'Third stacked notification',
-							message: 'Only a slim strip remains visible at the back.',
-							duration: 0
+							message: 'This newest notification stays readable and interactive.',
+							duration: 0,
+							isProcessing: true
 						}
 					]
 				}
@@ -86,9 +87,9 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(stack).toBeVisible({ timeout: 10000 });
 	await expect(items).toHaveCount(3);
 	expect(introTop, 'new notifications should render while moving in from above').not.toBeNull();
-	await expect(items.nth(0)).toContainText('First stacked notification');
+	await expect(items.nth(0)).toContainText('Third stacked notification');
 	await expect(items.nth(1)).toContainText('Second stacked notification');
-	await expect(items.nth(2)).toContainText('Third stacked notification');
+	await expect(items.nth(2)).toContainText('First stacked notification');
 	await expect(items.nth(0).getByTestId('notification-activity')).toBeVisible();
 	await expect(items.nth(0).getByTestId('notification-progress')).toHaveCount(0);
 
@@ -153,6 +154,47 @@ test('global notifications stack behind the front card, show activity, and promo
 	await expect(items).toHaveCount(2, { timeout: 2000 });
 	await expect(items.nth(0)).toContainText('Second stacked notification');
 	await expect(items.nth(0)).toHaveAttribute('data-stack-depth', '0');
-	await expect(items.nth(1)).toContainText('Third stacked notification');
+	await expect(items.nth(1)).toContainText('First stacked notification');
 	await page.waitForTimeout(PROOF_VISIBLE_STATE_MS);
+
+	await page.evaluate((eventName: string) => {
+		const e2eWindow = window as typeof window & { __openmatesNotificationActionCount?: number };
+		e2eWindow.__openmatesNotificationActionCount = 0;
+		window.addEventListener(eventName, () => {
+			e2eWindow.__openmatesNotificationActionCount = (e2eWindow.__openmatesNotificationActionCount ?? 0) + 1;
+		});
+	}, E2E_NOTIFICATION_ACTION_EVENT);
+	await page.evaluate(
+		({ addEventName, actionEventName }: { addEventName: string; actionEventName: string }) => {
+			window.dispatchEvent(
+				new CustomEvent(addEventName, {
+					detail: {
+						notifications: [
+							{
+								type: 'success',
+								title: 'Action notification',
+								message: 'This actionable notification dismisses after its primary action fires.',
+								duration: 0,
+								actionLabel: 'Open chat',
+								actionEventName,
+								dedupeKey: 'e2e-notification-action-dismisses'
+							}
+						]
+					}
+				})
+			);
+		},
+		{ addEventName: E2E_ADD_NOTIFICATIONS_EVENT, actionEventName: E2E_NOTIFICATION_ACTION_EVENT }
+	);
+	await expect(items).toHaveCount(3);
+	await expect(items.nth(0)).toContainText('Action notification');
+	await items.nth(0).getByTestId('notification-action').click();
+	expect(
+		await page.evaluate(() => {
+			const e2eWindow = window as typeof window & { __openmatesNotificationActionCount?: number };
+			return e2eWindow.__openmatesNotificationActionCount ?? 0;
+		})
+	).toBe(1);
+	await expect(items).toHaveCount(2, { timeout: 2000 });
+	await expect(items.nth(0)).toContainText('Second stacked notification');
 });

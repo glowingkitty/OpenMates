@@ -1,0 +1,46 @@
+name_translation_key: file
+description_translation_key: file.description
+icon_image: files.svg
+category: work
+internal: true
+last_updated: "2026-08-24"
+
+# Internal fallback renderer for captured artifacts that do not have a compatible
+# native OpenMates renderer. File embeds are downloadable but never executable.
+embed_types:
+  - id: file
+    category: direct
+    frontend_type: file-file
+    backend_type: file
+    has_children: false
+    preview_component: file/FileEmbedPreview.svelte
+    fullscreen_component: file/FileEmbedFullscreen.svelte
+    icon: files
+    gradient_var: "--color-app-files"
+    i18n_namespace: embeds.file.file
+    content_fields:
+      - name: filename
+        type: string
+        required: true
+      - name: path
+        type: string
+        required: true
+      - name: normalized_path
+        type: string
+      - name: mime_type
+        type: string
+      - name: size_bytes
+        type: number
+      - name: download_url
+        type: string
+      - name: download_expires_at
+        type: number
+      - name: parent_embed_id
+        type: string
+        required: true
+      - name: source_execution_id
+        type: string
+        required: true
+      - name: version_number
+        type: number
+        required: true

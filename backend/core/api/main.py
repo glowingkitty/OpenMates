@@ -33,7 +33,7 @@ from typing import Dict, Optional  # noqa: E402 # For type hinting
 from importlib import import_module  # noqa: E402
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -114,6 +114,7 @@ from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, upd
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
+S3_RECONCILIATION_RETRY_SECONDS = 300
 
 OPENMATESCLOUD_BILLING_OVERLAY_MODULE = "openmatescloud.api.billing_overlay"
 
@@ -428,6 +429,7 @@ async def lifespan(app: FastAPI):
     # --- Initialize all services and store in app.state ---
     logger.info("Initializing services...")
     app.state.cache_service = CacheService()
+    await app.state.cache_service.purge_removed_app_memory_cache()
     app.state.metrics_service = MetricsService()
     app.state.compliance_service = ComplianceService()
     
@@ -473,6 +475,11 @@ async def lifespan(app: FastAPI):
     else:
         logger.error("CMS did not become reachable after 10 attempts. Startup data may be incomplete.")
 
+    from backend.core.api.app.services.app_memory_removal import (
+        purge_removed_app_memory_rows,
+    )
+    await purge_removed_app_memory_rows(app.state.directus_service)
+
     # Initialize server stats service
     from backend.core.api.app.services.server_stats_service import ServerStatsService
     app.state.server_stats_service = ServerStatsService(
@@ -498,7 +505,10 @@ async def lifespan(app: FastAPI):
     app.state.email_template_service = EmailTemplateService(secrets_manager=app.state.secrets_manager)
     
     # Initialize S3UploadService (depends on SecretsManager)
-    app.state.s3_service = S3UploadService(secrets_manager=app.state.secrets_manager)
+    app.state.s3_service = S3UploadService(
+        secrets_manager=app.state.secrets_manager,
+        directus_service=app.state.directus_service,
+    )
     logger.info("S3 service instance created.")
     
     cloud_billing_enabled = is_cloud_billing_enabled()
@@ -715,9 +725,25 @@ async def lifespan(app: FastAPI):
         logger.warning("CacheService not available in app.state. Cannot preload leaderboard data.")
 
     # --- Perform other async initializations ---
-    # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
+    # Configure clients locally; remote reconciliation must never block API startup.
     logger.info("Initializing S3 service...")
-    await app.state.s3_service.initialize()
+    await app.state.s3_service.initialize(configure_buckets=False)
+
+    async def reconcile_s3_configuration() -> None:
+        while True:
+            try:
+                await app.state.s3_service.reconcile_configuration()
+                return
+            except Exception as exc:
+                logger.warning(
+                    "Object storage reconciliation unavailable; storage features are degraded: %s",
+                    type(exc).__name__,
+                )
+                await asyncio.sleep(S3_RECONCILIATION_RETRY_SECONDS)
+
+    app.state.s3_reconciliation_task = asyncio.create_task(
+        reconcile_s3_configuration()
+    )
 
     # --- Start compliance log S3 backup task ---
     # Uploads rotated compliance log files to S3 Hetzner nightly.
@@ -1100,6 +1126,13 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("Compliance log S3 backup task cancelled")
 
+    if hasattr(app.state, 's3_reconciliation_task'):
+        app.state.s3_reconciliation_task.cancel()
+        try:
+            await app.state.s3_reconciliation_task
+        except asyncio.CancelledError:
+            logger.info("Object storage reconciliation task cancelled")
+
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
         await app.state.encryption_service.close()
@@ -1324,6 +1357,7 @@ def create_app() -> FastAPI:
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
+    app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import {
   handleChatContentBatchResponseImpl,
+  handleCacheStatusResponseImpl,
   handlePhase1LastChatImpl,
 } from "../chatSyncServiceHandlersCoreSync";
 
@@ -51,6 +52,7 @@ const mocks = vi.hoisted(() => ({
   phasedSyncState: {
     setRecentChats: vi.fn(),
     setResumeChatData: vi.fn(),
+    markSyncPending: vi.fn(),
   },
   dailyInspirationStore: {
     markPhase1Empty: vi.fn(),
@@ -92,6 +94,49 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("handleCacheStatusResponseImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal(
+      "CustomEvent",
+      class TestCustomEvent {
+        type: string;
+        detail: unknown;
+
+        constructor(type: string, init?: CustomEventInit) {
+          this.type = type;
+          this.detail = init?.detail;
+        }
+      },
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
+  it("keeps sync pending when cache status is cold but server reports chats", () => {
+    const service = {
+      cachePrimed_FOR_HANDLERS_ONLY: false,
+      initialSyncAttempted_FOR_HANDLERS_ONLY: false,
+      cacheStatusServerChatCount_FOR_HANDLERS_ONLY: 0,
+      attemptInitialSync_FOR_HANDLERS_ONLY: vi.fn(),
+      scheduleCacheStatusRetry_FOR_HANDLERS_ONLY: vi.fn(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService & {
+      cacheStatusServerChatCount_FOR_HANDLERS_ONLY: number;
+    };
+
+    handleCacheStatusResponseImpl(service, {
+      is_primed: false,
+      chat_count: 2,
+      timestamp: 1778683517,
+    });
+
+    expect(service.cacheStatusServerChatCount_FOR_HANDLERS_ONLY).toBe(2);
+    expect(mocks.phasedSyncState.markSyncPending).toHaveBeenCalledTimes(1);
+    expect(service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(1);
+    expect(service.attemptInitialSync_FOR_HANDLERS_ONLY).not.toHaveBeenCalled();
+  });
+});
+
 describe("handlePhase1LastChatImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -106,6 +151,7 @@ describe("handlePhase1LastChatImpl", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
   it("preserves local encrypted header metadata when Phase 1a payload is partial", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
 
@@ -143,6 +189,7 @@ describe("handlePhase1LastChatImpl", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
   it("does not persist Phase 1a metadata without encrypted_chat_key", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getChat.mockResolvedValue(null);
@@ -175,6 +222,7 @@ describe("handlePhase1LastChatImpl", () => {
     expect(mocks.phasedSyncState.setRecentChats).toHaveBeenCalledWith([]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
   it("preserves Phase 1a metadata without server key when a local key exists", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getChat.mockResolvedValue({
@@ -208,6 +256,7 @@ describe("handlePhase1LastChatImpl", () => {
     expect(mocks.phasedSyncState.setResumeChatData).toHaveBeenCalled();
   });
 
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases,sync.phase2.metadata-only
   it("does not promote a recent chat to resume data when last chat is keyless", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     mocks.chatDB.getChat.mockResolvedValue(null);
@@ -267,6 +316,7 @@ describe("handleChatContentBatchResponseImpl", () => {
     mocks.chatDB.getMessageCountForChat.mockResolvedValue(1);
   });
 
+  // contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
   it("upserts the updated chat shell into the global chat-list cache", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
     const existingChat = {

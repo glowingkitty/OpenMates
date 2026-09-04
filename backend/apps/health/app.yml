@@ -80,6 +80,10 @@ settings_and_memories:
           type: string
           format: date
           description: YYYY-MM-DD
+        appointment_time:
+          type: string
+          format: date-time
+          description: Exact appointment start timestamp when available
         notes:
           type: string
           description: Optional notes (reason, location, contact, etc.)

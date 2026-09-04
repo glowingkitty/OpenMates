@@ -25,9 +25,12 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -44,8 +47,28 @@ except ModuleNotFoundError:
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+CONTROL_PLANE_ENV_FILE = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config")) / "openmates" / "engineering-control-plane.env"
 RESULTS_DIR = PROJECT_ROOT / "test-results"
-PROOF_SOURCE_DIR = RESULTS_DIR / "proof-video-sources"
+CONTROL_PLANE_RESULTS_DIR = session_control.CONTROL_PLANE_ROOT / "test-results"
+PROOF_SOURCE_DIR = CONTROL_PLANE_RESULTS_DIR / "proof-video-sources"
+PROOF_SOURCE_ARTIFACTS_DIR = CONTROL_PLANE_RESULTS_DIR / "proof-video-source-artifacts"
+PROOF_CAPTURE_END_BUFFER_SECONDS = 4.0
+PROOF_CAPTURE_DURATION_PADDING_SECONDS = 0.5
+
+
+def proof_capture_end_timestamp_seconds(
+    *,
+    surface: str,
+    source_media_duration_seconds: float,
+    proof_end_times: list[float],
+) -> float | None:
+    """Exclude XCTest teardown from Apple proof while retaining web capture tail."""
+    if not proof_end_times:
+        return None
+    end_buffer_seconds = 0.0 if surface == "apple" else PROOF_CAPTURE_END_BUFFER_SECONDS
+    return min(source_media_duration_seconds, max(proof_end_times) + end_buffer_seconds)
+
+
 STATE_FILE = RESULTS_DIR / "tests-state.json"
 HISTORY_FILE = RESULTS_DIR / "tests-history.jsonl"
 LEASES_FILE = RESULTS_DIR / "failed-test-leases.json"
@@ -56,13 +79,15 @@ RUNS_DIR = RESULTS_DIR / "runs"
 LEASE_LOCK_FILE = Path("/tmp/openmates-failed-test-leases.lock")
 SPEC_DIR = PROJECT_ROOT / "frontend" / "apps" / "web_app" / "tests"
 RUN_TESTS_SCRIPT = PROJECT_ROOT / "scripts" / "run_tests.py"
+RESPONSE_MEDIA_SCRIPT = PROJECT_ROOT / "scripts" / "opencode_response_media.py"
+RESPONSE_MEDIA_LATEST_FILE = RESULTS_DIR / "response-media-latest.json"
 TEST_STORE = None
 DEV_HEALTH_URLS = (
     "https://api.dev.openmates.org/health",
     "https://app.dev.openmates.org/",
 )
 
-PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown"}
+PROBLEM_STATUSES = {"failed", "dispatch_error", "timeout", "result_unknown", "infrastructure_incident"}
 BLOCKED_BY_PARENT_STATUS = "blocked_by_parent"
 TEST_LANES = ("deterministic", "live_probe")
 LEASE_TTL_HOURS = 8
@@ -169,6 +194,29 @@ def _copy_json(data: Any) -> Any:
     return json.loads(json.dumps(data))
 
 
+def _control_plane_client_config() -> dict[str, str]:
+    values = {
+        "url": os.getenv("ENGINEERING_CONTROL_PLANE_URL", "").strip(),
+        "token": os.getenv("ENGINEERING_CONTROL_PLANE_API_TOKEN", "").strip(),
+    }
+    if values["token"] or os.getenv("OPENMATES_DISABLE_CONTROL_PLANE_ENV_FILE") == "1":
+        return values
+    if not CONTROL_PLANE_ENV_FILE.is_file():
+        return values
+    for raw_line in CONTROL_PLANE_ENV_FILE.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        if key == "ENGINEERING_CONTROL_PLANE_URL" and not values["url"]:
+            values["url"] = value
+        elif key == "ENGINEERING_CONTROL_PLANE_API_TOKEN" and not values["token"]:
+            values["token"] = value
+    return values
+
+
 class InMemoryTestControlStore:
     """Directus-shaped test control-plane store used by deterministic tests."""
 
@@ -223,7 +271,7 @@ class InMemoryTestControlStore:
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": run_control_status(run_data),
+            "status": "completed",
             "git_sha": run_data.get("git_sha"),
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
@@ -316,6 +364,400 @@ class InMemoryTestControlStore:
 
     def get_test_run(self, run_key: str) -> dict[str, Any]:
         return _copy_json(self.test_runs.get(run_key) or {})
+
+
+class ControlPlaneTestControlStore(InMemoryTestControlStore):
+    """Private engineering-control-plane API adapter."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        config = _control_plane_client_config()
+        self.base_url = (config["url"] or "http://127.0.0.1:8091").rstrip("/")
+        self.token = config["token"]
+        if not self.token:
+            raise RuntimeError(
+                "ENGINEERING_CONTROL_PLANE_API_TOKEN is required; "
+                "there is no Directus, product-database, or local-JSON fallback"
+            )
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        data: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+        timeout: int = 30,
+    ) -> Any:
+        query = f"?{urllib.parse.urlencode(params)}" if params else ""
+        body = json.dumps(data, separators=(",", ":")).encode("utf-8") if data is not None else None
+        request = urllib.request.Request(
+            f"{self.base_url}{path}{query}",
+            data=body,
+            method=method,
+            headers={
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+                "Cache-Control": "no-cache, no-store, max-age=0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                payload = response.read().decode("utf-8")
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"Engineering control-plane request rejected: {method} {path}: {exc.code} {detail}"
+            ) from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Engineering control-plane request failed: {method} {path}: {exc}") from exc
+        return json.loads(payload) if payload else {}
+
+    def _records(
+        self,
+        collection: str,
+        *,
+        filters: dict[str, Any] | None = None,
+        sort: str | None = None,
+        limit: int = -1,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {"filters_json": json.dumps(filters or {}, separators=(",", ":")), "limit": limit}
+        if sort:
+            params["sort"] = sort
+        response = self._request("GET", f"/v1/records/{collection}", params=params)
+        records = response.get("records") if isinstance(response, dict) else None
+        return records if isinstance(records, list) else []
+
+    def _upsert(self, collection: str, record: dict[str, Any]) -> dict[str, Any]:
+        response = self._request("PUT", f"/v1/records/{collection}", data={"record": record})
+        stored = response.get("record") if isinstance(response, dict) else None
+        return stored if isinstance(stored, dict) else {}
+
+    def _import(self, collections: dict[str, list[dict[str, Any]]], *, replace_current_state: bool = False) -> None:
+        self._request(
+            "POST",
+            "/v1/import",
+            data={"collections": collections, "replace_current_state": replace_current_state},
+            timeout=900,
+        )
+
+    def request_dispatch(
+        self,
+        *,
+        commit: str,
+        tests: list[str],
+        profile: str,
+        account: str | None = None,
+        required_services: list[str],
+    ) -> tuple[dict[str, Any], bool]:
+        response = self._request(
+            "POST",
+            "/v1/coordination/dispatches",
+            data={
+                "repository": "OpenMates",
+                "commit": commit,
+                "tests": tests,
+                "profile": profile,
+                "account": account or os.getenv("OPENMATES_TEST_ACCOUNT", "default"),
+                "mocks": {},
+                "required_services": required_services,
+            },
+        )
+        return dict(response["dispatch"]), bool(response["reused"])
+
+    def record_dispatch_canary(self, dispatch_key: str, service: str, *, healthy: bool) -> dict[str, Any]:
+        response = self._request(
+            "PUT",
+            f"/v1/coordination/dispatches/{dispatch_key}/canaries",
+            data={
+                "service": service,
+                "healthy": healthy,
+                "failure_class": None if healthy else "preflight_unhealthy",
+            },
+        )
+        return dict(response["dispatch"])
+
+    def update_dispatch(self, dispatch_key: str, status: str, reason: str | None = None) -> dict[str, Any]:
+        response = self._request(
+            "PATCH",
+            f"/v1/coordination/dispatches/{dispatch_key}",
+            data={"status": status, "reason": reason},
+        )
+        return dict(response["dispatch"])
+
+    def load_state(self) -> dict[str, Any]:
+        rows = self._records("test_current_state", sort="test_key")
+        tests = {str(row.get("test_key")): self._state_row_to_record(row) for row in rows if row.get("test_key")}
+        latest_run_id = self._latest_current_state_run(rows)
+        latest_run = self.get_test_run(latest_run_id) if latest_run_id else {}
+        return {
+            "latest_run_id": latest_run_id,
+            "updated_at": utc_now(),
+            "summary": summarize_current_tests(tests),
+            "latest_run_summary": latest_run.get("summary") if isinstance(latest_run.get("summary"), dict) else {},
+            "tests": tests,
+            "recorded_event_ids": [],
+        }
+
+    def load_history_events(self, days: int = 7) -> list[dict[str, Any]]:
+        cutoff = int((datetime.now(timezone.utc) - timedelta(days=max(days, 0))).timestamp())
+        rows = self._records(
+            "test_results",
+            filters={"created_at_unix": {"gte": cutoff}},
+            sort="-created_at_unix",
+        )
+        events = []
+        for row in rows:
+            metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+            events.append(
+                {
+                    **metadata,
+                    "suite": row.get("suite"),
+                    "test": row.get("test_name"),
+                    "key": row.get("test_key"),
+                    "event": "failed" if is_problem(str(row.get("status") or "")) else row.get("status"),
+                    "status": row.get("status"),
+                    "run_id": row.get("run_key"),
+                    "timestamp": row.get("created_at") or utc_now(),
+                    "error": row.get("error_summary"),
+                }
+            )
+        return events
+
+    def save_current_state(self, state: dict[str, Any], events: list[dict[str, Any]]) -> None:
+        self._import(
+            self._state_import_collections(None, state, events),
+            replace_current_state=bool(state.get("replace_current_state")),
+        )
+
+    def record_run_result(
+        self,
+        run_data: dict[str, Any],
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+        source: str = "scripts_tests",
+        external_run_id: str = "",
+        workflow: str = "",
+    ) -> None:
+        collections = self._state_import_collections(
+            run_data,
+            state,
+            events,
+            source=source,
+            external_run_id=external_run_id,
+            workflow=workflow,
+        )
+        self._import(collections, replace_current_state=bool(state.get("replace_current_state")))
+
+    def _state_import_collections(
+        self,
+        run_data: dict[str, Any] | None,
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+        *,
+        source: str = "scripts_tests",
+        external_run_id: str = "",
+        workflow: str = "",
+    ) -> dict[str, list[dict[str, Any]]]:
+        tests = state.get("tests") or {}
+        run_key = str((run_data or {}).get("run_id") or state.get("latest_run_id") or utc_now())
+        return {
+            "test_runs": self._run_rows(
+                run_data,
+                state,
+                events,
+                source=source,
+                external_run_id=external_run_id,
+                workflow=workflow,
+                run_key=run_key,
+            ),
+            "test_catalog": [self._catalog_item(str(key), record) for key, record in tests.items()],
+            "test_current_state": [self._current_state_item(str(key), record) for key, record in tests.items()],
+            "test_results": [
+                self._result_item(
+                    str(event.get("event_id") or f"{event.get('run_id')}:{event.get('key')}:{event.get('event')}"),
+                    event,
+                )
+                for event in events
+            ],
+        }
+
+    def _run_rows(
+        self,
+        run_data: dict[str, Any] | None,
+        state: dict[str, Any],
+        events: list[dict[str, Any]],
+        *,
+        source: str,
+        external_run_id: str,
+        workflow: str,
+        run_key: str,
+    ) -> list[dict[str, Any]]:
+        timestamp = state.get("updated_at") or utc_now()
+        now_unix = int(datetime.now(timezone.utc).timestamp())
+        started_by_run: dict[str, list[dict[str, Any]]] = {}
+        for event in events:
+            if event.get("event") == "started" and event.get("run_id"):
+                started_by_run.setdefault(str(event["run_id"]), []).append(event)
+        if started_by_run:
+            return [
+                {
+                    "run_key": key,
+                    "source": "scripts_tests",
+                    "external_run_id": "",
+                    "workflow": "",
+                    "status": "running",
+                    "git_sha": state.get("latest_git_sha"),
+                    "git_branch": state.get("latest_git_branch"),
+                    "environment": state.get("environment"),
+                    "requested_tests": [event.get("key") for event in run_events],
+                    "campaign_key": "",
+                    "debug_group_key": "",
+                    "summary": {},
+                    "record_json": {"events": run_events, "command": run_events[0].get("command")},
+                    "updated_at": timestamp,
+                    "updated_at_unix": now_unix,
+                }
+                for key, run_events in started_by_run.items()
+            ]
+        return [
+            {
+                "run_key": run_key,
+                "source": source,
+                "external_run_id": external_run_id,
+                "workflow": workflow,
+                "status": "completed" if run_data else "snapshot",
+                "git_sha": (run_data or {}).get("git_sha") or state.get("latest_git_sha"),
+                "git_branch": (run_data or {}).get("git_branch") or state.get("latest_git_branch"),
+                "environment": (run_data or {}).get("environment") or state.get("environment"),
+                "requested_tests": (run_data or {}).get("requested_tests") or [],
+                "campaign_key": (run_data or {}).get("campaign_key") or "",
+                "debug_group_key": (run_data or {}).get("debug_group_key") or "",
+                "summary": (run_data or {}).get("summary") or state.get("summary") or {},
+                "record_json": run_data
+                or {"state_snapshot": {"latest_run_id": run_key, "summary": state.get("summary") or {}}},
+                "updated_at": timestamp,
+                "updated_at_unix": now_unix,
+            }
+        ]
+
+    def _catalog_item(self, key: str, record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "test_key": key,
+            "suite": record.get("suite"),
+            "test_name": record.get("test"),
+            "file_path": record.get("test"),
+            "verification_command": record.get("verification_command") or verification_command(record),
+            "metadata": {"linked_files": record.get("linked_files") or []},
+        }
+
+    def _current_state_item(self, key: str, record: dict[str, Any]) -> dict[str, Any]:
+        status = record.get("status")
+        active_status = record.get("active_status") or ("running" if status == "running" else None)
+        stable_status = record.get("stable_status") or (status if status != "running" else None)
+        return {
+            "test_key": key,
+            "suite": record.get("suite"),
+            "test_name": record.get("test"),
+            "stable_status": stable_status,
+            "stable_result_key": record.get("stable_result_key"),
+            "stable_run_key": record.get("stable_run_id")
+            or (record.get("run_id") if record.get("status") != "running" else None),
+            "active_status": active_status,
+            "active_run_key": record.get("active_run_id") or (record.get("run_id") if active_status else None),
+            "triage_group_id": record.get("triage_group_id"),
+            "error_summary": record.get("error"),
+            "metadata": record,
+            "updated_at": record.get("updated_at"),
+            "updated_at_unix": int(datetime.now(timezone.utc).timestamp()),
+        }
+
+    def _result_item(self, result_key: str, record: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "result_key": result_key,
+            "run_key": record.get("run_id"),
+            "test_key": record.get("key"),
+            "suite": record.get("suite"),
+            "test_name": record.get("test"),
+            "status": record.get("status") or record.get("event"),
+            "error_summary": record.get("error"),
+            "metadata": record,
+            "created_at": record.get("timestamp") or utc_now(),
+            "created_at_unix": int(datetime.now(timezone.utc).timestamp()),
+        }
+
+    def _state_row_to_record(self, row: dict[str, Any]) -> dict[str, Any]:
+        metadata = row.get("metadata") if isinstance(row.get("metadata"), dict) else {}
+        status = row.get("stable_status") or row.get("active_status") or "unknown"
+        return {
+            **metadata,
+            "key": row.get("test_key"),
+            "suite": row.get("suite"),
+            "test": row.get("test_name"),
+            "status": status,
+            "stable_status": row.get("stable_status"),
+            "stable_result_key": row.get("stable_result_key"),
+            "stable_run_id": row.get("stable_run_key"),
+            "active_status": row.get("active_status"),
+            "active_run_id": row.get("active_run_key"),
+            "run_id": row.get("stable_run_key") or row.get("active_run_key"),
+            "error": row.get("error_summary"),
+            "updated_at": row.get("updated_at"),
+        }
+
+    def _latest_current_state_run(self, rows: list[dict[str, Any]]) -> str:
+        counts: dict[str, int] = {}
+        for row in rows:
+            run_key = str(row.get("stable_run_key") or row.get("active_run_key") or "")
+            if run_key:
+                counts[run_key] = counts.get(run_key, 0) + 1
+        return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[0][0] if counts else ""
+
+    def list_claims(self) -> list[dict[str, Any]]:
+        return self._records("test_claims", sort="leased_at")
+
+    def create_claim(self, claim: dict[str, Any]) -> dict[str, Any]:
+        item = dict(claim)
+        entry = item.pop("entry", None)
+        item = {"claim_key": claim["lease_id"], **item, "entry_json": entry or claim.get("entry_json") or {}}
+        self._upsert("test_claims", item)
+        return claim
+
+    def update_claim(self, lease_id: str, status: str, fields: dict[str, Any]) -> dict[str, Any]:
+        rows = self._records("test_claims", filters={"claim_key": {"eq": lease_id}}, limit=1)
+        if not rows:
+            raise RuntimeError(f"Unknown lease id: {lease_id}")
+        claim = {**rows[0], "lease_id": lease_id, "status": status, "updated_at": utc_now(), **fields}
+        entry = claim.pop("entry", None)
+        if entry is not None:
+            claim["entry_json"] = entry
+        return self._upsert("test_claims", claim)
+
+    def list_debug_campaigns(self) -> list[dict[str, Any]]:
+        return self._records("test_debug_campaigns", sort="created_at")
+
+    def create_debug_campaign(self, campaign: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_campaigns", campaign)
+
+    def update_debug_campaign(self, campaign_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_campaigns", {"campaign_key": campaign_key, **fields})
+
+    def list_debug_groups(self, campaign_key: str = "") -> list[dict[str, Any]]:
+        filters = {"campaign_key": {"eq": campaign_key}} if campaign_key else None
+        return self._records("test_debug_groups", filters=filters, sort="selected_at_unix")
+
+    def create_debug_group(self, group: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_groups", group)
+
+    def update_debug_group(self, group_key: str, fields: dict[str, Any]) -> dict[str, Any]:
+        return self._upsert("test_debug_groups", {"group_key": group_key, **fields})
+
+    def list_test_results(self, test_keys: list[str] | None = None) -> list[dict[str, Any]]:
+        filters = {"test_key": {"in": test_keys}} if test_keys else None
+        return self._records("test_results", filters=filters, sort="created_at_unix")
+
+    def get_test_run(self, run_key: str) -> dict[str, Any]:
+        rows = self._records("test_runs", filters={"run_key": {"eq": run_key}}, limit=1)
+        return rows[0] if rows else {}
 
 
 class DirectusTestControlStore(InMemoryTestControlStore):
@@ -703,7 +1145,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": run_control_status(run_data),
+            "status": "completed",
             "git_sha": run_data.get("git_sha"),
             "git_branch": run_data.get("git_branch"),
             "environment": run_data.get("environment"),
@@ -844,7 +1286,7 @@ class DirectusTestControlStore(InMemoryTestControlStore):
             "source": source,
             "external_run_id": external_run_id,
             "workflow": workflow,
-            "status": run_control_status(run_data),
+            "status": "completed" if run_data else "snapshot",
             "git_sha": (run_data or {}).get("git_sha") or state.get("latest_git_sha"),
             "git_branch": (run_data or {}).get("git_branch") or state.get("latest_git_branch"),
             "environment": (run_data or {}).get("environment") or state.get("environment"),
@@ -947,7 +1389,13 @@ ON CONFLICT (result_key) DO UPDATE SET run_key=EXCLUDED.run_key, test_key=EXCLUD
 def get_store():
     global TEST_STORE
     if TEST_STORE is None:
-        TEST_STORE = DirectusTestControlStore()
+        backend = os.getenv("OPENMATES_TEST_CONTROL_BACKEND", "api").strip().lower()
+        if backend == "api":
+            TEST_STORE = ControlPlaneTestControlStore()
+        elif backend == "directus":
+            TEST_STORE = DirectusTestControlStore()
+        else:
+            raise RuntimeError("OPENMATES_TEST_CONTROL_BACKEND must be 'api' or 'directus'")
     return TEST_STORE
 
 
@@ -1150,6 +1598,38 @@ def resolve_test_subject_commit(
     )
 
 
+def validate_test_subject_commit_after_run(
+    subject_commit: str,
+    forwarded_args: list[str] | None = None,
+    *,
+    require_exact: bool = False,
+) -> str:
+    """Reject live-dev evidence when its deployed subject changed during a run."""
+    # Exact jobs run against an immutable checkout and their artifact SHA is
+    # verified separately. A later origin/dev advance cannot invalidate that
+    # already completed pinned result.
+    if require_exact:
+        return subject_commit
+    dev_commit = integrated_dev_sha()
+    if _matches_commit_prefix(dev_commit, subject_commit):
+        return dev_commit
+    if dev_commit and git_is_ancestor(subject_commit, dev_commit):
+        changed_files = git_changed_files_between(subject_commit, dev_commit)
+        relevant_changed = relevant_changed_files_for_run(forwarded_args or [], changed_files)
+        if not relevant_changed:
+            return dev_commit
+        raise RuntimeError(
+            "Discarding live-dev test evidence from a moving deployment: "
+            f"the run started against {subject_commit[:9]}, origin/dev advanced to {dev_commit[:9]}, "
+            "and relevant files changed during the run: " + ", ".join(relevant_changed[:8])
+        )
+    raise RuntimeError(
+        "Discarding live-dev test evidence from a moving deployment: "
+        f"the run started against {subject_commit[:9]}, but origin/dev is "
+        f"{dev_commit[:9] or 'unavailable'}"
+    )
+
+
 @dataclass(frozen=True)
 class ControlRunOptions:
     forwarded_args: list[str]
@@ -1331,9 +1811,51 @@ def _normalized_spec_path(value: str) -> str:
     return value.replace("\\", "/").removeprefix("frontend/apps/web_app/tests/").lstrip("./")
 
 
-def _downloaded_recording_paths(spec_path: str, run_ids: set[str], git_sha: str) -> list[Path]:
+def _safe_slug(value: str, fallback: str = "latest") -> str:
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("-._")
+    return slug or fallback
+
+
+def _proof_video_file_for_spec(spec_path: str) -> str:
+    recordings_root = RESULTS_DIR / "recordings" / "latest"
+    for meta_path in recordings_root.glob("*/artifact-meta.json"):
+        metadata = read_json(meta_path, {})
+        if _normalized_spec_path(str(metadata.get("spec") or "")) != _normalized_spec_path(spec_path):
+            continue
+        proof_video_file = str(metadata.get("proof_video_file") or "")
+        if proof_video_file:
+            return proof_video_file
+    return ""
+
+
+def _downloaded_recording_paths(
+    spec_path: str,
+    run_ids: set[str],
+    git_sha: str,
+    *,
+    preferred_video_file: str = "",
+) -> list[Path]:
+    return [
+        candidate["path"]
+        for candidate in _downloaded_recording_candidates(
+            spec_path,
+            run_ids,
+            git_sha,
+            preferred_video_file=preferred_video_file,
+        )
+    ]
+
+
+def _downloaded_recording_candidates(
+    spec_path: str,
+    run_ids: set[str],
+    git_sha: str,
+    *,
+    preferred_video_file: str = "",
+) -> list[dict[str, Any]]:
     recordings_root = RESULTS_DIR / "recordings"
-    matches: list[Path] = []
+    matches: list[dict[str, Any]] = []
+    seen_paths: set[Path] = set()
     for manifest_path in (recordings_root / "latest").glob("*/manifest.json"):
         manifest = read_json(manifest_path, {})
         if _normalized_spec_path(str(manifest.get("spec") or "")) != _normalized_spec_path(spec_path):
@@ -1345,10 +1867,198 @@ def _downloaded_recording_paths(spec_path: str, run_ids: set[str], git_sha: str)
         if not run_ids.intersection({str(manifest.get("run_id") or ""), github_run_id}):
             continue
         video_key = str((manifest.get("assets") or {}).get("video_key") or "")
+        if preferred_video_file and not video_key.endswith(preferred_video_file):
+            continue
         video_path = (recordings_root / video_key).resolve()
-        if video_key and video_path.is_relative_to(recordings_root.resolve()) and video_path.is_file():
-            matches.append(video_path)
-    return sorted(matches, key=lambda path: path.as_posix())
+        if (
+            video_key
+            and video_path.is_relative_to(recordings_root.resolve())
+            and video_path.is_file()
+            and video_path not in seen_paths
+        ):
+            seen_paths.add(video_path)
+            matches.append({
+                "path": video_path,
+                "title": str(manifest.get("title") or ""),
+                "status": str(manifest.get("status") or ""),
+            })
+    return sorted(matches, key=lambda candidate: candidate["path"].as_posix())
+
+
+def playwright_response_media_run_type(options: ControlRunOptions) -> str:
+    if not run_targets_playwright(options.forwarded_args):
+        return ""
+    profile = _safe_slug(options.proof_video_profile.replace("_", "-"), "") if options.proof_video_profile else ""
+    return f"spec-ts-{profile}" if profile else "spec-ts"
+
+
+def _select_playwright_response_media_candidate(
+    candidates: list[dict[str, Any]],
+    *,
+    test_status: str,
+) -> dict[str, Any] | None:
+    if len(candidates) == 1:
+        return candidates[0]
+    if test_status in PROBLEM_STATUSES:
+        problem_candidates = [
+            candidate
+            for candidate in candidates
+            if _map_playwright_status(str(candidate.get("status") or "")) in PROBLEM_STATUSES
+        ]
+        if len(problem_candidates) == 1:
+            return problem_candidates[0]
+    return None
+
+
+def latest_playwright_response_media_video(
+    run_data: dict[str, Any],
+) -> tuple[str, Path, Path | None, str] | None:
+    git_sha = str(run_data.get("git_sha") or "")
+    for suite, test in iter_tests(run_data):
+        if suite != "playwright":
+            continue
+        spec_path = str(test.get("file") or test_label(suite, test))
+        if not spec_path.endswith(".spec.ts"):
+            continue
+        run_id = str(test.get("run_id") or run_data.get("run_id") or "")
+        candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
+        preferred_video_file = _proof_video_file_for_spec(spec_path) if test.get("proof_timeline_path") else ""
+        manifest_candidates = _downloaded_recording_candidates(
+            spec_path,
+            candidate_run_ids,
+            git_sha,
+            preferred_video_file=preferred_video_file,
+        )
+        selected = _select_playwright_response_media_candidate(
+            manifest_candidates,
+            test_status=str(test.get("status") or ""),
+        )
+        if selected is not None:
+            return Path(spec_path).name, selected["path"], None, str(selected.get("title") or "")
+        if len(manifest_candidates) > 1:
+            continue
+
+        artifact_paths = [str(path) for path in test.get("artifact_paths") or []]
+        if test.get("artifact_path"):
+            artifact_paths.append(str(test["artifact_path"]))
+        if not artifact_paths:
+            artifact_paths = [
+                str(path)
+                for path in _downloaded_recording_paths(
+                    spec_path,
+                    candidate_run_ids,
+                    git_sha,
+                    preferred_video_file=preferred_video_file,
+                )
+            ]
+        video_paths = []
+        for artifact_path_text in artifact_paths:
+            artifact_path = Path(artifact_path_text).resolve()
+            if artifact_path.is_file() and artifact_path.suffix.lower() in {".webm", ".mp4", ".mov"}:
+                video_paths.append(artifact_path)
+        unique_video_paths = list(dict.fromkeys(video_paths))
+        if len(unique_video_paths) == 1:
+            return Path(spec_path).name, unique_video_paths[0], None, ""
+    return None
+
+
+def upload_response_media_video(
+    *,
+    path: Path,
+    poster_path: Path | None,
+    run_type: str,
+    alt: str,
+    dry_run: bool = False,
+) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(RESPONSE_MEDIA_SCRIPT),
+        str(path),
+        "--alt",
+        alt,
+        "--latest-run-type",
+        run_type,
+        "--output",
+        "json",
+    ]
+    if poster_path is not None:
+        command.extend(["--poster", str(poster_path)])
+    if dry_run:
+        command.append("--dry-run")
+    result = subprocess.run(command, cwd=PROJECT_ROOT, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or result.stdout.strip() or "OpenCode response-media upload failed")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("OpenCode response-media upload returned invalid JSON") from exc
+    snippets = payload.get("snippets") if isinstance(payload, dict) else None
+    if not isinstance(snippets, dict) or not snippets.get("html"):
+        raise RuntimeError("OpenCode response-media upload returned no embeddable HTML snippet")
+    return payload
+
+
+def publish_latest_playwright_response_media(
+    run_data: dict[str, Any],
+    *,
+    run_type: str,
+    uploader: Any | None = None,
+) -> dict[str, Any]:
+    if not run_type:
+        return {"status": "skipped", "reason": "run does not target Playwright specs"}
+    candidate = latest_playwright_response_media_video(run_data)
+    if candidate is None:
+        return {
+            "status": "missing",
+            "run_type": run_type,
+            "reason": "no unambiguous downloaded Playwright video artifact was found",
+        }
+    spec_name, video_path, poster_path, test_title = candidate
+    subject = f"{spec_name} — {test_title}" if test_title else spec_name
+    active_uploader = uploader or upload_response_media_video
+    upload = active_uploader(
+        path=video_path,
+        poster_path=poster_path,
+        run_type=run_type,
+        alt=f"Playwright {subject} latest run video",
+    )
+    snippets = upload.get("snippets") if isinstance(upload.get("snippets"), dict) else {}
+    record = {
+        "status": "delivered",
+        "kind": "playwright_spec_video",
+        "run_type": run_type,
+        "spec": spec_name,
+        "test_title": test_title or None,
+        "run_id": str(run_data.get("run_id") or ""),
+        "git_sha": str(run_data.get("git_sha") or ""),
+        "artifact_path": str(video_path),
+        "artifact_sha256": _file_sha256(video_path),
+        "response_media_key": upload.get("key"),
+        "response_media_poster_key": (upload.get("poster") or {}).get("key") if isinstance(upload.get("poster"), dict) else None,
+        "response_media_html": snippets.get("html"),
+        "response_media_markdown": snippets.get("markdown"),
+    }
+    latest = read_json(RESPONSE_MEDIA_LATEST_FILE, {})
+    latest["playwright_spec"] = record
+    write_json(RESPONSE_MEDIA_LATEST_FILE, latest)
+    print("OpenCode response-media video for latest Playwright spec run:")
+    print(str(record["response_media_html"] or record["response_media_markdown"] or upload.get("url") or ""))
+    return record
+
+
+def persist_proof_source_file(source: Path, *, identity: str, role: str) -> Path:
+    """Copy proof inputs into shared storage that survives worktree/runtime replacement."""
+    destination_dir = PROOF_SOURCE_ARTIFACTS_DIR / identity
+    destination_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    destination = destination_dir / f"{role}-{source.name}"
+    source_hash = _file_sha256(source)
+    if destination.is_file() and _file_sha256(destination) == source_hash:
+        return destination
+    temporary = destination_dir / f".{destination.name}.{os.getpid()}.tmp"
+    shutil.copy2(source, temporary)
+    temporary.chmod(0o600)
+    os.replace(temporary, destination)
+    return destination
 
 
 def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
@@ -1370,7 +2080,16 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         run_id = str(test.get("run_id") or run_data.get("run_id") or "")
         if not artifact_paths:
             candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
-            artifact_paths = [str(path) for path in _downloaded_recording_paths(spec_path, candidate_run_ids, git_sha)]
+            preferred_video_file = _proof_video_file_for_spec(spec_path) if test.get("proof_timeline_path") else ""
+            artifact_paths = [
+                str(path)
+                for path in _downloaded_recording_paths(
+                    spec_path,
+                    candidate_run_ids,
+                    git_sha,
+                    preferred_video_file=preferred_video_file,
+                )
+            ]
         unique_artifact_paths = []
         seen_artifact_paths = set()
         for artifact_path_text in artifact_paths:
@@ -1385,6 +2104,10 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
         proof_timeline_path = Path(proof_timeline_value).resolve() if proof_timeline_value else None
         if proof_timeline_path is not None and not proof_timeline_path.is_file():
             proof_timeline_path = None
+        profile = str(test.get("proof_video_profile") or run_data.get("proof_video_profile") or "")
+        if not profile and proof_timeline_path is not None:
+            timeline_payload = read_json(proof_timeline_path, {})
+            profile = str(timeline_payload.get("device") or "")
         for artifact_path in unique_artifact_paths:
             proof_run_id = run_id
             if len(unique_artifact_paths) > 1:
@@ -1394,6 +2117,7 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
             identity = hashlib.sha256(
                 f"{proof_run_id}\0{git_sha}\0{spec_name}\0{artifact_path}".encode("utf-8")
             ).hexdigest()
+            durable_artifact_path = persist_proof_source_file(artifact_path, identity=identity, role="artifact")
             record = {
                 "run_id": proof_run_id,
                 "source_run_id": run_id,
@@ -1404,12 +2128,15 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
                 "deployment_reference": deployment_reference,
                 "deployment_verified": True,
                 "target": str(run_data.get("environment") or "https://app.dev.openmates.org"),
-                "artifact_path": str(artifact_path),
-                "artifact_sha256": _file_sha256(artifact_path),
+                "artifact_path": str(durable_artifact_path),
+                "artifact_sha256": _file_sha256(durable_artifact_path),
             }
             if proof_timeline_path is not None:
-                record["proof_timeline_path"] = str(proof_timeline_path)
-                record["proof_timeline_sha256"] = _file_sha256(proof_timeline_path)
+                durable_timeline_path = persist_proof_source_file(proof_timeline_path, identity=identity, role="timeline")
+                record["proof_timeline_path"] = str(durable_timeline_path)
+                record["proof_timeline_sha256"] = _file_sha256(durable_timeline_path)
+            if profile:
+                record["proof_video_profile"] = profile
             record_path = PROOF_SOURCE_DIR / f"{identity}.json"
             record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             write_json(record_path, record)
@@ -1418,10 +2145,63 @@ def record_proof_source_attestations(run_data: dict[str, Any]) -> list[Path]:
     return records
 
 
+def record_apple_proof_source_attestation(run_dir: Path, manifest: dict[str, Any]) -> Path:
+    """Attest one transferred, passing Apple recording for shared proof finalization."""
+    if manifest.get("status") != "passed" or int(manifest.get("xcode_exit_code", 1)) != 0:
+        raise RuntimeError("Apple proof-source attestation requires a passing native test")
+    profile = str(manifest.get("profile") or "")
+    if profile not in {"apple-iphone-portrait", "apple-ipad-landscape"}:
+        raise RuntimeError("Apple proof-source attestation requires an exact Apple device profile")
+    subject_commit = str(manifest.get("subject_commit") or "")
+    if not re.fullmatch(r"[0-9a-f]{40}", subject_commit):
+        raise RuntimeError("Apple proof-source attestation requires one exact full commit")
+    test_account_provenance = str(manifest.get("test_account_provenance") or "").strip()
+    if not test_account_provenance:
+        raise RuntimeError("Apple proof-source attestation requires explicit test-account provenance")
+    raw_video = run_dir / str(manifest.get("raw_video") or "")
+    source_video = run_dir / str(manifest.get("proof_video") or manifest.get("raw_video") or "")
+    result_bundle = run_dir / str(manifest.get("result_bundle") or "")
+    timeline_value = str(manifest.get("proof_timeline") or "")
+    timeline_path = run_dir / timeline_value
+    if not raw_video.is_file() or not source_video.is_file() or not result_bundle.exists() or not timeline_value or not timeline_path.is_file():
+        raise RuntimeError("Apple proof-source attestation requires video, xcresult, and proof timeline")
+    timeline = read_json(timeline_path, {})
+    contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
+    if contract.get("surface") != "apple" or str(timeline.get("device") or "") != profile:
+        raise RuntimeError("Apple proof timeline surface/profile does not match the recording")
+    run_id = str(manifest.get("run_id") or run_dir.name)
+    identity = hashlib.sha256(f"{run_id}\0{subject_commit}\0{profile}".encode("utf-8")).hexdigest()
+    record = {
+        "run_id": run_id,
+        "source_run_id": run_id,
+        "git_sha": subject_commit,
+        "spec": str(contract.get("id") or "apple-core-parity"),
+        "status": "passed",
+        "source": "apple_remote",
+        "source_kind": "apple",
+        "deployment_reference": subject_commit,
+        "target": "apple-simulator",
+        "artifact_path": str(source_video),
+        "artifact_sha256": _file_sha256(source_video),
+        "raw_artifact_path": str(raw_video),
+        "raw_artifact_sha256": _file_sha256(raw_video),
+        "result_bundle_path": str(result_bundle),
+        "proof_video_profile": profile,
+        "proof_timeline_path": str(timeline_path),
+        "proof_timeline_sha256": _file_sha256(timeline_path),
+        "test_account_provenance": test_account_provenance,
+    }
+    record_path = PROOF_SOURCE_DIR / f"{identity}.json"
+    record_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    write_json(record_path, record)
+    record_path.chmod(0o600)
+    return record_path
+
+
 def proof_video_run_directory(*, session_id: str, spec_name: str, run_id: str) -> Path:
     slug = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(spec_name).stem).strip("-") or "proof-video"
     run_slug = re.sub(r"[^A-Za-z0-9._-]+", "-", str(run_id)).strip("-") or utc_now().replace(":", "")
-    return RESULTS_DIR / "proof-videos" / (session_id or "auto") / f"{slug}-{run_slug}"
+    return CONTROL_PLANE_RESULTS_DIR / "proof-videos" / (session_id or "auto") / f"{slug}-{run_slug}"
 
 
 def proof_video_target_environment(value: str) -> str:
@@ -1450,8 +2230,9 @@ def auto_finalize_proof_video_sources(
     review_hook: Any | None = None,
     publish_hook: Any | None = None,
     render_claims_hook: Any | None = None,
+    source_duration_hook: Any | None = None,
 ) -> list[dict[str, Any]]:
-    """Render, review, and publish spec-owned web proof videos after a passed spec run."""
+    """Render, review, and publish spec-owned web or Apple proof videos."""
 
     if not proof_record_paths:
         return []
@@ -1469,10 +2250,11 @@ def auto_finalize_proof_video_sources(
             raise RuntimeError(f"Proof timeline attachment is missing: {timeline_value}")
         timeline = read_json(timeline_path, {})
         contract = timeline.get("contract") if isinstance(timeline.get("contract"), dict) else {}
-        if contract.get("surface") != "web":
+        surface = str(contract.get("surface") or "")
+        if surface not in {"web", "apple"}:
             finalizations.append({
                 "status": "skipped",
-                "reason": "proof timeline is not a web Playwright recording",
+                "reason": "proof timeline is not a supported web or Apple recording",
                 "spec": record.get("spec"),
                 "run_id": record.get("run_id"),
             })
@@ -1493,19 +2275,40 @@ def auto_finalize_proof_video_sources(
             active_review_hook = review_hook
         if render_claims_hook is None:
             try:
-                from scripts.proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
+                from scripts.proof_video_workflow import (
+                    calculate_pacing,
+                    marker_trim_start,
+                    spec_timeline_render_claims as active_render_claims_hook,
+                )
             except ModuleNotFoundError:
-                from proof_video_workflow import spec_timeline_render_claims as active_render_claims_hook
+                from proof_video_workflow import calculate_pacing, marker_trim_start, spec_timeline_render_claims as active_render_claims_hook
         else:
             active_render_claims_hook = render_claims_hook
+            try:
+                from scripts.proof_video_workflow import calculate_pacing, marker_trim_start
+            except ModuleNotFoundError:
+                from proof_video_workflow import calculate_pacing, marker_trim_start
+        if source_duration_hook is None:
+            try:
+                from scripts.spec_demo import (
+                    build_browser_tutorial_plan as active_browser_tutorial_plan_hook,
+                    media_duration_seconds as active_source_duration_hook,
+                )
+            except ModuleNotFoundError:
+                from spec_demo import (
+                    build_browser_tutorial_plan as active_browser_tutorial_plan_hook,
+                    media_duration_seconds as active_source_duration_hook,
+                )
+        else:
+            active_source_duration_hook = source_duration_hook
+            try:
+                from scripts.spec_demo import build_browser_tutorial_plan as active_browser_tutorial_plan_hook
+            except ModuleNotFoundError:
+                from spec_demo import build_browser_tutorial_plan as active_browser_tutorial_plan_hook
         device_profile = str(timeline.get("device") or record.get("proof_video_profile") or "web-laptop")
+        if surface == "apple" and device_profile not in {"apple-iphone-portrait", "apple-ipad-landscape"}:
+            raise RuntimeError("Apple proof timeline requires an exact Apple device profile")
         claims = active_render_claims_hook(timeline, device_profile=device_profile)
-        checkpoint_times = [
-            float(event["at_ms"]) / 1000.0
-            for event in timeline.get("events", [])
-            if isinstance(event, dict) and event.get("kind") == "checkpoint" and isinstance(event.get("at_ms"), (int, float))
-        ]
-        ready_timestamp_seconds = min(checkpoint_times) if checkpoint_times else None
         source_video = Path(str(record.get("artifact_path") or ""))
         if not source_video.is_file():
             raise RuntimeError(f"Proof source video is missing: {source_video}")
@@ -1513,6 +2316,77 @@ def auto_finalize_proof_video_sources(
         run_id = str(record.get("run_id") or record.get("source_run_id") or run_data.get("run_id") or "")
         subject_commit = str(record.get("git_sha") or run_data.get("git_sha") or "")
         run_dir = proof_video_run_directory(session_id=session_id or "auto", spec_name=spec_name, run_id=run_id)
+        timeline_events = [item for item in timeline.get("events") or [] if isinstance(item, dict)]
+        assertion_events = [item for item in timeline.get("assertion_results") or [] if isinstance(item, dict)]
+        checkpoint_times = [float(item.get("at_ms") or 0) / 1000 for item in timeline_events if item.get("kind") == "checkpoint"]
+        contract_checkpoint_ids = {
+            str(item.get("checkpoint"))
+            for collection in (contract.get("transcript"), contract.get("assertions"))
+            for item in (collection if isinstance(collection, list) else [])
+            if isinstance(item, dict)
+            and item.get("checkpoint")
+            and device_profile in (item.get("devices") if isinstance(item.get("devices"), list) else [])
+        }
+        proof_checkpoint_times = [
+            float(item.get("at_ms") or 0) / 1000
+            for item in timeline_events
+            if item.get("kind") == "checkpoint" and str(item.get("id") or "") in contract_checkpoint_ids
+        ]
+        checkpoint_times_by_id = {
+            str(item.get("id")): float(item.get("at_ms") or 0) / 1000
+            for item in timeline_events
+            if item.get("kind") == "checkpoint" and item.get("id") and item.get("at_ms") is not None
+        }
+        assertion_checkpoint_ids = {
+            str(item.get("id")): str(item.get("checkpoint"))
+            for item in (contract.get("assertions") if isinstance(contract.get("assertions"), list) else [])
+            if isinstance(item, dict)
+            and item.get("id")
+            and item.get("checkpoint")
+            and device_profile in (item.get("devices") if isinstance(item.get("devices"), list) else [])
+        }
+        missing_assertion_checkpoints = sorted(
+            assertion_id
+            for assertion_id, checkpoint_id in assertion_checkpoint_ids.items()
+            if checkpoint_id not in checkpoint_times_by_id
+        )
+        if missing_assertion_checkpoints:
+            raise RuntimeError(
+                f"Proof assertion checkpoint was not captured: {missing_assertion_checkpoints[0]}"
+            )
+        assertion_anchor_times_by_id = {
+            assertion_id: checkpoint_times_by_id[checkpoint_id]
+            for assertion_id, checkpoint_id in assertion_checkpoint_ids.items()
+        }
+        action_times: list[float] = []
+        for item in timeline_events:
+            if item.get("kind") != "action":
+                continue
+            for key in ("start_ms", "end_ms", "at_ms"):
+                if item.get(key) is not None:
+                    action_times.append(float(item.get(key) or 0) / 1000)
+        assertion_times = [float(item.get("at_ms") or 0) / 1000 for item in assertion_events if item.get("at_ms") is not None]
+        ready_times = [value for value in (proof_checkpoint_times or checkpoint_times or assertion_times) if value >= 0]
+        ready_timestamp_seconds = min(ready_times) if ready_times else None
+        source_media_duration_seconds = float(active_source_duration_hook(source_video))
+        proof_end_times = [value for value in [*checkpoint_times, *assertion_times] if value >= 0]
+        source_end_timestamp_seconds = proof_capture_end_timestamp_seconds(
+            surface=surface,
+            source_media_duration_seconds=source_media_duration_seconds,
+            proof_end_times=proof_end_times,
+        )
+        source_duration_seconds = source_media_duration_seconds
+        if ready_timestamp_seconds is not None:
+            trim_start_seconds = marker_trim_start(ready_timestamp_seconds=ready_timestamp_seconds)
+            if source_end_timestamp_seconds is not None:
+                source_duration_seconds = max(
+                    0.001,
+                    source_end_timestamp_seconds - trim_start_seconds + PROOF_CAPTURE_DURATION_PADDING_SECONDS,
+                )
+            else:
+                source_duration_seconds = max(0.001, source_media_duration_seconds - trim_start_seconds)
+        transcript_words = len(re.findall(r"\S+", str(claims.get("caption_text") or "")))
+        pacing = calculate_pacing(source_duration_seconds=source_duration_seconds, transcript_words=transcript_words)
         source = {
             "source": str(record.get("source") or "scripts_tests"),
             "status": "passed",
@@ -1524,7 +2398,26 @@ def auto_finalize_proof_video_sources(
             "artifact_path": str(source_video),
             "artifact_sha256": str(record.get("artifact_sha256") or ""),
             "test_account_provenance": str(record.get("test_account_provenance") or "GitHub Actions E2E account slot"),
+            "kind": str(record.get("source_kind") or "playwright"),
+            "action_timestamps": action_times,
+            "state_change_timestamps": checkpoint_times,
+            "state_change_timestamps_by_id": {**checkpoint_times_by_id, **assertion_anchor_times_by_id},
         }
+        if surface == "web":
+            source["browser_domain"] = str(claims.get("domain") or contract.get("domain") or "")
+        if source_end_timestamp_seconds is not None:
+            source["source_end_timestamp_seconds"] = round(source_end_timestamp_seconds, 3)
+        browser_tutorial_plan = None
+        if surface == "web":
+            browser_tutorial_plan = active_browser_tutorial_plan_hook(
+                timeline,
+                source_video=source_video,
+                source_end_seconds=source_end_timestamp_seconds or source_media_duration_seconds,
+                device_profile_name=device_profile,
+                contract_hash=str(claims["contract_hash"]),
+                timeline_hash=str(record.get("proof_timeline_sha256") or ""),
+                narration_id=f"auto-{Path(spec_name).stem}",
+            )
         manifest = active_produce_hook(
             run_dir=run_dir,
             source_video=source_video,
@@ -1540,11 +2433,10 @@ def auto_finalize_proof_video_sources(
             proof_group_id="sha256:" + hashlib.sha256(f"{spec_name}\0{claims['contract_hash']}".encode("utf-8")).hexdigest(),
             narration_audio_path=None,
             device_profile_name=device_profile,
-            playback_rate=1.0,
-            hold_last_frame_seconds=0.0,
+            playback_rate=pacing.playback_rate,
+            hold_last_frame_seconds=pacing.final_hold_seconds,
             ready_timestamp_seconds=ready_timestamp_seconds,
-            spec_timeline=timeline,
-            browser_domain=str(claims.get("domain") or contract.get("domain") or ""),
+            browser_tutorial_plan=browser_tutorial_plan,
         )
         review = active_review_hook(run_dir=run_dir, correction_round=0, correction_kind="none")
         manifest = review.get("manifest") if isinstance(review.get("manifest"), dict) else manifest
@@ -1599,7 +2491,7 @@ def test_label(suite: str, test: dict[str, Any]) -> str:
 
 
 def test_key(suite: str, test: dict[str, Any]) -> str:
-    return f"{suite}::{test_label(suite, test)}"
+    return str(test.get("test_key") or f"{suite}::{test_label(suite, test)}")
 
 
 def iter_tests(run_data: dict[str, Any]):
@@ -1609,6 +2501,20 @@ def iter_tests(run_data: dict[str, Any]):
         for test in suite_data.get("tests") or []:
             if isinstance(test, dict):
                 yield str(suite), test
+
+
+def canonical_run_tests(run_data: dict[str, Any]):
+    """Yield one record per control-plane key, retaining any problem outcome."""
+    canonical: dict[str, tuple[str, dict[str, Any]]] = {}
+    for suite, test in iter_tests(run_data):
+        key = test_key(suite, test)
+        previous = canonical.get(key)
+        if previous is None or (
+            is_problem(str(test.get("status") or ""))
+            and not is_problem(str(previous[1].get("status") or ""))
+        ):
+            canonical[key] = (suite, test)
+    yield from canonical.values()
 
 
 def normalize_prerequisite_incidents(run_data: dict[str, Any]) -> dict[str, Any]:
@@ -1959,6 +2865,7 @@ def _summarize_imported_tests(tests: list[dict[str, Any]]) -> dict[str, int]:
         "dispatch_error": 0,
         "timeout": 0,
         "result_unknown": 0,
+        "infrastructure_incident": 0,
         "skipped": 0,
         "not_started": 0,
     }
@@ -2021,24 +2928,6 @@ def is_problem(status: str) -> bool:
     return status in PROBLEM_STATUSES
 
 
-def run_control_status(run_data: dict[str, Any] | None) -> str:
-    """Return the persisted test_runs status for a completed or partial result."""
-    if not run_data:
-        return "snapshot"
-    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
-    if flags.get("in_progress"):
-        return "running"
-    return "completed"
-
-
-def run_control_source(run_data: dict[str, Any]) -> tuple[str, str]:
-    """Return source/workflow metadata for run artifacts imported by tests.py."""
-    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
-    if flags.get("daily"):
-        return "daily_runner", "daily"
-    return "scripts_tests", ""
-
-
 def _empty_status_summary() -> dict[str, int]:
     return {
         "total": 0,
@@ -2047,6 +2936,7 @@ def _empty_status_summary() -> dict[str, int]:
         "dispatch_error": 0,
         "timeout": 0,
         "result_unknown": 0,
+        "infrastructure_incident": 0,
         "skipped": 0,
         "not_started": 0,
         "running": 0,
@@ -2128,7 +3018,7 @@ def record_run_result(run_data: dict[str, Any], source: str = "scripts_tests", e
     events: list[dict[str, Any]] = []
     observed_keys_by_suite: dict[str, set[str]] = {}
 
-    for suite, test in iter_tests(run_data):
+    for suite, test in canonical_run_tests(run_data):
         label = test_label(suite, test)
         key = test_key(suite, test)
         observed_keys_by_suite.setdefault(suite, set()).add(key)
@@ -2514,6 +3404,11 @@ def files_containing_tokens(tokens: set[str]) -> list[str]:
         return []
     matches: list[str] = []
     for rel_path, content in source_text_cache().items():
+        # Shared preview-shell test IDs occur across many independent specs.
+        # Peer specs are not product dependencies; explicit imports and the
+        # test-file index already capture intentional test-to-test coupling.
+        if rel_path.startswith("frontend/apps/web_app/tests/"):
+            continue
         for token in tokens:
             if token and token in content:
                 matches.append(rel_path)
@@ -2879,6 +3774,7 @@ def start_debug_campaign(
     session_id: str,
     selected_test_keys: list[str] | None = None,
     campaign_key: str = "",
+    daily_recovery: bool = False,
 ) -> dict[str, Any]:
     if campaign_key:
         campaign = _debug_campaign(campaign_key)
@@ -2887,11 +3783,61 @@ def start_debug_campaign(
         _require_campaign_coordinator_for_campaign(campaign_key, session_id, "campaign start")
         return get_store().update_debug_campaign(campaign_key, {"session_id": session_id, "updated_at": utc_now()})
     active = _active_debug_campaign_for_session(session_id)
-    if active:
+    if active and (not daily_recovery or campaign_allows_daily_recovery_milestone(active)):
         _require_session_identity(session_id, "campaign start")
+        triage_entries = list(build_triage().get("entries") or [])
+        if daily_recovery:
+            metadata = dict(active.get("metadata") or {})
+            linked_campaign_keys = [
+                str(key)
+                for key in metadata.get("ownership_campaign_keys") or []
+            ]
+            snapshot_missing = "linked_owned_test_keys" not in metadata
+            if snapshot_missing:
+                metadata["linked_owned_test_keys"] = sorted({
+                    str(test_key_value)
+                    for linked_campaign_key in linked_campaign_keys
+                    for group in debug_groups_for_campaign(linked_campaign_key)
+                    if group.get("status") != "green"
+                    for test_key_value in group.get("member_test_keys") or []
+                })
+            linked_owned_test_keys = {
+                str(key) for key in metadata.get("linked_owned_test_keys") or []
+            }
+            owned_test_keys = {
+                str(test_key_value)
+                for group in debug_groups_for_campaign(str(active["campaign_key"]))
+                for test_key_value in group.get("member_test_keys") or []
+            }.union(linked_owned_test_keys)
+            missing_entries = [
+                entry for entry in triage_entries if str(entry["key"]) not in owned_test_keys
+            ]
+            groups = [
+                _create_debug_group(str(active["campaign_key"]), group_id, group_entries)
+                for group_id, group_entries in _group_entries_by_signature(missing_entries).items()
+            ]
+            if groups or snapshot_missing:
+                return get_store().update_debug_campaign(
+                    str(active["campaign_key"]),
+                    {
+                        "selected_group_keys": [
+                            *(active.get("selected_group_keys") or []),
+                            *(group["group_key"] for group in groups),
+                        ],
+                        "selected_test_keys": sorted({
+                            *(str(key) for key in active.get("selected_test_keys") or []),
+                            *(str(entry["key"]) for entry in missing_entries),
+                        }),
+                        "metadata": {
+                            **metadata,
+                            "linked_owned_test_keys": sorted(linked_owned_test_keys),
+                        },
+                        "updated_at": utc_now(),
+                    },
+                )
+            return active
         if active.get("selected_group_keys"):
             return active
-        triage_entries = list(build_triage().get("entries") or [])
         selected = set(active.get("selected_test_keys") or [])
         entries = [entry for entry in triage_entries if entry.get("key") in selected]
         if not entries:
@@ -2919,20 +3865,32 @@ def start_debug_campaign(
         pending_keys = _active_campaign_pending_test_keys(str(campaign["campaign_key"]))
         if requested_keys.intersection(pending_keys):
             resumable.append(campaign)
-    if len(resumable) == 1:
-        _require_campaign_coordinator_for_campaign(str(resumable[0]["campaign_key"]), session_id, "campaign start")
-        return get_store().update_debug_campaign(
-            str(resumable[0]["campaign_key"]),
-            {"session_id": session_id, "updated_at": utc_now()},
-        )
-    if len(resumable) > 1:
-        return {
-            "status": "selection_required",
-            "candidate_campaign_keys": sorted(str(campaign["campaign_key"]) for campaign in resumable),
-            "selected_test_keys": sorted(requested_keys),
-        }
+    daily_campaigns = [campaign for campaign in resumable if campaign_allows_daily_recovery_milestone(campaign)]
+    if not daily_recovery or daily_campaigns:
+        candidates = daily_campaigns if daily_recovery else resumable
+        if len(candidates) == 1:
+            _require_campaign_coordinator_for_campaign(str(candidates[0]["campaign_key"]), session_id, "campaign start")
+            return get_store().update_debug_campaign(
+                str(candidates[0]["campaign_key"]),
+                {"session_id": session_id, "updated_at": utc_now()},
+            )
+        if len(candidates) > 1:
+            return {
+                "status": "selection_required",
+                "candidate_campaign_keys": sorted(str(campaign["campaign_key"]) for campaign in candidates),
+                "selected_test_keys": sorted(requested_keys),
+            }
 
     _require_session_identity(session_id, "campaign start")
+    ownership_campaign_keys = sorted(str(campaign["campaign_key"]) for campaign in resumable)
+    externally_owned_keys = {
+        str(test_key_value)
+        for linked_campaign_key in ownership_campaign_keys
+        for group in debug_groups_for_campaign(linked_campaign_key)
+        if group.get("status") != "green"
+        for test_key_value in group.get("member_test_keys") or []
+    }
+    direct_entries = [entry for entry in entries if str(entry["key"]) not in externally_owned_keys]
     campaign_key = f"debug-campaign-{uuid.uuid4().hex[:12]}"
     now = utc_now()
     campaign = {
@@ -2944,9 +3902,17 @@ def start_debug_campaign(
         "selected_test_keys": sorted({str(entry["key"]) for entry in entries}),
         "selected_group_keys": [],
         "current_group_key": None,
-        "completion_policy": {"group_members_must_pass": True, "combined_final_run_required": True},
+        "completion_policy": {
+            "group_members_must_pass": True,
+            "combined_final_run_required": True,
+            "daily_recovery_milestone": daily_recovery,
+        },
         "blocker": None,
-        "metadata": {"scope_amendments": []},
+        "metadata": {
+            "scope_amendments": [],
+            "ownership_campaign_keys": ownership_campaign_keys,
+            "linked_owned_test_keys": sorted(externally_owned_keys),
+        },
         "created_at": now,
         "updated_at": now,
         "completed_at": None,
@@ -2954,7 +3920,7 @@ def start_debug_campaign(
     get_store().create_debug_campaign(campaign)
     groups = [
         _create_debug_group(campaign_key, group_id, group_entries)
-        for group_id, group_entries in _group_entries_by_signature(entries).items()
+        for group_id, group_entries in _group_entries_by_signature(direct_entries).items()
     ]
     return get_store().update_debug_campaign(
         campaign_key,
@@ -3781,7 +4747,10 @@ def debug_campaign_status(campaign_key: str, persist: bool = False) -> dict[str,
     all_green = bool(groups) and all(group.get("status") == "green" for group in groups)
     final_run = (campaign.get("metadata") or {}).get("final_full_run") or {}
     requires_full_run = bool((campaign.get("completion_policy") or {}).get("combined_final_run_required"))
-    if blocked:
+    recovery_milestone = (campaign.get("metadata") or {}).get("daily_recovery_milestone") or {}
+    if campaign_allows_daily_recovery_milestone(campaign) and recovery_milestone.get("complete") is True:
+        status = "completed"
+    elif blocked:
         status = "blocked"
     elif all_green and requires_full_run and final_run.get("status") != "passed":
         status = "verification_pending"
@@ -3880,6 +4849,88 @@ def finalize_debug_campaign(campaign_key: str, run_key: str) -> dict[str, Any]:
         "status": "completed",
         "metadata": metadata,
         "completed_at": utc_now(),
+        "updated_at": utc_now(),
+    })
+    return debug_campaign_status(campaign_key)
+
+
+def evaluate_daily_recovery_milestone(
+    run_data: dict[str, Any],
+    *,
+    owned_failure_keys: set[str],
+) -> dict[str, Any]:
+    """Evaluate the approved bounded daily-recovery completion policy."""
+    flags = run_data.get("flags") if isinstance(run_data.get("flags"), dict) else {}
+    summary = run_data.get("summary") if isinstance(run_data.get("summary"), dict) else {}
+    channels = flags.get("notification_channels") if isinstance(flags.get("notification_channels"), dict) else {}
+    remaining_failure_keys = {
+        test_key(suite, test)
+        for suite, test in iter_tests(run_data)
+        if str(test.get("status") or "") in PROBLEM_STATUSES
+    }
+    checks = {
+        "full_daily_run": flags.get("daily") is True and flags.get("suite") == "all" and flags.get("only_failed") is False,
+        "critical_green": (flags.get("critical_phase") or {}).get("status") == "passed",
+        "infrastructure_clear": all(
+            int(summary.get(status) or 0) == 0
+            for status in ("infrastructure_incident", "dispatch_error", BLOCKED_BY_PARENT_STATUS)
+        ),
+        "notifications_provider_accepted": all(
+            isinstance(channels.get(channel), dict)
+            and channels[channel].get("configured") is True
+            and channels[channel].get("status") == "provider_accepted"
+            for channel in ("email", "discord")
+        ),
+        "product_failure_budget": int(summary.get("executed_product_failed") or 0) <= 50,
+        "remaining_failures_owned": remaining_failure_keys <= owned_failure_keys,
+    }
+    return {
+        "complete": all(checks.values()),
+        "checks": checks,
+        "remaining_failure_keys": sorted(remaining_failure_keys),
+        "unowned_failure_keys": sorted(remaining_failure_keys - owned_failure_keys),
+    }
+
+
+def campaign_allows_daily_recovery_milestone(campaign: dict[str, Any]) -> bool:
+    """Return whether campaign creation explicitly selected bounded recovery."""
+    return (campaign.get("completion_policy") or {}).get("daily_recovery_milestone") is True
+
+
+def record_daily_recovery_milestone(campaign_key: str, run_key: str) -> dict[str, Any]:
+    """Persist milestone evidence without weakening normal campaign finalization."""
+    campaign = _debug_campaign(campaign_key)
+    if not campaign_allows_daily_recovery_milestone(campaign):
+        raise RuntimeError(
+            "Campaign milestone requires a campaign created with --daily-recovery"
+        )
+    _require_campaign_coordinator_for_campaign(
+        campaign_key,
+        os.environ.get("OPENCODE_SESSION_ID", ""),
+        "campaign milestone",
+    )
+    run = get_store().get_test_run(run_key)
+    run_data = run.get("record_json") if isinstance(run.get("record_json"), dict) else {}
+    metadata = campaign.get("metadata") if isinstance(campaign.get("metadata"), dict) else {}
+    owned_failure_keys = {
+        str(member)
+        for group in debug_groups_for_campaign(campaign_key)
+        for member in group.get("member_test_keys") or []
+    }.union(str(key) for key in metadata.get("linked_owned_test_keys") or [])
+    milestone = {
+        **evaluate_daily_recovery_milestone(
+            run_data,
+            owned_failure_keys=owned_failure_keys,
+        ),
+        "run_key": run_key,
+        "evaluated_at": utc_now(),
+    }
+    metadata = dict(campaign.get("metadata") or {})
+    metadata["daily_recovery_milestone"] = milestone
+    get_store().update_debug_campaign(campaign_key, {
+        "status": "completed" if milestone["complete"] else "active",
+        "metadata": metadata,
+        "completed_at": utc_now() if milestone["complete"] else None,
         "updated_at": utc_now(),
     })
     return debug_campaign_status(campaign_key)
@@ -4751,6 +5802,8 @@ def infer_run_suite_and_tests(args: list[str]) -> tuple[str, list[str]]:
         suite = "hourly-dev"
     elif "--core-journeys" in args:
         suite = "core-journeys"
+    elif "--critical-journeys" in args:
+        suite = "critical-journeys"
     for index, arg in enumerate(args):
         if arg == "--suite" and index + 1 < len(args):
             suite = args[index + 1]
@@ -4802,7 +5855,7 @@ def seeded_only_failed_files_from_lease(lease: dict[str, Any] | None, args: list
 
 def run_targets_playwright(args: list[str]) -> bool:
     suite, tests = infer_run_suite_and_tests(args)
-    return suite in {"playwright", "hourly-dev", "core-journeys"} or any(
+    return suite in {"playwright", "hourly-dev", "core-journeys", "critical-journeys"} or any(
         test.endswith(".spec.ts") for test in tests
     )
 
@@ -4823,6 +5876,106 @@ def release_docker_test_lease(lease_id: str) -> None:
     session_control.release_test_resource_lease(lease_id)
 
 
+def run_with_resource_lease_heartbeats(
+    command: list[str],
+    *,
+    env: dict[str, str],
+    leases: list[tuple[str, str, set[str], str]],
+) -> int:
+    """Run a child process while renewing every lease it relies on."""
+    stopped = threading.Event()
+    renewal_error: list[RuntimeError] = []
+
+    def heartbeat() -> None:
+        while not stopped.wait(session_control.DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS):
+            for lease_id, owner, resources, mode in leases:
+                try:
+                    session_control.renew_test_resource_lease(
+                        lease_id,
+                        owner,
+                        resources,
+                        mode=mode,
+                    )
+                except RuntimeError as exc:
+                    renewal_error.append(exc)
+                    return
+
+    thread = threading.Thread(target=heartbeat, name="test-resource-lease-heartbeat", daemon=True)
+    thread.start()
+    try:
+        result = subprocess.run(command, cwd=PROJECT_ROOT, env=env)
+    finally:
+        stopped.set()
+        thread.join(timeout=1)
+    if renewal_error:
+        print(f"Test resource lease renewal failed: {renewal_error[0]}", file=sys.stderr)
+        return 2
+    return result.returncode
+
+
+PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV = "OPENMATES_PLAYWRIGHT_ACCOUNT_LEASE_HELD"
+PLAYWRIGHT_NORMAL_ACCOUNT_SLOTS = tuple(range(1, 14))
+PLAYWRIGHT_RESERVED_ACCOUNTS_BY_SPEC = {
+    "account-recovery-flow.spec.ts": 14,
+    "backup-code-login-flow.spec.ts": 15,
+    "backup-codes-settings.spec.ts": 16,
+    "cli-created-account-login.spec.ts": 17,
+    "recovery-key-login-flow.spec.ts": 17,
+    "recovery-key-settings.spec.ts": 18,
+    "settings-change-email.spec.ts": 19,
+    "api-keys-flow.spec.ts": 20,
+}
+
+
+def _argument_value(args: list[str], name: str) -> str:
+    for index, value in enumerate(args):
+        if value == name and index + 1 < len(args):
+            return args[index + 1]
+        if value.startswith(f"{name}="):
+            return value.split("=", 1)[1]
+    return ""
+
+
+def acquire_standalone_playwright_account(
+    forwarded_args: list[str],
+    *,
+    owner: str,
+    timeout: int = session_control.DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+) -> tuple[list[str], tuple[str, str, set[str], str] | None, int | None]:
+    """Claim one account lane for a standalone spec across chat processes."""
+    spec = _argument_value(forwarded_args, "--spec")
+    if not spec or spec == "test-account-preflight.spec.ts":
+        return forwarded_args, None, None
+    explicit = _argument_value(forwarded_args, "--account")
+    required = PLAYWRIGHT_RESERVED_ACCOUNTS_BY_SPEC.get(spec)
+    candidates = [int(explicit)] if explicit else [required] if required is not None else list(PLAYWRIGHT_NORMAL_ACCOUNT_SLOTS)
+    deadline = time.monotonic() + max(0, timeout)
+    announced = False
+    while True:
+        for account in candidates:
+            lease_id = f"playwright-account-{account}-{uuid.uuid4().hex[:10]}"
+            resources = {f"playwright-account:{account}"}
+            try:
+                session_control.acquire_test_resource_lease(
+                    lease_id,
+                    owner,
+                    resources,
+                    timeout=0,
+                    poll=1,
+                    mode="exclusive",
+                )
+            except RuntimeError:
+                continue
+            updated = forwarded_args if explicit else [*forwarded_args, "--account", str(account)]
+            return updated, (lease_id, owner, resources, "exclusive"), account
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Timed out waiting for a free Playwright test-account lane")
+        if not announced:
+            print("All eligible Playwright account lanes are busy; waiting for a released lane...", file=sys.stderr)
+            announced = True
+        time.sleep(5)
+
+
 def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int = 10) -> list[str]:
     failures: list[str] = []
     for url in urls:
@@ -4839,6 +5992,7 @@ def check_dev_health_urls(urls: tuple[str, ...] = DEV_HEALTH_URLS, timeout: int 
 
 def check_vercel_ready_for_commit(git_sha: str) -> list[str]:
     """Use the canonical run_tests.py Vercel wait so the gate is tied to a commit."""
+    print(f"E2E deploy preflight: checking Vercel deployment for {git_sha[:9]}...", flush=True)
     spec = importlib.util.spec_from_file_location("openmates_run_tests_gate", RUN_TESTS_SCRIPT)
     if spec is None or spec.loader is None:
         return [f"Could not load {RUN_TESTS_SCRIPT}"]
@@ -4852,7 +6006,7 @@ def check_vercel_ready_for_commit(git_sha: str) -> list[str]:
 def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
     """Preflight E2E dispatch so agents do not test a stale or unreachable dev app."""
     if not run_targets_playwright(options.forwarded_args):
-        print("E2E deploy gate: SKIPPED (run does not target Playwright)")
+        print("E2E deploy preflight: SKIPPED (run does not target Playwright)")
         return False
     expected_commit = options.expected_commit or current_git_sha()
     subject_commit = resolve_test_subject_commit(
@@ -4863,12 +6017,12 @@ def run_e2e_deploy_gate(options: ControlRunOptions) -> bool:
     if os.environ.get("OPENMATES_SKIP_E2E_DEPLOY_GATE", "").lower() == "true":
         if options.require_exact_commit:
             raise RuntimeError("Exact-commit verification cannot skip the E2E deploy gate")
-        print("E2E deploy gate: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
+        print("E2E deploy preflight: SKIPPED (OPENMATES_SKIP_E2E_DEPLOY_GATE=true)")
         return False
     failures = [*check_vercel_ready_for_commit(subject_commit), *check_dev_health_urls()]
     if failures:
         raise RuntimeError("E2E deploy gate failed: " + "; ".join(failures))
-    print(f"E2E deploy gate: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
+    print(f"E2E deploy preflight: PASSED ({subject_commit[:9]}, dev endpoints reachable)")
     return True
 
 
@@ -4904,6 +6058,8 @@ def record_latest_run_artifact(
     campaign_key: str = "",
     debug_group_key: str = "",
     deployment_verified: bool = False,
+    response_media_run_type: str = "",
+    response_media_uploader: Any | None = None,
 ) -> str:
     artifacts = run_recording_artifacts(since_mtime=since_mtime)
     if not artifacts:
@@ -4935,8 +6091,16 @@ def record_latest_run_artifact(
                     run_git_sha = str(run_data["git_sha"])
                 run_data["deployment_reference"] = expected_commit or run_data.get("git_sha")
             write_json(artifact, run_data)
-            source, workflow = run_control_source(run_data)
-            record_run_result(run_data, source=source, workflow=workflow)
+            record_run_result(run_data)
+            if response_media_run_type:
+                response_media_record = publish_latest_playwright_response_media(
+                    run_data,
+                    run_type=response_media_run_type,
+                    uploader=response_media_uploader,
+                )
+                run_data["response_media_video"] = response_media_record
+                write_json(artifact, run_data)
+                record_run_result(run_data)
             if deployment_verified:
                 proof_records = record_proof_source_attestations(run_data)
                 proof_finalizations = auto_finalize_proof_video_sources(
@@ -4947,7 +6111,7 @@ def record_latest_run_artifact(
                 if proof_finalizations:
                     run_data["proof_video_finalizations"] = proof_finalizations
                     write_json(artifact, run_data)
-                    record_run_result(run_data, source=source, workflow=workflow)
+                    record_run_result(run_data)
             if index > 0:
                 print(f"Imported fallback run artifact: {display_path(artifact)}", file=sys.stderr)
             return run_git_sha or expected_commit
@@ -4976,6 +6140,56 @@ def command_run_detached(runner_args: list[str]) -> int:
     print(f"  log: {display_path(log_path)}")
     print("  status: python3 scripts/tests.py status --json")
     return 0
+
+
+def begin_control_plane_dispatch(
+    options: ControlRunOptions,
+    *,
+    subject_commit: str,
+    selected_test_keys: list[str],
+    resources: set[str],
+    selected_account: int | None = None,
+) -> tuple[ControlPlaneTestControlStore | None, str, bool]:
+    """Fingerprint a run and suppress an equivalent live/successful dispatch."""
+    store = get_store()
+    if not isinstance(store, ControlPlaneTestControlStore):
+        return None, "", False
+    suite, inferred_tests = infer_run_suite_and_tests(options.forwarded_args)
+    selection = selected_test_keys or inferred_tests or [" ".join(options.forwarded_args) or f"suite:{suite}"]
+    dispatch_profile = suite
+    if options.proof_video_profile:
+        dispatch_profile = f"{suite}:{options.proof_video_profile}"
+    create_account_slot = _argument_value(options.forwarded_args, "--create-account-slot")
+    if create_account_slot:
+        dispatch_profile = f"{dispatch_profile}:create-account-slot-{create_account_slot}"
+    account = str(
+        selected_account
+        or _argument_value(options.forwarded_args, "--account")
+        or os.getenv("OPENMATES_TEST_ACCOUNT", "default")
+    )
+    dispatch, reused = store.request_dispatch(
+        commit=subject_commit or current_git_sha(),
+        tests=selection,
+        profile=dispatch_profile,
+        account=account,
+        required_services=sorted(resources),
+    )
+    dispatch_key = str(dispatch["dispatch_key"])
+    force_proof_dispatch = bool(options.proof_video_profile and "--force" in options.forwarded_args)
+    if reused and not force_proof_dispatch:
+        print(
+            f"Equivalent test dispatch already {dispatch.get('status')}: {dispatch_key}; not starting a duplicate run."
+        )
+        return store, dispatch_key, True
+    if reused:
+        print(f"Re-running equivalent proof-video dispatch {dispatch_key} because --force was requested.")
+    for service in sorted(resources):
+        failures = check_dev_health_urls() if service == session_control.DOCKER_RESOURCE_DEV_STACK else []
+        dispatch = store.record_dispatch_canary(dispatch_key, service, healthy=not failures)
+        if failures:
+            raise RuntimeError(f"Required service canary failed for {service}: {'; '.join(failures)}")
+    store.update_dispatch(dispatch_key, "running")
+    return store, dispatch_key, False
 
 
 def command_run(runner_args: list[str]) -> int:
@@ -5023,6 +6237,7 @@ def command_run(runner_args: list[str]) -> int:
                 lease_id=options.lease_id,
                 campaign_key=options.campaign_key,
                 debug_group_key=options.debug_group_key,
+                proof_video_profile=options.proof_video_profile,
             )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
@@ -5036,16 +6251,45 @@ def command_run(runner_args: list[str]) -> int:
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2
+    lease_owner = os.environ.get("OPENCODE_SESSION_ID", "manual")
+    account_lease: tuple[str, str, set[str], str] | None = None
+    selected_account: int | None = None
+    try:
+        forwarded_args, account_lease, selected_account = acquire_standalone_playwright_account(
+            options.forwarded_args,
+            owner=lease_owner,
+        )
+        if forwarded_args is not options.forwarded_args:
+            options = ControlRunOptions(
+                forwarded_args=forwarded_args,
+                expected_commit=options.expected_commit,
+                require_exact_commit=options.require_exact_commit,
+                gate_deploy=options.gate_deploy,
+                detach=options.detach,
+                lease_required=options.lease_required,
+                lease_id=options.lease_id,
+                campaign_key=options.campaign_key,
+                debug_group_key=options.debug_group_key,
+                proof_video_profile=options.proof_video_profile,
+            )
+    except RuntimeError as exc:
+        print(f"Playwright account allocation failed: {exc}", file=sys.stderr)
+        return 2
     resources = docker_resources_for_run(options.forwarded_args)
-    docker_lease_id = f"test-{uuid.uuid4().hex[:12]}" if resources else ""
+    # run_tests.py owns the short-lived shared dev-stack lease around the
+    # actual CLI/Playwright phase. This wrapper retains only the account lane,
+    # avoiding a lease across deploy waits and local unit suites.
+    docker_lease_id = ""
     if docker_lease_id:
         try:
             acquire_docker_test_lease(
                 docker_lease_id,
-                os.environ.get("OPENCODE_SESSION_ID", "manual"),
+                lease_owner,
                 resources,
             )
         except RuntimeError as exc:
+            if account_lease:
+                release_docker_test_lease(account_lease[0])
             print(f"Test dispatch blocked by Docker restart coordination: {exc}", file=sys.stderr)
             return 2
     deployment_verified = False
@@ -5056,6 +6300,8 @@ def command_run(runner_args: list[str]) -> int:
             print(str(exc), file=sys.stderr)
             if docker_lease_id:
                 release_docker_test_lease(docker_lease_id)
+            if account_lease:
+                release_docker_test_lease(account_lease[0])
             return 2
     try:
         preflight_test_control_plane()
@@ -5067,7 +6313,34 @@ def command_run(runner_args: list[str]) -> int:
         )
         if docker_lease_id:
             release_docker_test_lease(docker_lease_id)
+        if account_lease:
+            release_docker_test_lease(account_lease[0])
         return 2
+
+    dispatch_store: ControlPlaneTestControlStore | None = None
+    dispatch_key = ""
+    dispatch_terminal = False
+    try:
+        dispatch_store, dispatch_key, dispatch_reused = begin_control_plane_dispatch(
+            options,
+            subject_commit=subject_commit,
+            selected_test_keys=selected_test_keys,
+            resources=resources,
+            selected_account=selected_account,
+        )
+    except RuntimeError as exc:
+        print(f"Test dispatch rejected by the engineering control plane: {exc}", file=sys.stderr)
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
+        if account_lease:
+            release_docker_test_lease(account_lease[0])
+        return 2
+    if dispatch_reused:
+        if docker_lease_id:
+            release_docker_test_lease(docker_lease_id)
+        if account_lease:
+            release_docker_test_lease(account_lease[0])
+        return 0
 
     command = [sys.executable, str(RUN_TESTS_SCRIPT), *options.forwarded_args]
     run_env = os.environ.copy()
@@ -5075,6 +6348,9 @@ def command_run(runner_args: list[str]) -> int:
         run_env["OPENMATES_TEST_SUBJECT_COMMIT"] = subject_commit
     if docker_lease_id:
         run_env["OPENMATES_DOCKER_TEST_LEASE_HELD"] = "1"
+    if selected_account is not None:
+        run_env["OPENMATES_TEST_ACCOUNT"] = str(selected_account)
+        run_env[PLAYWRIGHT_ACCOUNT_LEASE_HELD_ENV] = "1"
     seeded_failed_files = seeded_only_failed_files_from_lease(active_lease, options.forwarded_args)
     if selected_test_labels:
         run_env["OPENMATES_CAMPAIGN_TEST_LABELS_JSON"] = json.dumps(selected_test_labels)
@@ -5089,7 +6365,35 @@ def command_run(runner_args: list[str]) -> int:
             suite, tests = infer_run_suite_and_tests(options.forwarded_args)
             mark_running(suite=suite, tests=tests, command=["python3", "scripts/tests.py", "run", *runner_args])
         artifact_start_mtime = datetime.now(timezone.utc).timestamp() - 1
-        result = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env)
+        active_resource_leases: list[tuple[str, str, set[str], str]] = []
+        if docker_lease_id:
+            active_resource_leases.append((docker_lease_id, lease_owner, resources, "shared"))
+        if account_lease:
+            active_resource_leases.append(account_lease)
+        if active_resource_leases:
+            returncode = run_with_resource_lease_heartbeats(command, env=run_env, leases=active_resource_leases)
+        else:
+            returncode = subprocess.run(command, cwd=PROJECT_ROOT, env=run_env).returncode
+        if resources and subject_commit and not options.require_exact_commit:
+            try:
+                validate_test_subject_commit_after_run(
+                    subject_commit,
+                    options.forwarded_args,
+                    require_exact=options.require_exact_commit,
+                )
+            except RuntimeError as exc:
+                if dispatch_store and dispatch_key:
+                    dispatch_store.update_dispatch(dispatch_key, "failed", "deployment_subject_drift")
+                    dispatch_terminal = True
+                print(str(exc), file=sys.stderr)
+                return 2
+        if dispatch_store and dispatch_key:
+            dispatch_store.update_dispatch(
+                dispatch_key,
+                "succeeded" if returncode == 0 else "failed",
+                None if returncode == 0 else f"runner_exit:{returncode}",
+            )
+            dispatch_terminal = True
         recorded_commit = record_latest_run_artifact(
             expected_commit=subject_commit or options.expected_commit,
             since_mtime=artifact_start_mtime,
@@ -5097,17 +6401,32 @@ def command_run(runner_args: list[str]) -> int:
             campaign_key=options.campaign_key,
             debug_group_key=options.debug_group_key,
             deployment_verified=deployment_verified,
+            response_media_run_type=playwright_response_media_run_type(options),
         )
         if not recorded_commit:
-            return 2 if options.expected_commit else result.returncode
+            if deployment_verified:
+                print("E2E verification gate: FAILED (no valid run artifact was recorded)", file=sys.stderr)
+            return 2 if options.expected_commit else returncode
         if options.campaign_key:
             artifacts = run_recording_artifacts(since_mtime=artifact_start_mtime)
             if artifacts:
                 add_debug_child_groups(options.campaign_key, options.debug_group_key, read_json(artifacts[0], {}))
-        return result.returncode
+        if deployment_verified:
+            if returncode == 0:
+                print(f"E2E verification gate: PASSED ({recorded_commit[:9]})")
+            else:
+                print(f"E2E verification gate: FAILED (runner exited {returncode})", file=sys.stderr)
+        return returncode
     finally:
+        if dispatch_store and dispatch_key and not dispatch_terminal:
+            try:
+                dispatch_store.update_dispatch(dispatch_key, "failed", "runner_interrupted")
+            except RuntimeError as exc:
+                print(f"Could not finalize interrupted dispatch {dispatch_key}: {exc}", file=sys.stderr)
         if docker_lease_id:
             release_docker_test_lease(docker_lease_id)
+        if account_lease:
+            release_docker_test_lease(account_lease[0])
 
 
 def _registry_option_name(action: argparse.Action) -> str:
@@ -5165,6 +6484,11 @@ def main(argv: list[str] | None = None) -> int:
         runner_args = raw_argv[1:]
         if runner_args and runner_args[0] == "--":
             runner_args = runner_args[1:]
+        if any(arg in {"-h", "--help"} for arg in runner_args):
+            return subprocess.run(
+                [sys.executable, str(RUN_TESTS_SCRIPT), *runner_args],
+                cwd=PROJECT_ROOT,
+            ).returncode
         return command_run(runner_args)
 
     parser = argparse.ArgumentParser(description="OpenMates unified test control plane")
@@ -5229,6 +6553,7 @@ def main(argv: list[str] | None = None) -> int:
     campaign_start.add_argument("--session", default=os.environ.get("OPENCODE_SESSION_ID", "manual"))
     campaign_start.add_argument("--campaign", default="")
     campaign_start.add_argument("--test-key", action="append", default=[])
+    campaign_start.add_argument("--daily-recovery", action="store_true")
     campaign_start.add_argument("--json", action="store_true")
     campaign_handoff = campaign_sub.add_parser("handoff", help="Rebind a campaign coordinator to the current visible chat")
     campaign_handoff.add_argument("--campaign", required=True)
@@ -5286,6 +6611,9 @@ def main(argv: list[str] | None = None) -> int:
     campaign_finalize = campaign_sub.add_parser("finalize", help="Complete a campaign from a full nightly-equivalent run")
     campaign_finalize.add_argument("--campaign", required=True)
     campaign_finalize.add_argument("--run", required=True)
+    campaign_milestone = campaign_sub.add_parser("milestone", help="Evaluate the bounded daily-recovery milestone")
+    campaign_milestone.add_argument("--campaign", required=True)
+    campaign_milestone.add_argument("--run", required=True)
     campaign_intent = campaign_sub.add_parser("intent", help="Record a worker fix intent before source edits")
     campaign_intent.add_argument("--group", required=True)
     campaign_intent.add_argument("--lease", required=True)
@@ -5426,7 +6754,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "campaign":
         try:
             if args.campaign_command == "start":
-                payload = start_debug_campaign(args.session, selected_test_keys=args.test_key or None, campaign_key=args.campaign)
+                payload = start_debug_campaign(
+                    args.session,
+                    selected_test_keys=args.test_key or None,
+                    campaign_key=args.campaign,
+                    daily_recovery=args.daily_recovery,
+                )
             elif args.campaign_command == "handoff":
                 payload = handoff_debug_campaign(
                     args.campaign,
@@ -5484,6 +6817,8 @@ def main(argv: list[str] | None = None) -> int:
                 payload = complete_debug_group(args.group, commit=args.commit)
             elif args.campaign_command == "finalize":
                 payload = finalize_debug_campaign(args.campaign, args.run)
+            elif args.campaign_command == "milestone":
+                payload = record_daily_recovery_milestone(args.campaign, args.run)
             elif args.campaign_command == "intent":
                 payload = submit_worker_fix_intent(
                     args.group,

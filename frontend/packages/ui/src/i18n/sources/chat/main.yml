@@ -1755,6 +1755,174 @@ generated_by:
   sv: "genererad av {model}"
   he: "נוצר על ידי {model}"
   verified_by_human: []
+assistant_speech.confirmation:
+  context: Chapter label for the prerecorded acknowledgement in the assistant speech player
+  en: Confirmation
+  de: Bestätigung
+  zh: 确认
+  es: Confirmación
+  fr: Confirmation
+  pt: Confirmação
+  ru: Подтверждение
+  ja: 確認
+  ko: 확인
+  it: Conferma
+  tr: Onay
+  vi: Xác nhận
+  id: Konfirmasi
+  pl: Potwierdzenie
+  nl: Bevestiging
+  ar: تأكيد
+  hi: पुष्टि
+  th: การยืนยัน
+  cs: Potvrzení
+  sv: Bekräftelse
+  he: אישור
+  verified_by_human: []
+assistant_speech.using_apps:
+  context: Chapter label for the temporary app-use announcement in the assistant speech player
+  en: Using apps
+  de: Apps verwenden
+  zh: 使用应用
+  es: Usando aplicaciones
+  fr: Utilisation des apps
+  pt: Usando aplicativos
+  ru: Использование приложений
+  ja: アプリを使用
+  ko: 앱 사용
+  it: Utilizzo delle app
+  tr: Uygulamalar kullanılıyor
+  vi: Đang dùng ứng dụng
+  id: Menggunakan aplikasi
+  pl: Używanie aplikacji
+  nl: Apps gebruiken
+  ar: استخدام التطبيقات
+  hi: ऐप्स का उपयोग
+  th: กำลังใช้แอป
+  cs: Používání aplikací
+  sv: Använder appar
+  he: שימוש באפליקציות
+  verified_by_human: []
+assistant_speech.part:
+  context: Numbered fallback chapter label in the assistant speech player; {number} is the chapter number
+  en: Part {number}
+  de: Teil {number}
+  zh: 第 {number} 部分
+  es: Parte {number}
+  fr: Partie {number}
+  pt: Parte {number}
+  ru: Часть {number}
+  ja: パート {number}
+  ko: 파트 {number}
+  it: Parte {number}
+  tr: Bölüm {number}
+  vi: Phần {number}
+  id: Bagian {number}
+  pl: Część {number}
+  nl: Deel {number}
+  ar: الجزء {number}
+  hi: भाग {number}
+  th: ส่วนที่ {number}
+  cs: Část {number}
+  sv: Del {number}
+  he: חלק {number}
+  verified_by_human: []
+assistant_speech.code:
+  context: Chapter label for a spoken code summary
+  en: Code
+  de: Code
+  zh: 代码
+  es: Código
+  fr: Code
+  pt: Código
+  ru: Код
+  ja: コード
+  ko: 코드
+  it: Codice
+  tr: Kod
+  vi: Mã
+  id: Kode
+  pl: Kod
+  nl: Code
+  ar: الرمز
+  hi: कोड
+  th: โค้ด
+  cs: Kód
+  sv: Kod
+  he: קוד
+  verified_by_human: []
+assistant_speech.table:
+  context: Chapter label for a spoken table summary
+  en: Table
+  de: Tabelle
+  zh: 表格
+  es: Tabla
+  fr: Tableau
+  pt: Tabela
+  ru: Таблица
+  ja: 表
+  ko: 표
+  it: Tabella
+  tr: Tablo
+  vi: Bảng
+  id: Tabel
+  pl: Tabela
+  nl: Tabel
+  ar: جدول
+  hi: तालिका
+  th: ตาราง
+  cs: Tabulka
+  sv: Tabell
+  he: טבלה
+  verified_by_human: []
+assistant_speech.structured:
+  context: Chapter label for a spoken structured-content summary
+  en: Content
+  de: Inhalt
+  zh: 内容
+  es: Contenido
+  fr: Contenu
+  pt: Conteúdo
+  ru: Содержимое
+  ja: コンテンツ
+  ko: 콘텐츠
+  it: Contenuto
+  tr: İçerik
+  vi: Nội dung
+  id: Konten
+  pl: Treść
+  nl: Inhoud
+  ar: المحتوى
+  hi: सामग्री
+  th: เนื้อหา
+  cs: Obsah
+  sv: Innehåll
+  he: תוכן
+  verified_by_human: []
+assistant_speech.speak_response:
+  context: Label revealed for the compact assistant-message speech action
+  en: Speak response
+  de: Antwort vorlesen
+  zh: 朗读回复
+  es: Leer respuesta
+  fr: Lire la réponse
+  pt: Ler resposta
+  ru: Озвучить ответ
+  ja: 回答を読み上げる
+  ko: 응답 읽기
+  it: Leggi la risposta
+  tr: Yanıtı seslendir
+  vi: Đọc câu trả lời
+  id: Bacakan respons
+  pl: Odczytaj odpowiedź
+  nl: Antwoord voorlezen
+  ar: قراءة الرد
+  hi: जवाब पढ़ें
+  th: อ่านคำตอบ
+  cs: Přečíst odpověď
+  sv: Läs upp svaret
+  he: הקראת התשובה
+  verified_by_human: []
 pii_hide:
   context: Tooltip for the PII toggle button when sensitive data is currently visible (clicking will hide it)
   en: Hide sensitive data

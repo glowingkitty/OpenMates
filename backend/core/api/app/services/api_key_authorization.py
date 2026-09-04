@@ -1,7 +1,7 @@
 """API-key authorization helpers for SDK and REST access.
 
 Purpose: centralize API-key metadata normalization, scope checks, and budgets.
-Architecture: docs/specs/sdk-packages-v1/spec.yml.
+Architecture: docs/plans/api-key-scopes-v1/plan.yml.
 Security: callers must enforce these checks server-side before executing work.
 Scope: pure authorization logic with no Directus or request dependencies.
 """
@@ -11,6 +11,33 @@ from typing import Any
 
 
 VALID_CREDIT_PERIODS = {"daily", "weekly", "monthly", "lifetime"}
+CANONICAL_API_KEY_SCOPES = {
+    "chat": frozenset({
+        "chat:create_incognito",
+        "chat:create_saved",
+        "chat:read_existing",
+        "chat:append_existing",
+        "chat:delete",
+        "chat:share",
+        "chat:export",
+    }),
+    "tasks": frozenset({"task:read", "task:read_metadata", "task:create", "task:write"}),
+    "projects": frozenset({"project:read", "project:create", "project:write"}),
+    "plans": frozenset({"plan:read", "plan:read_metadata", "plan:create", "plan:write"}),
+    "workflows": frozenset({"workflow:read", "workflow:create", "workflow:write", "workflow:execute"}),
+    "memories": frozenset({"memory:read", "memory:write"}),
+    "account": frozenset({"account:export", "account:import"}),
+    "developer": frozenset({
+        "developer:api_keys:read",
+        "developer:api_keys:create",
+        "developer:api_keys:revoke",
+        "developer:devices:read",
+        "developer:devices:approve",
+        "developer:devices:revoke",
+    }),
+}
+API_KEY_SCOPE_GROUPS = frozenset({*CANONICAL_API_KEY_SCOPES, "apps"})
+VALID_APP_SCOPE_MODES = {"all", "selected"}
 
 
 @dataclass(frozen=True)
@@ -50,6 +77,46 @@ class ApiKeyAuthorizationService:
         if credit_limit:
             normalized["credit_limit"] = self._normalize_credit_limit(credit_limit)
 
+        return normalized
+
+    def validate_scope_payload(self, scopes: dict[str, Any] | None) -> dict[str, Any]:
+        """Validate newly created key scopes without invalidating legacy stored metadata."""
+        if scopes is None:
+            return {}
+        if not isinstance(scopes, dict):
+            raise ValueError("API key scopes must be an object")
+
+        unsupported_groups = sorted(set(scopes) - API_KEY_SCOPE_GROUPS)
+        if unsupported_groups:
+            raise ValueError(f"Unsupported API key scope group: {unsupported_groups[0]}")
+
+        normalized: dict[str, Any] = {}
+        for group, valid_scopes in CANONICAL_API_KEY_SCOPES.items():
+            values = scopes.get(group, [])
+            if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+                raise ValueError(f"API key scope group {group} must be a list of strings")
+            invalid = sorted(set(values) - valid_scopes)
+            if invalid:
+                raise ValueError(f"Unsupported API key scope: {invalid[0]}")
+            normalized[group] = list(dict.fromkeys(values))
+
+        apps = scopes.get("apps", {"mode": "selected", "allowed_apps": [], "allowed_skills": []})
+        if not isinstance(apps, dict):
+            raise ValueError("API key apps scope must be an object")
+        mode = apps.get("mode", "selected")
+        if mode not in VALID_APP_SCOPE_MODES:
+            raise ValueError(f"Unsupported API key apps scope mode: {mode}")
+        allowed_apps = apps.get("allowed_apps") or []
+        allowed_skills = apps.get("allowed_skills") or []
+        if not isinstance(allowed_apps, list) or not all(isinstance(value, str) and value for value in allowed_apps):
+            raise ValueError("API key allowed_apps must be a list of non-empty strings")
+        if not isinstance(allowed_skills, list) or not all(isinstance(value, str) and ":" in value for value in allowed_skills):
+            raise ValueError("API key allowed_skills must use app_id:skill_id strings")
+        normalized["apps"] = {
+            "mode": mode,
+            "allowed_apps": list(dict.fromkeys(allowed_apps)),
+            "allowed_skills": list(dict.fromkeys(allowed_skills)),
+        }
         return normalized
 
     def require_chat_scope(self, metadata: dict[str, Any], required_scope: str) -> None:

@@ -26,6 +26,7 @@ CLAUDE_SETTINGS = Path(".claude/settings.json")
 CODEX_BRIDGE = Path(".codex/hooks/claude-hook-bridge.sh")
 CODEX_HOOKS_JSON = Path(".codex/hooks.json")
 OPENCODE_PLUGIN = Path(".opencode/plugins/openmates-hooks.js")
+OPENCODE_PLUGIN_IMPLEMENTATION = Path(".opencode/runtime/openmates-hooks-runtime.js")
 
 
 @dataclass(frozen=True)
@@ -227,7 +228,9 @@ def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
         "claude": _read(root / CLAUDE_SETTINGS),
         "codex": _read(root / CODEX_BRIDGE),
         "codex_hooks_json": _read(root / CODEX_HOOKS_JSON),
-        "opencode": _read(root / OPENCODE_PLUGIN),
+        "opencode": _read(
+            root / (OPENCODE_PLUGIN_IMPLEMENTATION if (root / OPENCODE_PLUGIN_IMPLEMENTATION).is_file() else OPENCODE_PLUGIN)
+        ),
     }
     issues: list[AuditIssue] = []
     shared_hooks = manifest.get("shared_hooks") or []

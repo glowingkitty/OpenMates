@@ -34,6 +34,24 @@
     status?: 'processing' | 'finished' | 'error' | 'cancelled' | string;
   }
 
+  type SubChatProgress = {
+    type?: 'sub_chat_progress';
+    chat_id?: string;
+    task_id?: string;
+    message_id?: string;
+    execution_mode?: 'parallel' | 'sequential';
+    status?: 'running' | 'stopping' | 'stopped' | 'completed' | 'error' | 'cancelled' | string;
+    total?: number;
+    completed?: number;
+    active_sub_chat_id?: string | null;
+  };
+
+  type SubChatCardStatus = {
+    label: string;
+    testId: string;
+    state: 'completed' | 'thinking' | 'waiting' | 'stopped' | 'attention' | 'queued';
+  };
+
   let {
     batchId,
     parentChatId,
@@ -49,8 +67,10 @@
   let contextMenuVisible = $state(false);
   let downloading = $state(false);
   let prefersTouchCta = $state(false);
+  let latestSubChatProgress = $state<SubChatProgress | null>(null);
   let latestLoadId = 0;
   const terminalSubChatIds = new Set<string>();
+  const STATUS_MATE_NAME_MAX_LENGTH = 22;
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -63,6 +83,40 @@
       `--orb-color-a: ${colors.start}`,
       `--orb-color-b: ${colors.end}`,
     ].join('; ');
+  }
+
+  function statusMateName(subChat: SubChatPreview): string {
+    const rawName = (subChat.title || 'Mate').trim();
+    if (rawName.length <= STATUS_MATE_NAME_MAX_LENGTH) return rawName;
+    return `${rawName.slice(0, STATUS_MATE_NAME_MAX_LENGTH).trimEnd()}...`;
+  }
+
+  function getSubChatCardStatus(subChat: SubChatPreview): SubChatCardStatus {
+    const progressStatus = latestSubChatProgress?.status || '';
+    if (
+      subChat.previewSummary ||
+      terminalSubChatIds.has(subChat.chat_id) ||
+      status === 'finished' ||
+      progressStatus === 'completed'
+    ) {
+      return { label: 'Completed', testId: 'sub-chat-status-completed', state: 'completed' };
+    }
+    if (status === 'error' || progressStatus === 'error' || progressStatus === 'failed') {
+      return { label: 'Needs attention', testId: 'sub-chat-status-attention', state: 'attention' };
+    }
+    if (status === 'cancelled' || progressStatus === 'cancelled' || progressStatus === 'stopped') {
+      return { label: 'Stopped', testId: 'sub-chat-status-stopped', state: 'stopped' };
+    }
+    if (latestSubChatProgress?.active_sub_chat_id === subChat.chat_id) {
+      return { label: `${statusMateName(subChat)} is thinking...`, testId: 'sub-chat-status-thinking', state: 'thinking' };
+    }
+    if (latestSubChatProgress?.execution_mode === 'sequential' && progressStatus !== 'completed') {
+      return { label: 'Waiting its turn', testId: 'sub-chat-status-waiting', state: 'waiting' };
+    }
+    if (status === 'processing' || progressStatus === 'running' || progressStatus === 'stopping') {
+      return { label: `${statusMateName(subChat)} is thinking...`, testId: 'sub-chat-status-thinking', state: 'thinking' };
+    }
+    return { label: 'Queued', testId: 'sub-chat-status-queued', state: 'queued' };
   }
 
   async function load(forceRefresh = false): Promise<void> {
@@ -185,6 +239,9 @@
     const handleSubChatLifecycle = (event: Event) => {
       const detail = (event as CustomEvent<Record<string, unknown>>).detail;
       if (!shouldRefreshFromDetail(detail)) return;
+      if (detail?.type === 'sub_chat_progress') {
+        latestSubChatProgress = detail as SubChatProgress;
+      }
       if (detail?.type === 'sub_chat_completed' && typeof detail.chat_id === 'string') {
         terminalSubChatIds.add(detail.chat_id);
       }
@@ -228,6 +285,7 @@
     {#each subChats as sc (sc.chat_id)}
       {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
       {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+      {@const subChatStatus = getSubChatCardStatus(sc)}
       <button
         type="button"
         class="sub-chat-card sub-chat-large-card"
@@ -241,9 +299,10 @@
       >
         <div
           class="sub-chat-status-pill"
-          data-testid={sc.previewSummary ? 'sub-chat-status-done' : 'sub-chat-status-active'}
+          data-testid={subChatStatus.testId}
+          data-status-state={subChatStatus.state}
         >
-          {sc.previewSummary ? 'Done' : 'Active'}
+          {subChatStatus.label}
         </div>
         <div class="sub-chat-large-orbs" aria-hidden="true">
           <div class="sub-chat-orb sub-chat-orb-1"></div>
@@ -390,6 +449,10 @@
     font-size: var(--font-size-xxs);
     font-weight: 800;
     line-height: 1;
+    max-width: calc(100% - var(--spacing-16));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sub-chat-large-content {

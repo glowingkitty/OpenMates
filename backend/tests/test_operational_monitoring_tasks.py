@@ -14,6 +14,7 @@ from backend.core.api.app.services.operational_monitoring import (
     build_operational_snapshot,
     build_operational_discord_summary,
     resolve_operational_discord_webhook,
+    resolve_operations_discord_destination,
     resolve_operational_environment,
 )
 
@@ -30,6 +31,7 @@ def _test_snapshot():
         resource_series={"cpu_percent": [], "memory_percent": [], "disk_used_percent": [], "disk_free_bytes": []},
         activity_counts={"chats": 1, "messages": 2, "embeds": 3, "usage_entries": 4},
         processing_transactions={"created": 5, "completed": 6, "invalidated": 7, "non_terminal_over_15m": 8},
+        provider_health={"status": "healthy", "healthy_count": 2, "unavailable_names": [], "skipped_names": [], "stale_names": [], "checked_at": WINDOW_END.isoformat()},
         telemetry_freshness={"resource_metrics": "fresh", "application_metrics": "fresh", "report_scheduler": "fresh"},
         issues=[],
         billing={
@@ -67,6 +69,25 @@ def test_operational_discord_destinations_are_environment_isolated():
     assert resolve_operational_discord_webhook("production", environ) == "prod"
     assert resolve_operational_discord_webhook("development", environ) == "dev"
     assert resolve_operational_discord_webhook("self_host", environ) == "self-host"
+    assert resolve_operational_discord_webhook(
+        "self_host", {"OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST": "self-host-specific"},
+    ) == "self-host-specific"
+
+
+# contract-test: direct surface=cli assertions=operational-monitoring.notifications.canonical-operations-channel,operational-monitoring.environments.isolated-labeled
+def test_production_operations_destination_prefers_canonical_and_reports_fallback():
+    canonical = resolve_operations_discord_destination("production", {
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION": "canonical",
+        "DISCORD_WEBHOOK_PROD_SMOKE": "fallback",
+    })
+    fallback = resolve_operations_discord_destination("production", {
+        "DISCORD_WEBHOOK_PROD_SMOKE": "fallback",
+    })
+    missing = resolve_operations_discord_destination("production", {})
+
+    assert canonical == {"url": "canonical", "source": "canonical", "fallback_used": False}
+    assert fallback == {"url": "fallback", "source": "prod_smoke_fallback", "fallback_used": True}
+    assert missing == {"url": None, "source": "missing", "fallback_used": False}
 
 
 # contract-test: direct surface=cli assertions=operational-monitoring.self-host.no-billing,operational-monitoring.environments.isolated-labeled

@@ -22,6 +22,7 @@ APP_SKILL_SURFACE_WORKFLOW = "workflow"
 
 PROMPT_INJECTION_DISABLED = "disabled"
 PROMPT_INJECTION_ENABLED = "enabled"
+SEMANTIC_SCAN_MAX_PARALLEL = 4
 
 SECURITY_FIELD = "security"
 PROMPT_INJECTION_PROTECTION_FIELD = "prompt_injection_protection"
@@ -190,7 +191,7 @@ async def sanitize_app_skill_output(
             secrets_manager=context.secrets_manager,
             cache_service=context.cache_service,
             min_chars=120,
-            max_parallel=4,
+            max_parallel=SEMANTIC_SCAN_MAX_PARALLEL,
             always_sanitize_field_names=ALWAYS_SEMANTIC_FIELD_NAMES,
             skip_field_names=_ignore_fields_for_inference(ascii_sanitized),
         )

@@ -49,11 +49,27 @@ class WorkflowActionAdapter:
         self._chat_delivery_service_injected = chat_delivery_service is not None
 
     async def create_chat_report(self, config: dict[str, Any], context: dict[str, Any], user_id: str) -> dict[str, Any]:
-        del config, context, user_id
-        raise WorkflowActionExecutionError(
-            "WORKFLOW_ACTION_UNAVAILABLE",
-            "Create chat report cannot run because no safe server-side chat/report service is available.",
+        summary = config.get("summary") or config.get("message")
+        title = config.get("title") or "Workflow report"
+        if not isinstance(summary, str) or not summary.strip() or not isinstance(title, str) or not title.strip():
+            raise WorkflowActionExecutionError(
+                "WORKFLOW_ACTION_INVALID_CONFIG",
+                "Create chat report actions require non-empty title and summary values.",
+            )
+
+        delivery = await self.start_new_chat(
+            {
+                "title": title.strip(),
+                "message": summary.strip(),
+                "expires_in_seconds": config.get("expires_in_seconds") or 7 * 24 * 60 * 60,
+            },
+            context,
+            user_id,
         )
+        delivery["type"] = "create_chat_report"
+        delivery["summary"] = summary.strip()
+        delivery["report_id"] = delivery.get("delivery_id")
+        return delivery
 
     async def start_new_chat(self, config: dict[str, Any], context: dict[str, Any], user_id: str) -> dict[str, Any]:
         del context

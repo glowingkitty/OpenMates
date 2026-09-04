@@ -4,6 +4,7 @@
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
@@ -22,6 +23,8 @@
     import { chatDB } from '../services/db';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { assistantSpeechController } from '../services/assistantSpeechController';
+    import { getAssistantSpeechPreference, setAssistantSpeechPreference } from '../services/assistantSpeechPreference';
     import { isTeamAIInvocation } from '../services/teamService';
     import type { UploadedFileSearchResult } from '../services/embedStore';
     import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
@@ -74,6 +77,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../services/e2eTestHooks';
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
     import { phasedSyncState, NEW_CHAT_SENTINEL } from '../stores/phasedSyncStateStore'; // Import phased sync state store and sentinel value
@@ -180,7 +184,10 @@
     } from '../types/appSkills';
     import type { EmbedStoreEntry } from '../message_parsing/types';
     import { proxyImage, MAX_WIDTH_VIDEO_FULLSCREEN } from '../utils/imageProxy';
-    import { autoStartCreatedApplicationPreview } from '../services/applicationPreviewService';
+    import {
+        autoStartApplicationPreviewForEmbed,
+        autoStartCreatedApplicationPreview,
+    } from '../services/applicationPreviewService';
     import { externalLinks } from '../config/links';
 
     const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
@@ -1072,6 +1079,7 @@
 
     // Modify handleLogout to track signup state and reset signup step
     async function handleLogout() {
+        const landingIntroResetTokenBeforeLogout = guestLandingIntroResetToken;
         isLoggingOut.set(true);
         
         // Reset signup step to 1
@@ -1091,11 +1099,17 @@
                 return;
             }
 
-            if (isExampleChat(currentChat?.chat_id ?? activeChatStore.get() ?? '')) {
-                console.debug("[ActiveChat] Preserving static example chat after logout");
+            resetComposerWelcomeState();
+            const activeChatIdAtLogout = currentChat?.chat_id ?? activeChatStore.get() ?? '';
+            const shouldPreservePublicChat = isExampleChat(activeChatIdAtLogout) || currentChat?.is_shared_by_others;
+            if (shouldPreservePublicChat) {
+                console.debug("[ActiveChat] Preserving public chat after logout");
                 return;
             }
 
+            if (guestLandingIntroResetToken === landingIntroResetTokenBeforeLogout) {
+                resetGuestLandingIntroState();
+            }
             currentChat = null;
             currentMessages = [];
             followUpSuggestions = [];
@@ -1131,15 +1145,14 @@
             // CRITICAL: Don't clear shared chats - they're valid for non-auth users
             // CRITICAL: Skip this entirely during initial deep link processing - the user is loading
             // a draft or specific chat from the URL, not logging out. This effect was incorrectly
-            // firing when currentChat changed from null to the draft chat, causing demo-for-everyone
+            // firing when currentChat changed from null to a draft and overwriting it
             // to overwrite the draft immediately after it loaded.
             if (get(deepLinkProcessing)) {
                 console.debug('[ActiveChat] Skipping auth state effect - deep link processing in progress');
                 return;
             }
 
-            // OG image mode (?og=1): skip demo-for-everyone auto-load so the welcome screen
-            // (daily inspiration + for-everyone card) stays visible in /dev/og-image iframes.
+            // OG image mode (?og=1): preserve welcome in /dev/og-image iframes.
             if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('og') === '1') {
                 console.debug('[ActiveChat] Skipping auth state effect - og=1 mode (welcome screen should stay visible)');
                 return;
@@ -1155,7 +1168,7 @@
                 const isSharedChat = chatKey !== null || sharedChatIds.includes(currentChat.chat_id);
                 
                 // CRITICAL: Also check if this is a sessionStorage draft chat (non-auth user's unsaved work)
-                // Draft chats are valid for non-authenticated users and should NOT be overwritten with demo-for-everyone
+                // Draft chats are valid for non-authenticated users and must not be overwritten.
                 const isSessionStorageDraft = loadSessionStorageDraft(currentChat.chat_id) !== null;
                 const isAnonymousChat = currentChat.is_anonymous || isAnonymousChatId(currentChat.chat_id);
 
@@ -1173,7 +1186,7 @@
                 
                 if (isSharedChat && !$isLoggingOut) {
                     // This is a shared chat - don't clear it, it's valid for non-auth users
-                    // EXCEPTION: If we're explicitly logging out, always switch to demo-for-everyone
+                    // EXCEPTION: Explicit logout always returns to neutral welcome.
                     console.debug('[ActiveChat] Auth state changed to unauthenticated - keeping shared chat:', currentChat.chat_id);
                     return; // Keep the shared chat loaded
                 }
@@ -1187,6 +1200,8 @@
                 console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
                 
                 // Clear current chat state
+                resetComposerWelcomeState();
+                resetGuestLandingIntroState();
                 currentChat = null;
                 currentMessages = [];
                 resetChatHeaderState();
@@ -1212,17 +1227,15 @@
                 if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
                 }
-                // CRITICAL: Fully clear the previously loaded demo chat (e.g. 'demo-for-everyone')
+                // CRITICAL: Fully clear any previously loaded public chat
                 // on login transition.
                 //
                 // Why this matters (OPE-354):
-                // The non-authenticated view of the app keeps `currentChat` set to the
-                // `demo-for-everyone` welcome chat so the demo content renders before login.
+                // The non-authenticated view can keep `currentChat` set to a public chat.
                 // After authentication succeeds we need a clean welcome screen so the first
                 // message the user sends creates a genuinely fresh chat.
                 //
-                // If we only reset the header (old behavior), `currentChat.chat_id` stays as
-                // `demo-for-everyone`. That ID is then passed into MessageInput → handleSend
+                // If we only reset the header, the public ID remains and is passed into MessageInput → handleSend
                 // → sendHandlers.ts, which detects it via `isPublicChat(chatIdToUse)` and
                 // triggers the "Demo Duplication Flow": every demo message ("Digital team
                 // mates for everyone …") gets copied into the user's brand-new chat. The
@@ -3401,8 +3414,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         priorityContinueItems = [];
         recentChatTiltStates = [];
         recentChatsScrolledByUser = false;
+        welcomeContinueContextTeamId = undefined;
     }
 
+    let welcomeContinueContextTeamId = $state<string | null | undefined>(undefined);
     let recentChats = $state<RecentChatMeta[]>([]);
     let priorityContinueItems = $state<PriorityContinueItem[]>([]);
     let priorityContinueChatIds = $derived.by(() => new Set(
@@ -3466,11 +3481,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const isDraftOnly = !chat.title && !chat.encrypted_title && chat.encrypted_draft_md;
         let draftPreview: string | null = null;
 
+        const sanitizeVisibleDraftPreview = (value: string | null): string | null => {
+            const sanitized = value?.replace(/\s*<<<TEST_LIVE_MOCK:[^>]+>>>\s*/g, ' ').replace(/\s+/g, ' ').trim() || null;
+            return sanitized;
+        };
+
         if (isDraftOnly) {
             try {
                 const toDecrypt = chat.encrypted_draft_preview || chat.encrypted_draft_md;
                 if (toDecrypt) {
-                    draftPreview = await decryptWithMasterKey(toDecrypt);
+                    draftPreview = sanitizeVisibleDraftPreview(await decryptWithMasterKey(toDecrypt));
                 }
             } catch {
                 draftPreview = null;
@@ -3485,7 +3505,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         try {
             const meta = await chatMetadataCache.getDecryptedMetadata(chat);
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
-            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? meta?.draftPreview ?? null };
+            return { chat, title: meta?.title ?? null, category: meta?.category ?? null, icon: meta?.icon ?? null, summary: meta?.summary ?? null, imageBubbles, draftPreview: draftPreview ?? sanitizeVisibleDraftPreview(meta?.draftPreview ?? null) };
         } catch {
             return { chat, title: null, category: null, icon: null, summary: null, imageBubbles: null, draftPreview };
         }
@@ -3583,7 +3603,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             priorityContinueItems = sortContinuePriorityItems([...chatItems, ...embedItems], nowMs).slice(0, RECENT_CHATS_TOTAL);
         } catch (err) {
             console.warn('[ActiveChat] Failed to load priority continue items:', err);
-            priorityContinueItems = [];
         }
     }
 
@@ -3736,14 +3755,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
         if (isAuth) {
+            const contextChanged = welcomeContinueContextTeamId !== contextTeamId;
+            welcomeContinueContextTeamId = contextTeamId;
             nonAuthRecentChatsRequestId++;
             nonAuthChatTiltStates = [];
             nonAuthRecentChats = [];
             guestAllExamplesVisible = false;
-            recentChatsScrolledByUser = false;
-            recentChatTiltStates = [];
-            recentChats = [];
-            priorityContinueItems = [];
+            if (contextChanged) {
+                recentChatsScrolledByUser = false;
+                recentChatTiltStates = [];
+                recentChats = [];
+                priorityContinueItems = [];
+            }
             loadRecentChatsDebounced();
             loadPriorityContinueItemsDebounced();
         } else {
@@ -5009,6 +5032,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
     });
 
+    function resetComposerWelcomeState(clearLiveInput = true) {
+        if (blurTimer) {
+            clearTimeout(blurTimer);
+            blurTimer = undefined;
+        }
+        messageInputFocused = false;
+        messageInputRecentlyFocused = false;
+        messageInputHasContent = false;
+        messageInputMapsOpen = false;
+        anonymousFileAttachmentPending = false;
+        liveInputText = '';
+        suggestionsWouldOverlapWelcome = false;
+        void assistantSpeechController.stop().catch((error) => {
+            console.debug('[ActiveChat] Assistant speech was already unavailable during UI reset:', error);
+        });
+        if (clearLiveInput) {
+            void messageInputFieldRef?.clearMessageField(false, false).catch((error) => {
+                console.warn('[ActiveChat] Error clearing message input during UI reset:', error);
+            });
+        }
+
+        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+        if (activeElement instanceof HTMLElement) {
+            activeElement.blur();
+        }
+    }
+
     // Cache the last measured welcome content height so that when the welcome
     // block is hidden (hideWelcomeForKeyboard fades it to invisible), we can still
     // use its height for overlap calculations. Without this, hiding the welcome
@@ -5118,7 +5168,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         chatId: string,
         encryptedSlugs?: string | null,
     ): Promise<void> {
-        if (isPublicChat(chatId)) {
+        if (isPublicChat(chatId) || isExampleChat(chatId)) {
             if (currentChat?.chat_id === chatId) quickTipSlugs = [];
             return;
         }
@@ -5345,7 +5395,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat);
-     let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      let currentMessages = $state<ChatMessageModel[]>(initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      let assistantSpeechOverlayHeight = $state(0);
+      let autoSpeakResponse = $state(false);
+      let assistantSpeechPreferenceLoad = 0;
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat ? 'ready' : 'idle',
      );
@@ -5391,7 +5444,51 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
          currentChat?.chat_id &&
          !isPublicChat(currentChat.chat_id) &&
         (!showWelcome || currentMessages.length > 0)
-     ));
+      ));
+
+      $effect(() => {
+        const chatId = currentChat?.chat_id;
+        const load = ++assistantSpeechPreferenceLoad;
+        autoSpeakResponse = false;
+        if (!chatId || currentChat?.is_incognito || isPublicChat(chatId)) return;
+        void getAssistantSpeechPreference(chatId)
+          .then((enabled) => {
+            if (load === assistantSpeechPreferenceLoad) autoSpeakResponse = enabled;
+          })
+          .catch((error) => {
+            console.error(`[ActiveChat] Failed to load assistant speech preference for ${chatId}:`, error);
+          });
+      });
+
+      async function updateAssistantSpeechPreference(enabled: boolean, requestedChatId?: string): Promise<void> {
+        const chatId = requestedChatId ?? currentChat?.chat_id;
+        if (!chatId || currentChat?.is_incognito || isPublicChat(chatId)) return;
+        const previousValue = autoSpeakResponse;
+        autoSpeakResponse = enabled;
+        try {
+          await setAssistantSpeechPreference(chatId, enabled);
+        } catch (error) {
+          autoSpeakResponse = previousValue;
+          console.error(`[ActiveChat] Failed to update assistant speech preference for ${chatId}:`, error);
+          throw error;
+        }
+      }
+
+      async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
+        const chatId = currentChat?.chat_id;
+        if (!chatId || currentChat?.is_incognito) return;
+        const assistantMessage = currentMessages.find((message) => message.message_id === messageId);
+        if (isPublicChat(chatId)) {
+          const fixtures = currentChat?.public_speech?.[messageId] ?? [];
+          await assistantSpeechController.playPublicExample(chatId, messageId, fixtures);
+          return;
+        }
+        await assistantSpeechController.request(chatId, messageId, content, {
+          name: assistantMessage?.sender_name,
+          category: assistantMessage?.category,
+        });
+      }
+
       let hasActiveExampleChatSurface = $derived(Boolean(
          currentChat?.chat_id &&
          isExampleChat(currentChat.chat_id) &&
@@ -5775,6 +5872,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         guestLandingIntroPhase = phase;
     }
 
+    function resetGuestLandingIntroState() {
+        guestAllExamplesVisible = false;
+        guestSkipLandingIntro = false;
+        guestLandingIntroPhase = 'expanded';
+        guestLandingIntroResetToken += 1;
+    }
+
     $effect(() => {
         const inspirationIds = $dailyInspirationStore.inspirations.map((inspiration) => inspiration.inspiration_id).join('|');
         const personalizationKey = `${$authStore.isAuthenticated ? 'auth' : 'guest'}:${guestInterestContinueConfirmed}:${selectedGuestInterestTagIds.join(',')}:${inspirationIds}`;
@@ -5994,6 +6098,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             const persistedChatId = value.newlyCreatedChatIdToSelect;
             console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${persistedChatId}`);
             draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
+            const selectedChatId = activeChatStore.get();
+            if (selectedChatId && selectedChatId !== persistedChatId) {
+                recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'skipped' });
+                console.debug('[ActiveChat] Skipping stale persisted draft activation because another chat is selected:', {
+                    persistedChatId,
+                    selectedChatId,
+                });
+                return;
+            }
             let newChat = await chatDB.getChat(persistedChatId).catch((error) => {
                 console.error('[ActiveChat] Failed to read decrypted persisted draft shell:', persistedChatId, error);
                 return null;
@@ -6005,6 +6118,18 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 });
             }
             if (newChat) {
+                await waitForE2EDraftSelectionCommit(persistedChatId, 'active_chat');
+                const latestSelectedChatId = activeChatStore.get();
+                if (latestSelectedChatId !== selectedChatId) {
+                    recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'skipped' });
+                    console.debug('[ActiveChat] Skipping persisted draft activation because selection changed while loading:', {
+                        persistedChatId,
+                        selectedChatId,
+                        latestSelectedChatId,
+                    });
+                    return;
+                }
+                recordE2EDraftSelectionDecision({ chatId: persistedChatId, consumer: 'active_chat', result: 'applied' });
                 activeChatStore.setActiveChat(persistedChatId);
                 await loadChat(newChat);
                 temporaryChatId = null;
@@ -7386,17 +7511,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
-        if (blurTimer) {
-            clearTimeout(blurTimer);
-            blurTimer = undefined;
-        }
-        messageInputFocused = false;
-        messageInputRecentlyFocused = false;
-        suggestionsWouldOverlapWelcome = false;
-        const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
-        if (activeElement instanceof HTMLElement) {
-            activeElement.blur();
-        }
+        resetComposerWelcomeState(false);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
         // CRITICAL: Clear activeChatStore BEFORE setting showWelcome = true.
@@ -7415,11 +7530,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
-            guestAllExamplesVisible = false;
-            guestSkipLandingIntro = isGuestExampleChat;
-            guestLandingIntroPhase = isGuestExampleChat ? 'regular' : 'expanded';
-            if (!isGuestExampleChat) {
-                guestLandingIntroResetToken += 1;
+            if (isGuestExampleChat) {
+                guestAllExamplesVisible = false;
+                guestSkipLandingIntro = true;
+                guestLandingIntroPhase = 'regular';
+            } else {
+                resetGuestLandingIntroState();
             }
         } else {
             guestLandingIntroPhase = 'regular';
@@ -8519,7 +8635,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // RACE CONDITION GUARD: During the async gap in loadChat() (between setting currentChat
         // and setting currentMessages), currentMessages may still hold messages from the PREVIOUS
         // chat. If we process a chatUpdated event now, we'd append/merge the new chat's messages
-        // into the old chat's message array — causing cross-chat message leaks (e.g. demo-for-everyone
+        // into the old chat's message array, causing cross-chat message leaks (including public chats
         // messages appearing inside a real chat). Detect this by checking if currentMessages[0]
         // belongs to a different chat than currentChat.
         if (currentMessages.length > 0 && detail.newMessage) {
@@ -11272,6 +11388,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 return;
             }
             console.debug('[ActiveChat] Logout event received - clearing user chat and showing welcome screen');
+            resetComposerWelcomeState();
 
             const activeChatIdAtLogout = currentChat?.chat_id ?? activeChatStore.get();
             const shouldPreservePublicChat =
@@ -11292,25 +11409,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 chatHistoryRef?.updateMessages([]);
                 followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
                 showWelcome = true;
-                guestAllExamplesVisible = false;
-                guestSkipLandingIntro = false;
-                guestLandingIntroPhase = 'expanded';
-                guestLandingIntroResetToken += 1;
+                resetGuestLandingIntroState();
                 isAtBottom = false;
                 
                 // Clear the persistent store
                 activeChatStore.clearActiveChat();
-                
-                // CRITICAL: Clear message input field to prevent showing user's previous draft
-                // This is especially important on mobile where the input might still be visible
-                if (messageInputFieldRef) {
-                    try {
-                        await messageInputFieldRef.clearMessageField(false, false);
-                    } catch (error) {
-                        console.warn('[ActiveChat] Error clearing message input during logout:', error);
-                        // Continue even if clearing input fails
-                    }
-                }
                 
                 if (showCodeFullscreen) {
                     showCodeFullscreen = false;
@@ -12225,7 +12328,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // actual embed data arrives. When `send_embed_data` stores the embed and dispatches
         // `embedUpdated`, we need to force a re-render so the embed content is displayed.
         const embedUpdatedHandler = ((event: CustomEvent) => {
-            const { chat_id, message_id, embed_id, status, isProcessing } = event.detail;
+            const { chat_id, message_id, embed_id, type, status, isProcessing } = event.detail;
             
             // Only process if this embed is for the current chat
             if (!currentChat || currentChat.chat_id !== chat_id) {
@@ -12234,6 +12337,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             }
             
             console.info(`[ActiveChat] 🔄 embedUpdated received for embed ${embed_id} (status=${status}, isProcessing=${isProcessing})`);
+
+            if (status === 'finished' && type === 'application' && embed_id) {
+                void autoStartApplicationPreviewForEmbed(currentChat.chat_id, message_id, embed_id);
+            }
             
             // Force a re-render of messages by updating the ChatHistory component
             // This will cause Tiptap to re-render embed NodeViews, which will now find
@@ -12686,7 +12793,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     />
                 {:else}
                 <!-- Left side container for chat history and buttons -->
-                <div class="chat-side" class:welcome-chat-side={showWelcome} data-testid="chat-side" bind:this={chatSideEl}>
+                <div
+                    class="chat-side"
+                    class:welcome-chat-side={showWelcome}
+                    data-testid="chat-side"
+                    bind:this={chatSideEl}
+                    style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
+                >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
                     <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
@@ -12699,17 +12812,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             inert={hideWelcomeForKeyboard || (guestAllExamplesVisible && !$authStore.isAuthenticated)}
                             data-testid="daily-inspiration-area"
                         >
-                            <DailyInspirationBanner
-                                onStartChat={handleStartChatFromInspiration}
-                                onEmbedFullscreen={handleInspirationEmbedFullscreen}
-                                onVisibleInspirationChange={handleVisibleInspirationChange}
-                                onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
-                                containerWidth={effectiveChatWidth}
-                                variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
-                                landingIntroResetToken={guestLandingIntroResetToken}
-                                landingSignupSlideToken={guestInterestSignupSlideToken}
-                                skipLandingIntro={guestSkipLandingIntro}
-                            />
+                            {#key guestLandingIntroResetToken}
+                                <DailyInspirationBanner
+                                    onStartChat={handleStartChatFromInspiration}
+                                    onEmbedFullscreen={handleInspirationEmbedFullscreen}
+                                    onVisibleInspirationChange={handleVisibleInspirationChange}
+                                    onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
+                                    containerWidth={effectiveChatWidth}
+                                    variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
+                                    landingIntroResetToken={guestLandingIntroResetToken}
+                                    landingSignupSlideToken={guestInterestSignupSlideToken}
+                                    skipLandingIntro={guestSkipLandingIntro}
+                                />
+                            {/key}
                         </div>
                     {/if}
 
@@ -12719,6 +12834,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
                     <div
                         class="top-buttons"
+                        data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
@@ -12860,6 +12976,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             ></button> -->
                         </div>
                     </div>
+
+                    <AssistantSpeechPlayer onHeightChange={(height) => assistantSpeechOverlayHeight = height} />
 
                     <!-- Welcome greeting – always visible on the new chat screen -->
                     <!-- Faded out via CSS opacity transition when keyboard is open to free up visual space -->
@@ -13548,7 +13666,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                            backgroundFrames={(() => { const frames = activeLocaleVideo?.background_frames ?? activePublicChatMetadata?.background_frames; if (!frames) return null; const titleFrame = $locale?.startsWith('de') ? '/intro-frames/frame-00_DE.webp' : '/intro-frames/frame-00_EN.webp'; return [titleFrame, ...frames]; })()}
                           autoplayVideo={pendingAutoplayVideo}
                           onResend={handleResendAfterCreditsRestored}
-                           onChatNavigate={handleChatNavigate}
+                            onChatNavigate={handleChatNavigate}
+                            onSpeakMessage={speakAssistantMessage}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
@@ -13594,6 +13713,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     class:guest-welcome-input-context={showWelcome && !$authStore.isAuthenticated}
                     data-testid="message-input-wrapper"
                     bind:clientHeight={messageInputWrapperHeight}
+                    inert={showWelcome && guestLandingIntroContentCovered}
+                    aria-hidden={showWelcome && guestLandingIntroContentCovered}
                 >
                     {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
                         <a
@@ -13771,6 +13892,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     on:draftSaved={handleDraftSaved}
                                     placeholderText={showWelcome && !$authStore.isAuthenticated ? $text(activeGuestInputPlaceholderKey) : undefined}
                                     guestCtaMode={showWelcome && !$authStore.isAuthenticated}
+                                    {autoSpeakResponse}
+                                    onAssistantSpeechPreferenceChange={updateAssistantSpeechPreference}
                                     on:textchange={(e) => {
                                         const t = (e.detail?.text || '');
                                         liveInputText = t;
@@ -16025,12 +16148,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-history-state {
         position: absolute;
         z-index: var(--z-index-raised-1);
-        top: 50%;
+        top: max(calc(35vh + var(--spacing-8)), 280px);
         left: 50%;
         display: flex;
         align-items: center;
         gap: var(--spacing-3);
-        transform: translate(-50%, -50%);
+        transform: translateX(-50%);
         color: var(--color-grey-70);
         font-size: var(--font-size-sm);
     }
@@ -16096,7 +16219,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .scroll-to-top-button {
-        top: 18px;
+        top: calc(18px + var(--assistant-speech-overlay-reserve, 0px));
     }
 
     .scroll-to-bottom-button {
@@ -16128,7 +16251,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         right: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
-        z-index: var(--z-index-raised);
+        z-index: var(--z-index-raised-2);
         pointer-events: none;
     }
 

@@ -18,18 +18,18 @@ Before writing any code for a non-trivial task, you MUST create a structured imp
 
 ## Planning Steps
 
-### 0a. Decide Spec Size
+### 0a. Decide Specification And Plan Size
 
-Before planning non-trivial work, classify whether it needs no spec, an inline
-spec, or a full spec. Use
+Before planning non-trivial work, classify whether it needs no Specification, an
+inline Specification, or a Plan. Use
 `docs/contributing/guides/spec-driven-development.md` as the source of truth.
 
-Full specs are required for complex or risky work such as auth, encryption,
+Plans are required for complex or risky work such as auth, encryption,
 billing, privacy, teams, sharing, permissions, sync, AI pipeline changes,
 provider integrations, migrations, new API routes, app skills, embed types,
 background jobs, cron jobs, and Directus schema changes.
 
-If the change is trivial or mechanical, state why a spec would be overkill and
+If the change is trivial or mechanical, state why a Specification would be overkill and
 continue with normal planning.
 
 ### 0. Discover, Then State Your Understanding
@@ -70,11 +70,11 @@ Wait for a yes/no before proceeding to planning.
 
 ### 0b. Choose the Durable Work Ledger
 
-For full-spec work, `docs/specs/<slug>/spec.yml` is the only durable work
+For Plan work, `docs/plans/<slug>/plan.yml` is the only durable work
 ledger. It contains the plan, tasks, decisions, attempts, evidence, and handoff;
 do not create a session task file that duplicates those records.
 
-For inline-spec or non-spec work spanning more than one session or touching more
+For inline-Specification or work without a Plan spanning more than one session or touching more
 than three files, create a session task file immediately after confirming
 understanding. It gives any agent an exact checkpoint to resume from.
 
@@ -323,16 +323,16 @@ Is this correct?
 
 Complements the planning template above with the end-to-end lifecycle.
 
-1. **Discover** — Read related specs, docs, source patterns, tests, and tracker context before asking questions.
+1. **Discover** — Read related Specifications, Plans, docs, source patterns, tests, and tracker context before asking questions.
 2. **Understand** — State verified facts, uncertainties, scope, and non-goals; ask one blocking question at a time and wait for confirmation.
-3. **Specify** — For full-spec work, run `specify` and review `docs/specs/<slug>/spec.yml` before implementation.
-4. **Plan** — Follow the template above or run `plan-from-spec`. Check `sessions.py status` for file conflicts.
-5. **Test contract** — Define tests and expected evidence before implementation. Red evidence may pass unexpectedly or be inapplicable, but the result and reason must be recorded.
+3. **Specification** — For durable behavior, define or update it with `define-specification`.
+4. **Plan** — For Plan work, run `create-plan` and review `docs/plans/<slug>/plan.yml`. A Plan requires only a user-authored goal; optional fields are not implicit completion gates.
+5. **Task and Check** — Use `tasks-from-plan` for explicit Tasks. Define only the Checks that need verification, then record their Runs as evidence.
 6. **Implement** — Backend first, then frontend, then integration. Track every file. Lint incrementally.
-7. **Verify** — Work through Acceptance Criteria checklist. Run applicable pre-deploy checks for full-spec work.
+7. **Verify** — Run only the Checks explicitly required by the Plan or Task.
 8. **Deploy for verification** — Deploy when live Playwright or dev-server evidence is required. Rebuild Docker if backend changed.
 9. **Demonstrate** — New feature implementations, new hardcoded example chats, and actively debugged failed-to-green E2E work turn real green evidence into captioned proof videos with bounded frame review. Define the transcript outline and expected proof during planning, but write the exact tutorial transcript only after implementation is green. Narration audio is optional.
 10. **Publish** — Upload sanitized proof videos or screenshots after frame review with `scripts/opencode_response_media.py`, then embed the returned Markdown/HTML snippet in the final OpenCode response. Do not send proof media to Discord unless the user explicitly asks for a separate Discord mirror.
-11. **Confirm** — Run final `verify-spec`, provide the task summary, handle required user confirmation, and end the session.
+11. **Confirm** — Run final `verify-plan`, provide the task summary, handle required user confirmation, and end the session.
 
 If a test fails and you're stuck after 2 attempts: STOP and report.

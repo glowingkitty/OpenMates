@@ -25,6 +25,7 @@ from backend.core.api.app.services.directus.gift_card_methods import (
 )
 from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
 from backend.core.api.app.services.directus.chat_key_wrapper_methods import ChatKeyWrapperMethods
+from backend.core.api.app.services.directus.chat_model_preference_methods import ChatModelPreferenceMethods
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
@@ -102,6 +103,7 @@ class DirectusService:
         self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
         self.chat_key_wrapper = ChatKeyWrapperMethods(self) # Initialize chat key wrapper migration/read helpers
+        self.chat_model_preference = ChatModelPreferenceMethods(self) # Encrypted owner/chat model selector
         self.embed = EmbedMethods(self) # Initialize EmbedMethods
         self.project = ProjectMethods(self) # Initialize ProjectMethods
         self.team = TeamMethods(self) # Initialize Teams V1 team/membership methods
@@ -1192,6 +1194,8 @@ class DirectusService:
         data: Dict[str, Any],
         expected_version: int,
         *,
+        version_field: str = "version",
+        extra_filters: Dict[str, Any] | None = None,
         owner_hash_field: str | None = None,
         owner_hash: str | None = None,
         admin_required: bool = False,
@@ -1201,11 +1205,14 @@ class DirectusService:
         url = f"{self.base_url}/items/{collection}"
         params: Dict[str, Any] = {
             "filter[id][_eq]": item_id,
-            "filter[version][_eq]": expected_version,
+            f"filter[{version_field}][_eq]": expected_version,
             "limit": 1,
+            "fields": "*",
         }
         if owner_hash_field and owner_hash:
             params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
+        for field, value in (extra_filters or {}).items():
+            params[f"filter[{field}][_eq]"] = value
 
         headers = {}
         if admin_required:
@@ -1226,10 +1233,28 @@ class DirectusService:
             return None
         response_json = response_obj.json()
         data_value = response_json.get("data") if isinstance(response_json, dict) else None
-        if isinstance(data_value, list):
-            return data_value[0] if data_value else None
+        if isinstance(data_value, list) and data_value:
+            return data_value[0]
         if isinstance(data_value, dict):
             return data_value
+        rows = await self.get_items(
+            collection,
+            params={
+                "filter[id][_eq]": item_id,
+                "fields": "*",
+                "limit": 1,
+                **(
+                    {f"filter[{owner_hash_field}][_eq]": owner_hash}
+                    if owner_hash_field and owner_hash
+                    else {}
+                ),
+            },
+            no_cache=True,
+        )
+        candidate = rows[0] if isinstance(rows, list) and rows else None
+        if candidate and all(candidate.get(field) == value for field, value in data.items()):
+            return candidate
+        self.last_update_error = {"error": "conditional update response omitted the updated row"}
         return None
 
     # Assign the internal helper to the class

@@ -2,7 +2,7 @@
 #
 # Regression tests for durable rain radar S3 cleanup.
 # Rain radar embeds reuse the shared embed.s3_file_keys deletion path so all
-# preview/blob objects are removed when the owning embed is deleted.
+# preview/blob objects receive regional tombstones before their row is deleted.
 #
 # Architecture: docs/specs/weather-rain-radar/spec.yml
 
@@ -11,21 +11,26 @@ from __future__ import annotations
 import asyncio
 
 
-class FakeS3Service:
+class FakeDirectus:
     def __init__(self) -> None:
-        self.deleted: list[tuple[str, str]] = []
+        self.created: list[dict] = []
 
-    async def delete_file(self, bucket_key: str, file_key: str) -> None:
-        self.deleted.append((bucket_key, file_key))
+    async def create_item(self, collection: str, payload: dict, **_kwargs: object):
+        assert collection == "storage_deletion_tombstones"
+        self.created.append(payload)
+        return True, {"id": f"tombstone-{len(self.created)}", **payload}
+
+    async def get_items(self, *_args: object, **_kwargs: object) -> list[dict]:
+        return []
 
 
-def test_embed_s3_cleanup_deletes_rain_radar_preview_and_blob_files() -> None:
+# contract-test: supporting surface=rest_api assertions=storage.deletion.global-authoritative
+def test_embed_s3_cleanup_tombstones_rain_radar_preview_and_blob_files() -> None:
     from backend.core.api.app.services.directus.embed_methods import EmbedMethods
 
-    service = EmbedMethods.__new__(EmbedMethods)
-    s3_service = FakeS3Service()
+    service = EmbedMethods(FakeDirectus())
 
-    asyncio.run(service._delete_s3_files_for_embeds(
+    asyncio.run(service._persist_s3_tombstones_for_embeds(
         [
             {
                 "embed_id": "radar-embed-1",
@@ -35,10 +40,13 @@ def test_embed_s3_cleanup_deletes_rain_radar_preview_and_blob_files() -> None:
                 ],
             }
         ],
-        s3_service,
+        surviving_embeds=[],
     ))
 
-    assert s3_service.deleted == [
+    assert {
+        (row["logical_bucket"], row["object_key"])
+        for row in service.directus_service.created
+    } == {
         ("chatfiles", "user/radar-preview.webp"),
         ("chatfiles", "user/radar-blob.br"),
-    ]
+    }

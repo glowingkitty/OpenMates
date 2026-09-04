@@ -56,7 +56,7 @@ upload_files:
 
     files_metadata:
       type: json
-      note: "JSON object mapping variant names ('original', 'preview') to their S3 metadata (s3_key, width, height, size_bytes, format). Mirrors the FileVariantMetadata Pydantic model."
+      note: "JSON object mapping variant names ('original', 'preview') to their S3 metadata (s3_key, width, height, size_bytes, format, active_region). Mirrors the FileVariantMetadata Pydantic model."
 
     aes_key:
       type: string

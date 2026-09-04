@@ -8,7 +8,7 @@
   Features:
   - Dynamic Leaflet import (SSR-safe)
   - OpenStreetMap tiles with automatic dark mode support
-  - Custom pin markers via CSS mask-image
+  - Custom pin markers using the bundled shared Maps SVG asset
   - ResizeObserver for animation-safe invalidateSize()
   - Configurable center, zoom, markers, and optional polyline path
   - Exposes the Leaflet map instance via onMapReady callback for advanced use
@@ -21,24 +21,36 @@
 
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import mapsMarkerIconSvg from '../../../static/icons/maps.svg?raw';
   import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
   /** A single marker on the map */
   export interface MapMarker {
     lat: number;
     lon: number;
+    /** Optional ref for selection callbacks */
+    ref?: string;
     /** Optional label (used as tooltip) */
     label?: string;
     /** Optional custom CSS class for the marker icon */
     iconClass?: string;
+    /** Optional test ID for the marker element */
+    testId?: string;
     /** Visual opacity, used for list-hover focus without refitting the map */
     opacity?: number;
+    /** Every result ref represented by this coordinate (for shared stops) */
+    relatedRefs?: string[];
+    /** Stable coordinate key used to preserve explicit marker selection */
+    selectionKey?: string;
+    /** Keep the marker label visible while this marker is selected */
+    selected?: boolean;
   }
 
   /** A point in a polyline path */
   export interface MapPathPoint {
     lat: number;
     lon: number;
+    label?: string;
   }
 
   /** A route polyline rendered on the map */
@@ -47,8 +59,16 @@
     color?: string;
     weight?: number;
     opacity?: number;
+    dashArray?: string;
     ref?: string;
     testId?: string;
+  }
+
+  export interface MapBounds {
+    north: number;
+    south: number;
+    east: number;
+    west: number;
   }
 
   interface Props {
@@ -76,8 +96,16 @@
     minHeight?: string;
     /** Whether scroll wheel zoom is enabled (default: true) */
     scrollWheelZoom?: boolean;
+    /** Leaflet corner used for the zoom control (default: top-right) */
+    zoomControlPosition?: 'topleft' | 'topright' | 'bottomleft' | 'bottomright';
     /** Callback with the raw Leaflet map + L module for advanced customization */
     onMapReady?: (map: unknown, L: unknown) => void;
+    /** Called when a marker with a ref is clicked */
+    onMarkerSelect?: (ref: string, relatedRefs?: string[], selectionKey?: string) => void;
+    /** Called when a route path with a ref is clicked */
+    onRouteSelect?: (ref: string) => void;
+    /** Called after Leaflet settles its current viewport */
+    onBoundsChange?: (bounds: MapBounds) => void;
     /** Horizontal visual offset in pixels for center/fit (used when a left detail panel overlaps map) */
     centerOffsetX?: number;
   }
@@ -95,7 +123,11 @@
     height = '100%',
     minHeight = '220px',
     scrollWheelZoom = true,
+    zoomControlPosition = 'topright',
     onMapReady,
+    onMarkerSelect,
+    onRouteSelect,
+    onBoundsChange,
     centerOffsetX = 0,
   }: Props = $props();
 
@@ -130,8 +162,12 @@
   let resizeAnimationFrame: number | null = null;
   let appliedCenterPanX = 0;
   let leafletReady = $state(false);
+  let tilesLoaded = $state(false);
   let lastFitGeometrySignature = '';
   let lastLayerSignature = '';
+  const markerIconHtml = mapsMarkerIconSvg
+    .replace('<svg ', '<svg class="marker-icon" aria-hidden="true" ')
+    .replace('fill="#000"', 'fill="currentColor"');
 
   function applyTileTheme(isDarkMode: boolean) {
     const container = tileLayer?.getContainer?.();
@@ -150,11 +186,25 @@
 
   function layerSignature(): string {
     return JSON.stringify({
-      markers: markers.map((marker) => [marker.lat, marker.lon, marker.iconClass, marker.opacity, marker.label]),
+      markers: markers.map((marker) => [
+        marker.lat,
+        marker.lon,
+        marker.ref,
+        marker.relatedRefs,
+        marker.selectionKey,
+        marker.selected,
+        marker.testId,
+        marker.iconClass,
+        marker.opacity,
+        marker.label,
+      ]),
       paths: normalizedPaths.map((routePath) => [
         routePath.color,
         routePath.weight,
         routePath.opacity,
+        routePath.dashArray,
+        routePath.ref,
+        routePath.testId,
         routePath.points.map((point) => [point.lat, point.lon]),
       ]),
       pathColor,
@@ -176,15 +226,28 @@
     for (const marker of markers) {
       const customIcon = L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<div class="marker-icon"></div>',
+        html: markerIconHtml,
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       });
 
       const m = L.marker([marker.lat, marker.lon], { icon: customIcon }).addTo(markerLayerGroup);
       m.setOpacity(marker.opacity ?? 1);
+      const element = m.getElement?.();
+      if (marker.testId) element?.setAttribute('data-testid', marker.testId);
+      if (marker.label) element?.setAttribute('data-marker-label', marker.label);
+      if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
+      if (marker.ref) {
+        element?.setAttribute('data-marker-ref', marker.ref);
+        m.on('click', () => onMarkerSelect?.(marker.ref!, marker.relatedRefs, marker.selectionKey));
+      }
       if (marker.label) {
-        m.bindTooltip(marker.label, { permanent: false });
+        m.bindTooltip(marker.label, {
+          permanent: marker.selected === true,
+          direction: 'top',
+          offset: [0, -34],
+          className: 'embed-map-marker-label',
+        });
       }
       markerLayers.push(m);
     }
@@ -196,11 +259,15 @@
           color: routePath.color || pathColor,
           weight: routePath.weight || pathWeight,
           opacity: routePath.opacity ?? 0.8,
+          dashArray: routePath.dashArray,
         }
       ).addTo(pathLayerGroup);
       const element = line.getElement();
       if (routePath.testId) element?.setAttribute('data-testid', routePath.testId);
-      if (routePath.ref) element?.setAttribute('data-route-ref', routePath.ref);
+      if (routePath.ref) {
+        element?.setAttribute('data-route-ref', routePath.ref);
+        line.on('click', () => onRouteSelect?.(routePath.ref!));
+      }
       pathLayers.push(line);
     }
 
@@ -220,7 +287,20 @@
       }
     }
     applyCenterOffset();
+    emitBoundsChange();
     lastLayerSignature = layerSignature();
+  }
+
+  function emitBoundsChange() {
+    if (!leafletMap || !onBoundsChange) return;
+    const bounds = leafletMap.getBounds?.();
+    if (!bounds) return;
+    onBoundsChange({
+      north: bounds.getNorth(),
+      south: bounds.getSouth(),
+      east: bounds.getEast(),
+      west: bounds.getWest(),
+    });
   }
 
   function updateLeafletLayerStyles() {
@@ -232,16 +312,30 @@
       markerLayer.setOpacity?.(marker.opacity ?? 1);
       markerLayer.setIcon?.(L.divIcon({
         className: marker.iconClass || 'default-map-marker',
-        html: '<div class="marker-icon"></div>',
+        html: markerIconHtml,
         iconSize: [40, 40],
         iconAnchor: [20, 40],
       }));
+      const element = markerLayer.getElement?.();
+      if (marker.testId) element?.setAttribute('data-testid', marker.testId);
+      if (marker.label) element?.setAttribute('data-marker-label', marker.label);
+      if (marker.selectionKey) element?.setAttribute('data-marker-selection-key', marker.selectionKey);
+      markerLayer.unbindTooltip?.();
+      if (marker.label) {
+        markerLayer.bindTooltip?.(marker.label, {
+          permanent: marker.selected === true,
+          direction: 'top',
+          offset: [0, -34],
+          className: 'embed-map-marker-label',
+        });
+      }
     });
     normalizedPaths.forEach((routePath, index) => {
       pathLayers[index]?.setStyle?.({
         color: routePath.color || pathColor,
         weight: routePath.weight || pathWeight,
         opacity: routePath.opacity ?? 0.8,
+        dashArray: routePath.dashArray,
       });
     });
     lastLayerSignature = layerSignature();
@@ -291,19 +385,28 @@
         attributionControl: true,
         scrollWheelZoom,
       });
+      leafletMap.on('moveend zoomend', emitBoundsChange);
 
-      // Add zoom control on the right side
-      L.control.zoom({ position: 'topright' }).addTo(leafletMap);
+      const zoomControl = L.control.zoom({ position: zoomControlPosition });
+      zoomControl.addTo(leafletMap);
+      zoomControl.getContainer?.()?.setAttribute('data-testid', 'embed-map-zoom-controls');
 
       tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         className: isDarkMode ? 'dark-tiles' : '',
+      });
+      tileLayer.on('loading', () => {
+        tilesLoaded = false;
+      });
+      tileLayer.on('load', () => {
+        tilesLoaded = true;
       });
       tileLayer.addTo(leafletMap);
       stopWatchingMapTheme = watchDarkThemeActive(applyTileTheme);
       renderLeafletLayers({ fitBoundsToGeometry: true });
       lastFitGeometrySignature = geometrySignature();
       leafletReady = true;
+      emitBoundsChange();
 
       if (typeof ResizeObserver !== 'undefined') {
         mapResizeObserver = new ResizeObserver(() => {
@@ -348,6 +451,7 @@
     tileLayer = null;
     leafletModule = null;
     leafletReady = false;
+    tilesLoaded = false;
     lastFitGeometrySignature = '';
     lastLayerSignature = '';
   });
@@ -370,6 +474,7 @@
 <div
   class="embed-leaflet-map"
   data-testid="embed-leaflet-map"
+  data-tiles-loaded={tilesLoaded ? 'true' : 'false'}
   style="height: {height}; min-height: {minHeight};"
   bind:this={mapContainer}
 ></div>
@@ -385,19 +490,21 @@
     border: none;
   }
 
-  :global(.embed-leaflet-map .default-map-marker .marker-icon) {
+  :global(.embed-leaflet-map .marker-icon) {
+    display: block;
     width: 40px;
     height: 40px;
-    background-color: var(--color-primary, #6c63ff);
-    -webkit-mask-image: url('@openmates/ui/static/icons/pin.svg');
-    mask-image: url('@openmates/ui/static/icons/pin.svg');
-    -webkit-mask-size: contain;
-    mask-size: contain;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
     transition: opacity var(--duration-fast, 0.15s) ease;
+  }
+
+  :global(.embed-leaflet-map .embed-map-marker-label) {
+    border: 0;
+    border-radius: var(--radius-3, 8px);
+    background: var(--color-grey-0, #ffffff);
+    color: var(--color-font-primary, #222222);
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+    font-family: inherit;
+    font-weight: 650;
   }
 
   :global(.embed-leaflet-map .embeds-map-view-marker-active) {
@@ -417,6 +524,14 @@
     transform: none;
   }
 
+  :global(.embed-leaflet-map .leaflet-top.leaflet-left) {
+    top: 50% !important;
+    left: 14px !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translateY(-50%);
+  }
+
   @media (min-width: 601px) {
     :global(.embed-leaflet-map .leaflet-top.leaflet-right) {
       top: 50% !important;
@@ -430,5 +545,25 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border-radius: var(--radius-3);
     overflow: hidden;
+  }
+
+  :global(.embed-leaflet-map .leaflet-top.leaflet-left .leaflet-control-zoom) {
+    margin: 0 !important;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+    border: 0;
+    border-radius: var(--radius-full, 9999px);
+    overflow: hidden;
+  }
+
+  :global(.embed-leaflet-map .leaflet-top.leaflet-left .leaflet-control-zoom a) {
+    display: grid;
+    width: 57px;
+    height: 50px;
+    place-items: center;
+    border-color: var(--color-grey-25);
+    background: var(--color-grey-0);
+    color: var(--color-primary);
+    font-size: 1.75rem;
+    line-height: 1;
   }
 </style>

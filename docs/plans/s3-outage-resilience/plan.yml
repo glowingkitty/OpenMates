@@ -1,0 +1,837 @@
+schema_version: 3
+id: s3-outage-resilience
+title: S3 Outage Resilience And Operator Alerts
+status: approved
+
+specification_refs:
+  - id: architecture.storage-resilience
+    version: 1
+    role: primary
+    fingerprint: 4da84f38dede2f8727338aa9470c2c1f9b3f5bd1f931b4a2820b4db12c70cf89
+
+specification_impact:
+  classification: new_specification
+  specification_update_required: true
+  affected_assertions:
+    - storage-resilience.core.s3-is-noncritical
+    - storage-resilience.operations.fail-before-cost
+    - storage-resilience.jobs.preserve-and-retry
+    - storage-resilience.monitoring.transition-alerts
+    - storage-resilience.monitoring.not-configured
+    - storage-resilience.content.privacy-boundary
+  reason: The approved storage-resilience bundle defines the outage behavior implemented by this spec.
+
+documentation_impact:
+  generated_reference:
+    status: update_required
+    reason: Generated indexes must register the new storage-resilience bundle and assertion coverage.
+    documents: [specifications/generated/registry.yml, specifications/generated/assertion-index.yml, specifications/generated/coverage.yml]
+  user_docs:
+    status: update_required
+    reason: Server operators need storage-health, alert-threshold, and recovery guidance.
+    documents: [docs/user-guide/cli/server-management.md]
+  semantic_layer:
+    status: update_required
+    reason: Health and server architecture docs currently do not define S3 as an optional degraded dependency.
+    documents:
+      - docs/architecture/infrastructure/health-checks.md
+      - docs/architecture/core/servers.md
+
+goal: >
+  Keep OpenMates API ingress, text AI, and non-storage app skills operational
+  during temporary S3-compatible object-storage outages, fail storage-dependent
+  work safely before cost, preserve durable retry intent, and notify server
+  administrators through the existing host-owned monitoring channels.
+
+scope:
+  in:
+    - Decouple API startup and liveness from remote bucket, ACL, lifecycle, and CORS reconciliation.
+    - Expose bounded storage availability to existing internal health and runtime-monitoring code.
+    - Keep text-only AI and non-storage skill dispatch independent of S3 initialization.
+    - Return the stable retryable storage_temporarily_unavailable error before paid provider work or credit charging when durable storage is required.
+    - Remove unconditional S3 initialization from shared task setup for tasks that do not use storage.
+    - Preserve authoritative records and pending intent when archive, deletion, or cleanup jobs encounter storage downtime.
+    - Add an optional core.object_storage runtime check without making required core health fail.
+    - Notify all configured host-owned channels after two failed probes, escalate once after one hour, include degradation in the digest, and notify once on recovery.
+    - Apply environment-isolated behavior to development, production, and configured self-hosted installations.
+  out:
+    - A second object-storage provider or cross-provider replication.
+    - Local-disk fallback for durable user files or generated media.
+    - New public API routes, CLI commands, SDK methods, browser UI, or Apple UI.
+    - Production deployment or production configuration changes without separate approval.
+    - Rewriting every storage-backed feature; this slice establishes the shared gate and migrates representative high-risk paths with a deterministic audit for remaining direct calls.
+
+context_discovery:
+  github_issues:
+    - gh issue search returned no matching S3 outage-resilience issue.
+  docs:
+    - docs/architecture/infrastructure/health-checks.md
+    - docs/architecture/infrastructure/file-upload-pipeline.md
+    - docs/plans/operational-monitoring-digest-alerts/plan.yml
+    - docs/plans/post-update-runtime-health-alerting/plan.yml
+  contracts:
+    - architecture.storage-resilience@1 approved in session cb27 with fingerprint ea241c299958673f921ef157aec4d96c4661ed1bafa6b64a7630b6fee78ca9fd.
+    - architecture.operational-monitoring supplies the existing independent delivery, environment isolation, privacy, and recovery infrastructure reused by implementation.
+  code_patterns:
+    - backend/core/api/main.py currently awaits S3UploadService.initialize during FastAPI lifespan startup.
+    - backend/core/api/app/services/s3/service.py currently performs remote bucket and CORS reconciliation inside initialize and propagates CORS failure.
+    - backend/core/api/app/tasks/base_task.py currently initializes S3 for every BaseServiceTask regardless of task capability.
+    - backend/apps/ai/tasks/ask_skill_task.py initializes Vault, cache, encryption, and Directus but does not initialize S3 for ordinary AI asks.
+    - backend/scripts/runtime_health_verifier.py and frontend/packages/openmates-cli/src/serverHealth.ts already provide provider-free checks, persisted incident state, deduplication, recovery, and independent delivery.
+  tests:
+    - backend/tests/test_s3_service_no_sync_boto3_in_async.py
+    - backend/tests/test_runtime_health_verifier.py
+    - backend/tests/test_task_smoke.py
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - scripts/audit_runtime_health_contract.py
+  live_findings:
+    - On 2026-08-25 Hetzner returned repeated 503 responses for HeadBucket and CORS operations.
+    - Those failures escaped FastAPI lifespan startup, Uvicorn exited repeatedly, and Caddy returned 502 because no API upstream remained.
+    - Existing workers also showed unrelated workflow and email tasks failing because BaseServiceTask initialized S3 unconditionally.
+
+clarification:
+  rounds:
+    - question: Which operator channels and transition policy should S3 use?
+      answer: Send one outage and one recovery event through every configured host-owned channel; keep ongoing degradation in the daily digest.
+    - question: How should storage-dependent work behave while S3 is down?
+      answer: Fail before provider work or charging with a retryable storage_temporarily_unavailable error; do not use local persistence.
+    - question: What thresholds should alerts use?
+      answer: Warn after two failed probes, escalate once after one continuous hour, and resolve after one successful probe.
+    - question: Which deployments are covered?
+      answer: Development, production, and self-hosted deployments with configured S3; intentionally unconfigured storage reports not_configured without a false outage.
+  vision_summary: >
+    Core OpenMates remains usable without object storage, while storage-backed
+    features fail explicitly and safely. Operators receive low-noise, independent,
+    environment-isolated warning, escalation, digest, and recovery information.
+  approved_by_user: true
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations: [No Apple UI or native networking contract changes are introduced.]
+  verification: [Apple not affected because this is server dependency isolation and operator monitoring.]
+  intentional_native_differences: [Apple clients continue receiving existing retryable server errors for unavailable storage operations.]
+
+scenarios:
+  - id: S-1
+    title: API and text AI start while S3 returns 503
+    given:
+      - S3 credentials are configured.
+      - Bucket and CORS requests return 503 or timeout.
+    when:
+      - The API starts and a text-only AI request is submitted.
+    then:
+      - FastAPI completes startup and /health responds through Caddy.
+      - Storage reports unavailable without changing core liveness to failed.
+      - The text AI request reaches inference without an S3 access attempt.
+
+  - id: S-2
+    title: Storage-dependent work fails before cost
+    given: [Storage is currently unavailable.]
+    when:
+      - A user starts an upload, generated-media request, or existing stored-file read.
+    then:
+      - The operation returns storage_temporarily_unavailable with retryable true.
+      - Paid provider work and credit charging do not begin where durable output storage is required.
+      - Existing object metadata remains intact.
+
+  - id: S-3
+    title: Background work preserves authoritative state
+    given: [An archive, deletion, or cleanup task requires S3 and storage is unavailable.]
+    when: [The task executes.]
+    then:
+      - Source rows and pending intent remain durable.
+      - No destructive source cleanup is reported as successful.
+      - The task follows a bounded durable retry path after recovery.
+
+  - id: S-4
+    title: Configured server emits warning escalation and recovery
+    given:
+      - S3 is configured.
+      - At least one host-owned operator destination is configured.
+    when:
+      - Two probes fail, the outage lasts one hour, and a later probe succeeds.
+    then:
+      - Exactly one warning, one critical escalation, and one resolved event are delivered through all configured channels.
+      - Daily digests report the active degradation.
+      - Incident state and destinations remain isolated by environment.
+
+  - id: S-5
+    title: Intentionally unconfigured storage does not create an outage
+    given: [A self-hosted installation intentionally has no S3 configuration.]
+    when: [Runtime monitoring executes.]
+    then:
+      - Storage reports not_configured and storage-backed features remain unavailable.
+      - No provider-outage warning, escalation, or recovery incident is created.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    specification_assertions: [storage-resilience.core.s3-is-noncritical]
+    text: S3 timeout, 5xx, bucket, ACL, lifecycle, or CORS failures cannot prevent API startup, a 200 liveness response, text AI dispatch, or non-storage skill dispatch.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-S3-RESILIENCE, V-DEV-S3-OUTAGE]
+  - id: AC-2
+    scenario: S-2
+    specification_assertions: [storage-resilience.operations.fail-before-cost]
+    text: Shared storage-required gates return retryable storage_temporarily_unavailable before paid provider execution or charging and retain existing metadata.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-S3-RESILIENCE, T-STORAGE-GATE-AUDIT, V-DEV-S3-OUTAGE]
+  - id: AC-3
+    scenario: S-3
+    specification_assertions: [storage-resilience.jobs.preserve-and-retry]
+    text: Representative archive, deletion, and cleanup jobs preserve authoritative source state and retry intent when S3 is unavailable.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND-S3-JOBS, T-STORAGE-GATE-AUDIT]
+  - id: AC-4
+    scenario: S-4
+    specification_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.content.privacy-boundary]
+    text: Two failures open one warning, one continuous hour opens one critical escalation, one success resolves once, all configured channels are attempted independently, and payloads remain sanitized.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS, V-DEV-S3-ALERT-DRILL]
+  - id: AC-5
+    scenario: S-5
+    specification_assertions: [storage-resilience.monitoring.not-configured]
+    text: Missing intentional storage configuration reports not_configured without creating an outage transition.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS]
+  - id: AC-6
+    scenario: S-4
+    specification_assertions: [storage-resilience.content.privacy-boundary]
+    text: Storage health logs, state, metrics, digest, and notifications exclude credentials, sensitive endpoints, bucket/object keys, filenames, user identifiers, content, ciphertext, and provider bodies.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-CLI-STORAGE-ALERTS, T-STORAGE-GATE-AUDIT, V-DEV-S3-ALERT-DRILL]
+
+assumptions:
+  - id: A-1
+    text: Text AI execution does not require S3 when requests contain no files or storage-backed embed references.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/ai/tasks/ask_skill_task.py
+        summary: The ordinary ask task initializes SecretsManager, CacheService, EncryptionService, and DirectusService without S3UploadService.
+  - id: A-2
+    text: Existing host runtime monitoring can represent optional S3 degradation without making required core checks fail.
+    category: reliability
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/scripts/runtime_health_verifier.py
+        summary: CheckDefinition already carries required state and the final result fails only required checks.
+      - source: frontend/packages/openmates-cli/src/serverHealth.ts
+        summary: Existing incident state and independent channel delivery can be extended for optional storage transitions.
+  - id: A-3
+    text: Storage operations can expose a stable retryable error without revealing provider or object details.
+    category: privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/s3/service.py
+        summary: S3 service methods already normalize missing initialization to HTTP errors and centralize provider exception handling.
+
+contracts:
+  api:
+    changed_endpoints:
+      - path: /health
+        access_model: unauthenticated public REST API
+        auth: none
+        rate_limits: Existing 60 requests per minute limit on redirected /v1/health applies.
+        credit_budget: zero
+        encryption_boundary: No client-side encrypted data or decrypted plaintext is accepted or returned.
+      - path: existing storage-dependent routes and WebSocket operations
+        access_model: first-party client surface only or internal-only as currently classified
+        auth: Existing session, device, owner/team, or internal-service authentication remains unchanged.
+        rate_limits: Existing per-route and WebSocket limits remain unchanged.
+        credit_budget: Provider work and charging are forbidden before confirmed storage availability when durable storage is required.
+        encryption_boundary: Existing client-side encryption and ownership boundaries remain unchanged; failure payloads contain no object metadata.
+    new_endpoints: []
+    stable_error:
+      status: 503
+      code: storage_temporarily_unavailable
+      retryable: true
+  storage:
+    startup_role: optional_degraded_dependency
+    reconciliation: Must not block API liveness; failures remain observable and retryable.
+    local_fallback: forbidden
+    success_claim: Requires confirmed provider operation success.
+  monitoring:
+    check_id: core.object_storage
+    required_for_core_liveness: false
+    warning_after_consecutive_failures: 2
+    critical_after_continuous_outage: 1h
+    recovery_after_successes: 1
+    channels: all_configured_host_owned
+    digest: Include active degradation without private provider details.
+  cli:
+    commands: [openmates server monitoring run, openmates server monitoring status, openmates server monitoring digest]
+    new_commands: []
+  sdk:
+    npm: Existing generic error propagation only; no new method.
+    pip: Existing generic error propagation only; no new method.
+
+privacy_security:
+  - Never log or notify S3 credentials, signed URLs, bucket/object keys, filenames, user identifiers, content, ciphertext, or raw provider bodies.
+  - Keep environment incident state and destinations isolated.
+  - Do not weaken existing storage route authentication, ownership, encryption, or rate limits.
+  - Do not start paid provider work when durable output cannot be stored.
+  - Do not delete authoritative source data until required storage operations are confirmed.
+
+tests:
+  - id: T-BACKEND-S3-RESILIENCE
+    type: pytest
+    specification_assertions: [storage-resilience.core.s3-is-noncritical, storage-resilience.operations.fail-before-cost]
+    file: backend/tests/test_s3_outage_resilience.py
+    command: python3 -m pytest backend/tests/test_s3_outage_resilience.py -q
+    covers: [AC-1, AC-2]
+    assertions:
+      - Remote bucket and CORS failures are recorded without escaping API startup orchestration.
+      - Failed bucket, ACL, lifecycle, or CORS reconciliation reaches the bounded background retry loop.
+      - Storage availability is unavailable while core liveness remains healthy.
+      - Text-only AI dependency setup never initializes S3.
+      - Shared storage-required guard emits the stable sanitized retryable 503 before provider work or charging.
+      - Remotion storage availability is confirmed before E2B rendering or credit charging.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_s3_outage_resilience.py -q
+        run_id: local-red-missing-storage-availability-module
+        timestamp: "2026-08-25T14:23:08Z"
+        summary: Test collection failed because the planned shared storage availability guard does not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_s3_outage_resilience.py backend/tests/test_s3_service_no_sync_boto3_in_async.py backend/tests/test_remotion_render_task.py -q
+        run_id: local-backend-resilience-22-passed-2-skipped
+        timestamp: "2026-08-25T18:55:00Z"
+        summary: Startup isolation, stable retryable errors, text-AI independence, reconciliation retry propagation, async S3 guards, and Remotion fail-before-cost ordering passed; two optional Celery imports skipped.
+  - id: T-BACKEND-S3-JOBS
+    type: pytest
+    specification_assertions: [storage-resilience.jobs.preserve-and-retry]
+    file: backend/tests/test_s3_outage_jobs.py
+    command: python3 -m pytest backend/tests/test_s3_outage_jobs.py -q
+    covers: [AC-3]
+    assertions:
+      - Archive source rows remain when upload fails.
+      - Deletion intent is not marked complete when object deletion fails.
+      - Bounded retry state remains visible and no false success is returned.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_s3_outage_jobs.py -q
+        run_id: local-red-three-destructive-storage-paths
+        timestamp: "2026-08-25T14:31:00Z"
+        summary: All three contracts failed because archive, issue deletion, and storage-billing deletion did not preserve retry intent behind the storage guard.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_s3_outage_jobs.py -q
+        run_id: local-storage-jobs-3-passed
+        timestamp: "2026-08-25T14:53:03Z"
+        summary: Archive, issue cleanup, and per-user billing deletion preserve authoritative state and retry intent.
+  - id: T-RUNTIME-STORAGE-CHECK
+    type: pytest
+    specification_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.monitoring.not-configured]
+    file: backend/tests/test_runtime_health_verifier.py
+    command: python3 -m pytest backend/tests/test_runtime_health_verifier.py -q
+    covers: [AC-4, AC-5]
+    assertions:
+      - core.object_storage is optional and has a bounded timeout.
+      - Configured 5xx or timeout returns failed with a sanitized storage_unavailable class.
+      - Missing intentional configuration returns skipped/not_configured rather than failed.
+      - Required core checks still pass when only storage is unavailable.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_runtime_health_verifier.py -q
+        run_id: local-red-missing-object-storage-check
+        timestamp: "2026-08-25T14:42:00Z"
+        summary: Collection failed because the optional core.object_storage runner did not exist.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_runtime_health_verifier.py -q
+        run_id: local-runtime-health-29-passed
+        timestamp: "2026-08-25T14:53:03Z"
+        summary: Optional bounded storage checks classify unavailable and not_configured without failing required core health.
+  - id: T-CLI-STORAGE-ALERTS
+    type: unit
+    specification_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.monitoring.not-configured, storage-resilience.content.privacy-boundary]
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: npm --prefix frontend/packages/openmates-cli run test:unit:server
+    covers: [AC-4, AC-5, AC-6]
+    assertions:
+      - Optional storage checks still feed incident state while required-check status stays passed.
+      - Warning, one-hour escalation, deduplication, all-channel delivery, and recovery are deterministic.
+      - not_configured creates no outage event.
+      - Persisted and delivered payloads contain stable IDs and sanitized classes only.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: npm --prefix frontend/packages/openmates-cli run test:unit:server
+        run_id: local-red-storage-transition-82-passed-2-failed
+        timestamp: "2026-08-25T14:49:00Z"
+        summary: Critical escalation was absent and repeated not_configured results incorrectly opened an outage.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: npm --prefix frontend/packages/openmates-cli run test:unit:server
+        run_id: local-cli-server-86-passed
+        timestamp: "2026-08-25T14:53:03Z"
+        summary: Two-failure warning, one-hour critical escalation, simultaneous delivery, dependency-skip handling, not_configured suppression, and one-success recovery passed.
+  - id: T-STORAGE-GATE-AUDIT
+    type: lint
+    specification_assertions: [storage-resilience.operations.fail-before-cost, storage-resilience.jobs.preserve-and-retry, storage-resilience.content.privacy-boundary]
+    file: scripts/audit_s3_outage_resilience.py
+    command: python3 scripts/audit_s3_outage_resilience.py
+    covers: [AC-2, AC-3, AC-6]
+    assertions:
+      - API lifespan cannot synchronously require remote storage reconciliation.
+      - BaseServiceTask cannot initialize S3 unconditionally.
+      - Registered storage-required provider tasks invoke the shared availability guard before provider execution.
+      - Forbidden sensitive storage fields cannot enter alert payloads.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 scripts/audit_s3_outage_resilience.py
+        run_id: local-red-eight-storage-couplings
+        timestamp: "2026-08-25T14:23:08Z"
+        summary: Audit found blocking API lifespan initialization, unconditional BaseServiceTask initialization, and six durable media tasks without the shared guard.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_s3_outage_resilience.py
+        run_id: local-storage-resilience-audit-passed
+        timestamp: "2026-08-25T14:53:03Z"
+        summary: Startup, guard ordering, destructive-state preservation, optional-check propagation, and sanitized outage paths passed.
+
+verifications:
+  - id: V-DEV-S3-OUTAGE
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-1, AC-2]
+    status: passed
+    command: python3 scripts/verify_s3_outage_resilience.py --api-url https://api.dev.openmates.org
+    evidence:
+      status: passed
+      run_id: live-cli-quick-test-20260825T1905Z
+      timestamp: "2026-08-25T19:05:00Z"
+      subject_commit: 61d29c7b87302322a571da874b1103ff961f94e3
+      summary: Public health returned 200 degraded; every required runtime check and chat plumbing passed while core.object_storage reported optional storage_unavailable. The isolated real CLI quick test authenticated with a temporary test-account session, received the exact expected assistant response, passed math.calculate, web.search, and cleanup, and reported only the auxiliary chat.reload check as failed.
+  - id: V-DEV-S3-ALERT-DRILL
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-4, AC-6]
+    status: passed
+    command: python3 scripts/verify_s3_outage_alerts.py --environment development
+    evidence:
+      status: passed
+      run_id: test-results/s3-outage-alerts/development-20260825T190524Z.json
+      timestamp: "2026-08-25T19:05:11Z"
+      subject_commit: 61d29c7b87302322a571da874b1103ff961f94e3
+      summary: Compiled policy emitted exactly one warning, one one-hour critical escalation, and one recovery; the matching incident, critical, and recovery payloads each reached configured development email, Discord, and signed webhook delivery with sanitized receipts.
+demonstration:
+  eligibility:
+    status: required
+    surface: cli
+    reason: The changed host monitoring behavior is visible through existing openmates server notification commands and requires terminal proof of configured independent delivery.
+    classified_at: "2026-08-25T00:00:00Z"
+    verification_ids: [V-DEV-S3-OUTAGE, V-DEV-S3-ALERT-DRILL]
+  status: passed
+  narration_outline:
+    - id: NARR-1
+      purpose: Show that storage degradation uses every notification channel configured on the dev host without exposing destination or credential values.
+      expected_proof: Terminal visibly runs openmates server notifications test and reports configured delivered results for email and Discord with redacted output.
+      scenario_ids: [S-4]
+      acceptance_criteria: [AC-4, AC-6]
+  evidence:
+    status: passed
+    privacy_status: not_applicable
+    audio_status: not_required
+    review_status: passed
+    publication_status: delivered
+    review_attempts: 1
+    subject_commit: 61d29c7b87302322a571da874b1103ff961f94e3
+    manifest_path: test-results/proof-videos/cb27/20260825T190606Z/manifest.json
+    manifest_hash: sha256:b3b11df34f1663c0a971bc71930078a970fe2731256aaf13b75dbc69be89b6be
+    review_run_id: review-20260825T190606Z
+    timestamp: "2026-08-25T19:06:06Z"
+
+risks:
+  - id: R-1
+    risk: Treating S3 as optional could permit provider work whose result cannot be persisted.
+    mitigation: Central storage-required guard must run before provider work and charging, with an audit covering registered durable-output tasks.
+  - id: R-2
+    risk: A stale availability cache could reject work after recovery or allow work during an outage.
+    mitigation: Use bounded probe freshness and still treat each provider operation result as authoritative; recovery probe clears incident state.
+  - id: R-3
+    risk: Optional health checks may be excluded from the existing incident engine.
+    mitigation: Separate overall required-check pass/fail from transition evaluation over required and optional observable checks.
+  - id: R-4
+    risk: Broad BaseServiceTask changes could break tasks that legitimately require S3.
+    mitigation: Introduce explicit/lazy storage initialization and focused representative job tests plus a deterministic capability audit.
+  - id: R-5
+    risk: Concurrent operational-monitoring work changes the shared CLI alert files.
+    mitigation: Rebase onto the landed monitoring contract and implementation before editing shared files; never overwrite concurrent worktree changes.
+
+open_questions: []
+
+implementation_state: {subject_commit: 61d29c7b87302322a571da874b1103ff961f94e3}
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-25T13:35:00Z"
+    reason: User explicitly approved the complete executable S3 outage-resilience spec after approving the exact durable contract fingerprint.
+  plan:
+    status: approved
+    approved_at: "2026-08-25T13:35:00Z"
+    reason: No separate technical approval is required because dependency isolation, fail-before-cost, retry, alert thresholds, environment scope, and no-fallback boundaries were all explicitly approved in the product contract.
+
+decisions:
+  - {id: D-1, status: active, decision: Object storage is an optional degraded dependency for core API and text AI liveness., reason: Storage-backed features are only a subset of OpenMates and cannot take down unrelated inference., decided_at: "2026-08-25T00:00:00Z"}
+  - {id: D-2, status: active, decision: Storage-required work fails before provider execution or charging with no local fallback., reason: This prevents cost without durable output and avoids inconsistent encrypted persistence., decided_at: "2026-08-25T00:00:00Z"}
+  - {id: D-3, status: active, decision: Reuse host-owned runtime monitoring with two-failure warning, one-hour escalation, and one-success recovery., reason: The existing path is independent, environment-isolated, retrying, and low-noise., decided_at: "2026-08-25T00:00:00Z"}
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Discover current S3 coupling and host-owned monitoring, approve the durable contract, and draft the executable implementation spec.
+    outcome: planned
+    recorded_at: "2026-08-25T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Add focused backend contract tests and a deterministic audit before runtime implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-25T14:23:08Z"
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Add focused archive, issue deletion, and storage-billing preservation contracts before runtime edits.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-25T14:31:00Z"
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Add optional object-storage and CLI transition contracts before monitoring implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-25T14:49:00Z"
+  - id: ATTEMPT-5
+    task_id: TASK-6
+    approach: Implement bounded optional probing and warning, critical, recovery, and not-configured state transitions on top of landed operational monitoring.
+    outcome: succeeded
+    recorded_at: "2026-08-25T14:53:03Z"
+  - id: ATTEMPT-6
+    task_id: TASK-8
+    approach: Run controlled warning, one-hour escalation, and recovery transitions and verify every configured development notification channel independently.
+    outcome: succeeded
+    recorded_at: "2026-08-25T15:41:31Z"
+  - id: ATTEMPT-7
+    task_id: TASK-7
+    approach: Use a temporary isolated OpenMates CLI test-account session to run the real quick server test while object storage remains unavailable.
+    outcome: succeeded
+    recorded_at: "2026-08-25T18:20:00Z"
+    summary: Real inference, math, web search, and cleanup passed; chat reload remained an explicit auxiliary failure outside the outage-continuity gate.
+  - id: ATTEMPT-8
+    task_id: TASK-2
+    approach: Run independent final review, add red guards for the confirmed Remotion and reconciliation gaps, implement the minimal fixes, and repeat live evidence on the resulting commit.
+    outcome: succeeded
+    recorded_at: "2026-08-25T19:07:00Z"
+    summary: Remotion now checks storage before E2B work or billing, reconciliation failures reach the background retry loop, and refreshed live inference, transition delivery, and terminal proof passed on the final implementation commit.
+
+implementation_notes:
+  plan_path: docs/plans/s3-outage-resilience/plan.yml
+  status: approved
+  specification_refs:
+    - architecture.storage-resilience@1:ea241c299958673f921ef157aec4d96c4661ed1bafa6b64a7630b6fee78ca9fd
+  affected_assertions:
+    - storage-resilience.core.s3-is-noncritical
+    - storage-resilience.operations.fail-before-cost
+    - storage-resilience.jobs.preserve-and-retry
+    - storage-resilience.monitoring.transition-alerts
+    - storage-resilience.monitoring.not-configured
+    - storage-resilience.content.privacy-boundary
+  contract_change: new_specification
+  surface_proof:
+    rest_api: V-DEV-S3-OUTAGE proves public liveness and first-party text AI while storage is unavailable.
+    cli: V-DEV-S3-ALERT-DRILL proves host-owned warning, escalation, all-channel delivery, and recovery state.
+    sdks: Existing npm and pip generic errors are unchanged; the stable backend code is covered by API proof and parity audit if generated clients change.
+    gui: Not affected.
+  documentation_impact:
+    - Generated contract indexes.
+    - Server management operator guidance.
+    - Health-check and server architecture semantics.
+  existing_patterns:
+    - S3UploadService centralizes client setup and object operations.
+    - Runtime health already separates required checks from persisted incident and delivery state.
+  architecture: >
+    Separate storage client configuration and availability from remote reconciliation,
+    add a shared preflight guard for durable-output operations, and feed an optional
+    object-storage check into host-owned incident delivery without changing core liveness.
+  first_slice: Write focused red backend and CLI tests for startup isolation, fail-before-cost, optional health, alert escalation, and recovery.
+  data_flow:
+    - API loads configured credentials and local S3 client metadata, records unavailable if remote reconciliation returns 503, and completes startup so GET /health returns 200.
+    - A text-only ai.ask request bypasses the storage guard and proceeds through Vault, Redis, Directus, and the selected LLM provider without touching S3.
+    - A generated image request invokes the shared durable-storage guard before provider execution; unavailable storage returns HTTP 503 with code storage_temporarily_unavailable and retryable true before charging.
+    - Archive and deletion jobs leave source rows or pending intent unchanged when an S3 operation fails and let bounded task retry policy retain the operation.
+    - Runtime verifier probes one configured bucket with a bounded non-mutating request and emits core.object_storage as passed, failed/storage_unavailable, or skipped/not_configured.
+    - Host CLI evaluates both required and observable optional checks, opens a warning on failure two, escalates once at one hour, includes active state in the next digest, and resolves on the first success.
+  boundaries:
+    - No new endpoint, authentication scope, local durable fallback, provider failover, browser UI, or Apple UI.
+  affected_files:
+    - {path: backend/core/api/app/services/s3/service.py, reason: Separate non-blocking configuration, availability, and reconciliation behavior.}
+    - {path: backend/core/api/main.py, reason: Make S3 optional during API lifespan startup.}
+    - {path: backend/core/api/app/tasks/base_task.py, reason: Remove unconditional storage initialization.}
+    - {path: backend/scripts/runtime_health_verifier.py, reason: Add optional bounded core.object_storage check.}
+    - {path: frontend/packages/openmates-cli/src/serverHealth.ts, reason: Evaluate optional storage transitions and one-hour escalation.}
+    - {path: frontend/packages/openmates-cli/src/server.ts, reason: Persist and deliver optional storage incidents.}
+    - {path: scripts/audit_s3_outage_resilience.py, reason: Prevent renewed startup and cost coupling.}
+  migrations: [None.]
+  observability:
+    - Stable core.object_storage check ID, sanitized availability state, warning/escalation/recovery timestamps, and per-channel delivery state.
+  assumptions_checked: [A-1, A-2, A-3]
+  verification_strategy:
+    - Run focused red backend startup, storage guard, background job, runtime verifier, and CLI alert tests before product code.
+    - Run focused green tests and the deterministic storage-resilience audit after each implementation slice.
+    - Rebuild/restart the API and affected workers, then prove /health and text AI against the dev API while the controlled S3 probe is unavailable.
+    - Run the host-owned warning, one-hour escalation, all-channel delivery, and recovery drill with sanitized receipts.
+  verification_order:
+    - T-BACKEND-S3-RESILIENCE
+    - T-BACKEND-S3-JOBS
+    - T-RUNTIME-STORAGE-CHECK
+    - T-STORAGE-GATE-AUDIT
+    - V-DEV-S3-OUTAGE
+    - T-CLI-STORAGE-ALERTS
+    - V-DEV-S3-ALERT-DRILL
+  acceptance_coverage:
+    AC-1: [T-BACKEND-S3-RESILIENCE, V-DEV-S3-OUTAGE]
+    AC-2: [T-BACKEND-S3-RESILIENCE, T-STORAGE-GATE-AUDIT, V-DEV-S3-OUTAGE]
+    AC-3: [T-BACKEND-S3-JOBS, T-STORAGE-GATE-AUDIT]
+    AC-4: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS, V-DEV-S3-ALERT-DRILL]
+    AC-5: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS]
+    AC-6: [T-CLI-STORAGE-ALERTS, T-STORAGE-GATE-AUDIT, V-DEV-S3-ALERT-DRILL]
+  rollout:
+    - Land contract, tests, backend isolation, and monitoring code together on dev.
+    - Restart/rebuild only api and affected workers through openmates server restart under the Docker lock.
+    - Run controlled dev outage and recovery drills before considering production rollout.
+    - Production deployment remains separately approved and out of scope.
+  material_plan_approval:
+    required: false
+    reason: All material dependency, cost, data-integrity, privacy, alert, and rollout decisions are already in the explicitly approved product contract.
+
+tasks:
+  - id: TASK-1
+    title: Write red API-startup and fail-before-cost contracts
+    status: done
+    phase: working_tasks
+    specification_assertions: [storage-resilience.core.s3-is-noncritical, storage-resilience.operations.fail-before-cost, storage-resilience.content.privacy-boundary]
+    surfaces: [rest_api]
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2, AC-6]}
+    expected_files: [backend/tests/test_s3_outage_resilience.py, scripts/audit_s3_outage_resilience.py]
+    verification:
+      - python3 -m pytest backend/tests/test_s3_outage_resilience.py -q
+      - python3 scripts/audit_s3_outage_resilience.py
+    verification_ids: [T-BACKEND-S3-RESILIENCE, T-STORAGE-GATE-AUDIT]
+    dependencies: []
+    ownership: {files: [backend/tests/test_s3_outage_resilience.py, scripts/audit_s3_outage_resilience.py], shared_files: [docs/plans/s3-outage-resilience/plan.yml]}
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: false
+  - id: TASK-2
+    title: Isolate API and text AI from remote storage availability
+    status: done
+    phase: working_tasks
+    specification_assertions: [storage-resilience.core.s3-is-noncritical, storage-resilience.operations.fail-before-cost, storage-resilience.content.privacy-boundary]
+    surfaces: [rest_api]
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2, AC-6]}
+    expected_files:
+      - backend/core/api/app/services/s3/service.py
+      - backend/core/api/main.py
+      - backend/core/api/app/tasks/base_task.py
+      - backend/shared/python_utils/storage_availability.py
+      - backend/tests/test_s3_outage_resilience.py
+      - scripts/audit_s3_outage_resilience.py
+    verification:
+      - python3 -m pytest backend/tests/test_s3_outage_resilience.py backend/tests/test_s3_service_no_sync_boto3_in_async.py backend/tests/test_task_smoke.py -q
+      - python3 scripts/audit_s3_outage_resilience.py
+    verification_ids: [T-BACKEND-S3-RESILIENCE, T-STORAGE-GATE-AUDIT]
+    dependencies: [TASK-1]
+    ownership:
+      files: [backend/shared/python_utils/storage_availability.py]
+      shared_files: [backend/core/api/app/services/s3/service.py, backend/core/api/main.py, backend/core/api/app/tasks/base_task.py, backend/tests/test_s3_outage_resilience.py, scripts/audit_s3_outage_resilience.py]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: false
+  - id: TASK-3
+    title: Write red durable archive and deletion outage contracts
+    status: done
+    phase: working_tasks
+    specification_assertions: [storage-resilience.jobs.preserve-and-retry]
+    surfaces: [rest_api]
+    covers: {scenarios: [S-3], acceptance_criteria: [AC-3]}
+    expected_files: [backend/tests/test_s3_outage_jobs.py, scripts/audit_s3_outage_resilience.py]
+    verification:
+      - python3 -m pytest backend/tests/test_s3_outage_jobs.py -q
+      - python3 scripts/audit_s3_outage_resilience.py
+    verification_ids: [T-BACKEND-S3-JOBS, T-STORAGE-GATE-AUDIT]
+    dependencies: [TASK-2]
+    ownership: {files: [backend/tests/test_s3_outage_jobs.py], shared_files: [scripts/audit_s3_outage_resilience.py, docs/plans/s3-outage-resilience/plan.yml]}
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-4
+    title: Preserve representative background-job retry intent
+    status: done
+    phase: working_tasks
+    specification_assertions: [storage-resilience.jobs.preserve-and-retry, storage-resilience.operations.fail-before-cost]
+    surfaces: [rest_api]
+    covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-2, AC-3]}
+    expected_files:
+      - backend/core/api/app/tasks/usage_archive_tasks.py
+      - backend/core/api/app/tasks/auto_delete_tasks.py
+      - backend/core/api/app/tasks/storage_billing_tasks.py
+      - backend/core/api/app/services/usage_archive_service.py
+      - backend/core/api/app/services/directus/embed_methods.py
+      - backend/tests/test_s3_outage_jobs.py
+      - scripts/audit_s3_outage_resilience.py
+    verification:
+      - python3 -m pytest backend/tests/test_s3_outage_jobs.py -q
+      - python3 scripts/audit_s3_outage_resilience.py
+    verification_ids: [T-BACKEND-S3-JOBS, T-STORAGE-GATE-AUDIT]
+    dependencies: [TASK-3]
+    ownership:
+      files: [backend/tests/test_s3_outage_jobs.py]
+      shared_files: [backend/core/api/app/tasks/usage_archive_tasks.py, backend/core/api/app/tasks/auto_delete_tasks.py, backend/core/api/app/tasks/storage_billing_tasks.py, scripts/audit_s3_outage_resilience.py]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: false
+  - id: TASK-5
+    title: Write red optional storage-health and alert-transition contracts
+    status: done
+    phase: working_tasks
+    specification_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.monitoring.not-configured, storage-resilience.content.privacy-boundary]
+    surfaces: [cli]
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5, AC-6]}
+    expected_files: [backend/tests/test_runtime_health_verifier.py, frontend/packages/openmates-cli/tests/server.test.ts]
+    verification:
+      - python3 -m pytest backend/tests/test_runtime_health_verifier.py -q
+      - npm --prefix frontend/packages/openmates-cli run test:unit:server
+    verification_ids: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS]
+    dependencies: [TASK-4]
+    ownership: {files: [docs/plans/s3-outage-resilience/plan.yml], shared_files: [backend/tests/test_runtime_health_verifier.py, frontend/packages/openmates-cli/tests/server.test.ts]}
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-6
+    title: Implement optional storage monitoring and escalation
+    status: done
+    phase: working_tasks
+    specification_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.monitoring.not-configured, storage-resilience.content.privacy-boundary]
+    surfaces: [cli]
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5, AC-6]}
+    expected_files:
+      - backend/scripts/runtime_health_verifier.py
+      - frontend/packages/openmates-cli/src/serverPlanning.ts
+      - frontend/packages/openmates-cli/src/serverHealth.ts
+      - frontend/packages/openmates-cli/src/server.ts
+      - backend/tests/test_runtime_health_verifier.py
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification:
+      - python3 -m pytest backend/tests/test_runtime_health_verifier.py -q
+      - npm --prefix frontend/packages/openmates-cli run test:unit:server
+      - npm --prefix frontend/packages/openmates-cli run build
+    verification_ids: [T-RUNTIME-STORAGE-CHECK, T-CLI-STORAGE-ALERTS]
+    dependencies: [TASK-5]
+    ownership:
+      files: [docs/plans/s3-outage-resilience/plan.yml]
+      shared_files: [backend/scripts/runtime_health_verifier.py, frontend/packages/openmates-cli/src/serverPlanning.ts, frontend/packages/openmates-cli/src/serverHealth.ts, frontend/packages/openmates-cli/src/server.ts, backend/tests/test_runtime_health_verifier.py, frontend/packages/openmates-cli/tests/server.test.ts]
+    blockers: []
+    follow_up_tasks: [TASK-7]
+    independently_deployable: false
+  - id: TASK-7
+    title: Deploy and prove dev API continuity during storage outage
+    status: done
+    phase: running_checks
+    specification_assertions: [storage-resilience.core.s3-is-noncritical, storage-resilience.operations.fail-before-cost]
+    surfaces: [rest_api]
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [scripts/verify_s3_outage_resilience.py, docs/plans/s3-outage-resilience/plan.yml]
+    verification:
+      - python3 scripts/verify_s3_outage_resilience.py --api-url https://api.dev.openmates.org
+    verification_ids: [V-DEV-S3-OUTAGE]
+    dependencies: [TASK-2, TASK-4, TASK-6]
+    ownership: {files: [scripts/verify_s3_outage_resilience.py], shared_files: [docs/plans/s3-outage-resilience/plan.yml]}
+    blockers: []
+    follow_up_tasks: [TASK-8]
+    independently_deployable: true
+  - id: TASK-8
+    title: Prove alert delivery recovery and documentation
+    status: done
+    phase: running_checks
+    specification_assertions: [storage-resilience.monitoring.transition-alerts, storage-resilience.monitoring.not-configured, storage-resilience.content.privacy-boundary]
+    surfaces: [cli]
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5, AC-6]}
+    expected_files:
+      - scripts/verify_s3_outage_alerts.py
+      - docs/user-guide/cli/server-management.md
+      - docs/architecture/infrastructure/health-checks.md
+      - docs/architecture/core/servers.md
+      - docs/plans/s3-outage-resilience/plan.yml
+    verification:
+      - python3 scripts/verify_s3_outage_alerts.py --environment development
+      - python3 scripts/specifications.py validate specifications/architecture/storage-resilience
+      - python3 scripts/plan_verify.py docs/plans/s3-outage-resilience/plan.yml --phase complete --json
+    verification_ids: [V-DEV-S3-ALERT-DRILL, T-STORAGE-GATE-AUDIT]
+    dependencies: [TASK-7]
+    ownership:
+      files: [scripts/verify_s3_outage_alerts.py]
+      shared_files: [docs/user-guide/cli/server-management.md, docs/architecture/infrastructure/health-checks.md, docs/architecture/core/servers.md, docs/plans/s3-outage-resilience/plan.yml]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+handoff:
+  current_task_id: TASK-8
+  last_verified_commit: 61d29c7b87302322a571da874b1103ff961f94e3
+  status: complete
+  summary: API continuity, real CLI inference, fail-before-cost guards, destructive-job preservation, alert transitions, all configured host-channel delivery, and reviewed terminal proof are complete.
+  next_action: Run final spec verification and deploy the completed evidence ledger.
+  command: python3 scripts/plan_verify.py docs/plans/s3-outage-resilience/plan.yml --phase complete --json
+  expected_outcome: complete true
+  blocker: null

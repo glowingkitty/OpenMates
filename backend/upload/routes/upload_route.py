@@ -155,6 +155,7 @@ class FileVariantMetadata(BaseModel):
     size_bytes: int = Field(..., description="Encrypted file size in bytes")
     format: str = Field(..., description="Image format (webp)")
     encryption: Optional[str] = Field(None, description="Explicit media encryption format")
+    active_region: Optional[str] = Field(None, description="S3 region that accepted this immutable variant")
 
 
 class AIDetectionMetadata(BaseModel):
@@ -208,6 +209,84 @@ class TeamProfileImageUploadResponse(BaseModel):
     url: Optional[str] = Field(None, description="Authenticated team profile-image proxy URL")
     reject_count: Optional[int] = Field(None, description="Cumulative rejection count for this user (only on status='rejected')")
     detail: Optional[str] = Field(None, description="Human-readable rejection reason")
+
+
+def _active_region_map(*uploads: Any) -> Dict[str, str]:
+    return {str(upload.key): str(upload.region) for upload in uploads}
+
+
+def _single_upload_region(*uploads: Any) -> str:
+    regions = {str(upload.region) for upload in uploads}
+    if len(regions) != 1:
+        raise RuntimeError("S3 variants were written to different active regions")
+    return next(iter(regions))
+
+
+def _stored_files_active_region(files_metadata: Dict[str, Any]) -> Optional[str]:
+    regions = {
+        metadata.get("active_region")
+        for metadata in files_metadata.values()
+        if isinstance(metadata, dict) and isinstance(metadata.get("active_region"), str)
+    }
+    if len(regions) == 1:
+        return str(next(iter(regions)))
+    return None
+
+
+def _active_region_map_from_stored_files(files_metadata: Dict[str, Any]) -> Dict[str, str]:
+    active_regions: Dict[str, str] = {}
+    for metadata in files_metadata.values():
+        if not isinstance(metadata, dict):
+            continue
+        object_key = metadata.get("s3_key")
+        active_region = metadata.get("active_region")
+        if isinstance(object_key, str) and isinstance(active_region, str):
+            active_regions[object_key] = active_region
+    return active_regions
+
+
+def _stored_file_references(files_metadata: Dict[str, Any]) -> list[tuple[str, Optional[str]]]:
+    references: list[tuple[str, Optional[str]]] = []
+    for metadata in files_metadata.values():
+        if not isinstance(metadata, dict):
+            continue
+        object_key = metadata.get("s3_key")
+        if isinstance(object_key, str):
+            active_region = metadata.get("active_region")
+            references.append((object_key, active_region if isinstance(active_region, str) else None))
+    return references
+
+
+def _sample_stored_file_reference(files_metadata: Dict[str, Any]) -> tuple[Optional[str], Optional[str]]:
+    for object_key, active_region in _stored_file_references(files_metadata):
+        return object_key, active_region
+    return None, None
+
+
+async def _stored_file_references_available(
+    s3_service: Any,
+    *,
+    target_env: str,
+    files_metadata: Dict[str, Any],
+) -> bool:
+    references = _stored_file_references(files_metadata)
+    if not references:
+        return False
+    for object_key, active_region in references:
+        if not await s3_service.check_file_exists(
+            object_key,
+            target_env=target_env,
+            region=active_region,
+        ):
+            return False
+    return True
+
+
+def _s3_base_url_for_stored_files(s3_service: Any, target_env: str, files_metadata: Dict[str, Any]) -> str:
+    active_region = _stored_files_active_region(files_metadata)
+    if active_region:
+        return s3_service.get_base_url(target_env=target_env, region=active_region)
+    return s3_service.get_base_url(target_env=target_env)
 
 
 def _profile_image_s3_key(owner_prefix: str) -> str:
@@ -494,11 +573,15 @@ async def _store_record_via_api(
                 headers={"X-Internal-Service-Token": internal_token},
             )
         if resp.status_code not in (200, 201):
-            logger.warning(
+            logger.error(
                 f"[Upload Store] Failed to store upload record: {resp.status_code} {resp.text[:200]}"
             )
+            raise RuntimeError(f"Upload record registration failed: HTTP {resp.status_code}")
+    except RuntimeError:
+        raise
     except Exception as e:
-        logger.warning(f"[Upload Store] Failed to store upload record (non-fatal): {e}")
+        logger.error(f"[Upload Store] Failed to store upload record: {e}", exc_info=True)
+        raise RuntimeError(f"Upload record registration failed: {e}") from e
 
 
 async def _report_content_safety_rejection_via_api(
@@ -743,13 +826,14 @@ async def upload_file(
         # mid-way (e.g. bucket misconfiguration) — silently falling back to a
         # fresh upload is safer than returning a broken embed that cannot decrypt.
         files_data = existing_record.get("files_metadata", {})
-        sample_key = next(
-            (v.get("s3_key") for v in files_data.values() if v.get("s3_key")),
-            None,
-        )
+        sample_key, _stored_active_region = _sample_stored_file_reference(files_data)
         s3_service = request.app.state.s3
-        logger.info(f"{log_prefix} [5/13] Duplicate found — verifying S3 object exists: {sample_key!r}")
-        s3_ok = await s3_service.check_file_exists(sample_key, target_env=target_env) if sample_key else False
+        logger.info(f"{log_prefix} [5/13] Duplicate found — verifying stored S3 objects")
+        s3_ok = await _stored_file_references_available(
+            s3_service,
+            target_env=target_env,
+            files_metadata=files_data,
+        )
 
         if not s3_ok:
             logger.warning(
@@ -799,11 +883,14 @@ async def upload_file(
                 f"({elapsed*1000:.0f} ms total)"
             )
             # Reconstruct response from stored record.
-            # Always recompute s3_base_url from the current target_env rather
-            # than trusting the stored value — old records may have the wrong
-            # bucket URL due to the shared-service bucket bug.
+            # Always recompute s3_base_url from current env and persisted region
+            # metadata; older records without active_region fall back to primary.
             s3_service_for_dedup = request.app.state.s3
-            dedup_s3_base_url = s3_service_for_dedup.get_base_url(target_env=target_env)
+            dedup_s3_base_url = _s3_base_url_for_stored_files(
+                s3_service_for_dedup,
+                target_env,
+                files_data,
+            )
             dedup_ai_detection = existing_record.get("ai_detection")
 
             if is_image and _duplicate_ai_detection_needs_refresh(dedup_ai_detection):
@@ -1115,21 +1202,27 @@ async def upload_file(
     )
     s3_start = time.monotonic()
     try:
-        await s3_service.upload_file(
+        original_upload = await s3_service.upload_file_with_region(
             s3_key=original_s3_key,
             content=encrypted_original,
             target_env=target_env,
         )
-        await s3_service.upload_file(
+        full_upload = await s3_service.upload_file_with_region(
             s3_key=full_s3_key,
             content=encrypted_full,
             target_env=target_env,
+            preferred_region=original_upload.region,
+            allow_region_fallback=False,
         )
-        await s3_service.upload_file(
+        preview_upload = await s3_service.upload_file_with_region(
             s3_key=preview_s3_key,
             content=encrypted_preview,
             target_env=target_env,
+            preferred_region=original_upload.region,
+            allow_region_fallback=False,
         )
+        active_region = _single_upload_region(original_upload, full_upload, preview_upload)
+        storage_active_regions = _active_region_map(original_upload, full_upload, preview_upload)
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
             f"{log_prefix} [11/13] S3 upload: OK ({s3_elapsed:.0f} ms) — "
@@ -1139,7 +1232,7 @@ async def upload_file(
         logger.error(f"{log_prefix} [11/13] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
-    s3_base_url = s3_service.get_base_url(target_env=target_env)
+    s3_base_url = s3_service.get_base_url(target_env=target_env, region=active_region)
 
     # --- 12. Build files metadata dict (matches generate_task.py structure) ---
     files_metadata = {
@@ -1150,6 +1243,7 @@ async def upload_file(
             size_bytes=len(encrypted_original),
             format="webp",
             encryption=encrypted_variants.metadata["original"].get("encryption"),
+            active_region=active_region,
         ),
         "full": FileVariantMetadata(
             s3_key=full_s3_key,
@@ -1158,6 +1252,7 @@ async def upload_file(
             size_bytes=len(encrypted_full),
             format="webp",
             encryption=encrypted_variants.metadata["full"].get("encryption"),
+            active_region=active_region,
         ),
         "preview": FileVariantMetadata(
             s3_key=preview_s3_key,
@@ -1166,6 +1261,7 @@ async def upload_file(
             size_bytes=len(encrypted_preview),
             format="webp",
             encryption=encrypted_variants.metadata["preview"].get("encryption"),
+            active_region=active_region,
         ),
     }
 
@@ -1186,6 +1282,7 @@ async def upload_file(
         "malware_scan": "clean",
         "ai_detection": ai_detection_dict,
         "created_at": int(datetime.now(timezone.utc).timestamp()),
+        "storage_active_regions": storage_active_regions,
     }
     if write_version == MEDIA_WRITE_VERSION_LEGACY:
         upload_record["aes_key"] = aes_key_b64
@@ -1278,7 +1375,8 @@ async def _handle_pdf_dedup(
     vault_wrapped_aes_key = reuse_s3_data["vault_wrapped_aes_key"]
 
     s3_service = request.app.state.s3
-    s3_base_url = s3_service.get_base_url(target_env=target_env)
+    s3_base_url = _s3_base_url_for_stored_files(s3_service, target_env, files_data)
+    storage_active_regions = _active_region_map_from_stored_files(files_data)
 
     # Fresh embed_id — never reuse the old one (stale encryption keys)
     embed_id = str(uuid.uuid4())
@@ -1344,6 +1442,8 @@ async def _handle_pdf_dedup(
         "created_at": int(datetime.now(timezone.utc).timestamp()),
         "page_count": page_count,
     }
+    if storage_active_regions:
+        upload_record["storage_active_regions"] = storage_active_regions
     await _store_record_via_api(core_api_url, internal_token, upload_record)
     logger.info(f"{log_prefix} [PDF-dedup] Upload record stored")
 
@@ -1604,7 +1704,12 @@ async def _handle_pdf_upload(
     )
     s3_start = time.monotonic()
     try:
-        await s3_service.upload_file(s3_key=pdf_s3_key, content=encrypted_pdf, target_env=target_env)
+        pdf_upload = await s3_service.upload_file_with_region(
+            s3_key=pdf_s3_key,
+            content=encrypted_pdf,
+            target_env=target_env,
+        )
+        storage_active_regions = _active_region_map(pdf_upload)
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
             f"{log_prefix} [PDF-5/7] S3 upload: OK ({s3_elapsed:.0f} ms) — "
@@ -1614,7 +1719,7 @@ async def _handle_pdf_upload(
         logger.error(f"{log_prefix} [PDF-5/7] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
-    s3_base_url = s3_service.get_base_url(target_env=target_env)
+    s3_base_url = s3_service.get_base_url(target_env=target_env, region=pdf_upload.region)
 
     # --- PDF 6. Build files metadata and store upload record ---
     files_metadata = {
@@ -1624,6 +1729,7 @@ async def _handle_pdf_upload(
             height=0,
             size_bytes=len(encrypted_pdf),
             format="pdf",
+            active_region=pdf_upload.region,
         ),
     }
 
@@ -1647,6 +1753,7 @@ async def _handle_pdf_upload(
         "created_at": int(datetime.now(timezone.utc).timestamp()),
         # PDF-specific metadata
         "page_count": page_count,
+        "storage_active_regions": storage_active_regions,
     }
     await _store_record_via_api(core_api_url, internal_token, upload_record)
     logger.info(f"{log_prefix} [PDF-6/7] Record stored: OK")
@@ -1816,9 +1923,10 @@ async def _handle_audio_upload(
     )
     s3_start = time.monotonic()
     try:
-        await s3_service.upload_file(
+        audio_upload = await s3_service.upload_file_with_region(
             s3_key=audio_s3_key, content=encrypted_audio, target_env=target_env
         )
+        storage_active_regions = _active_region_map(audio_upload)
         s3_elapsed = (time.monotonic() - s3_start) * 1000
         logger.info(
             f"{log_prefix} [Audio-3/4] S3 upload: OK ({s3_elapsed:.0f} ms) — "
@@ -1828,7 +1936,7 @@ async def _handle_audio_upload(
         logger.error(f"{log_prefix} [Audio-3/4] S3 upload FAILED: {e}", exc_info=True)
         raise HTTPException(status_code=503, detail="File storage service unavailable")
 
-    s3_base_url = s3_service.get_base_url(target_env=target_env)
+    s3_base_url = s3_service.get_base_url(target_env=target_env, region=audio_upload.region)
 
     # --- Audio 4. Build files metadata and store upload record ---
     files_metadata = {
@@ -1838,6 +1946,7 @@ async def _handle_audio_upload(
             height=0,
             size_bytes=len(encrypted_audio),
             format=content_type.split("/")[-1].split(";")[0],  # e.g. "webm", "ogg"
+            active_region=audio_upload.region,
         ),
     }
 
@@ -1859,6 +1968,7 @@ async def _handle_audio_upload(
         "malware_scan": "clean",
         "ai_detection": None,
         "created_at": int(datetime.now(timezone.utc).timestamp()),
+        "storage_active_regions": storage_active_regions,
     }
     await _store_record_via_api(core_api_url, internal_token, upload_record)
     logger.info(f"{log_prefix} [Audio-4/4] Record stored: OK")

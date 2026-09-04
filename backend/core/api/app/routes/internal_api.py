@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import yaml
+from collections import Counter
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import Response
 from typing import Dict, Any, Optional
@@ -24,10 +25,25 @@ from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
+from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.s3.replication import (
+    build_replication_job,
+    persist_replication_job,
+    record_persisted_region_error,
+)
+from backend.core.api.app.services.s3.reconciliation import find_deletion_tombstone
+from backend.core.api.app.services.s3.recovery_backfill import (
+    backfill_recovered_page,
+)
+from backend.shared.python_utils.object_storage_regions import (
+    RETRYABLE_STORAGE_ERROR_CODES,
+    is_retryable_storage_error,
+    parse_storage_regions,
+)
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
 from backend.core.api.app.services.payment.payment_service import PaymentService
@@ -117,6 +133,184 @@ def get_payment_service(request: Request) -> PaymentService:
 
 
 # --- Endpoint Implementations ---
+
+
+class PersistStorageReplicationJobRequest(BaseModel):
+    """Safe routing metadata for one completed active-region ciphertext write."""
+
+    logical_bucket: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
+    object_key: str = Field(min_length=1, max_length=1024)
+    generation: int = Field(default=1, ge=1)
+    checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
+    active_region: str = Field(pattern=r"^(nbg1|fsn1|hel1)$")
+
+
+class StorageRecoveryReference(BaseModel):
+    """Safe routing authority for one immutable historical ciphertext object."""
+
+    logical_bucket: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9_]+$")
+    object_key: str = Field(min_length=1, max_length=1024)
+    generation: int = Field(default=1, ge=1)
+    checksum: str | None = Field(default=None, pattern=r"^(sha256:)?[0-9a-f]{64}$")
+
+
+class ReconcileRecoveredStorageRequest(BaseModel):
+    """Bounded internal-only recovery page; object identifiers never echo back."""
+
+    source_region: str = Field(pattern=r"^(nbg1|fsn1|hel1)$")
+    references: list[StorageRecoveryReference] = Field(max_length=100)
+    next_cursor: str | None = Field(default=None, max_length=1024)
+
+
+@router.post("/storage/replication-jobs")
+async def persist_storage_replication_job_route(
+    payload: PersistStorageReplicationJobRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> dict[str, str]:
+    """Persist internal-only replica intent before an upload service acknowledges."""
+    tombstone = await find_deletion_tombstone(
+        directus_service=directus_service,
+        logical_bucket=payload.logical_bucket,
+        object_key=payload.object_key,
+    )
+    if tombstone:
+        raise HTTPException(status_code=409, detail="Storage object is authoritatively deleted")
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    now = datetime.now(timezone.utc)
+    job = build_replication_job(
+        logical_bucket=payload.logical_bucket,
+        object_key=payload.object_key,
+        generation=payload.generation,
+        checksum=payload.checksum,
+        active_region=payload.active_region,
+        configured_regions=configured_regions,
+        now=now,
+    )
+    persisted = await persist_replication_job(
+        directus_service=directus_service,
+        job=job,
+    )
+    return {"job_id": str(persisted["id"]), "state": str(persisted.get("state", job["state"]))}
+
+
+@router.post("/storage/replication/reconcile")
+async def reconcile_recovered_storage_route(
+    payload: ReconcileRecoveredStorageRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    s3_service: S3UploadService = Depends(get_s3_service),
+) -> dict[str, Any]:
+    """Internal-only bounded historical backfill and recovered-region fence."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    result = await backfill_recovered_page(
+        references=[reference.model_dump(exclude_none=True) for reference in payload.references],
+        source_region=payload.source_region,
+        configured_regions=configured_regions,
+        s3_clients=s3_service.region_clients,
+        directus_service=directus_service,
+        environment=s3_service.environment,
+        now=datetime.now(timezone.utc),
+        next_cursor=payload.next_cursor,
+    )
+    return result
+
+
+@router.get("/storage/health")
+async def storage_region_health_route(
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> dict[str, Any]:
+    """Return sanitized internal regional health and durable-work totals."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    health_rows = await directus_service.get_items(
+        "storage_region_health",
+        params={
+            "filter": {"region": {"_in": list(configured_regions)}},
+            "fields": "region,failure_count,open_until,probe_succeeded,reconciled,last_error_code,updated_at",
+            "sort": "region",
+            "limit": len(configured_regions),
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    replication_rows = await directus_service.get_items(
+        "storage_replication_jobs",
+        params={
+            "filter": {"state": {"_in": ["pending", "retry_scheduled", "failed", "source_missing"]}},
+            "fields": "state,region_states,last_error_code,attempts,created_at",
+            "limit": 100,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    replication_error_counts = Counter(
+        str(row.get("last_error_code"))
+        for row in replication_rows
+        if row.get("last_error_code")
+    )
+    pending_replication = sum(
+        1 for row in replication_rows if row.get("state") != "source_missing"
+    )
+    source_missing_replication = sum(
+        1 for row in replication_rows if row.get("state") == "source_missing"
+    )
+    tombstone_rows = await directus_service.get_items(
+        "storage_deletion_tombstones",
+        params={
+            "filter": {"state": {"_in": ["pending", "retry_scheduled"]}},
+            "fields": "state,purge_states,created_at",
+            "limit": 100,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    ) or []
+    return {
+        "configured_regions": list(configured_regions),
+        "regions": health_rows,
+        "pending_replication": pending_replication,
+        "source_missing_replication": source_missing_replication,
+        "replication_error_code_counts": dict(sorted(replication_error_counts.items())),
+        "max_replication_attempts": max(
+            (int(row.get("attempts") or 0) for row in replication_rows),
+            default=0,
+        ),
+        "pending_deletion": len(tombstone_rows),
+        "result_truncated": len(replication_rows) == 100 or len(tombstone_rows) == 100,
+    }
+
+
+class StorageRegionErrorRequest(BaseModel):
+    """Internal report of a retryable regional object-storage failure."""
+
+    region: str = Field(..., description="Configured storage region that failed")
+    error_code: str = Field(..., description="Provider error code or transport exception name")
+    http_status: Optional[int] = Field(None, description="Provider HTTP status, when available")
+
+
+@router.post("/storage/region-errors")
+async def record_storage_region_error_route(
+    payload: StorageRegionErrorRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> dict[str, str]:
+    """Journal upload-service regional failures into the shared health circuit."""
+    configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+    if payload.region not in configured_regions:
+        raise HTTPException(status_code=400, detail="Storage region is not configured")
+    if not is_retryable_storage_error(payload.error_code, payload.http_status):
+        return {"status": "ignored"}
+    health_error_code = (
+        payload.error_code
+        if payload.error_code in RETRYABLE_STORAGE_ERROR_CODES or payload.http_status is None
+        else str(payload.http_status)
+    )
+    await record_persisted_region_error(
+        directus_service=directus_service,
+        region=payload.region,
+        error_code=health_error_code,
+        now=datetime.now(timezone.utc),
+    )
+    return {"status": "recorded"}
 
 
 # ---------------------------------------------------------------------------
@@ -543,6 +737,85 @@ class TeamCreditChargePayload(BaseModel):
     idempotency_key: str = Field(..., min_length=1, max_length=255)
     usage_details: Optional[Dict[str, Any]] = None
 
+
+class AnonymousOperationReservePayload(BaseModel):
+    parent_request_id: str = Field(..., min_length=1, max_length=255)
+    operation_id: str = Field(..., min_length=1, max_length=255)
+    charge_id: str = Field(..., min_length=1, max_length=256)
+    quoted_credits: int = Field(..., ge=1)
+
+
+class AnonymousChargeFinalizePayload(BaseModel):
+    charge_id: str = Field(..., min_length=1, max_length=256)
+    actual_credits: int = Field(..., ge=0)
+
+
+class AnonymousOperationReleasePayload(BaseModel):
+    operation_id: str = Field(..., min_length=1, max_length=255)
+    reason: str = Field(default="provider_failed", min_length=1, max_length=128)
+
+
+def _anonymous_usage_service(
+    directus_service: DirectusService,
+    cache_service: CacheService,
+) -> AnonymousFreeUsageService:
+    return AnonymousFreeUsageService(
+        directus_service=directus_service,
+        cache_service=cache_service,
+        require_distributed_lock=True,
+    )
+
+
+@router.post("/anonymous-usage/reserve-operation")
+async def reserve_anonymous_operation(
+    payload: AnonymousOperationReservePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    result = await _anonymous_usage_service(directus_service, cache_service).reserve_operation(
+        parent_request_id=payload.parent_request_id,
+        operation_id=payload.operation_id,
+        charge_id=payload.charge_id,
+        quoted_credits=payload.quoted_credits,
+    )
+    if not result.accepted:
+        raise HTTPException(status_code=429, detail={"code": result.reason or "budget_exhausted"})
+    return {
+        "status": "reserved",
+        "operation_id": result.request_id,
+        "reserved_credits": result.reserved_credits,
+        "idempotent": result.reason in {"reserved", "finalized"},
+    }
+
+
+@router.post("/anonymous-usage/finalize-charge")
+async def finalize_anonymous_charge(
+    payload: AnonymousChargeFinalizePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    try:
+        await _anonymous_usage_service(directus_service, cache_service).finalize_charge(
+            payload.charge_id,
+            actual_credits=payload.actual_credits,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail={"code": "anonymous_quote_exceeded", "message": str(exc)}) from exc
+    return {"status": "finalized", "charge_id": payload.charge_id, "actual_credits": payload.actual_credits}
+
+
+@router.post("/anonymous-usage/release-operation")
+async def release_anonymous_operation(
+    payload: AnonymousOperationReleasePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+) -> Dict[str, Any]:
+    await _anonymous_usage_service(directus_service, cache_service).release_reservation(
+        payload.operation_id,
+        reason=payload.reason,
+    )
+    return {"status": "released", "operation_id": payload.operation_id}
+
 @router.get("/billing/balance")
 async def get_user_credit_balance(
     user_id: str,
@@ -604,6 +877,7 @@ async def charge_credits_route(
             "status": "success",
             "charge_id": charge_result.get("charge_id", payload.idempotency_key),
             "charged_credits": charge_result.get("charged_credits", payload.credits),
+            "usage_id": charge_result.get("usage_id"),
             "idempotent": bool(charge_result.get("idempotent")),
         }
     except HTTPException as e:
@@ -656,6 +930,7 @@ class CreditRefundPayload(BaseModel):
     credits: int
     skill_id: str
     app_id: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
     reason: Optional[str] = None
 
 
@@ -694,6 +969,7 @@ async def refund_credits_route(
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
             skill_id=payload.skill_id,
+            idempotency_key=payload.idempotency_key,
             reason=payload.reason or "",
         )
         return {
@@ -1366,6 +1642,10 @@ class UploadStoreRecordRequest(BaseModel):
     malware_scan: str = Field(default="clean", description="ClamAV scan result")
     ai_detection: Optional[Dict[str, Any]] = Field(None, description="AI-generated detection result")
     created_at: int = Field(..., description="Unix timestamp of upload")
+    storage_active_regions: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Internal per-object active S3 region already persisted by the upload service",
+    )
     # PDF-specific: number of pages extracted by pymupdf during upload.
     # Stored so that deduplication responses can return the correct page_count
     # without re-parsing the PDF on subsequent uploads of the same file.
@@ -1376,6 +1656,7 @@ class UploadStoreRecordRequest(BaseModel):
 async def store_upload_record(
     payload: UploadStoreRecordRequest,
     directus_service: DirectusService = Depends(get_directus_service),
+    s3_service: S3UploadService = Depends(get_s3_service),
 ) -> Dict[str, Any]:
     """
     Store an upload record in Directus for future deduplication.
@@ -1395,6 +1676,42 @@ async def store_upload_record(
 
     try:
         record = payload.model_dump(exclude_none=True)
+        record.pop("storage_active_regions", None)
+        record_files_metadata = record.get("files_metadata") or {}
+        configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        replicated_keys: set[str] = set()
+        seen_object_keys: set[str] = set()
+        for variant_name, variant in payload.files_metadata.items():
+            if not isinstance(variant, dict):
+                raise ValueError("Upload variant metadata must be an object")
+            object_key = variant.get("s3_key")
+            if not isinstance(object_key, str) or not object_key:
+                raise ValueError("Upload variant metadata requires an S3 key")
+            seen_object_keys.add(object_key)
+            already_replicated = object_key in replicated_keys
+            active_region = payload.storage_active_regions.get(object_key)
+            if active_region:
+                if active_region not in configured_regions:
+                    raise ValueError("Upload variant active region is not configured")
+                existing_region = variant.get("active_region")
+                if isinstance(existing_region, str) and existing_region != active_region:
+                    raise ValueError("Upload variant active region does not match storage routing metadata")
+                record_variant = record_files_metadata.get(variant_name)
+                if isinstance(record_variant, dict):
+                    record_variant["active_region"] = active_region
+                if not already_replicated:
+                    replicated_keys.add(object_key)
+                continue
+            if already_replicated:
+                continue
+            await s3_service.persist_external_upload_replication(
+                logical_bucket="chatfiles",
+                object_key=object_key,
+            )
+            replicated_keys.add(object_key)
+        unknown_active_keys = set(payload.storage_active_regions) - seen_object_keys
+        if unknown_active_keys:
+            raise ValueError("Upload storage routing metadata references unknown S3 keys")
         await directus_service.create_item("upload_files", record)
         logger.info(f"{log_prefix} Upload record stored successfully")
 
@@ -1425,8 +1742,6 @@ async def store_upload_record(
         return {"status": "success", "embed_id": payload.embed_id}
 
     except Exception as e:
-        # Non-fatal: upload already succeeded (files in S3). Dedup just won't work
-        # for this file. Log the error but don't fail the upload.
         logger.error(f"{log_prefix} Failed to store upload record: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
 

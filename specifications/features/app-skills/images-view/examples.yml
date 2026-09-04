@@ -1,0 +1,43 @@
+schema_version: 1
+specification: feature.app-skill.images-view@1
+
+valid_view:
+  - id: neutral-filename-landmark
+    chat_origins: [cli, sdk_npm, sdk_pip, gui_web, gui_apple]
+    request:
+      file_path: landmark.jpg
+      file_path_index: {landmark.jpg: <IMAGE_EMBED_ID>}
+      user_vault_key_id: <USER_VAULT_KEY_ID>
+    decrypted_pixels: Golden Gate Bridge
+    expect:
+      tool_result_types: [text, image_url]
+      image_data_url_present: true
+      filename_used_as_visual_evidence: false
+      post_tool_answer_contains: San Francisco
+      durable_plaintext_image: false
+      semantic_result_independent_of_chat_origin: true
+
+invalid_view:
+  - id: unresolved-embed-reference
+    request:
+      file_path: landmark.jpg
+      file_path_index: {}
+      user_vault_key_id: <USER_VAULT_KEY_ID>
+    expect:
+      tool_result_types: [text]
+      explicit_error: true
+      image_block_present: false
+      embed_status: failed
+      assistant_claims_pixel_access: false
+  - id: media-decryption-failure
+    request:
+      file_path: landmark.jpg
+      file_path_index: {landmark.jpg: <IMAGE_EMBED_ID>}
+      user_vault_key_id: <USER_VAULT_KEY_ID>
+    media_decryption: failed
+    expect:
+      tool_result_types: [text]
+      explicit_error: true
+      image_block_present: false
+      embed_status: failed
+      assistant_claims_pixel_access: false

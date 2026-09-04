@@ -1,0 +1,110 @@
+schema_version: 1
+id: feature.app-skill.events-search
+version: 1
+status: approved
+title: Events Search
+summary: >
+  Search supported public event sources for location, online, or conference
+  events and return sanitized, actionable event groups consistently across clients.
+
+inherits:
+  - architecture.app-skill-execution@1
+  - architecture.platform-parity@1
+
+scope:
+  includes:
+    - One or more event searches with location, coordinates, dates, type, provider, or known conference filters
+    - Explicit, auto, multi-provider, and supported conference-schedule routing
+    - Sanitized event cards with usable source URLs and grouped map rendering
+  excludes:
+    - Ticket purchasing or RSVP mutation
+    - Private attendee data or authenticated organizer management
+    - General web search fallback after an events provider error
+
+models:
+  EventsSearchRequest:
+    requests: {type: array, required: true, items: EventsSearchRequestItem, constraints: {min_items: 1}}
+    provider: {type: string, nullable: true, default: auto}
+    providers: {type: array, nullable: true, items: string}
+
+  EventsSearchRequestItem:
+    id: {type: string_or_integer, nullable: true}
+    query: {type: string, nullable: true}
+    location: {type: string, nullable: true}
+    lat: {type: number, nullable: true}
+    lon: {type: number, nullable: true}
+    start_date: {type: iso_8601_datetime, nullable: true}
+    end_date: {type: iso_8601_datetime, nullable: true}
+    event_type: {type: enum, nullable: true, values: [PHYSICAL, ONLINE]}
+    count: {type: integer, default: 10, constraints: {minimum: 1, maximum: 50}}
+    provider: {type: string, nullable: true}
+    providers: {type: array, nullable: true, items: string}
+    conference: {type: string, nullable: true, constraints: {supported_values: [GPN24, 39C3, 38C3, 37C3]}}
+    past_events: {type: boolean, default: false}
+
+  EventResult:
+    title: {type: string, required: true, constraints: {blank: false}}
+    url: {type: absolute_http_or_https_url, required: true}
+    provider: {type: string, required: true}
+    date_start: {type: iso_8601_datetime, required: true}
+    date_end: {type: iso_8601_datetime, nullable: true}
+    description: {type: external_text, nullable: true, constraints: {semantic_scan_before_ai_context: true}}
+    venue: {type: object, nullable: true}
+
+  EventsSearchResponse:
+    results: {type: array, required: true, items: grouped_event_results}
+    provider: {type: string, required: true}
+    providers: {type: array, required: true, items: string, constraints: {lists_queried_providers: true}}
+    suggestions_follow_up_requests: {type: array, nullable: true, items: string}
+    error: {type: string, nullable: true, constraints: {safe: true, secrets: forbidden}}
+
+assertions:
+  - id: events-search.request.validated
+    type: validation
+    must: Each request requires a usable city/coordinate query or a supported conference schedule, validates date/type/count fields, and rejects malformed request items without blocking independent valid items in the same batch.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchRequestItem, examples.requests]
+  - id: events-search.providers.explicit
+    type: behavior
+    must: An explicit provider is never silently broadened to auto mode, unknown providers return a visible error, auto mode queries applicable providers, and the response lists providers that were queried even when they returned no results.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchResponse.providers, examples.provider_routing]
+  - id: events-search.results.actionable
+    type: invariant
+    must: Returned events have a nonblank title, usable source or booking URL, provider, and start time; invalid events are omitted, valid events remain available, and results are bounded by the requested count.
+    depends_on: [models.EventResult, examples.results]
+  - id: events-search.conference.supported
+    type: behavior
+    must: Supported GPN and Congress schedules accept conference-only searches, preserve topic filters when supplied, exclude past sessions by default, and participate in auto routing when the conference is known.
+    depends_on: [models.EventsSearchRequestItem.conference, models.EventsSearchRequestItem.past_events, examples.conferences]
+  - id: events-search.output.sanitized
+    type: security
+    must: Event titles, descriptions, organizer text, and other selected external text receive the inherited app-skill output safety contract before client exposure or AI context; display-only media and hash fields may be excluded from inference without bypassing required text scans.
+    depends_on: [models.EventResult, examples.results]
+  - id: events-search.performance.bounded
+    type: behavior
+    must: A direct warmed CLI auto-provider search typically completes within five seconds in the controlled dev proof environment and the deterministic proof deadline remains ten seconds without disabling output safety.
+    depends_on: [models.EventsSearchRequest, models.EventsSearchResponse, examples.performance]
+  - id: events-search.surface-parity
+    type: parity
+    must: REST API, CLI, npm/pip SDKs, web, and Apple preserve the same request grouping, provider routing, event result, visible error, output-safety, and date-range semantics; GUI clients may additionally render grouped event cards and a resolved map view.
+    depends_on: [models, examples.surface_parity, applies_to]
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [requests, provider_routing, results, conferences, performance, surface_parity]

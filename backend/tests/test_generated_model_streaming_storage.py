@@ -4,6 +4,7 @@
 # must not be converted back into a whole-object plaintext buffer at download.
 
 import asyncio
+import hashlib
 import sys
 import types
 
@@ -17,14 +18,28 @@ if "boto3" not in sys.modules:
     sys.modules["boto3"] = boto3_module
 
 if "botocore" not in sys.modules:
+    class _FakeClientError(Exception):
+        def __init__(self, response, operation_name):
+            super().__init__(operation_name)
+            self.response = response
+
+    class _FakeEndpointConnectionError(Exception):
+        def __init__(self, *args, endpoint_url=None):
+            super().__init__(endpoint_url or (args[0] if args else "endpoint unavailable"))
+
+    _FakeClientError.__name__ = "ClientError"
+    _FakeEndpointConnectionError.__name__ = "EndpointConnectionError"
+
     botocore_module = types.ModuleType("botocore")
     botocore_config_module = types.ModuleType("botocore.config")
     botocore_config_module.Config = lambda *_args, **_kwargs: None
     botocore_exceptions_module = types.ModuleType("botocore.exceptions")
-    botocore_exceptions_module.ClientError = Exception
-    botocore_exceptions_module.ReadTimeoutError = Exception
-    botocore_exceptions_module.ConnectTimeoutError = Exception
-    botocore_exceptions_module.EndpointConnectionError = Exception
+    botocore_exceptions_module.ClientError = _FakeClientError
+    botocore_exceptions_module.ConnectionClosedError = type("ConnectionClosedError", (Exception,), {})
+    botocore_exceptions_module.ReadTimeoutError = type("ReadTimeoutError", (Exception,), {})
+    botocore_exceptions_module.ConnectTimeoutError = type("ConnectTimeoutError", (Exception,), {})
+    botocore_exceptions_module.EndpointConnectionError = _FakeEndpointConnectionError
+    botocore_exceptions_module.HTTPClientError = type("HTTPClientError", (Exception,), {})
     sys.modules["botocore"] = botocore_module
     sys.modules["botocore.config"] = botocore_config_module
     sys.modules["botocore.exceptions"] = botocore_exceptions_module
@@ -50,7 +65,7 @@ from backend.shared.python_utils.generated_assets import (
     decrypt_generated_asset_variant,
     encrypt_chunked_stream,
 )
-from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.s3.service import ClientError, EndpointConnectionError, S3UploadService
 from backend.shared.python_utils.generated_assets import create_download_token
 from backend.shared.python_utils.generated_assets.service import _token_secret
 from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
@@ -66,6 +81,7 @@ async def _collect(source) -> bytes:
     return b"".join([chunk async for chunk in source])
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_chunked_master_variant_decrypts_from_fragmented_s3_stream() -> None:
     key = b"\x8a" * 32
@@ -83,6 +99,7 @@ async def test_chunked_master_variant_decrypts_from_fragmented_s3_stream() -> No
     assert decrypted == original
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_unknown_generated_asset_encryption_version_fails_closed() -> None:
     with pytest.raises(ValueError, match="Unsupported generated asset encryption"):
@@ -118,6 +135,7 @@ class _FakeS3Client:
         return {"Body": self.body}
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_s3_stream_reads_fixed_chunks_and_closes_body() -> None:
     body = _FakeStreamingBody(b"abcdefghijklmnopqrstuvwxyz")
@@ -138,10 +156,16 @@ async def test_s3_stream_reads_fixed_chunks_and_closes_body() -> None:
 
 
 class _FakeMultipartUploadClient:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        fail_completion_precondition: bool = False,
+        completion_failure: str | None = None,
+    ) -> None:
         self.parts = []
         self.completed = None
         self.aborted = False
+        self.completion_failure = "precondition" if fail_completion_precondition else completion_failure
 
     def create_multipart_upload(self, **_kwargs):
         return {"UploadId": "upload-1"}
@@ -151,6 +175,22 @@ class _FakeMultipartUploadClient:
         return {"ETag": f"etag-{kwargs['PartNumber']}"}
 
     def complete_multipart_upload(self, **kwargs):
+        if self.completion_failure == "precondition":
+            error = ClientError({"Error": {"Code": "PreconditionFailed"}}, "CompleteMultipartUpload")
+            error.response = {"Error": {"Code": "PreconditionFailed"}}
+            raise error
+        if self.completion_failure == "service_unavailable":
+            error = ClientError(
+                {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+                "CompleteMultipartUpload",
+            )
+            error.response = {"Error": {"Code": "ServiceUnavailable"}, "ResponseMetadata": {"HTTPStatusCode": 503}}
+            raise error
+        if self.completion_failure == "transport":
+            try:
+                raise EndpointConnectionError(endpoint_url="https://nbg1.example.invalid")
+            except TypeError as exc:
+                raise EndpointConnectionError("https://nbg1.example.invalid") from exc
         self.completed = kwargs
 
     def abort_multipart_upload(self, **_kwargs):
@@ -158,17 +198,69 @@ class _FakeMultipartUploadClient:
 
 
 class _FakeS3MetadataClient:
+    def __init__(self, existing_checksum: str | None = None) -> None:
+        self.existing_checksum = existing_checksum
+
+    def head_object(self, **_kwargs):
+        if self.existing_checksum:
+            return {"Metadata": {"openmates-sha256": self.existing_checksum}}
+        error = ClientError({"Error": {"Code": "NoSuchKey"}}, "HeadObject")
+        error.response = {"Error": {"Code": "NoSuchKey"}}
+        raise error
+
     def generate_presigned_url(self, *_args, **_kwargs):
         return "https://s3.example.test/signed"
 
 
+class _FakeReplicationDirectus:
+    def __init__(self) -> None:
+        self.created_items = []
+
+    async def get_items(self, collection, **_kwargs):
+        if collection == "storage_deletion_tombstones":
+            return []
+        if collection == "storage_replication_jobs":
+            return []
+        if collection == "storage_region_health":
+            return []
+        return []
+
+    async def create_item(self, collection, payload, **_kwargs):
+        created = {"id": f"{collection}-1", **dict(payload)}
+        self.created_items.append((collection, created))
+        return True, created
+
+
+class _RacingS3MetadataClient(_FakeS3MetadataClient):
+    def __init__(self, checksum: str) -> None:
+        super().__init__(checksum)
+        self.head_calls = 0
+
+    def head_object(self, **kwargs):
+        self.head_calls += 1
+        if self.head_calls == 1:
+            existing_checksum = self.existing_checksum
+            self.existing_checksum = None
+            try:
+                return super().head_object(**kwargs)
+            finally:
+                self.existing_checksum = existing_checksum
+        return super().head_object(**kwargs)
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_s3_stream_upload_uses_bounded_multipart_parts() -> None:
     part_size = 5 * 1024 * 1024
     upload_client = _FakeMultipartUploadClient()
-    service = S3UploadService(secrets_manager=None)
-    service.client = _FakeS3MetadataClient()
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
+    metadata_client = _FakeS3MetadataClient()
+    service.client = metadata_client
     service.upload_client = upload_client
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": metadata_client}
+    service.upload_region_clients = {"nbg1": upload_client}
     service.base_domain = "s3.example.test"
     service.environment = "development"
 
@@ -192,14 +284,120 @@ async def test_s3_stream_upload_uses_bounded_multipart_parts() -> None:
     ]
     assert result["url"].endswith("models/master.glb")
     assert upload_client.aborted is False
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
 
 
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.asyncio
+async def test_s3_stream_retry_accepts_matching_immutable_object() -> None:
+    content = b"existing-encrypted-model"
+    metadata_client = _FakeS3MetadataClient(hashlib.sha256(content).hexdigest())
+    upload_client = _FakeMultipartUploadClient()
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
+    service.client = metadata_client
+    service.upload_client = upload_client
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": metadata_client}
+    service.upload_region_clients = {"nbg1": upload_client}
+    service.environment = "development"
+
+    async def source():
+        yield content
+
+    result = await service.upload_file_stream(
+        bucket_key="chatfiles",
+        file_key="models/existing-master.glb",
+        source=source(),
+        content_type="application/octet-stream",
+    )
+
+    assert result["url"].endswith("models/existing-master.glb")
+    assert upload_client.parts == []
+    assert upload_client.completed is None
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
+
+
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+@pytest.mark.asyncio
+async def test_s3_stream_completion_race_accepts_matching_winner() -> None:
+    content = b"racing-encrypted-model"
+    metadata_client = _RacingS3MetadataClient(hashlib.sha256(content).hexdigest())
+    upload_client = _FakeMultipartUploadClient(fail_completion_precondition=True)
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
+    service.client = metadata_client
+    service.upload_client = upload_client
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": metadata_client}
+    service.upload_region_clients = {"nbg1": upload_client}
+    service.environment = "development"
+
+    async def source():
+        yield content
+
+    result = await service.upload_file_stream(
+        bucket_key="chatfiles",
+        file_key="models/racing-master.glb",
+        source=source(),
+        content_type="application/octet-stream",
+    )
+
+    assert result["url"].endswith("models/racing-master.glb")
+    assert upload_client.aborted is True
+    assert metadata_client.head_calls == 2
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("completion_failure", ["service_unavailable", "transport"])
+# contract-test: direct surface=rest_api assertions=storage.replication.active-write-durable-outbox
+async def test_s3_stream_ambiguous_completion_accepts_matching_committed_object(
+    completion_failure: str,
+) -> None:
+    content = b"committed-encrypted-model"
+    metadata_client = _RacingS3MetadataClient(hashlib.sha256(content).hexdigest())
+    upload_client = _FakeMultipartUploadClient(completion_failure=completion_failure)
+    directus = _FakeReplicationDirectus()
+    service = S3UploadService(secrets_manager=None, directus_service=directus)
+    service.client = metadata_client
+    service.upload_client = upload_client
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": metadata_client}
+    service.upload_region_clients = {"nbg1": upload_client}
+    service.environment = "development"
+
+    async def source():
+        yield content
+
+    result = await service.upload_file_stream(
+        bucket_key="chatfiles",
+        file_key="models/committed-master.glb",
+        source=source(),
+        content_type="application/octet-stream",
+    )
+
+    assert result["url"].endswith("models/committed-master.glb")
+    assert upload_client.aborted is False
+    assert metadata_client.head_calls == 2
+    assert directus.created_items[0][0] == "storage_replication_jobs"
+    assert directus.created_items[0][1]["active_region"] == "nbg1"
+
+
+# contract-test: supporting surface=rest_api assertions=storage.replication.active-write-durable-outbox
 @pytest.mark.asyncio
 async def test_s3_stream_upload_aborts_on_cancellation() -> None:
     upload_client = _FakeMultipartUploadClient()
     service = S3UploadService(secrets_manager=None)
-    service.client = _FakeS3MetadataClient()
+    metadata_client = _FakeS3MetadataClient()
+    service.client = metadata_client
     service.upload_client = upload_client
+    service.region_name = "nbg1"
+    service.region_clients = {"nbg1": metadata_client}
+    service.upload_region_clients = {"nbg1": upload_client}
     service.base_domain = "s3.example.test"
     service.environment = "development"
 
@@ -215,9 +413,10 @@ async def test_s3_stream_upload_aborts_on_cancellation() -> None:
             content_type="application/octet-stream",
         )
 
-    assert upload_client.aborted is True
+    assert upload_client.aborted is False
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_s3_stream_closes_body_when_consumer_stops_early() -> None:
     body = _FakeStreamingBody(b"abcdefghijklmnopqrstuvwxyz")
@@ -272,6 +471,7 @@ class _FakeBoundedAssetS3:
         return self.encrypted
 
 
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_chunked_master_download_uses_streaming_response() -> None:
     key = b"\x71" * 32
@@ -311,6 +511,7 @@ async def test_chunked_master_download_uses_streaming_response() -> None:
     assert await _collect(response.body_iterator) == original
 
 
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_unknown_master_encryption_is_rejected_before_response() -> None:
     token = create_download_token(asset_id="model-1", user_id="user-1", variant="master")
@@ -338,6 +539,7 @@ async def test_unknown_master_encryption_is_rejected_before_response() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_bounded_variant_uses_its_own_nonce_not_legacy_record_nonce() -> None:
     key = b"\x72" * 32
@@ -375,6 +577,7 @@ async def test_bounded_variant_uses_its_own_nonce_not_legacy_record_nonce() -> N
     assert response.media_type == "image/webp"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_v2_bounded_variant_uses_prefixed_nonce() -> None:
     key = b"\x73" * 32
@@ -412,6 +615,7 @@ async def test_v2_bounded_variant_uses_prefixed_nonce() -> None:
     assert response.body == plaintext
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_v2_bounded_variant_unwraps_key_when_raw_key_is_absent() -> None:
     key = b"\x73" * 32
@@ -451,6 +655,7 @@ async def test_v2_bounded_variant_unwraps_key_when_raw_key_is_absent() -> None:
     assert response.body == plaintext
 
 
+# contract-test: supporting surface=rest_api assertions=storage.privacy.ciphertext-boundary
 def test_download_token_issuance_fails_closed_in_production_without_secret(monkeypatch) -> None:
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     monkeypatch.delenv("GENERATED_ASSET_TOKEN_SECRET", raising=False)
@@ -460,6 +665,7 @@ def test_download_token_issuance_fails_closed_in_production_without_secret(monke
         _token_secret()
 
 
+# contract-test: direct surface=rest_api assertions=storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_chunked_master_rejects_invalid_key_and_unsafe_filename_before_streaming() -> None:
     token = create_download_token(asset_id="model-1", user_id="user-1", variant="master")

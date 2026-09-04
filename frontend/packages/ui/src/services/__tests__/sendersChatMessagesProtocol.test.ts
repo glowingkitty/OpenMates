@@ -18,6 +18,7 @@ vi.mock("../websocketService", () => ({
 import {
 	buildTeamMessageTransport,
 	applyTeamPreflightScope,
+  requireEmbedOwnerId,
   isPreflightAcknowledgementTimeout,
   preflightExpectedMessagesVersion,
   shouldIncludePreflightChatMetadata,
@@ -35,6 +36,18 @@ const TEAM_MESSAGE = {
 };
 
 describe("sendersChatMessages protocol fences", () => {
+	// contract-test: supporting surface=gui.web assertions=code-run.artifacts.chat-bound-versioned
+	it("uses persisted profile identity when a new chat has no owner yet", () => {
+		expect(requireEmbedOwnerId(undefined, "profile-user")).toBe("profile-user");
+	});
+
+	// contract-test: supporting surface=gui.web assertions=code-run.artifacts.chat-bound-versioned
+	it("rejects embed persistence without an authenticated owner", () => {
+		expect(() => requireEmbedOwnerId(undefined, null)).toThrow(
+			"Cannot persist message embeds without an authenticated owner ID"
+		);
+	});
+
 	// contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked
 	it("keeps ordinary Team turns ciphertext-only", () => {
 		const transport = buildTeamMessageTransport({

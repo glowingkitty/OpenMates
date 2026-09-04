@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test-file: scripts/tests/test_sessions_presence_store.py
 """Concurrency-safe ephemeral presence storage for local OpenCode sessions.
 
 The store contains only allowlisted identifiers, states, timestamps, and safe
@@ -307,10 +308,48 @@ class PresenceStore:
         except OSError as error:
             raise PresenceStoreError(f"Presence store lock failed: {error}") from error
 
+    def _expire(self, data: dict) -> dict:
+        """Prune ephemeral state in place before it is persisted again."""
+        now_value = self.now()
+        now = _parse_timestamp(now_value)
+        for session_id, record in list(data["sessions"].items()):
+            updated_at = record.get("updated_at")
+            try:
+                age = (now - _parse_timestamp(updated_at)).total_seconds()
+            except (TypeError, ValueError):
+                age = DEFAULT_TERMINAL_RETENTION_SECONDS + 1
+            if record.get("execution") in {"busy", "retrying"}:
+                heartbeat = record.get("heartbeat_at") or updated_at
+                try:
+                    stale = (now - _parse_timestamp(heartbeat)).total_seconds() > LIVE_TIMEOUT_SECONDS
+                except (TypeError, ValueError):
+                    stale = True
+                if stale and age > DEFAULT_TERMINAL_RETENTION_SECONDS:
+                    del data["sessions"][session_id]
+                elif stale:
+                    record["execution"] = "unknown"
+            elif age > DEFAULT_TERMINAL_RETENTION_SECONDS:
+                del data["sessions"][session_id]
+        for key, claims in list(data["task_claims"].items()):
+            active = [claim for claim in claims if claim.get("expires_at", "") > now_value]
+            if active:
+                data["task_claims"][key] = active
+            else:
+                del data["task_claims"][key]
+        for child_id, marker in list(data["child_roles"].items()):
+            try:
+                stale = (now - _parse_timestamp(marker.get("updated_at", ""))).total_seconds() > DEFAULT_TERMINAL_RETENTION_SECONDS
+            except (TypeError, ValueError):
+                stale = True
+            if stale:
+                del data["child_roles"][child_id]
+        return data
+
     def update(self, raw: object) -> dict:
         record = sanitize_presence_record(raw, self.project_root)
 
         def apply(data: dict) -> dict:
+            self._expire(data)
             existing = data["sessions"].get(record["session_id"], {})
             same_source = existing.get("source_id") == record["source_id"]
             existing_order = (int(existing.get("generation", -1)), int(existing.get("sequence", -1)))
@@ -332,6 +371,7 @@ class PresenceStore:
             raise PresenceStoreError("Child role requires safe child and parent session IDs")
 
         def apply(data: dict) -> dict:
+            self._expire(data)
             existing = data["child_roles"].get(child)
             if if_unset and isinstance(existing, dict):
                 return existing
@@ -347,38 +387,7 @@ class PresenceStore:
             return self._empty(data.get("diagnostics"))
         if not expire:
             return data
-        now = _parse_timestamp(self.now())
-        for session_id, record in list(data["sessions"].items()):
-            updated_at = record.get("updated_at")
-            try:
-                age = (now - _parse_timestamp(updated_at)).total_seconds()
-            except (TypeError, ValueError):
-                age = DEFAULT_TERMINAL_RETENTION_SECONDS + 1
-            if record.get("execution") in {"busy", "retrying"}:
-                heartbeat = record.get("heartbeat_at") or updated_at
-                try:
-                    stale = (now - _parse_timestamp(heartbeat)).total_seconds() > LIVE_TIMEOUT_SECONDS
-                except (TypeError, ValueError):
-                    stale = True
-                if stale:
-                    record["execution"] = "unknown"
-            elif age > DEFAULT_TERMINAL_RETENTION_SECONDS:
-                del data["sessions"][session_id]
-        for key, claims in list(data["task_claims"].items()):
-            active = [claim for claim in claims if claim.get("expires_at", "") > self.now()]
-            if active:
-                data["task_claims"][key] = active
-            else:
-                del data["task_claims"][key]
-        for child_id, marker in list(data["child_roles"].items()):
-            updated_at = marker.get("updated_at", "")
-            try:
-                stale = (now - _parse_timestamp(updated_at)).total_seconds() > DEFAULT_TERMINAL_RETENTION_SECONDS
-            except (TypeError, ValueError):
-                stale = True
-            if stale:
-                del data["child_roles"][child_id]
-        return data
+        return self._expire(data)
 
     def _claim_key(self, spec_path: str, task_id: str) -> str:
         normalized = normalize_presence_path(spec_path, self.project_root)

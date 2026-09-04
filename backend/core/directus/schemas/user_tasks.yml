@@ -48,6 +48,16 @@ user_tasks:
       nullable: true
       note: "[Indexed] SHA256(primary_chat_id) for privacy-preserving filtering."
 
+    external_chat_provider:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Allowlisted external chat provider. It is mutually exclusive with primary_chat_id."
+
+    external_chat_lookup_hash:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] Owner-scoped, domain-separated blind index for external chat filtering."
+
     linked_project_hashes:
       type: json
       nullable: true
@@ -67,11 +77,6 @@ user_tasks:
       type: string
       nullable: true
       note: "Optional Plans V1 plan id this task belongs to."
-
-    plan_step_id:
-      type: string
-      nullable: true
-      note: "Optional Plans V1 step id this task executes or verifies."
 
     task_type:
       type: string
@@ -195,6 +200,21 @@ user_tasks:
       nullable: true
       note: "[Client-encrypted durable storage] Latest task instruction encrypted before storage."
 
+    encrypted_external_chat_id:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] External chat identifier. Plaintext external ids must never be stored server-side."
+
+    encrypted_external_chat_title:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] External chat display title. Plaintext titles must never be stored server-side."
+
+    encrypted_blocked_reason:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage, Nullable] User-facing blocker explanation. blocked_reason_code remains safe metadata."
+
 user_task_key_wrappers:
   type: collection
   fields:
@@ -257,6 +277,39 @@ user_task_key_wrappers:
       default: 1
       note: "Wrapper contract version."
 
+user_work_dependencies:
+  type: collection
+  fields:
+    id:
+      type: uuid
+    edge_id:
+      type: string
+      options:
+        unique: true
+    source_ref:
+      type: string
+      note: "Normalized plan:<id> or task:<id> dependency source."
+    source_kind:
+      type: string
+    source_id:
+      type: string
+    target_ref:
+      type: string
+      note: "Normalized plan:<id> or task:<id> dependency target."
+    target_kind:
+      type: string
+    target_id:
+      type: string
+    dependency_project_hash:
+      type: string
+      note: "One deterministic shared Project hash selected from both dependency endpoints."
+    hashed_user_id:
+      type: string
+      note: "Owner hash used to keep dependencies within one personal workspace."
+    hashed_team_id:
+      type: string
+      nullable: true
+
 user_task_activity:
   type: collection
   fields:
@@ -268,6 +321,27 @@ user_task_activity:
       type: string
       note: "User-facing task id this activity entry belongs to."
 
+    hashed_task_id:
+      type: string
+      note: "[Indexed] SHA256(task_id) used for scoped Activity lookup."
+
+    entry_id:
+      type: string
+      note: "[Indexed] Client-generated stable Activity entry identity, unique within its Task."
+
+    hashed_user_id:
+      type: string
+      note: "[Indexed] SHA256(user_id) of the Activity actor and personal Task owner."
+
+    hashed_team_id:
+      type: string
+      nullable: true
+      note: "[Indexed, Nullable] SHA256(team_id) for Team Task Activity; null for personal Tasks."
+
+    kind:
+      type: string
+      note: "User-facing Activity kind: comment, lifecycle_update, or tombstone."
+
     actor_type:
       type: string
       note: "Actor kind: user, ai, or system."
@@ -277,9 +351,23 @@ user_task_activity:
       nullable: true
       note: "Hashed actor identifier when applicable."
 
+    actor_display_name:
+      type: string
+      nullable: true
+      note: "Authorized display-name snapshot for Activity attribution."
+
+    actor_profile_image_url:
+      type: string
+      nullable: true
+      note: "Authorized profile-image proxy URL snapshot for Activity attribution."
+
     event_type:
       type: string
       note: "Safe event type, e.g. created, updated, started, blocked, completed."
+
+    source_surface:
+      type: string
+      note: "Authenticated client source: web, apple, cli, sdk_npm, sdk_pip, or system."
 
     created_at:
       type: integer
@@ -290,10 +378,40 @@ user_task_activity:
       nullable: true
       note: "[Client-encrypted durable storage] User-visible activity text."
 
+    encrypted_entry_key:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage] Per-entry key wrapped by the Task key."
+
+    encrypted_embed_key_material:
+      type: text
+      nullable: true
+      note: "[Client-encrypted durable storage] Embed key material decryptable through the Task key boundary."
+
+    embed_refs:
+      type: json
+      nullable: true
+      note: "Opaque embed IDs referenced by this Activity entry; cleared when the comment is deleted."
+
     encrypted_snapshot:
       type: text
       nullable: true
       note: "[Client-encrypted durable storage] Optional encrypted task snapshot."
+
+    deleted_at:
+      type: integer
+      nullable: true
+      note: "Unix timestamp for a logical comment deletion."
+
+    deleted_by_hash:
+      type: string
+      nullable: true
+      note: "Hashed user id of the deleting user for tombstone attribution."
+
+    deleted_by_display_name:
+      type: string
+      nullable: true
+      note: "Authorized display-name snapshot of the deleting user."
 
 user_task_execution_contexts:
   type: collection

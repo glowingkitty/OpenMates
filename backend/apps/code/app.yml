@@ -531,10 +531,15 @@ skills:
     description_translation_key: app_skills.code.run.description
     icon_image: play.svg
     preprocessor_hint: >
-      Run the currently selected code embed in an isolated E2B sandbox from the
-      web app. The sandbox receives code files from the current chat, installs
-      supported dependency manifests, and executes the selected file. Pricing is
-      5 credits per started minute of sandbox runtime.
+      Run code in an isolated E2B sandbox. When running code the assistant is
+      creating in this same turn, pass the source through files[].code plus
+      entry_path; do not invent a target_embed_id from a filename. Use
+      target_embed_id only for an existing chat code embed. Ask the user before
+      running unmodified user-supplied code or after the initial run plus two
+      unprompted reruns. The sandbox installs supported dependency manifests,
+      executes the selected file, streams terminal status, and returns safe
+      artifact metadata. Pricing is 5 credits per started minute of sandbox
+      runtime.
     class_path: backend.apps.code.skills.run_code_skill.RunCodeSkill
     providers:
       - name: E2B
@@ -542,22 +547,210 @@ skills:
       per_minute: 5
     api_config:
       expose_post: false
+    sdk_exposed: true
+    sdk_tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: Array of direct or chat-bound Code Run requests for the custom REST/SDK route.
+          items:
+            type: object
+            properties:
+              mode:
+                type: string
+                enum: [direct, chat_bound]
+                default: direct
+                description: Direct runs use caller-supplied files and stay transient; chat_bound runs use a chat/embed target and persist encrypted output.
+              entry_path:
+                type: string
+                description: Entrypoint file path for direct runs.
+              files:
+                type: array
+                maxItems: 50
+                description: Direct-run files with base64-encoded content. The backend never fetches local paths or URLs.
+                items:
+                  type: object
+                  properties:
+                    path:
+                      type: string
+                    content_base64:
+                      type: string
+                    language:
+                      type: string
+                    mime_type:
+                      type: string
+                      default: text/plain
+                    is_target:
+                      type: boolean
+                      default: false
+                  required:
+                    - path
+                    - content_base64
+              chat_id:
+                type: string
+                description: Chat ID for chat-bound runs.
+              target_embed_id:
+                type: string
+                description: Target code embed ID for chat-bound runs.
+              selected_embed_ids:
+                type: array
+                items:
+                  type: string
+                description: Optional related embed IDs to include in chat-bound runs.
+              dependency_installs:
+                type: array
+                maxItems: 20
+                description: Optional explicit dependency installs.
+                items:
+                  type: object
+                  properties:
+                    ecosystem:
+                      type: string
+                      enum: [python, npm]
+                    packages:
+                      type: array
+                      items:
+                        type: string
+                  required:
+                    - ecosystem
+                    - packages
+              enable_internet:
+                type: boolean
+                default: true
+                description: Allow outbound internet access from the E2B sandbox.
+      required:
+        - requests
+    sdk_output_schema:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              execution_id:
+                type: string
+              status:
+                type: string
+              target_filename:
+                type: string
+              files:
+                type: array
+                items:
+                  type: string
+              credits_per_minute:
+                type: integer
+              persisted_output:
+                type: boolean
+              stream_path:
+                type: string
+              status_path:
+                type: string
+              final:
+                type: object
+                description: Final status fetched from status_path by SDK helpers. Direct runs remain transient.
+                properties:
+                  status:
+                    type: string
+                  exit_code:
+                    type: integer
+                  output:
+                    type: string
+                  error:
+                    type: string
+                  duration_seconds:
+                    type: number
+                  charged_credits:
+                    type: integer
+                  charged_minutes:
+                    type: integer
+                  artifacts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        normalized_path:
+                          type: string
+                        mime_type:
+                          type: string
+                        kind:
+                          type: string
+                        size_bytes:
+                          type: integer
+                        status:
+                          type: string
+                        asset_id:
+                          type: string
+                        file_id:
+                          type: string
+                        variant:
+                          type: string
+                        version:
+                          type: integer
+                        download_url:
+                          type: string
+                  skipped_artifacts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        path:
+                          type: string
+                        normalized_path:
+                          type: string
+                        reason:
+                          type: string
     tool_schema:
       type: object
       properties:
         chat_id:
           type: string
-          description: Chat ID containing the code embeds to run.
+          description: Optional chat ID containing the code embeds to run. Omit when the chat context is already available.
         target_embed_id:
           type: string
-          description: Code embed ID to execute as the entrypoint.
+          description: Existing code embed ID to execute as the entrypoint. Do not pass filenames here.
+        entry_path:
+          type: string
+          description: Entrypoint path when supplying assistant-created files inline, such as main.py.
+        files:
+          type: array
+          maxItems: 50
+          description: Assistant-created text files to create as chat code embeds and run in this same turn.
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                description: Relative file path, such as main.py.
+              code:
+                type: string
+                description: UTF-8 source code for this assistant-created file.
+              language:
+                type: string
+                description: Programming language for display and execution hints.
+              mime_type:
+                type: string
+                default: text/plain
+              is_target:
+                type: boolean
+                default: false
+            required:
+              - path
+              - code
         enable_internet:
           type: boolean
           default: true
           description: Allow outbound internet access from the E2B sandbox.
-      required:
-        - chat_id
-        - target_embed_id
+        selected_embed_ids:
+          type: array
+          items:
+            type: string
+          description: Optional related embed IDs to include in the run.
   - id: image_to_html
     name_translation_key: app_skills.code.image_to_html
     description_translation_key: app_skills.code.image_to_html.description

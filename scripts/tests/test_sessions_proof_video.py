@@ -52,10 +52,16 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
             "contract_hash": "sha256:" + "a" * 64,
         },
     )
+    module.record_contract_authorization = functions.get("record_contract_authorization", lambda **_kwargs: {})
     module.require_clean_worktree = functions.get("require_clean_worktree", lambda *_args: None)
     module.require_recorded_approval = functions.get("require_recorded_approval", lambda **_kwargs: {})
     module.resolve_deployed_run = functions.get("resolve_deployed_run", lambda **_kwargs: {})
     return module
+
+
+def allow_control_plane_deploy_protocol(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: "origin-dev")
+    monkeypatch.setattr(sessions, "_enforce_control_plane_deploy_protocol_compatible", lambda _origin_ref: None)
 
 
 def test_proof_video_produce_does_not_enable_typed_anonymization(
@@ -184,6 +190,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
                 "artifact_sha256": proof_video_workflow._file_sha256(video),
                 "action_timestamps": [1.25],
                 "state_change_timestamps": [2.5],
+                "state_change_timestamps_by_id": {"signup.visible": 2.5},
             }
         ),
         encoding="utf-8",
@@ -192,11 +199,6 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
     monkeypatch.setattr(proof_video_workflow, "APPROVALS_DIR", results_dir / "proof-video-approvals")
     monkeypatch.setattr(proof_video_workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(proof_video_workflow, "_tracked_worktree_changes", lambda: [])
-    proof_video_workflow.record_contract_approval(
-        session_id="abcd",
-        spec_name="signup-flow-passkey.spec.ts",
-        contract_path=contract_path,
-    )
     monkeypatch.setitem(
         sys.modules,
         "spec_demo",
@@ -227,6 +229,7 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         playback_rate=0.75,
         hold_last_frame_seconds=2.0,
         ready_timestamp_seconds=4.2,
+        source_end_timestamp_seconds=8.4,
         demo_audio_path=tmp_path / "product-audio.mp3",
         spec_name="signup-flow-passkey.spec.ts",
         contract_path=contract_path,
@@ -248,6 +251,8 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
         "test_account_provenance": "reserved test account with synthetic signup identity",
         "action_timestamps": [1.25],
         "state_change_timestamps": [2.5],
+        "state_change_timestamps_by_id": {"signup.visible": 2.5},
+        "source_end_timestamp_seconds": 8.4,
     }
     assert observed["device_profile_name"] == "web-phone"
     assert observed["narration_audio_path"] is None
@@ -264,6 +269,11 @@ def test_proof_video_playwright_requires_and_forwards_passing_source(
     assert observed["hold_last_frame_seconds"] == 2.0
     assert observed["ready_timestamp_seconds"] == 4.2
     assert observed["demo_audio_path"] == tmp_path / "product-audio.mp3"
+    authorization = json.loads(
+        proof_video_workflow.approval_record_path("abcd", "signup-flow-passkey.spec.ts").read_text(encoding="utf-8")
+    )
+    assert authorization["authorized_by"] == "tooling"
+    assert authorization["contract_hash"] == observed["proof_contract_hash"]
 
 
 def test_proof_video_playwright_uses_passed_run_when_session_worktree_is_stale(
@@ -551,10 +561,23 @@ def test_proof_video_publish_uploads_response_media_without_discord(
 def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") -> Path:
     run_dir = tmp_path / "proof"
     run_dir.mkdir()
-    frame_index_hash = "sha256:" + "f" * 64
     proof_contract_hash = "sha256:" + "c" * 64
-    proof_group_id = "sha256:" + "e" * 64
     video_hash = "sha256:" + "d" * 64
+    frame_path = run_dir / "frames" / "frame.png"
+    frame_path.parent.mkdir()
+    frame_path.write_bytes(b"frame")
+    request = spec_demo.build_review_request(
+        spec_id="session-proof",
+        subject_commit=subject_commit,
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Visible.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "Visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": "frames/frame.png", "sha256": spec_demo.sha256_file(frame_path)}],
+        video_metadata={"duration_seconds": 1.0, "sha256": video_hash, "width": 320, "height": 240},
+        narration_audio={"status": "not_required", "provider": "", "model": "", "voice": "", "path": "", "sha256": "", "mime_type": "", "duration_seconds": 0.0, "reused_from": ""},
+        proof_contract_hash=proof_contract_hash,
+    )
+    frame_index_hash = str(request["frame_index_hash"])
+    proof_group_id = str(request["proof_group_id"])
     receipt = {
         "status": "passed",
         "reviewer_session_id": "ses_reviewer",
@@ -562,13 +585,41 @@ def write_passed_manifest(tmp_path: Path, *, subject_commit: str = "abc1234") ->
         "proof_contract_hash": proof_contract_hash,
         "proof_group_id": proof_group_id,
         "source_artifact_hash": video_hash,
+        "review_request_hash": spec_demo.review_request_hash(request),
         "subject_commit": subject_commit,
         "correction_round": 0,
         "correction_kind": "none",
+        "reviewed_frames": ["frames/frame.png"],
+        "frame_reviews": [
+            {
+                "frame": "frames/frame.png",
+                "checks": {
+                    "layout": "pass",
+                    "readability": "pass",
+                    "geometry": "pass",
+                    "controls": "pass",
+                    "visual_assets": "pass",
+                    "application_state": "pass",
+                    "consistency": "pass",
+                    "proof_alignment": "pass",
+                },
+                "observation": "Completed the independent critical UI scan.",
+            }
+        ],
+        "assertions": [
+            {
+                "id": "visible",
+                "verdict": "supported",
+                "frames": ["frames/frame.png"],
+                "observation": "The expected state is visible.",
+            }
+        ],
+        "incidental_findings": [],
         "workflow": {"requires_user_input": False},
     }
     receipt_path = run_dir / "review-receipt.json"
     receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+    (run_dir / "review-request.json").write_text(json.dumps(request, sort_keys=True) + "\n", encoding="utf-8")
     receipt_hash = f"sha256:{hashlib.sha256(receipt_path.read_bytes()).hexdigest()}"
     manifest_path = run_dir / "manifest.json"
     manifest_path.write_text(
@@ -653,6 +704,38 @@ def test_proof_video_deploy_records_pending_without_failing_plain_deploy(
     assert pending[0]["subject_commit"] == "abc1234"
 
 
+def test_proof_video_deploy_skips_pending_for_not_required_account_health_spec(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    spec_path = tmp_path / "frontend/apps/web_app/tests/test-account-preflight.spec.ts"
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_text(
+        "// proof-video: not_required reason=account_health\ntest('account preflight', async () => {});\n",
+        encoding="utf-8",
+    )
+    saved: dict[str, object] = {}
+
+    def mutate(callback: object) -> None:
+        data = {"sessions": {"abcd": {"mode": "testing"}}}
+        callback(data)
+        saved.update(data)
+
+    monkeypatch.setattr(sessions, "PROJECT_ROOT", tmp_path)
+    monkeypatch.setattr(sessions, "_current_head", lambda: "abc1234")
+    monkeypatch.setattr(sessions, "_mutate_sessions", mutate)
+
+    sessions._record_proof_video_deploy_pending(
+        "abcd",
+        {"mode": "testing"},
+        ["frontend/apps/web_app/tests/test-account-preflight.spec.ts"],
+    )
+
+    assert saved == {}
+    assert "DEPLOYED BUT PROOF VIDEO REQUIRED" not in capsys.readouterr().err
+
+
 def test_cmd_deploy_records_proof_pending_without_failing_plain_deploy(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -711,6 +794,7 @@ def test_cmd_deploy_records_proof_pending_without_failing_plain_deploy(
     monkeypatch.setattr(sessions, "_validate_staged_deploy_files", lambda *_args, **_kwargs: True)
     monkeypatch.setattr(sessions, "_save_last_deploy_sha", lambda _sha: None)
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
+    allow_control_plane_deploy_protocol(monkeypatch)
 
     sessions.cmd_deploy(
         argparse.Namespace(
@@ -798,6 +882,7 @@ def test_cmd_deploy_end_hard_blocks_without_proof_video(
     monkeypatch.setattr(sessions, "_proof_video_delivery_required", lambda: False)
     monkeypatch.setattr(sessions, "_enforce_visual_smoke_end_gate", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(sessions, "finalize_session_worktree", fake_finalize)
+    allow_control_plane_deploy_protocol(monkeypatch)
 
     with pytest.raises(SystemExit) as exc:
         sessions.cmd_deploy(
@@ -831,7 +916,7 @@ def test_proof_video_gate_ignores_docs_and_scripts_only_feature(monkeypatch: pyt
     sessions._enforce_proof_video_end_gate(
         "abcd",
         {"mode": "feature"},
-        ["scripts/spec_demo.py", "docs/specs/example/spec.yml"],
+        ["scripts/spec_demo.py", "docs/plans/example/plan.yml"],
     )
 
 
@@ -968,7 +1053,7 @@ def test_upsert_proof_video_record_clears_matching_pending_entry(tmp_path: Path)
     assert session["proof_video_pending"] == [{"status": "pending", "subject_commit": "other"}]
 
 
-def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: Path) -> None:
+def test_proof_video_record_requires_blocker_image_for_failed_review(tmp_path: Path) -> None:
     manifest_path = write_passed_manifest(tmp_path)
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["review"]["status"] = "render_defect"
@@ -978,9 +1063,10 @@ def test_proof_video_record_includes_blocker_media_for_failed_review(tmp_path: P
     record = sessions._proof_video_manifest_record(tmp_path, manifest)
 
     blocker_media = record["blocker_media"]
-    assert blocker_media["media_status"] == "available"
+    assert blocker_media["media_status"] == "missing"
     assert blocker_media["video_path"] == str(tmp_path / "demo.mp4")
     assert blocker_media["upload_command"].startswith("python3 scripts/opencode_response_media.py ")
+    assert "image_upload_command" not in blocker_media
 
 
 def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
@@ -1007,7 +1093,7 @@ def test_proof_video_blocker_media_resolves_repository_relative_artifacts(
 
     blocker_media = sessions._proof_video_blocker_media_record(run_dir, manifest)
 
-    assert blocker_media["media_status"] == "available"
+    assert blocker_media["media_status"] == "missing"
     assert blocker_media["video_path"] == str(video)
     assert blocker_media["captions_path"] == str(captions)
 

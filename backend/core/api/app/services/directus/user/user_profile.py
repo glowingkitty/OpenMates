@@ -92,6 +92,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "timezone": user_data.get("timezone"),  # IANA timezone (e.g., 'Europe/Berlin'), auto-detected from browser
             "default_ai_model_simple": user_data.get("default_ai_model_simple"),
             "default_ai_model_complex": user_data.get("default_ai_model_complex"),
+            "default_ai_model_most_demanding": user_data.get("default_ai_model_most_demanding"),
             "default_app_skill_models": user_data.get("default_app_skill_models") or {},
             "follow_up_suggestions_enabled": user_data.get("follow_up_suggestions_enabled", True),
             "quick_tips_enabled": user_data.get("quick_tips_enabled", True),
@@ -111,6 +112,9 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
             "encrypted_settings": user_data.get("encrypted_settings"),
+            # Server-only billing projection pairs the decrypted cache balance
+            # with the exact durable ciphertext used by Directus CAS.
+            "encrypted_credit_balance": user_data.get("encrypted_credit_balance"),
             # Ensure devices key exists even if encrypted field is missing
             "devices": {},
             

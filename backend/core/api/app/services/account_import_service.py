@@ -230,6 +230,7 @@ class BillingServiceImportBilling:
                 user_id_hash=user_hash,
                 app_id=self.APP_ID,
                 skill_id=self.SKILL_ID,
+                idempotency_key=f"account-import:{hashlib.sha256(import_id.encode()).hexdigest()}:reserve-refund",
                 reason="Account import reservation rejected by strict no-debt guard",
             )
             raise ImportCreditError("Account import reservation would create debt")
@@ -248,6 +249,7 @@ class BillingServiceImportBilling:
                 user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
                 app_id=self.APP_ID,
                 skill_id=self.SKILL_ID,
+                idempotency_key=f"account-import:{hashlib.sha256(import_id.encode()).hexdigest()}:settlement-refund",
                 reason=f"Unused account import reservation {hashlib.sha256(import_id.encode()).hexdigest()[:12]}",
             )
         user = await self.billing_service.cache_service.get_user_by_id(user_id)
@@ -1173,6 +1175,7 @@ class AccountImportService:
                 "sanitized_hash": job.get("last_sanitized_hash"),
                 "usage": {"credits": 0},
                 "credits_reserved": int(job.get("credits_reserved") or 0),
+                "messages_blocked": [],
                 "failures": [],
             }
         expected_sequence = last_sequence + 1
@@ -1341,6 +1344,7 @@ class AccountImportService:
                 "output_tokens": batch_output_tokens,
             },
             "credits_reserved": int(job.get("credits_reserved") or 0),
+            "messages_blocked": [],
             "failures": [],
             "duplicate_fingerprints": sorted(server_duplicates),
         }

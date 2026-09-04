@@ -52,7 +52,7 @@ shared_hooks:
     tools: [claude, codex, opencode]
     opencode_delegates_to_codex_bridge: true
     opencode_terms: ['runBridge("PostToolUse"']
-  - name: contract-test-impact.sh
+  - name: specification-test-impact.sh
     event: PostToolUse
     matcher: apply_patch|Edit|Write
     tools: [claude, codex, opencode]

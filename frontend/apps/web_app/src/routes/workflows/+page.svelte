@@ -11,12 +11,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { replaceState } from '$app/navigation';
-  import { Header, Settings, NotificationStack, WorkspaceHomeShell, WorkflowDetailPage, WorkflowTemplateShare, WorkflowSidebar, authStore, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
+  import { Header, Settings, NotificationStack, WorkspaceHomeShell, WorkflowDetailPage, WorkflowGraphRenderer, WorkflowTemplateShare, WorkflowSidebar, authStore, focusTrap, initialize, notificationStore, panelState, featureAvailabilityStore, initializeFeatureAvailability, upsertWorkflowTemplateProjection, workflowWorkspaceStore } from '@repo/ui';
   import WorkspacePromptComposer from '@repo/ui/components/workspace/WorkspacePromptComposer.svelte';
   import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
   import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
   import { userProfile } from '@repo/ui/stores/userProfile';
-  import type { DailyInspiration, ImportedWorkflowTemplate, WorkflowDetail, WorkflowGraph, WorkflowNode, WorkflowNodeType, WorkflowRun, WorkflowSummary, WorkflowTemplateBindingRequirement } from '@repo/ui';
+  import type { DailyInspiration, ImportedWorkflowTemplate, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary, WorkflowTemplateBindingRequirement } from '@repo/ui';
 
   type WorkflowContinueItem = {
     id: string;
@@ -28,12 +28,6 @@
     icon?: string | null;
     source?: 'recent' | 'example';
   };
-
-  type WorkflowFlowItem =
-    | { kind: 'connector'; id: string; label: string; indent?: boolean }
-    | { kind: 'branch-label'; id: string; label: string }
-    | { kind: 'placeholder'; id: string; label: string }
-    | { kind: 'node'; id: string; node: WorkflowNode; index: number; branch?: boolean };
 
   type WorkflowTab = 'details' | 'runs';
 
@@ -61,11 +55,14 @@
   let editorGraph = $state<WorkflowGraph | null>(null);
   let editorDirty = $state(false);
   let hydratedEditorWorkflowId = $state<string | null>(null);
-  let expandedNodeId = $state<string | null>(null);
+  let pendingNavigation = $state<{ action: () => void | Promise<void> } | null>(null);
   let showAllWorkflows = $state(false);
   let workflowInputText = $state('');
   let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
   let workflowHashState = $state<WorkflowHashState>({ workflowId: null, tab: 'details', runId: null });
+  let blankCreatorOpen = $state(false);
+  let blankWorkflowTitle = $state('');
+  let lastStartedRunId = $state<string | null>(null);
 
   let recentWorkflows = $derived([...workflows].sort((left, right) => (right.updated_at ?? 0) - (left.updated_at ?? 0)).slice(0, 6));
   let workflowStarterItems: WorkflowContinueItem[] = [
@@ -122,6 +119,7 @@
   let showManageView = $derived(canRenderWorkflowData && isManageView);
   let visibleWorkflowGreetingName = $derived(canRenderWorkflowData ? workflowGreetingName : 'there');
   let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
+  let editorActivationReady = $derived(editorGraph ? workflowActivationReady(editorGraph) : false);
 
   onMount(() => {
     syncWorkflowHashFromLocation();
@@ -166,7 +164,18 @@
   }
 
   function syncWorkflowHashFromLocation(): void {
-    workflowHashState = readWorkflowHashState(window.location.hash);
+    const nextState = readWorkflowHashState(window.location.hash);
+    if (editorDirty && (
+      nextState.workflowId !== workflowHashState.workflowId
+      || nextState.tab !== workflowHashState.tab
+      || nextState.runId !== workflowHashState.runId
+    )) {
+      const currentHash = workflowStateHash(workflowHashState.workflowId, workflowHashState.tab, workflowHashState.runId);
+      replaceState(`${WORKFLOWS_ROUTE}${currentHash}`, {});
+      requestNavigation(() => setWorkflowUrlState(nextState.workflowId, nextState.tab, nextState.runId));
+      return;
+    }
+    workflowHashState = nextState;
   }
 
   function workflowStateHash(workflowId: string | null, tab: WorkflowTab = 'details', runId: string | null = null, baseHash = ''): string {
@@ -186,14 +195,14 @@
     return serializeHashParams(params);
   }
 
-  function workflowStateHref(workflowId: string, tab: WorkflowTab = 'details', runId: string | null = null): string {
-    return `${WORKFLOWS_ROUTE}${workflowStateHash(workflowId, tab, runId)}`;
-  }
-
   function setWorkflowUrlState(workflowId: string | null, tab: WorkflowTab = 'details', runId: string | null = null): void {
     const nextHash = workflowStateHash(workflowId, tab, runId, window.location.hash);
     workflowHashState = readWorkflowHashState(nextHash);
     replaceState(`${WORKFLOWS_ROUTE}${nextHash}`, {});
+  }
+
+  function workflowStateHref(workflowId: string, tab: WorkflowTab = 'details'): string {
+    return `${WORKFLOWS_ROUTE}${workflowStateHash(workflowId, tab)}`;
   }
 
   function openWorkflowDetails(workflowId: string): void {
@@ -206,6 +215,47 @@
 
   function openWorkflowHome(): void {
     setWorkflowUrlState(null);
+  }
+
+  function requestNavigation(action: () => void | Promise<void>): void {
+    if (editorDirty) {
+      pendingNavigation = { action };
+      return;
+    }
+    void action();
+  }
+
+  function requestWorkflowHome(): void {
+    requestNavigation(openWorkflowHome);
+  }
+
+  function requestWorkflowTab(tab: 'template' | 'runs'): void {
+    if (!selectedWorkflow) return;
+    requestNavigation(() => tab === 'runs' ? openWorkflowRuns(selectedWorkflow.id) : openWorkflowDetails(selectedWorkflow.id));
+  }
+
+  function requestWorkflowSelection(workflowId: string): void {
+    requestNavigation(async () => {
+      await selectWorkflow(workflowId);
+      openWorkflowDetails(workflowId);
+    });
+  }
+
+  async function saveAndContinueNavigation(): Promise<void> {
+    const navigation = pendingNavigation;
+    if (!navigation) return;
+    await saveSelectedWorkflow();
+    if (editorDirty) return;
+    pendingNavigation = null;
+    await navigation.action();
+  }
+
+  async function discardAndContinueNavigation(): Promise<void> {
+    const navigation = pendingNavigation;
+    if (!navigation) return;
+    undoEditorChanges();
+    pendingNavigation = null;
+    await navigation.action();
   }
 
   async function initializeWorkflowsRoute() {
@@ -275,8 +325,16 @@
     await createWorkflow('Twice-weekly AI news brief', newsBriefGraph(), true);
   }
 
-  async function createBlankWorkflow() {
-    await createWorkflow('Untitled workflow', blankWorkflowGraph(), false);
+  function openBlankWorkflowCreator(): void {
+    blankWorkflowTitle = '';
+    blankCreatorOpen = true;
+  }
+
+  async function submitBlankWorkflow(): Promise<void> {
+    const title = blankWorkflowTitle.trim();
+    if (!title || saving) return;
+    await createWorkflow(title, blankWorkflowGraph(), false);
+    if (!routeError) blankCreatorOpen = false;
   }
 
   function startWorkflowFromInspiration(inspiration: DailyInspiration) {
@@ -286,8 +344,7 @@
 
   async function continueWorkflowFromCard(item: { id: string }) {
     if (!canLoadWorkflows) return;
-    await selectWorkflow(item.id);
-    openWorkflowDetails(item.id);
+    requestWorkflowSelection(item.id);
   }
 
   async function startWorkflowFromCard(item: WorkflowContinueItem) {
@@ -297,7 +354,7 @@
     } else if (item.id === 'starter-news') {
       await createNewsWorkflow();
     } else if (item.id === 'starter-blank') {
-      await createBlankWorkflow();
+      openBlankWorkflowCreator();
     } else {
       await continueWorkflowFromCard(item);
     }
@@ -332,9 +389,8 @@
       title: workflow.title,
       summary: `${workflow.trigger_summary ?? 'Manual'} - ${retentionLabel(workflow.run_content_retention)}`,
       badge: workflow.enabled ? 'Enabled' : 'Paused',
-      category: 'productivity',
-      appId: 'workflows',
-      icon: 'workflow',
+      category: workflow.category ?? 'general_knowledge',
+      icon: workflow.icon ?? 'help-circle',
       source: 'recent',
     };
   }
@@ -381,6 +437,7 @@
     routeError = null;
     try {
       const run = await workflowWorkspaceStore.runWorkflow(workflowId);
+      lastStartedRunId = run.id;
       openWorkflowRuns(workflowId, run.id);
     } catch (runError) {
       routeError = runError instanceof Error ? runError.message : 'Failed to run workflow.';
@@ -415,6 +472,7 @@
         run_content_retention: selectedRunContentRetention
       });
       resetEditor(workflow);
+      saving = false;
       await maintainTemplateProjection(workflow);
     } catch (saveError) {
       routeError = saveError instanceof Error ? saveError.message : 'Failed to save workflow.';
@@ -474,12 +532,27 @@
   function blankWorkflowGraph(): WorkflowGraph {
     return {
       version: 1,
-      trigger_node_id: 'manual',
-      nodes: [
-        { id: 'manual', type: 'manual_trigger', title: 'Manual start', config: {} }
-      ],
+      trigger_node_id: null,
+      nodes: [],
       edges: []
     };
+  }
+
+  function workflowActivationReady(graph: WorkflowGraph): boolean {
+    if (!graph.trigger_node_id) return false;
+    const qualifyingTypes = new Set(['create_chat_report', 'start_new_chat', 'send_notification', 'send_email_notification']);
+    const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+    const pending = [graph.trigger_node_id];
+    const visited = new Set<string>();
+    while (pending.length > 0) {
+      const nodeId = pending.shift();
+      if (!nodeId || visited.has(nodeId)) continue;
+      visited.add(nodeId);
+      const node = nodesById.get(nodeId);
+      if (node && qualifyingTypes.has(node.type)) return true;
+      for (const edge of graph.edges) if (edge.from === nodeId) pending.push(edge.to);
+    }
+    return false;
   }
 
   function newsBriefGraph(): WorkflowGraph {
@@ -510,7 +583,6 @@
     editorGraph = cloneGraph(workflow.graph);
     editorDirty = false;
     hydratedEditorWorkflowId = workflow.id;
-    expandedNodeId = null;
   }
 
   function undoEditorChanges() {
@@ -525,260 +597,9 @@
     return value === 'none' ? 'No durable run content' : 'Keep latest 5 encrypted runs';
   }
 
-  function nodeTypeLabel(type: WorkflowNodeType): string {
-    switch (type) {
-      case 'schedule_trigger':
-        return 'Time trigger';
-      case 'manual_trigger':
-        return 'Manual start';
-      case 'app_skill_action':
-        return 'Use App skill';
-      case 'decision':
-        return 'Check';
-      case 'repeat':
-        return 'Repeat';
-      case 'create_chat_report':
-        return 'Create report';
-      case 'send_notification':
-        return 'Notify';
-      case 'send_email_notification':
-        return 'Email';
-      case 'end':
-        return 'End';
-    }
-  }
-
-  function cardIconLabel(type: WorkflowNodeType): string {
-    switch (type) {
-      case 'schedule_trigger':
-        return 'CAL';
-      case 'app_skill_action':
-        return 'SUN';
-      case 'decision':
-        return 'IF';
-      case 'send_notification':
-        return 'MSG';
-      case 'send_email_notification':
-        return 'MAIL';
-      case 'create_chat_report':
-        return 'DOC';
-      case 'repeat':
-        return 'LOOP';
-      case 'manual_trigger':
-        return 'RUN';
-      case 'end':
-        return 'END';
-    }
-  }
-
-  function cardSummary(node: WorkflowNode): string {
-    if (node.type === 'schedule_trigger') {
-      const schedule = scheduleRecord(node);
-      const repeat = stringValue(schedule.type, 'daily') === 'weekly' ? 'Every week' : 'Every day';
-      return `${repeat}, at ${formatTime(stringValue(schedule.time, '09:00'))}`;
-    }
-    if (node.type === 'app_skill_action') {
-      const appId = stringValue(configRecord(node).app_id, 'weather');
-      const skillId = stringValue(configRecord(node).skill_id, 'forecast');
-      if (appId === 'weather') return `Weather | Get forecast for ${stringValue(inputRecord(node).location, 'Berlin')}`;
-      if (appId === 'news') return `News | Search ${firstRequestQuery(node)}`;
-      return `${appId} | ${skillId}`;
-    }
-    if (node.type === 'decision') {
-      const predicate = predicateRecord(node);
-      return `${humanizeExpression(stringValue(predicate.left, 'value'))} ${operatorLabel(stringValue(predicate.op, 'gte'))} ${predicate.right ?? ''}`.trim();
-    }
-    if (node.type === 'send_notification') return 'Send notification';
-    if (node.type === 'send_email_notification') return 'Send email';
-    if (node.type === 'create_chat_report') return stringValue(configRecord(node).summary, 'Create report');
-    if (node.type === 'repeat') return `Repeat up to ${numberValue(configRecord(node).max_iterations, 3)} times`;
-    return node.title ?? node.type;
-  }
-
-  function formatTime(value: string): string {
-    const [hourValue, minuteValue] = value.split(':');
-    const hour = Number(hourValue);
-    const minute = minuteValue ?? '00';
-    if (!Number.isFinite(hour)) return value;
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minute}${period}`;
-  }
-
-  function humanizeExpression(value: string): string {
-    return value
-      .replace('$nodes.weather.output.', '')
-      .replaceAll('_', ' ')
-      .replaceAll('.', ' ');
-  }
-
-  function operatorLabel(value: string): string {
-    switch (value) {
-      case 'gte':
-        return '>';
-      case 'gt':
-        return '>';
-      case 'lte':
-        return '<';
-      case 'lt':
-        return '<';
-      case 'eq':
-        return '=';
-      default:
-        return value;
-    }
-  }
-
-  function flowItems(graph: WorkflowGraph | null): WorkflowFlowItem[] {
-    if (!graph) return [];
-    const decisionIndex = graph.nodes.findIndex((node) => node.type === 'decision');
-    if (decisionIndex < 0) return linearFlowItems(graph.nodes);
-
-    const items: WorkflowFlowItem[] = [];
-    const mainNodes = graph.nodes.slice(0, decisionIndex + 1);
-    mainNodes.forEach((node, index) => {
-      if (index > 0) items.push({ kind: 'connector', id: `connector-${node.id}`, label: 'then' });
-      items.push({ kind: 'node', id: `node-${node.id}`, node, index: graph.nodes.indexOf(node) });
-    });
-
-    const branchNodes = graph.nodes.slice(decisionIndex + 1).filter((node) => node.type !== 'end');
-    items.push({ kind: 'branch-label', id: 'if-true-label', label: 'If true:' });
-    branchNodes.forEach((node, branchIndex) => {
-      if (branchIndex > 0) items.push({ kind: 'connector', id: `branch-connector-${node.id}`, label: 'then', indent: true });
-      items.push({ kind: 'node', id: `branch-node-${node.id}`, node, index: graph.nodes.indexOf(node), branch: true });
-    });
-    items.push({ kind: 'branch-label', id: 'if-false-label', label: 'If false:' });
-    items.push({ kind: 'placeholder', id: 'false-placeholder', label: 'Do nothing' });
-    return items;
-  }
-
-  function linearFlowItems(nodes: WorkflowNode[]): WorkflowFlowItem[] {
-    const items: WorkflowFlowItem[] = [];
-    nodes.forEach((node, index) => {
-      if (index > 0) items.push({ kind: 'connector', id: `connector-${node.id}`, label: 'then' });
-      items.push({ kind: 'node', id: `node-${node.id}`, node, index });
-    });
-    return items;
-  }
-
-  function toggleExpandedNode(nodeId: string) {
-    expandedNodeId = expandedNodeId === nodeId ? null : nodeId;
-  }
-
-  function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
-  }
-
-  function configRecord(node: WorkflowNode): Record<string, unknown> {
-    return node.config ?? {};
-  }
-
-  function inputRecord(node: WorkflowNode): Record<string, unknown> {
-    const input = configRecord(node).input;
-    return isRecord(input) ? input : {};
-  }
-
-  function scheduleRecord(node: WorkflowNode): Record<string, unknown> {
-    const schedule = configRecord(node).schedule;
-    return isRecord(schedule) ? schedule : {};
-  }
-
-  function predicateRecord(node: WorkflowNode): Record<string, unknown> {
-    const predicate = configRecord(node).predicate;
-    return isRecord(predicate) ? predicate : { left: '', op: 'gte', right: 0 };
-  }
-
-  function firstRequestQuery(node: WorkflowNode): string {
-    const requests = inputRecord(node).requests;
-    if (!Array.isArray(requests)) return 'AI news';
-    const firstRequest = requests[0];
-    return isRecord(firstRequest) ? stringValue(firstRequest.query, 'AI news') : 'AI news';
-  }
-
-  function stringValue(value: unknown, fallback = ''): string {
-    return typeof value === 'string' ? value : fallback;
-  }
-
-  function numberValue(value: unknown, fallback = 0): number {
-    return typeof value === 'number' ? value : fallback;
-  }
-
-  function updateEditorNode(nodeId: string, updater: (node: WorkflowNode) => WorkflowNode) {
-    if (!editorGraph) return;
-    editorGraph = {
-      ...editorGraph,
-      nodes: editorGraph.nodes.map((node) => node.id === nodeId ? updater(node) : node)
-    };
+  function updateEditorGraph(graph: WorkflowGraph): void {
+    editorGraph = graph;
     editorDirty = true;
-  }
-
-  function updateNodeTitle(nodeId: string, title: string) {
-    updateEditorNode(nodeId, (node) => ({ ...node, title }));
-  }
-
-  function updateNodeConfig(nodeId: string, config: Record<string, unknown>) {
-    updateEditorNode(nodeId, (node) => ({ ...node, config: { ...configRecord(node), ...config } }));
-  }
-
-  function updateSchedule(node: WorkflowNode, field: string, value: string) {
-    updateNodeConfig(node.id, { schedule: { ...scheduleRecord(node), [field]: value } });
-  }
-
-  function updateInput(node: WorkflowNode, field: string, value: string | number) {
-    updateNodeConfig(node.id, { input: { ...inputRecord(node), [field]: value } });
-  }
-
-  function updatePredicate(node: WorkflowNode, field: string, value: string | number) {
-    updateNodeConfig(node.id, { predicate: { ...predicateRecord(node), [field]: value } });
-  }
-
-  function appendNode(type: WorkflowNodeType) {
-    if (!editorGraph || type === 'schedule_trigger' || type === 'manual_trigger') return;
-    const node = defaultNode(type);
-    const endIndex = editorGraph.nodes.findIndex((item) => item.type === 'end');
-    const nodes = endIndex >= 0
-      ? [...editorGraph.nodes.slice(0, endIndex), node, ...editorGraph.nodes.slice(endIndex)]
-      : [...editorGraph.nodes, node];
-    editorGraph = { ...editorGraph, nodes, edges: buildLinearEdges(nodes) };
-    editorDirty = true;
-  }
-
-  function removeNode(nodeId: string) {
-    if (!editorGraph) return;
-    const nodes = editorGraph.nodes.filter((node) => node.id !== nodeId || node.type === 'schedule_trigger' || node.type === 'end');
-    editorGraph = { ...editorGraph, nodes, edges: buildLinearEdges(nodes) };
-    editorDirty = true;
-  }
-
-  function defaultNode(type: WorkflowNodeType): WorkflowNode {
-    const id = `${type}-${Date.now().toString(36)}`;
-    switch (type) {
-      case 'app_skill_action':
-        return { id, type, title: 'Check weather', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin', days: 1 } } };
-      case 'decision':
-        return { id, type, title: 'Decision', config: { predicate: { left: '$nodes.weather.output.rain_probability', op: 'gte', right: 60 } } };
-      case 'repeat':
-        return { id, type, title: 'Repeat safely', config: { max_iterations: 3, max_duration_seconds: 120, max_credits: 5, per_iteration_timeout_seconds: 30 } };
-      case 'create_chat_report':
-        return { id, type, title: 'Create report', config: { summary: 'Workflow report' } };
-      case 'send_notification':
-        return { id, type, title: 'Push notification', config: { title: 'Workflow update', body: 'Your workflow finished.' } };
-      case 'send_email_notification':
-        return { id, type, title: 'Email notification', config: { title: 'Workflow update', body: 'Your workflow finished.' } };
-      case 'end':
-        return { id, type, title: 'Done', config: {} };
-      case 'schedule_trigger':
-      case 'manual_trigger':
-        return { id, type, title: 'Manual start', config: {} };
-    }
-  }
-
-  function buildLinearEdges(nodes: WorkflowNode[]): WorkflowGraph['edges'] {
-    return nodes.slice(0, -1).map((node, index) => ({
-      from: node.id,
-      to: nodes[index + 1].id,
-      ...(node.type === 'decision' ? { branch: 'yes' } : {})
-    }));
   }
 </script>
 
@@ -810,6 +631,7 @@
         {/if}
 
         {#if !showManageView}
+          <button type="button" class="blank-workflow-action" data-testid="create-blank-workflow" disabled={saving || !canRenderWorkflowData} onclick={openBlankWorkflowCreator}>New blank Workflow</button>
           <WorkspaceHomeShell
             surface="workflows"
             testId="workflows-start-screen"
@@ -866,217 +688,57 @@
             <WorkflowDetailPage
               title={editorTitle || selectedWorkflow.title}
               description={editorDescription || selectedWorkflow.description || selectedWorkflow.trigger_summary || 'Manual workflow'}
+              category={selectedWorkflow.category ?? 'general_knowledge'}
+              icon={selectedWorkflow.icon ?? 'help-circle'}
               createdAt={selectedWorkflow.created_at}
               nextRunAt={selectedWorkflow.next_run_at}
               enabled={selectedWorkflow.enabled}
+              canEnable={editorActivationReady && !editorDirty}
+              {lastStartedRunId}
+              activeTab={isRunsView ? 'runs' : 'template'}
               dirty={editorDirty}
               {saving}
+              onTabChange={requestWorkflowTab}
               onToggleEnabled={() => setSelectedWorkflowEnabled(!selectedWorkflow?.enabled)}
               onSaveWorkflow={saveSelectedWorkflow}
               onUndoWorkflow={undoEditorChanges}
-              onCreateWorkflow={createBlankWorkflow}
+              onCreateWorkflow={() => requestNavigation(openBlankWorkflowCreator)}
               onRunWorkflow={runSelectedWorkflow}
               onDeleteWorkflow={deleteSelectedWorkflow}
-              onOpenHome={openWorkflowHome}
-              onOpenRuns={() => openWorkflowRuns(selectedWorkflow.id)}
+              onOpenHome={requestWorkflowHome}
+              onOpenRuns={() => requestWorkflowTab('runs')}
               runsHref={workflowStateHref(selectedWorkflow.id, 'runs')}
             />
 
             {#if isRunsView}
               <WorkflowRunHistory
+                workflow={selectedWorkflow}
                 {runs}
+                {selectedRunId}
+                onSelectRun={(runId) => openWorkflowRuns(selectedWorkflow.id, runId)}
                 editorHref={workflowStateHref(selectedWorkflow.id, 'details')}
                 onOpenEditor={() => openWorkflowDetails(selectedWorkflow.id)}
-                {selectedRunId}
               />
             {:else}
-              <WorkflowTemplateShare
-                ownerWorkflow={selectedWorkflow}
-                disabled={saving || editorDirty}
-                onImport={unavailableTemplateImport}
-                onCompleteBinding={unavailableTemplateBinding}
-                onEnable={unavailableTemplateEnable}
-              />
-              <WorkflowVersionHistory
-                workflow={selectedWorkflow}
-                disabled={saving || editorDirty}
-                onRestored={handleWorkflowVersionRestored}
-              />
-
-              <div class="workflow-editor" data-testid="workflow-editor">
-              <div class="node-stack shortcut-flow" data-testid="workflow-node-stack">
-                {#each flowItems(editorGraph) as item (item.id)}
-                  {#if item.kind === 'connector'}
-                    <div class="flow-connector" class:branch-connector={item.indent}>{item.label}</div>
-                  {:else if item.kind === 'branch-label'}
-                    <div class="branch-label">{item.label}</div>
-                  {:else if item.kind === 'placeholder'}
-                    <article class="workflow-card placeholder-card">{item.label}</article>
-                  {:else if item.kind === 'node'}
-                    <article
-                      class="flow-node"
-                      class:branch-node={item.branch}
-                      class:expanded={expandedNodeId === item.node.id}
-                      data-node-type={item.node.type}
-                      data-testid="workflow-node-card"
-                    >
-                      <button
-                        type="button"
-                        class="workflow-card"
-                        class:app-skill-card={item.node.type === 'app_skill_action'}
-                        data-testid="workflow-node-summary"
-                        aria-expanded={expandedNodeId === item.node.id}
-                        onclick={() => toggleExpandedNode(item.node.id)}
-                      >
-                        <span class="card-kind">{nodeTypeLabel(item.node.type)}</span>
-                        <span class="card-icon" aria-hidden="true">{cardIconLabel(item.node.type)}</span>
-                        <strong data-testid="workflow-node-title-label">{cardSummary(item.node)}</strong>
-                      </button>
-
-                      {#if expandedNodeId === item.node.id}
-                        <div class="node-editor-panel" data-testid="workflow-node-expanded">
-                          <div class="expanded-header">
-                            <div>
-                              <span>{nodeTypeLabel(item.node.type)}</span>
-                              <h3>{cardSummary(item.node)}</h3>
-                            </div>
-                            {#if item.node.type !== 'schedule_trigger' && item.node.type !== 'end'}
-                              <button type="button" class="remove-node" data-testid="remove-workflow-node" onclick={() => removeNode(item.node.id)}>Remove</button>
-                            {/if}
-                          </div>
-
-                          <label class="node-field">
-                            <span>Action title</span>
-                            <input
-                              data-testid="workflow-node-title-input"
-                              value={item.node.title ?? item.node.type}
-                              oninput={(event) => updateNodeTitle(item.node.id, event.currentTarget.value)}
-                            />
-                          </label>
-
-                          {#if item.node.type === 'schedule_trigger'}
-                            <div class="node-grid">
-                              <label class="node-field">
-                                <span>Repeat</span>
-                                <select value={stringValue(scheduleRecord(item.node).type, 'daily')} oninput={(event) => updateSchedule(item.node, 'type', event.currentTarget.value)}>
-                                  <option value="daily">Daily</option>
-                                  <option value="weekly">Weekly</option>
-                                </select>
-                              </label>
-                              <label class="node-field">
-                                <span>Time</span>
-                                <input value={stringValue(scheduleRecord(item.node).time, '09:00')} oninput={(event) => updateSchedule(item.node, 'time', event.currentTarget.value)} />
-                              </label>
-                              <label class="node-field">
-                                <span>Timezone</span>
-                                <input value={stringValue(scheduleRecord(item.node).timezone, 'Europe/Berlin')} oninput={(event) => updateSchedule(item.node, 'timezone', event.currentTarget.value)} />
-                              </label>
-                            </div>
-                          {:else if item.node.type === 'app_skill_action'}
-                            <div class="node-grid">
-                              <label class="node-field">
-                                <span>Skill</span>
-                                <select
-                                  value={`${stringValue(configRecord(item.node).app_id, 'weather')}:${stringValue(configRecord(item.node).skill_id, 'forecast')}`}
-                                  oninput={(event) => {
-                                    const [appId, skillId] = event.currentTarget.value.split(':');
-                                    updateNodeConfig(item.node.id, { app_id: appId, skill_id: skillId, input: appId === 'news' ? { requests: [{ query: 'AI news' }] } : { location: 'Berlin', days: 1 } });
-                                  }}
-                                >
-                                  <option value="weather:forecast">Weather forecast</option>
-                                  <option value="news:search">News search</option>
-                                </select>
-                              </label>
-                              {#if stringValue(configRecord(item.node).app_id, 'weather') === 'news'}
-                                <label class="node-field wide">
-                                  <span>Search query</span>
-                                  <input
-                                    value={firstRequestQuery(item.node)}
-                                    oninput={(event) => updateNodeConfig(item.node.id, { input: { requests: [{ query: event.currentTarget.value }] } })}
-                                  />
-                                </label>
-                              {:else}
-                                <label class="node-field">
-                                  <span>Location</span>
-                                  <input data-testid="workflow-node-location-input" value={stringValue(inputRecord(item.node).location, 'Berlin')} oninput={(event) => updateInput(item.node, 'location', event.currentTarget.value)} />
-                                </label>
-                                <label class="node-field">
-                                  <span>Days</span>
-                                  <input type="number" min="1" max="7" value={numberValue(inputRecord(item.node).days, 1)} oninput={(event) => updateInput(item.node, 'days', Number(event.currentTarget.value))} />
-                                </label>
-                              {/if}
-                            </div>
-                          {:else if item.node.type === 'decision'}
-                            <div class="node-grid">
-                              <label class="node-field wide">
-                                <span>Check value</span>
-                                <input value={stringValue(predicateRecord(item.node).left, '$nodes.weather.output.rain_probability')} oninput={(event) => updatePredicate(item.node, 'left', event.currentTarget.value)} />
-                              </label>
-                              <label class="node-field">
-                                <span>Operator</span>
-                                <select value={stringValue(predicateRecord(item.node).op, 'gte')} oninput={(event) => updatePredicate(item.node, 'op', event.currentTarget.value)}>
-                                  <option value="gte">is at least</option>
-                                  <option value="gt">is greater than</option>
-                                  <option value="lte">is at most</option>
-                                  <option value="lt">is less than</option>
-                                  <option value="eq">equals</option>
-                                </select>
-                              </label>
-                              <label class="node-field">
-                                <span>Value</span>
-                                <input type="number" value={numberValue(predicateRecord(item.node).right, 60)} oninput={(event) => updatePredicate(item.node, 'right', Number(event.currentTarget.value))} />
-                              </label>
-                            </div>
-                          {:else if item.node.type === 'send_notification' || item.node.type === 'send_email_notification'}
-                            <div class="node-grid">
-                              <label class="node-field">
-                                <span>Title</span>
-                                <input value={stringValue(configRecord(item.node).title, 'Workflow update')} oninput={(event) => updateNodeConfig(item.node.id, { title: event.currentTarget.value })} />
-                              </label>
-                              <label class="node-field wide">
-                                <span>Message</span>
-                                <input value={stringValue(configRecord(item.node).body, 'Your workflow finished.')} oninput={(event) => updateNodeConfig(item.node.id, { body: event.currentTarget.value })} />
-                              </label>
-                            </div>
-                          {:else if item.node.type === 'create_chat_report'}
-                            <label class="node-field">
-                              <span>Report summary</span>
-                              <input value={stringValue(configRecord(item.node).summary, 'Workflow report')} oninput={(event) => updateNodeConfig(item.node.id, { summary: event.currentTarget.value })} />
-                            </label>
-                          {:else if item.node.type === 'repeat'}
-                            <div class="node-grid">
-                              <label class="node-field">
-                                <span>Max iterations</span>
-                                <input type="number" min="1" value={numberValue(configRecord(item.node).max_iterations, 3)} oninput={(event) => updateNodeConfig(item.node.id, { max_iterations: Number(event.currentTarget.value) })} />
-                              </label>
-                              <label class="node-field">
-                                <span>Max credits</span>
-                                <input type="number" min="1" value={numberValue(configRecord(item.node).max_credits, 5)} oninput={(event) => updateNodeConfig(item.node.id, { max_credits: Number(event.currentTarget.value) })} />
-                              </label>
-                            </div>
-                          {:else}
-                            <p class="node-note">This action ends the workflow.</p>
-                          {/if}
-                        </div>
-                      {/if}
-                    </article>
-                  {/if}
-                {/each}
-              </div>
-
-              <div class="editor-toolbar" data-testid="workflow-action-palette">
-                <button type="button" data-testid="add-weather-node" onclick={() => appendNode('app_skill_action')}>
-                  <span aria-hidden="true">+</span>
-                  Add action
-                </button>
-                <button type="button" data-testid="add-decision-node" onclick={() => appendNode('decision')}>
-                  <span aria-hidden="true">+</span>
-                  Add decision
-                </button>
-                <button type="button" data-testid="add-report-node" onclick={() => appendNode('create_chat_report')}>Add report</button>
-                <button type="button" data-testid="add-push-node" onclick={() => appendNode('send_notification')}>Add push</button>
-                <button type="button" data-testid="add-email-node" onclick={() => appendNode('send_email_notification')}>Add email</button>
-              </div>
+              <div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
+                {#if editorGraph}
+                  <div data-testid="workflow-editor">
+                    <WorkflowGraphRenderer graph={editorGraph} readOnly={saving} onChange={updateEditorGraph} />
+                  </div>
+                {/if}
+                <WorkflowVersionHistory
+                  workflow={selectedWorkflow}
+                  disabled={saving}
+                  onRequestNavigation={requestNavigation}
+                  onRestored={handleWorkflowVersionRestored}
+                />
+                <WorkflowTemplateShare
+                  ownerWorkflow={selectedWorkflow}
+                  disabled={saving || editorDirty}
+                  onImport={unavailableTemplateImport}
+                  onCompleteBinding={unavailableTemplateBinding}
+                  onEnable={unavailableTemplateEnable}
+                />
               </div>
             {/if}
           {:else}
@@ -1089,6 +751,36 @@
             </section>
           </div>
         </section>
+        {/if}
+
+        {#if pendingNavigation}
+          <div class="unsaved-guard-backdrop" data-testid="workflow-unsaved-guard" role="presentation">
+            <div class="unsaved-guard" role="dialog" aria-modal="true" aria-labelledby="workflow-unsaved-title" use:focusTrap={{ onEscape: () => (pendingNavigation = null) }}>
+              <h2 id="workflow-unsaved-title">Save your changes?</h2>
+              <p>This Workflow has unsaved Template changes.</p>
+              <div>
+                <button type="button" data-testid="workflow-guard-stay" onclick={() => (pendingNavigation = null)}>Stay</button>
+                <button type="button" data-testid="workflow-guard-discard" onclick={() => void discardAndContinueNavigation()}>Discard</button>
+                <button type="button" class="primary" data-testid="workflow-guard-save" disabled={saving} onclick={() => void saveAndContinueNavigation()}>Save</button>
+              </div>
+            </div>
+          </div>
+        {/if}
+
+        {#if blankCreatorOpen}
+          <div class="blank-creator-backdrop" data-testid="workflow-blank-creator" role="presentation">
+            <div class="blank-creator" role="dialog" aria-modal="true" aria-labelledby="blank-workflow-title" use:focusTrap={{ onEscape: () => (blankCreatorOpen = false) }}>
+              <form onsubmit={(event) => { event.preventDefault(); void submitBlankWorkflow(); }}>
+                <h2 id="blank-workflow-title">Start a blank Workflow</h2>
+                <p>Name it now, then add a time trigger and the steps it should perform.</p>
+                <label><span>Workflow name</span><input data-testid="workflow-blank-title-input" bind:value={blankWorkflowTitle} /></label>
+                <div>
+                  <button type="button" onclick={() => (blankCreatorOpen = false)}>Cancel</button>
+                  <button type="submit" class="primary" data-testid="workflow-blank-create" disabled={saving || !blankWorkflowTitle.trim()}>{saving ? 'Creating...' : 'Create'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
         {/if}
       </main>
       <div class="settings-wrapper">
@@ -1112,6 +804,7 @@
   }
 
   .main-content {
+    container: main-content / inline-size;
     position: fixed;
     inset-inline-start: var(--sidebar-margin, 10px);
     inset-inline-end: 0;
@@ -1168,6 +861,16 @@
     overflow: hidden;
   }
 
+  .blank-workflow-action {
+    position: absolute;
+    z-index: var(--z-index-popover);
+    inset: var(--spacing-5) var(--spacing-5) auto auto;
+    color: var(--color-font-button);
+    background: var(--color-button-primary);
+    font-weight: 800;
+    pointer-events: auto;
+  }
+
   .workflow-management {
     display: grid;
     gap: 16px;
@@ -1193,17 +896,6 @@
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
   }
 
-  .node-field input,
-  .node-field select {
-    width: 100%;
-    border: 1px solid var(--color-grey-30);
-    border-radius: var(--radius-8, 20px);
-    padding: 10px 12px;
-    color: var(--color-font-primary);
-    background: var(--color-grey-0);
-    font: inherit;
-  }
-
   button {
     border: 0;
     border-radius: var(--radius-8, 20px);
@@ -1221,231 +913,64 @@
     padding: 0;
   }
 
-  .workflow-editor {
-    display: grid;
-    justify-items: center;
-    gap: 38px;
-    padding: 10px 22px 24px;
-  }
-
-  .editor-toolbar {
-    width: min(680px, 100%);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0;
-    border-block-start: 3px solid var(--color-grey-20);
-  }
-
-  .editor-toolbar button {
-    min-height: 118px;
+  .unsaved-guard-backdrop {
+    position: fixed;
+    z-index: var(--z-index-modal, 1000);
+    inset: 0;
     display: grid;
     place-items: center;
-    gap: 8px;
-    border-radius: 0;
-    color: var(--color-font-secondary);
-    background: transparent;
-    font-size: 1.15rem;
-    font-weight: 800;
+    padding: var(--spacing-6);
+    background: color-mix(in srgb, var(--color-grey-100) 48%, transparent);
   }
 
-  .editor-toolbar button:nth-child(2) {
-    border-inline-start: 3px solid var(--color-grey-20);
-  }
-
-  .editor-toolbar button:nth-child(n + 3) {
-    min-height: auto;
-    padding-block: 12px;
-    border-block-start: 1px solid var(--color-grey-20);
-    font-size: 0.9rem;
-  }
-
-  .editor-toolbar button span {
-    font-size: 2rem;
-    line-height: 1;
-  }
-
-  .node-stack {
-    width: min(680px, 100%);
+  .unsaved-guard {
     display: grid;
-    justify-items: center;
-    gap: 0;
-  }
-
-  .flow-node {
-    width: 100%;
-    display: grid;
-    justify-items: center;
-  }
-
-  .flow-node.branch-node,
-  .placeholder-card {
-    width: 82%;
-    justify-self: end;
-  }
-
-  .flow-connector,
-  .branch-label {
-    color: var(--color-font-secondary);
-    font-size: 1.4rem;
-    font-weight: 900;
-    line-height: 1;
-  }
-
-  .flow-connector {
-    padding-block: 16px 20px;
-    text-align: center;
-  }
-
-  .flow-connector.branch-connector {
-    width: 82%;
-    justify-self: end;
-  }
-
-  .branch-label {
-    width: 82%;
-    justify-self: end;
-    padding-block: 20px 12px;
-    text-align: start;
-  }
-
-  .workflow-card {
-    width: 100%;
-    min-height: 164px;
-    display: grid;
-    justify-items: center;
-    align-content: center;
-    gap: 18px;
-    padding: 22px 26px;
-    border: 0;
-    border-radius: 30px;
+    width: min(430px, 100%);
+    gap: var(--spacing-5);
+    padding: var(--spacing-8);
+    border-radius: var(--radius-10);
     color: var(--color-font-primary);
-    background: var(--color-grey-10);
-    text-align: center;
-    box-shadow: none;
-    transition: transform 0.16s ease, box-shadow 0.16s ease;
-  }
-
-  .workflow-card:hover,
-  .workflow-card[aria-expanded="true"] {
-    transform: translateY(-1px);
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.14);
-  }
-
-  .workflow-card.app-skill-card {
-    color: var(--color-font-button);
-    background: linear-gradient(135deg, #0072bc 0%, #04b8cf 100%);
-  }
-
-  .workflow-card.placeholder-card {
-    min-height: 96px;
-    color: var(--color-font-secondary);
-    font-size: 1.35rem;
-    font-weight: 900;
-  }
-
-  .card-kind {
-    color: var(--color-font-secondary);
-    font-size: 1.25rem;
-    font-weight: 900;
-  }
-
-  .app-skill-card .card-kind {
-    color: color-mix(in srgb, var(--color-font-button) 76%, transparent);
-  }
-
-  .card-icon {
-    width: 54px;
-    height: 54px;
-    display: grid;
-    place-items: center;
-    border-radius: var(--radius-8, 20px);
-    color: var(--color-button-primary);
-    background: color-mix(in srgb, var(--color-button-primary) 12%, transparent);
-    font-size: 0.88rem;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-  }
-
-  .app-skill-card .card-icon {
-    color: var(--color-font-button);
-    background: color-mix(in srgb, var(--color-font-button) 18%, transparent);
-  }
-
-  .workflow-card strong {
-    max-width: 520px;
-    color: inherit;
-    font-size: clamp(1.45rem, 3vw, 2rem);
-    font-weight: 900;
-    line-height: 1.15;
-  }
-
-  .node-editor-panel {
-    width: min(760px, calc(100% + 88px));
-    display: grid;
-    gap: 14px;
-    margin-block: 14px 8px;
-    padding: 18px;
-    border: 1px solid var(--color-grey-20);
-    border-radius: 28px;
     background: var(--color-grey-0);
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.14);
+    box-shadow: var(--shadow-xl);
   }
 
-  .branch-node .node-editor-panel {
-    width: min(720px, calc(100% + 60px));
+  .unsaved-guard h2,
+  .unsaved-guard p { margin: 0; }
+  .unsaved-guard p { color: var(--color-font-secondary); }
+  .unsaved-guard div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--spacing-3); }
+  .unsaved-guard button { background: var(--color-grey-20); }
+  .unsaved-guard .primary { color: var(--color-font-button); background: var(--color-button-primary); }
+
+  .blank-creator-backdrop {
+    position: fixed;
+    z-index: var(--z-index-modal, 1000);
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: var(--spacing-6);
+    background: color-mix(in srgb, var(--color-grey-100) 48%, transparent);
   }
 
-  .expanded-header {
-    display: flex;
-    justify-items: center;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-  }
-
-  .expanded-header span {
-    color: var(--color-font-secondary);
-    font-weight: 900;
-  }
-
-  .expanded-header h3 {
-    margin: 4px 0 0;
+  .blank-creator {
+    width: min(460px, 100%);
+    padding: var(--spacing-8);
+    border-radius: var(--radius-10);
     color: var(--color-font-primary);
-    font-size: 1.25rem;
+    background: var(--color-grey-0);
+    box-shadow: var(--shadow-xl);
   }
 
-  .remove-node {
-    padding: 6px 10px;
-    color: var(--color-font-secondary);
-    background: var(--color-grey-20);
-  }
+  .blank-creator form { display: grid; gap: var(--spacing-5); }
 
-  .node-field {
-    display: grid;
-    gap: 5px;
-    min-width: 0;
-  }
-
-  .node-field span {
-    color: var(--color-font-secondary);
-    font-size: 0.82rem;
-    font-weight: 700;
-  }
-
-  .node-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .node-field.wide {
-    grid-column: span 2;
-  }
-
-  .node-note {
-    margin: 0;
-    color: var(--color-font-secondary);
-  }
+  .blank-creator h2,
+  .blank-creator p { margin: 0; }
+  .blank-creator p,
+  .blank-creator label span { color: var(--color-font-secondary); }
+  .blank-creator label { display: grid; gap: var(--spacing-3); }
+  .blank-creator input { box-sizing: border-box; width: 100%; padding: var(--spacing-4); border: 1px solid var(--color-grey-30); border-radius: var(--radius-6); color: var(--color-font-primary); background: var(--color-grey-0); font: inherit; }
+  .blank-creator form > div { display: flex; justify-content: flex-end; gap: var(--spacing-3); }
+  .blank-creator button { background: var(--color-grey-20); }
+  .blank-creator .primary { color: var(--color-font-button); background: var(--color-button-primary); }
 
   .error-banner {
     margin-block-end: 14px;
@@ -1483,7 +1008,7 @@
 
     .workflow-sidebar-shell {
       position: fixed;
-      z-index: 30;
+      z-index: var(--z-index-modal);
       inset: 82px auto 0 0;
       width: min(325px, calc(100vw - 32px));
       transform: translateX(-110%);

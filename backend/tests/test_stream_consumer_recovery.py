@@ -622,6 +622,19 @@ def test_sub_chat_completion_is_recorded_before_billing_error_is_reraised() -> N
     assert completion_index < billing_reraise_index
 
 
+# contract-test: supporting surface=rest_api assertions=billing.credits.retryable-completion-safe
+def test_finalized_response_only_reraises_non_deferred_billing_error() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    final_marker_index = source.rindex("is_final=True")
+    billing_reraise_index = source.rindex("if billing_error:")
+
+    assert final_marker_index < billing_reraise_index
+    finalization_block = source[final_marker_index:]
+    assert "Retryable conflicts return successfully" in finalization_block
+    assert "Re-raising non-deferred billing error" in finalization_block
+    assert "raise billing_error" in finalization_block
+
+
 def test_sub_chat_continuation_failure_marks_original_inference(monkeypatch) -> None:
     request_data = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",

@@ -3,7 +3,7 @@ status: active
 doc_type: guide
 audience:
   - users
-last_verified: 2026-06-11
+last_verified: 2026-09-02
 claims:
   - id: user-guide-demo-chats-source
     type: unit
@@ -24,13 +24,11 @@ Demo chats are curated conversations that appear in the sidebar for all visitors
 
 ### Intro Chats
 
-Built-in chats that are always available, even offline:
+The remaining built-in project introduction is available even offline:
 
-- **OpenMates | For everyone** -- An introduction for new users.
-- **OpenMates | For developers** -- Developer-focused features, REST API, CLI, and privacy.
 - **Who develops OpenMates?** -- Meet the creator and learn about the project philosophy.
 
-These chats are translated into all supported languages.
+This chat is translated into all supported languages. New visitors start on the neutral welcome screen, where they can choose interests and browse real example conversations.
 
 ### Community Demos
 

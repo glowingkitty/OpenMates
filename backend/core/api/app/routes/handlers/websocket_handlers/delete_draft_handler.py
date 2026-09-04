@@ -143,8 +143,25 @@ async def handle_delete_draft(
             )
         if cache_delete_success:
             logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully tombstoned draft in cache for chat_id: {chat_id}.")
+            await manager.send_personal_message(
+                message={
+                    "type": "draft_delete_receipt",
+                    "payload": {"chat_id": chat_id, "success": True, "draft_v": deleted_draft_v},
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
         else:
             logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Failed to tombstone draft in cache for chat_id: {chat_id}.")
+            await manager.send_personal_message(
+                message={
+                    "type": "draft_delete_receipt",
+                    "payload": {"chat_id": chat_id, "success": False},
+                },
+                user_id=user_id,
+                device_fingerprint_hash=device_fingerprint_hash,
+            )
+            return
 
         # Clean up draft-only chats from the sorted set.
         # If the chat has no messages in Directus (i.e., it was a draft-only new chat),
@@ -229,25 +246,19 @@ async def handle_delete_draft(
             # Previously, the broadcast only happened if a draft was found and deleted from Directus, causing stale
             # drafts to persist on other devices.
         
-            # Send confirmation receipt to the originating client
-            await manager.send_personal_message(
-                message={"type": "draft_delete_receipt", "payload": {"chat_id": chat_id, "success": True}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
-        
             # Broadcast to other devices of the same user that the draft was deleted
-            await manager.broadcast_to_user(
-                message={
-                    "type": "draft_deleted",
-                    "payload": {"chat_id": chat_id}
-                },
-                user_id=user_id,
-                exclude_device_hash=device_fingerprint_hash
-            )
-            logger.info(
-                f"User {user_id}, Device {device_fingerprint_hash}: Broadcasted draft_deleted to other devices for chat_id: {chat_id}."
-            )
+            if cache_delete_success and deleted_draft_v is not None:
+                await manager.broadcast_to_user(
+                    message={
+                        "type": "draft_deleted",
+                        "payload": {"chat_id": chat_id, "draft_v": deleted_draft_v}
+                    },
+                    user_id=user_id,
+                    exclude_device_hash=device_fingerprint_hash
+                )
+                logger.info(
+                    f"User {user_id}, Device {device_fingerprint_hash}: Broadcasted draft_deleted to other devices for chat_id: {chat_id}."
+                )
 
         except Exception as e:
             logger.error(
@@ -259,15 +270,19 @@ async def handle_delete_draft(
             # so there is no authoritative draft left. Broadcasting ensures cross-device
             # consistency even if the permanent-storage cleanup failed.
             try:
-                await manager.broadcast_to_user(
-                    message={"type": "draft_deleted", "payload": {"chat_id": chat_id}},
-                    user_id=user_id,
-                    exclude_device_hash=device_fingerprint_hash
-                )
-                logger.info(
-                    f"User {user_id}: Broadcasted draft_deleted to other devices for chat_id {chat_id} "
-                    f"(fallback after Directus exception)."
-                )
+                if cache_delete_success and deleted_draft_v is not None:
+                    await manager.broadcast_to_user(
+                        message={
+                            "type": "draft_deleted",
+                            "payload": {"chat_id": chat_id, "draft_v": deleted_draft_v},
+                        },
+                        user_id=user_id,
+                        exclude_device_hash=device_fingerprint_hash
+                    )
+                    logger.info(
+                        f"User {user_id}: Broadcasted draft_deleted to other devices for chat_id {chat_id} "
+                        f"(fallback after Directus exception)."
+                    )
             except Exception as broadcast_err:
                 logger.error(
                     f"User {user_id}: Failed to broadcast draft_deleted (fallback) for chat_id {chat_id}: {broadcast_err}"

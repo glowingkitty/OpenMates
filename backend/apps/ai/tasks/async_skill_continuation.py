@@ -23,7 +23,10 @@ except ImportError:  # pragma: no cover - test environments may not install opti
         return json.dumps(value, ensure_ascii=False)
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
-from backend.apps.ai.utils.embeds_map_view import EMBEDS_MAP_VIEW_INSTRUCTION
+from backend.apps.ai.utils.embeds_map_view import (
+    EMBEDS_MAP_VIEW_INSTRUCTION,
+    should_include_embeds_map_view_hint,
+)
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
 
@@ -35,8 +38,7 @@ ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
 ASYNC_EMBED_REFERENCE_INSTRUCTION = (
     "When referencing a specific completed result that has an embed_ref field, "
     "link it with Markdown like [human-readable title](embed:the_embed_ref). "
-    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text.\n\n"
-    f"{EMBEDS_MAP_VIEW_INSTRUCTION}"
+    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text."
 )
 celery_app = None
 
@@ -265,13 +267,35 @@ def _build_completed_tool_result_message(
         result_status=result_status,
         request_metadata=request_metadata,
     )
+    app_id = str(context.get("app_id") or "")
+    skill_id = str(context.get("skill_id") or "")
+    user_texts = _request_user_texts_from_payload(context.get("request_data"))
+    embed_instruction = ASYNC_EMBED_REFERENCE_INSTRUCTION
+    if should_include_embeds_map_view_hint(app_id, skill_id, user_texts):
+        embed_instruction = f"{embed_instruction}\n\n{EMBEDS_MAP_VIEW_INSTRUCTION}"
     return (
         "An asynchronous tool call requested earlier in this conversation has completed. "
         "Use these completed tool results and the prior chat history to answer the user's original request now. "
         "Do not ask the user to wait for this same tool result. "
-        f"{ASYNC_EMBED_REFERENCE_INSTRUCTION}\n\n"
+        f"{embed_instruction}\n\n"
         f"Completed tool result (TOON):\n{toon_encode(payload)}"
     )
+
+
+def _request_user_texts_from_payload(request_payload: Any) -> list[str]:
+    if not isinstance(request_payload, dict):
+        return []
+    texts: list[str] = []
+    current_user_content = request_payload.get("current_user_content")
+    if isinstance(current_user_content, str) and current_user_content.strip():
+        texts.append(current_user_content)
+    for message in reversed(request_payload.get("message_history") or []):
+        if not isinstance(message, dict) or message.get("role") not in {"user", "human"}:
+            continue
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            texts.append(content)
+    return texts
 
 
 def _build_completed_tool_result_payload(

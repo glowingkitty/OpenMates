@@ -32,6 +32,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-06-29" # Cerebras public preview availability date
+    capability_level: "low"
     allow_auto_select: false
     input_types:
       - text
@@ -70,6 +71,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-12-17" # Model release date (Gemini 3 Flash preview release)
+    capability_level: "medium"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3-flash"
@@ -118,6 +120,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-08-13" # Gemini 3.7 Flash GA release
+    capability_level: "high"
     allow_auto_select: true
     external_ids:
       lmarena: "gemini-3.7-flash-high"
@@ -162,12 +165,67 @@ models:
       streaming: true
       # Introductory price expires 2026-12-31; Google lists $1.50/M input and $7.50/M output from 2027-01-01.
 
+  - id: "gemini-3.8-flash"
+    name: "Gemini 3.8 Flash"
+    description: "Latest Gemini Flash model for complex coding, agentic, multimodal, and long-context tasks. Explicit selection only pending real-world user feedback."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-02"
+    capability_level: "high"
+    # Keep this opt-in until real-world user reports validate quality, cost, and latency.
+    allow_auto_select: false
+    tier: "premium"
+    external_ids:
+      lmarena: "gemini-3.8-flash-high"
+    reasoning: true
+    input_types:
+      - text
+      - image
+      - video
+      - audio
+      - pdf
+    output_types:
+      - text
+    default_server: "google_ai_studio"
+    servers:
+      - id: "google_ai_studio"
+        name: "Google AI Studio"
+        model_id: "gemini-3.8-flash"
+        region: "US"
+      - id: "google"
+        name: "Google Vertex AI"
+        model_id: "gemini-3.8-flash"
+        region: "global"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 450 # Based on $0.75/M input tokens introductory pricing through 2026-12-31.
+        output:
+          per_credit_unit: 90 # Based on $3.75/M output tokens introductory pricing through 2026-12-31.
+    costs:
+      input_per_million_token:
+        price: 0.75
+        currency: USD
+        max_context: 1048576
+      output_per_million_token:
+        price: 3.75
+        currency: USD
+        max_context: 1048576
+    features:
+      knowledge_cutoff: "2026-03"
+      max_output_tokens: 65536
+      tool_use: true
+      computer_use: true
+      streaming: true
+      # Introductory price expires 2026-12-31; Google lists $1.50/M input and $7.50/M output from 2027-01-01.
+
   - id: "gemini-3.1-pro-preview" # Official model ID
     name: "Gemini 3.1 Pro"
     description: "Better thinking, improved token efficiency, and stronger factual grounding over Gemini 3 Pro. Optimized for software engineering and agentic workflows with precise tool usage."
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-02-19" # Model release date (Gemini 3.1 Pro preview release)
+    capability_level: "high"
     allow_auto_select: false
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       openrouter: "google/gemini-3.1-pro-preview"
@@ -216,6 +274,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-05-19" # Model release date (Gemini 3.5 Flash GA release)
+    capability_level: "medium"
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
       lmarena: "gemini-3.5-flash"
@@ -264,6 +323,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-07-21" # Gemini 3.5 Flash-Lite GA release
+    capability_level: "low"
     allow_auto_select: true
     external_ids:
       lmarena: "gemini-3.5-flash-lite"

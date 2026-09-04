@@ -20,11 +20,13 @@ from pydantic import BaseModel
 from typing import Optional
 
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_directus_service, get_cache_service
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_auth_client
 from backend.core.api.app.models.user import User
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.push_subscription_targets import (
     merge_push_subscription_target,
+    remove_push_subscription_target,
     remove_push_subscription_targets,
 )
 
@@ -60,6 +62,13 @@ class NativeDeviceRegisterRequest(BaseModel):
     environment: Optional[str] = None
     notification_public_key: Optional[str] = None
     encryption_version: Optional[str] = None
+    device_id: Optional[str] = None
+
+
+class NativeDeviceUnregisterRequest(BaseModel):
+    """One native installation to remove during explicit logout."""
+    token: str
+    device_id: str
 
 
 async def _get_existing_subscription_json(
@@ -145,6 +154,51 @@ async def subscribe_push(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@notifications_router.delete(
+    "/unregister-device",
+    response_model=PushSubscribeResponse,
+    dependencies=[Depends(verify_auth_client)],
+)
+async def unregister_native_device(
+    body: NativeDeviceUnregisterRequest,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service),
+):
+    """Remove only the current Apple installation before explicit logout."""
+    user_id = str(current_user.id)
+    token = body.token.strip()
+    device_id = body.device_id.strip()
+    if not token or not device_id:
+        raise HTTPException(status_code=400, detail="Missing native device identity")
+
+    try:
+        existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
+        subscription_json, push_enabled = remove_push_subscription_target(
+            existing_subscription_json,
+            {"type": "apns", "token": token, "device_id": device_id},
+        )
+        updated = await directus_service.update_user(user_id, {
+            "push_notification_enabled": push_enabled,
+            "push_notification_subscription": subscription_json,
+        })
+        if not updated:
+            raise HTTPException(status_code=500, detail="Failed to remove device token")
+        await cache_service.delete_user_cache(user_id)
+        logger.info("[PushRoutes] Removed one native APNs installation for user %s...", user_id[:6])
+        return PushSubscribeResponse(success=True, message="Device unregistered")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(
+            "[PushRoutes] Failed to remove native installation for user %s...: %s",
+            user_id[:6],
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.delete("/subscribe", response_model=PushSubscribeResponse)
 async def unsubscribe_push(
     current_user: User = Depends(get_current_user),
@@ -177,7 +231,11 @@ async def unsubscribe_push(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@notifications_router.post("/register-device", response_model=PushSubscribeResponse)
+@notifications_router.post(
+    "/register-device",
+    response_model=PushSubscribeResponse,
+    dependencies=[Depends(verify_auth_client)],
+)
 async def register_native_device(
     body: NativeDeviceRegisterRequest,
     current_user: User = Depends(get_current_user),
@@ -207,6 +265,7 @@ async def register_native_device(
         "environment": body.environment,
         "notification_public_key": body.notification_public_key,
         "encryption_version": body.encryption_version,
+        "device_id": body.device_id,
     }
 
     try:

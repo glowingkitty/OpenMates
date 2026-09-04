@@ -23,7 +23,7 @@ Valid proof strengths are `direct` and `supporting`. Valid product surfaces are
 Repository-only test files may use `contract-test: infrastructure` or
 `contract-test: tooling`; a file-level `contract-test-file` marker is allowed
 only for those non-product classifications. New or changed tests cannot use
-`legacy_unmapped`. Run `python3 scripts/contracts.py check-test <path>` to inspect
+`legacy_unmapped`. Run `python3 scripts/specifications.py check-test <path>` to inspect
 a touched test. Assertion links are traceability, not proof by themselves; only
 current successful direct evidence with a matching assertion fingerprint counts.
 
@@ -74,6 +74,16 @@ order by default:
    browser-specific flow through `python3 scripts/tests.py run --spec
    <name>.spec.ts`. Web specs prove Svelte, TipTap, IndexedDB/localStorage,
    rendering, screenshots, and user interaction behavior.
+   For new or modified UI elements, components, and screens, start with a
+   focused component spec against
+   `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0` before
+   broader flow specs. Every preview inspection, test, screenshot, and recording
+   must include `chrome=0` and show only the component, never the configuration
+   UI. Use the `.preview.ts` default fixture for the standard state and encode
+   every non-default input or configuration in URL query parameters such as
+   `variant`, `props`, `theme`, `background`, and `width`. The spec should drive meaningful
+   hover, focus, click, expanded/collapsed, and on/off states with assertions
+   before named proof checkpoints.
 5. **UI visual smoke fifth:** for larger user-visible web/UI changes, inspect the
    deployed `app.dev.openmates.org` route with Playwright after Playwright specs
    in both laptop and mobile viewports. Run
@@ -102,7 +112,7 @@ larger deployed UI work unless the change is Tier 0/non-visual or a documented
 waiver explains why browser review would add no signal. Do not mark Apple
 `not affected` unless there is no native counterpart. Do not start a later client
 while an earlier phase is unimplemented, untested, or blocked unless the spec or
-session contract records an explicit user-approved waiver or accepted external
+session Specification records an explicit user-approved waiver or accepted external
 blocker.
 
 REST/API, CLI, and SDK tests must prove the exact behavior on the dev server before being
@@ -115,6 +125,13 @@ Do not count a mocked API-call test as dev-server REST/API or CLI evidence. The
 acceptance artifact should show the real request or command that was executed,
 the dev API URL or test environment target, and the observable product result
 returned by the dev server.
+
+For UI component proof, publish the focused component video in the OpenCode
+response for every modified UI component. Use separate phone and laptop proof
+profiles only when responsive behavior differs. Derive still frames from the
+completed video only for failures, explicit requests, or ambiguous visual-intent
+inspection; do not add screenshot galleries or browser-side screenshot calls for
+component proof.
 
 Use the parity verifier when a change spans shared product behavior or multiple
 clients:
@@ -366,7 +383,7 @@ Hourly/prod archives: `test-results/hourly-dev/run-*.json`, `test-results/hourly
 
 Playwright specs are dispatched to GitHub Actions (`playwright-spec.yml`) in batches of up to 20 concurrent runners, each with a separate test account. The 27-slot inventory uses slots 1-13 and 21-27 for normal tests while reserving slots 14-20 for credential-mutating tests. Batch-level fail-fast: current batch finishes, then stops if any failures.
 
-Run `python3 scripts/tests.py run --spec test-account-preflight.spec.ts` to validate all 27 configured slots. Pass `--account N` to isolate one slot. Failed slots receive one reduced-concurrency retry before they are quarantined; this prevents a transient login-lookup burst from blocking otherwise healthy accounts.
+Run `python3 scripts/tests.py run --spec test-account-preflight.spec.ts` to validate all 27 configured slots. In default `OPENMATES_ACCOUNT_PREFLIGHT_MODE=auto`, the runner uses `scripts/verify_test_account_login.py` when the target slots have complete local credentials; otherwise it keeps the GitHub/Playwright preflight so repository secrets can supply missing slots. The fast API preflight checks password/TOTP login, `/v1/auth/session`, and `users.account_id` without storing a CLI session. Pass `--account N` to isolate one slot. Set `OPENMATES_ACCOUNT_PREFLIGHT_MODE=api` to force the local API path, or `OPENMATES_ACCOUNT_PREFLIGHT_MODE=browser` when the web login UI itself needs browser evidence.
 
 Daily development runs also perform an automatic stale-signup cleanup after preflight. Cleanup fails closed unless all 27 configured slot emails were discovered and protected, and it only deletes non-admin, incomplete accounts with no chats, messages, or embeds that have been inactive for at least seven days. Manual broader cleanup remains dry-run-first through `python3 scripts/cleanup_dev_signup_accounts.py`.
 
@@ -393,7 +410,7 @@ Most specs use the normal account pool. Specs that rotate, reset, or delete pers
 
 `scripts/run_tests.py` applies this mapping for full-suite, only-failed, and single-spec dispatches. Normal specs are assigned only from slots 1-13 and 21-27, allowing 20 concurrent normal specs without touching reserved credentials. If you add a spec that changes password, email, 2FA, recovery keys, backup codes, API keys, passkeys, or account data destructively, first add it to the reserved policy and document the slot here.
 
-Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 14-20 when a slot secret is missing or intentionally rotated. The workflow reads the reusable dev-only invite from the `E2E_SIGNUP_INVITE_CODE` repository secret and exposes it to the CLI only through `OPENMATES_CLI_SIGNUP_INVITE_CODE`. The utility writes credential artifacts to the GitHub Actions artifact bundle; copy them into the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` repository secrets and never commit generated credentials.
+Use `cli-provision-auth-accounts.spec.ts` with `CREATE_ACCOUNT_SLOT` to provision reserved auth-test accounts for slots 14-20 when a slot secret is missing or intentionally rotated. The workflow reads the reusable dev-only invite from the `E2E_SIGNUP_INVITE_CODE` repository secret and exposes it to the CLI only through `OPENMATES_CLI_SIGNUP_INVITE_CODE`. Before creating an account, the workflow validates that `GH_SECRETS_TOKEN` can write and delete a temporary repository-secret probe. It writes the generated credentials directly to the matching `OPENMATES_TEST_ACCOUNT_<slot>_*` secrets and removes password, TOTP, backup-code, and recovery-key files before uploading test artifacts; generated credentials must never be committed or uploaded.
 
 Apple XCUITests that mutate sensitive account state use the same reserved slot variables through `RealAccountUITestSupport.fromReservedSlot(<slot>)`; tests must skip when a required reserved slot is absent rather than falling back to the normal account pool. Static sensitive-settings parity smokes can use narrow fixture launch arguments when they do not call live account APIs.
 
@@ -594,7 +611,16 @@ Convention: `{app}_{skill}_{context}` where context is `web`, `cli`, or a descri
 
 ### Legacy Fixture System
 
-The old `withMockMarker()` / fixture replay system still exists in `backend/apps/ai/testing/mock_replay.py` and `fixtures/` for backward compatibility. It skips the entire pipeline and replays pre-recorded Redis events. **Do not use it for new tests** — use `withLiveMockMarker()` instead.
+The old `withMockMarker()` / fixture replay system still exists in `backend/apps/ai/testing/mock_replay.py` and `fixtures/` for backward compatibility. It skips model execution and replays cached preprocessing, response, and postprocessing Redis events. The worker never runs live postprocessing after fixture replay. **Do not use it for new tests**; use `withLiveMockMarker()` instead.
+
+### Daily AI Cost Policy
+
+- `scripts/daily_ai_test_manifest.json` excludes manual, expensive, missing-cache, and canary specs from ordinary discovery.
+- Scheduled chat-driving specs must use `withMockMarker()` or `withLiveMockMarker()`; unmarked AI specs fail closed by exclusion.
+- One fixed and one UTC-rotating canary are added only for `--daily` and share the `TEST_LIVE_REAL` Dragonfly budget.
+- `--daily --record-live-fixtures` is rejected. Cache refresh is always manual.
+- Run `python3 scripts/audit_daily_ai_test_inference.py` before changing daily classification, marker helpers, or cache groups.
+- See `docs/architecture/live-mock-testing.md` for recording and promotion.
 
 ---
 

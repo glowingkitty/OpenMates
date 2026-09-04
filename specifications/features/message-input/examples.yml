@@ -1,0 +1,156 @@
+schema_version: 1
+specification: feature.message-input@1
+
+parent_state:
+  - id: focus-and-text-update-parent
+    given: {surface: gui.web, context: new_chat_welcome, authenticated: false}
+    actions:
+      - focus_message_editor
+      - type_text: Explain how OpenMates works
+    expect:
+      parent_isFocused: true
+      parent_hasContent: true
+      parent_live_text: Explain how OpenMates works
+      message_input_mounted: true
+  - id: maps-open-state-hides-parent-suggestions
+    given: {surface: gui.web, composer_recently_focused: true}
+    action: open_maps_selector
+    expect:
+      parent_isMapsOpen: true
+      new_chat_suggestions_visible: false
+
+focus_visibility:
+  - id: logged-out-focus-hides-welcome-ui
+    given: {surface: gui.web, authenticated: false, showWelcome: true, viewport: desktop}
+    action: focus_message_editor
+    expect:
+      message_editor_focused: true
+      message_input_mounted: true
+      hidden_or_inert:
+        - daily-inspiration-area
+        - top-buttons
+        - welcome-content
+        - guest-interest-tags-overlay
+        - recent-chats-scroll-container
+        - guest-example-link-row
+  - id: recording-overlay-hides-welcome-ui
+    given: {surface: gui.web, authenticated: false, showWelcome: true, mic_permission: granted}
+    action: press_and_hold_record_button_until_overlay
+    expect:
+      recording_preview_visible: true
+      message_input_mounted: true
+      hidden_or_inert:
+        - daily-inspiration-area
+        - welcome-content
+        - guest-example-link-row
+
+action_controls:
+  - id: empty-unfocused-inline-actions-hidden
+    given: {inlineCompact: true, isFocused: false, hasContent: false, hasEmbedContent: false}
+    expect: {expanded_action_buttons_visible: false, base_empty_affordances_visible: true}
+  - id: recording-keeps-actions-mounted
+    given: {isFocused: false, hasContent: false, recording_button_pressed: true}
+    expect: {record_button_mounted_until_pointer_end: true, action_buttons_visible: true}
+
+drafts:
+  - id: text-draft-preview-after-blur
+    given: {currentChatId: draft-chat-1, text: Remember to compare flights, embeds: []}
+    actions: [save_draft, blur_message_editor]
+    expect:
+      draft_saved_for_chat_id: draft-chat-1
+      draft_preview_summary_contains: Remember to compare flights
+      editor_can_collapse_to_preview: true
+  - id: long-inactive-draft-preview-shortens-with-ellipsis
+    given: {currentChatId: draft-chat-1, text: Keep this draft while I open a different saved chat, embeds: [], available_inline_width: narrow}
+    actions: [save_draft, blur_message_editor]
+    expect:
+      draft_preview_single_line: true
+      overflowing_text_shortened_with_ellipsis: true
+      full_draft_content_retained: true
+      selecting_draft_restores_full_editor_content: true
+  - id: embed-draft-stays-editable
+    given: {currentChatId: draft-chat-2, embeds: [{type: audio-recording}], text: ''}
+    actions: [save_draft, blur_message_editor]
+    expect:
+      draft_saved_for_chat_id: draft-chat-2
+      editor_can_collapse_to_preview: false
+      embed_controls_reachable: true
+
+attachments:
+  - id: paste-code-defers-send-until-embed-ready
+    given: {paste_kind: multiline_code, send_pressed_before_embed_registered: true}
+    expect:
+      pending_paste_embed_count_blocks_send: true
+      send_resumes_after_embed_registered: true
+      embed_metadata_preserved: true
+  - id: anonymous-private-file-requires-signup
+    given: {authenticated: false, attachment: private_file, embed_needsSignup: true}
+    expect:
+      anonymousFileAttachmentPending: true
+      suggestions_visible: false
+      signup_required_before_send: true
+
+recording:
+  - id: pointer-hold-starts-focused-overlay
+    given: {mic_permission: granted, input_empty: true}
+    action: press_and_hold_record_button
+    expect:
+      recording_preview_visible: true
+      overlay_owns_focus: true
+      recordingStateChange_active: true
+      cancel_and_finish_controls_visible: true
+  - id: cancel-cleans-recording-state
+    given: {recording_preview_visible: true}
+    action: cancel_recording
+    expect:
+      recording_preview_visible: false
+      recording_store_reset: true
+      stale_focus_state: false
+
+suggestions:
+  - id: welcome-suggestions-bound-to-recent-focus
+    given: {showWelcome: true, messageInputRecentlyFocused: true, mapsOpen: false, anonymousFileAttachmentPending: false}
+    expect: {new_chat_suggestions_visible: true}
+  - id: open-chat-search-suggestions-bound-to-focus
+    given: {showWelcome: false, currentChatId: chat-1, messageInputRecentlyFocused: true, liveInputText: budget}
+    expect:
+      chat_search_suggestions_query: budget
+      hidden_when_no_results: true
+
+send_ownership:
+  - id: start-new-chat-dispatches-parent-event
+    given: {startNewChatOnClick: true, currentChatId: null}
+    action: click_composer_or_cta
+    expect: {event: startNewChat, composer_creates_chat_directly: false}
+  - id: send-message-handoff
+    given: {currentChatId: chat-1, sanitized_text: Find events in Berlin, embeds_ready: true}
+    action: send_message
+    expect:
+      event: sendMessage
+      parent_owns_message_persistence: true
+      composer_owns_ai_processing: false
+
+privacy_context:
+  - id: pii-warning-respects-settings
+    given: {pii_detection_enabled: true, text_contains_enabled_personal_data: true}
+    expect:
+      pii_warning_visible: true
+      undo_all_available: true
+      durable_plaintext_private_content_written_by_composer: false
+  - id: context-pills-route-or-deactivate
+    given: {activeFocusId: jobs-career_insights, incognitoMode: true}
+    expect:
+      focus_pill_deep_link_available: true
+      focus_pill_deactivate_has_undo_window: true
+      incognito_toggle_deactivates_incognito: true
+
+responsive_layout:
+  - id: compact-phone-composer
+    given: {surface: gui.web, viewport: [390, 844], composer_state: focused_with_text}
+    expect: {inside_active_chat_bounds: true, horizontal_clipping: false, actions_reachable: true, latest_message_obscured: false}
+  - id: regular-wide-composer
+    given: {surface: gui.web, viewport: [1440, 900], composer_state: streaming_with_stop_control}
+    expect: {inside_active_chat_bounds: true, horizontal_clipping: false, stop_control_reachable: true, latest_message_obscured: false}
+  - id: apple-corresponding-layouts
+    given: {surface: gui.apple, profiles: [iphone_portrait, ipad_landscape, macos_regular]}
+    expect: {web_hierarchy_preserved: true, relative_geometry_preserved: true, controls_reachable: true, latest_message_obscured: false}

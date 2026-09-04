@@ -9,6 +9,7 @@ from backend.apps.ai.utils.embeds_map_view import (
     ALLOWED_EMBEDS_MAP_VIEW_FIELDS,
     EMBEDS_MAP_VIEW_INSTRUCTION,
     append_missing_embeds_map_view_block,
+    content_has_map_view_capable_skill_marker,
     content_has_map_capable_app_skill_use,
     extract_map_capable_source_refs,
     extract_inline_embed_refs,
@@ -16,10 +17,12 @@ from backend.apps.ai.utils.embeds_map_view import (
     is_map_view_request,
     is_map_view_suppressed_request,
     normalize_embeds_map_view_blocks,
+    should_include_embeds_results_view_instruction,
     should_include_embeds_map_view_hint,
 )
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
     assert ALLOWED_EMBEDS_MAP_VIEW_FIELDS == {"title", "embeds", "sources", "highlight"}
     assert "```embeds_results_view" in EMBEDS_MAP_VIEW_INSTRUCTION
@@ -38,6 +41,7 @@ def test_instruction_limits_fields_and_forbids_paid_enrichment() -> None:
     assert "FlightAware" in EMBEDS_MAP_VIEW_INSTRUCTION
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_map_view_fence_language_is_reserved_for_client_renderer() -> None:
     assert is_embeds_map_view_fence_language("embeds_map_view") is True
     assert is_embeds_map_view_fence_language("embeds_map_view title=Berlin") is True
@@ -49,6 +53,7 @@ def test_map_view_fence_language_is_reserved_for_client_renderer() -> None:
     assert is_embeds_map_view_fence_language(None) is False
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_map_view_hint_defaults_to_capable_skills_unless_suppressed() -> None:
     assert is_map_view_request(["Find Berlin AI events and show them on a map."]) is True
     assert is_map_view_request(["Find Berlin AI events."]) is False
@@ -81,12 +86,55 @@ def test_map_view_hint_defaults_to_capable_skills_unless_suppressed() -> None:
         ["Find gyms near Friedrichshain."],
     ) is True
     assert should_include_embeds_map_view_hint(
+        "home",
+        "search",
+        ["Find apartments near Kollwitzplatz."],
+    ) is True
+    assert should_include_embeds_map_view_hint(
         "web",
         "search",
         ["Find AI news and show it on a map."],
     ) is False
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_results_view_instruction_is_gated_to_visual_capable_skills_or_history() -> None:
+    assert should_include_embeds_results_view_instruction(
+        {"news-search", "web-search"},
+        ["Find AI news."],
+        ["app_id: news\nskill_id: search\nembed_ref: npr-org-123"],
+    ) is False
+    assert should_include_embeds_results_view_instruction(
+        {"events-search"},
+        ["Find Berlin AI events."],
+        [],
+    ) is True
+    assert should_include_embeds_results_view_instruction(
+        set(),
+        ["Summarize those results."],
+        ["app_id: maps\nskill_id: search\nembed_ref: quiet-cafe-123"],
+    ) is True
+    assert should_include_embeds_results_view_instruction(
+        {"events-search"},
+        ["Find Berlin AI events, text only."],
+        [],
+    ) is False
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_history_marker_detector_rejects_news_and_web_search_results() -> None:
+    assert content_has_map_view_capable_skill_marker(
+        "app_id: news\nskill_id: search\nembed_ref: npr-org-123"
+    ) is False
+    assert content_has_map_view_capable_skill_marker(
+        "app_id: web\nskill_id: search\nembed_ref: example-com-123"
+    ) is False
+    assert content_has_map_view_capable_skill_marker(
+        "app_id: health\nskill_id: search_appointments\nembed_ref: appointment-123"
+    ) is True
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_content_detector_finds_map_capable_app_skill_json_fence() -> None:
     content = '''```json
 {"type":"app_skill_use","embed_id":"abc","app_id":"events","skill_id":"search"}
@@ -99,6 +147,7 @@ def test_content_detector_finds_map_capable_app_skill_json_fence() -> None:
     assert extract_map_capable_source_refs(content) == ["abc"]
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_content_detector_rejects_non_map_capable_app_skill_json_fence() -> None:
     content = '''```json
 {"type":"app_skill_use","embed_id":"abc","app_id":"web","skill_id":"search"}
@@ -108,6 +157,7 @@ def test_content_detector_rejects_non_map_capable_app_skill_json_fence() -> None
     assert content_has_map_capable_app_skill_use(content) is False
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_append_missing_map_view_uses_existing_inline_refs_only() -> None:
     content = """Here are results:
 - [One](embed:event-one-111111)
@@ -124,6 +174,7 @@ def test_append_missing_map_view_uses_existing_inline_refs_only() -> None:
     assert "embeds: event-one-111111, event-two-222222" in repaired
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_append_missing_map_view_prefers_source_refs_and_highlights_inline_children() -> None:
     content = '''```json
 {"type":"app_skill_use","embed_id":"source-abc","app_id":"travel","skill_id":"search_connections"}
@@ -142,6 +193,7 @@ def test_append_missing_map_view_prefers_source_refs_and_highlights_inline_child
     assert "embeds: source-abc" not in repaired
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_append_missing_map_view_uses_known_source_refs() -> None:
     repaired, changed = append_missing_embeds_map_view_block(
         "Here are the matching events.",
@@ -153,6 +205,7 @@ def test_append_missing_map_view_uses_known_source_refs() -> None:
     assert "embeds:" not in repaired
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_append_missing_map_view_is_noop_when_block_exists() -> None:
     content = """[One](embed:event-one-111111)
 
@@ -168,6 +221,7 @@ embeds: event-one-111111
     assert repaired == content
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_append_missing_results_view_is_noop_when_new_block_exists() -> None:
     content = """[One](embed:event-one-111111)
 
@@ -183,6 +237,7 @@ embeds: event-one-111111
     assert repaired == content
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_normalizer_drops_extra_fields_and_deduplicates_refs() -> None:
     content = """Results:
 
@@ -204,6 +259,7 @@ enrichment: travel.flight_details
     assert "embeds: ai-night-111111, founders-breakfast-222222" in normalized
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_normalizer_accepts_source_and_highlight_fields_only() -> None:
     content = """```embeds_results_view
 title: Munich to Zurich options
@@ -218,6 +274,7 @@ highlight: nightjet-7abc12, db-ice-9def34
     assert normalized == content
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_normalizer_promotes_map_capable_parent_embed_refs_to_sources() -> None:
     content = '''```json
 {"type":"app_skill_use","embed_id":"events-search-12ab34","app_id":"events","skill_id":"search"}
@@ -237,6 +294,7 @@ embeds: events-search-12ab34, ai-founders-meetup-7f3a91
     assert "embeds: events-search-12ab34" not in normalized
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_normalizer_promotes_known_source_refs_without_json_fence() -> None:
     content = """```embeds_results_view
 title: Berlin AI events
@@ -255,6 +313,7 @@ embeds: events-search-12ab34, ai-founders-meetup-7f3a91
     assert "embeds:" not in normalized
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 def test_normalizer_removes_json_like_map_blocks() -> None:
     content = """```embeds_results_view
 {"title":"Bad block","provider":"paid","embeds":["one-111111"]}

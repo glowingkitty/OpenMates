@@ -26,6 +26,8 @@ except Exception:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore
 
 logger = logging.getLogger(__name__)
+OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "max"}
+OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS = {"gpt-5.6-luna"}
 
 # Global state
 _openai_client_initialized: bool = False
@@ -36,16 +38,60 @@ _openai_organization: Optional[str] = None
 _openai_project: Optional[str] = None
 
 
+def _normalize_openai_model_id(model_id: str) -> str:
+    return model_id.split("/", 1)[1] if model_id.startswith("openai/") else model_id
+
+
+def _get_openai_model_config(model_id: str) -> Optional[Dict[str, Any]]:
+    lookup_model_id = _normalize_openai_model_id(model_id)
+    return config_manager.get_model_pricing("openai", lookup_model_id)
+
+
+def _get_openai_request_model_id(model_id: str, catalog_model_id: Optional[str] = None) -> str:
+    model_config = _get_openai_model_config(catalog_model_id or model_id)
+    if model_config:
+        for server in model_config.get("servers") or []:
+            if not isinstance(server, dict) or server.get("id") != "openai":
+                continue
+            server_model_id = server.get("model_id")
+            if isinstance(server_model_id, str) and server_model_id.strip():
+                return server_model_id.strip()
+
+    return _normalize_openai_model_id(model_id)
+
+
+def _get_openai_reasoning_effort(model_id: str, catalog_model_id: Optional[str] = None) -> Optional[str]:
+    model_config = _get_openai_model_config(catalog_model_id or model_id)
+    if not model_config:
+        return None
+    reasoning_effort = model_config.get("reasoning_effort")
+    if reasoning_effort is None:
+        return None
+    if reasoning_effort not in OPENAI_REASONING_EFFORTS:
+        raise ValueError(f"Invalid OpenAI reasoning_effort for model '{model_config.get('id')}': {reasoning_effort!r}")
+    return str(reasoning_effort)
+
+
+def _get_openai_request_reasoning_effort(
+    model_id: str,
+    catalog_model_id: Optional[str] = None,
+    *,
+    has_tools: bool = False,
+) -> Optional[str]:
+    lookup_model_id = _normalize_openai_model_id(catalog_model_id or model_id)
+    if has_tools and lookup_model_id in OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS:
+        return "none"
+    return _get_openai_reasoning_effort(model_id, catalog_model_id)
+
+
 def _is_reasoning_model(model_id: str) -> bool:
     """Check if model is a reasoning model based on config."""
-    try:
-        model_config = config_manager.get_model_pricing("openai", model_id)
-        if model_config and model_config.get("features", {}).get("reasoning_token_support"):
-            return True
-        # Fallback for known reasoning models if config is missing
-        return model_id.startswith(("o1", "o3", "gpt-5"))
-    except Exception:
-        return model_id.startswith(("o1", "o3", "gpt-5"))
+    normalized_model_id = _normalize_openai_model_id(model_id)
+    model_config = _get_openai_model_config(normalized_model_id)
+    if model_config and (model_config.get("reasoning") or model_config.get("features", {}).get("reasoning_token_support")):
+        return True
+    # Fallback for known reasoning models if config is missing
+    return normalized_model_id.startswith(("o1", "o3", "gpt-5"))
 
 
 def _select_server_for_model(model_id: str) -> str:
@@ -201,6 +247,7 @@ async def _invoke_openai_direct_api(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
+    catalog_model_id: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if not _openai_direct_client:
         error_msg = "OpenAI direct client is not initialized."
@@ -249,14 +296,22 @@ async def _invoke_openai_direct_api(
         # For fallback token estimation when usage is absent
         collected_output_text_parts: List[str] = []
 
-        is_reasoning = _is_reasoning_model(model_id)
+        request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
+        reasoning_effort = _get_openai_request_reasoning_effort(
+            model_id,
+            catalog_model_id,
+            has_tools=bool(tools),
+        )
+        is_reasoning = _is_reasoning_model(catalog_model_id or model_id)
 
         # Build payload with streaming enabled
         stream_payload: Dict[str, Any] = {
-            "model": model_id,
+            "model": request_model_id,
             "messages": messages,
             "stream": True,
         }
+        if reasoning_effort:
+            stream_payload["reasoning_effort"] = reasoning_effort
         
         # Add temperature if NOT a reasoning model (reasoning models usually don't support it or require 1.0)
         if not is_reasoning:
@@ -286,7 +341,7 @@ async def _invoke_openai_direct_api(
 
             # Calculate token breakdown from input messages (estimate)
             # Include tools in the estimate to ensure it matches the actual prompt_tokens from API
-            token_breakdown = calculate_token_breakdown(messages, model_id, tools=mapped_tools if tools else None)
+            token_breakdown = calculate_token_breakdown(messages, request_model_id, tools=mapped_tools if tools else None)
 
             # Iterate over streamed ChatCompletionChunk objects
             async for chunk in stream_resp:  # type: ignore
@@ -309,30 +364,32 @@ async def _invoke_openai_direct_api(
                     # Handle tool call deltas
                     if delta is not None and getattr(delta, "tool_calls", None):
                         for tc_delta in delta.tool_calls:  # type: ignore[attr-defined]
-                            # Prefer stable id when present; otherwise fall back to index
-                            tc_id = getattr(tc_delta, "id", None) or str(getattr(tc_delta, "index", 0))
-                            if tc_id not in tool_calls_buffer:
-                                tool_calls_buffer[tc_id] = {
-                                    "id": tc_id,
+                            tc_index = str(getattr(tc_delta, "index", 0))
+                            tc_id = getattr(tc_delta, "id", None)
+                            if tc_index not in tool_calls_buffer:
+                                tool_calls_buffer[tc_index] = {
+                                    "id": tc_id or tc_index,
                                     "function": {"name": "", "arguments": ""},
                                 }
+                            elif tc_id:
+                                tool_calls_buffer[tc_index]["id"] = tc_id
 
                             # Update function name and arguments incrementally
                             function_obj = getattr(tc_delta, "function", None)
                             if function_obj is not None:
                                 fn_name = getattr(function_obj, "name", None)
                                 if fn_name:
-                                    tool_calls_buffer[tc_id]["function"]["name"] = fn_name
+                                    tool_calls_buffer[tc_index]["function"]["name"] = fn_name
 
                                 fn_args_part = getattr(function_obj, "arguments", None)
                                 if fn_args_part:
-                                    existing = tool_calls_buffer[tc_id]["function"].get("arguments", "")
-                                    tool_calls_buffer[tc_id]["function"]["arguments"] = existing + str(fn_args_part)
+                                    existing = tool_calls_buffer[tc_index]["function"].get("arguments", "")
+                                    tool_calls_buffer[tc_index]["function"]["arguments"] = existing + str(fn_args_part)
 
                     # If the current choice finished due to tool calls, emit completed calls
                     finish_reason = getattr(choice, "finish_reason", None)
                     if finish_reason == "tool_calls":
-                        for finished_id, finished_tc in list(tool_calls_buffer.items()):
+                        for finished_tc in tool_calls_buffer.values():
                             function_name = finished_tc["function"]["name"]
                             arguments_raw = finished_tc["function"]["arguments"]
 
@@ -347,7 +404,7 @@ async def _invoke_openai_direct_api(
                                 logger.error(f"{log_prefix} {parsing_error}")
 
                             yield ParsedOpenAIToolCall(
-                                tool_call_id=str(finished_id),
+                                tool_call_id=str(finished_tc["id"]),
                                 function_name=function_name or "",
                                 function_arguments_raw=str(arguments_raw or ""),
                                 function_arguments_parsed=parsed_args,
@@ -447,12 +504,20 @@ async def _invoke_openai_direct_api(
         # Return the async generator for the calling pipeline to iterate over
         return _iterate_openai_direct_stream()
 
-    is_reasoning = _is_reasoning_model(model_id)
+    request_model_id = _get_openai_request_model_id(model_id, catalog_model_id)
+    reasoning_effort = _get_openai_request_reasoning_effort(
+        model_id,
+        catalog_model_id,
+        has_tools=bool(tools),
+    )
+    is_reasoning = _is_reasoning_model(catalog_model_id or model_id)
 
     payload: Dict[str, Any] = {
-        "model": model_id,
+        "model": request_model_id,
         "messages": messages,
     }
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
     
     # Add temperature if NOT a reasoning model
     if not is_reasoning:
@@ -497,11 +562,13 @@ async def invoke_openai_chat_completions(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
+    catalog_model_id: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     if secrets_manager and not _openai_client_initialized:
         await initialize_openai_client(secrets_manager)
 
-    server_choice = _select_server_for_model(model_id)
+    catalog_lookup_model_id = catalog_model_id or model_id
+    server_choice = _select_server_for_model(catalog_lookup_model_id)
     logger.info("[%s] OpenAI Client: server=%s, stream=%s", task_id, server_choice, stream)
 
     # Try the primary server choice first
@@ -528,6 +595,7 @@ async def invoke_openai_chat_completions(
             tools=tools,
             tool_choice=tool_choice,
             stream=stream,
+            catalog_model_id=catalog_lookup_model_id,
         )
 
     # AUTOMATIC FALLBACK: If primary failed (non-streaming only), try other available servers
@@ -539,7 +607,7 @@ async def invoke_openai_chat_completions(
             provider_config = config_manager.get_provider_config("openai")
             if provider_config:
                 for model in provider_config.get("models", []):
-                    if isinstance(model, dict) and model.get("id") == model_id:
+                    if isinstance(model, dict) and model.get("id") == catalog_lookup_model_id:
                         servers = model.get("servers") or []
                         for server in servers:
                             fallback_server = server.get("id")
@@ -578,6 +646,7 @@ async def invoke_openai_chat_completions(
                                     tools=tools,
                                     tool_choice=tool_choice,
                                     stream=False,
+                                    catalog_model_id=catalog_lookup_model_id,
                                 )
                                 if fallback_response.success:
                                     logger.info("[%s] OpenAI Client: Fallback to OpenAI Direct successful.", task_id)

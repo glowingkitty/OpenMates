@@ -1,0 +1,799 @@
+schema_version: 3
+id: daily-test-recovery-reliability
+title: Daily Test Recovery And Reliability
+status: approved
+
+specification_refs:
+  - id: architecture.test-orchestration
+    version: 1
+    role: primary
+    fingerprint: 013a87f077cd0e333500d0ec2d23abc7e3cef2bdd0e88d48815dbbe7c5734f4f
+
+specification_impact:
+  classification: new_specification
+  specification_update_required: true
+  affected_assertions:
+    - test-orchestration.daily.critical-first-broad-continues
+    - test-orchestration.critical.registry-audited
+    - test-orchestration.dispatch.quota-aware-circuit-breaker
+    - test-orchestration.results.infrastructure-is-not-product-failure
+    - test-orchestration.notifications.non-blocking-receipts
+    - test-orchestration.recovery.milestone
+    - test-orchestration.evidence.privacy-boundary
+  reason: >
+    This implementation establishes the first durable daily-test orchestration
+    contract for critical ordering, quota failure containment, notification
+    receipts, truthful result classification, and the recovery milestone.
+
+documentation_impact:
+  generated_reference: {status: regenerate}
+  user_docs: {status: unchanged, reason: Internal developer tooling has no user-facing workflow or behavior change.}
+  semantic_layer: {status: regenerate}
+  architecture_docs:
+    status: update_required
+    files: [docs/architecture/test-orchestration.md]
+    reason: Document critical-first phases, dispatch budgeting, infrastructure incidents, and notification receipts.
+
+goal: >
+  Restore trustworthy scheduled daily testing by running every explicitly
+  classified billing, signup/auth, and core-chat test first, containing GitHub
+  dispatch exhaustion as one infrastructure incident, recording independent
+  email and Discord receipts without blocking tests, and reducing the complete
+  daily run to at most fifty owned product failures with all critical tests green.
+
+scope:
+  in:
+    - Replace the obsolete nightly-test-zero-failures ledger with this focused recovery spec.
+    - Add a canonical critical-test registry for billing, signup/auth, and core chat.
+    - Audit new or renamed likely-critical Playwright specs for explicit classification.
+    - Execute the critical phase before the broad daily phase while continuing broad tests after critical product failures.
+    - Inspect GitHub request budget, stop retrying hard rate-limit responses, and open one dispatch parent incident when exhausted.
+    - Keep blocked or undispatched dependants visible without counting them as product failures or passes.
+    - Persist independent email and Discord provider outcomes after tests finish.
+    - Require scheduled daily email and Discord provider acceptance for notification health without making either channel an execution dependency.
+    - Create or resume durable campaign groups for every remaining failure.
+    - Prioritize shared auth bootstrap, workflow contract drift, map/embed unit regressions, assistant streaming, and critical-journey failures.
+    - Verify one full commit-pinned daily run with zero unresolved infrastructure incidents, all critical tests green, and no more than fifty owned product failures.
+  out:
+    - Requiring zero failures in this recovery milestone.
+    - Hiding failures through quarantine, omission, suppression, or false-success retries.
+    - Changing disputed billing, auth, chat, Apple, or provider product behavior without its governing contract and required clarification.
+    - Replacing the release-core-journeys promotion gate.
+    - Changing public REST APIs, developer APIs, npm SDKs, pip SDKs, web UI, or Apple UI.
+    - Making email or Discord success a prerequisite for starting or continuing tests.
+    - Treating unresolved Apple host or live-provider failures as critical unless explicitly classified.
+
+context_discovery:
+  github_issues:
+    - No matching GitHub issue found for daily test dispatch rate limits, critical ordering, or notification recovery.
+  docs:
+    - docs/architecture/test-orchestration.md
+    - docs/plans/release-core-journeys-gate/plan.yml
+    - docs/plans/test-debug-campaigns/plan.yml
+    - docs/contributing/guides/testing.md
+    - docs/contributing/guides/spec-driven-development.md
+  contracts:
+    - specifications/architecture/test-orchestration/specification.yml
+    - specifications/architecture/test-orchestration/examples.yml
+  code_patterns:
+    - scripts/tests.py owns canonical status, campaigns, claims, and run dispatch.
+    - scripts/run_tests.py owns daily phases, GitHub dispatch, aggregation, reports, and notifications.
+    - CORE_JOURNEY_SPECS and RELEASE_GATE_SPECS provide existing bounded critical-suite patterns but do not classify the complete daily critical scope.
+    - BatchRunner currently retries failed per-spec dispatches and continues after hard GitHub rate limits.
+    - NotificationService supports direct Brevo and Discord delivery plus internal queued email fallback.
+  tests:
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_discord_summary.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    - scripts/tests/test_tests_control_campaigns.py
+    - scripts/tests/test_release_core_journeys_gate.py
+  baseline_evidence:
+    - Run 2026-08-27T03:00:05Z at 9116f1361 recorded 5280 passed, 143 failed, 109 dispatch_error, 1 timeout, and 7 skipped.
+    - 108 of 109 dispatch errors were GitHub Actions API HTTP 403 rate-limit responses; one accepted workflow lacked a visible run ID.
+    - Only 149 of 258 Playwright specs reached terminal GitHub-run outcomes.
+    - Billing had 2 executed failures and 13 dispatch errors; signup/auth had 5 failures and 14 dispatch errors; core chat had 17 failures, 16 dispatch errors, and 1 timeout.
+    - The largest actionable failure groups were workflow/focus-mode contracts, map/embed unit expectations, auth bootstrap, and assistant streaming.
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - Daily orchestration changes do not alter Apple application behavior.
+    - Apple test outcomes remain visible as broad product or infrastructure evidence according to their actual failure class.
+  verification:
+    - No Apple build is required for orchestration-only changes.
+    - Any Apple product fix discovered by the recovery campaign follows its own governing spec and remote verification.
+  intentional_native_differences: [none]
+
+clarification:
+  rounds:
+    - question: Should the obsolete nightly-test-zero-failures spec be extended or replaced?
+      answer: Replace it; the older spec is no longer used and may be safely deleted.
+    - question: What failure threshold completes the first recovery milestone?
+      answer: Fifty or fewer failed tests because substantial follow-up work will remain.
+    - question: Should broad tests continue after a critical product failure?
+      answer: Yes; preserve full failure visibility whenever infrastructure can continue.
+    - question: How should critical tests be classified?
+      answer: Use explicit canonical metadata plus an audit for likely-critical unclassified tests.
+    - question: Should scheduled daily notification failures block test execution?
+      answer: No; tests always run, while both email and Discord must independently reach provider acceptance for notification health.
+  vision_summary: >
+    The daily workflow first proves every explicitly classified billing,
+    signup/auth, and core-chat test, then continues broad coverage. Infrastructure
+    exhaustion and notification delivery are independently visible and cannot
+    masquerade as product failures or stop runnable tests. Recovery completes at
+    a truthful full run with critical green, no unresolved infrastructure issue,
+    provider-accepted email and Discord, at most fifty failures, and durable
+    ownership for every remainder.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 61b951564d5646fe46efaefe917814587ac91cd4
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-27T00:00:00Z"
+    artifact: architecture.test-orchestration@1
+    fingerprint: 13274281876467bef228a64fcda9096a91f061becdc56b57f716f83ac77b0819
+  plan:
+    status: approved
+    approved_at: "2026-08-27T00:00:00Z"
+    reason: The user approved every material recommendation and explicitly requested spec creation followed by implementation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Replace the obsolete nightly zero-failure spec with this bounded recovery milestone.
+    reason: The old campaign is no longer active and required global zero rather than the approved staged threshold.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Critical product failures do not stop broad execution while infrastructure remains healthy.
+    reason: Full failure visibility is required to measure recovery and avoid hidden regressions.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Critical membership is explicit metadata guarded by a deterministic likely-critical audit.
+    reason: Filename-only matching is imprecise for chat and silently misses renamed tests.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Hard GitHub rate limits open one circuit and are never retried per spec.
+    reason: The August 27 run amplified one quota incident into 108 dispatch errors and hundreds of requests.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Scheduled daily notification health requires provider-accepted email and Discord receipts, but notification outcomes cannot stop or rewrite tests.
+    reason: Operator delivery must be reliable without becoming a test-execution dependency.
+    decided_at: "2026-08-27T00:00:00Z"
+  - id: D-6
+    status: active
+    decision: The first recovery milestone permits at most fifty owned product failures.
+    reason: This is a substantial immediate reduction while acknowledging remaining Apple, provider, and independent product work.
+    decided_at: "2026-08-27T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Treat notifications_complete from the August 27 artifact as proof that both email and Discord delivered.
+    outcome: rejected
+    recorded_at: "2026-08-27T00:00:00Z"
+    note: The historical runner returned Discord success without persisting per-channel outcomes.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Retry every failed GitHub workflow dispatch once and continue the full pending list.
+    outcome: rejected
+    recorded_at: "2026-08-27T00:00:00Z"
+    note: Hard 403 retries amplified quota exhaustion and masked late billing and signup specs.
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Run the complete critical registry at normal and bounded concurrency after the billing profile fallback.
+    outcome: rejected
+    recorded_at: "2026-08-27T19:42:08Z"
+    note: >
+      Runs 2026-08-27T18:32:48Z and 2026-08-27T19:11:26Z retained purchase-confirmation
+      failures. Email-worker logs showed S3UploadService reused a closed Directus HTTP client
+      during the replication-outbox tombstone lookup, raising storage_temporarily_unavailable
+      after PDF upload and before purchase-confirmation email delivery.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Invalidate the task S3 service whenever cleanup closes its Directus dependency, rebuild the email worker, and rerun affected and critical Playwright coverage.
+    outcome: succeeded
+    recorded_at: "2026-08-27T20:32:45Z"
+    note: >
+      Fix commit 153af255fb2c3898d99bd19599ed9890b4963eeb made signup-flow-stripe-eu
+      and settings-buy-credits-stripe-managed pass individually. The exact-head critical run
+      2026-08-27T20:18:32Z then passed all 20 registered specs at normal concurrency on
+      93135ad4c874673e24c91ad23a2f7b544f32a512.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Reconcile existing campaign ownership through a read-only daily umbrella and directly group every unclaimed or regressed canonical failure.
+    outcome: succeeded
+    recorded_at: "2026-08-27T21:37:50Z"
+    note: >
+      Campaign debug-campaign-8d2273d766a0 retained the existing coordinators for
+      debug-campaign-5129821264fe and debug-campaign-7ef556a2fbbe, created direct groups
+      only where needed, and reported remaining_failures_owned=true with no unowned keys.
+  - id: ATTEMPT-6
+    task_id: TASK-6
+    approach: Evaluate the bounded recovery milestone against full daily run 2026-08-27T20:36:14Z.
+    outcome: blocked
+    recorded_at: "2026-08-27T21:38:03Z"
+    note: >
+      Critical ordering, full-run shape, and remainder ownership passed. Infrastructure
+      clearance failed with one incident and 171 blocked dependants, scheduled notification
+      receipts were incomplete after Brevo rejected the start email, and 104 product failures
+      exceeded the approved budget of fifty.
+  - id: ATTEMPT-7
+    task_id: TASK-6
+    approach: Work the first three directly owned campaign groups with exact-commit GitHub verification.
+    outcome: succeeded
+    recorded_at: "2026-08-27T22:21:43Z"
+    note: >
+      Fixed the stale parent-continuation reservation assertion in 44c5be0c and restored
+      user chat preference migration setup and packaging in ac2ee6f after identifying the
+      accidental a424357a6 reversion. Groups debug-group-71c9030050b0,
+      debug-group-4aee685cfa4f, and debug-group-2babc7c49e11 are green with exact-dev evidence.
+
+handoff:
+  current_task_id: TASK-6
+  next_action: Work the next high-priority campaign group, clear the GitHub dispatch incident and Brevo authorization blocker, then rerun the full daily milestone.
+  command: python3 scripts/tests.py run --campaign debug-campaign-8d2273d766a0 --group debug-group-d51d9e564c1f
+  expected_outcome: Product failures fall toward fifty while every unresolved remainder stays durably owned.
+  blocker:
+    task_id: TASK-6
+    requires_user_input: false
+    reason: Full daily completion still requires zero infrastructure incidents, provider-accepted scheduled email and Discord receipts, and at most fifty product failures.
+    question: null
+    next_action: Work the durable campaign and rerun the full daily milestone after infrastructure and notification health recover.
+  last_verified_commit: 4bb926856b96fd0a27a034391cfbe973d14e95e1
+
+scenarios:
+  - id: S-1
+    title: Every critical test is explicitly classified
+    given:
+      - The repository contains billing, signup/auth, core-chat, and unrelated Playwright specs.
+    when:
+      - Critical classification is audited.
+    then:
+      - Every active critical spec has exactly one category and reason.
+      - A likely-critical unclassified or missing registered spec fails the audit.
+      - Unrelated broad specs are not pulled into the critical lane accidentally.
+  - id: S-2
+    title: Critical failures do not hide broad results
+    given:
+      - Critical preflight is healthy and two critical product tests fail.
+      - Broad tests remain runnable.
+    when:
+      - The scheduled daily run advances phases.
+    then:
+      - The complete critical registry runs first and reports failed.
+      - The broad phase still runs every runnable test.
+      - Critical and broad outcomes remain independently visible.
+  - id: S-3
+    title: GitHub quota exhaustion opens one circuit
+    given:
+      - GitHub reports a hard rate-limit response while 108 specs remain pending.
+    when:
+      - Dispatch handles the response.
+    then:
+      - The rejected spec is not retried and no later dispatch request is issued.
+      - One infrastructure parent incident records the rate-limit state and reset metadata when available.
+      - All pending dependants remain visible as blocked_by_parent.
+  - id: S-4
+    title: Product and infrastructure health remain distinct
+    given:
+      - Seven executed product tests fail and one infrastructure incident blocks one hundred tests.
+    when:
+      - The run is aggregated and published.
+    then:
+      - Product failed count is seven.
+      - Infrastructure reports one incident and one hundred blocked dependants.
+      - No blocked test counts as passed or as an independent product failure.
+  - id: S-5
+    title: Notification failure never stops tests
+    given:
+      - Email fails before or during a scheduled daily run and Discord succeeds.
+      - Runnable tests remain.
+    when:
+      - Test execution and terminal notification handling complete.
+    then:
+      - All runnable critical and broad tests execute.
+      - Email records failed and Discord records provider_accepted.
+      - Notification health is incomplete while test outcomes remain unchanged.
+      - Queue-only email acceptance records queued_unconfirmed rather than delivered.
+  - id: S-6
+    title: Recovery campaign attacks shared causes first
+    given:
+      - Current failures include shared auth bootstrap, workflow contracts, map/embed units, assistant streaming, and independent failures.
+    when:
+      - The durable campaign is created or resumed.
+    then:
+      - Critical and high-fanout root causes receive highest priority.
+      - Expected behavior is derived from existing approved assertions before edits.
+      - Every remaining failure has one durable group and exact verification scope.
+      - Disputed product behavior creates a blocker rather than an inferred fix.
+  - id: S-7
+    title: Full daily run proves the recovery milestone
+    given:
+      - Focused orchestration checks and selected campaign groups are green.
+    when:
+      - One full commit-pinned scheduled-equivalent daily run finishes.
+    then:
+      - No infrastructure incident remains unresolved.
+      - Email and Discord are provider_accepted.
+      - Every classified critical test passes.
+      - Product failed count is at most fifty.
+      - Every remaining failure belongs to a durable campaign group.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: A canonical registry classifies every active billing, signup/auth, and core-chat Playwright spec exactly once, and a deterministic audit rejects likely-critical unclassified or stale entries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-RECOVERY]
+    specification_assertions: [test-orchestration.critical.registry-audited]
+  - id: AC-2
+    scenario: S-2
+    text: Scheduled daily execution runs the complete critical registry before broad tests and continues broad execution after critical product failures whenever infrastructure remains capable.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-RECOVERY, V-CRITICAL-RUN]
+    specification_assertions: [test-orchestration.daily.critical-first-broad-continues]
+  - id: AC-3
+    scenario: S-3
+    text: A hard GitHub rate-limit response is not retried, opens one circuit-breaker parent incident, stops later dispatch calls, and leaves all pending tests visible as blocked dependants.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-RECOVERY]
+    specification_assertions: [test-orchestration.dispatch.quota-aware-circuit-breaker]
+  - id: AC-4
+    scenario: S-4
+    text: Aggregation and notifications report executed product failures separately from infrastructure incidents and blocked dependants without false pass or duplicated product-failure counts.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-DAILY-RECOVERY, T-CONTROL-PLANE]
+    specification_assertions: [test-orchestration.results.infrastructure-is-not-product-failure]
+  - id: AC-5
+    scenario: S-5
+    text: Email and Discord outcomes cannot stop test execution, each scheduled daily channel records one terminal outcome, only provider acceptance counts as delivered, and queue-only email remains unconfirmed.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-NOTIFICATIONS, T-DAILY-RECOVERY, V-NOTIFICATION-DELIVERY]
+    specification_assertions: [test-orchestration.notifications.non-blocking-receipts]
+  - id: AC-6
+    scenario: S-6
+    text: Every remaining failed test belongs to one durable campaign group whose expected behavior, attempts, exact members, priority, and verification evidence are persisted before completion.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-CONTROL-PLANE, V-CAMPAIGN-OWNERSHIP]
+    specification_assertions: [test-orchestration.recovery.milestone]
+  - id: AC-7
+    scenario: S-7
+    text: One full commit-pinned daily run completes with no unresolved infrastructure incident, provider-accepted email and Discord, zero failed critical tests, at most fifty product failures, and no unowned remainder.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [V-FULL-DAILY]
+    specification_assertions: [test-orchestration.recovery.milestone]
+  - id: AC-8
+    scenario: S-4
+    text: Orchestration evidence and notifications expose bounded sanitized operational metadata without credentials, destinations, cookies, private identifiers, user content, or raw provider responses.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-DAILY-RECOVERY, T-NOTIFICATIONS]
+    specification_assertions: [test-orchestration.evidence.privacy-boundary]
+
+assumptions:
+  - id: A-1
+    text: GitHub rate-limit responses expose enough status and optional reset metadata to classify hard exhaustion without reading credentials.
+    category: external_dependency
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: test-results/daily-run-2026-08-27.json
+        summary: Archived dispatch errors contain HTTP 403 rate-limit classification and reset timestamps.
+  - id: A-2
+    text: Existing release and hourly suite definitions provide reusable discovery patterns, while the complete daily critical scope requires explicit additional metadata.
+    category: architecture
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: scripts/run_tests.py
+        summary: CORE_JOURNEY_SPECS and RELEASE_GATE_SPECS already define bounded subsets but omit many core-chat and auth tests.
+  - id: A-3
+    text: Existing Directus campaign records can own and verify every remaining failure without a schema change.
+    category: data_model
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: docs/plans/test-debug-campaigns/plan.yml
+        summary: Durable groups already store exact members, expected behavior, attempts, blockers, priority metadata, and green evidence.
+  - id: A-4
+    text: Direct Brevo and Discord transports can provide provider-acceptance evidence independently of product test execution.
+    category: external_dependency
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: openmates server notifications test --channel all --json
+        summary: The labeled check recorded provider-delivered email and Discord independently after one attempt each.
+    waiver_path: No waiver for the final milestone; run the labeled notification delivery check and full daily proof.
+
+contracts:
+  api:
+    - surface: scripts/tests.py and scripts/run_tests.py
+      access_model: internal-only
+      auth: Existing GitHub CLI/token, Directus service credentials, and notification secrets; no new credential scope.
+      rate_limits: GitHub request budget is observed and hard exhaustion opens a circuit without retries.
+      credit_budget: Orchestration consumes no OpenMates product credits; selected live tests retain existing explicit budgets.
+      encryption_boundary: Redacted test metadata only; no client-side encrypted or decrypted user content is accepted or returned.
+  data:
+    - Critical classifications are source-controlled, deterministic, unique, and auditable.
+    - Run results retain phase, product-failure, infrastructure-parent, blocked-dependant, and notification-channel outcomes.
+    - Existing Directus campaigns own remaining failed canonical test keys and evidence references.
+  ui_states: [not_applicable]
+  privacy_security:
+    - Never persist or print GitHub tokens, notification destinations, webhook URLs, recipient addresses, cookies, credentials, or user content.
+    - Sanitize rate-limit and provider errors to stable categories plus safe reset metadata.
+    - Notification tests use labeled test payloads and never include raw failure logs.
+
+tests:
+  - id: T-DAILY-RECOVERY
+    type: pytest
+    file: scripts/tests/test_daily_test_recovery.py
+    command: python3 -m pytest scripts/tests/test_daily_test_recovery.py -q
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8]
+    assertions:
+      - critical registry is complete, unique, ordered, and audited
+      - critical product failures still advance to broad execution
+      - hard rate limits are never retried and block pending dependants under one incident
+      - product failures, infrastructure incidents, and blocked dependants aggregate separately
+      - notification exceptions cannot escape into or stop test execution
+      - serialized evidence excludes sensitive values
+    specification_assertions:
+      - test-orchestration.daily.critical-first-broad-continues
+      - test-orchestration.critical.registry-audited
+      - test-orchestration.dispatch.quota-aware-circuit-breaker
+      - test-orchestration.results.infrastructure-is-not-product-failure
+      - test-orchestration.notifications.non-blocking-receipts
+      - test-orchestration.evidence.privacy-boundary
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_daily_test_recovery.py -q
+        run_id: local-red-5-failed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:11:33Z
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_daily_test_recovery.py -q
+        run_id: local-green-9-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:52:00Z
+  - id: T-NOTIFICATIONS
+    type: pytest
+    file: scripts/tests/test_run_tests_discord_summary.py
+    command: python3 -m pytest scripts/tests/test_run_tests_discord_summary.py scripts/tests/test_run_tests_progress_snapshots.py -q
+    covers: [AC-5, AC-8]
+    assertions:
+      - email and Discord record independent configured and terminal outcomes
+      - direct provider acceptance is distinguished from queued-unconfirmed email
+      - final and archived results retain channel receipts
+      - channel failure does not alter test summary or prevent other channel attempts
+    specification_assertions: [test-orchestration.notifications.non-blocking-receipts, test-orchestration.evidence.privacy-boundary]
+    red_phase:
+      required: true
+      expected: fail_before_implementation
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_run_tests_discord_summary.py scripts/tests/test_run_tests_progress_snapshots.py -q
+        run_id: local-red-6-failed-23-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:11:55Z
+        summary: Four receipt assertions failed as expected; two existing fixture/compatibility assertions also failed and must be green before completion.
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_run_tests_discord_summary.py scripts/tests/test_run_tests_progress_snapshots.py -q
+        run_id: local-green-29-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:19:55Z
+  - id: T-CONTROL-PLANE
+    type: pytest
+    file: scripts/tests/test_tests_control_campaigns.py
+    command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control.py -q
+    covers: [AC-4, AC-6]
+    assertions:
+      - infrastructure parents retain blocked dependants without false product failures
+      - every remaining failed canonical key has one durable campaign group
+      - group priority and exact verification members persist
+    specification_assertions: [test-orchestration.results.infrastructure-is-not-product-failure, test-orchestration.recovery.milestone]
+    red_phase: {required: false, expected: not_applicable, evidence: {status: not_applicable, reason: Existing campaign behavior is inherited and receives supplemental milestone coverage.}}
+    green_phase:
+      required: true
+      expected: pass_after_implementation
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_tests_control_campaigns.py scripts/tests/test_tests_control.py -q
+        run_id: local-green-130-passed
+        subject_commit: 3e98eb2527c91ea1a7b163bbbb9f43fc1c3e62b4
+        timestamp: 2026-08-27T12:54:59Z
+
+verifications:
+  - id: V-CRITICAL-RUN
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-2]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/tests.py run --critical-journeys --gate-deploy --require-exact-commit --expected-commit 93135ad4c874673e24c91ad23a2f7b544f32a512
+      run_id: 2026-08-27T20:18:32Z
+      subject_commit: 93135ad4c874673e24c91ad23a2f7b544f32a512
+      timestamp: 2026-08-27T20:32:45Z
+      summary: 20 passed, 0 failed, 0 dispatch errors, 0 skipped, and 0 not started.
+  - id: V-NOTIFICATION-DELIVERY
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-5]
+    status: passed
+    evidence:
+      status: passed
+      command: openmates server notifications test --channel all --json
+      run_id: labeled-delivery-email-discord
+      subject_commit: 93135ad4c874673e24c91ad23a2f7b544f32a512
+      timestamp: 2026-08-27T20:35:45Z
+      summary: Email and Discord each reported delivered after one provider attempt.
+  - id: V-CAMPAIGN-OWNERSHIP
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-6]
+    status: passed
+    evidence:
+      status: passed
+      command: python3 scripts/tests.py campaign milestone --campaign debug-campaign-8d2273d766a0 --run 2026-08-27T20:36:14Z
+      run_id: debug-campaign-8d2273d766a0
+      subject_commit: 61b951564d5646fe46efaefe917814587ac91cd4
+      timestamp: 2026-08-27T21:47:56Z
+      summary: All 104 canonical failures from the full daily run have durable ownership; unowned_failure_keys is empty.
+  - id: V-FULL-DAILY
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    covers: [AC-7]
+    status: failed
+    evidence:
+      status: failed
+      command: python3 scripts/tests.py run --daily --no-fail-fast
+      run_id: 2026-08-27T20:36:14Z
+      subject_commit: 73b586770
+      timestamp: 2026-08-27T21:38:03Z
+      summary: 5316 passed, 104 failed, 1 infrastructure incident, 171 blocked dependants, 1 timeout; ownership and critical checks passed but infrastructure, scheduled notifications, and the fifty-failure budget did not.
+
+implementation_notes:
+  plan_path: docs/plans/daily-test-recovery-reliability/plan.yml
+  specification_refs: [architecture.test-orchestration@1]
+  affected_assertions:
+    - test-orchestration.daily.critical-first-broad-continues
+    - test-orchestration.critical.registry-audited
+    - test-orchestration.dispatch.quota-aware-circuit-breaker
+    - test-orchestration.results.infrastructure-is-not-product-failure
+    - test-orchestration.notifications.non-blocking-receipts
+    - test-orchestration.recovery.milestone
+    - test-orchestration.evidence.privacy-boundary
+  contract_change: new_specification
+  canonical_surface: Internal operator CLI through scripts/tests.py.
+  documentation_impact_ref: documentation_impact
+  existing_patterns:
+    - scripts/run_tests.py suite discovery, account policy, progress snapshots, aggregation, and notification service.
+    - scripts/tests.py Directus-backed status, parent incidents, campaign groups, exact selection, and run dispatch.
+    - RELEASE_GATE_SPECS dynamic signup and billing discovery with deterministic audits.
+    - Existing focused notification outcome and daily archive tests.
+  architecture: >
+    Keep scripts/tests.py as the canonical control plane and scripts/run_tests.py
+    as the execution engine. Add source-controlled critical metadata and a
+    deterministic audit, execute critical and broad phases through the existing
+    runner, introduce a bounded GitHub dispatch budget/circuit state shared by a
+    run, aggregate infrastructure parents separately, persist notification
+    receipts after test execution, and use existing Directus campaigns for the
+    product-failure recovery loop.
+  boundaries:
+    - scripts/tests.py owns operator commands, Directus run/campaign state, and milestone evaluation.
+    - scripts/run_tests.py owns execution phases, GitHub calls, result aggregation, artifacts, and channel attempts.
+    - Critical metadata is source-controlled and cannot be inferred solely from the latest failure artifact.
+    - Product fixes remain governed by their existing product contracts and tests; this spec owns prioritization and evidence only.
+  data_flow:
+    - Resolve the exact dev subject and validate backend/account prerequisites.
+    - Audit and execute the complete critical registry.
+    - Continue broad execution while the shared dispatch circuit remains healthy.
+    - Aggregate executed product results, infrastructure parents, and blocked dependants separately.
+    - Persist and archive final results before and after independent notification attempts without allowing notification exceptions to escape.
+    - Import the exact run into Directus and create or resume groups for every remaining failure.
+    - Verify high-fanout and critical groups, then run the critical gate and full daily milestone.
+  affected_files:
+    - {path: specifications/architecture/test-orchestration/specification.yml, reason: Stable daily orchestration assertions.}
+    - {path: specifications/architecture/test-orchestration/examples.yml, reason: Boundary and failure examples.}
+    - {path: scripts/run_tests.py, reason: Critical phases, dispatch circuit, aggregation, and notification receipts.}
+    - {path: scripts/tests.py, reason: Critical-journey command and milestone/campaign status.}
+    - {path: scripts/tests/test_daily_test_recovery.py, reason: Focused red/green orchestration contract coverage.}
+    - {path: scripts/tests/test_run_tests_discord_summary.py, reason: Independent provider receipt coverage.}
+    - {path: scripts/tests/test_run_tests_progress_snapshots.py, reason: Final archive and crash-path evidence.}
+    - {path: docs/architecture/test-orchestration.md, reason: Document phases and health dimensions.}
+    - {path: docs/plans/daily-test-recovery-reliability/plan.yml, reason: Durable implementation and evidence ledger.}
+  impacts:
+    api: Internal-only operator tooling; no public, developer, or first-party product endpoint changes.
+    data: Add bounded phase, infrastructure-incident, blocked-dependant, critical-category, and channel-outcome metadata to existing run records.
+    ui: No product UI changes.
+    privacy_security: Persist sanitized categories and receipts only; credentials and destinations remain secret inputs.
+  migration_rollout:
+    - Do not backfill ambiguous notification outcomes into historical runs.
+    - Preserve historical result files while new runs use the expanded metadata.
+    - Roll out focused unit coverage first, then an exact-commit critical run, then one full scheduled-equivalent daily run.
+    - Keep the existing release core-journeys workflow unchanged unless shared helper extraction is strictly required.
+  observability:
+    - Emit one stable infrastructure incident code and dependant count for an open dispatch circuit.
+    - Record safe GitHub budget state and reset time when provided, never tokens or raw headers.
+    - Record per-channel configured, status, and transport values in final and dated artifacts.
+    - Report critical status, executed product failures, infrastructure incidents, blocked dependants, and milestone status separately.
+  assumptions_before_implementation:
+    - A-1, A-2, and A-3 are confirmed.
+    - A-4 must be confirmed by V-NOTIFICATION-DELIVERY before completion but does not block unit implementation.
+  acceptance_coverage:
+    - AC-1 through AC-5 and AC-8 map to focused orchestration and notification pytest.
+    - AC-6 maps to existing campaign pytest plus a real campaign ownership check.
+    - AC-2 additionally requires an exact-commit critical run.
+    - AC-7 requires the complete daily milestone run.
+  risks:
+    - A registry that is too broad can lengthen the critical phase; the audit must favor explicit review over automatic inclusion.
+    - GitHub rate-limit metadata may be absent; unknown budget fails safely without fabricating reset timing.
+    - A full rerun may expose failures hidden by the August 27 quota incident and temporarily increase executed failure count.
+    - Product E2E fixes can require separate contract clarification and proof video, extending the recovery campaign.
+  open_questions: []
+  technical_approval:
+    required: false
+    reason: Critical ordering, explicit metadata, quota circuit behavior, notification semantics, and the fifty-failure milestone were approved in the permanent contract and clarification rounds.
+  verification_strategy:
+    - Validate and approve the permanent contract and executable spec.
+    - Write focused failing orchestration tests before runner implementation.
+    - Run focused local pytest for critical, dispatch, aggregation, notification, and campaign behavior.
+    - Deploy the tooling before exact-commit GitHub critical and daily runs.
+    - Fix campaign groups in priority order and retain proof-video evidence for product E2Es that turn green.
+    - Require one final full run satisfying the explicit fifty-failure milestone.
+  verification_order:
+    - Contract and spec validation.
+    - Focused orchestration red tests.
+    - Critical registry and execution implementation plus green tests.
+    - Dispatch circuit and infrastructure classification implementation plus green tests.
+    - Notification receipt implementation plus green tests and real labeled delivery check.
+    - Durable campaign recovery of critical and high-fanout groups.
+    - Exact-commit critical gate.
+    - Full daily milestone and spec verification.
+
+tasks:
+  - id: TASK-1
+    title: Add red daily recovery contract tests
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-8]}
+    expected_files: [scripts/tests/test_daily_test_recovery.py, scripts/tests/test_run_tests_discord_summary.py, scripts/tests/test_run_tests_progress_snapshots.py]
+    verification: [T-DAILY-RECOVERY, T-NOTIFICATIONS]
+    verification_ids: [T-DAILY-RECOVERY, T-NOTIFICATIONS]
+    dependencies: []
+    ownership: {files: [scripts/tests/test_daily_test_recovery.py], shared_files: [scripts/tests/test_run_tests_discord_summary.py, scripts/tests/test_run_tests_progress_snapshots.py]}
+    blockers: []
+    follow_up_tasks: [TASK-2, TASK-3, TASK-4]
+    independently_deployable: false
+    specification_assertions: [test-orchestration.daily.critical-first-broad-continues, test-orchestration.critical.registry-audited, test-orchestration.dispatch.quota-aware-circuit-breaker, test-orchestration.results.infrastructure-is-not-product-failure, test-orchestration.notifications.non-blocking-receipts, test-orchestration.evidence.privacy-boundary]
+    canonical_surfaces: [cli]
+  - id: TASK-2
+    title: Implement critical registry and critical-first execution
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_daily_test_recovery.py]
+    verification: [T-DAILY-RECOVERY, V-CRITICAL-RUN]
+    verification_ids: [T-DAILY-RECOVERY, V-CRITICAL-RUN]
+    dependencies: [TASK-1]
+    ownership: {files: [scripts/tests/test_daily_test_recovery.py], shared_files: [scripts/run_tests.py, scripts/tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+    specification_assertions: [test-orchestration.daily.critical-first-broad-continues, test-orchestration.critical.registry-audited]
+    canonical_surfaces: [cli]
+  - id: TASK-3
+    title: Implement quota circuit and truthful infrastructure results
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-3, S-4], acceptance_criteria: [AC-3, AC-4, AC-8]}
+    expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_daily_test_recovery.py]
+    verification: [T-DAILY-RECOVERY, T-CONTROL-PLANE]
+    verification_ids: [T-DAILY-RECOVERY, T-CONTROL-PLANE]
+    dependencies: [TASK-1]
+    ownership: {files: [scripts/tests/test_daily_test_recovery.py], shared_files: [scripts/run_tests.py, scripts/tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+    specification_assertions: [test-orchestration.dispatch.quota-aware-circuit-breaker, test-orchestration.results.infrastructure-is-not-product-failure, test-orchestration.evidence.privacy-boundary]
+    canonical_surfaces: [cli]
+  - id: TASK-4
+    title: Make scheduled notification receipts strict and non-blocking
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-5, AC-8]}
+    expected_files: [scripts/run_tests.py, scripts/tests/test_run_tests_discord_summary.py, scripts/tests/test_run_tests_progress_snapshots.py]
+    verification: [T-NOTIFICATIONS, T-DAILY-RECOVERY, V-NOTIFICATION-DELIVERY]
+    verification_ids: [T-NOTIFICATIONS, T-DAILY-RECOVERY, V-NOTIFICATION-DELIVERY]
+    dependencies: [TASK-1]
+    ownership: {files: [scripts/tests/test_run_tests_discord_summary.py, scripts/tests/test_run_tests_progress_snapshots.py], shared_files: [scripts/run_tests.py]}
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+    specification_assertions: [test-orchestration.notifications.non-blocking-receipts, test-orchestration.evidence.privacy-boundary]
+    canonical_surfaces: [cli]
+  - id: TASK-5
+    title: Recover critical and high-fanout failure groups
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
+    expected_files: [docs/plans/daily-test-recovery-reliability/plan.yml]
+    verification: [T-CONTROL-PLANE, V-CAMPAIGN-OWNERSHIP]
+    verification_ids: [T-CONTROL-PLANE, V-CAMPAIGN-OWNERSHIP]
+    dependencies: [TASK-2, TASK-3, TASK-4]
+    ownership: {files: [docs/plans/daily-test-recovery-reliability/plan.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+    specification_assertions: [test-orchestration.recovery.milestone]
+    canonical_surfaces: [cli]
+  - id: TASK-6
+    title: Verify critical gate and full recovery milestone
+    status: in_progress
+    phase: running_checks
+    covers: {scenarios: [S-7], acceptance_criteria: [AC-2, AC-5, AC-6, AC-7]}
+    expected_files: [docs/plans/daily-test-recovery-reliability/plan.yml]
+    verification: [V-CRITICAL-RUN, V-NOTIFICATION-DELIVERY, V-CAMPAIGN-OWNERSHIP, V-FULL-DAILY]
+    verification_ids: [V-CRITICAL-RUN, V-NOTIFICATION-DELIVERY, V-CAMPAIGN-OWNERSHIP, V-FULL-DAILY]
+    dependencies: [TASK-5]
+    ownership: {files: [docs/plans/daily-test-recovery-reliability/plan.yml], shared_files: []}
+    blockers:
+      - Full daily run has 104 product failures; the milestone permits at most 50.
+      - GitHub dispatch exhaustion remains one infrastructure incident with 171 blocked dependants.
+      - Scheduled Brevo email was rejected because the dev server IP is not authorized; the standalone labeled delivery check passed.
+    follow_up_tasks: []
+    independently_deployable: false
+    specification_assertions: [test-orchestration.daily.critical-first-broad-continues, test-orchestration.notifications.non-blocking-receipts, test-orchestration.recovery.milestone]
+    canonical_surfaces: [cli]
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: Daily orchestration is internal non-visual developer tooling; any product E2E repaired from red to green retains its own proof-video obligation.
+    classified_at: "2026-08-27T00:00:00Z"
+    verification_ids: [V-FULL-DAILY]

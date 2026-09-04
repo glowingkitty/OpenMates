@@ -32,6 +32,7 @@ from backend.shared.python_utils.media_generation_safety import (
     MediaGenerationSafetyRejection,
     validate_media_generation_request,
 )
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
 
@@ -315,7 +316,7 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
     logger.info("%s Starting music generation task", log_prefix)
 
     try:
-        await task.initialize_services()
+        await task.initialize_core_services()
 
         prompt = arguments.get("prompt")
         user_id = arguments.get("user_id")
@@ -352,6 +353,9 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
                 media_decision.reason,
             )
             raise MediaGenerationSafetyRejection(media_decision)
+
+        s3_service = await initialize_task_storage(task)
+        await require_storage_available(s3_service)
 
         enriched_prompt_parts = [str(prompt)]
         if mode:
@@ -674,7 +678,7 @@ async def _send_error_embed(
         "model": arguments.get("model", "lyria-3-pro-preview"),
         "debug_error": error[:300],
     }
-    await task.initialize_services()
+    await task.initialize_core_services()
     embed_service = EmbedService(
         cache_service=task._cache_service,
         directus_service=task._directus_service,

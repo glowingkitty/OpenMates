@@ -1142,6 +1142,56 @@
 
     .workspace-select-shell {
         display: none;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-3);
+        width: 7.5rem;
+        height: 2.75rem;
+        padding: 0 var(--spacing-4);
+        border-radius: 3.25rem;
+        background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
+        filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.12));
+        left: 50%;
+        position: absolute;
+        transform: translateX(-50%);
+        z-index: var(--z-index-raised);
+    }
+
+    .workspace-select-shell select {
+        all: unset;
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+        opacity: 0;
+    }
+
+    .workspace-select-icon {
+        width: 1.35rem;
+        height: 1.35rem;
+        background: #fff;
+        -webkit-mask-size: contain;
+        mask-size: contain;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        pointer-events: none;
+    }
+
+    .workspace-select-chevron {
+        width: 0;
+        height: 0;
+        border-left: 0.55rem solid transparent;
+        border-right: 0.55rem solid transparent;
+        border-top: 0.55rem solid #fff;
+        pointer-events: none;
+    }
+
+    .workspace-select-shell:focus-within {
+        outline: 0.125rem solid #fff;
+        outline-offset: 0.125rem;
     }
 
     @media (max-width: 894px) {
@@ -1170,19 +1220,6 @@
 
         .workspace-select-shell {
             display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--spacing-3);
-            width: 7.5rem;
-            height: 2.75rem;
-            padding: 0 var(--spacing-4);
-            border-radius: 3.25rem;
-            background: linear-gradient(135deg, var(--color-primary-start), var(--color-primary-end));
-            filter: drop-shadow(0 0.25rem 0.25rem rgba(0, 0, 0, 0.12));
-            left: 50%;
-            position: absolute;
-            transform: translateX(-50%);
-            z-index: var(--z-index-raised);
         }
 
         .docs-tabs {
@@ -1190,41 +1227,33 @@
             transform: none;
         }
 
-        .workspace-select-shell select {
-            all: unset;
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-            opacity: 0;
+    }
+
+    @container main-content (max-width: 894px) {
+        nav.webapp {
+            min-height: 36px;
         }
 
-        .workspace-select-icon {
-            width: 1.35rem;
-            height: 1.35rem;
-            background: #fff;
-            -webkit-mask-size: contain;
-            mask-size: contain;
-            -webkit-mask-position: center;
-            mask-position: center;
-            -webkit-mask-repeat: no-repeat;
-            mask-repeat: no-repeat;
-            pointer-events: none;
+        header.webapp .logo-link :global(strong) {
+            display: none;
         }
 
-        .workspace-select-chevron {
-            width: 0;
-            height: 0;
-            border-left: 0.55rem solid transparent;
-            border-right: 0.55rem solid transparent;
-            border-top: 0.55rem solid #fff;
-            pointer-events: none;
+        header.webapp .mobile-logo-icon {
+            display: block;
         }
 
-        .workspace-select-shell:focus-within {
-            outline: 0.125rem solid #fff;
-            outline-offset: 0.125rem;
+        header.webapp .server-edition {
+            display: none;
+        }
+    }
+
+    @container main-content (max-width: 730px) {
+        .webapp-center-tabs {
+            display: none;
+        }
+
+        .workspace-select-shell {
+            display: inline-flex;
         }
     }
 </style>

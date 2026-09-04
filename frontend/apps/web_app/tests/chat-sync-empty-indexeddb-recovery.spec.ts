@@ -18,6 +18,8 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const PARTIAL_SCHEMA_CHAT_ID = 'e2e-current-version-partial-schema-chat';
 const PARTIAL_SCHEMA_MESSAGE_ID = `${PARTIAL_SCHEMA_CHAT_ID.slice(-10)}-00000000-0000-4000-8000-000000000001`;
+const MISSING_INDEX_CHAT_ID = 'e2e-current-version-missing-index-chat';
+const MISSING_INDEX_ENCRYPTED_TITLE = 'e2e-encrypted-title-preservation-marker';
 
 async function clearLocalChatIndexedDb(page: any): Promise<void> {
 	await page.evaluate(async () => {
@@ -243,6 +245,131 @@ async function replaceLocalChatDbAtCurrentVersionWithMissingStores(page: any): P
 			messageId: PARTIAL_SCHEMA_MESSAGE_ID
 		}
 	);
+}
+
+async function replaceLocalChatDbAtCurrentVersionWithMissingChatIndex(page: any): Promise<void> {
+	const prepUrl = `${new URL(page.url()).origin}/e2e-current-version-indexeddb-index-prep`;
+	await page.route(prepUrl, (route: any) =>
+		route.fulfill({
+			contentType: 'text/html',
+			body: '<!doctype html><title>prepare current-version missing index</title>'
+		})
+	);
+	await page.goto(prepUrl);
+	await page.unroute(prepUrl);
+
+	await page.evaluate(async ({ chatId, encryptedTitle }: { chatId: string; encryptedTitle: string }) => {
+		type IndexSchema = {
+			name: string;
+			keyPath: string | string[];
+			unique: boolean;
+			multiEntry: boolean;
+		};
+		type StoreSchema = {
+			name: string;
+			keyPath: string | string[] | null;
+			autoIncrement: boolean;
+			indexes: IndexSchema[];
+		};
+
+		const existing = await new Promise<{ version: number; stores: StoreSchema[] }>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onerror = () => reject(request.error ?? new Error('Failed to inspect chats_db schema'));
+			request.onsuccess = () => {
+				const db = request.result;
+				const storeNames = Array.from(db.objectStoreNames);
+				const transaction = db.transaction(storeNames, 'readonly');
+				const stores = storeNames.map((name) => {
+					const store = transaction.objectStore(name);
+					return {
+						name,
+						keyPath: store.keyPath,
+						autoIncrement: store.autoIncrement,
+						indexes: Array.from(store.indexNames).map((indexName) => {
+							const index = store.index(indexName);
+							return {
+								name: index.name,
+								keyPath: index.keyPath,
+								unique: index.unique,
+								multiEntry: index.multiEntry
+							};
+						})
+					};
+				});
+				transaction.onerror = () => {
+					db.close();
+					reject(transaction.error ?? new Error('Failed to inspect chats_db stores'));
+				};
+				transaction.oncomplete = () => {
+					const version = db.version;
+					db.close();
+					resolve({ version, stores });
+				};
+			};
+		});
+
+		await new Promise<void>((resolve, reject) => {
+			const deleteRequest = indexedDB.deleteDatabase('chats_db');
+			deleteRequest.onerror = () =>
+				reject(deleteRequest.error ?? new Error('Failed to delete chats_db'));
+			deleteRequest.onblocked = () => reject(new Error('Deleting chats_db was blocked'));
+			deleteRequest.onsuccess = () => resolve();
+		});
+
+		await new Promise<void>((resolve, reject) => {
+			const request = indexedDB.open('chats_db', existing.version);
+			request.onerror = () =>
+				reject(request.error ?? new Error('Failed to create chats_db with a missing index'));
+			request.onupgradeneeded = () => {
+				const db = request.result;
+				for (const storeSchema of existing.stores) {
+					const store = db.createObjectStore(storeSchema.name, {
+						keyPath: storeSchema.keyPath,
+						autoIncrement: storeSchema.autoIncrement
+					});
+					for (const indexSchema of storeSchema.indexes) {
+						if (
+							storeSchema.name === 'chats' &&
+							indexSchema.name === 'last_edited_overall_timestamp'
+						) {
+							continue;
+						}
+						store.createIndex(indexSchema.name, indexSchema.keyPath, {
+							unique: indexSchema.unique,
+							multiEntry: indexSchema.multiEntry
+						});
+					}
+				}
+			};
+			request.onsuccess = () => {
+				const db = request.result;
+				const transaction = db.transaction('chats', 'readwrite');
+				transaction.objectStore('chats').put({
+					chat_id: chatId,
+					encrypted_title: encryptedTitle,
+					messages_v: 0,
+					title_v: 0,
+					draft_v: 0,
+					encrypted_draft_md: null,
+					encrypted_draft_preview: null,
+					last_edited_overall_timestamp: 1700000000,
+					unread_count: 0,
+					created_at: 1700000000,
+					updated_at: 1700000000,
+					processing_metadata: false,
+					waiting_for_metadata: false
+				});
+				transaction.onerror = () => {
+					db.close();
+					reject(transaction.error ?? new Error('Failed to seed missing-index chats_db'));
+				};
+				transaction.oncomplete = () => {
+					db.close();
+					resolve();
+				};
+			};
+		});
+	}, { chatId: MISSING_INDEX_CHAT_ID, encryptedTitle: MISSING_INDEX_ENCRYPTED_TITLE });
 }
 
 async function installColdCacheWebSocketInterceptor(page: any): Promise<void> {
@@ -579,5 +706,73 @@ test('current-version partial IndexedDB schema is recreated without dropping loc
 		expect(dbState.storeNames).toContain('chat_compression_checkpoints');
 		expect(dbState.hasSeededChat).toBe(true);
 		expect(dbState.hasSeededMessage).toBe(true);
+	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
+});
+
+// contract-test: supporting surface=gui.web assertions=sync.startup.bounded-phases
+test('current-version IndexedDB missing a required chat index is repaired without dropping local rows', async ({
+	page
+}: {
+	page: any;
+}) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const logCheckpoint = createSignupLogger('CHAT_SYNC_CURRENT_VERSION_MISSING_INDEX_RECOVERY');
+	const consoleLogs: string[] = [];
+	page.on('console', (message: any) => {
+		consoleLogs.push(`[${message.type()}] ${message.text()}`);
+	});
+
+	await loginToTestAccount(page, logCheckpoint, async () => undefined, { waitForEditor: true });
+	await replaceLocalChatDbAtCurrentVersionWithMissingChatIndex(page);
+
+	await page.goto(getE2EDebugUrl('/?current-version-missing-index-recovery=1'));
+	await page.waitForLoadState('load');
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30000 });
+
+	await expect(async () => {
+		const hasMissingIndexError = consoleLogs.some(
+			(entry) => entry.includes('NotFoundError') || entry.includes('specified index was not found')
+		);
+		expect(hasMissingIndexError).toBe(false);
+
+		const dbState = await page.evaluate(async (chatId: string) => {
+			return await new Promise<{
+				hasRequiredIndex: boolean;
+				encryptedTitle: string | null;
+				lastEditedTimestamp: number | null;
+			}>(
+				(resolve, reject) => {
+					const request = indexedDB.open('chats_db');
+					request.onerror = () =>
+						reject(request.error ?? new Error('Failed to open repaired chats_db'));
+					request.onsuccess = () => {
+						const db = request.result;
+						const transaction = db.transaction('chats', 'readonly');
+						const store = transaction.objectStore('chats');
+						const chatRequest = store.get(chatId);
+						transaction.onerror = () => {
+							db.close();
+							reject(transaction.error ?? new Error('Failed to inspect repaired chats_db'));
+						};
+						transaction.oncomplete = () => {
+							db.close();
+							const chat = chatRequest.result;
+							resolve({
+								hasRequiredIndex: store.indexNames.contains('last_edited_overall_timestamp'),
+								encryptedTitle: chat?.encrypted_title ?? null,
+								lastEditedTimestamp: chat?.last_edited_overall_timestamp ?? null
+							});
+						};
+					};
+				}
+			);
+		}, MISSING_INDEX_CHAT_ID);
+
+		expect(dbState.hasRequiredIndex).toBe(true);
+		expect(dbState.encryptedTitle).toBe(MISSING_INDEX_ENCRYPTED_TITLE);
+		expect(dbState.lastEditedTimestamp).toBe(1700000000);
 	}).toPass({ timeout: 30000, intervals: [1000, 2000, 5000] });
 });

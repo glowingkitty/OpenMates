@@ -29,7 +29,7 @@ DEFAULT_CLI = "/home/superdev/.npm-global/bin/openmates"
 DEFAULT_NPM_GENERATED_ENTRY = REPO_ROOT / "frontend/packages/openmates-cli/src/generated/appSkills.ts"
 PYTHON_SDK_PATH = REPO_ROOT / "packages/openmates-python"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "docs/specs/elevenlabs-audio-skills/artifacts"
-DEFAULT_SPEECH_MODEL = "eleven_multilingual_v2"
+DEFAULT_SPEECH_MODEL = "eleven_v3"
 SOUND_MODEL = "eleven_text_to_sound_v2"
 
 sys.path.insert(0, str(REPO_ROOT / "scripts"))

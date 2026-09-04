@@ -19,6 +19,11 @@ export {
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
 export {
+  projectAssistantSpeech,
+  selectAssistantMessagesForSpeech,
+  summarizeAssistantSpeech,
+} from "./assistantSpeech.js";
+export {
   buildImagesAiDetectionSummary,
   classifyImagesAiDetection,
   formatImagesAiDetectionLabel,

@@ -63,7 +63,7 @@ CLARIFYING_GUIDANCE_PATHS = {
     "CLAUDE.md",
     ".claude/rules/planning.md",
     ".claude/skills/clarify/SKILL.md",
-    ".claude/skills/specify/SKILL.md",
+    ".claude/skills/create-plan/SKILL.md",
     ".claude/skills/create-pr/SKILL.md",
     ".claude/skills/next-tasks/SKILL.md",
     ".claude/skills/add-focus-mode/SKILL.md",
@@ -132,12 +132,12 @@ PROOF_MEDIA_GUIDANCE_PATHS = (
     "docs/contributing/guides/spec-driven-development.md",
     ".claude/skills/create-demo-video/SKILL.md",
     ".agents/skills/create-demo-video/SKILL.md",
-    ".claude/skills/plan-from-spec/SKILL.md",
-    ".agents/skills/plan-from-spec/SKILL.md",
-    ".claude/skills/tasks-from-spec/SKILL.md",
-    ".agents/skills/tasks-from-spec/SKILL.md",
-    ".claude/skills/verify-spec/SKILL.md",
-    ".agents/skills/verify-spec/SKILL.md",
+    ".claude/skills/create-plan/SKILL.md",
+    ".agents/skills/create-plan/SKILL.md",
+    ".claude/skills/tasks-from-plan/SKILL.md",
+    ".agents/skills/tasks-from-plan/SKILL.md",
+    ".claude/skills/verify-plan/SKILL.md",
+    ".agents/skills/verify-plan/SKILL.md",
     ".claude/skills/deploy/SKILL.md",
     ".agents/skills/deploy/SKILL.md",
 )
@@ -156,6 +156,52 @@ REQUIRED_PROOF_MEDIA_TERMS = (
     "Do not send proof media to Discord unless the user explicitly asks",
     "actual `openmates` CLI",
     "generic smoke scripts",
+)
+TEST_VIDEO_METADATA_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    ".claude/rules/testing.md",
+)
+REQUIRED_TEST_VIDEO_METADATA_TERMS = (
+    "filename or repository-relative artifact path",
+    "https://app.dev.openmates.org/dev/preview/{component-path}",
+)
+COMPONENT_PREVIEW_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    "docs/contributing/guides/testing.md",
+    "docs/contributing/standards/frontend.md",
+    ".claude/rules/testing.md",
+    ".claude/rules/frontend.md",
+    ".claude/skills/verify-component-preview/SKILL.md",
+    ".agents/skills/verify-component-preview/SKILL.md",
+    ".claude/skills/verify-ui-change/SKILL.md",
+    ".agents/skills/verify-ui-change/SKILL.md",
+    ".claude/skills/create-demo-video/SKILL.md",
+    ".agents/skills/create-demo-video/SKILL.md",
+)
+REQUIRED_COMPONENT_PREVIEW_TERMS = (
+    "chrome=0",
+    "query parameters",
+    "default fixture",
+)
+SPECIFICATION_APPROVAL_GUIDANCE_PATHS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/contributing/guides/agent-workflow-core.md",
+    ".claude/skills/define-specification/SKILL.md",
+    ".agents/skills/define-specification/SKILL.md",
+)
+REQUIRED_SPECIFICATION_APPROVAL_TERMS = (
+    "sessions.py specification approval-pdf",
+    "fingerprint",
+    "inline green",
+    "inline red",
+    "unchanged text",
+    "before asking",
+    "review artifact",
 )
 FORBIDDEN_RETROSPECTIVE_CLAUSE = re.compile(
     r"^(?:(?:this (?:section|retrospective)|agents?)\s+(?:must|should)\s+)?"
@@ -296,6 +342,41 @@ def _audit_proof_media_guidance(root: Path) -> list[AuditIssue]:
     for term in REQUIRED_PROOF_MEDIA_TERMS:
         if term not in all_text:
             issues.append(AuditIssue("proof-media-guidance", f"proof media guidance missing: {term}"))
+    for rel_path in TEST_VIDEO_METADATA_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        normalized = " ".join(path.read_text(encoding="utf-8", errors="replace").split())
+        for term in REQUIRED_TEST_VIDEO_METADATA_TERMS:
+            if term not in normalized:
+                issues.append(AuditIssue(rel_path, f"test video metadata guidance missing: {term}"))
+    for rel_path in COMPONENT_PREVIEW_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.exists():
+            continue
+        normalized = " ".join(path.read_text(encoding="utf-8", errors="replace").split())
+        for term in REQUIRED_COMPONENT_PREVIEW_TERMS:
+            if term not in normalized:
+                issues.append(AuditIssue(rel_path, f"component preview guidance missing: {term}"))
+    return issues
+
+
+def _audit_specification_approval_pdf_guidance(root: Path) -> list[AuditIssue]:
+    if not (root / ".claude/skills/define-specification/SKILL.md").is_file():
+        return []
+    issues: list[AuditIssue] = []
+    if not (root / "scripts/specification_approval_pdf.py").is_file():
+        issues.append(AuditIssue("scripts/specification_approval_pdf.py", "Specification approval PDF renderer is missing"))
+    for rel_path in SPECIFICATION_APPROVAL_GUIDANCE_PATHS:
+        path = root / rel_path
+        if not path.is_file():
+            issues.append(AuditIssue(rel_path, "Specification approval PDF guidance file is missing"))
+            continue
+        normalized = " ".join(path.read_text(encoding="utf-8", errors="replace").lower().split())
+        for term in REQUIRED_SPECIFICATION_APPROVAL_TERMS:
+            if term.lower() not in normalized:
+                issues.append(AuditIssue(rel_path, f"Specification approval PDF guidance missing: {term}"))
+                break
     return issues
 
 
@@ -420,6 +501,7 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
     if len(set(retrospective_bodies.values())) > 1:
         issues.append(AuditIssue("cross-runtime", "agent workflow retrospective guidance differs across instruction surfaces"))
     issues.extend(_audit_proof_media_guidance(root))
+    issues.extend(_audit_specification_approval_pdf_guidance(root))
     return issues
 
 

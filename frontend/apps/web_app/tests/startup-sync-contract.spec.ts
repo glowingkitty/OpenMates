@@ -290,11 +290,52 @@ async function verifyCachedShortChatOpening(page: any): Promise<void> {
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-ids-unique', 'true');
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-message-order-valid', 'true');
 		await holdProofVideoState(page);
+
 	} finally {
 		if (!repairReleased) releaseRepair();
 		if (repairRequested) await repairFinished;
 		await page.unroute(windowRoute, delayRepairResponse);
 	}
+}
+
+async function getContinueCarouselState(page: any): Promise<{ visible: boolean; chatIds: string[] }> {
+	return await page.evaluate(() => {
+		const container = document.querySelector('[data-testid="recent-chats-scroll-container"]') as HTMLElement | null;
+		const visible = !!container && container.offsetParent !== null;
+		const chatIds = container
+			? Array.from(container.querySelectorAll('[data-chat-id]'))
+				.map((element) => element.getAttribute('data-chat-id') || '')
+				.filter(Boolean)
+			: [];
+		return { visible, chatIds };
+	});
+}
+
+async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: any): Promise<void> {
+	const newChatButton = page.getByTestId('new-chat-button');
+	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await newChatButton.click();
+	}
+	await expect(page.getByTestId('welcome-content')).toBeVisible({ timeout: 10000 });
+	await expect(page.getByTestId('recent-chats-scroll-container')).toBeVisible({ timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS });
+
+	const initialState = await getContinueCarouselState(page);
+	expect(initialState.chatIds.length, 'test account needs at least one continue card for carousel stability coverage').toBeGreaterThan(0);
+
+	await context.setOffline(true);
+	await page.waitForTimeout(250);
+	await context.setOffline(false);
+
+	const samples: Array<{ visible: boolean; count: number }> = [];
+	const deadline = Date.now() + 2000;
+	while (Date.now() < deadline) {
+		const state = await getContinueCarouselState(page);
+		samples.push({ visible: state.visible, count: state.chatIds.length });
+		await page.waitForTimeout(50);
+	}
+
+	const blankSample = samples.find((sample) => !sample.visible || sample.count === 0);
+	expect(blankSample, `Continue carousel must not blank during reconnect churn; samples=${JSON.stringify(samples)}`).toBeUndefined();
 }
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,sync.phase2.metadata-only,chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -494,6 +535,17 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	}).toBe(true);
 
 	await verifyCachedShortChatOpening(page);
+});
+
+// contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted
+test('continue carousel remains visible during reconnect churn', async ({ page, context }: { page: any; context: any }) => {
+	test.slow();
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await verifyContinueCarouselSurvivesReconnectChurn(page, context);
 });
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,chats.message.identity-idempotent

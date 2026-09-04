@@ -11,12 +11,19 @@ when trying to fetch encrypted image blobs for fullscreen viewing.
 """
 import logging
 import os
+import time
 from botocore.exceptions import ClientError
 from typing import List, Optional
 
 from .config import CORS_ENABLED_BUCKETS, get_allowed_origins
 
 logger = logging.getLogger(__name__)
+
+CORS_MAX_ATTEMPTS = 3
+CORS_RETRY_DELAY_SECONDS = 1
+CORS_RETRYABLE_ERROR_CODES = frozenset(
+    {"500", "503", "InternalError", "RequestTimeout", "ServiceUnavailable", "SlowDown"}
+)
 
 def apply_cors_settings(s3_client, bucket_names: Optional[List[str]] = None):
     """
@@ -71,31 +78,42 @@ def apply_cors_settings(s3_client, bucket_names: Optional[List[str]] = None):
     for bucket_name in bucket_names:
         # Skip buckets that don't match the current environment
         if server_env == 'development' and not bucket_name.startswith('dev-'):
-            logger.info(f"Skipping production bucket {bucket_name} in development environment")
+            logger.info("Skipping production bucket in development environment")
             continue
 
         if server_env == 'production' and bucket_name.startswith('dev-'):
-            logger.info(f"Skipping development bucket {bucket_name} in production environment")
+            logger.info("Skipping development bucket in production environment")
             continue
 
-        try:
-            logger.info(f"Applying CORS settings to bucket: {bucket_name}")
-            s3_client.put_bucket_cors(
-                Bucket=bucket_name,
-                CORSConfiguration=cors_config
-            )
-            logger.info(f"Successfully applied CORS settings to bucket: {bucket_name}")
-        except ClientError as e:
-            error_code = e.response['Error']['Code']
-            logger.error(
-                f"Failed to apply CORS settings to bucket {bucket_name}: {error_code} — "
-                f"frontend image fetches will be blocked by CORS policy"
-            )
-            failed_buckets.append(bucket_name)
+        for attempt in range(1, CORS_MAX_ATTEMPTS + 1):
+            try:
+                logger.info("Applying CORS settings to storage bucket")
+                s3_client.put_bucket_cors(
+                    Bucket=bucket_name,
+                    CORSConfiguration=cors_config
+                )
+                logger.info("Successfully applied CORS settings")
+                break
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code in CORS_RETRYABLE_ERROR_CODES and attempt < CORS_MAX_ATTEMPTS:
+                    logger.warning(
+                        "Transient CORS reconciliation failure: error_code=%s attempt=%s/%s",
+                        error_code,
+                        attempt,
+                        CORS_MAX_ATTEMPTS,
+                    )
+                    time.sleep(CORS_RETRY_DELAY_SECONDS * attempt)
+                    continue
+                logger.error(
+                    "Failed to apply CORS settings: error_code=%s; frontend image fetches will be blocked",
+                    error_code,
+                )
+                failed_buckets.append(bucket_name)
+                break
 
     if failed_buckets:
         raise RuntimeError(
-            f"Failed to apply CORS settings to buckets: {failed_buckets}. "
-            f"Cross-origin image fetches from the frontend will fail. "
-            f"Check S3 credentials and bucket permissions."
+            f"Failed to apply CORS settings to {len(failed_buckets)} bucket(s); "
+            "cross-origin image fetches will fail. Check S3 credentials and bucket permissions."
         )

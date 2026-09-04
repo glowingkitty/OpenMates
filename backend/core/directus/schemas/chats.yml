@@ -70,6 +70,11 @@ chats:
       type: string
       note: "[Client-encrypted permanent storage] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'), encrypted with the chat-specific key before storage in Directus."
 
+    encrypted_auto_speak_response:
+      type: string
+      nullable: true
+      note: "[Client-encrypted permanent storage, Nullable] Chat-scoped assistant-response speech preference. Missing ciphertext means disabled for legacy chats."
+
     encrypted_chat_summary:
       type: text
       note: "[Client-encrypted permanent storage] Chat summary (max 20 words) generated during post-processing, encrypted with the chat-specific key before storage in Directus"
@@ -239,6 +244,31 @@ chats:
       type: integer
       default: 0
       note: "Accumulated credits spent under this sub-chat subtree"
+
+    storage_state:
+      type: string
+      default: hot
+      note: "Safe routing state: hot or cold. Cold content is resolved through the authorized archive manifest."
+
+    cold_archive_id:
+      type: string
+      nullable: true
+      note: "Stable archive index id when storage_state is cold."
+
+    cold_generation:
+      type: integer
+      nullable: true
+      note: "Active immutable archive generation used for promotion fencing."
+
+    archive_version:
+      type: integer
+      default: 1
+      note: "Optimistic concurrency fence for cold archive state transitions."
+
+    archive_started_at:
+      type: integer
+      nullable: true
+      note: "Lease timestamp for resumable cold archive work."
 
 # TODO: Create separate model for new_chat_request_suggestions
 # According to message_processing.md, new_chat_request_suggestions should be stored separately

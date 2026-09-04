@@ -194,12 +194,8 @@ class BaseServiceTask(DedupedTask):
         self._payment_service = None
         self._service_loop = current_loop
 
-    async def initialize_services(self):
+    async def initialize_core_services(self):
         self._drop_loop_bound_services_for_new_loop(asyncio.get_running_loop())
-
-        # Determine if in development environment
-        is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
-        is_production = not is_dev # is_production is true if not development
 
         # Initialize SecretsManager first as others depend on it
         if self._secrets_manager is None:
@@ -242,9 +238,19 @@ class BaseServiceTask(DedupedTask):
         else:
              logger.debug(f"EncryptionService already initialized for task {self.request.id}")
 
+    async def initialize_services(self):
+        await self.initialize_core_services()
+
+        # Determine if in development environment
+        is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+        is_production = not is_dev # is_production is true if not development
+
         if self._s3_service is None:
             logger.debug(f"Initializing S3Service for task {self.request.id}")
-            self._s3_service = S3UploadService(secrets_manager=self._secrets_manager)
+            self._s3_service = S3UploadService(
+                secrets_manager=self._secrets_manager,
+                directus_service=self._directus_service,
+            )
             await self._s3_service.initialize() # S3 service needs init
             logger.debug(f"S3Service initialized for task {self.request.id}")
         else:
@@ -452,6 +458,9 @@ class BaseServiceTask(DedupedTask):
                 self._directus_service = None
             except Exception as e:
                 logger.warning(f"Error closing DirectusService in task {self.request.id}: {e}")
+            finally:
+                # S3UploadService uses this Directus instance for replication outbox writes.
+                self._s3_service = None
         
         # Close CacheService's Redis client
         # CRITICAL: The async Redis client is bound to a specific event loop.

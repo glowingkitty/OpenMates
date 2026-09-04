@@ -1,0 +1,157 @@
+schema_version: 1
+specification: feature.tasks@3
+
+task_private_content:
+  - id: encrypted-task
+    input: {title: Fix hydrated Plan response, description: Return key wrappers after mutation}
+    expect: {durable_plaintext_title: false, durable_plaintext_description: false, raw_task_key: absent}
+
+task_lifecycle:
+  - id: explicit-block
+    input: {task: task-1, status: in_progress, blocker: waiting_for_user}
+    expect: {status_after: blocked, blocked_reason_visible: true}
+  - id: prose-does-not-complete
+    input: {assistant_message: The task is done, task_status: in_progress}
+    expect: {task_status_after_message: in_progress}
+
+task_blocked_reason:
+  - id: encrypted-user-input-blocker
+    input: {task: task-1, reason_code: missing_credentials, reason_text: A repository write token is required.}
+    expect: {status_after: blocked, queue_state: waiting_for_user, durable_plaintext_reason: false, authorized_web_reason: A repository write token is required.}
+  - id: code-fallback
+    input: {task: task-2, reason_code: waiting_for_approval, reason_text: null}
+    expect: {status_after: blocked, web_reason_source: localized_reason_code}
+
+task_external_chat_context:
+  - id: opencode-chat-task
+    input: {provider: opencode, external_chat_id: ses_example, external_chat_title: Task bridge implementation}
+    expect: {primary_chat_id: null, external_chat_provider: opencode, external_chat_lookup_hash_present: true, durable_plaintext_external_id: false, durable_plaintext_external_title: false, key_source: owner_master_wrapper}
+  - id: native-and-external-rejected
+    input: {primary_chat_id: chat-1, external_chat_provider: opencode, external_chat_id: ses_example}
+    expect_error: {code: TASK_CONTEXT_CONFLICT, mutation: false}
+
+task_dependencies:
+  - id: flat-blocked-by
+    input: {task_2_blocked_by: task-1, task_1_status: todo}
+    expect: {task_2_eligible: false, child_task_collection_created: false}
+  - id: reject-cycle
+    input: {dependencies: [task-1->task-2, task-2->task-1]}
+    expect_error: {code: TASK_DEPENDENCY_CYCLE, mutation: false}
+
+task_plan_links:
+  - id: phase-is-presentation-only
+    input: {plan: plan-1, phase: implementation, task: task-1}
+    expect: {task_owns_status: true, phase_owns_status: false, executable_step_created: false}
+
+task_check_links:
+  - id: failed-check-creates-fix-task
+    input: {check: check-1, failed_run: run-1, task: fix-check-1}
+    expect: {task_source_check_id: check-1, check_status_after_task_done: failed}
+  - id: human-check-work-task
+    input: {check: physical-device-check, task: inspect-device, assignee: user}
+    expect: {task_is_normal_task: true, human_confirmation_still_required: true}
+
+task_project_links:
+  - id: encrypted-project-link
+    input: {task: task-1, project: project-1}
+    expect: {raw_project_id_plaintext: false, project_hash_present: true, project_wrapper_present: true}
+
+task_workflow_projections:
+  - id: workflow-run-card
+    input: {workflow_run: run-1, projection: current_run}
+    expect: {user_task_row_created: false, read_only: true, nodes_inside_run_detail: true}
+
+task_detail_presentation:
+  - id: laptop-split-detail
+    input: {viewport: laptop, selected_task: task-1}
+    expect: {workspace_visible: true, detail_beside_workspace: true}
+  - id: phone-fullscreen-detail
+    input: {viewport: phone, selected_task: task-1}
+    expect: {fullscreen_overlay: true, close_restores_board: true}
+
+task_activity_layout:
+  - id: one-final-activity-section
+    given: {task_detail: fullscreen, sections: [description, metadata, dependencies, links, activity]}
+    expect: {final_section: activity, updates_section_visible: false, comments_section_visible: false, composer_position: top}
+  - id: comments-and-updates-share-stream
+    given: {entries: [lifecycle_update, comment, tombstone]}
+    expect: {rendered_sections: [activity], stable_chronological_order: true, restore_history_rendered_by_default: false}
+
+task_activity_composer:
+  - id: multiline-comment
+    given: {text: "First line\nSecond line", task_key_available: true}
+    action: send_activity_comment
+    expect: {line_breaks_preserved: true, composer_cleared_after_send: true}
+  - id: voice-reuses-message-processing
+    given: {mic_permission: granted, task_key_available: true}
+    action: record_voice_activity_comment
+    expect: {message_transcription_path_used: true, send_deferred_until_ready: true, durable_plaintext_transcript: false}
+  - id: file-reuses-message-embed
+    given: {file: private_pdf, task_key_available: true}
+    action: attach_file_and_send_activity_comment
+    expect: {message_embed_path_used: true, send_deferred_until_upload_ready: true, failed_upload_visible: true}
+
+task_activity_encryption:
+  - id: encrypted-comment-entry
+    input: {comment: Waiting for approval, task_key: available, entry_key: generated_client_side}
+    expect: {entry_key_wrapped_by_task_key: true, durable_plaintext_comment: false, raw_entry_key_backend_storage: false}
+  - id: uploaded-embed-key-through-task-key
+    input: {embed: private_upload, task_key: available}
+    expect: {task_key_can_decrypt_embed_key: true, raw_embed_key_backend_storage: false, durable_plaintext_file: false}
+
+task_activity_attribution:
+  - id: personal-mate-is-openmates
+    given: {context: personal, actor_kind: openmates, actual_mate_name: Kai}
+    expect: {display_name: OpenMates, actual_mate_name_visible: false}
+  - id: team-web-and-apple-user
+    given: {context: team, surfaces: [gui_web, gui_apple], user: Sam, profile_image: present}
+    expect: {display_name: Sam, profile_image_visible: true, via_suffix_visible: false}
+  - id: team-cli-user
+    given: {context: team, surface: cli, user: Sam, profile_image: present}
+    expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates CLI}
+  - id: team-sdk-user
+    given: {context: team, surfaces: [sdk_npm, sdk_pip], user: Sam, profile_image: present}
+    expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates SDK}
+
+task_activity_tombstones:
+  - id: openmates-deleted-by-sam
+    given: {comment_author: openmates, deleting_user: Sam}
+    expect: {tombstone: Comment by OpenMates deleted by Sam, original_content_visible: false}
+  - id: sam-deletes-own-comment
+    given: {comment_author: Sam, deleting_user: Sam}
+    expect: {tombstone: Comment by Sam deleted by Sam, original_content_visible: false}
+  - id: taylor-deletes-sams-comment
+    given: {comment_author: Sam, deleting_user: Taylor, deleting_user_role: admin}
+    expect: {tombstone: Comment by Sam deleted by Taylor, original_embeds_visible: false, original_attachments_visible: false}
+
+task_activity_authorization:
+  - id: team-viewer-cannot-comment
+    given: {context: team, role: viewer, task_readable: true}
+    action: send_activity_comment
+    expect_error: {code: TASK_ACTIVITY_PERMISSION_DENIED, mutation: false, visible_failure: true}
+  - id: author-can-delete-own-comment
+    given: {context: team, actor: Sam, comment_author: Sam, role: member}
+    action: delete_activity_comment
+    expect: {tombstone_written: true}
+  - id: unauthorized-delete-fails-before-mutation
+    given: {context: team, actor: Lee, role: viewer, comment_author: Sam}
+    action: delete_activity_comment
+    expect_error: {code: TASK_ACTIVITY_PERMISSION_DENIED, mutation: false}
+
+task_execution_capacity:
+  - id: capacity-wait
+    input: {scope: personal, capacity_available: false, task: task-1}
+    expect: {status: todo, waiting_state: waiting_for_capacity, auto_reconsider: true}
+
+task_execution_order:
+  - id: dependency-before-priority
+    input: {task_1_priority: low, task_2_priority: urgent, task_2_blocked_by: task-1}
+    expect: {next_task: task-1, urgent_bypass: false}
+
+task_surface_parity:
+  - id: same-dependency-blocker
+    input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-2}
+    expect: {same_status: blocked, same_dependency: task-1, visible_failure: true}
+  - id: same-activity-contract
+    input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-1, comment: Waiting on staging}
+    expect: {same_encryption_boundary: true, same_tombstone_semantics: true, durable_plaintext_comment: false}

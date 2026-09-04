@@ -33,10 +33,12 @@
         dismissible?: boolean;
         isProcessing?: boolean;
         dedupeKey?: string;
+        actionLabel?: string;
+        actionEventName?: string;
     };
 
     let visibleNotifications = $derived(
-        $notificationStore.notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS),
+        $notificationStore.notifications.slice(-MAX_VISIBLE_NOTIFICATIONS).reverse(),
     );
 
     function e2eNotificationInjectionAllowed(): boolean {
@@ -61,6 +63,7 @@
 
             notifications.slice(0, MAX_VISIBLE_NOTIFICATIONS).forEach((notification, index) => {
                 if (!notification.message) return;
+                const actionEventName = notification.actionEventName;
                 notificationStore.addNotificationWithOptions(notification.type ?? 'info', {
                     title: notification.title,
                     message: notification.message,
@@ -68,6 +71,8 @@
                     dismissible: notification.dismissible ?? true,
                     isProcessing: notification.isProcessing ?? false,
                     dedupeKey: notification.dedupeKey ?? `e2e-notification-stack-${index}`,
+                    actionLabel: actionEventName ? notification.actionLabel : undefined,
+                    onAction: actionEventName ? () => window.dispatchEvent(new CustomEvent(actionEventName)) : undefined,
                 });
             });
         };

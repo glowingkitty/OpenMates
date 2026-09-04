@@ -7,19 +7,124 @@
 from __future__ import annotations
 
 import base64
+import importlib.machinery
+import importlib.util
+import re
+import sys
+import types
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
 
-from backend.core.api.app.models.user import User
-from backend.core.api.app.routes import code_execution
+
+def _find_spec_or_none(name: str):
+    try:
+        return importlib.util.find_spec(name)
+    except ValueError:
+        return None
+
+
+if _find_spec_or_none("toon_format") is None:
+    toon_format_stub = types.ModuleType("toon_format")
+    toon_format_stub.__spec__ = importlib.machinery.ModuleSpec("toon_format", loader=None)
+
+    def _stub_encode(value: dict) -> str:
+        return "\n".join(f"{key}: {item}" for key, item in value.items())
+
+    def _stub_decode(value: str) -> dict:
+        decoded: dict[str, str] = {}
+        for line in value.splitlines():
+            key, _, item = line.partition(": ")
+            if key:
+                decoded[key] = item
+        return decoded
+
+    toon_format_stub.encode = _stub_encode
+    toon_format_stub.decode = _stub_decode
+    sys.modules.setdefault("toon_format", toon_format_stub)
+
+if _find_spec_or_none("celery") is None:
+    tasks_stub = types.ModuleType("backend.core.api.app.tasks")
+    tasks_stub.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/tasks")]
+    celery_config_stub = types.ModuleType("backend.core.api.app.tasks.celery_config")
+
+    class _CeleryAppStub:
+        def send_task(self, *_args, **_kwargs):
+            return None
+
+        def task(self, *_args, **_kwargs):
+            return lambda func: func
+
+    async def _missing_worker_cache_service():
+        raise AssertionError("worker cache service is not used by these unit tests")
+
+    celery_config_stub.app = _CeleryAppStub()
+    celery_config_stub.get_worker_cache_service = _missing_worker_cache_service
+    sys.modules.setdefault("backend.core.api.app.tasks", tasks_stub)
+    sys.modules.setdefault("backend.core.api.app.tasks.celery_config", celery_config_stub)
+
+if _find_spec_or_none("redis") is None:
+    redis_stub = types.ModuleType("redis")
+    redis_asyncio_stub = types.ModuleType("redis.asyncio")
+    redis_stub.__spec__ = importlib.machinery.ModuleSpec("redis", loader=None)
+    redis_asyncio_stub.__spec__ = importlib.machinery.ModuleSpec("redis.asyncio", loader=None)
+
+    class _RedisStub:
+        def __init__(self, *_args, **_kwargs):
+            raise AssertionError("real Redis is not used by these unit tests")
+
+    redis_asyncio_stub.Redis = _RedisStub
+    redis_stub.asyncio = redis_asyncio_stub
+    redis_stub.exceptions = SimpleNamespace(
+        ConnectionError=ConnectionError,
+        TimeoutError=TimeoutError,
+        RedisError=Exception,
+    )
+    sys.modules.setdefault("redis", redis_stub)
+    sys.modules.setdefault("redis.asyncio", redis_asyncio_stub)
+
+if _find_spec_or_none("aiohttp") is None:
+    aiohttp_stub = types.ModuleType("aiohttp")
+    aiohttp_stub.ClientSession = object
+    sys.modules.setdefault("aiohttp", aiohttp_stub)
+
+sys.modules.setdefault("regex", re)
+googleapiclient_stub = types.ModuleType("googleapiclient")
+googleapiclient_discovery_stub = types.ModuleType("googleapiclient.discovery")
+googleapiclient_errors_stub = types.ModuleType("googleapiclient.errors")
+googleapiclient_discovery_stub.build = lambda *_args, **_kwargs: None
+googleapiclient_errors_stub.HttpError = Exception
+sys.modules.setdefault("googleapiclient", googleapiclient_stub)
+sys.modules.setdefault("googleapiclient.discovery", googleapiclient_discovery_stub)
+sys.modules.setdefault("googleapiclient.errors", googleapiclient_errors_stub)
+
+if _find_spec_or_none("slowapi") is None:
+    slowapi_stub = types.ModuleType("slowapi")
+    slowapi_util_stub = types.ModuleType("slowapi.util")
+
+    class _LimiterStub:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def limit(self, *_args, **_kwargs):
+            return lambda func: func
+
+    slowapi_stub.Limiter = _LimiterStub
+    slowapi_util_stub.get_remote_address = lambda request: "127.0.0.1"
+    sys.modules.setdefault("slowapi", slowapi_stub)
+    sys.modules.setdefault("slowapi.util", slowapi_util_stub)
+
+from backend.core.api.app.models.user import User  # noqa: E402
+from backend.core.api.app.routes import code_execution  # noqa: E402
 
 
 def _b64(value: str) -> str:
     return base64.b64encode(value.encode("utf-8")).decode("ascii")
 
 
+# contract-test: direct surface=rest_api assertions=code-run.request.validated,code-run.output.direct-transient
 def test_direct_code_run_files_validate_entry_and_internet_default() -> None:
     request = code_execution.CodeRunAppSkillRequest.model_validate({
         "requests": [{
@@ -42,6 +147,7 @@ def test_direct_code_run_files_validate_entry_and_internet_default() -> None:
     }]
 
 
+# contract-test: direct surface=rest_api assertions=code-run.request.validated
 @pytest.mark.parametrize("bad_path", ["/tmp/main.py", "../main.py", "src/../../main.py", "C:/tmp/main.py", "~/main.py"])
 def test_direct_code_run_rejects_unsafe_paths(bad_path: str) -> None:
     item = code_execution.CodeRunAppSkillRunItem.model_validate({
@@ -55,6 +161,7 @@ def test_direct_code_run_rejects_unsafe_paths(bad_path: str) -> None:
     assert exc.value.status_code == 400
 
 
+# contract-test: direct surface=rest_api assertions=code-run.request.validated
 def test_direct_code_run_rejects_backend_url_fetch_fields() -> None:
     with pytest.raises(ValueError):
         code_execution.CodeRunAppSkillRunItem.model_validate({
@@ -64,6 +171,7 @@ def test_direct_code_run_rejects_backend_url_fetch_fields() -> None:
         })
 
 
+# contract-test: direct surface=rest_api assertions=code-run.request.validated
 def test_direct_code_run_rejects_unsafe_dependency_manifest() -> None:
     item = code_execution.CodeRunAppSkillRunItem.model_validate({
         "entry_path": "main.py",
@@ -91,6 +199,7 @@ class _AwaitableValue:
         return _inner().__await__()
 
 
+# contract-test: direct surface=rest_api assertions=code-run.output.direct-transient,code-run.request.validated
 @pytest.mark.anyio
 async def test_start_direct_code_run_does_not_require_chat_or_embed(monkeypatch: pytest.MonkeyPatch) -> None:
     sent_tasks: list[tuple[str, list[object], str]] = []

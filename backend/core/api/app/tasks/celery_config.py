@@ -21,6 +21,7 @@ from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService as _CacheService
+from backend.core.api.app.tasks.push_worker_service import initialize_push_services
 
 if TYPE_CHECKING:
     from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
@@ -154,6 +155,9 @@ TASK_CONFIG = [
     {'name': 'app_images',  'module': 'backend.apps.models3d.tasks'},  # 3D generation tasks share media worker resources
     {'name': 'app_music',   'module': 'backend.apps.music.tasks'},  # Music generation tasks
     {'name': 'app_music',   'module': 'backend.apps.audio.tasks'},  # Audio generate/speak tasks share music worker resources
+    {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.segment_task'},
+    {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.billing_task'},
+    {'name': 'app_music',   'module': 'backend.apps.audio.assistant_speech.delete_task'},
     {'name': 'app_videos',  'module': 'backend.apps.videos.tasks'},  # Video generation tasks
     {'name': 'app_code',    'module': 'backend.apps.code.tasks'},  # Code Run sandbox execution tasks
     {'name': 'app_social_media', 'module': 'backend.apps.social_media.tasks'},  # Social media collection tasks
@@ -161,6 +165,8 @@ TASK_CONFIG = [
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -442,6 +448,11 @@ def _get_worker_queues() -> set:
     return set()
 
 
+def _worker_tracing_service_name() -> str:
+    """Return one of the reviewed low-cardinality worker service names."""
+    return "worker-app-ai" if "app_ai" in _get_worker_queues() else "worker-celery"
+
+
 def _worker_needs_invoice_services():
     """
     Check if this worker needs InvoiceNinjaService and InvoiceTemplateService.
@@ -468,6 +479,7 @@ def _worker_needs_ai_services():
     """
     worker_queues = _get_worker_queues()
     return 'app_ai' in worker_queues
+
 
 async def initialize_services():
     """
@@ -665,6 +677,18 @@ def warm_translation_cache() -> None:
 #
 # @signals.task_prerun.connect — request_id restoration portion replaced by OTel.
 # The task_prerun_handler below still logs TASK_STARTED for monitoring.
+
+
+@signals.before_task_publish.connect
+def inject_ai_queue_timestamp(sender=None, headers=None, **kwargs):
+    """Timestamp AI task publication for a privacy-safe queue duration span."""
+    if sender != "apps.ai.tasks.skill_ask" or headers is None:
+        return
+    from backend.shared.python_utils.tracing.ai_observability import (
+        AI_QUEUE_ENQUEUED_AT_HEADER,
+    )
+
+    headers[AI_QUEUE_ENQUEUED_AT_HEADER] = time.time_ns()
 
 @signals.task_prerun.connect
 def task_prerun_handler(task_id, task, args, kwargs, **kw):
@@ -927,6 +951,10 @@ def init_worker_process(*args, **kwargs):
     setup_celery_logging()
     logger.info("Worker process initializing...")
 
+    from backend.shared.python_utils.tracing import setup_tracing
+
+    setup_tracing(service_name=_worker_tracing_service_name())
+
     # Don't initialize ConfigManager here - use lazy initialization
     # ConfigManager uses singleton pattern, so first access will initialize it
     # This saves memory if the worker never needs it (though most workers do)
@@ -951,6 +979,10 @@ def init_worker_process(*args, **kwargs):
     # Only initialize services that are needed at worker startup
     # For app workers, services are initialized per-task as needed
     asyncio.run(initialize_services())
+
+    # Push tasks use a process-local singleton. Initialize it in the child
+    # process so delivery never depends on API-process startup state.
+    asyncio.run(initialize_push_services(_get_worker_queues()))
 
     warm_translation_cache()
 
@@ -1003,6 +1035,8 @@ task_routes = {
     "operational_monitoring.send_digest": {'queue': 'email'},
     "user_tasks.process_due_ai_tasks": {'queue': 'user_tasks'},
     "user_tasks.archive_completed_tasks": {'queue': 'persistence'},
+    "billing.*": {'queue': 'persistence'},
+    "storage.*": {'queue': 'persistence'},
     # Email tasks use custom names like "app.tasks.email_tasks.*" instead of full module paths
     # This pattern ensures all email tasks (verification, cleanup, notifications, etc.) route correctly
     "app.tasks.email_tasks.*": {'queue': 'email'},
@@ -1097,6 +1131,7 @@ _EXPLICIT_TASK_ROUTES = {
     "app.tasks.persistence_tasks.persist_chat_title": "persistence",
     "app.tasks.persistence_tasks.persist_chat_pinned": "persistence",
     "app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs": "persistence",
+    "app.tasks.persistence_tasks.cleanup_expired_account_exports": "persistence",
     "app.tasks.persistence_tasks.persist_user_draft": "persistence",
     "app.tasks.persistence_tasks.persist_new_chat_message": "persistence",
     "app.tasks.persistence_tasks.persist_chat_and_draft_on_logout": "persistence",
@@ -1256,6 +1291,16 @@ def send_task_validated(
 
 
 app.conf.beat_schedule = {
+    'sweep-due-storage-jobs': {
+        'task': 'storage.sweep_due_jobs',
+        'schedule': timedelta(minutes=5),
+        'options': {'queue': 'persistence', 'expires': 240},
+    },
+    'sweep-pending-billing-settlements': {
+        'task': 'billing.sweep_pending_settlements',
+        'schedule': timedelta(minutes=5),
+        'options': {'queue': 'persistence', 'expires': 240},
+    },
     'runtime-health-scheduler-heartbeat': {
         'task': 'runtime_health.scheduler_heartbeat',
         'schedule': timedelta(seconds=300),
@@ -1263,6 +1308,11 @@ app.conf.beat_schedule = {
     },
     'cleanup-expired-chat-recovery-jobs': {
         'task': 'app.tasks.persistence_tasks.cleanup_expired_chat_recovery_jobs',
+        'schedule': timedelta(hours=1),
+        'options': {'queue': 'persistence'},
+    },
+    'cleanup-expired-account-exports': {
+        'task': 'app.tasks.persistence_tasks.cleanup_expired_account_exports',
         'schedule': timedelta(hours=1),
         'options': {'queue': 'persistence'},
     },

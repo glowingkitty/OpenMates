@@ -1,0 +1,32 @@
+# Durable hot index for immutable encrypted cold resource generations.
+# Owner and Team hashes are safe authorization routing metadata; encrypted
+# listing metadata and file references never contain private plaintext or keys.
+cold_archive_manifests:
+  type: collection
+  note: "Authorized encrypted cold archive index"
+  fields:
+    id: {type: uuid, primary: true}
+    archive_id: {type: string, length: 64, required: true, unique: true}
+    resource_type: {type: string, length: 32, required: true}
+    resource_id: {type: string, length: 128, required: true}
+    hashed_resource_id: {type: string, length: 64, required: true}
+    hashed_user_id: {type: string, length: 64, nullable: true}
+    hashed_team_id: {type: string, length: 64, nullable: true}
+    encrypted_listing_metadata: {type: json, required: true}
+    active_generation: {type: integer, required: true}
+    graph_checksum: {type: string, length: 64, required: true}
+    part_count: {type: integer, required: true}
+    file_references: {type: json, required: true}
+    state: {type: string, length: 32, required: true}
+    promotion_intent: {type: string, length: 64, nullable: true}
+    version: {type: integer, required: true, default: 1}
+    archived_at: {type: integer, required: true}
+    promoted_at: {type: integer, nullable: true}
+    updated_at: {type: integer, required: true}
+  indexes:
+    - name: idx_cold_archives_user_page
+      fields: [hashed_user_id, resource_type, state, archived_at, archive_id]
+    - name: idx_cold_archives_team_page
+      fields: [hashed_team_id, resource_type, state, archived_at, archive_id]
+    - name: idx_cold_archives_resource_state
+      fields: [resource_type, hashed_resource_id, state]

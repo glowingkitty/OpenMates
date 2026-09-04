@@ -837,6 +837,7 @@ async def _handle_final_failure(
                         "reason": f"PDF processing failed for embed {embed_id}: {error_msg[:200]}",
                         "app_id": "pdf",
                         "skill_id": "process",
+                        "idempotency_key": f"pdf:{embed_id}:process:refund",
                     },
                     headers=headers,
                 )

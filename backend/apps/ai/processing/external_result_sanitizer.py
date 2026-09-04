@@ -16,6 +16,9 @@ from backend.apps.ai.processing.content_sanitization import sanitize_external_co
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 
+SEMANTIC_SCAN_BATCH_TARGET_CHARS = 50_000
+SEMANTIC_SCAN_FIELD_SEPARATOR = "\n\n--- OPENMATES EXTERNAL FIELD ---\n\n"
+
 SKIP_FIELD_NAMES = {
     "url",
     "image_url",
@@ -217,6 +220,27 @@ def _set_path_value(obj: Any, path: str, new_value: str) -> None:
         current[last] = new_value
 
 
+def _batch_candidates(candidates: List[Tuple[str, str]]) -> List[List[Tuple[str, str]]]:
+    batches: List[List[Tuple[str, str]]] = []
+    current: List[Tuple[str, str]] = []
+    current_chars = 0
+    separator_chars = len(SEMANTIC_SCAN_FIELD_SEPARATOR)
+
+    for candidate in candidates:
+        candidate_chars = len(candidate[1]) + (separator_chars if current else 0)
+        if current and current_chars + candidate_chars > SEMANTIC_SCAN_BATCH_TARGET_CHARS:
+            batches.append(current)
+            current = []
+            current_chars = 0
+            candidate_chars = len(candidate[1])
+        current.append(candidate)
+        current_chars += candidate_chars
+
+    if current:
+        batches.append(current)
+    return batches
+
+
 async def sanitize_long_text_fields_in_payload(
     payload: Any,
     task_id: str,
@@ -230,9 +254,11 @@ async def sanitize_long_text_fields_in_payload(
     """
     Sanitize long external text fields in a nested payload.
 
-    This helper scans nested dict/list payloads for long text values and runs
-    each candidate through `sanitize_external_content`. It fails closed if any
-    sanitization fails or gets blocked.
+    This helper scans nested dict/list payloads for long text values. Safe fields
+    share target-sized semantic scans; an individual long field remains intact
+    and is chunked by `sanitize_external_content`. Changed batches fall back to
+    field-level scans so redaction behavior remains isolated. It fails closed if
+    any scan fails or gets blocked.
     """
     candidates: List[Tuple[str, str]] = []
     normalized_skip = {field.lower() for field in skip_field_names or set()}
@@ -260,27 +286,59 @@ async def sanitize_long_text_fields_in_payload(
     semaphore = asyncio.Semaphore(max_parallel)
     sanitized_by_path: Dict[str, str] = {}
 
-    async def _sanitize_one(path: str, text: str, index: int) -> None:
+    async def _scan(content: str, scan_task_id: str, field_label: str) -> str:
         async with semaphore:
-            field_task_id = f"{task_id}_field_{index}"
             sanitized = await sanitize_external_content(
-                content=text,
+                content=content,
                 content_type="text",
-                task_id=field_task_id,
+                task_id=scan_task_id,
                 secrets_manager=secrets_manager,
                 cache_service=cache_service,
             )
             if sanitized is None:
-                raise RuntimeError(f"Sanitization failed for field '{path}' (returned None)")
+                raise RuntimeError(f"Sanitization failed for {field_label} (returned None)")
             if not sanitized.strip():
-                raise RuntimeError(
-                    f"Sanitization blocked field '{path}' due to high prompt injection risk"
-                )
-            sanitized_by_path[path] = sanitized
+                raise RuntimeError(f"Sanitization blocked {field_label} due to high prompt injection risk")
+            return sanitized
 
-    await asyncio.gather(
-        *[_sanitize_one(path, text, idx) for idx, (path, text) in enumerate(candidates)],
+    async def _sanitize_one(path: str, text: str, scan_task_id: str) -> Tuple[str, str]:
+        sanitized = await _scan(text, scan_task_id, f"field '{path}'")
+        return path, sanitized
+
+    async def _sanitize_batch(
+        batch: List[Tuple[str, str]],
+        batch_index: int,
+    ) -> List[Tuple[str, str]]:
+        combined = SEMANTIC_SCAN_FIELD_SEPARATOR.join(text for _, text in batch)
+        sanitized = await _scan(
+            combined,
+            f"{task_id}_batch_{batch_index}",
+            f"batch {batch_index}",
+        )
+        if len(batch) == 1:
+            return [(batch[0][0], sanitized)]
+        if sanitized == combined:
+            return batch
+
+        return await asyncio.gather(
+            *[
+                _sanitize_one(
+                    path,
+                    text,
+                    f"{task_id}_batch_{batch_index}_field_{field_index}",
+                )
+                for field_index, (path, text) in enumerate(batch)
+            ]
+        )
+
+    sanitized_batches = await asyncio.gather(
+        *[
+            _sanitize_batch(batch, batch_index)
+            for batch_index, batch in enumerate(_batch_candidates(candidates))
+        ]
     )
+    for sanitized_batch in sanitized_batches:
+        sanitized_by_path.update(sanitized_batch)
 
     for path, _ in candidates:
         _set_path_value(payload, path, sanitized_by_path[path])

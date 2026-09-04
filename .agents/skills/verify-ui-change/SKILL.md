@@ -34,6 +34,17 @@ integration point only.
    ```bash
    python3 scripts/tests.py run --spec <name>.spec.ts --dry-run
    ```
+   For UI elements, components, and screens, identify or create the focused
+   component spec first. It should target
+   `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every
+   inspection, test, screenshot, and recording must include `chrome=0` and show
+   only the component, never the configuration UI. Use the `.preview.ts` default
+   fixture for the standard state and encode every non-default input or
+   configuration in URL query parameters such as `variant`, `props`, `theme`,
+   `background`, and `width`. Then
+   assert meaningful hover, focus, click, expanded/collapsed, and on/off states
+   before named proof checkpoints. Broader route or flow specs come after this
+   focused component spec.
 
 2. Ensure there is an active session and inspect blockers.
    ```bash
@@ -66,6 +77,12 @@ integration point only.
    ```
 
    If the spec needs a pinned account, include `--account N`.
+
+   For every modified UI component, publish the focused component proof video in
+   the OpenCode response. Use separate phone and laptop proof profiles only when
+   responsive behavior differs. Derive still frames from the completed video only
+   for failures, explicit requests, or ambiguous visual-intent inspection; do not
+   add screenshot galleries or browser-side screenshot calls for component proof.
 
 5. For larger user-visible web/UI changes, run a deployed Playwright visual smoke
    against the affected `app.dev.openmates.org` route(s) after Playwright and

@@ -1,0 +1,627 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-30'
+generated_at: '2026-08-31T17:18:02+00:00'
+range:
+  since: '2026-08-30T00:00:00+00:00'
+  until: '2026-08-31T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 7
+  section_counts:
+    features: 0
+    bug_fixes: 0
+    improvements: 0
+    docs: 2
+    tests: 4
+    infrastructure: 0
+    internal: 1
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 0
+  dev_only_items: 7
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes: []
+  improvements: []
+  docs:
+  - title: 'docs: restructure project work contracts'
+    section: docs
+    commits:
+    - 66cd4c602
+    authored_at: '2026-08-30T14:36:18+00:00'
+    changed_paths:
+    - contracts/features/plans/contract.yml
+    - contracts/features/plans/examples.yml
+    - contracts/features/projects/contract.yml
+    - contracts/features/projects/examples.yml
+    - contracts/features/tasks/contract.yml
+    - contracts/features/tasks/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: draft Contracts and Checks models'
+    section: docs
+    commits:
+    - 8e376ffb6
+    authored_at: '2026-08-30T14:35:13+00:00'
+    changed_paths:
+    - contracts/features/checks/contract.yml
+    - contracts/features/checks/examples.yml
+    - contracts/features/contracts/contract.yml
+    - contracts/features/contracts/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: map daily AI contract proof markers'
+    section: tests
+    commits:
+    - 40f16fb90
+    authored_at: '2026-08-30T16:48:24+00:00'
+    changed_paths:
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - backend/tests/test_daily_ai_test_budget.py
+    - backend/tests/test_import_live_mock_cache.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
+    - frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
+    - scripts/contracts.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_daily_ai_test_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add cost-safe daily AI canaries'
+    section: tests
+    commits:
+    - 3432ef7d0
+    authored_at: '2026-08-30T16:03:25+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/api/app/routes/auth_ws.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/shared/python_utils/e2e_user_detection.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/shared/testing/caching_http_transport.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_caching_http_transport.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - backend/tests/test_daily_ai_test_budget.py
+    - backend/tests/test_e2e_user_detection.py
+    - backend/tests/test_import_live_mock_cache.py
+    - backend/tests/test_message_received_test_markers.py
+    - contracts/architecture/daily-ai-test-inference/contract.yml
+    - contracts/architecture/daily-ai-test-inference/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/live-mock-testing.md
+    - docs/contributing/guides/testing.md
+    - docs/specs/cost-safe-daily-ai-tests/spec.yml
+    - frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
+    - frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/ci/get_spec_batch.py
+    - scripts/daily_ai_test_manifest.json
+    - scripts/daily_ai_test_policy.py
+    - scripts/import_live_mock_cache.py
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    - scripts/tests/test_daily_ai_test_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: verify managed invoice downloads'
+    section: tests
+    commits:
+    - 94094bf22
+    authored_at: '2026-08-30T12:33:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize managed Stripe card readiness'
+    section: tests
+    commits:
+    - b60158aac
+    authored_at: '2026-08-30T12:07:54+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal:
+  - title: Record daily AI test proof evidence
+    section: internal
+    commits:
+    - 661897e65
+    authored_at: '2026-08-30T17:40:13+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
+    - docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-evidence.yml
+    - docs/specs/cost-safe-daily-ai-tests/spec.yml
+    - scripts/contracts.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: Record daily AI test proof evidence
+    commits:
+    - 661897e65
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: map daily AI contract proof markers'
+    commits:
+    - 40f16fb90
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add cost-safe daily AI canaries'
+    commits:
+    - 3432ef7d0
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: restructure project work contracts'
+    commits:
+    - 66cd4c602
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: draft Contracts and Checks models'
+    commits:
+    - 8e376ffb6
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: verify managed invoice downloads'
+    commits:
+    - 94094bf22
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize managed Stripe card readiness'
+    commits:
+    - b60158aac
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed: []
+marketing_candidates:
+  newsletter: []
+  social_or_video: []
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 661897e65cc2f5ece953e6e7d9bbb3791649f61d
+    short_sha: 661897e65
+    authored_at: '2026-08-30T17:40:13+00:00'
+    subject: Record daily AI test proof evidence
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-40f16fb.json
+    - docs/specs/cost-safe-daily-ai-tests/evidence/fd78-current-direct-proof-evidence.yml
+    - docs/specs/cost-safe-daily-ai-tests/spec.yml
+    - scripts/contracts.py
+    - scripts/spec_verify.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_contracts_workflow.py
+    - scripts/tests/test_spec_demonstration_workflow.py
+    related_feature_ids: []
+  - sha: 40f16fb9042651581fe6f876c15ea587b88a3904
+    short_sha: 40f16fb90
+    authored_at: '2026-08-30T16:48:24+00:00'
+    subject: 'test: map daily AI contract proof markers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/tests/test_ai_request_observability.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - backend/tests/test_daily_ai_test_budget.py
+    - backend/tests/test_import_live_mock_cache.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
+    - frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
+    - scripts/contracts.py
+    - scripts/tests/test_contract_evidence.py
+    - scripts/tests/test_daily_ai_test_policy.py
+    related_feature_ids: []
+  - sha: 3432ef7d02451b3af37cd71916716e557de07992
+    short_sha: 3432ef7d0
+    authored_at: '2026-08-30T16:03:25+00:00'
+    subject: 'test: add cost-safe daily AI canaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/core/api/app/routes/auth_ws.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/shared/python_utils/e2e_user_detection.py
+    - backend/shared/testing/api_response_cache.py
+    - backend/shared/testing/caching_http_transport.py
+    - backend/shared/testing/mock_context.py
+    - backend/tests/test_caching_http_transport.py
+    - backend/tests/test_caching_llm_wrapper.py
+    - backend/tests/test_daily_ai_test_budget.py
+    - backend/tests/test_e2e_user_detection.py
+    - backend/tests/test_import_live_mock_cache.py
+    - backend/tests/test_message_received_test_markers.py
+    - contracts/architecture/daily-ai-test-inference/contract.yml
+    - contracts/architecture/daily-ai-test-inference/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - docs/architecture/live-mock-testing.md
+    - docs/contributing/guides/testing.md
+    - docs/specs/cost-safe-daily-ai-tests/spec.yml
+    - frontend/apps/web_app/tests/daily-ai-fixed-canary.spec.ts
+    - frontend/apps/web_app/tests/daily-ai-rotating-canary.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    - scripts/audit_daily_ai_test_inference.py
+    - scripts/ci/get_spec_batch.py
+    - scripts/daily_ai_test_manifest.json
+    - scripts/daily_ai_test_policy.py
+    - scripts/import_live_mock_cache.py
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    - scripts/tests/test_daily_ai_test_policy.py
+    related_feature_ids:
+    - app:ai
+  - sha: 66cd4c60264bb2a2e962dd4b293a23fc1a618e0a
+    short_sha: 66cd4c602
+    authored_at: '2026-08-30T14:36:18+00:00'
+    subject: 'docs: restructure project work contracts'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/plans/contract.yml
+    - contracts/features/plans/examples.yml
+    - contracts/features/projects/contract.yml
+    - contracts/features/projects/examples.yml
+    - contracts/features/tasks/contract.yml
+    - contracts/features/tasks/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 8e376ffb65eb764ea6f93e642f8ac4aa151161a7
+    short_sha: 8e376ffb6
+    authored_at: '2026-08-30T14:35:13+00:00'
+    subject: 'docs: draft Contracts and Checks models'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/features/checks/contract.yml
+    - contracts/features/checks/examples.yml
+    - contracts/features/contracts/contract.yml
+    - contracts/features/contracts/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    related_feature_ids: []
+  - sha: 94094bf2287f7c2965a556605303088518c3fe88
+    short_sha: 94094bf22
+    authored_at: '2026-08-30T12:33:05+00:00'
+    subject: 'test: verify managed invoice downloads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    related_feature_ids: []
+  - sha: b60158aac84634a30afcfcd50c912f81ac003bd7
+    short_sha: b60158aac
+    authored_at: '2026-08-30T12:07:54+00:00'
+    subject: 'test: stabilize managed Stripe card readiness'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    related_feature_ids: []
+llm_summary:
+  overview: Work on August 30, 2026, focused on internal infrastructure, specifically enhancing AI testing safety and stabilizing
+    payment flow tests. Documentation was also drafted for upcoming project management features. No changes were released
+    to the public.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates drafted new data models and contracts for plans, projects, and tasks, laying the groundwork for future
+      project management capabilities.
+    evidence:
+      commits:
+      - 66cd4c602
+      - 8e376ffb6
+    release_status: dev_only
+  - text: Internal progress continued on AI request observability and cost-safe testing canaries.
+    evidence:
+      commits:
+      - 3432ef7d0
+      - 40f16fb90
+      - 661897e65
+    release_status: dev_only
+  internal_progress:
+  - text: The project established a cost-safe daily AI testing framework, including canary tests and automated evidence recording
+      for contract verification.
+    evidence:
+      commits:
+      - 3432ef7d0
+      - 40f16fb90
+      - 661897e65
+    release_status: dev_only
+  - text: Testing for Stripe-managed payment flows was improved, specifically focusing on invoice download verification and
+      card readiness stability.
+    evidence:
+      commits:
+      - 94094bf22
+      - b60158aac
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: AI testing infrastructure improvements.
+      evidence:
+        commits:
+        - 3432ef7d0
+        - 40f16fb90
+        - 661897e65
+      reason: Internal testing infrastructure and AI canary tests are not user-facing.
+    - text: Project and task contract documentation.
+      evidence:
+        commits:
+        - 66cd4c602
+        - 8e376ffb6
+      reason: Documentation for disabled features (plans, projects, tasks) is unreleased.
+    - text: Stripe payment test stabilization.
+      evidence:
+        commits:
+        - 94094bf22
+        - b60158aac
+      reason: Test stabilization for payment flows is a developer-only improvement.
+    rationale: No user-facing features or improvements were released to the main branch during this period. All work was focused
+      on internal testing infrastructure and documentation for unreleased features.
+  social_video_recommendations: []
+  quality_notes:
+  - Stripe payment tests were stabilized to ensure more reliable verification of invoice downloads and card processing.
+  - A new daily AI test policy was implemented to manage inference costs during automated testing.
+  validation_warnings: []

@@ -34,11 +34,12 @@ def import_active_chat_handler():
     return active_chat_handler
 
 
+# contract-test: supporting surface=gui.web assertions=assistant-speech.execution.text-stream-independent
 def test_set_active_chat_ack_is_sent_before_persistence_task(monkeypatch):
     active_chat_handler = import_active_chat_handler()
 
     manager = FakeManager()
-    cache_service = SimpleNamespace(update_user=AsyncMock())
+    cache_service = SimpleNamespace(get=AsyncMock(return_value=None), update_user=AsyncMock())
     directus_service = SimpleNamespace(update_user=AsyncMock())
     created_coroutines = []
 
@@ -64,11 +65,13 @@ def test_set_active_chat_ack_is_sent_before_persistence_task(monkeypatch):
         ("set_active_chat", "user-123", "device-123", "353bfac8-b5aa-45f1-8ae2-76b3a9257719"),
         ("send_personal_message", "active_chat_set_ack", "user-123", "device-123"),
     ]
-    assert len(created_coroutines) == 1
+    assert len(created_coroutines) == 2
+    cache_service.get.assert_not_awaited()
     cache_service.update_user.assert_not_awaited()
     directus_service.update_user.assert_not_awaited()
 
 
+# contract-test: supporting surface=gui.web assertions=assistant-speech.execution.text-stream-independent
 def test_set_active_chat_skips_persistence_for_client_only_chats(monkeypatch):
     active_chat_handler = import_active_chat_handler()
 
@@ -98,9 +101,11 @@ def test_set_active_chat_skips_persistence_for_client_only_chats(monkeypatch):
         ("set_active_chat", "user-123", "device-123", "demo-for-everyone"),
         ("send_personal_message", "active_chat_set_ack", "user-123", "device-123"),
     ]
-    assert created_coroutines == []
+    assert len(created_coroutines) == 1
+    created_coroutines[0].close()
 
 
+# contract-test: supporting surface=gui.web assertions=chats.streaming.progressive-presentation
 def test_set_active_chat_replays_inflight_ai_stream_snapshot(monkeypatch):
     active_chat_handler = import_active_chat_handler()
 
@@ -122,7 +127,6 @@ def test_set_active_chat_replays_inflight_ai_stream_snapshot(monkeypatch):
 
     def fake_create_task(coroutine):
         created_coroutines.append(coroutine)
-        coroutine.close()
         return SimpleNamespace(done=lambda: False)
 
     monkeypatch.setattr(active_chat_handler.asyncio, "create_task", fake_create_task)
@@ -141,14 +145,22 @@ def test_set_active_chat_replays_inflight_ai_stream_snapshot(monkeypatch):
     assert manager.calls == [
         ("set_active_chat", "user-123", "device-123", "353bfac8-b5aa-45f1-8ae2-76b3a9257719"),
         ("send_personal_message", "active_chat_set_ack", "user-123", "device-123"),
-        ("send_personal_message", "ai_message_update", "user-123", "device-123"),
     ]
+    assert len(created_coroutines) == 2
+    asyncio.run(created_coroutines[0])
+    created_coroutines[1].close()
+    assert manager.calls[-1] == (
+        "send_personal_message",
+        "ai_message_update",
+        "user-123",
+        "device-123",
+    )
     cache_service.get.assert_awaited_once_with(
         active_chat_handler.ai_stream_snapshot_cache_key("353bfac8-b5aa-45f1-8ae2-76b3a9257719")
     )
-    assert len(created_coroutines) == 1
 
 
+# contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,apple-notifications.delivery.idempotent-visible
 def test_native_background_connection_is_not_completion_capable():
     manager = ConnectionManager()
     user_id = "user-123"
@@ -174,6 +186,7 @@ def test_native_background_connection_is_not_completion_capable():
     assert manager.get_active_chat(user_id, device_hash) == "chat-123"
 
 
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
 def test_foreground_chat_visibility_is_chat_specific():
     manager = ConnectionManager()
     user_id = "user-123"
@@ -190,6 +203,7 @@ def test_foreground_chat_visibility_is_chat_specific():
     assert manager.has_foreground_connection_for_chat(user_id, other_chat_id) is True
 
 
+# contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
 def test_hidden_connection_does_not_suppress_chat_notifications():
     manager = ConnectionManager()
     user_id = "user-123"
@@ -209,6 +223,7 @@ def test_hidden_connection_does_not_suppress_chat_notifications():
     assert manager.is_user_completion_capable_active(user_id) is False
 
 
+# contract-test: supporting surface=gui.apple assertions=chats.completion.recovery-takeover,apple-notifications.delivery.idempotent-visible
 def test_native_background_grace_period_is_not_completion_capable():
     manager = ConnectionManager()
     user_id = "user-123"

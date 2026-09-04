@@ -232,12 +232,13 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.plans.attach()` | `om.plans.attach()` | `id, chat_id` | `id, chat_id` | `object` |
 | `om.plans.complete()` | `om.plans.complete()` | `id` | `id` | `object` |
 | `om.plans.create()` | `om.plans.create()` | `input` | `input` | `object` |
-| `om.plans.createAssumption()` | `om.plans.create_assumption()` | `id, assumption_id, text, category, status, required_before, linked_sub_chat_id, linked_task_id, linked_step_ids, linked_criterion_ids, source_count, corrected_text, evidence_summary, blocker_reason, waiver_reason, sources` | `id, input` | `object` |
+| `om.plans.createAssumption()` | `om.plans.create_assumption()` | `id, assumption_id, text, category, status, required_before, linked_sub_chat_id, linked_task_id, linked_criterion_ids, source_count, corrected_text, evidence_summary, blocker_reason, waiver_reason, sources, proof_inputs` | `id, input` | `object` |
 | `om.plans.createCriterion()` | `om.plans.create_criterion()` | `id, input` | `id, input` | `object` |
 | `om.plans.createLearning()` | `om.plans.create_learning()` | `id, input` | `id, input` | `object` |
 | `om.plans.createLearningTasks()` | `om.plans.create_learning_tasks()` | `id, input` | `id, input` | `object` |
 | `om.plans.createReferencePattern()` | `om.plans.create_reference_pattern()` | `id, pattern_id, title, description, category, status, required_before, source_count, linked_task_ids, linked_check_ids, sources, match_rules, anti_patterns, evidence_summary, waiver_reason` | `id, input` | `object` |
 | `om.plans.createVerification()` | `om.plans.create_verification()` | `id, input` | `id, input` | `object` |
+| `om.plans.delete()` | `om.plans.delete()` | `id, confirmed` | `id, confirmed` | `object` |
 | `om.plans.deleteAssumption()` | `om.plans.delete_assumption()` | `id, assumption_id` | `id, assumption_id` | `object` |
 | `om.plans.deleteCriterion()` | `om.plans.delete_criterion()` | `id, criterion_id` | `id, criterion_id` | `object` |
 | `om.plans.deleteLearning()` | `om.plans.delete_learning()` | `id, learning_id` | `id, learning_id` | `object` |
@@ -294,34 +295,37 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.settings.setDarkMode()` | `om.settings.set_dark_mode()` | `enabled` | `enabled` | `object` |
 | `om.settings.setFont()` | `om.settings.set_font()` | `font` | `font` | `object` |
 | `om.settings.setLanguage()` | `om.settings.set_language()` | `language` | `language` | `object` |
-| `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | `defaults` | `defaults` | `object` |
+| `om.settings.setModelDefaults()` | `om.settings.set_model_defaults()` | `default_ai_model_simple, default_ai_model_complex, default_ai_model_most_demanding` | `default_ai_model_simple, default_ai_model_complex, default_ai_model_most_demanding` | `object` |
 | `om.settings.shareDebugLogs()` | `om.settings.share_debug_logs()` | `duration, confirmed` | `confirmed, duration` | `object` |
 
 ## `tasks`
 
 | npm | pip | npm inputs | pip inputs | Return |
 | --- | --- | --- | --- | --- |
+| `om.tasks.addActivityComment()` | `om.tasks.add_activity_comment()` | `id, input, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
 | `om.tasks.addToProject()` | `om.tasks.add_to_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
 | `om.tasks.ask()` | `om.tasks.ask()` | `instruction, create, creates, update, updates, exact_delete, exact_deletes` | `instruction, create, creates, update, updates, exact_delete, exact_deletes` | `object` |
-| `om.tasks.block()` | `om.tasks.block()` | `id, reason, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, reason, input` | `object` |
-| `om.tasks.complete()` | `om.tasks.complete()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.block()` | `om.tasks.block()` | `id, reason, input` | `id, reason, reason_text, input` | `object` |
+| `om.tasks.complete()` | `om.tasks.complete()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
 | `om.tasks.create()` | `om.tasks.create()` | `input` | `input` | `object` |
-| `om.tasks.delete()` | `om.tasks.delete()` | `id, confirmed, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
-| `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | `id, confirmed, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
-| `om.tasks.done()` | `om.tasks.done()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.edit()` | `om.tasks.edit()` | `id, input, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
-| `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
-| `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, priority, team_id` | `list` |
-| `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.delete()` | `om.tasks.delete()` | `id, confirmed, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
+| `om.tasks.deleteActivityComment()` | `om.tasks.delete_activity_comment()` | `id, entry_id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, entry_id, input` | `object` |
+| `om.tasks.deleteById()` | `om.tasks.delete_by_id()` | `id, confirmed, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, input` | `id, confirmed, input` | `object` |
+| `om.tasks.done()` | `om.tasks.done()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.edit()` | `om.tasks.edit()` | `id, input, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
+| `om.tasks.history()` | `om.tasks.history()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, limit` | `id, limit, input` | `list` |
+| `om.tasks.list()` | `om.tasks.list()` | `status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `status, chat_id, project_id, plan_id, labels, tags, external_chat, priority, team_id` | `list` |
+| `om.tasks.listActivity()` | `om.tasks.list_activity()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority, limit` | `id, input` | `list` |
+| `om.tasks.move()` | `om.tasks.move()` | `id, move, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.removeFromProject()` | `om.tasks.remove_from_project()` | `id, project_id, input` | `id, project_id, input` | `object` |
-| `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
+| `om.tasks.reorder()` | `om.tasks.reorder()` | `id, move, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, move, input` | `list` |
 | `om.tasks.restore()` | `om.tasks.restore()` | `id, entry_id, state, input` | `id, entry_id, state, input` | `object` |
-| `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.skip()` | `om.tasks.skip()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.start()` | `om.tasks.start()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.startAI()` | `om.tasks.start_ai()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.unblock()` | `om.tasks.unblock()` | `id, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
-| `om.tasks.update()` | `om.tasks.update()` | `id, input, status, chat_id, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
+| `om.tasks.show()` | `om.tasks.show()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.skip()` | `om.tasks.skip()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.start()` | `om.tasks.start()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.startAI()` | `om.tasks.start_ai()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.unblock()` | `om.tasks.unblock()` | `id, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input` | `object` |
+| `om.tasks.update()` | `om.tasks.update()` | `id, input, status, chat_id, external_chat, project_id, plan_id, team_id, labels, tags, priority` | `id, input, input` | `object` |
 
 ## `teams`
 
@@ -349,6 +353,13 @@ Run `python3 scripts/generate_sdk_reference.py --check` to verify this file is c
 | `om.teams.update()` | `om.teams.update()` | `id, input` | `id, input` | `object` |
 | `om.teams.updateGeneratedProfileImage()` | `om.teams.update_generated_profile_image()` | `id, icon_name, background_color` | `id, input, input` | `object` |
 | `om.teams.usage()` | `om.teams.usage()` | `id, member_user_id` | `id, member_user_id` | `list` |
+
+## `wikipedia`
+
+| npm | pip | npm inputs | pip inputs | Return |
+| --- | --- | --- | --- | --- |
+| `om.wikipedia.search()` | `om.wikipedia.search()` | `input, language, limit` | `input, language, limit` | `object` |
+| `om.wikipedia.summary()` | `om.wikipedia.summary()` | `title, language` | `title, language` | `object` |
 
 ## `workflows`
 

@@ -112,6 +112,42 @@ def test_inspection_error_is_never_safe_deletable():
     assert result["reason_code"] == "inspection_failed"
 
 
+def test_missing_registered_worktree_is_retirable_after_idle_threshold(tmp_path):
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "missing",
+        "path": str(tmp_path / "agent-missing"),
+        "path_exists": False,
+        "idle_hours": 100,
+        "changed_files": [],
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "missing_worktree"
+    assert result["reason_code"] == "registered_path_missing"
+
+
+def test_missing_git_admin_is_recoverable_not_generic_malformed(tmp_path):
+    sessions = load_sessions_module()
+    candidate = {
+        "session_id": "orphan",
+        "path": str(tmp_path / "agent-orphan"),
+        "path_exists": True,
+        "missing_gitdir": "/repo/.git/worktrees/agent-orphan",
+        "idle_hours": 100,
+        "changed_files": [],
+        "inspection_error": "fatal: not a git repository",
+        "metadata": {},
+    }
+
+    result = sessions._classify_worktree_candidate(candidate, "origin/dev", 48, approved_obsolete=set())
+
+    assert result["classification"] == "orphaned_git_metadata"
+    assert result["reason_code"] == "git_admin_missing"
+
+
 def test_dirty_integration_worktree_is_never_disposable():
     sessions = load_sessions_module()
     candidate = {
@@ -199,7 +235,12 @@ def test_remove_unlinked_reviewed_worktree_uses_contained_directory_cleanup(monk
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", managed)
     monkeypatch.setattr(sessions, "_run_cmd", lambda _cmd: (1, "", "not a working tree"))
     removed: list[Path] = []
-    monkeypatch.setattr(sessions.shutil, "rmtree", lambda path: removed.append(Path(path)))
+
+    def remove(path):
+        removed.append(Path(path))
+        Path(path).rmdir()
+
+    monkeypatch.setattr(sessions.shutil, "rmtree", remove)
 
     sessions._remove_reconciled_worktree({"path": str(worktree), "linked": False})
 
@@ -299,6 +340,46 @@ def test_related_test_discovery_prunes_managed_worktree_copies(tmp_path):
     report = sessions._find_tests_for_file("scripts/storage_guard.py", checkout_root=tmp_path)
 
     assert report["unit_tests"] == ["scripts/test_storage_guard.py"]
+
+
+def test_python_test_discovery_prefers_exact_sibling_over_global_stem_matches(tmp_path):
+    sessions = load_sessions_module()
+    source = tmp_path / "backend" / "engineering_control_plane" / "api.py"
+    exact = source.parent / "tests" / "test_api.py"
+    unrelated = tmp_path / "backend" / "tests" / "test_api_key_scopes.py"
+    source.parent.mkdir(parents=True)
+    exact.parent.mkdir(parents=True)
+    unrelated.parent.mkdir(parents=True)
+    source.write_text("pass\n", encoding="utf-8")
+    exact.write_text("def test_api(): pass\n", encoding="utf-8")
+    unrelated.write_text("def test_api_key_scopes(): pass\n", encoding="utf-8")
+
+    report = sessions._find_tests_for_file(
+        "backend/engineering_control_plane/api.py",
+        checkout_root=tmp_path,
+    )
+
+    assert report["unit_tests"] == ["backend/engineering_control_plane/tests/test_api.py"]
+
+
+def test_python_test_discovery_honors_bounded_source_test_directive(tmp_path):
+    sessions = load_sessions_module()
+    source = tmp_path / "backend" / "engineering_control_plane" / "coordination_repository.py"
+    contract_test = source.parent / "tests" / "test_coordination.py"
+    source.parent.mkdir(parents=True)
+    contract_test.parent.mkdir(parents=True)
+    source.write_text(
+        "# test-file: backend/engineering_control_plane/tests/test_coordination.py\n",
+        encoding="utf-8",
+    )
+    contract_test.write_text("def test_coordination(): pass\n", encoding="utf-8")
+
+    report = sessions._find_tests_for_file(
+        "backend/engineering_control_plane/coordination_repository.py",
+        checkout_root=tmp_path,
+    )
+
+    assert report["unit_tests"] == ["backend/engineering_control_plane/tests/test_coordination.py"]
 
 
 def test_cli_refuses_lower_idle_threshold_without_only_scope(monkeypatch, capsys):

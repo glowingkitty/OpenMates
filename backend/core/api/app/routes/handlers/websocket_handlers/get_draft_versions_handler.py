@@ -43,7 +43,11 @@
 #       "versions": {
 #         "<chat_id>": 3,   # current server draft_v (0 = no draft)
 #         ...
-#       }
+#       },
+#       "tombstone_versions": {
+#         "<chat_id>": 4,   # authoritative deletion version, when present
+#         ...
+#       },
 #     }
 #   }
 
@@ -167,6 +171,7 @@ async def handle_get_draft_versions(
         )
 
         versions: Dict[str, int] = {}
+        tombstone_versions: Dict[str, int] = {}
         unavailable_chat_ids: List[str] = []
 
         for chat_entry in chats:
@@ -175,6 +180,16 @@ async def handle_get_draft_versions(
                 continue
 
             try:
+                cached_draft = await cache_service.get_user_draft_from_cache(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                is_tombstoned = getattr(cache_service, "is_user_draft_tombstoned", None)
+                if cached_draft is not None and is_tombstoned and await is_tombstoned(user_id, chat_id):
+                    versions[chat_id] = 0
+                    tombstone_versions[chat_id] = int(cached_draft[1] or 0)
+                    continue
+
                 # get_user_draft_from_cache returns (encrypted_draft_md, draft_v, encrypted_draft_preview) or None.
                 # We only need the version — content and preview are not sent here.
                 draft_cache_result = await get_authoritative_user_draft(
@@ -207,6 +222,7 @@ async def handle_get_draft_versions(
                 "type": "draft_versions_response",
                 "payload": {
                     "versions": versions,
+                    "tombstone_versions": tombstone_versions,
                     "unavailable_chat_ids": unavailable_chat_ids,
                 },
             }

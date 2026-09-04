@@ -24,7 +24,7 @@ take_photo:
   verified_by_human: []
 attach_files:
   context: Button text for attaching files
-  en: Attach files
+  en: Files
   de: Dateien anhängen
   zh: 附加文件
   es: Adjuntar archivos
@@ -72,7 +72,7 @@ record_audio:
   verified_by_human: []
 share_location:
   context: Button text for sharing location
-  en: Share location
+  en: Location
   de: Standort teilen
   zh: 分享位置
   es: Compartir ubicación
@@ -96,7 +96,7 @@ share_location:
   verified_by_human: []
 sketch:
   context: Tooltip for the sketch button — opens the drawing canvas overlay
-  en: Sketch
+  en: Drawing
   de: Skizze
   zh: 草图
   es: Boceto

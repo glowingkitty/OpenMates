@@ -9,7 +9,7 @@
 
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -61,15 +61,23 @@ import {
   type ShareDuration,
 } from "./shareEncryption.js";
 import {
+  buildBlockUserTaskInput,
+  buildCreateTaskActivityInput,
   buildCreateUserTaskInput,
   buildUpdateUserTaskInput,
+  decryptTaskActivityEntries,
+  decryptTaskActivityEntry,
   decryptUserTask,
   decryptUserTasks,
+  externalChatLookupHash,
   findTask,
   labelHashes,
   normalizeLabels,
   normalizeTaskPriority,
   type DecryptedUserTask,
+  type DecryptedTaskActivityEntry,
+  type ExternalChatContext,
+  type TaskActivityCreateOptions,
   type TaskCreateOptions,
   type TaskPriorityLevel,
   type TaskUpdateOptions,
@@ -89,6 +97,7 @@ import {
   decryptUserPlan,
   decryptUserPlans,
   planKeyFromRecord,
+  serializeAssumptionProofInputs,
   type DecryptedPlanLearning,
   type DecryptedUserPlan,
   type PlanCriterionCreateOptions,
@@ -99,6 +108,7 @@ import {
   type PlanVerificationUpdateOptions,
   type PlanCreateOptions,
   type PlanUpdateOptions,
+  type UserPlanFlow,
 } from "./plansCli.js";
 import {
   buildEncryptedObjectSlugMetadata,
@@ -142,6 +152,7 @@ import type {
   UserPlanUpdateInput,
   UserPlanVerificationRecord,
   UserTaskActionInput,
+  UserTaskActivityRecord,
   UserTaskCreateInput,
   UserTaskReorderInput,
   UserTaskRecord,
@@ -158,6 +169,9 @@ const DEFAULT_RECOVERY_TIMEOUT_MS = 60_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
 const SKILL_TASK_POLL_TIMEOUT_MS = 1_200_000;
 const SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS = 500;
+const CODE_RUN_POLL_INTERVAL_MS = 1_000;
+const CODE_RUN_POLL_TIMEOUT_MS = 1_200_000;
+const CODE_RUN_TERMINAL_STATUSES = new Set(["finished", "failed", "timeout", "cancelled"]);
 const PROMPT_INJECTION_DISABLED = "disabled";
 const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -222,6 +236,12 @@ export interface ChatSendOptions extends ChatCreateOptions {
   connectedAccountTokenRefInputs?: ConnectedAccountTurnTokenRefInput[];
   senderName?: string;
   teamMemberMentions?: string[];
+}
+
+export interface AiModelDefaults {
+  default_ai_model_simple?: string | null;
+  default_ai_model_complex?: string | null;
+  default_ai_model_most_demanding?: string | null;
 }
 
 export interface ConnectedAccountDirectoryEntry {
@@ -450,10 +470,13 @@ const IDEABUCKET_SETTINGS_ITEM_TYPE = "processing_settings";
 const IDEABUCKET_DEFAULT_PROCESSING_TIMES = ["09:00"];
 const IDEABUCKET_PROCESSING_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; teamId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
+export type TaskListFilters = { status?: UserTaskStatus; chatId?: string; externalChat?: ExternalChatContext; projectId?: string; planId?: string; teamId?: string; labels?: string[]; tags?: string[]; priority?: TaskPriorityLevel | number | null };
+export type TaskBlockOptions = TaskListFilters & { reasonText?: string };
 export type TaskPlainCreateOptions = TaskCreateOptions;
 export type TaskPlainUpdateOptions = TaskUpdateOptions;
 export type TaskRecord = Omit<DecryptedUserTask, "encrypted">;
+export type TaskActivityRecord = DecryptedTaskActivityEntry;
+export type TaskActivityInput = TaskActivityCreateOptions;
 export type PlanRecord = Omit<DecryptedUserPlan, "encrypted">;
 export type PlanPlainCreateOptions = PlanCreateOptions;
 export type PlanPlainUpdateOptions = PlanUpdateOptions;
@@ -511,6 +534,30 @@ export interface SdkSessionResponse {
 export interface ChatResponse {
   content?: string;
   [key: string]: unknown;
+}
+
+function appSkillChatContent(value: unknown): string {
+  if (!value || typeof value !== "object") return "";
+  const record = value as Record<string, unknown>;
+  if (typeof record.content === "string") return record.content;
+  if (typeof record.response === "string") return record.response;
+  if (typeof record.answer === "string") return record.answer;
+  const choices = record.choices;
+  if (Array.isArray(choices)) {
+    const first = choices[0] as Record<string, unknown> | undefined;
+    const message = first?.message as Record<string, unknown> | undefined;
+    if (typeof message?.content === "string") return message.content;
+    if (typeof first?.text === "string") return first.text;
+  }
+  return appSkillChatContent(record.data);
+}
+
+function sdkOrigin(apiUrl: string): string {
+  if (process.env.OPENMATES_APP_URL) return process.env.OPENMATES_APP_URL.replace(/\/$/, "");
+  const url = new URL(apiUrl);
+  if (url.hostname === "api.dev.openmates.org") return "https://app.dev.openmates.org";
+  if (url.hostname === "api.openmates.org") return "https://openmates.org";
+  return url.origin;
 }
 
 export interface ChatMessageRecord {
@@ -653,6 +700,7 @@ export class OpenMates {
   readonly tasks: OpenMatesTasks;
   readonly teams: OpenMatesTeams;
   readonly workflows: OpenMatesWorkflows;
+  readonly wikipedia: OpenMatesWikipedia;
   private readonly apiKey?: string;
   private readonly apiUrl: string;
   private readonly deviceId: string;
@@ -692,10 +740,14 @@ export class OpenMates {
     this.tasks = new OpenMatesTasks(this);
     this.teams = new OpenMatesTeams(this);
     this.workflows = new OpenMatesWorkflows(this);
+    this.wikipedia = new OpenMatesWikipedia(this);
   }
 
   async runAppSkill<T = unknown>(appId: string, skillId: string, input: unknown, options?: AppSkillRunOptions): Promise<T> {
     const response = await this.request<unknown>(`/v1/apps/${appId}/skills/${skillId}`, withAppSkillRunOptions(input, options));
+    if (appId === "code" && skillId === "run") {
+      return this.resolveCodeRunSkillResponse(response) as Promise<T>;
+    }
     return this.resolveAsyncSkillResponse(response) as Promise<T>;
   }
 
@@ -991,6 +1043,7 @@ export class OpenMates {
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${this.apiKey}`,
+      Origin: sdkOrigin(this.apiUrl),
       "X-OpenMates-SDK": this.sdkName,
       "X-OpenMates-Device-Identity": this.deviceId,
     };
@@ -1045,6 +1098,72 @@ export class OpenMates {
     }
 
     return responseData;
+  }
+
+  private async resolveCodeRunSkillResponse(responseData: unknown): Promise<unknown> {
+    const envelope = responseData as Record<string, unknown>;
+    const data = (envelope?.data ?? envelope) as Record<string, unknown>;
+    const results = Array.isArray(data?.results) ? data.results as unknown[] : [];
+    if (results.length === 0) return responseData;
+
+    const resolvedResults = await Promise.all(results.map(async (result) => {
+      if (!result || typeof result !== "object" || Array.isArray(result)) return result;
+      const item = result as Record<string, unknown>;
+      const statusPath = typeof item.status_path === "string" ? item.status_path : null;
+      if (!statusPath) return item;
+      return { ...item, final: await this.pollCodeRunUntilComplete(statusPath) };
+    }));
+
+    const resolvedData = { ...data, results: resolvedResults };
+    if (envelope && typeof envelope === "object" && "success" in envelope) {
+      return { ...envelope, data: resolvedData };
+    }
+    return resolvedData;
+  }
+
+  private async pollCodeRunUntilComplete(statusPath: string): Promise<Record<string, unknown>> {
+    const path = this.normalizeCodeRunStatusPath(statusPath);
+    const started = Date.now();
+    let lastTransientError: string | null = null;
+    while (Date.now() - started < CODE_RUN_POLL_TIMEOUT_MS) {
+      let response: Response;
+      try {
+        response = await fetch(`${this.apiUrl}${path}`, {
+          method: "GET",
+          headers: this.headers(false),
+        });
+      } catch (error) {
+        lastTransientError = error instanceof Error ? error.message : String(error);
+        await new Promise((resolve) => setTimeout(resolve, CODE_RUN_POLL_INTERVAL_MS));
+        continue;
+      }
+
+      if (!response.ok) {
+        if (response.status >= SKILL_TASK_POLL_TRANSIENT_ERROR_STATUS) {
+          lastTransientError = `HTTP ${response.status}`;
+          await new Promise((resolve) => setTimeout(resolve, CODE_RUN_POLL_INTERVAL_MS));
+          continue;
+        }
+        throw new OpenMatesApiError(response.status, await this.safeJson(response));
+      }
+
+      lastTransientError = null;
+      const status = await this.parseResponse<Record<string, unknown>>(response);
+      const value = typeof status.status === "string" ? status.status : "";
+      if (CODE_RUN_TERMINAL_STATUSES.has(value)) return status;
+      await new Promise((resolve) => setTimeout(resolve, CODE_RUN_POLL_INTERVAL_MS));
+    }
+    if (lastTransientError) {
+      throw new Error(`Code Run did not complete within ${CODE_RUN_POLL_TIMEOUT_MS / 1000}s; last polling error: ${lastTransientError}`);
+    }
+    throw new Error(`Code Run did not complete within ${CODE_RUN_POLL_TIMEOUT_MS / 1000}s`);
+  }
+
+  private normalizeCodeRunStatusPath(statusPath: string): string {
+    if (!statusPath.startsWith("/v1/code/run/")) {
+      throw new OpenMatesConfigError("Code Run returned an invalid status path.");
+    }
+    return statusPath;
   }
 
   private async pollTaskUntilComplete(taskId: string): Promise<TaskStatusResponse> {
@@ -1505,7 +1624,6 @@ async function toPublicPlanCriterion(record: UserPlanCriterionRecord, planKey: U
     type: record.type,
     status: record.status,
     required: record.required,
-    linkedStepIds: record.linked_step_ids ?? [],
     linkedTaskIds: record.linked_task_ids ?? [],
     verificationIds: record.verification_ids ?? [],
     createdAt: typeof record.created_at === "number" ? record.created_at : null,
@@ -1522,7 +1640,6 @@ async function toPublicPlanAssumption(record: UserPlanAssumptionRecord, planKey:
     requiredBefore: record.required_before,
     linkedSubChatId: record.linked_sub_chat_id ?? null,
     linkedTaskId: record.linked_task_id ?? null,
-    linkedStepIds: record.linked_step_ids ?? [],
     linkedCriterionIds: record.linked_criterion_ids ?? [],
     sourceCount: record.source_count,
     correctedText: await decryptOptionalPlanField(record.encrypted_corrected_text, planKey),
@@ -1599,14 +1716,15 @@ async function buildPlanAssumptionCreateInput(plan: DecryptedUserPlan, masterKey
     required_before: input.requiredBefore,
     linked_sub_chat_id: input.linkedSubChatId,
     linked_task_id: input.linkedTaskId,
-    linked_step_ids: input.linkedStepIds,
     linked_criterion_ids: input.linkedCriterionIds,
     source_count: input.sourceCount,
     encrypted_corrected_text: input.correctedText !== undefined ? await encryptWithAesGcmCombined(input.correctedText, planKey) : undefined,
     encrypted_evidence_summary: input.evidenceSummary !== undefined ? await encryptWithAesGcmCombined(input.evidenceSummary, planKey) : undefined,
     encrypted_blocker_reason: input.blockerReason !== undefined ? await encryptWithAesGcmCombined(input.blockerReason, planKey) : undefined,
     encrypted_waiver_reason: input.waiverReason !== undefined ? await encryptWithAesGcmCombined(input.waiverReason, planKey) : undefined,
-    encrypted_sources: input.sources !== undefined ? await encryptWithAesGcmCombined(input.sources, planKey) : undefined,
+    encrypted_sources: input.proofInputs !== undefined
+      ? await encryptWithAesGcmCombined(serializeAssumptionProofInputs(input.proofInputs), planKey)
+      : input.sources !== undefined ? await encryptWithAesGcmCombined(input.sources, planKey) : undefined,
     created_at: timestamp,
     updated_at: timestamp,
   };
@@ -1625,7 +1743,8 @@ async function buildPlanAssumptionUpdateInput(plan: DecryptedUserPlan, masterKey
   if (input.evidenceSummary !== undefined) patch.encrypted_evidence_summary = await encryptWithAesGcmCombined(input.evidenceSummary, planKey);
   if (input.blockerReason !== undefined) patch.encrypted_blocker_reason = await encryptWithAesGcmCombined(input.blockerReason, planKey);
   if (input.waiverReason !== undefined) patch.encrypted_waiver_reason = await encryptWithAesGcmCombined(input.waiverReason, planKey);
-  if (input.sources !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(input.sources, planKey);
+  if (input.proofInputs !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(serializeAssumptionProofInputs(input.proofInputs), planKey);
+  else if (input.sources !== undefined) patch.encrypted_sources = await encryptWithAesGcmCombined(input.sources, planKey);
   return patch;
 }
 
@@ -1789,15 +1908,15 @@ export class OpenMatesChats {
   }
 
   async load(chatId: string): Promise<Record<string, unknown>> {
-    let payload: Record<string, unknown>;
+    const resolvedChatId = CANONICAL_UUID_PATTERN.test(chatId) ? chatId : await resolveSdkChatId(this.client, chatId);
     try {
-      payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(chatId)}`);
+      const payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}`);
+      return this.client.decryptLoadedChatPayload(payload);
     } catch (error) {
       if (!isSdkChatNotFound(error)) throw error;
-      const resolvedChatId = await resolveSdkChatId(this.client, chatId);
-      payload = await this.client.get<Record<string, unknown>>(`/v1/sdk/chats/${encodeURIComponent(resolvedChatId)}`);
+      if (resolvedChatId === chatId) throw error;
+      throw new OpenMatesConfigError(`Chat '${chatId}' was not found.`);
     }
-    return this.client.decryptLoadedChatPayload(payload);
   }
 
   async addToProject(chatId: string, projectId: string, options: { folder?: string } = {}): Promise<ProjectItemRecord> {
@@ -2016,19 +2135,34 @@ export class OpenMatesChats {
     if (options.saveToAccount === true || goal || options.teamId) {
       return this.sendSaved(finalMessage, options);
     }
-    const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
-      message: finalMessage,
-      history,
-      save_to_account: false,
-      memory_ids: options.memoryIds ?? [],
-      model: options.model,
-      focus_mode: options.focusMode
-        ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
-        : undefined,
-      connected_account_directory: options.connectedAccountDirectory ?? [],
-      connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
-    });
-    return result.response ?? result;
+    try {
+      const result = await this.client.request<{ response?: ChatResponse }>("/v1/sdk/chats", {
+        message: finalMessage,
+        history,
+        save_to_account: false,
+        memory_ids: options.memoryIds ?? [],
+        model: options.model,
+        focus_mode: options.focusMode
+          ? { app_id: options.focusMode.appId, focus_mode_id: options.focusMode.focusModeId }
+          : undefined,
+        connected_account_directory: options.connectedAccountDirectory ?? [],
+        connected_account_token_ref_inputs: options.connectedAccountTokenRefInputs ?? [],
+      });
+      const response: ChatResponse = result.response ?? result;
+      return options.model && response.modelName === undefined && response.model_name === undefined
+        ? { ...response, modelName: options.model }
+        : response;
+    } catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 401) throw error;
+      const result = await this.client.runAppSkill<Record<string, unknown>>("ai", "ask", {
+        messages: [...history, { role: "user", content: finalMessage }],
+        stream: false,
+        apps_enabled: true,
+        is_incognito: true,
+        model: options.model,
+      });
+      return { content: appSkillChatContent(result), modelName: options.model, raw: result };
+    }
   }
 
   private async sendSaved(message: string, options: ChatSendOptions): Promise<ChatResponse> {
@@ -3071,7 +3205,7 @@ export class OpenMatesSettings {
     return this.client.request<Record<string, unknown>>("/v1/sdk/settings/font", { font });
   }
 
-  async setModelDefaults(defaults: Record<string, string | null>): Promise<Record<string, unknown>> {
+  async setModelDefaults(defaults: AiModelDefaults): Promise<Record<string, unknown>> {
     return this.client.request<Record<string, unknown>>("/v1/sdk/settings/ai-model-defaults", defaults);
   }
 
@@ -3423,9 +3557,29 @@ export class OpenMatesProjects {
 
 export class OpenMatesTasks {
   private readonly client: OpenMates;
+  readonly dependencies: {
+    add: (taskId: string, target: WorkDependencyTarget, filters?: TaskListFilters) => Promise<Record<string, unknown>>;
+    remove: (taskId: string, target: WorkDependencyTarget, filters?: TaskListFilters) => Promise<Record<string, unknown>>;
+    list: (taskId: string, filters?: TaskListFilters) => Promise<{ dependencies: Record<string, unknown>[]; blockers: Record<string, unknown>[] }>;
+  };
 
   constructor(client: OpenMates) {
     this.client = client;
+    this.dependencies = {
+      add: async (taskId, target, filters = {}) => {
+        const task = await this.resolve(taskId, filters);
+        return client.request(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/dependencies`, { target_ref: `${target.kind}:${target.id}` });
+      },
+      remove: async (taskId, target, filters = {}) => {
+        const task = await this.resolve(taskId, filters);
+        return client.delete(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/dependencies/${target.kind}/${encodeURIComponent(target.id)}`);
+      },
+      list: async (taskId, filters = {}) => {
+        const task = await this.resolve(taskId, filters);
+        const response = await client.get<{ dependencies?: Record<string, unknown>[]; blockers?: Record<string, unknown>[] }>(`/v1/user-tasks/${encodeURIComponent(task.taskId)}/dependencies`);
+        return { dependencies: response.dependencies ?? [], blockers: response.blockers ?? [] };
+      },
+    };
   }
 
   async list(filters: TaskListFilters = {}): Promise<TaskRecord[]> {
@@ -3434,6 +3588,44 @@ export class OpenMatesTasks {
 
   async show(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
     return toPublicTask(await this.resolve(id, filters));
+  }
+
+  async listActivity(id: string, filters: TaskListFilters & { limit?: number } = {}): Promise<TaskActivityRecord[]> {
+    const task = await this.resolve(id, filters);
+    const records: UserTaskActivityRecord[] = [];
+    let cursor: string | undefined;
+    do {
+      const response = await this.client.get<{ entries?: UserTaskActivityRecord[]; next_cursor?: string | null }>(withQuery(
+        `/v1/user-tasks/${encodeURIComponent(task.taskId)}/activity`,
+        { team_id: filters.teamId, cursor, limit: filters.limit },
+      ));
+      records.push(...(response.entries ?? []));
+      const nextCursor = response.next_cursor ?? undefined;
+      if (nextCursor && nextCursor === cursor) throw new OpenMatesConfigError("Task Activity pagination cursor did not advance");
+      cursor = nextCursor;
+    } while (cursor);
+    return decryptTaskActivityEntries(task, await this.client.masterKey(), records);
+  }
+
+  async addActivityComment(id: string, input: TaskActivityInput, filters: TaskListFilters = {}): Promise<TaskActivityRecord> {
+    const task = await this.resolve(id, filters);
+    const masterKey = await this.client.masterKey();
+    const response = await this.client.request<{ entry?: UserTaskActivityRecord }>(withQuery(
+      `/v1/user-tasks/${encodeURIComponent(task.taskId)}/activity`,
+      { team_id: filters.teamId },
+    ), await buildCreateTaskActivityInput(task, masterKey, input));
+    if (!response.entry) throw new OpenMatesApiError(500, { detail: "User task activity response missing entry" });
+    return decryptTaskActivityEntry(task, masterKey, response.entry);
+  }
+
+  async deleteActivityComment(id: string, entryId: string, filters: TaskListFilters = {}): Promise<TaskActivityRecord> {
+    const task = await this.resolve(id, filters);
+    const response = await this.client.delete<{ entry?: UserTaskActivityRecord }>(withQuery(
+      `/v1/user-tasks/${encodeURIComponent(task.taskId)}/activity/${encodeURIComponent(entryId)}`,
+      { team_id: filters.teamId },
+    ));
+    if (!response.entry) throw new OpenMatesApiError(500, { detail: "User task activity response missing entry" });
+    return decryptTaskActivityEntry(task, await this.client.masterKey(), response.entry);
   }
 
   async history(id: string, filters: TaskListFilters & { limit?: number } = {}): Promise<Record<string, unknown>[]> {
@@ -3594,8 +3786,11 @@ export class OpenMatesTasks {
     return this.done(id, filters);
   }
 
-  async block(id: string, reason: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
-    return this.actionById(id, "block", { blocked_reason_code: reason }, filters);
+  async block(id: string, reason: string, options: TaskBlockOptions = {}): Promise<TaskRecord> {
+    const { reasonText, ...filters } = options;
+    const task = await this.resolve(id, filters);
+    const action = await buildBlockUserTaskInput(task, await this.client.masterKey(), { reasonCode: reason, reasonText });
+    return this.actionById(id, "block", action, filters);
   }
 
   async unblock(id: string, filters: TaskListFilters = {}): Promise<TaskRecord> {
@@ -3630,13 +3825,17 @@ export class OpenMatesTasks {
 
   private async listRaw(filters: TaskListFilters = {}): Promise<UserTaskRecord[]> {
     const canonicalFilters = await canonicalizeTaskFilters(this.client, filters);
-    const masterKey = filters.labels || filters.tags ? await this.client.masterKey() : undefined;
+    const masterKey = filters.labels || filters.tags || filters.externalChat ? await this.client.masterKey() : undefined;
     const response = await this.client.get<{ tasks?: UserTaskRecord[] }>(withQuery("/v1/user-tasks", {
       status: canonicalFilters.status,
       chat_id: canonicalFilters.chatId,
       project_id: canonicalFilters.projectId,
       plan_id: canonicalFilters.planId,
       label_hash: masterKey ? labelHashes(masterKey, normalizeLabels(filters.labels ?? filters.tags ?? [])) : undefined,
+      external_chat_provider: canonicalFilters.externalChat?.provider,
+      external_chat_lookup_hash: masterKey && canonicalFilters.externalChat
+        ? externalChatLookupHash(masterKey, canonicalFilters.externalChat)
+        : undefined,
       priority: normalizeTaskPriority(canonicalFilters.priority),
       team_id: canonicalFilters.teamId,
     }));
@@ -3730,7 +3929,6 @@ export interface PlanAssumptionCreateOptions {
   requiredBefore?: string;
   linkedSubChatId?: string | null;
   linkedTaskId?: string | null;
-  linkedStepIds?: string[];
   linkedCriterionIds?: string[];
   sourceCount?: number;
   correctedText?: string;
@@ -3738,7 +3936,14 @@ export interface PlanAssumptionCreateOptions {
   blockerReason?: string;
   waiverReason?: string;
   sources?: string;
+  proofInputs?: PlanAssumptionProofInput[];
 }
+
+export type WorkDependencyTarget = { kind: "plan" | "task"; id: string };
+export type PlanAssumptionProofInput =
+  | { kind: "embed"; embedId: string; startLine?: number; endLine?: number }
+  | { kind: "file"; path: string; startLine?: number; endLine?: number }
+  | { kind: "url"; url: string };
 
 export type PlanAssumptionUpdateOptions = Partial<Omit<PlanAssumptionCreateOptions, "assumptionId" | "text">>;
 
@@ -3795,7 +4000,6 @@ export type PlanLearningRecord = Omit<DecryptedPlanLearning, "encrypted">;
 export class OpenMatesPlans {
   private readonly client: OpenMates;
   readonly goal: { set: (planId: string, value: string) => Promise<PlanRecord> };
-  readonly currentFocus: { set: (planId: string, value: string) => Promise<PlanRecord>; clear: (planId: string) => Promise<PlanRecord> };
   readonly successCriteria: {
     add: (planId: string, input: PlanCriterionCreateOptions) => Promise<PlanCriterionRecord>;
     update: (planId: string, criterionId: string, input: PlanCriterionUpdateOptions) => Promise<PlanCriterionRecord>;
@@ -3807,7 +4011,10 @@ export class OpenMatesPlans {
     update: (planId: string, taskId: string, input: TaskUpdateOptions) => Promise<Record<string, unknown>>;
     remove: (planId: string, taskId: string) => Promise<Record<string, unknown>>;
   };
-  readonly userFlows: PlanTextSectionFacade;
+  readonly userFlows: {
+    set: (planId: string, value: UserPlanFlow[]) => Promise<PlanRecord>;
+    clear: (planId: string) => Promise<PlanRecord>;
+  };
   readonly scopeIn: PlanTextSectionFacade;
   readonly scopeOut: PlanTextSectionFacade;
   readonly openQuestions: PlanTextSectionFacade & {
@@ -3849,14 +4056,14 @@ export class OpenMatesPlans {
   };
   readonly context: { artifacts: PlanTextSectionFacade };
   readonly activity: { list: (planId: string, options?: { limit?: number }) => Promise<Record<string, unknown>[]> };
+  readonly dependencies: { add: (planId: string, target: WorkDependencyTarget) => Promise<Record<string, unknown>>; remove: (planId: string, target: WorkDependencyTarget) => Promise<Record<string, unknown>>; list: (planId: string) => Promise<{ dependencies: Record<string, unknown>[]; blockers: Record<string, unknown>[] }> };
+  readonly revisions: { create: (planId: string) => Promise<Record<string, unknown>>; list: (planId: string) => Promise<Record<string, unknown>[]> };
+  readonly review: { submit: (planId: string) => Promise<{ revision: Record<string, unknown>; reviewUrl: string }> };
+  readonly approval: { status: (planId: string) => Promise<PlanRecord> };
 
   constructor(client: OpenMates) {
     this.client = client;
     this.goal = { set: (planId, value) => this.update(planId, { goal: value }) };
-    this.currentFocus = {
-      set: (planId, value) => this.update(planId, { currentFocus: value }),
-      clear: (planId) => this.update(planId, { currentFocus: "" }),
-    };
     this.successCriteria = {
       add: (planId, input) => this.createCriterion(planId, input),
       update: (planId, criterionId, input) => this.updateCriterion(planId, criterionId, input),
@@ -3868,7 +4075,10 @@ export class OpenMatesPlans {
       update: async (planId, taskId, input) => this.client.tasks.update(taskId, input, { planId }),
       remove: async (planId, taskId) => this.client.tasks.delete(taskId, { confirmed: true, filters: { planId } }),
     };
-    this.userFlows = this.textSectionFacade("userFlows");
+    this.userFlows = {
+      set: (planId, value) => this.update(planId, { userFlows: value }),
+      clear: (planId) => this.update(planId, { userFlows: [] }),
+    };
     this.scopeIn = this.textSectionFacade("scopeIn");
     this.scopeOut = this.textSectionFacade("scopeOut");
     this.openQuestions = {
@@ -3916,6 +4126,17 @@ export class OpenMatesPlans {
     };
     this.context = { artifacts: this.textSectionFacade("context") };
     this.activity = { list: (planId, options = {}) => this.history(planId, options) };
+    this.dependencies = {
+      add: (planId, target) => this.addDependency(planId, target),
+      remove: (planId, target) => this.removeDependency(planId, target),
+      list: (planId) => this.listDependencies(planId),
+    };
+    this.revisions = {
+      create: (planId) => this.createRevision(planId),
+      list: (planId) => this.listRevisions(planId),
+    };
+    this.review = { submit: (planId) => this.submitForReview(planId) };
+    this.approval = { status: (planId) => this.show(planId) };
   }
 
   private textSectionFacade(field: keyof PlanUpdateOptions): PlanTextSectionFacade {
@@ -4032,7 +4253,7 @@ export class OpenMatesPlans {
       : undefined;
     const response = await this.client.request<Record<string, unknown>>("/v1/user-plans/ask", {
       instruction,
-      ...(options.create || plannedCreate ? { encrypted_create: await buildCreateUserPlanInput(masterKey, options.create ?? plannedCreate ?? { title: instruction }) } : {}),
+      ...(options.create || plannedCreate ? { encrypted_create: await buildCreateUserPlanInput(masterKey, options.create ?? plannedCreate ?? { title: instruction, goal: instruction }) } : {}),
       ...(options.update ? await this.buildAskUpdate(options.update, masterKey) : {}),
       ...(encryptedUpdates ? { encrypted_updates: encryptedUpdates } : {}),
     });
@@ -4076,6 +4297,57 @@ export class OpenMatesPlans {
     const existing = await this.getRawPlan(planId);
     const response = await this.client.request<{ plan?: UserPlanRecord }>(`/v1/user-plans/${encodeURIComponent(existing.plan_id)}/complete`, { version: existing.version });
     return toPublicPlan(await decryptUserPlan(response.plan ?? await this.getRawPlan(planId), await this.client.masterKey()));
+  }
+
+  async delete(planId: string, options: ConfirmedMutationOptions = {}): Promise<Record<string, unknown>> {
+    requireConfirmed(options, "Plan deletion");
+    const plan = await this.getRawPlan(planId);
+    return this.client.delete(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}?version=${encodeURIComponent(String(plan.version))}`);
+  }
+
+  private async addDependency(planId: string, target: WorkDependencyTarget): Promise<Record<string, unknown>> {
+    const plan = await this.getRawPlan(planId);
+    return this.client.request(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/dependencies`, { target_ref: `${target.kind}:${target.id}` });
+  }
+
+  private async removeDependency(planId: string, target: WorkDependencyTarget): Promise<Record<string, unknown>> {
+    const plan = await this.getRawPlan(planId);
+    return this.client.delete(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/dependencies/${target.kind}/${encodeURIComponent(target.id)}`);
+  }
+
+  private async listDependencies(planId: string): Promise<{ dependencies: Record<string, unknown>[]; blockers: Record<string, unknown>[] }> {
+    const plan = await this.getRawPlan(planId);
+    const response = await this.client.get<{ dependencies?: Record<string, unknown>[]; blockers?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/dependencies`);
+    return { dependencies: response.dependencies ?? [], blockers: response.blockers ?? [] };
+  }
+
+  private async listRevisions(planId: string): Promise<Record<string, unknown>[]> {
+    const plan = await this.getRawPlan(planId);
+    const response = await this.client.get<{ revisions?: Record<string, unknown>[] }>(`/v1/user-plans/${encodeURIComponent(plan.plan_id)}/revisions`);
+    return response.revisions ?? [];
+  }
+
+  private async createRevision(planId: string): Promise<Record<string, unknown>> {
+    const plan = await this.show(planId);
+    const canonical = JSON.stringify(plan, Object.keys(plan).sort());
+    const masterKey = await this.client.masterKey();
+    const fingerprint = createHmac("sha256", masterKey).update(canonical).digest("hex");
+    const raw = await this.getRawPlan(planId);
+    const planKey = await planKeyFromRecord(raw, masterKey);
+    const encryptedSnapshot = await encryptWithAesGcmCombined(canonical, planKey);
+    return this.client.request(`/v1/user-plans/${encodeURIComponent(raw.plan_id)}/revisions`, {
+      fingerprint,
+      encrypted_snapshot: encryptedSnapshot,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+  }
+
+  private async submitForReview(planId: string): Promise<{ revision: Record<string, unknown>; reviewUrl: string }> {
+    const response = await this.createRevision(planId);
+    const revision = response.revision as Record<string, unknown> | undefined;
+    if (!revision?.revision_id) throw new OpenMatesApiError(500, { detail: "Plan revision response missing revision" });
+    const plan = await this.getRawPlan(planId);
+    return { revision, reviewUrl: `${this.client.webOrigin()}/plans/${encodeURIComponent(plan.plan_id)}/review?revision=${encodeURIComponent(String(revision.revision_id))}` };
   }
 
   private async decryptedPlanForChildren(planId: string, masterKey: Uint8Array): Promise<DecryptedUserPlan> {
@@ -4127,7 +4399,6 @@ export class OpenMatesPlans {
     const payload: Partial<UserPlanCriterionRecord> = { updated_at: Math.floor(Date.now() / 1000) };
     if (input.status !== undefined) payload.status = input.status as UserPlanCriterionRecord["status"];
     if (input.required !== undefined) payload.required = input.required;
-    if (input.linkedStepIds !== undefined) payload.linked_step_ids = input.linkedStepIds;
     if (input.linkedTaskIds !== undefined) payload.linked_task_ids = input.linkedTaskIds;
     if (input.verificationIds !== undefined) payload.verification_ids = input.verificationIds;
     if (input.evidence !== undefined) (payload as Record<string, unknown>).encrypted_evidence = await encryptWithAesGcmCombined(input.evidence, planKey);
@@ -4694,6 +4965,29 @@ export class OpenMatesDocs {
   async search(query: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/docs/search", { q: query })); }
   async show(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}`); }
   async download(slug: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/docs/${encodeURIComponent(slug)}/download`); }
+}
+
+export class OpenMatesWikipedia {
+  private readonly client: OpenMates;
+
+  constructor(client: OpenMates) {
+    this.client = client;
+  }
+
+  async search(query: string, options: { language?: string; limit?: number } = {}): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/search", {
+      query,
+      language: options.language ?? "en",
+      limit: options.limit,
+    }));
+  }
+
+  async summary(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
+    return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/summary", {
+      title,
+      language: options.language ?? "en",
+    }));
+  }
 }
 
 export class OpenMatesEmbeds {

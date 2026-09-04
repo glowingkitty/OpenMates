@@ -1,0 +1,21 @@
+# Durable retry state for encrypted personal credit settlement.
+# The retry payload is Vault-encrypted; no plaintext balance, usage metadata,
+# user content, provider output, or key material is stored in this collection.
+billing_settlement_outbox:
+  type: collection
+  note: "Internal exactly-once personal billing settlement retries"
+  fields:
+    id: {type: uuid, primary: true}
+    charge_id: {type: string, length: 255, required: true, unique: true}
+    user_id: {type: uuid, required: true}
+    hashed_user_id: {type: string, length: 128, required: true}
+    vault_key_id: {type: string, length: 64, required: true}
+    encrypted_settlement_payload: {type: text, required: true}
+    settlement_payload_hash: {type: string, length: 64, required: true}
+    state: {type: string, length: 32, required: true}
+    attempts: {type: integer, required: true, default: 0}
+    retryable_error_code: {type: string, length: 64, nullable: true}
+    next_attempt_at: {type: datetime, nullable: true}
+    created_at: {type: datetime, required: true}
+    updated_at: {type: datetime, required: true}
+    committed_at: {type: datetime, nullable: true}

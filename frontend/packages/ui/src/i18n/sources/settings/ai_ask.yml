@@ -626,29 +626,229 @@ ai_ask_settings.complex_requests:
   he: בקשות מורכבות
   verified_by_human: []
 
+ai_ask_settings.most_demanding_requests:
+  context: Label for the default model used for exceptionally demanding AI requests
+  en: Most demanding requests
+  de: Anspruchsvollste Anfragen
+  zh: 要求最高的请求
+  es: Solicitudes más exigentes
+  fr: Requêtes les plus exigeantes
+  pt: Solicitações mais exigentes
+  ru: Самые сложные запросы
+  ja: 最も高度なリクエスト
+  ko: 가장 까다로운 요청
+  it: Richieste più impegnative
+  tr: En zorlu istekler
+  vi: Yêu cầu đòi hỏi cao nhất
+  id: Permintaan paling menantang
+  pl: Najbardziej wymagające zapytania
+  nl: Meest veeleisende verzoeken
+  ar: الطلبات الأكثر تطلبًا
+  hi: सबसे अधिक मांग वाले अनुरोध
+  th: คำขอที่ต้องการความสามารถสูงสุด
+  cs: Nejnáročnější dotazy
+  sv: Mest krävande förfrågningar
+  he: הבקשות התובעניות ביותר
+  verified_by_human: []
+
+ai_ask_settings.models_and_accounts:
+  context: Section heading for AI model provider families and connected accounts
+  en: Models & Accounts
+  de: Modelle & Konten
+  zh: 模型和账户
+  es: Modelos y cuentas
+  fr: Modèles et comptes
+  pt: Modelos e contas
+  ru: Модели и аккаунты
+  ja: モデルとアカウント
+  ko: 모델 및 계정
+  it: Modelli e account
+  tr: Modeller ve hesaplar
+  vi: Mô hình và tài khoản
+  id: Model dan akun
+  pl: Modele i konta
+  nl: Modellen en accounts
+  ar: النماذج والحسابات
+  hi: मॉडल और खाते
+  th: โมเดลและบัญชี
+  cs: Modely a účty
+  sv: Modeller och konton
+  he: מודלים וחשבונות
+  verified_by_human: []
+
+ai_ask_settings.response_settings:
+  context: Section heading for AI response behavior settings
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Ajustes
+  fr: Paramètres
+  pt: Configurações
+  ru: Настройки
+  ja: 設定
+  ko: 설정
+  it: Impostazioni
+  tr: Ayarlar
+  vi: Cài đặt
+  id: Pengaturan
+  pl: Ustawienia
+  nl: Instellingen
+  ar: الإعدادات
+  hi: सेटिंग्स
+  th: การตั้งค่า
+  cs: Nastavení
+  sv: Inställningar
+  he: הגדרות
+  verified_by_human: []
+
+ai_ask_settings.recommended:
+  context: Label for the recommended AI model option
+  en: Recommended
+  de: Empfohlen
+  zh: 推荐
+  es: Recomendado
+  fr: Recommandé
+  pt: Recomendado
+  ru: Рекомендуется
+  ja: おすすめ
+  ko: 권장
+  it: Consigliato
+  tr: Önerilen
+  vi: Được đề xuất
+  id: Direkomendasikan
+  pl: Zalecane
+  nl: Aanbevolen
+  ar: موصى به
+  hi: अनुशंसित
+  th: แนะนำ
+  cs: Doporučeno
+  sv: Rekommenderas
+  he: מומלץ
+  verified_by_human: []
+
+ai_ask_settings.auto_description:
+  context: Description for automatic AI model routing
+  en: Automatically choose the best model for each request
+  de: Automatisch das beste Modell für jede Anfrage auswählen
+  zh: 自动为每个请求选择最佳模型
+  es: Elegir automáticamente el mejor modelo para cada solicitud
+  fr: Choisir automatiquement le meilleur modèle pour chaque requête
+  pt: Escolher automaticamente o melhor modelo para cada solicitação
+  ru: Автоматически выбирать лучшую модель для каждого запроса
+  ja: リクエストごとに最適なモデルを自動選択
+  ko: 각 요청에 가장 적합한 모델 자동 선택
+  it: Scegli automaticamente il modello migliore per ogni richiesta
+  tr: Her istek için en iyi modeli otomatik seç
+  vi: Tự động chọn mô hình tốt nhất cho từng yêu cầu
+  id: Pilih model terbaik secara otomatis untuk setiap permintaan
+  pl: Automatycznie wybieraj najlepszy model dla każdego zapytania
+  nl: Kies automatisch het beste model voor elk verzoek
+  ar: اختيار أفضل نموذج تلقائيًا لكل طلب
+  hi: हर अनुरोध के लिए सर्वोत्तम मॉडल स्वचालित रूप से चुनें
+  th: เลือกโมเดลที่ดีที่สุดสำหรับแต่ละคำขอโดยอัตโนมัติ
+  cs: Automaticky vybrat nejlepší model pro každý dotaz
+  sv: Välj automatiskt den bästa modellen för varje förfrågan
+  he: בחירה אוטומטית של המודל הטוב ביותר לכל בקשה
+  verified_by_human: []
+
+ai_ask_settings.choose_exact_model:
+  context: Guidance shown above a provider's exact AI models
+  en: Choose Auto or an exact model for this request tier.
+  de: Wähle Auto oder ein bestimmtes Modell für diese Anfragestufe.
+  zh: 为此请求级别选择“自动”或具体模型。
+  es: Elige Auto o un modelo exacto para este nivel de solicitud.
+  fr: Choisissez Auto ou un modèle précis pour ce niveau de requête.
+  pt: Escolha Auto ou um modelo específico para este nível de solicitação.
+  ru: Выберите Auto или конкретную модель для этого уровня запросов.
+  ja: このリクエスト階層でAutoまたは特定のモデルを選択します。
+  ko: 이 요청 단계에 Auto 또는 특정 모델을 선택하세요.
+  it: Scegli Auto o un modello specifico per questo livello di richiesta.
+  tr: Bu istek düzeyi için Auto veya belirli bir model seçin.
+  vi: Chọn Auto hoặc một mô hình cụ thể cho cấp yêu cầu này.
+  id: Pilih Auto atau model tertentu untuk tingkat permintaan ini.
+  pl: Wybierz Auto lub konkretny model dla tego poziomu zapytań.
+  nl: Kies Auto of een specifiek model voor dit aanvraagniveau.
+  ar: اختر Auto أو نموذجًا محددًا لمستوى الطلب هذا.
+  hi: इस अनुरोध स्तर के लिए Auto या कोई विशिष्ट मॉडल चुनें।
+  th: เลือก Auto หรือโมเดลเฉพาะสำหรับระดับคำขอนี้
+  cs: Vyberte Auto nebo konkrétní model pro tuto úroveň dotazů.
+  sv: Välj Auto eller en specifik modell för denna nivå.
+  he: בחרו Auto או מודל מסוים לרמת הבקשה הזו.
+  verified_by_human: []
+
+ai_ask_settings.choose_tier_provider:
+  context: Guidance shown before choosing an AI provider family for a request tier
+  en: Keep automatic routing or browse a provider to choose an exact model.
+  de: Behalte die automatische Auswahl bei oder wähle ein bestimmtes Modell über einen Anbieter.
+  zh: 保持自动路由，或浏览提供商以选择具体模型。
+  es: Mantén el enrutamiento automático o explora un proveedor para elegir un modelo exacto.
+  fr: Gardez le routage automatique ou parcourez un fournisseur pour choisir un modèle précis.
+  pt: Mantenha o roteamento automático ou explore um provedor para escolher um modelo específico.
+  ru: Оставьте автоматический выбор или откройте провайдера для выбора конкретной модели.
+  ja: 自動ルーティングを維持するか、プロバイダーから特定のモデルを選択します。
+  ko: 자동 라우팅을 유지하거나 제공업체를 탐색해 특정 모델을 선택하세요.
+  it: Mantieni l'instradamento automatico o esplora un provider per scegliere un modello specifico.
+  tr: Otomatik yönlendirmeyi koruyun veya belirli bir model seçmek için sağlayıcıya göz atın.
+  vi: Giữ định tuyến tự động hoặc duyệt nhà cung cấp để chọn mô hình cụ thể.
+  id: Pertahankan perutean otomatis atau telusuri penyedia untuk memilih model tertentu.
+  pl: Zachowaj automatyczny wybór lub przejrzyj dostawcę, aby wybrać konkretny model.
+  nl: Behoud automatische routering of bekijk een provider om een specifiek model te kiezen.
+  ar: احتفظ بالتوجيه التلقائي أو تصفح مزودًا لاختيار نموذج محدد.
+  hi: स्वचालित रूटिंग रखें या विशिष्ट मॉडल चुनने के लिए प्रदाता देखें।
+  th: ใช้การกำหนดเส้นทางอัตโนมัติหรือดูผู้ให้บริการเพื่อเลือกโมเดลเฉพาะ
+  cs: Ponechte automatický výběr nebo otevřete poskytovatele a vyberte konkrétní model.
+  sv: Behåll automatisk dirigering eller välj en leverantör för att välja en specifik modell.
+  he: השאירו ניתוב אוטומטי או עיינו בספק כדי לבחור מודל מסוים.
+  verified_by_human: []
+
+ai_ask_settings.view_provider_models:
+  context: Subtitle on an AI provider row that opens its models
+  en: View models
+  de: Modelle anzeigen
+  zh: 查看模型
+  es: Ver modelos
+  fr: Voir les modèles
+  pt: Ver modelos
+  ru: Показать модели
+  ja: モデルを表示
+  ko: 모델 보기
+  it: Visualizza modelli
+  tr: Modelleri görüntüle
+  vi: Xem mô hình
+  id: Lihat model
+  pl: Zobacz modele
+  nl: Modellen bekijken
+  ar: عرض النماذج
+  hi: मॉडल देखें
+  th: ดูโมเดล
+  cs: Zobrazit modely
+  sv: Visa modeller
+  he: הצגת מודלים
+  verified_by_human: []
+
 ai_ask_settings.model_auto:
   context: Option label meaning "let the system auto-select the best model" shown first in the default model dropdowns
-  en: Auto
-  de: Automatisch
-  zh: 自动
-  es: Auto
-  fr: Auto
-  pt: Automático
-  ru: Авто
-  ja: 自動
-  ko: 자동
-  it: Automatico
-  tr: Otomatik
-  vi: Tự động
-  id: Otomatis
-  pl: Automatycznie
-  nl: Automatisch
-  ar: تلقائي
-  hi: स्वचालित
-  th: อัตโนมัติ
-  cs: Automaticky
-  sv: Automatiskt
-  he: אוטומטי
+  en: Auto select
+  de: Automatisch auswählen
+  zh: 自动选择
+  es: Selección automática
+  fr: Sélection automatique
+  pt: Seleção automática
+  ru: Автовыбор
+  ja: 自動選択
+  ko: 자동 선택
+  it: Selezione automatica
+  tr: Otomatik seçim
+  vi: Tự động chọn
+  id: Pilih otomatis
+  pl: Wybór automatyczny
+  nl: Automatisch selecteren
+  ar: اختيار تلقائي
+  hi: स्वतः चुनें
+  th: เลือกอัตโนมัติ
+  cs: Automatický výběr
+  sv: Välj automatiskt
+  he: בחירה אוטומטית
   verified_by_human: []
 
 ai_ask_settings.default_models_save_error:
@@ -1527,3 +1727,253 @@ ai_ask_model_details.enable_model:
   th: เปิดใช้งานโมเดล
   cs: Povolit model
   sv: Aktivera modell
+
+ai_ask_settings.capability:
+  context: Section heading for the low-to-max AI model capability scale
+  en: Capability
+  de: Leistungsfähigkeit
+  zh: 能力
+  es: Capacidad
+  fr: Capacité
+  pt: Capacidade
+  ru: Возможности
+  ja: 能力
+  ko: 성능
+  it: Capacità
+  tr: Yetenek
+  vi: Khả năng
+  id: Kemampuan
+  pl: Możliwości
+  nl: Capaciteit
+  ar: القدرة
+  hi: क्षमता
+  th: ความสามารถ
+  cs: Schopnost
+  sv: Kapacitet
+  he: יכולת
+  verified_by_human: []
+
+ai_ask_settings.capability_low:
+  context: Lowest value on the AI model capability scale
+  en: Low capability
+  de: Niedrige Leistungsfähigkeit
+  zh: 低能力
+  es: Capacidad baja
+  fr: Capacité faible
+  pt: Capacidade baixa
+  ru: Низкие возможности
+  ja: 低い能力
+  ko: 낮은 성능
+  it: Capacità bassa
+  tr: Düşük yetenek
+  vi: Khả năng thấp
+  id: Kemampuan rendah
+  pl: Niskie możliwości
+  nl: Lage capaciteit
+  ar: قدرة منخفضة
+  hi: कम क्षमता
+  th: ความสามารถต่ำ
+  cs: Nízká schopnost
+  sv: Låg kapacitet
+  he: יכולת נמוכה
+  verified_by_human: []
+
+ai_ask_settings.capability_medium:
+  context: Medium value on the AI model capability scale
+  en: Medium capability
+  de: Mittlere Leistungsfähigkeit
+  zh: 中等能力
+  es: Capacidad media
+  fr: Capacité moyenne
+  pt: Capacidade média
+  ru: Средние возможности
+  ja: 中程度の能力
+  ko: 중간 성능
+  it: Capacità media
+  tr: Orta yetenek
+  vi: Khả năng trung bình
+  id: Kemampuan sedang
+  pl: Średnie możliwości
+  nl: Gemiddelde capaciteit
+  ar: قدرة متوسطة
+  hi: मध्यम क्षमता
+  th: ความสามารถปานกลาง
+  cs: Střední schopnost
+  sv: Medelhög kapacitet
+  he: יכולת בינונית
+  verified_by_human: []
+
+ai_ask_settings.capability_high:
+  context: High value on the AI model capability scale
+  en: High capability
+  de: Hohe Leistungsfähigkeit
+  zh: 高能力
+  es: Capacidad alta
+  fr: Capacité élevée
+  pt: Capacidade alta
+  ru: Высокие возможности
+  ja: 高い能力
+  ko: 높은 성능
+  it: Capacità alta
+  tr: Yüksek yetenek
+  vi: Khả năng cao
+  id: Kemampuan tinggi
+  pl: Wysokie możliwości
+  nl: Hoge capaciteit
+  ar: قدرة عالية
+  hi: उच्च क्षमता
+  th: ความสามารถสูง
+  cs: Vysoká schopnost
+  sv: Hög kapacitet
+  he: יכולת גבוהה
+  verified_by_human: []
+
+ai_ask_settings.capability_max:
+  context: Highest value on the AI model capability scale
+  en: Maximum capability
+  de: Maximale Leistungsfähigkeit
+  zh: 最高能力
+  es: Capacidad máxima
+  fr: Capacité maximale
+  pt: Capacidade máxima
+  ru: Максимальные возможности
+  ja: 最高の能力
+  ko: 최대 성능
+  it: Capacità massima
+  tr: Maksimum yetenek
+  vi: Khả năng tối đa
+  id: Kemampuan maksimum
+  pl: Maksymalne możliwości
+  nl: Maximale capaciteit
+  ar: أقصى قدرة
+  hi: अधिकतम क्षमता
+  th: ความสามารถสูงสุด
+  cs: Maximální schopnost
+  sv: Maximal kapacitet
+  he: יכולת מרבית
+  verified_by_human: []
+
+ai_ask_settings.provider_models_instruction:
+  context: Guidance shown above the models on an AI provider-family page
+  en: Click a model to see its details. Use the toggle to include or exclude it from AI requests.
+  de: Klicke auf ein Modell, um Details zu sehen. Mit dem Schalter kannst du es für KI-Anfragen ein- oder ausschließen.
+  zh: 点击模型查看详情。使用开关决定是否将其用于 AI 请求。
+  es: Haz clic en un modelo para ver sus detalles. Usa el interruptor para incluirlo o excluirlo de las solicitudes de IA.
+  fr: Cliquez sur un modèle pour voir ses détails. Utilisez l'interrupteur pour l'inclure ou l'exclure des requêtes d'IA.
+  pt: Clique em um modelo para ver os detalhes. Use o seletor para incluí-lo ou excluí-lo das solicitações de IA.
+  ru: Нажмите на модель, чтобы посмотреть детали. Используйте переключатель, чтобы включить или исключить её из запросов ИИ.
+  ja: モデルをクリックして詳細を確認します。切り替えでAIリクエストへの使用を設定できます。
+  ko: 모델을 클릭해 세부 정보를 확인하세요. 토글로 AI 요청에 포함하거나 제외할 수 있습니다.
+  it: Fai clic su un modello per vederne i dettagli. Usa l'interruttore per includerlo o escluderlo dalle richieste IA.
+  tr: Ayrıntıları görmek için bir modele tıklayın. Yapay zeka isteklerine dahil etmek veya hariç tutmak için anahtarı kullanın.
+  vi: Nhấp vào mô hình để xem chi tiết. Dùng nút chuyển để bật hoặc loại mô hình khỏi yêu cầu AI.
+  id: Klik model untuk melihat detailnya. Gunakan tombol untuk menyertakan atau mengecualikannya dari permintaan AI.
+  pl: Kliknij model, aby zobaczyć szczegóły. Użyj przełącznika, aby uwzględnić go lub wykluczyć z zapytań AI.
+  nl: Klik op een model voor de details. Gebruik de schakelaar om het op te nemen in of uit te sluiten van AI-verzoeken.
+  ar: انقر على نموذج لعرض تفاصيله. استخدم المفتاح لتضمينه في طلبات الذكاء الاصطناعي أو استبعاده منها.
+  hi: मॉडल का विवरण देखने के लिए उस पर क्लिक करें। AI अनुरोधों में शामिल या बाहर करने के लिए टॉगल का उपयोग करें।
+  th: คลิกโมเดลเพื่อดูรายละเอียด ใช้สวิตช์เพื่อรวมหรือยกเว้นจากคำขอ AI
+  cs: Kliknutím na model zobrazíte podrobnosti. Přepínačem jej zahrnete nebo vyloučíte z požadavků AI.
+  sv: Klicka på en modell för att se detaljer. Använd reglaget för att inkludera eller utesluta den från AI-förfrågningar.
+  he: לחץ על מודל כדי לראות את פרטיו. השתמש במתג כדי לכלול או להחריג אותו מבקשות AI.
+  verified_by_human: []
+
+ai_ask_settings.provider_header_description:
+  context: Header description on an AI provider-family page; provider is the company name
+  en: "Use the latest models from {provider}."
+  de: "Nutze die neuesten Modelle von {provider}."
+  zh: "使用 {provider} 的最新模型。"
+  es: "Usa los modelos más recientes de {provider}."
+  fr: "Utilisez les derniers modèles de {provider}."
+  pt: "Use os modelos mais recentes da {provider}."
+  ru: "Используйте новейшие модели от {provider}."
+  ja: "{provider} の最新モデルを使用します。"
+  ko: "{provider}의 최신 모델을 사용하세요."
+  it: "Usa i modelli più recenti di {provider}."
+  tr: "{provider} tarafından sunulan en yeni modelleri kullanın."
+  vi: "Sử dụng các mô hình mới nhất từ {provider}."
+  id: "Gunakan model terbaru dari {provider}."
+  pl: "Korzystaj z najnowszych modeli firmy {provider}."
+  nl: "Gebruik de nieuwste modellen van {provider}."
+  ar: "استخدم أحدث النماذج من {provider}."
+  hi: "{provider} के नवीनतम मॉडल का उपयोग करें।"
+  th: "ใช้โมเดลล่าสุดจาก {provider}"
+  cs: "Používejte nejnovější modely od {provider}."
+  sv: "Använd de senaste modellerna från {provider}."
+  he: "השתמש במודלים העדכניים ביותר של {provider}."
+  verified_by_human: []
+
+ai_ask_settings.simple_requests_description:
+  context: Header description for simple AI requests
+  en: Asking for the latest news, finding doctor appointments & more.
+  de: Nach aktuellen Nachrichten fragen, Arzttermine finden und mehr.
+  zh: 查询最新新闻、寻找医生预约等。
+  es: Consultar las últimas noticias, encontrar citas médicas y más.
+  fr: Demander les dernières nouvelles, trouver des rendez-vous médicaux et plus.
+  pt: Perguntar pelas últimas notícias, encontrar consultas médicas e muito mais.
+  ru: Узнавать последние новости, искать запись к врачу и многое другое.
+  ja: 最新ニュースの確認、医師の予約検索など。
+  ko: 최신 뉴스 확인, 진료 예약 찾기 등.
+  it: Chiedere le ultime notizie, trovare appuntamenti medici e altro.
+  tr: En son haberleri sormak, doktor randevuları bulmak ve daha fazlası.
+  vi: Hỏi tin tức mới nhất, tìm lịch hẹn bác sĩ và hơn thế nữa.
+  id: Menanyakan berita terbaru, mencari janji dokter, dan lainnya.
+  pl: Pytanie o najnowsze wiadomości, wyszukiwanie wizyt lekarskich i nie tylko.
+  nl: Vragen naar het laatste nieuws, doktersafspraken vinden en meer.
+  ar: السؤال عن آخر الأخبار والعثور على مواعيد الأطباء والمزيد.
+  hi: नवीनतम समाचार पूछना, डॉक्टर की अपॉइंटमेंट ढूँढना और बहुत कुछ।
+  th: ถามข่าวล่าสุด ค้นหานัดหมายแพทย์ และอื่นๆ
+  cs: Dotazy na nejnovější zprávy, hledání termínů u lékaře a další.
+  sv: Fråga efter de senaste nyheterna, hitta läkartider och mer.
+  he: בקשת החדשות האחרונות, מציאת תורים לרופא ועוד.
+  verified_by_human: []
+
+ai_ask_settings.complex_requests_description:
+  context: Header description for complex AI requests
+  en: Writing code for a new software feature, analyzing financial data & more.
+  de: Code für eine neue Softwarefunktion schreiben, Finanzdaten analysieren und mehr.
+  zh: 为新软件功能编写代码、分析财务数据等。
+  es: Escribir código para una nueva función, analizar datos financieros y más.
+  fr: Écrire du code pour une nouvelle fonction, analyser des données financières et plus.
+  pt: Escrever código para uma nova função, analisar dados financeiros e muito mais.
+  ru: Писать код для новых функций, анализировать финансовые данные и многое другое.
+  ja: 新機能のコード作成、財務データの分析など。
+  ko: 새 소프트웨어 기능 코드 작성, 재무 데이터 분석 등.
+  it: Scrivere codice per una nuova funzione, analizzare dati finanziari e altro.
+  tr: Yeni bir yazılım özelliği için kod yazmak, finansal verileri analiz etmek ve daha fazlası.
+  vi: Viết mã cho tính năng phần mềm mới, phân tích dữ liệu tài chính và hơn thế nữa.
+  id: Menulis kode untuk fitur baru, menganalisis data keuangan, dan lainnya.
+  pl: Pisanie kodu nowej funkcji, analiza danych finansowych i nie tylko.
+  nl: Code schrijven voor een nieuwe functie, financiële gegevens analyseren en meer.
+  ar: كتابة التعليمات البرمجية لميزة جديدة وتحليل البيانات المالية والمزيد.
+  hi: नई सॉफ़्टवेयर सुविधा के लिए कोड लिखना, वित्तीय डेटा का विश्लेषण और बहुत कुछ।
+  th: เขียนโค้ดสำหรับฟีเจอร์ใหม่ วิเคราะห์ข้อมูลทางการเงิน และอื่นๆ
+  cs: Psaní kódu pro novou funkci, analýza finančních dat a další.
+  sv: Skriva kod för en ny funktion, analysera finansiella data och mer.
+  he: כתיבת קוד לתכונה חדשה, ניתוח נתונים פיננסיים ועוד.
+  verified_by_human: []
+
+ai_ask_settings.most_demanding_requests_description:
+  context: Header description for the most demanding AI requests
+  en: Planning a spec for a highly complicated project & more.
+  de: Eine Spezifikation für ein hochkomplexes Projekt planen und mehr.
+  zh: 为高度复杂的项目规划规范等。
+  es: Planificar una especificación para un proyecto muy complejo y más.
+  fr: Planifier une spécification pour un projet très complexe et plus.
+  pt: Planejar uma especificação para um projeto altamente complexo e muito mais.
+  ru: Планировать спецификацию для очень сложного проекта и многое другое.
+  ja: 非常に複雑なプロジェクトの仕様策定など。
+  ko: 매우 복잡한 프로젝트의 사양 계획 등.
+  it: Pianificare una specifica per un progetto molto complesso e altro.
+  tr: Son derece karmaşık bir proje için şartname planlamak ve daha fazlası.
+  vi: Lập kế hoạch đặc tả cho một dự án rất phức tạp và hơn thế nữa.
+  id: Merencanakan spesifikasi untuk proyek yang sangat rumit dan lainnya.
+  pl: Planowanie specyfikacji bardzo złożonego projektu i nie tylko.
+  nl: Een specificatie plannen voor een zeer complex project en meer.
+  ar: تخطيط مواصفات لمشروع شديد التعقيد والمزيد.
+  hi: अत्यधिक जटिल परियोजना के लिए स्पेसिफिकेशन की योजना और बहुत कुछ।
+  th: วางแผนข้อกำหนดสำหรับโปรเจกต์ที่ซับซ้อนมาก และอื่นๆ
+  cs: Plánování specifikace pro velmi složitý projekt a další.
+  sv: Planera en specifikation för ett mycket komplicerat projekt och mer.
+  he: תכנון מפרט לפרויקט מורכב במיוחד ועוד.
+  verified_by_human: []

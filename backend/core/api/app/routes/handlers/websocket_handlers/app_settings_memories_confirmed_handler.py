@@ -23,6 +23,10 @@ from typing import Dict, Any, List
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.shared.python_utils.app_memory_policy import (
+    REMOVED_APP_MEMORY_ERROR,
+    is_removed_app_memory,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +130,19 @@ async def handle_app_settings_memories_confirmed(
         
             if not chat_id:
                 logger.warning(f"Invalid app_settings_memories payload from user {user_id}: missing chat_id")
+                return
+
+            if isinstance(app_settings_memories, list) and any(
+                is_removed_app_memory(item.get("app_id"))
+                for item in app_settings_memories
+                if isinstance(item, dict)
+            ):
+                logger.warning("Rejected confirmation containing removed AI memories")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": REMOVED_APP_MEMORY_ERROR}},
+                    user_id,
+                    device_fingerprint_hash,
+                )
                 return
         
             # Verify chat ownership

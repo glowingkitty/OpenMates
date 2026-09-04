@@ -60,7 +60,6 @@ import mimetypes
 import os
 import re
 import secrets
-import shlex
 import shutil
 import socket
 import sqlite3
@@ -76,12 +75,25 @@ import urllib.request
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 try:
     from scripts.opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
 except ModuleNotFoundError:
     from opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
+
+try:
+    from scripts.engineering_control_plane import (
+        ControlPlaneApiError,
+        ENV_FILE as ENGINEERING_CONTROL_PLANE_ENV_FILE,
+        control_plane_api_request,
+    )
+except ModuleNotFoundError:
+    from engineering_control_plane import (
+        ControlPlaneApiError,
+        ENV_FILE as ENGINEERING_CONTROL_PLANE_ENV_FILE,
+        control_plane_api_request,
+    )
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -121,7 +133,11 @@ OPENCODE_STALE_READ_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-
 OPENCODE_STALE_READ_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "stale-read-state.lock"
 OPENCODE_PRESENCE_STATE_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.json"
 OPENCODE_PRESENCE_LOCK_FILE = CONTROL_PLANE_ROOT / ".opencode" / "presence.lock"
+CONTROL_PLANE_DEPLOY_PROTOCOL_FILE = ".opencode/deploy-protocol-version"
+CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION = 2
 OPENCODE_DB_PATH = Path.home() / ".local" / "share" / "opencode" / "opencode.db"
+OPENCODE_SERVER_URL = os.environ.get("OPENCODE_SERVER_URL", "http://127.0.0.1:4096")
+OPENCODE_RESTART_ACTIVE_STATUSES = {"busy", "retry"}
 OPENCODE_WEB_BASE_URL = os.environ.get("OPENCODE_WEB_BASE_URL", "https://code.dev.openmates.org")
 CODE_MAPPING_FILE = PROJECT_ROOT / "docs" / "architecture" / "code-mapping.yml"
 STALE_SESSION_HOURS = 24
@@ -129,17 +145,71 @@ STALE_EMPTY_SESSION_HOURS = 6  # Sessions with zero tracked files expire faster
 STALE_LOCK_MINUTES = 5
 CHECKPOINT_LOCK_RETENTION_HOURS = 24
 VERCEL_DEPLOY_LOCK_MINUTES = 90
-DOCKER_TEST_LEASE_TTL_SECONDS = 12 * 60 * 60
+DOCKER_TEST_LEASE_TTL_SECONDS = 30 * 60
+DOCKER_TEST_LEASE_RENEW_INTERVAL_SECONDS = 60
 DOCKER_OPERATION_HISTORY_LIMIT = 20
-DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "draining_tests", "restarting", "verifying"}
+DOCKER_OPERATION_ACTIVE_STATUSES = {"queued", "admitted", "draining_tests", "restarting", "verifying"}
 DOCKER_OPERATION_TERMINAL_STATUSES = {"completed", "failed"}
 DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
+PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
+PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
+PRODUCT_RUNTIME_GENERATED_PATHS = frozenset(
+    {
+        "docs/architecture/compliance/browser-storage.yml",
+        "docs/architecture/compliance/cookies.yml",
+    }
+)
+API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
+API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
+API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
+CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery", "task_ready"}
+CONTINUATION_MAX_DELIVERY_ATTEMPTS = 2
+OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
+OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
+OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
+OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
+OPENMATES_TASK_OPEN_STATUSES = {"backlog", "todo", "in_progress", "blocked"}
+OPENMATES_TASK_WAIT_QUEUE_STATES = {"waiting", "waiting_for_user", "blocked"}
+OPENMATES_TASK_STOP_EXECUTION_STATES = {"failed", "aborted", "stopped", "waiting_for_user"}
+MEDIA_DELIVERY_MAX_ATTEMPTS = 2
+MEDIA_AUTOMATION_ENABLED = os.environ.get("OPENMATES_OPENCODE_RESPONSE_MEDIA_AUTOMATION", "").strip() == "1"
+PROTECTED_CONTROL_PLANE_EXACT_PATHS = frozenset(
+    {
+        "opencode.json",
+        "scripts/opencode_permission_watcher.py",
+        "scripts/opencode_credential_migration.py",
+        "scripts/opencode_runtime_release.py",
+        "scripts/sync_opencode_runtime_hook.py",
+        "scripts/sessions.py",
+        "scripts/server-restart.sh",
+        "scripts/start-opencode-server.sh",
+    }
+)
+PROTECTED_CONTROL_PLANE_PREFIXES = (
+    ".opencode/",
+    "backend/engineering_control_plane/",
+    "scripts/patches/opencode-",
+)
+PREPARED_VERIFICATION_PROFILES = {
+    "cli-typecheck": {
+        "command": ["pnpm", "--dir", "frontend/packages/openmates-cli", "run", "typecheck"],
+        "dependency_paths": ["node_modules", "frontend/packages/openmates-cli/node_modules"],
+        "timeout": 300,
+    },
+    "cli-storage-unit": {
+        "command": ["pnpm", "--dir", "frontend/packages/openmates-cli", "run", "test:unit:storage"],
+        "dependency_paths": ["node_modules", "frontend/packages/openmates-cli/node_modules"],
+        "timeout": 300,
+    },
+}
 DOCKER_COMPOSE_FILE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.yml"
 DOCKER_COMPOSE_OVERRIDE = CONTROL_PLANE_ROOT / "backend" / "core" / "docker-compose.override.yml"
-DOCKER_NON_RESTARTABLE_SERVICES = {"cms-setup", "vault-setup"}
+DOCKER_SETUP_SERVICES = {"cms-setup", "vault-setup"}
+DOCKER_NON_RESTARTABLE_SERVICES = DOCKER_SETUP_SERVICES
 WORKTREE_CLEANUP_IDLE_HOURS = 48
 WORKTREE_HARD_MAX_AGE_HOURS = 72
 WORKTREE_MAX_COUNT = int(os.environ.get("OPENMATES_WORKTREE_MAX_COUNT", "200"))
@@ -168,8 +238,12 @@ WORKTREE_AUTO_INTEGRATION_SENSITIVE_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES = (".key", ".mobileprovision", ".p12", ".pbxproj", ".pem")
+WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES = ("scripts/.tmp/", "test-results/")
+WORKTREE_ROOT_HANDOFF_DENIED_PATHS = frozenset({"config.json"})
+WORKTREE_ROOT_HANDOFF_DENIED_PREFIXES = (".git/", "logs/nightly-reports/")
 WORKTREE_CHECKPOINT_LOCKS_DIR = CONTROL_PLANE_ROOT / ".claude" / "checkpoint-locks"
 WORKTREE_RECONCILIATION_REPORT = CONTROL_PLANE_ROOT / "logs" / "nightly-reports" / "worktree-reconciliation.json"
+WORKTREE_ORPHAN_RECOVERY_DIR = CONTROL_PLANE_ROOT.parent / ".openmates-worktree-recovery"
 DEFAULT_REPO_ID = "openmates"
 OPENMATESCLOUD_REPO_ID = "openmatescloud"
 OPENMATESCLOUD_REPO_ROOT = (CONTROL_PLANE_ROOT.parent / "OpenMatesCloud").resolve()
@@ -183,10 +257,10 @@ REPO_ALIASES = {
     "openmates-cloud": OPENMATESCLOUD_REPO_ID,
     "cloud": OPENMATESCLOUD_REPO_ID,
 }
-CONTRACT_GENERATED_ARTIFACTS = {
-    "contracts/generated/assertion-index.yml",
-    "contracts/generated/coverage.yml",
-    "contracts/generated/registry.yml",
+SPECIFICATION_GENERATED_ARTIFACTS = {
+    "specifications/generated/assertion-index.yml",
+    "specifications/generated/coverage.yml",
+    "specifications/generated/registry.yml",
 }
 WORKTREE_BOOTSTRAP_TIMEOUT_SECONDS = 300
 WORKTREE_SHARED_RUNTIME_PATHS = (Path(".env"), Path("logs/nightly-reports"))
@@ -202,7 +276,7 @@ ENV_FILE = CONTROL_PLANE_ROOT / ".env"
 VISUAL_SMOKE_UI_PATH_RE = re.compile(
     r"^(frontend/packages/ui/src/.+\.(svelte|css|ts)|frontend/apps/web_app/src/routes/.+\.(svelte|css|ts))$"
 )
-VISUAL_SMOKE_SPEC_PATH_RE = re.compile(r"^docs/specs/.+/spec\.yml$")
+VISUAL_SMOKE_PLAN_PATH_RE = re.compile(r"^docs/plans/.+/plan\.yml$")
 VISUAL_SMOKE_HIGH_RISK_RE = re.compile(
     r"(ActiveChat|Chat|MessageInput|Composer|Settings|Share|Embed|Landing|DailyInspiration|Welcome|Auth|Login|Signup|Billing|Usage|Navigation|Header|Sidebar)",
     re.IGNORECASE,
@@ -227,6 +301,17 @@ PROOF_VIDEO_EXAMPLE_CHAT_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 PROOF_VIDEO_E2E_PATH_RE = re.compile(r"^frontend/apps/web_app/tests/.+\.spec\.ts$", re.IGNORECASE)
+PROOF_VIDEO_NOT_REQUIRED_RE = re.compile(r"proof-video:\s*not_required\s+reason=([A-Za-z0-9_.-]+)")
+PROOF_VIDEO_NOT_REQUIRED_REASONS = {
+    "api_setup",
+    "account_health",
+    "cleanup_only",
+    "cli_helper",
+    "non_visual_setup",
+    "performance_probe",
+    "storage_audit",
+    "visual_smoke_not_needed",
+}
 PROOF_VIDEO_PASS_STATUSES = {"passed", "reviewed"}
 PROOF_VIDEO_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
 PROOF_VIDEO_DEVICE_PROFILES = {
@@ -543,11 +628,21 @@ def _session_repo_remote(session: dict | None) -> str:
 
 
 def _session_checkout_root(session: dict | None) -> Path:
-    return Path(_session_repo_metadata(session)["repo_root"]).expanduser().resolve()
+    repo_root = Path(_session_repo_metadata(session)["repo_root"]).expanduser().resolve()
+    # Only the control-plane repository uses per-session managed worktrees.
+    # Persisted or injected worktree metadata must never redirect a sibling
+    # repository session outside its allowlisted checkout.
+    if repo_root != CONTROL_PLANE_ROOT.resolve():
+        return repo_root
+    worktree = (session or {}).get("worktree")
+    if isinstance(worktree, dict) and worktree.get("path"):
+        return Path(str(worktree["path"])).expanduser().resolve()
+    return repo_root
 
 
 def _session_is_control_plane_repo(session: dict | None) -> bool:
-    return _session_checkout_root(session) == CONTROL_PLANE_ROOT.resolve()
+    repo_root = Path(_session_repo_metadata(session)["repo_root"]).expanduser().resolve()
+    return repo_root == CONTROL_PLANE_ROOT.resolve()
 
 
 def _current_head() -> str:
@@ -970,6 +1065,38 @@ def _find_opencode_descendant_sessions(connection: sqlite3.Connection, session_i
     return discovered
 
 
+def _opencode_parent_chain(session_id: str, *, db_path: Path | None = None) -> list[str]:
+    """Return immediate-to-root OpenCode parents for a session, best-effort."""
+    if not session_id:
+        return []
+    try:
+        connection = _opencode_readonly_connection(db_path)
+    except (FileNotFoundError, sqlite3.Error):
+        return []
+    parents: list[str] = []
+    visited = {session_id}
+    current = session_id
+    try:
+        while current:
+            row = connection.execute(
+                "SELECT parent_id FROM session WHERE id = ?",
+                (current,),
+            ).fetchone()
+            if row is None:
+                break
+            parent_id = str(row["parent_id"] or "")
+            if not parent_id or parent_id in visited:
+                break
+            parents.append(parent_id)
+            visited.add(parent_id)
+            current = parent_id
+    except sqlite3.Error:
+        return parents
+    finally:
+        connection.close()
+    return parents
+
+
 def _load_opencode_session_rows(
     connection: sqlite3.Connection,
     session_id: str,
@@ -1022,15 +1149,20 @@ def _load_opencode_message_rows(
     rows = connection.execute(
         f"""
         SELECT id, session_id, time_created, time_updated, data
-        FROM message
-        WHERE session_id IN ({placeholders})
-        {match_sql}
+        FROM (
+            SELECT id, session_id, time_created, time_updated, data
+            FROM message
+            WHERE session_id IN ({placeholders})
+            {match_sql}
+            ORDER BY time_created DESC, id DESC
+            LIMIT ?
+        ) AS recent_messages
         ORDER BY time_created ASC, id ASC
-        LIMIT ?
         """,
         tuple(parameters),
     ).fetchall()
-    return rows[:max_messages], len(rows) > max_messages
+    truncated = len(rows) > max_messages
+    return (rows[-max_messages:] if truncated else rows), truncated
 
 
 def _load_opencode_part_rows(
@@ -1760,6 +1892,64 @@ def _infrastructure_state(data: dict) -> dict:
     return infrastructure
 
 
+def _persistent_coordination_enabled() -> bool:
+    configured = os.getenv("OPENMATES_COORDINATION_BACKEND", "").strip().lower()
+    if configured not in {"", "api", "local"}:
+        raise RuntimeError("OPENMATES_COORDINATION_BACKEND must be 'api' or 'local'")
+    if configured == "local":
+        return False
+    if configured == "api" and not ENGINEERING_CONTROL_PLANE_ENV_FILE.is_file():
+        raise RuntimeError(
+            f"Persistent coordination was requested but configuration is missing: {ENGINEERING_CONTROL_PLANE_ENV_FILE}"
+        )
+    return configured == "api" or ENGINEERING_CONTROL_PLANE_ENV_FILE.is_file()
+
+
+def _coordination_owner_key(pid: int | None = None) -> str:
+    return f"{socket.gethostname()}:{pid if pid is not None else os.getpid()}"
+
+
+def _legacy_lease_record(lease: dict, *, owner: str = "") -> dict:
+    owner_key = str(lease.get("owner_key") or "")
+    owner_pid = int(owner_key.rsplit(":", 1)[-1]) if owner_key.rsplit(":", 1)[-1].isdigit() else 0
+    return {
+        "lease_id": str(lease.get("lease_key") or ""),
+        "owner": owner,
+        "owner_pid": owner_pid,
+        "owner_host": owner_key.rsplit(":", 1)[0] if ":" in owner_key else "",
+        "resources": list(lease.get("resources") or []),
+        "acquired_at": str(lease.get("acquired_at") or ""),
+        "updated_at": str(lease.get("acquired_at") or ""),
+        "expires_at": str(lease.get("expires_at") or ""),
+        "status": str(lease.get("status") or ""),
+    }
+
+
+def _lease_has_dead_local_owner(lease: dict) -> bool:
+    owner_pid = int(lease.get("owner_pid") or 0)
+    return bool(
+        owner_pid
+        and lease.get("owner_host") == socket.gethostname()
+        and not _process_is_alive(owner_pid)
+    )
+
+
+def _legacy_operation_record(operation: dict) -> dict:
+    metadata = operation.get("metadata") if isinstance(operation.get("metadata"), dict) else {}
+    return {
+        "id": str(operation.get("operation_key") or ""),
+        "session_id": str(metadata.get("session_id") or ""),
+        "services": list(metadata.get("services") or []),
+        "resources": list(operation.get("resources") or []),
+        "status": str(operation.get("status") or ""),
+        "requested_at": str(operation.get("requested_at") or ""),
+        "updated_at": str(operation.get("completed_at") or operation.get("admitted_at") or operation.get("requested_at") or ""),
+        "started_at": str(operation.get("admitted_at") or ""),
+        "completed_at": str(operation.get("completed_at") or ""),
+        **metadata,
+    }
+
+
 def _process_is_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -1800,7 +1990,7 @@ def _active_docker_operation(data: dict) -> dict | None:
     return next(
         (
             operation
-            for operation in reversed(operations)
+            for operation in operations
             if operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
         ),
         None,
@@ -1847,10 +2037,63 @@ def acquire_test_resource_lease(
     *,
     timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
     poll: int = 5,
+    mode: str = "exclusive",
 ) -> dict:
-    """Acquire a shared test lease after any conflicting restart completes."""
+    """Acquire or renew a test lease after any conflicting operation completes."""
     if not resources:
         return {}
+    if mode not in {"shared", "exclusive"}:
+        raise ValueError(f"Unknown test resource lease mode: {mode}")
+    if _persistent_coordination_enabled():
+        deadline = time.time() + max(0, timeout)
+        last_report = 0.0
+        while True:
+            try:
+                response = control_plane_api_request(
+                    "POST",
+                    "/v1/coordination/leases",
+                    data={
+                        "lease_key": lease_id,
+                        "owner_key": _coordination_owner_key(),
+                        "resources": sorted(resources),
+                        "ttl_seconds": DOCKER_TEST_LEASE_TTL_SECONDS,
+                        "mode": mode,
+                    },
+                )
+                return _legacy_lease_record(response["lease"], owner=owner)
+            except ControlPlaneApiError as exc:
+                conflict = re.search(r"(?:already leased|unavailable): ([A-Za-z0-9_.:-]+)$", exc.detail)
+                if exc.status == 409 and conflict:
+                    conflicting_lease_id = conflict.group(1)
+                    try:
+                        response = control_plane_api_request(
+                            "GET",
+                            f"/v1/coordination/leases/{urllib.parse.quote(conflicting_lease_id, safe='')}",
+                        )
+                    except ControlPlaneApiError:
+                        response = {}
+                    conflicting = _legacy_lease_record(response.get("lease") or {})
+                    if (
+                        conflicting.get("owner_host") == socket.gethostname()
+                        and int(conflicting.get("owner_pid") or 0) > 0
+                        and not _process_is_alive(int(conflicting["owner_pid"]))
+                    ):
+                        control_plane_api_request(
+                            "DELETE",
+                            f"/v1/coordination/leases/{urllib.parse.quote(conflicting_lease_id, safe='')}",
+                        )
+                        continue
+                if exc.status != 409 or time.time() >= deadline:
+                    raise RuntimeError(f"Persistent test lease acquisition failed: {exc.detail}") from exc
+                now = time.time()
+                if last_report == 0.0 or now - last_report >= 60:
+                    print(
+                        f"Waiting for test resource admission: {exc.detail}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+                    last_report = now
+                time.sleep(min(max(1, poll), max(1, int(deadline - time.time()))))
     deadline = time.time() + max(0, timeout)
     poll = max(1, poll)
     while True:
@@ -1864,6 +2107,24 @@ def acquire_test_resource_lease(
             if operation and resources.intersection(operation.get("resources", [])):
                 blocked_by = str(operation.get("id") or "unknown")
                 return None
+            leases = _infrastructure_state(data)["test_leases"]
+            existing = leases.get(lease_id)
+            if isinstance(existing, dict):
+                if (
+                    existing.get("owner") == owner
+                    and set(existing.get("resources") or []) == resources
+                    and str(existing.get("mode") or "exclusive") == mode
+                ):
+                    existing["updated_at"] = _now_iso()
+                    return dict(existing)
+                blocked_by = lease_id
+                return None
+            for active_lease_id, active_lease in leases.items():
+                if not resources.intersection(active_lease.get("resources", [])):
+                    continue
+                if str(active_lease.get("mode") or "exclusive") == "exclusive" or mode == "exclusive":
+                    blocked_by = str(active_lease_id)
+                    return None
             now = _now_iso()
             lease = {
                 "lease_id": lease_id,
@@ -1871,10 +2132,11 @@ def acquire_test_resource_lease(
                 "owner_pid": os.getpid(),
                 "owner_host": socket.gethostname(),
                 "resources": sorted(resources),
+                "mode": mode,
                 "acquired_at": now,
                 "updated_at": now,
             }
-            _infrastructure_state(data)["test_leases"][lease_id] = lease
+            leases[lease_id] = lease
             return lease
 
         lease = _mutate_sessions(mutate)
@@ -1887,16 +2149,53 @@ def acquire_test_resource_lease(
         time.sleep(min(poll, max(1, int(deadline - time.time()))))
 
 
+
+
 def release_test_resource_lease(lease_id: str) -> bool:
+    if _persistent_coordination_enabled():
+        response = control_plane_api_request("DELETE", f"/v1/coordination/leases/{lease_id}")
+        return bool(response.get("released"))
+
     def mutate(data: dict) -> bool:
         return _infrastructure_state(data)["test_leases"].pop(lease_id, None) is not None
 
     return _mutate_sessions(mutate)
 
 
+def renew_test_resource_lease(
+    lease_id: str,
+    owner: str,
+    resources: set[str],
+    *,
+    mode: str = "exclusive",
+) -> dict:
+    """Refresh a lease TTL without changing ownership, resources, or mode."""
+    return acquire_test_resource_lease(
+        lease_id,
+        owner,
+        resources,
+        timeout=0,
+        poll=1,
+        mode=mode,
+    )
+
+
 def transfer_test_resource_lease(lease_id: str, *, expected_owner_pid: int, new_owner_pid: int) -> dict:
     """Atomically transfer a local test lease to a spawned child process."""
     host = socket.gethostname()
+    if _persistent_coordination_enabled():
+        try:
+            response = control_plane_api_request(
+                "POST",
+                f"/v1/coordination/leases/{lease_id}/transfer",
+                data={
+                    "expected_owner_key": _coordination_owner_key(expected_owner_pid),
+                    "new_owner_key": _coordination_owner_key(new_owner_pid),
+                },
+            )
+        except ControlPlaneApiError as exc:
+            raise RuntimeError(f"Docker test lease {lease_id} is not owned by the launching process") from exc
+        return _legacy_lease_record(response["lease"])
 
     def mutate(data: dict) -> dict:
         lease = _infrastructure_state(data)["test_leases"].get(lease_id)
@@ -1913,6 +2212,12 @@ def transfer_test_resource_lease(lease_id: str, *, expected_owner_pid: int, new_
 
 def test_resource_lease_owned_by(lease_id: str, *, owner_pid: int) -> bool:
     """Return whether a local lease is currently owned by the expected process."""
+    if _persistent_coordination_enabled():
+        response = control_plane_api_request(
+            "GET",
+            f"/v1/coordination/leases/{lease_id}/owned?{urllib.parse.urlencode({'owner_key': _coordination_owner_key(owner_pid)})}",
+        )
+        return bool(response.get("owned"))
     data = _load_sessions()
     lease = _infrastructure_state(data)["test_leases"].get(lease_id)
     return bool(
@@ -1925,22 +2230,50 @@ def test_resource_lease_owned_by(lease_id: str, *, owner_pid: int) -> bool:
 def request_docker_restart(session_id: str, services: list[str]) -> dict:
     """Atomically queue one restart, preventing new dependent test leases."""
     normalized_services = sorted(set(services))
+    resources = sorted(_docker_operation_resources(normalized_services))
     now = _now_iso()
+    if _persistent_coordination_enabled():
+        operation_id = f"docker-{secrets.token_hex(4)}"
+        try:
+            response = control_plane_api_request(
+                "POST",
+                "/v1/coordination/runtime-operations",
+                data={
+                    "operation_key": operation_id,
+                    "operation_type": "product_docker_restart",
+                    "resources": resources,
+                    "metadata": {
+                        "session_id": session_id,
+                        "services": normalized_services,
+                        "owner_pid": os.getpid(),
+                        "owner_host": socket.gethostname(),
+                        "waiting_for_tests": [],
+                    },
+                },
+            )
+        except ControlPlaneApiError as exc:
+            raise RuntimeError(f"Docker restart request conflicted: {exc.detail}") from exc
+        return _legacy_operation_record(response["operation"])
 
     def mutate(data: dict) -> dict:
         _prune_stale_test_resource_leases(data)
         _prune_stale_docker_operations(data)
-        active = _active_docker_operation(data)
-        if active:
-            raise RuntimeError(
-                f"Docker restart {active.get('id')} is already {active.get('status')} "
-                f"for {', '.join(active.get('services', []))}"
-            )
+        operations = _infrastructure_state(data)["docker_operations"]
+        for active in operations:
+            if active.get("status") not in DOCKER_OPERATION_ACTIVE_STATUSES:
+                continue
+            if (
+                active.get("session_id") == session_id
+                and sorted(active.get("services", [])) == normalized_services
+                and sorted(active.get("resources", [])) == resources
+            ):
+                active["updated_at"] = now
+                return dict(active)
         operation = {
             "id": f"docker-{secrets.token_hex(4)}",
             "session_id": session_id,
             "services": normalized_services,
-            "resources": sorted(_docker_operation_resources(normalized_services)),
+            "resources": resources,
             "status": "queued",
             "owner_pid": os.getpid(),
             "owner_host": socket.gethostname(),
@@ -1948,7 +2281,6 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
             "updated_at": now,
             "waiting_for_tests": [],
         }
-        operations = _infrastructure_state(data)["docker_operations"]
         operations.append(operation)
         del operations[:-DOCKER_OPERATION_HISTORY_LIMIT]
         return dict(operation)
@@ -1959,6 +2291,16 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
 def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
     if status not in DOCKER_OPERATION_ACTIVE_STATUSES | DOCKER_OPERATION_TERMINAL_STATUSES:
         raise ValueError(f"Unknown Docker operation status: {status}")
+    if _persistent_coordination_enabled():
+        try:
+            response = control_plane_api_request(
+                "PATCH",
+                f"/v1/coordination/runtime-operations/{operation_id}",
+                data={"status": status, "metadata": fields},
+            )
+        except ControlPlaneApiError as exc:
+            raise RuntimeError(f"Docker operation update failed: {exc.detail}") from exc
+        return _legacy_operation_record(response["operation"])
 
     def mutate(data: dict) -> dict:
         operations = _infrastructure_state(data)["docker_operations"]
@@ -1978,8 +2320,163 @@ def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
     return _mutate_sessions(mutate)
 
 
-def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
-    def mutate(data: dict) -> list[dict]:
+def _list_persistent_docker_operations(*, limit: int = DOCKER_OPERATION_HISTORY_LIMIT) -> list[dict]:
+    if not _persistent_coordination_enabled():
+        return []
+    statuses = sorted(DOCKER_OPERATION_ACTIVE_STATUSES | DOCKER_OPERATION_TERMINAL_STATUSES)
+    query = urllib.parse.urlencode(
+        [
+            ("operation_type", "product_docker_restart"),
+            ("limit", str(max(1, min(limit, 100)))),
+            *[("status", status) for status in statuses],
+        ]
+    )
+    try:
+        response = control_plane_api_request("GET", f"/v1/coordination/runtime-operations?{query}")
+    except ControlPlaneApiError:
+        return []
+    return [_legacy_operation_record(operation) for operation in response.get("operations") or []]
+
+
+def _active_docker_operation_from_list(docker_operations: list[dict]) -> dict | None:
+    active_status_priority = {
+        "restarting": 0,
+        "verifying": 1,
+        "draining_tests": 2,
+        "admitted": 3,
+        "queued": 4,
+    }
+    active_candidates = [
+        operation
+        for operation in docker_operations
+        if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
+    ]
+    active_candidates.sort(
+        key=lambda operation: (
+            active_status_priority.get(str(operation.get("status") or ""), 99),
+            str(operation.get("requested_at") or ""),
+            str(operation.get("id") or ""),
+        )
+    )
+    return next(iter(active_candidates), None)
+
+
+def _persistent_active_docker_operation() -> dict | None:
+    return _active_docker_operation_from_list(_list_persistent_docker_operations(limit=50))
+
+
+
+def wait_for_docker_operation_admitted(
+    operation_id: str,
+    *,
+    timeout: int = DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+    poll: int = 5,
+) -> dict:
+    """Wait for the persistent coordinator to admit a queued restart."""
+    if not _persistent_coordination_enabled():
+        return {"id": operation_id, "status": "admitted"}
+    deadline = time.time() + max(0, timeout)
+    poll = max(1, poll)
+    last_report = 0.0
+    while True:
+        operation = update_docker_operation(operation_id, "queued")
+        status = str(operation.get("status") or "")
+        if status == "admitted":
+            return operation
+        if status in DOCKER_OPERATION_TERMINAL_STATUSES:
+            raise RuntimeError(f"Docker operation {operation_id} ended before admission: {status}")
+        if status != "queued":
+            return operation
+        now = time.time()
+        if now >= deadline:
+            raise RuntimeError(f"Timed out after {timeout}s waiting for Docker operation admission: {operation_id}")
+        if last_report == 0.0 or now - last_report >= 30:
+            blockers = _runtime_operation_blockers(operation_id)
+            failed_operations = _fail_dead_local_persistent_operation_blockers(blockers["operations"])
+            if failed_operations:
+                last_report = 0.0
+                continue
+            update_docker_operation(
+                operation_id,
+                "queued",
+                waiting_for_tests=[str(item.get("lease_id") or "unknown") for item in blockers["leases"]],
+                waiting_for_operations=[str(item.get("id") or "unknown") for item in blockers["operations"]],
+            )
+            lease_ids = [str(item.get("lease_id") or "unknown") for item in blockers["leases"]]
+            operation_labels = [
+                "/".join(
+                    filter(
+                        None,
+                        [
+                            str(item.get("id") or "unknown"),
+                            str(item.get("session_id") or ""),
+                            str(item.get("status") or ""),
+                        ],
+                    )
+                )
+                for item in blockers["operations"]
+            ]
+            reasons = []
+            if lease_ids:
+                reasons.append(f"leases={','.join(lease_ids)}")
+            if operation_labels:
+                reasons.append(f"operations={','.join(operation_labels)}")
+            detail = "; ".join(reasons) if reasons else "no blocker after reconciliation; retrying admission"
+            print(f"Waiting for Docker operation admission: {operation_id} ({detail})", flush=True)
+            last_report = now
+        time.sleep(min(poll, max(1, int(deadline - now))))
+
+
+def _fail_dead_local_persistent_operation_blockers(operations: list[dict]) -> list[str]:
+    """Fail active same-host blockers after their owning process has exited."""
+    host = socket.gethostname()
+    failed: list[str] = []
+    for operation in operations:
+        operation_id = str(operation.get("id") or "")
+        owner_pid = int(operation.get("owner_pid") or 0)
+        if (
+            not operation_id
+            or operation.get("status") not in DOCKER_OPERATION_ACTIVE_STATUSES
+            or operation.get("owner_host") != host
+            or not owner_pid
+            or _process_is_alive(owner_pid)
+        ):
+            continue
+        update_docker_operation(
+            operation_id,
+            "failed",
+            failure_class="owner-exited",
+            error="Restart owner process ended before completion",
+        )
+        failed.append(operation_id)
+    return failed
+
+
+def _runtime_operation_blockers(operation_id: str) -> dict[str, list[dict]]:
+    """Return current lease and operation blockers after safe reconciliation."""
+    if _persistent_coordination_enabled():
+        response = control_plane_api_request(
+            "GET",
+            f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
+        )
+        leases = [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+        operations = [_legacy_operation_record(operation) for operation in response.get("operations") or []]
+        released = []
+        for lease in leases:
+            if not _lease_has_dead_local_owner(lease):
+                continue
+            control_plane_api_request("DELETE", f"/v1/coordination/leases/{lease['lease_id']}")
+            released.append(lease["lease_id"])
+        if released:
+            response = control_plane_api_request(
+                "GET",
+                f"/v1/coordination/runtime-operations/{operation_id}/blocking-leases",
+            )
+            leases = [_legacy_lease_record(lease) for lease in response.get("leases") or []]
+            operations = [_legacy_operation_record(operation) for operation in response.get("operations") or []]
+        return {"leases": leases, "operations": operations}
+
+    def mutate(data: dict) -> dict[str, list[dict]]:
         _prune_stale_test_resource_leases(data)
         operations = _infrastructure_state(data)["docker_operations"]
         operation = next((item for item in operations if item.get("id") == operation_id), None)
@@ -1993,9 +2490,20 @@ def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
         ]
         operation["waiting_for_tests"] = sorted(str(lease.get("lease_id")) for lease in leases)
         operation["updated_at"] = _now_iso()
-        return leases
+        blockers = [
+            dict(item)
+            for item in operations
+            if item is not operation
+            and item.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
+            and resources.intersection(item.get("resources", []))
+        ]
+        return {"leases": leases, "operations": blockers}
 
     return _mutate_sessions(mutate)
+
+
+def _blocking_test_resource_leases(operation_id: str) -> list[dict]:
+    return _runtime_operation_blockers(operation_id)["leases"]
 
 
 def wait_for_docker_test_leases(
@@ -2153,7 +2661,12 @@ def ensure_session_worktree(session_id: str) -> dict:
         return current
 
     _enforce_worktree_creation_capacity()
-    base_commit = _current_git_sha()
+    session_data = _load_sessions().get("sessions", {}).get(session_id, {})
+    base_commit = (
+        _fetch_origin_dev_commit()
+        if _session_is_control_plane_repo(session_data)
+        else _current_git_sha(_session_checkout_root(session_data))
+    )
     path = _session_worktree_path(session_id)
     if not is_valid_managed_worktree_path(path):
         raise RuntimeError(f"Refusing nested or unmanaged session worktree path: {path}")
@@ -2170,7 +2683,6 @@ def ensure_session_worktree(session_id: str) -> dict:
         "created_at": _now_iso(),
         "last_active": _now_iso(),
     }
-    session_data = _load_sessions().get("sessions", {}).get(session_id, {})
     if session_data.get("opencode_session_id"):
         metadata["bootstrap"] = bootstrap_session_worktree(path)
 
@@ -2247,6 +2759,178 @@ def _worktree_has_changes(metadata: dict) -> bool:
     return bool(_worktree_changed_files(metadata))
 
 
+def _normalize_root_handoff_path(path_value: str | Path) -> str:
+    """Return one safe repository-relative path for explicit root handoff."""
+    raw = str(path_value or "").replace("\\", "/")
+    candidate = Path(raw)
+    if not raw or candidate.is_absolute() or ".." in candidate.parts:
+        raise ValueError(f"Unsafe root handoff path: {path_value}")
+    normalized = _canonical_stored_repo_path(raw).removeprefix("./")
+    if not normalized or normalized == "." or normalized.startswith("/"):
+        raise ValueError(f"Unsafe root handoff path: {path_value}")
+    if is_protected_control_plane_path(normalized):
+        raise ValueError(f"Protected control-plane path cannot be imported: {normalized}")
+    if normalized in WORKTREE_ROOT_HANDOFF_DENIED_PATHS:
+        raise ValueError(f"Sensitive runtime path cannot be imported: {normalized}")
+    if any(normalized.startswith(prefix) for prefix in WORKTREE_ROOT_HANDOFF_DENIED_PREFIXES):
+        raise ValueError(f"Shared runtime path cannot be imported: {normalized}")
+    if any(normalized.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES):
+        raise ValueError(f"Non-deployable runtime path cannot be imported: {normalized}")
+    name = Path(normalized).name.lower()
+    if name == ".env" or name.startswith(".env.") or name.endswith(WORKTREE_AUTO_INTEGRATION_SENSITIVE_SUFFIXES):
+        raise ValueError(f"Sensitive file cannot be imported: {normalized}")
+    resolved = (CONTROL_PLANE_ROOT / normalized).resolve(strict=False)
+    try:
+        resolved.relative_to(CONTROL_PLANE_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError(f"Root handoff path escapes the repository: {normalized}") from exc
+    return normalized
+
+
+def list_root_dirty_files(*, path_prefix: str = "") -> dict:
+    """List safe dirty root paths without exposing file contents."""
+    prefix = path_prefix.replace("\\", "/").removeprefix("./")
+    if prefix:
+        prefix_path = Path(prefix)
+        if prefix_path.is_absolute() or ".." in prefix_path.parts:
+            raise ValueError(f"Unsafe root dirty prefix: {path_prefix}")
+        prefix = prefix.rstrip("/") + "/"
+
+    dirty = _get_dirty_files(checkout_root=CONTROL_PLANE_ROOT)
+    staged = _get_staged_files(checkout_root=CONTROL_PLANE_ROOT)
+    rc, stdout, stderr = _run_cmd(
+        ["git", "ls-files", "--others", "--exclude-standard"], cwd=str(CONTROL_PLANE_ROOT)
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to inspect root untracked files: {stderr}")
+    untracked = {line.strip() for line in stdout.splitlines() if line.strip()}
+    rc, stdout, stderr = _run_cmd(
+        ["git", "diff", "--name-only", "origin/dev", "--"], cwd=str(CONTROL_PLANE_ROOT)
+    )
+    if rc != 0:
+        raise RuntimeError(f"Failed to compare root files with origin/dev: {stderr}")
+    differs_from_origin = {line.strip() for line in stdout.splitlines() if line.strip()} | untracked
+
+    files: list[dict] = []
+    omitted = 0
+    for raw_path in sorted(dirty):
+        if prefix and not (raw_path + "/").startswith(prefix):
+            continue
+        try:
+            relative_path = _normalize_root_handoff_path(raw_path)
+        except ValueError:
+            omitted += 1
+            continue
+        root_path = CONTROL_PLANE_ROOT / relative_path
+        if root_path.is_symlink() or (root_path.exists() and not root_path.is_file()):
+            omitted += 1
+            continue
+        files.append({
+            "path": relative_path,
+            "state": "deleted" if not root_path.exists() else "untracked" if relative_path in untracked else "modified",
+            "staged": relative_path in staged,
+            "differs_from_origin": relative_path in differs_from_origin,
+        })
+    rc, origin_dev, stderr = _run_cmd(["git", "rev-parse", "origin/dev"], cwd=str(CONTROL_PLANE_ROOT))
+    if rc != 0:
+        raise RuntimeError(f"Failed to resolve origin/dev: {stderr}")
+    return {
+        "root": str(CONTROL_PLANE_ROOT),
+        "origin_dev": origin_dev.strip(),
+        "files": files,
+        "omitted_unsafe_count": omitted,
+    }
+
+
+def import_root_dirty_file(
+    path_value: str | Path,
+    *,
+    session_id: str = "",
+    opencode_session_id: str = "",
+) -> dict:
+    """Copy one explicitly selected dirty root file into a clean session path."""
+    relative_path = _normalize_root_handoff_path(path_value)
+    data = _load_sessions()
+    resolved_session_id = _resolve_session_id(
+        data, session_id=session_id, opencode_session_id=opencode_session_id
+    )
+    session = data["sessions"][resolved_session_id]
+    if not _session_is_control_plane_repo(session):
+        raise RuntimeError("Root handoff is only available for the OpenMates control-plane repository")
+    metadata = session.get("worktree")
+    if not isinstance(metadata, dict) or not metadata.get("path"):
+        raise RuntimeError(f"Session {resolved_session_id} has no managed worktree")
+    worktree_root = Path(str(metadata["path"])).resolve()
+    if not is_valid_managed_worktree_path(worktree_root) or not _existing_direct_managed_worktree(worktree_root):
+        raise RuntimeError(f"Session {resolved_session_id} has an invalid managed worktree")
+    if relative_path not in _get_dirty_files(checkout_root=CONTROL_PLANE_ROOT):
+        raise RuntimeError(f"Root path is not currently dirty: {relative_path}")
+    if relative_path in _get_dirty_files(checkout_root=worktree_root):
+        raise RuntimeError(f"Session path already has local changes: {relative_path}")
+
+    source = CONTROL_PLANE_ROOT / relative_path
+    destination = worktree_root / relative_path
+    try:
+        destination.resolve(strict=False).relative_to(worktree_root)
+    except ValueError as exc:
+        raise RuntimeError(f"Session destination escapes through a symlink: {relative_path}") from exc
+    if source.is_symlink() or (source.exists() and not source.is_file()):
+        raise RuntimeError(f"Unsupported root handoff source: {relative_path}")
+    if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+        raise RuntimeError(f"Unsupported session handoff destination: {relative_path}")
+
+    source_state = "deleted"
+    source_sha256 = ""
+    if source.exists():
+        source_state = "file"
+        source_sha256 = _file_sha256(source)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=".root-import-", delete=False) as handle:
+            temporary = Path(handle.name)
+        try:
+            shutil.copy2(source, temporary)
+            if _file_sha256(source) != source_sha256:
+                raise RuntimeError(f"Root path changed during import: {relative_path}")
+            temporary.replace(destination)
+        finally:
+            temporary.unlink(missing_ok=True)
+    elif destination.exists():
+        destination.unlink()
+
+    imported_at = _now_iso()
+
+    def record(current: dict) -> None:
+        current_session = current.get("sessions", {}).get(resolved_session_id)
+        if not isinstance(current_session, dict):
+            raise RuntimeError(f"Session {resolved_session_id} disappeared during root import")
+        if relative_path not in current_session.setdefault("modified_files", []):
+            current_session["modified_files"].append(relative_path)
+        current_session["workspace_state"] = "changes_pending"
+        current_session["last_active"] = imported_at
+        current_worktree = current_session.get("worktree")
+        if not isinstance(current_worktree, dict):
+            raise RuntimeError(f"Session {resolved_session_id} worktree disappeared during root import")
+        imports = current_worktree.setdefault("root_imports", [])
+        imports.append({
+            "path": relative_path,
+            "state": source_state,
+            "sha256": source_sha256,
+            "root_head": _current_git_sha(CONTROL_PLANE_ROOT),
+            "imported_at": imported_at,
+        })
+        del imports[:-50]
+        current_worktree["last_active"] = imported_at
+
+    _mutate_sessions(record)
+    return {
+        "session_id": resolved_session_id,
+        "path": relative_path,
+        "state": source_state,
+        "sha256": source_sha256,
+        "worktree_path": str(worktree_root),
+    }
+
+
 def _worktree_head(path: str | Path) -> str:
     rc, stdout, stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
     if rc != 0:
@@ -2296,12 +2980,16 @@ def _session_worktree_warnings(session_id: str, session: dict) -> list[str]:
     return warnings
 
 
+def _is_deployable_worktree_path(relative_path: str) -> bool:
+    return not any(relative_path.startswith(prefix) for prefix in WORKTREE_NON_DEPLOYABLE_RUNTIME_PREFIXES)
+
+
 def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
     """Return the deploy file set, preferring the isolated worktree diff."""
     if not _session_is_control_plane_repo(session):
         dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
-        return sorted(f for f in tracked if f in dirty_files and f not in exclude)
+        return sorted(f for f in tracked if f in dirty_files and f not in exclude and _is_deployable_worktree_path(f))
 
     metadata = session.get("worktree")
     if isinstance(metadata, dict) and metadata.get("path"):
@@ -2309,6 +2997,7 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
         tracked = {_canonical_stored_repo_path(path) for path in session.get("modified_files") or []}
         if metadata.get("merged_commit"):
             changed.update(tracked)
+        changed = {relative_path for relative_path in changed if _is_deployable_worktree_path(relative_path)}
         deployed_states = metadata.get("root_applied_files")
         if metadata.get("merged_commit"):
             current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
@@ -2328,9 +3017,225 @@ def _session_deploy_files(session: dict, exclude: set[str]) -> list[str]:
             }
         if tracked:
             changed &= tracked
+        if changed:
+            target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+            try:
+                current_states = _snapshot_file_states(Path(metadata["path"]), sorted(changed))
+                target_states = _snapshot_worktree_base_states(
+                    {"path": metadata["path"], "merged_commit": target_ref},
+                    sorted(changed),
+                )
+                changed = {
+                    relative_path
+                    for relative_path in changed
+                    if current_states.get(relative_path) != target_states.get(relative_path)
+                }
+            except RuntimeError:
+                # A missing/stale remote-tracking ref must not hide real work.
+                pass
         return sorted(f for f in changed if f not in exclude)
     dirty_files = _get_dirty_files(checkout_root=_session_checkout_root(session))
-    return sorted(f for f in session.get("modified_files", []) if f in dirty_files and f not in exclude)
+    return sorted(
+        f for f in session.get("modified_files", [])
+        if f in dirty_files and f not in exclude and _is_deployable_worktree_path(f)
+    )
+
+
+def is_protected_control_plane_path(path: str) -> bool:
+    """Return whether a repository path belongs to the shared coding traffic controller."""
+    normalized = _canonical_stored_repo_path(str(path or "").replace("\\", "/")).removeprefix("./")
+    if normalized in PROTECTED_CONTROL_PLANE_EXACT_PATHS:
+        return True
+    return any(normalized.startswith(prefix) for prefix in PROTECTED_CONTROL_PLANE_PREFIXES)
+
+
+def _current_runtime_allows_control_plane_deploy(session: dict | None) -> bool:
+    return (
+        isinstance(session, dict)
+        and bool(os.environ.get("CODEX_SESSION_ID"))
+        and not os.environ.get("OPENCODE_SESSION_ID")
+    )
+
+
+def validate_product_session_deploy_paths(paths: list[str], session: dict | None = None) -> None:
+    """Reject control-plane changes from the product-session deployment lane."""
+    protected = sorted({path for path in paths if is_protected_control_plane_path(path)})
+    if not protected:
+        return
+    if _current_runtime_allows_control_plane_deploy(session):
+        return
+    rendered = ", ".join(protected)
+    raise RuntimeError(
+        "CONTROL-PLANE DEPLOY BLOCKED — ordinary OpenCode product sessions cannot deploy "
+        f"shared orchestration files: {rendered}. Preserve the worktree and move these changes "
+        "to the dedicated Codex control-plane recovery branch for review."
+    )
+
+
+def _resolve_deploy_selection(
+    session: dict,
+    *,
+    exclude: set[str],
+    use_staged: bool = False,
+    only: list[str] | None = None,
+) -> tuple[list[str], str]:
+    """Resolve one authoritative deploy file selector.
+
+    Historical ``modified_files`` entries remain advisory. An explicit staged
+    or path selector must never be widened with other dirty files from the same
+    long-running session.
+    """
+    requested_only = {
+        _canonical_stored_repo_path(path)
+        for path in (only or [])
+        if _canonical_stored_repo_path(path) not in exclude
+    }
+    if use_staged and requested_only:
+        raise RuntimeError("--use-staged and --only are mutually exclusive deploy selectors")
+
+    default_files = set(_session_deploy_files(session, exclude))
+    if requested_only:
+        unavailable = sorted(requested_only - default_files)
+        if unavailable:
+            raise RuntimeError(
+                "--only contains files that are not tracked dirty work for this session: "
+                + ", ".join(unavailable)
+            )
+        return sorted(requested_only), "only"
+
+    if use_staged:
+        checkout_root = _session_checkout_root(session)
+        staged_files = (
+            _get_staged_files()
+            if checkout_root == CONTROL_PLANE_ROOT
+            else _get_staged_files(checkout_root=checkout_root)
+        )
+        staged = {
+            _canonical_stored_repo_path(path)
+            for path in staged_files
+            if _canonical_stored_repo_path(path) not in exclude
+        }
+        tracked = {
+            _canonical_stored_repo_path(path)
+            for path in session.get("modified_files") or []
+        }
+        foreign = sorted(staged - tracked)
+        if foreign:
+            raise RuntimeError(
+                "--use-staged found staged files outside this session: " + ", ".join(foreign)
+            )
+        return sorted(staged), "staged"
+
+    return sorted(default_files), "tracked_dirty"
+
+
+def _build_deploy_manifest(
+    session_id: str,
+    session: dict,
+    files: list[str],
+    *,
+    selector: str,
+) -> dict:
+    """Build a deterministic identity for one resolved source patch."""
+    metadata = (
+        session.get("worktree")
+        if _session_is_control_plane_repo(session) and isinstance(session.get("worktree"), dict)
+        else None
+    )
+    patch_id = _worktree_patch_id(metadata, files) if metadata and files else ""
+    payload = {
+        "session_id": session_id,
+        "repository": _session_repo_id(session),
+        "target_branch": _session_repo_branch(session),
+        "source_base": str((metadata or {}).get("base_commit") or ""),
+        "selector": selector,
+        "selected_files": sorted(files),
+        "generated_files": [],
+        "patch_id": patch_id,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {**payload, "manifest_id": hashlib.sha256(encoded).hexdigest()}
+
+
+def _file_sha256(path: Path) -> str:
+    """Return one content identity without exposing file contents."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _prepared_dependency_identity(root: Path) -> str:
+    """Return the exact dependency lock identity for a prepared checkout."""
+    lockfile = root / "pnpm-lock.yaml"
+    if not lockfile.is_file():
+        raise RuntimeError(f"Prepared dependency root has no pnpm-lock.yaml: {root}")
+    return _file_sha256(lockfile)
+
+
+def _link_prepared_dependencies(
+    checkout_root: Path,
+    dependency_root: Path,
+    relative_paths: list[str],
+) -> str:
+    """Link immutable, lockfile-compatible dependency trees into one checkout."""
+    checkout_identity = _prepared_dependency_identity(checkout_root)
+    prepared_identity = _prepared_dependency_identity(dependency_root)
+    if checkout_identity != prepared_identity:
+        raise RuntimeError(
+            "Prepared dependencies are stale for this patch base: lockfile identity mismatch"
+        )
+    for relative in relative_paths:
+        source = dependency_root / relative
+        target = checkout_root / relative
+        if not source.is_dir():
+            raise RuntimeError(f"Prepared dependency path is unavailable: {relative}")
+        if target.exists() or target.is_symlink():
+            raise RuntimeError(f"Validation checkout unexpectedly contains dependency state: {relative}")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(source, target_is_directory=True)
+    return prepared_identity
+
+
+def _installed_cli_identity(candidate_root: Path, executable: str = "") -> dict:
+    """Inspect the installed CLI and candidate package without changing either."""
+    requested = executable or os.environ.get("OPENMATES_CLI", "") or shutil.which("openmates") or ""
+    if not requested:
+        raise RuntimeError("The openmates executable is not installed or on PATH")
+    executable_path = Path(requested).expanduser()
+    if not executable_path.is_absolute():
+        resolved_command = shutil.which(str(executable_path))
+        if not resolved_command:
+            raise RuntimeError(f"Could not resolve installed CLI executable: {requested}")
+        executable_path = Path(resolved_command)
+    executable_path = executable_path.absolute()
+    resolved_path = executable_path.resolve(strict=True)
+    installed_package_root = resolved_path.parent.parent
+    installed_package_json = installed_package_root / "package.json"
+    installed_metadata = json.loads(installed_package_json.read_text()) if installed_package_json.is_file() else {}
+
+    candidate_package_root = candidate_root / "frontend" / "packages" / "openmates-cli"
+    candidate_package_json = candidate_package_root / "package.json"
+    if not candidate_package_json.is_file():
+        raise RuntimeError("Candidate CLI package.json is unavailable")
+    candidate_metadata = json.loads(candidate_package_json.read_text())
+    candidate_dist = candidate_package_root / "dist" / "cli.js"
+    installed_hash = _file_sha256(resolved_path)
+    candidate_hash = _file_sha256(candidate_dist) if candidate_dist.is_file() else ""
+    return {
+        "executable_path": str(executable_path),
+        "resolved_path": str(resolved_path),
+        "installed_package_root": str(installed_package_root),
+        "installed_version": str(installed_metadata.get("version") or ""),
+        "installed_executable_sha256": installed_hash,
+        "candidate_package_root": str(candidate_package_root),
+        "candidate_version": str(candidate_metadata.get("version") or ""),
+        "candidate_executable_sha256": candidate_hash,
+        "contains_candidate_source": bool(candidate_hash and candidate_hash == installed_hash),
+        "inspection_mutated_install": False,
+    }
+
 
 
 def _relative_repo_path_for_session(path_value: str | Path, session: dict | None = None) -> str:
@@ -2775,21 +3680,33 @@ def _mark_worktree_deployed(
     integration: dict | None = None,
 ) -> None:
     """Mark a worktree merged and clear its matching blocked deploy record."""
-    checkpoint_files = sorted(str(path) for path in (integration or {}).get("files") or [])
-    source_patch_still_matches = True
     current_session = _load_sessions().get("sessions", {}).get(session_id, {})
     current_metadata = current_session.get("worktree") if isinstance(current_session, dict) else None
-    if checkpoint_files and isinstance(current_metadata, dict):
+    source_head_matches_deployed_commit = False
+    source_matches_deployed_commit = False
+    if isinstance(current_metadata, dict) and current_metadata.get("path"):
         try:
-            source_patch_still_matches = _worktree_patch_id(current_metadata, checkpoint_files) == patch_id
+            source_head_matches_deployed_commit = _worktree_head(current_metadata["path"]) == commit_hash
+            source_matches_deployed_commit = (
+                source_head_matches_deployed_commit
+                and not _worktree_changed_files({**current_metadata, "base_commit": commit_hash})
+            )
         except (OSError, RuntimeError):
-            source_patch_still_matches = False
+            source_matches_deployed_commit = False
+    # Synchronisation rebases any work created after the immutable deployment
+    # checkpoint onto commit_hash.  A clean source at that exact commit is the
+    # only state that may truthfully be called merged.  A patch fingerprint
+    # cannot be compared here: after a successful deploy the selected patch is
+    # part of HEAD and therefore correctly disappears from the working diff.
+    merged_state_is_truthful = source_matches_deployed_commit
 
     def mark(data: dict) -> None:
         metadata = data.get("sessions", {}).get(session_id, {}).get("worktree")
         if isinstance(metadata, dict):
-            metadata["status"] = "merged"
+            metadata["status"] = "merged" if merged_state_is_truthful else "changes_pending"
             metadata["merged_commit"] = commit_hash
+            if source_head_matches_deployed_commit:
+                metadata["base_commit"] = commit_hash
             metadata["last_active"] = _now_iso()
             metadata.pop("pending_commit", None)
             metadata.pop("pending_commit_patch_id", None)
@@ -2805,10 +3722,10 @@ def _mark_worktree_deployed(
                 }
             session = data.get("sessions", {}).get(session_id)
             if isinstance(session, dict):
-                session["workspace_state"] = "integrated" if source_patch_still_matches else "changes_pending"
+                session["workspace_state"] = "integrated" if merged_state_is_truthful else "changes_pending"
                 auto = session.get("auto_integration")
                 if isinstance(auto, dict):
-                    auto["status"] = "integrated" if source_patch_still_matches else "changes_pending"
+                    auto["status"] = "integrated" if merged_state_is_truthful else "changes_pending"
                     auto["updated_at"] = _now_iso()
         if patch_id:
             data["deploy_queue"] = [
@@ -2818,7 +3735,7 @@ def _mark_worktree_deployed(
             ]
 
     _mutate_sessions(mark)
-    if source_patch_still_matches:
+    if merged_state_is_truthful:
         with _worktree_checkpoint_lock(session_id):
             latest_session = _load_sessions().get("sessions", {}).get(session_id, {})
             latest_auto = latest_session.get("auto_integration") if isinstance(latest_session.get("auto_integration"), dict) else {}
@@ -2980,20 +3897,131 @@ def _remove_integration_worktree(integration: dict) -> None:
         raise RuntimeError(f"Could not remove integration worktree {path}: {stderr}")
 
 
-def _split_contract_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
-    """Separate deterministic contract outputs from source patches."""
-    generated = [relative_path for relative_path in files if relative_path in CONTRACT_GENERATED_ARTIFACTS]
-    source = [relative_path for relative_path in files if relative_path not in CONTRACT_GENERATED_ARTIFACTS]
+def _split_specification_generated_artifacts(files: list[str]) -> tuple[list[str], list[str]]:
+    """Separate deterministic Specification outputs from source patches."""
+    generated = [relative_path for relative_path in files if relative_path in SPECIFICATION_GENERATED_ARTIFACTS]
+    source = [relative_path for relative_path in files if relative_path not in SPECIFICATION_GENERATED_ARTIFACTS]
     return source, generated
 
 
-def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
-    """Regenerate selected contract artifacts in an integration checkout."""
+def _numstat_deletions(
+    checkout_root: Path,
+    base_ref: str,
+    files: list[str],
+    *,
+    cached: bool = False,
+) -> dict[str, int | None]:
+    """Return per-file text deletions, using None for binary changes."""
+    command = ["git", "diff", "--numstat"]
+    if cached:
+        command.append("--cached")
+    command.extend([base_ref, "--", *files])
+    rc, stdout, stderr = _run_cmd(command, cwd=str(checkout_root))
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect integration deletion counts: {stderr}")
+    deletions: dict[str, int | None] = {relative_path: 0 for relative_path in files}
+    for line in stdout.splitlines():
+        fields = line.split("\t", 2)
+        if len(fields) != 3:
+            continue
+        _added, removed, relative_path = fields
+        if relative_path not in deletions:
+            continue
+        deletions[relative_path] = None if removed == "-" else int(removed)
+    return deletions
+
+
+def _enforce_no_integration_deletion_amplification(
+    source_metadata: dict,
+    files: list[str],
+    checkout_root: Path,
+    *,
+    patch_id: str,
+    prepared_base: str,
+) -> None:
+    """Block stale worktree rebases that delete lines absent from the source edit.
+
+    A long-lived worktree may retain an old file while partial deploy metadata
+    advances ``merged_commit``. Diffing that old file against the newer global
+    baseline turns unrelated upstream additions into apparent deletions. The
+    actual worktree HEAD remains the authoritative statement of what the agent
+    edited, so integration must never delete more text than that source patch.
+    """
+    if not files:
+        return
+    source_path = Path(str(source_metadata.get("path") or ""))
+    source_head = _worktree_head(source_path)
+    if not source_head:
+        raise RuntimeError("Could not resolve the source worktree HEAD for deletion safety")
+    source_deletions = _numstat_deletions(source_path, source_head, files)
+    integrated_deletions = _numstat_deletions(
+        checkout_root,
+        prepared_base,
+        files,
+        cached=True,
+    )
+    amplified = []
+    for relative_path in files:
+        source_count = source_deletions.get(relative_path)
+        integrated_count = integrated_deletions.get(relative_path)
+        if source_count is None or integrated_count is None or integrated_count <= source_count:
+            continue
+        amplified.append(f"{relative_path} ({source_count} intended, {integrated_count} integrated)")
+    if amplified:
+        source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
+        raise IntegrationConflict(
+            "Deletion amplification detected while rebasing a stale worktree: "
+            + ", ".join(amplified)
+            + ". Refresh or reconcile these files against current origin/dev before deploying.",
+            patch_id=patch_id,
+            source_base=source_base,
+            final_base=prepared_base,
+        )
+
+
+def _selected_paths_changed_between_refs(
+    repo_root: Path,
+    source_ref: str,
+    target_ref: str,
+    files: list[str],
+) -> list[str]:
+    """Return selected paths whose upstream content changed between two refs."""
+    if not files or source_ref == target_ref:
+        return []
+    result = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "-z",
+            source_ref,
+            target_ref,
+            "--",
+            *(f":(literal){relative_path}" for relative_path in files),
+        ],
+        cwd=str(repo_root),
+        capture_output=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"Could not inspect selected upstream changes: {detail}")
+    return sorted(
+        {
+            raw_path.decode("utf-8", errors="replace")
+            for raw_path in result.stdout.split(b"\0")
+            if raw_path
+        }
+    )
+
+
+def _regenerate_specification_artifacts(checkout_root: Path, generated_files: list[str]) -> None:
+    """Regenerate selected Specification artifacts in an integration checkout."""
     if not generated_files:
         return
-    script = checkout_root / "scripts" / "contracts.py"
+    script = checkout_root / "scripts" / "specifications.py"
     if not script.exists():
-        raise RuntimeError("contract artifact generation unavailable: scripts/contracts.py is missing")
+        raise RuntimeError("Specification artifact generation unavailable: scripts/specifications.py is missing")
     result = subprocess.run(
         [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
         cwd=str(checkout_root),
@@ -3002,11 +4030,11 @@ def _regenerate_contract_artifacts(checkout_root: Path, generated_files: list[st
         timeout=120,
     )
     if result.returncode != 0:
-        detail = result.stderr or result.stdout or "contract artifact generation failed"
+        detail = result.stderr or result.stdout or "Specification artifact generation failed"
         raise RuntimeError(detail.strip())
     rc, _stdout, stderr = _run_cmd(["git", "add", "--", *sorted(generated_files)], cwd=str(checkout_root))
     if rc != 0:
-        raise RuntimeError(f"Could not stage regenerated contract artifacts: {stderr}")
+        raise RuntimeError(f"Could not stage regenerated Specification artifacts: {stderr}")
 
 
 def _apply_worktree_diff_to_checkout(
@@ -3023,7 +4051,7 @@ def _apply_worktree_diff_to_checkout(
     source_base = str(source_metadata.get("merged_commit") or source_metadata.get("base_commit") or "")
     if not source_path.is_dir() or not source_base:
         raise RuntimeError("Session source worktree metadata is incomplete")
-    patch_files, contract_generated_files = _split_contract_generated_artifacts(files)
+    patch_files, specification_generated_files = _split_specification_generated_artifacts(files)
     if checkpoint_commit:
         rc, checkpoint_parent, stderr = _run_cmd(
             ["git", "rev-parse", f"{checkpoint_commit}^"],
@@ -3065,7 +4093,14 @@ def _apply_worktree_diff_to_checkout(
                     source_base=source_base,
                     final_base=prepared_base,
                 )
-        _regenerate_contract_artifacts(checkout_root, contract_generated_files)
+        _regenerate_specification_artifacts(checkout_root, specification_generated_files)
+        _enforce_no_integration_deletion_amplification(
+            source_metadata,
+            patch_files,
+            checkout_root,
+            patch_id=patch_id,
+            prepared_base=prepared_base,
+        )
         return
     current_patch_id = _worktree_patch_id(source_metadata, files)
     if current_patch_id != patch_id:
@@ -3148,7 +4183,14 @@ def _apply_worktree_diff_to_checkout(
         if rc != 0:
             raise RuntimeError(f"Could not stage untracked deploy path {relative_path}: {stderr}")
 
-    _regenerate_contract_artifacts(checkout_root, contract_generated_files)
+    _regenerate_specification_artifacts(checkout_root, specification_generated_files)
+    _enforce_no_integration_deletion_amplification(
+        source_metadata,
+        patch_files,
+        checkout_root,
+        patch_id=patch_id,
+        prepared_base=prepared_base,
+    )
 
 
 def _prepare_integration_worktree(
@@ -3286,6 +4328,17 @@ def _checkpoint_ref_expected_commit(session_id: str, checkpoint_ref: str, new_co
         and auto_integration.get("checkpoint_commit") == previous_commit
     ):
         return previous_commit
+    # A normal deploy attempt creates the recovery commit before running its
+    # gates. If a gate fails, that commit remains at the session-owned ref but
+    # is intentionally not promoted into auto_integration metadata. A retry
+    # must be able to replace that exact session checkpoint without weakening
+    # the compare-and-swap guard for arbitrary commits or reused session IDs.
+    rc, subject, _stderr = _run_cmd(
+        ["git", "show", "-s", "--format=%s", previous_commit],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc == 0 and subject.strip() == f"checkpoint: preserve session {session_id}":
+        return previous_commit
     raise RuntimeError(f"Refusing to overwrite checkpoint ref with unverified provenance: {checkpoint_ref}")
 
 
@@ -3421,6 +4474,35 @@ def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict
         return _checkpoint_session_worktree_locked(session_id, event=event)
 
 
+def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dict:
+    session = data.get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        return {"status": "skipped", "reason": "session_disappeared"}
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if not metadata:
+        return {"status": "skipped", "reason": "not_mutating_worktree"}
+    metadata["status"] = "active"
+    metadata["last_active"] = now
+    session["last_active"] = now
+    session["workspace_state"] = "changes_pending"
+    auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else None
+    if auto and auto.get("status") != "integrated":
+        auto["status"] = "changes_pending"
+        auto["updated_at"] = now
+        auto["block_reason"] = "live_turn_started"
+    return {"status": "active", "session_id": session_id, "workspace_state": "changes_pending"}
+
+
+def activate_session_worktree(opencode_session_id: str) -> dict:
+    """Invalidate an idle checkpoint when its top-level chat starts a new turn."""
+    matched = session_for_opencode(_load_sessions(), opencode_session_id)
+    if not matched:
+        return {"status": "skipped", "reason": "not_top_level_session"}
+    session_id, _session = matched
+    with _worktree_checkpoint_lock(session_id):
+        return _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
+
+
 def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
     """Create and persist one checkpoint while holding its session lock."""
     data = _load_sessions()
@@ -3458,8 +4540,10 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
             current_session = current.get("sessions", {}).get(session_id)
             if not isinstance(current_session, dict):
                 return
+            previous = current_session.get("auto_integration") if isinstance(current_session.get("auto_integration"), dict) else {}
             current_session["workspace_state"] = "recovery_needed"
             current_session["auto_integration"] = {
+                **previous,
                 "status": "blocked",
                 "event": event,
                 "patch_id": patch_id,
@@ -3578,17 +4662,23 @@ def select_auto_integration_candidates(*, now: str | None = None) -> list[dict]:
         ):
             rejected.append((session_id, "held", "live_edit_lease"))
             continue
-        files = _session_deploy_files(session, set())
-        checkpoint_files = sorted(str(path) for path in auto.get("files") or [])
-        if sorted(files) != checkpoint_files:
-            rejected.append((session_id, "recovery_needed", "checkpoint_file_set_changed"))
-            continue
-        block_reason = _auto_integration_block_reason(files)
-        if block_reason:
-            rejected.append((session_id, "blocked", block_reason))
-            continue
-        if not files or _worktree_patch_id(metadata, files) != auto.get("patch_id"):
-            rejected.append((session_id, "recovery_needed", "checkpoint_patch_changed"))
+        try:
+            files = _session_deploy_files(session, set())
+            checkpoint_files = sorted(str(path) for path in auto.get("files") or [])
+            if sorted(files) != checkpoint_files:
+                rejected.append((session_id, "recovery_needed", "checkpoint_file_set_changed"))
+                continue
+            block_reason = _auto_integration_block_reason(files)
+            if block_reason:
+                rejected.append((session_id, "blocked", block_reason))
+                continue
+            if not files or _worktree_patch_id(metadata, files) != auto.get("patch_id"):
+                rejected.append((session_id, "recovery_needed", "checkpoint_patch_changed"))
+                continue
+        except (OSError, RuntimeError) as exc:
+            rejected.append(
+                (session_id, "recovery_needed", f"candidate_inspection_failed:{str(exc)[-1000:]}")
+            )
             continue
         selected.append(
             {
@@ -3630,31 +4720,42 @@ def checkpoint_idle_sessions(*, now: str | None = None) -> list[dict]:
     for _session_id, session in sorted(data.get("sessions", {}).items()):
         if not isinstance(session, dict) or session.get("auto_integration_policy") != "enabled":
             continue
-        opencode_session_id = str(session.get("opencode_session_id") or "")
-        if not opencode_session_id or _auto_integration_presence_is_live(session):
-            continue
-        last_active = str(session.get("last_active") or session.get("started") or "")
         try:
-            idle_minutes = (current_time - _parse_iso(last_active)).total_seconds() / 60
-        except (TypeError, ValueError):
-            continue
-        if idle_minutes < WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES:
-            continue
-        auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
-        metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
-        files = _session_deploy_files(session, set())
-        if not files:
-            continue
-        retryable_status = auto.get("status") in {"blocked", "recovery_needed"} or (
-            auto.get("status") == "held" and auto.get("block_reason") != "explicit_hold"
-        )
-        if not retryable_status and auto.get("patch_id") and auto.get("files") == files:
+            opencode_session_id = str(session.get("opencode_session_id") or "")
+            if not opencode_session_id or _auto_integration_presence_is_live(session):
+                continue
+            last_active = str(session.get("last_active") or session.get("started") or "")
             try:
-                if _worktree_patch_id(metadata, files) == auto.get("patch_id"):
-                    continue
-            except (OSError, RuntimeError):
-                pass
-        results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
+                idle_minutes = (current_time - _parse_iso(last_active)).total_seconds() / 60
+            except (TypeError, ValueError):
+                continue
+            if idle_minutes < WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES:
+                continue
+            auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+            metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+            files = _session_deploy_files(session, set())
+            if not files:
+                continue
+            retryable_status = auto.get("status") in {"blocked", "recovery_needed"} or (
+                auto.get("status") == "held" and auto.get("block_reason") != "explicit_hold"
+            )
+            if not retryable_status and auto.get("patch_id") and auto.get("files") == files:
+                try:
+                    if _worktree_patch_id(metadata, files) == auto.get("patch_id"):
+                        continue
+                except (OSError, RuntimeError):
+                    pass
+            results.append(checkpoint_session_worktree(opencode_session_id, event="idle"))
+        except (OSError, RuntimeError) as exc:
+            # One corrupt or unrecoverable worktree must not suppress every
+            # later checkpoint/integration candidate in the hourly pass.
+            results.append(
+                {
+                    "session_id": str(_session_id),
+                    "status": "blocked",
+                    "reason": str(exc)[-2000:],
+                }
+            )
     return results
 
 
@@ -3695,6 +4796,9 @@ def _claim_auto_integration(candidate: dict) -> bool:
     with _worktree_checkpoint_lock(session_id):
         session = _load_sessions().get("sessions", {}).get(session_id, {})
         auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
+        if _auto_integration_presence_is_live(session):
+            _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
+            return False
         if (
             auto.get("status") != "eligible"
             or auto.get("patch_id") != candidate.get("patch_id")
@@ -3885,6 +4989,31 @@ def _candidate_changed_files(path: Path, metadata: dict | None) -> list[str]:
     return _worktree_changed_files(effective)
 
 
+def _missing_managed_worktree_gitdir(path: Path) -> str:
+    """Return a missing Git administrative path referenced by one managed worktree."""
+    if not is_valid_managed_worktree_path(path) or not path.is_dir():
+        return ""
+    marker = path / ".git"
+    try:
+        marker_text = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    prefix = "gitdir: "
+    if not marker_text.startswith(prefix):
+        return ""
+    gitdir = Path(marker_text[len(prefix):].strip())
+    if not gitdir.is_absolute():
+        gitdir = (path / gitdir).resolve(strict=False)
+    else:
+        gitdir = gitdir.resolve(strict=False)
+    expected_root = (CONTROL_PLANE_ROOT / ".git" / "worktrees").resolve(strict=False)
+    try:
+        gitdir.relative_to(expected_root)
+    except ValueError:
+        return ""
+    return str(gitdir) if not gitdir.exists() else ""
+
+
 def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -> list[dict]:
     """Join sessions, linked worktrees, and physical worktree directories."""
     data = _load_sessions()
@@ -3957,6 +5086,8 @@ def _discover_worktree_candidates(*, only_session_ids: set[str] | None = None) -
                 "idle_hours": idle_hours,
                 "changed_files": changed_files,
                 "inspection_error": inspection_error,
+                "path_exists": path.is_dir(),
+                "missing_gitdir": _missing_managed_worktree_gitdir(path),
             }
         )
     return candidates
@@ -4329,6 +5460,12 @@ def _classify_worktree_candidate(
     if session_id in approved_obsolete:
         result.update(classification="superseded", reason_code="review_approved_obsolete")
         return result
+    if result.get("path_exists") is False:
+        result.update(classification="missing_worktree", reason_code="registered_path_missing")
+        return result
+    if result.get("missing_gitdir"):
+        result.update(classification="orphaned_git_metadata", reason_code="git_admin_missing")
+        return result
     if result.get("inspection_error"):
         result.update(classification="malformed", reason_code="inspection_failed")
         return result
@@ -4380,10 +5517,46 @@ def _remove_reconciled_worktree(candidate: dict) -> None:
     )
     rc, _stdout, stderr = _run_cmd(["git", "worktree", "remove", "--force", str(path)])
     if rc != 0 and path.exists():
-        if candidate.get("linked"):
-            raise RuntimeError(f"Failed to remove worktree {path}: {stderr}")
-        shutil.rmtree(path)
+        try:
+            shutil.rmtree(path)
+        except OSError as host_exc:
+            try:
+                _remove_expired_worktree_with_container(path)
+            except (OSError, RuntimeError) as cleanup_exc:
+                details = "; ".join(
+                    item for item in (stderr.strip(), str(host_exc), str(cleanup_exc)) if item
+                )
+                raise RuntimeError(f"Failed to remove worktree {path}: {details}") from cleanup_exc
+    if path.exists():
+        raise RuntimeError(f"Worktree still exists after removal: {path}")
     _run_cmd(["git", "worktree", "prune"])
+
+
+def _quarantine_orphaned_worktree(candidate: dict) -> Path:
+    """Move an unreadable managed worktree aside without deleting source bytes."""
+    source = _validate_managed_worktree_path(str(candidate.get("path") or ""))
+    if not source.is_dir() or not _missing_managed_worktree_gitdir(source):
+        raise RuntimeError(f"Refusing to quarantine a worktree without missing Git metadata: {source}")
+    try:
+        WORKTREE_ORPHAN_RECOVERY_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(f"Could not create orphan recovery directory: {exc}") from exc
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    destination = WORKTREE_ORPHAN_RECOVERY_DIR / f"{source.name}-{timestamp}-{secrets.token_hex(3)}"
+    try:
+        shutil.move(str(source), str(destination))
+    except OSError as exc:
+        raise RuntimeError(f"Could not quarantine orphaned worktree {source}: {exc}") from exc
+    if source.exists() or not destination.is_dir():
+        raise RuntimeError(f"Could not quarantine orphaned worktree {source}")
+    _run_cmd(["git", "worktree", "prune"])
+    return destination
+
+
+def _retained_worktree_checkpoint_ref(session_id: str) -> str:
+    checkpoint_ref = _worktree_checkpoint_ref(session_id)
+    rc, _stdout, _stderr = _run_cmd(["git", "show-ref", "--verify", "--quiet", checkpoint_ref])
+    return checkpoint_ref if rc == 0 else ""
 
 
 def _refresh_reconciliation_candidate(
@@ -4412,17 +5585,17 @@ def _refresh_reconciliation_candidate(
     except (OSError, RuntimeError) as exc:
         fresh["changed_files"] = []
         fresh["inspection_error"] = str(exc)
+    fresh["path_exists"] = path.is_dir()
+    fresh["missing_gitdir"] = _missing_managed_worktree_gitdir(path)
     fresh["last_active"] = _candidate_last_active(session, metadata or {}, path, fresh["changed_files"])
     try:
         fresh["idle_hours"] = _hours_since(fresh["last_active"]) if fresh["last_active"] else float("inf")
     except (TypeError, ValueError):
         fresh["idle_hours"] = float("inf")
-    live_lease = any(
-        isinstance(lease, dict) and lease.get("session_id") == session_id
-        for lease in data.get("edit_leases", {}).values()
-    )
-    if session.get("writing") or live_lease:
-        fresh["idle_hours"] = 0
+    # A write marker or edit lease can survive a crashed session indefinitely.
+    # Their acquisition paths also refresh session.last_active, so the timestamp
+    # is the authoritative liveness signal here. Treating the marker alone as
+    # activity makes stale orphaned worktrees impossible to reconcile.
     return _classify_worktree_candidate(fresh, target_ref, idle_hours, approved_obsolete)
 
 
@@ -4479,7 +5652,14 @@ def reconcile_session_worktrees(
             item = _classify_worktree_candidate(candidate, target_commit, idle_hours, approved)
         items.append(item)
 
-    safe_classes = {"integrated", "duplicated", "superseded", "disposable_integration"}
+    safe_classes = {
+        "integrated",
+        "duplicated",
+        "superseded",
+        "disposable_integration",
+        "missing_worktree",
+        "orphaned_git_metadata",
+    }
     deletable = [
         item for item in items
         if item.get("classification") in safe_classes and float(item.get("idle_hours", float("inf"))) >= idle_hours
@@ -4503,7 +5683,11 @@ def reconcile_session_worktrees(
                 ):
                     continue
                 try:
-                    _remove_reconciled_worktree(fresh)
+                    recovery_path = ""
+                    if fresh.get("classification") == "orphaned_git_metadata":
+                        recovery_path = str(_quarantine_orphaned_worktree(fresh))
+                    else:
+                        _remove_reconciled_worktree(fresh)
                 except RuntimeError as exc:
                     fresh["classification"] = "cleanup_blocked"
                     fresh["reason_code"] = "remove_failed"
@@ -4523,6 +5707,12 @@ def reconcile_session_worktrees(
                         "changed_file_count": len(fresh.get("changed_files") or []),
                         "head": str(fresh.get("head") or ""),
                         "target_commit": target_commit,
+                        "recovery_path": recovery_path,
+                        "checkpoint_ref": (
+                            _retained_worktree_checkpoint_ref(session_id)
+                            if fresh.get("classification") == "orphaned_git_metadata"
+                            else ""
+                        ),
                         "deleted_at": _now_iso(),
                     }
                 )
@@ -4746,15 +5936,16 @@ def _managed_worktree_records() -> list[dict]:
         session = registered.get("session") if isinstance(registered.get("session"), dict) else {}
         path = Path(path_text)
         timestamp: float | None = None
-        if path.exists():
+        created_at = str(metadata.get("created_at") or session.get("started") or "")
+        if created_at:
+            try:
+                timestamp = _parse_iso(created_at).timestamp()
+            except (TypeError, ValueError):
+                timestamp = None
+        if timestamp is None and path.exists():
+            # Unregistered recovery/orphan directories have no durable birth
+            # timestamp, so filesystem age is the conservative fallback only.
             timestamp = path.stat().st_mtime
-        else:
-            created_at = str(metadata.get("created_at") or session.get("started") or "")
-            if created_at:
-                try:
-                    timestamp = _parse_iso(created_at).timestamp()
-                except (TypeError, ValueError):
-                    timestamp = None
         records.append(
             {
                 "session_id": str(registered.get("session_id") or _worktree_candidate_id(path_text, metadata)),
@@ -4776,6 +5967,73 @@ def _managed_worktree_age_hours(record: dict, now_timestamp: float) -> float:
     return max(0.0, (now_timestamp - float(timestamp)) / 3600)
 
 
+def _hard_expiry_record_is_live(record: dict, data: dict) -> bool:
+    """Protect a currently executing or explicitly leased session from expiry."""
+    session_id = str(record.get("session_id") or "")
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    if not session and session_id:
+        current = data.get("sessions", {}).get(session_id)
+        session = current if isinstance(current, dict) else {}
+    if not session:
+        return False
+    if session.get("writing"):
+        return True
+    if any(
+        isinstance(lease, dict) and str(lease.get("session_id") or "") == session_id
+        for lease in data.get("edit_leases", {}).values()
+    ):
+        return True
+    docker_lock = data.get("locks", {}).get("docker_rebuild", {})
+    if _is_lock_active(docker_lock, "docker_rebuild") and str(docker_lock.get("claimed_by") or "") == session_id:
+        return True
+    return _auto_integration_presence_is_live(session)
+
+
+def _hard_expiry_record_is_safely_disposable(record: dict) -> tuple[bool, str]:
+    """Require proof that an aged worktree contains no unrecoverable work."""
+    path = Path(str(record.get("path") or ""))
+    if not path.exists():
+        return True, "missing"
+    metadata = record.get("metadata") if isinstance(record.get("metadata"), dict) else {}
+    try:
+        if _candidate_changed_files(path, metadata):
+            return False, "unique_changes"
+    except (OSError, RuntimeError, ValueError):
+        return False, "inspection_failed"
+    rc, head, _stderr = _run_cmd(["git", "rev-parse", "HEAD"], cwd=str(path))
+    if rc != 0 or not head.strip():
+        return False, "inspection_failed"
+    session = record.get("session") if isinstance(record.get("session"), dict) else {}
+    target_ref = f"{_session_repo_remote(session)}/{_session_repo_branch(session)}"
+    if not _git_is_ancestor(head.strip(), target_ref):
+        return False, "unmerged_head"
+    return True, "reachable_clean_head"
+
+
+def _remove_expired_worktree_with_container(path: Path) -> None:
+    """Remove root-owned contents from one exact managed directory."""
+    image = os.environ.get("OPENMATES_WORKTREE_CLEANUP_IMAGE", "openmates-core-api:latest")
+    inspect_rc, _stdout, inspect_stderr = _run_cmd(["docker", "image", "inspect", image])
+    if inspect_rc != 0:
+        raise RuntimeError(f"cleanup image {image!r} is unavailable: {inspect_stderr or 'image inspect failed'}")
+    cleanup_script = (
+        "from pathlib import Path; import shutil; root=Path('/cleanup'); "
+        "[(item.unlink() if item.is_symlink() or item.is_file() else shutil.rmtree(item)) "
+        "for item in list(root.iterdir())]"
+    )
+    rc, _stdout, stderr = _run_cmd(
+        [
+            "docker", "run", "--rm", "--network", "none", "--pids-limit", "64",
+            "--memory", "128m", "--cpus", "0.5",
+            "--mount", f"type=bind,source={path},target=/cleanup",
+            "--entrypoint", "python3", image, "-c", cleanup_script,
+        ]
+    )
+    if rc != 0:
+        raise RuntimeError(stderr or "container cleanup failed")
+    path.rmdir()
+
+
 def _remove_expired_worktree(record: dict) -> None:
     """Remove one exact expired path while refusing anything outside managed storage."""
     path = Path(str(record.get("path") or "")).resolve(strict=False)
@@ -4795,8 +6053,14 @@ def _remove_expired_worktree(record: dict) -> None:
     if rc != 0 and path.exists():
         try:
             shutil.rmtree(path)
-        except OSError as exc:
-            raise RuntimeError(f"Failed to remove expired worktree {path}: {stderr or exc}") from exc
+        except OSError as host_exc:
+            try:
+                _remove_expired_worktree_with_container(path)
+            except (OSError, RuntimeError) as cleanup_exc:
+                details = "; ".join(
+                    item for item in (stderr.strip(), str(host_exc), str(cleanup_exc)) if item
+                )
+                raise RuntimeError(f"Failed to remove expired worktree {path}: {details}") from cleanup_exc
     if path.exists():
         raise RuntimeError(f"Expired worktree still exists after removal: {path}")
 
@@ -4813,16 +6077,33 @@ def expire_managed_worktrees(
         )
     current_timestamp = time.time() if now_timestamp is None else now_timestamp
     records = _managed_worktree_records()
-    expired = [
-        {**record, "age_hours": _managed_worktree_age_hours(record, current_timestamp)}
+    current_data = _load_sessions()
+    live_session_ids = {
+        str(record.get("session_id") or "")
         for record in records
-        if _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
-    ]
+        if _hard_expiry_record_is_live(record, current_data)
+    }
+    expired: list[dict] = []
+    protected_unresolved: list[dict] = []
+    for record in records:
+        age_hours = _managed_worktree_age_hours(record, current_timestamp)
+        session_id = str(record.get("session_id") or "")
+        if age_hours < max_age_hours or session_id in live_session_ids:
+            continue
+        disposable, reason = _hard_expiry_record_is_safely_disposable(record)
+        candidate = {**record, "age_hours": age_hours}
+        if disposable:
+            expired.append(candidate)
+        else:
+            protected_unresolved.append(
+                {"session_id": session_id, "path": str(record.get("path") or ""), "reason": reason}
+            )
     expired.sort(key=lambda item: len(Path(str(item["path"])).parts), reverse=True)
     retained = sorted(
         str(record["session_id"])
         for record in records
         if _managed_worktree_age_hours(record, current_timestamp) < max_age_hours
+        or str(record.get("session_id") or "") in live_session_ids
     )
     deleted_records: list[dict] = []
     failures: list[dict] = []
@@ -4890,6 +6171,13 @@ def expire_managed_worktrees(
         "inspected": len(records),
         "deleted": deleted_ids,
         "retained": retained,
+        "protected_live": sorted(
+            str(record.get("session_id") or "")
+            for record in records
+            if str(record.get("session_id") or "") in live_session_ids
+            and _managed_worktree_age_hours(record, current_timestamp) >= max_age_hours
+        ),
+        "protected_unresolved": protected_unresolved,
         "failures": failures,
     }
 
@@ -4899,7 +6187,9 @@ def _enforce_worktree_creation_capacity() -> None:
     expire_managed_worktrees(max_age_hours=WORKTREE_HARD_MAX_AGE_HOURS)
     worktree_count = sum(1 for path in AGENT_WORKTREES_DIR.iterdir() if path.is_dir()) if AGENT_WORKTREES_DIR.is_dir() else 0
     usage = shutil.disk_usage(CONTROL_PLANE_ROOT)
-    used_percent = ((usage.total - usage.free) * 100 / usage.total) if usage.total else 100.0
+    # free excludes reserved blocks, while used does not include them. Using
+    # total-free double-counts reserved capacity and trips the 85% gate early.
+    used_percent = (usage.used * 100 / usage.total) if usage.total else 100.0
     breaches: list[str] = []
     if worktree_count >= WORKTREE_MAX_COUNT:
         breaches.append(f"worktree count limit reached ({worktree_count}/{WORKTREE_MAX_COUNT})")
@@ -5393,7 +6683,7 @@ def _get_commit_url(commit_hash: str) -> str | None:
 
 
 
-def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
+def _get_dirty_files(*, checkout_root: Path | None = None, missing_ok: bool = False) -> set[str]:
     """Parse `git status --porcelain` and return set of dirty file paths.
 
     Handles all porcelain v1 status formats including renames/copies
@@ -5404,13 +6694,18 @@ def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
     Without -uall, git collapses untracked dirs to "?? dir/" and
     individual file paths never appear in the dirty set.
     """
+    root = checkout_root or CONTROL_PLANE_ROOT
+    if not root.is_dir():
+        if missing_ok:
+            return set()
+        raise RuntimeError(f"Cannot inspect missing checkout: {root}")
     # Call subprocess directly instead of _run_cmd to preserve leading whitespace.
     # _run_cmd calls .strip() on stdout which removes the leading space from the
     # first line's porcelain status code (e.g., " M file" becomes "M file"),
     # breaking the fixed-offset parsing at line[3:].
     result = subprocess.run(
         ["git", "status", "--porcelain", "-uall"],
-        cwd=str(checkout_root or CONTROL_PLANE_ROOT),
+        cwd=str(root),
         capture_output=True,
         text=True,
         timeout=120,
@@ -5437,12 +6732,23 @@ def _get_dirty_files(*, checkout_root: Path | None = None) -> set[str]:
 def _get_staged_files(*, checkout_root: Path | None = None) -> set[str]:
     """Return set of file paths currently in the git index (staged for commit)."""
     rc, stdout, _ = _run_cmd(
-        ["git", "diff", "--name-only", "--cached"],
+        ["git", "diff", "--name-only", "--cached", "--no-renames"],
         cwd=str(checkout_root or CONTROL_PLANE_ROOT),
     )
     if rc != 0 or not stdout:
         return set()
     return {line.strip() for line in stdout.splitlines() if line.strip()}
+
+
+def _path_has_unstaged_diff(relative_path: str, *, checkout_root: Path | None = None) -> bool:
+    """Return whether a selected path has staged, unstaged, or untracked changes."""
+    rc, stdout, stderr = _run_cmd(
+        ["git", "status", "--porcelain", "--untracked-files=all", "--", relative_path],
+        cwd=str(checkout_root or CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect deploy path status for {relative_path}: {stderr}")
+    return bool(stdout.strip())
 
 
 def _validate_staged_deploy_files(
@@ -5457,7 +6763,11 @@ def _validate_staged_deploy_files(
         if checkout_root is None
         else _get_staged_files(checkout_root=checkout_root)
     )
-    missing_staged = sorted(to_commit - staged_files)
+    missing_staged = sorted(
+        relative_path
+        for relative_path in to_commit - staged_files
+        if _path_has_unstaged_diff(relative_path, checkout_root=checkout_root)
+    )
     foreign_staged = sorted(staged_files - to_commit)
     if not missing_staged and not foreign_staged:
         return True
@@ -6906,9 +8216,51 @@ def session_for_opencode(data: dict, opencode_session_id: str, *, repo_id: str =
     return matches[0] if matches else None
 
 
-def opencode_session_reusable_for_start(session: dict) -> bool:
-    """Return whether `sessions.py start` may keep using this chat binding."""
-    return True
+def opencode_session_reusable_for_start(session: dict, task: str | None = None) -> bool:
+    """Return whether `sessions.py start` may keep using this chat binding.
+
+    A restart or same-task continuation must retain its existing worktree. Once
+    work from a different task has been integrated or durably checkpointed,
+    however, reusing that worktree mixes historical residue into the new task.
+    """
+    incoming_task = str(task or "").strip()
+    current_task = str(session.get("task") or "").strip()
+    if not incoming_task or not current_task or incoming_task == current_task:
+        return True
+
+    worktree = session.get("worktree") or {}
+    integration = worktree.get("integration") or {}
+    auto_integration = session.get("auto_integration") or {}
+    work_is_preserved = (
+        integration.get("status") == "merged"
+        or bool(session.get("merged_commit"))
+        or bool(auto_integration.get("checkpoint_ref"))
+    )
+    return not work_is_preserved
+
+
+def rotate_opencode_session_binding(
+    data: dict,
+    session_id: str,
+    opencode_session_id: str,
+    *,
+    now: str | None = None,
+) -> None:
+    """Retire one preserved repo-session binding before creating its successor."""
+    session = data.get("sessions", {}).get(session_id)
+    if not isinstance(session, dict):
+        raise RuntimeError(f"Cannot rotate unknown repository session {session_id}")
+    if opencode_session_id not in {
+        session.get("opencode_session_id"),
+        session.get("opencode_top_level_session_id"),
+    }:
+        raise RuntimeError(
+            f"Repository session {session_id} is no longer bound to {opencode_session_id}"
+        )
+    session["opencode_session_id"] = None
+    session["opencode_top_level_session_id"] = None
+    session["rotated_opencode_session_id"] = opencode_session_id
+    session["rotated_at"] = now or _now_iso()
 
 
 def refresh_existing_session_for_start(
@@ -6985,18 +8337,30 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     """Align deploy metadata after a managed worktree is safely fast-forwarded."""
     worktree_path = str(worktree.get("path") or "")
     recorded_base = str(worktree.get("base_commit") or "")
+    recorded_merged = str(worktree.get("merged_commit") or "")
     if not worktree_path or not recorded_base:
         return ""
     current_head = _current_git_sha(Path(worktree_path))
-    if not current_head or current_head == recorded_base:
+    if not current_head:
+        return ""
+    if current_head == recorded_base and (not recorded_merged or recorded_merged == current_head):
         return ""
     rc, upstream_head, stderr = _run_cmd(
         ["git", "rev-parse", "refs/remotes/origin/dev"],
         cwd=worktree_path,
     )
-    if rc != 0 or current_head != upstream_head.strip():
+    if rc != 0:
         raise RuntimeError(
-            "Reason: managed worktree HEAD does not match origin/dev. "
+            "Reason: origin/dev could not be resolved while validating the managed worktree. "
+            f"Next: preserve the worktree and inspect its commits before repair. {stderr}".strip()
+        )
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", current_head, upstream_head.strip()],
+        cwd=worktree_path,
+    )
+    if rc != 0:
+        raise RuntimeError(
+            "Reason: managed worktree HEAD is not integrated in origin/dev. "
             f"Next: preserve the worktree and inspect its commits before repair. {stderr}".strip()
         )
     rc, _stdout, stderr = _run_cmd(
@@ -7008,12 +8372,81 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
             "Reason: managed worktree HEAD diverged from its recorded base. "
             f"Next: preserve the worktree and inspect both commits before repair. {stderr}".strip()
         )
+    if recorded_merged and recorded_merged != current_head:
+        rc, _stdout, stderr = _run_cmd(
+            ["git", "merge-base", "--is-ancestor", recorded_merged, current_head],
+            cwd=worktree_path,
+        )
+        if rc != 0:
+            raise RuntimeError(
+                "Reason: managed worktree deployed baseline diverged from origin/dev. "
+                f"Next: preserve the worktree and inspect both commits before repair. {stderr}".strip()
+            )
+        worktree["merged_commit"] = current_head
     worktree["base_commit"] = current_head
-    return recorded_base
+    return recorded_base if recorded_base != current_head else ""
+
+
+def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
+    """Refresh one session's recorded base after a safe worktree fast-forward."""
+    def update(data: dict) -> dict[str, str]:
+        resolved_session_id = _resolve_session_id(data, session_id=session_id)
+        session = data["sessions"][resolved_session_id]
+        worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+        previous_base = refresh_worktree_base_after_fast_forward(worktree)
+        if worktree.get("path") and _existing_direct_managed_worktree(worktree.get("path")):
+            session["binding_mode"] = "worktree_routed"
+            session["binding_updated_at"] = _now_iso()
+            session["binding_failure_reason"] = ""
+        if previous_base or session.get("binding_mode") == "worktree_routed":
+            session["last_active"] = _now_iso()
+            worktree["last_active"] = session["last_active"]
+        return {
+            "session_id": resolved_session_id,
+            "previous_base": previous_base,
+            "base_commit": str(worktree.get("base_commit") or ""),
+            "binding_mode": str(session.get("binding_mode") or ""),
+            "worktree_path": str(worktree.get("path") or ""),
+        }
+
+    return _mutate_sessions(update)
 
 
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
+    recreated = False
+    initial = _mutate_sessions(lambda data: data)
+    initial_session_id = _resolve_session_id(initial, opencode_session_id=opencode_session_id)
+    initial_session = initial["sessions"][initial_session_id]
+    initial_worktree = initial_session.get("worktree") or {}
+    initial_path = Path(str(initial_worktree.get("path") or ""))
+    integration = initial_worktree.get("integration") if isinstance(initial_worktree.get("integration"), dict) else {}
+    if initial_path and not _existing_direct_managed_worktree(initial_path) and integration.get("status") == "merged":
+        rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"])
+        if rc != 0:
+            raise RuntimeError(f"Could not resolve origin/dev while repairing {initial_session_id}: {stderr}")
+        recovery_path = initial_path.with_name(
+            f"{initial_path.name}.recovery-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        )
+        if initial_path.exists():
+            initial_path.rename(recovery_path)
+        _run_cmd(["git", "worktree", "prune"])
+        rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(initial_path), target_commit])
+        if rc != 0:
+            if recovery_path.exists() and not initial_path.exists():
+                recovery_path.rename(initial_path)
+            raise RuntimeError(f"Failed to recreate merged session worktree {initial_session_id}: {stderr}")
+
+        def record_recovery(data: dict) -> None:
+            recovered = data["sessions"][initial_session_id]["worktree"]
+            recovered["base_commit"] = target_commit
+            recovered["status"] = "active"
+            recovered["recovered_from"] = str(recovery_path) if recovery_path.exists() else ""
+            recovered["recovered_at"] = _now_iso()
+
+        _mutate_sessions(record_recovery)
+        recreated = True
+
     def update(data: dict) -> dict:
         session_id = _resolve_session_id(data, opencode_session_id=opencode_session_id)
         session = data["sessions"][session_id]
@@ -7036,6 +8469,9 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
         session["last_active"] = _now_iso()
         if worktree.get("status") in {"changes_pending", "merged"}:
             worktree["status"] = "active"
+        if recreated:
+            session["workspace_state"] = "clean"
+            session.pop("auto_integration", None)
         worktree["last_active"] = session["last_active"]
         return {
             "session_id": session_id,
@@ -7050,12 +8486,15 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
+    replace_session_id: str | None = None,
 ) -> tuple[str, list[str], list[str], dict, bool]:
     """Atomically register one repo session and its authoritative OpenCode chat."""
     def register(data: dict) -> tuple[str, list[str], list[str], dict, bool]:
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
         _prune_checkpoint_lock_files(data)
+        if opencode_session_id and replace_session_id:
+            rotate_opencode_session_binding(data, replace_session_id, opencode_session_id)
         if opencode_session_id:
             existing = session_for_opencode(
                 data,
@@ -7151,7 +8590,9 @@ def cmd_start(args: argparse.Namespace) -> None:
         opencode_session_id,
         repo_id=repo["repo_id"],
     ) if opencode_session_id else None
-    if existing and not opencode_session_reusable_for_start(existing[1]):
+    replace_session_id: str | None = None
+    if existing and not opencode_session_reusable_for_start(existing[1], args.task):
+        replace_session_id = existing[0]
         existing = None
     if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
         existing = None
@@ -7185,7 +8626,10 @@ def cmd_start(args: argparse.Namespace) -> None:
             "writing": None,
             "task_id": task_id_arg,
             "linear_issue_id": None,
-            "zellij_session": os.environ.get("ZELLIJ_SESSION_NAME"),
+            # OpenCode inherits the zellij name of the shared server host pane,
+            # but does not own that zellij session. Recording it here would let
+            # `sessions.py end` kill the server and every sibling chat.
+            "zellij_session": None if opencode_session_id else os.environ.get("ZELLIJ_SESSION_NAME"),
             "opencode_session_id": None,
             "opencode_top_level_session_id": opencode_session_id,
             "binding_mode": (
@@ -7198,6 +8642,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         sid, pruned, cleared_locks, data, registered_new = register_session_record(
             session_record,
             opencode_session_id,
+            replace_session_id,
         )
         is_new_session = registered_new
     worktree_metadata: dict | None = None
@@ -7710,7 +9155,12 @@ def cmd_end(args: argparse.Namespace) -> None:
     # ── Zellij cleanup ───────────────────────────────────────────────────
     # NEVER kill the zellij session the current process is attached to —
     # that would destroy the user's own terminal. Only kill spawned sub-sessions.
-    zellij_name = session.get("zellij_session")
+    # OpenCode-bound records never own a zellij session. Keep this identity
+    # check for legacy records that captured the shared server's `code` name.
+    has_opencode_identity = bool(
+        session.get("opencode_session_id") or session.get("opencode_top_level_session_id")
+    )
+    zellij_name = None if has_opencode_identity else session.get("zellij_session")
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:
@@ -7928,48 +9378,13 @@ def _proof_video_blocker_media_record(run_dir: Path, manifest: dict[str, Any]) -
     """Return response-ready media metadata when a proof-video record is blocked."""
 
     try:
-        from scripts.spec_demo import resolve_run_artifact_path
+        from scripts.proof_video_workflow import proof_blocker_media
     except ModuleNotFoundError:
-        from spec_demo import resolve_run_artifact_path
+        from proof_video_workflow import proof_blocker_media
 
     review = manifest.get("review") if isinstance(manifest.get("review"), dict) else {}
     review_status = str(review.get("status") or "pending")
-    if review_status == "passed":
-        return {}
-    video_value = str(manifest.get("video_path") or "")
-    video_path = resolve_run_artifact_path(run_dir, video_value) if video_value else run_dir
-    record: dict[str, Any] = {
-        "status": "required",
-        "reason": "Proof review did not pass; include this recording when reporting the blocker.",
-        "response_requirement": "Run upload_command and paste the returned video HTML in the blocker response.",
-    }
-    if not video_value or not video_path.is_file():
-        return {**record, "media_status": "missing", "video_path": str(video_path) if video_value else ""}
-
-    caption_artifact = manifest.get("caption_artifact") if isinstance(manifest.get("caption_artifact"), dict) else {}
-    captions_value = str(caption_artifact.get("path") or "")
-    captions_path = resolve_run_artifact_path(run_dir, captions_value) if captions_value else None
-    alt = f"Blocked proof video for {manifest.get('spec_id', 'session-proof')} ({review_status})"
-    command = ["python3", "scripts/opencode_response_media.py", str(video_path)]
-    if captions_path is not None and captions_path.is_file():
-        command.extend(
-            [
-                "--captions",
-                str(captions_path),
-                "--captions-language",
-                str(caption_artifact.get("language") or "und"),
-                "--captions-label",
-                str(caption_artifact.get("label") or "Captions"),
-            ]
-        )
-        record["captions_path"] = str(captions_path)
-    command.extend(["--alt", alt])
-    return {
-        **record,
-        "media_status": "available",
-        "video_path": str(video_path),
-        "upload_command": " ".join(shlex.quote(part) for part in command),
-    }
+    return proof_blocker_media(run_dir, manifest, review_status)
 
 
 def cmd_proof_video(args: argparse.Namespace) -> None:
@@ -8026,6 +9441,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             from scripts.proof_video_workflow import (
                 WorkflowError,
                 approved_render_claims,
+                record_contract_authorization,
                 require_recorded_approval,
                 resolve_deployed_run,
             )
@@ -8033,10 +9449,16 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             from proof_video_workflow import (
                 WorkflowError,
                 approved_render_claims,
+                record_contract_authorization,
                 require_recorded_approval,
                 resolve_deployed_run,
             )
         try:
+            record_contract_authorization(
+                session_id=args.session,
+                spec_name=args.spec_name,
+                contract_path=args.contract_path,
+            )
             approved_contract = require_recorded_approval(session_id=args.session, spec_name=args.spec_name, contract_path=args.contract_path)
             approved_claims = approved_render_claims(approved_contract, device_profile=args.device_profile)
             deployed_run = resolve_deployed_run(
@@ -8069,6 +9491,14 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             timestamps = deployed_run.get(timestamp_field)
             if isinstance(timestamps, list):
                 source[timestamp_field] = timestamps
+        state_change_timestamps_by_id = deployed_run.get("state_change_timestamps_by_id")
+        if isinstance(state_change_timestamps_by_id, dict):
+            source["state_change_timestamps_by_id"] = state_change_timestamps_by_id
+        source_end_timestamp_seconds = getattr(args, "source_end_timestamp_seconds", None)
+        if source_end_timestamp_seconds is None:
+            source_end_timestamp_seconds = deployed_run.get("source_end_timestamp_seconds")
+        if source_end_timestamp_seconds is not None:
+            source["source_end_timestamp_seconds"] = float(source_end_timestamp_seconds)
         result = produce_playwright_demonstration(
             run_dir=run_dir,
             source_video=args.source_video,
@@ -8161,6 +9591,7 @@ def _presence_identity_item(
         "worktree": durable.get("worktree", {}),
         "workspace_state": durable.get("workspace_state", "unknown"),
         "auto_integration": durable.get("auto_integration", {}),
+        "resource_wait": durable.get("resource_wait", {}),
         "paths": record.get("paths", []),
         "updated_at": record.get("updated_at", ""),
     }
@@ -8184,6 +9615,7 @@ def presence_status_view(
     }
     view = {
         "working": [],
+        "waiting_for_resource": [],
         "waiting_for_user": [],
         "idle_after_response": [],
         "stopped_or_failed": [],
@@ -8192,13 +9624,10 @@ def presence_status_view(
     }
     infrastructure = durable.get("infrastructure", {}) if isinstance(durable.get("infrastructure"), dict) else {}
     docker_operations = list(infrastructure.get("docker_operations") or [])
-    active_docker_operation = next(
-        (
-            operation for operation in docker_operations
-            if isinstance(operation, dict) and operation.get("status") in DOCKER_OPERATION_ACTIVE_STATUSES
-        ),
-        None,
-    )
+    persistent_docker_operations = _list_persistent_docker_operations()
+    if persistent_docker_operations:
+        docker_operations = persistent_docker_operations
+    active_docker_operation = _active_docker_operation_from_list(docker_operations)
     view["infrastructure"] = {
         "active_docker_operation": active_docker_operation,
         "test_leases": list((infrastructure.get("test_leases") or {}).values()),
@@ -8208,7 +9637,15 @@ def presence_status_view(
         ][-DOCKER_OPERATION_HISTORY_LIMIT:],
     }
     for item in items.values():
-        if item["attention"].startswith("required_"):
+        resource_wait = item.get("resource_wait") if isinstance(item.get("resource_wait"), dict) else {}
+        resource_wait_live = (
+            resource_wait.get("status") == "waiting"
+            and resource_wait.get("heartbeat_at")
+            and _minutes_since(resource_wait["heartbeat_at"]) <= 3
+        )
+        if resource_wait_live:
+            view["waiting_for_resource"].append(item)
+        elif item["attention"].startswith("required_"):
             view["waiting_for_user"].append(item)
         elif item["execution"] in {"busy", "retrying"}:
             view["working"].append(item)
@@ -8216,7 +9653,7 @@ def presence_status_view(
             view["idle_after_response"].append(item)
         elif item["execution"] in {"stopped", "error"}:
             view["stopped_or_failed"].append(item)
-    for section in ("working", "waiting_for_user", "idle_after_response", "stopped_or_failed"):
+    for section in ("working", "waiting_for_resource", "waiting_for_user", "idle_after_response", "stopped_or_failed"):
         view[section].sort(key=lambda item: item["opencode_session_id"])
 
     for path, lease in sorted(durable.get("edit_leases", {}).items()):
@@ -8347,6 +9784,7 @@ def _edit_lease_summary_lines(edit_leases: dict[str, Any]) -> list[str]:
 
 def _format_coordination_section(session_id: str, data: dict[str, Any], view: dict[str, Any]) -> str:
     working = _sort_presence_items(list(view.get("working") or []))
+    waiting_for_resource = _sort_presence_items(list(view.get("waiting_for_resource") or []))
     waiting = _sort_presence_items(list(view.get("waiting_for_user") or []))
     completed = _sort_presence_items(
         [
@@ -8357,12 +9795,14 @@ def _format_coordination_section(session_id: str, data: dict[str, Any], view: di
     )
     visible_session_ids = [
         str(item.get("opencode_session_id") or "")
-        for item in [*working, *waiting, *completed]
+        for item in [*working, *waiting_for_resource, *waiting, *completed]
         if item.get("opencode_session_id")
     ]
     titles = _opencode_session_titles(visible_session_ids)
     lines: list[str] = []
     _append_presence_section(lines, "Working now", working, titles, show_activity=True)
+    lines.append("")
+    _append_presence_section(lines, "Waiting for shared resource", waiting_for_resource, titles)
     lines.append("")
     _append_presence_section(lines, "Waiting for user", waiting, titles)
     lines.append("")
@@ -8396,7 +9836,13 @@ def _format_status_session_card(selected: dict[str, Any] | None, locks: dict[str
     worktree_path = worktree.get("path") or "none"
     active_locks = [name for name, lock in locks.items() if isinstance(lock, dict) and lock.get("status") == "IN_PROGRESS"]
     owned_leases = [path for path, lease in edit_leases.items() if isinstance(lease, dict) and lease.get("session_id") == repository_session_id]
-    if active_locks:
+    resource_wait = selected.get("resource_wait") if isinstance(selected.get("resource_wait"), dict) else {}
+    if resource_wait.get("status") == "waiting" and resource_wait.get("heartbeat_at") and _minutes_since(resource_wait["heartbeat_at"]) <= 3:
+        blocker = (
+            f"waiting for {resource_wait.get('resource', 'shared resource')} "
+            f"held by {resource_wait.get('owner_session_id') or '?'}"
+        )
+    elif active_locks:
         blocker = f"active lock(s): {', '.join(sorted(active_locks))}"
     elif attention.startswith("required_"):
         blocker = f"user input required ({attention})"
@@ -8428,6 +9874,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     _prune_stale_locks(data)
     _prune_checkpoint_lock_files(data)
     _prune_stale_edit_leases(data)
+    _prune_stale_resource_waits(data)
     _save_sessions(data)
 
     sessions = data.get("sessions", {})
@@ -8452,7 +9899,7 @@ def cmd_status(args: argparse.Namespace) -> None:
         for sid, info in sessions.items():
             root = _session_checkout_root(info)
             if root not in dirty_by_root:
-                dirty_by_root[root] = _get_dirty_files(checkout_root=root)
+                dirty_by_root[root] = _get_dirty_files(checkout_root=root, missing_ok=True)
             dirty_files = dirty_by_root[root]
             modified = info.get("modified_files", [])
             uncommitted = [f for f in modified if f in dirty_files]
@@ -8481,6 +9928,7 @@ def cmd_status(args: argparse.Namespace) -> None:
     else:
         labels = (
             ("working", "Currently working"),
+            ("waiting_for_resource", "Waiting for a shared resource"),
             ("waiting_for_user", "Waiting for required user input"),
             ("idle_after_response", "Idle after completed response"),
             ("stopped_or_failed", "Stopped or failed"),
@@ -8559,6 +10007,18 @@ def cmd_status(args: argparse.Namespace) -> None:
             )
 
 
+def _product_runtime_diagnostics(checkout: Path = PRODUCT_RUNTIME_CHECKOUT) -> dict[str, Any]:
+    """Classify managed-runtime dirtiness without mutating the checkout."""
+    if not (checkout / ".git").exists():
+        return {"exists": False, "dirty_files": [], "generated_only": False}
+    dirty_files = sorted(_get_dirty_files(checkout_root=checkout))
+    return {
+        "exists": True,
+        "dirty_files": dirty_files,
+        "generated_only": bool(dirty_files) and set(dirty_files) <= PRODUCT_RUNTIME_GENERATED_PATHS,
+    }
+
+
 def cmd_doctor(args: argparse.Namespace) -> None:
     """Diagnose deploy blockers without mutating git state."""
     data = _load_sessions()
@@ -8634,6 +10094,30 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     else:
         print("Dirty files: none")
         print()
+
+    runtime_diagnostics = _product_runtime_diagnostics()
+    runtime_dirty = runtime_diagnostics["dirty_files"]
+    print("Product runtime:")
+    print(f"  Path: {PRODUCT_RUNTIME_CHECKOUT}")
+    if not runtime_diagnostics["exists"]:
+        print("  State: not initialized")
+    elif not runtime_dirty:
+        print("  State: clean")
+    else:
+        print(f"  State: dirty ({len(runtime_dirty)} file(s))")
+        for path in runtime_dirty:
+            print(f"    - {path}")
+        if runtime_diagnostics["generated_only"]:
+            rendered_paths = " ".join(runtime_dirty)
+            print("  Classification: generated nightly storage-audit output")
+            print("  Recovery scope: these files are reproducible from retained test artifacts")
+            print(
+                "  Reviewed recovery: git -C "
+                f"{PRODUCT_RUNTIME_CHECKOUT} restore --source=HEAD -- {rendered_paths}"
+            )
+        else:
+            print("  Classification: unrecognized; preserve and review before recovery")
+    print()
 
     print("Suggested next commands:")
     if session_id and session_id in sessions:
@@ -9115,6 +10599,861 @@ def cmd_presence(args: argparse.Namespace) -> None:
     sys.exit(1)
 
 
+def _continuation_repository_session_id(data: dict, session_reference: str) -> str:
+    """Resolve a repository session from either short or OpenCode identity."""
+    if session_reference in data.get("sessions", {}):
+        return session_reference
+    for session_id, session in data.get("sessions", {}).items():
+        if isinstance(session, dict) and session.get("opencode_session_id") == session_reference:
+            return session_id
+    return ""
+
+
+def _openmates_task_external_context_hash(opencode_session_id: str) -> str:
+    """Hash an external OpenCode identity before storing bridge metadata."""
+    return hashlib.sha256(
+        f"openmates-task-bridge-v1\0opencode\0{opencode_session_id}".encode("utf-8")
+    ).hexdigest()
+
+
+def _openmates_task_opencode_session_id(data: dict, session_reference: str) -> str:
+    """Resolve a bound chat, or accept a validated new top-level chat identity."""
+    repository_session_id = _continuation_repository_session_id(data, session_reference)
+    if repository_session_id:
+        opencode_session_id = str(
+            data["sessions"][repository_session_id].get("opencode_session_id") or ""
+        )
+        if OPENCODE_SESSION_ID_RE.fullmatch(opencode_session_id):
+            return opencode_session_id
+    return session_reference if OPENCODE_SESSION_ID_RE.fullmatch(session_reference) else ""
+
+
+def _run_openmates_task_cli(arguments: list[str]) -> dict:
+    """Execute one trusted personal-profile Task CLI command and parse bounded JSON."""
+    if not arguments or arguments[0] != "tasks":
+        raise RuntimeError("Task bridge accepts only trusted openmates tasks commands")
+    environment = dict(os.environ)
+    environment.update({
+        "OPENMATES_PROFILE": OPENMATES_TASK_BRIDGE_PROFILE,
+        "OPENMATES_ACCOUNT_GUARD": "required",
+        "OPENMATES_API_URL": OPENMATES_TASK_BRIDGE_API_URL,
+        "OPENMATES_STATE_DIR": "",
+    })
+    try:
+        result = subprocess.run(
+            ["openmates", *arguments],
+            cwd=str(CONTROL_PLANE_ROOT),
+            env=environment,
+            text=True,
+            capture_output=True,
+            timeout=OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
+    if result.returncode != 0:
+        failure_message = ""
+        for candidate in (result.stdout, result.stderr):
+            if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+                continue
+            try:
+                failure_payload = json.loads(candidate)
+            except json.JSONDecodeError:
+                failure_payload = None
+            if isinstance(failure_payload, dict):
+                failure = failure_payload.get("error")
+                if isinstance(failure, dict) and isinstance(failure.get("message"), str):
+                    failure_message = re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
+                    break
+        if "Passkey verification required" in failure_message:
+            raise RuntimeError(
+                f"OpenMates Task authentication required: {failure_message} "
+                "Do not retry Task operations until `openmates login` completes."
+            )
+        if failure_message:
+            raise RuntimeError(f"OpenMates Task CLI failed: {failure_message[:500]}")
+        raise RuntimeError(f"OpenMates Task CLI failed with exit status {result.returncode}")
+    if len(result.stdout.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+        raise RuntimeError("OpenMates Task CLI returned an oversized JSON response")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise RuntimeError("OpenMates Task CLI returned invalid JSON") from error
+    if not isinstance(payload, dict):
+        raise RuntimeError("OpenMates Task CLI returned a non-object JSON response")
+    return payload
+
+
+def _validated_openmates_task_records(payload: dict, opencode_session_id: str) -> list[dict]:
+    """Validate and scope trusted CLI records without retaining decrypted text."""
+    records = payload.get("tasks")
+    if not isinstance(records, list):
+        raise RuntimeError("OpenMates Task CLI JSON is missing tasks")
+    if len(records) > 500:
+        raise RuntimeError("OpenMates Task CLI returned too many Tasks")
+    validated: list[dict] = []
+    for record in records:
+        if not isinstance(record, dict):
+            raise RuntimeError("OpenMates Task CLI returned an invalid Task record")
+        task_id = record.get("task_id")
+        short_id = record.get("short_id")
+        status = record.get("status")
+        version = record.get("version")
+        if not isinstance(task_id, str) or not task_id or not isinstance(short_id, str) or not short_id:
+            raise RuntimeError("OpenMates Task CLI returned a Task without stable identity")
+        if not isinstance(status, str) or status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
+            raise RuntimeError(f"OpenMates Task CLI returned an invalid status for {short_id}")
+        if not isinstance(version, int) or version < 1:
+            raise RuntimeError(f"OpenMates Task CLI returned an invalid version for {short_id}")
+        if record.get("source") == "workflow_run" or task_id.startswith(("workflow-run:", "workflow-schedule:")):
+            continue
+        external_chat = record.get("external_chat")
+        if not isinstance(external_chat, dict):
+            raise RuntimeError(f"OpenMates Task CLI returned missing external context for {short_id}")
+        if external_chat.get("provider") != "opencode" or external_chat.get("id") != opencode_session_id:
+            continue
+        validated.append(dict(record))
+    return validated
+
+
+def _openmates_task_order(record: dict) -> tuple[int, str, str]:
+    position = record.get("position")
+    return (
+        int(position) if isinstance(position, (int, float)) else 0,
+        str(record.get("title") or ""),
+        str(record.get("task_id") or ""),
+    )
+
+
+def _openmates_task_is_waiting(record: dict) -> bool:
+    return (
+        str(record.get("queue_state") or "").lower() in OPENMATES_TASK_WAIT_QUEUE_STATES
+        or str(record.get("ai_execution_state") or "").lower() in OPENMATES_TASK_STOP_EXECUTION_STATES
+    )
+
+
+def _classify_openmates_task_snapshot(records: list[dict]) -> dict:
+    """Return one deterministic fail-closed scheduling decision."""
+    ordered = sorted(records, key=_openmates_task_order)
+    ai_tasks = [record for record in ordered if record.get("assignee_type") == "ai"]
+    active = [record for record in ai_tasks if record.get("status") == "in_progress"]
+    if len(active) > 1:
+        raise RuntimeError("OpenMates Task bridge found multiple active Tasks")
+    selected: dict | None
+    if active:
+        selected = active[0]
+        decision = "wait_blocked" if _openmates_task_is_waiting(selected) else "resume_active"
+    else:
+        blocked = [
+            record for record in ai_tasks
+            if record.get("status") == "blocked" or _openmates_task_is_waiting(record)
+        ]
+        runnable = [
+            record for record in ai_tasks
+            if record.get("status") in {"backlog", "todo"} and not _openmates_task_is_waiting(record)
+        ]
+        if blocked:
+            selected = blocked[0]
+            decision = "wait_blocked"
+        elif runnable:
+            selected = runnable[0]
+            decision = "activate_next"
+        else:
+            selected = None
+            decision = "no_work"
+    remaining = [
+        record for record in ordered
+        if record.get("status") in OPENMATES_TASK_OPEN_STATUSES and record is not selected
+    ]
+    return {"decision": decision, "active": selected, "remaining": remaining}
+
+
+def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str) -> dict:
+    """Build request-only plaintext context from trusted CLI JSON."""
+    classified = _classify_openmates_task_snapshot(
+        _validated_openmates_task_records(payload, opencode_session_id)
+    )
+    active = classified.get("active")
+    active_context = None
+    if isinstance(active, dict):
+        active_context = {
+            key: active.get(key)
+            for key in (
+                "task_id", "short_id", "title", "description", "latest_instruction",
+                "status", "assignee_type", "queue_state", "blocked_reason_code",
+                "blocked_reason", "ai_execution_state", "priority", "version",
+            )
+        }
+    remaining = [
+        {
+            "short_id": str(record.get("short_id") or ""),
+            "title": str(record.get("title") or ""),
+            "status": str(record.get("status") or ""),
+        }
+        for record in classified.get("remaining", [])
+    ]
+    return {"decision": classified["decision"], "active": active_context, "remaining": remaining}
+
+
+def _openmates_task_context(
+    session_reference: str,
+    *,
+    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
+) -> dict:
+    """Fetch one authoritative request-only Task snapshot for a top-level chat."""
+    data = _load_sessions()
+    opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
+    if not opencode_session_id:
+        return {"decision": "unbound", "active": None, "remaining": []}
+    payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
+    return _openmates_task_context_from_payload(payload, opencode_session_id)
+
+
+def _openmates_task_tool(
+    session_reference: str,
+    input_payload: dict,
+    *,
+    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
+) -> dict:
+    """Execute one allowlisted typed Task operation scoped to a validated chat."""
+    if not isinstance(input_payload, dict):
+        raise RuntimeError("Task tool input must be a JSON object")
+    action = input_payload.get("action")
+    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done"}
+    if action not in allowed_actions:
+        raise RuntimeError(f"unsupported Task tool action: {action}")
+
+    data = _load_sessions()
+    opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
+    if not opencode_session_id:
+        raise RuntimeError("Task tool requires a valid top-level OpenCode session")
+    scope = ["--external-chat", f"opencode:{opencode_session_id}"]
+
+    def text_field(name: str, *, required: bool = False, maximum: int = 10000) -> str:
+        value = input_payload.get(name)
+        if value is None and not required:
+            return ""
+        if not isinstance(value, str) or (required and not value.strip()):
+            raise RuntimeError(f"Task tool requires a non-empty {name}")
+        value = value.strip() if name in {"task_id", "title", "reason_code"} else value
+        if len(value) > maximum:
+            raise RuntimeError(f"Task tool {name} exceeds {maximum} characters")
+        return value
+
+    if action == "context":
+        payload = cli_runner(["tasks", "list", *scope, "--json"])
+        return _openmates_task_context_from_payload(payload, opencode_session_id)
+
+    if action == "create":
+        command = ["tasks", "create", "--title", text_field("title", required=True, maximum=500)]
+        description = text_field("description")
+        if description:
+            command.extend(["--description", description])
+        # The Task API currently accepts external-context AI assignment as an
+        # update but rejects it on create. Keep both allowlisted operations
+        # explicit and return only the final AI-owned record.
+        command.extend(["--assign", "user", *scope, "--json"])
+        created = cli_runner(command).get("task")
+        if not isinstance(created, dict) or not created.get("task_id"):
+            raise RuntimeError("Task create returned an invalid record")
+        assignment = ["tasks", "edit", str(created["task_id"]), "--assign", "ai"]
+        status = input_payload.get("status")
+        if status is not None:
+            if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
+                raise RuntimeError("Task tool received an invalid status")
+            assignment.extend(["--status", str(status)])
+        return cli_runner([*assignment, *scope, "--json"])
+
+    task_id = text_field("task_id", required=True, maximum=200)
+    if action == "show":
+        return cli_runner(["tasks", "show", task_id, *scope, "--json"])
+    if action == "start":
+        # The generic status mutation is supported for AI-owned external-chat
+        # Tasks, while the specialized CLI `start` transition can reject that
+        # otherwise valid ownership/context combination.
+        return cli_runner(["tasks", "edit", task_id, "--status", "in_progress", *scope, "--json"])
+    if action == "edit":
+        command = ["tasks", "edit", task_id]
+        title = text_field("title", maximum=500)
+        description = text_field("description")
+        status = input_payload.get("status")
+        if title:
+            command.extend(["--title", title])
+        if description:
+            command.extend(["--description", description])
+        if status is not None:
+            if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
+                raise RuntimeError("Task tool received an invalid status")
+            command.extend(["--status", str(status)])
+        if len(command) == 3:
+            raise RuntimeError("Task edit requires title, description, or status")
+        command.extend([*scope, "--json"])
+        return cli_runner(command)
+    if action == "block":
+        reason_code = text_field("reason_code", required=True, maximum=100)
+        allowed_reasons = {
+            "needs_user_input", "waiting_for_approval", "missing_credentials",
+            "ambiguous_requirement", "external_dependency", "environment_unavailable",
+            "verification_failed", "other",
+        }
+        if reason_code not in allowed_reasons:
+            raise RuntimeError("Task tool received an invalid blocked reason code")
+        command = ["tasks", "block", task_id, "--reason-code", reason_code]
+        reason_text = text_field("reason_text")
+        if reason_text:
+            command.extend(["--reason-text", reason_text])
+        command.extend([*scope, "--json"])
+        return cli_runner(command)
+    return cli_runner(["tasks", str(action), task_id, *scope, "--json"])
+
+
+def _stage_openmates_task_reconciliation(session_reference: str, message_id: str) -> dict:
+    """Persist one privacy-minimal completed-response boundary for later idle reconciliation."""
+    if not message_id:
+        raise RuntimeError("Task reconciliation requires a completed assistant message id")
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return {"staged": False, "reason": "unbound"}
+        bridge = data["sessions"][repository_session_id].setdefault("task_bridge", {})
+        if bridge.get("pending_message_id") == message_id or bridge.get("last_reconciled_message_id") == message_id:
+            return {"staged": False, "reason": "duplicate"}
+        bridge["pending_message_id"] = message_id
+        bridge["pending_status"] = "ready"
+        bridge["updated_at"] = _now_iso()
+        return {"staged": True, "message_id": message_id}
+
+    return _mutate_sessions(mutate)
+
+
+def _claim_openmates_task_reconciliation(session_reference: str) -> dict | None:
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        session = data["sessions"][repository_session_id]
+        bridge = session.setdefault("task_bridge", {})
+        message_id = bridge.get("pending_message_id")
+        if not message_id or bridge.get("pending_status") != "ready":
+            return None
+        bridge["pending_status"] = "reconciling"
+        bridge["updated_at"] = _now_iso()
+        return {
+            "repository_session_id": repository_session_id,
+            "opencode_session_id": str(session.get("opencode_session_id") or ""),
+            "message_id": str(message_id),
+            "generation": int(bridge.get("generation") or 0) + 1,
+        }
+
+    return _mutate_sessions(mutate)
+
+
+def _finish_openmates_task_reconciliation(
+    session_reference: str,
+    claim: dict,
+    *,
+    decision: str,
+    task: dict | None,
+) -> dict:
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return {"stored": False}
+        bridge = data["sessions"][repository_session_id].setdefault("task_bridge", {})
+        if bridge.get("pending_message_id") != claim["message_id"]:
+            return {"stored": False, "reason": "superseded"}
+        bridge.update({
+            "external_context_hash": _openmates_task_external_context_hash(claim["opencode_session_id"]),
+            "decision": decision,
+            "task_id": str(task.get("task_id") or "") if task else "",
+            "task_version": int(task.get("version") or 0) if task else 0,
+            "generation": claim["generation"],
+            "last_reconciled_message_id": claim["message_id"],
+            "pending_message_id": "",
+            "pending_status": "reconciled",
+            "updated_at": _now_iso(),
+        })
+        return {"stored": True}
+
+    return _mutate_sessions(mutate)
+
+
+def _reconcile_openmates_tasks(
+    session_reference: str,
+    *,
+    cli_runner: Callable[[list[str]], dict] = _run_openmates_task_cli,
+) -> dict:
+    """Reconcile one staged response and record at most one idempotent continuation."""
+    claim = _claim_openmates_task_reconciliation(session_reference)
+    if claim is None:
+        return {"decision": "already_reconciled", "continuation": None}
+    opencode_session_id = claim["opencode_session_id"]
+    if not opencode_session_id:
+        _finish_openmates_task_reconciliation(session_reference, claim, decision="unbound", task=None)
+        return {"decision": "unbound", "continuation": None}
+    try:
+        payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
+        classified = _classify_openmates_task_snapshot(
+            _validated_openmates_task_records(payload, opencode_session_id)
+        )
+        decision = classified["decision"]
+        selected = classified.get("active")
+        if decision == "activate_next" and isinstance(selected, dict):
+            activated = cli_runner([
+                "tasks", "edit", str(selected["task_id"]), "--status", "in_progress", "--json",
+            ]).get("task")
+            if not isinstance(activated, dict) or activated.get("task_id") != selected.get("task_id"):
+                raise RuntimeError("OpenMates Task activation returned an invalid record")
+            selected = activated
+        continuation = None
+        if decision in {"resume_active", "activate_next"} and isinstance(selected, dict):
+            operation_key = ":".join([
+                _openmates_task_external_context_hash(opencode_session_id),
+                str(selected["task_id"]),
+                str(selected["version"]),
+                str(claim["generation"]),
+            ])
+            continuation = _record_session_continuation(
+                session_reference,
+                operation_type="task_ready",
+                operation_key=operation_key,
+                next_action=(
+                    "Continue the active OpenMates Task from the request-only Task context. "
+                    "Work on the smallest remaining step, then explicitly mark the Task done or block it with a reason."
+                ),
+            )
+        _finish_openmates_task_reconciliation(
+            session_reference,
+            claim,
+            decision=decision,
+            task=selected if isinstance(selected, dict) else None,
+        )
+        return {"decision": decision, "continuation": continuation}
+    except Exception:
+        _finish_openmates_task_reconciliation(session_reference, claim, decision="failed_closed", task=None)
+        raise
+
+
+def cmd_task_bridge(args: argparse.Namespace) -> None:
+    """Expose the privacy-minimal Task bridge to the verified OpenCode hook."""
+    try:
+        if args.task_bridge_action == "stage":
+            result = _stage_openmates_task_reconciliation(args.session, args.message_id)
+        elif args.task_bridge_action == "context":
+            result = _openmates_task_context(args.session)
+        elif args.task_bridge_action == "reconcile":
+            result = _reconcile_openmates_tasks(args.session)
+        elif args.task_bridge_action == "tool":
+            result = _openmates_task_tool(args.session, json.load(sys.stdin))
+        else:
+            raise RuntimeError(f"unknown task bridge action: {args.task_bridge_action}")
+    except (RuntimeError, json.JSONDecodeError) as error:
+        print(f"Task bridge error: {error}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"task_bridge": result}, sort_keys=True))
+
+
+def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: str = "") -> str:
+    """Create an OpenCode message ID that preserves chronological storage order.
+
+    OpenCode streams messages by lexicographic ID, not by the database timestamp.
+    Supplying a plain digest as ``messageID`` therefore corrupts the effective
+    conversation order whenever that digest sorts after native IDs. Mirror the
+    native 48-bit timestamp prefix and keep a stable base62 suffix for retries.
+    """
+    created_ms = int(timestamp_ms if timestamp_ms is not None else time.time_ns() // 1_000_000)
+    # The native implementation writes the low 48 bits into a six-byte buffer.
+    encoded_time = (created_ms * 0x1000 + 1) & ((1 << 48) - 1)
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    digest = hashlib.sha256((entropy or secrets.token_hex(16)).encode("utf-8")).digest()
+    suffix = "".join(alphabet[value % len(alphabet)] for value in digest[:14])
+    return f"msg_{encoded_time:012x}{suffix}"
+
+
+def _record_session_continuation(
+    session_reference: str,
+    *,
+    operation_type: str,
+    operation_key: str,
+    next_action: str,
+) -> dict:
+    """Persist one allowlisted continuation, replacing only the same operation."""
+    if operation_type not in CONTINUATION_ALLOWED_TYPES:
+        raise RuntimeError(f"unsupported continuation operation type: {operation_type}")
+    if not operation_key or not next_action:
+        raise RuntimeError("continuation requires operation key and next action")
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            raise RuntimeError(f"session not found for continuation: {session_reference}")
+        session = data["sessions"][repository_session_id]
+        now = _now_iso()
+        current = session.get("continuation")
+        if (
+            isinstance(current, dict)
+            and current.get("operation_type") == operation_type
+            and current.get("operation_key") == operation_key
+            and current.get("status") in {"ready", "delivering", "delivered"}
+        ):
+            return dict(current)
+        record = {
+            "operation_type": operation_type,
+            "operation_key": operation_key,
+            "next_action": next_action,
+            "status": "ready",
+            "attempts": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+        session["continuation"] = record
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _claim_session_continuation(session_reference: str) -> dict | None:
+    """Claim one ready continuation and derive its idempotent OpenCode message ID."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        session = data["sessions"][repository_session_id]
+        record = session.get("continuation")
+        if not isinstance(record, dict) or record.get("status") != "ready":
+            return None
+        attempts = int(record.get("attempts") or 0)
+        if attempts >= CONTINUATION_MAX_DELIVERY_ATTEMPTS:
+            record["status"] = "failed"
+            record["updated_at"] = _now_iso()
+            return None
+        generation = attempts + 1
+        identity = ":".join(
+            [repository_session_id, str(record.get("operation_type")), str(record.get("operation_key")), str(generation)]
+        )
+        record["status"] = "delivering"
+        record["attempts"] = generation
+        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
+        record["updated_at"] = _now_iso()
+        return {**record, "repository_session_id": repository_session_id}
+
+    return _mutate_sessions(mutate)
+
+
+def _finish_session_continuation(session_reference: str, *, delivered: bool) -> dict | None:
+    """Acknowledge delivery or make a transport failure retryable once."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        record = data["sessions"][repository_session_id].get("continuation")
+        if not isinstance(record, dict) or record.get("status") != "delivering":
+            return dict(record) if isinstance(record, dict) else None
+        record["status"] = "delivered" if delivered else "ready"
+        record["updated_at"] = _now_iso()
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _cancel_session_continuation(session_reference: str) -> bool:
+    """Cancel a ready continuation after the chat already continued itself."""
+    def mutate(data: dict) -> bool:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return False
+        session = data["sessions"][repository_session_id]
+        record = session.get("continuation")
+        if not isinstance(record, dict) or record.get("status") != "ready":
+            return False
+        record["status"] = "cancelled"
+        record["updated_at"] = _now_iso()
+        return True
+
+    return bool(_mutate_sessions(mutate))
+
+
+def cmd_continuation(args: argparse.Namespace) -> None:
+    """Record and deliver bounded deterministic OpenCode continuations."""
+    try:
+        if args.continuation_action == "record":
+            result = _record_session_continuation(
+                args.session,
+                operation_type=args.operation_type,
+                operation_key=args.operation_key,
+                next_action=args.next_action,
+            )
+        elif args.continuation_action == "claim":
+            result = _claim_session_continuation(args.session)
+        elif args.continuation_action == "ack":
+            result = _finish_session_continuation(args.session, delivered=True)
+        elif args.continuation_action == "release":
+            result = _finish_session_continuation(args.session, delivered=False)
+        elif args.continuation_action == "cancel":
+            result = {"cancelled": _cancel_session_continuation(args.session)}
+        else:
+            raise RuntimeError(f"unknown continuation action: {args.continuation_action}")
+    except RuntimeError as exc:
+        print(f"Continuation error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"continuation": result}, sort_keys=True))
+
+
+def _record_session_media(
+    session_reference: str,
+    *,
+    artifact_type: str,
+    snippet: str,
+    artifact_key: str = "",
+    artifact_path: str = "",
+    subject_commit: str = "",
+    run_id: str = "",
+) -> dict:
+    """Persist a privacy-minimal response artifact until it is visibly delivered."""
+    if artifact_type not in {"video", "figma_image", "figma_export"}:
+        raise RuntimeError(f"unsupported response media type: {artifact_type}")
+    if not snippet:
+        raise RuntimeError("response media requires an exact snippet or delivery instruction")
+    snippet_hash = hashlib.sha256(snippet.encode("utf-8")).hexdigest()
+    stable_key = artifact_key or snippet_hash[:24]
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            raise RuntimeError(f"session not found for response media: {session_reference}")
+        session = data["sessions"][repository_session_id]
+        artifacts = session.setdefault("response_media", {})
+        current = artifacts.get(stable_key)
+        if isinstance(current, dict):
+            if (
+                current.get("status") in {"pending", "delivering"}
+                and current.get("artifact_type") == "figma_export"
+                and artifact_type == "figma_image"
+            ):
+                current.update({
+                    "artifact_type": artifact_type,
+                    "artifact_path": artifact_path or current.get("artifact_path", ""),
+                    "snippet": snippet,
+                    "snippet_hash": snippet_hash,
+                    "subject_commit": subject_commit or current.get("subject_commit", ""),
+                    "run_id": run_id or current.get("run_id", ""),
+                    "status": "pending",
+                    "updated_at": _now_iso(),
+                })
+            return dict(current)
+        now = _now_iso()
+        record = {
+            "artifact_key": stable_key,
+            "artifact_type": artifact_type,
+            "artifact_path": artifact_path,
+            "snippet": snippet,
+            "snippet_hash": snippet_hash,
+            "subject_commit": subject_commit,
+            "run_id": run_id,
+            "status": "pending" if MEDIA_AUTOMATION_ENABLED else "quarantined",
+            "attempts": 0,
+            "created_at": now,
+            "updated_at": now,
+        }
+        artifacts[stable_key] = record
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _canonical_response_media_text(value: object) -> str:
+    text = str(value or "").replace('\\"', '"')
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+
+def _response_media_equivalence_key(record: dict) -> tuple[str, str]:
+    artifact_type = str(record.get("artifact_type") or "")
+    if artifact_type == "video":
+        return artifact_type, _canonical_response_media_text(record.get("snippet"))
+    if artifact_type == "figma_export":
+        return artifact_type, str(record.get("artifact_path") or record.get("snippet") or "").strip()
+    if artifact_type == "figma_image":
+        return artifact_type, _canonical_response_media_text(record.get("snippet"))
+    return artifact_type, str(record.get("artifact_key") or record.get("snippet") or "").strip()
+
+
+def _fail_session_media(session_reference: str, artifact_key: str, *, reason: str = "") -> dict | None:
+    """Retire an undeliverable media artifact without scheduling another prompt."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        artifacts = data["sessions"][repository_session_id].get("response_media")
+        record = artifacts.get(artifact_key) if isinstance(artifacts, dict) else None
+        if not isinstance(record, dict):
+            return None
+        record["status"] = "failed"
+        if reason:
+            record["failure_reason"] = reason
+        record["updated_at"] = _now_iso()
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def _claim_session_media(session_reference: str) -> dict | None:
+    """Claim the oldest pending media artifact with a deterministic message id."""
+    if not MEDIA_AUTOMATION_ENABLED:
+        return None
+
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        artifacts = data["sessions"][repository_session_id].get("response_media")
+        if not isinstance(artifacts, dict):
+            return None
+        all_records = [item for item in artifacts.values() if isinstance(item, dict)]
+        delivered_keys = {
+            _response_media_equivalence_key(item)
+            for item in all_records
+            if item.get("status") == "delivered"
+        }
+        candidates = sorted(
+            (item for item in artifacts.values() if isinstance(item, dict) and item.get("status") == "pending"),
+            key=lambda item: (str(item.get("created_at") or ""), str(item.get("artifact_key") or "")),
+        )
+        selected = []
+        seen_pending = set()
+        for item in candidates:
+            equivalence_key = _response_media_equivalence_key(item)
+            if equivalence_key in delivered_keys or equivalence_key in seen_pending:
+                item["status"] = "failed"
+                item["failure_reason"] = "duplicate response-media artifact"
+                item["updated_at"] = _now_iso()
+                continue
+            seen_pending.add(equivalence_key)
+            selected.append(item)
+        candidates = selected
+        if not candidates:
+            return None
+        record = candidates[0]
+        attempts = int(record.get("attempts") or 0)
+        if attempts >= MEDIA_DELIVERY_MAX_ATTEMPTS:
+            record["status"] = "failed"
+            record["updated_at"] = _now_iso()
+            return None
+        attempt = attempts + 1
+        identity = f"{repository_session_id}:media:{record.get('artifact_key')}:{attempt}"
+        record["attempts"] = attempt
+        record["status"] = "delivering"
+        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
+        record["updated_at"] = _now_iso()
+        return {**record, "repository_session_id": repository_session_id}
+
+    return _mutate_sessions(mutate)
+
+
+def _quarantine_session_media(session_reference: str = "", *, reason: str = "recovery hotfix") -> dict:
+    """Retire every undelivered legacy media record without deleting forensic state."""
+    now = _now_iso()
+
+    def mutate(data: dict) -> dict:
+        repository_session_id = (
+            _continuation_repository_session_id(data, session_reference)
+            if session_reference
+            else ""
+        )
+        if session_reference and not repository_session_id:
+            raise RuntimeError(f"session not found for response media quarantine: {session_reference}")
+        selected = (
+            {repository_session_id: data["sessions"][repository_session_id]}
+            if repository_session_id
+            else data.get("sessions", {})
+        )
+        quarantined = 0
+        sessions_changed = 0
+        for session in selected.values():
+            artifacts = session.get("response_media") if isinstance(session, dict) else None
+            if not isinstance(artifacts, dict):
+                continue
+            changed = False
+            for record in artifacts.values():
+                if not isinstance(record, dict) or record.get("status") not in {"pending", "delivering"}:
+                    continue
+                record["status"] = "quarantined"
+                record["quarantine_reason"] = reason
+                record["quarantined_at"] = now
+                record["updated_at"] = now
+                quarantined += 1
+                changed = True
+            sessions_changed += int(changed)
+        return {
+            "quarantined": quarantined,
+            "sessions_changed": sessions_changed,
+            "reason": reason,
+            "quarantined_at": now,
+        }
+
+    return _mutate_sessions(mutate)
+
+
+def _finish_session_media(session_reference: str, artifact_key: str, *, delivered: bool) -> dict | None:
+    """Acknowledge visible delivery or allow one bounded retry."""
+    def mutate(data: dict) -> dict | None:
+        repository_session_id = _continuation_repository_session_id(data, session_reference)
+        if not repository_session_id:
+            return None
+        artifacts = data["sessions"][repository_session_id].get("response_media")
+        record = artifacts.get(artifact_key) if isinstance(artifacts, dict) else None
+        if not isinstance(record, dict):
+            return None
+        if delivered and record.get("status") in {"pending", "delivering"}:
+            record["status"] = "delivered"
+            record["updated_at"] = _now_iso()
+        elif not delivered and record.get("status") == "delivering":
+            record["status"] = "pending"
+            if not delivered and int(record.get("attempts") or 0) >= MEDIA_DELIVERY_MAX_ATTEMPTS:
+                record["status"] = "failed"
+            record["updated_at"] = _now_iso()
+        return dict(record)
+
+    return _mutate_sessions(mutate)
+
+
+def cmd_media(args: argparse.Namespace) -> None:
+    """Record and deliver required OpenCode response media."""
+    try:
+        if args.media_action == "quarantine":
+            result = _quarantine_session_media(args.session or "", reason=args.reason or "recovery hotfix")
+        elif args.media_action == "record":
+            result = _record_session_media(
+                args.session,
+                artifact_type=args.artifact_type,
+                snippet=args.snippet,
+                artifact_key=args.artifact_key or "",
+                artifact_path=args.artifact_path or "",
+                subject_commit=args.subject_commit or "",
+                run_id=args.run_id or "",
+            )
+        elif args.media_action == "claim":
+            result = _claim_session_media(args.session)
+        elif args.media_action in {"ack", "release"}:
+            result = _finish_session_media(
+                args.session,
+                args.artifact_key,
+                delivered=args.media_action == "ack",
+            )
+        elif args.media_action == "fail":
+            result = _fail_session_media(
+                args.session,
+                args.artifact_key,
+                reason=args.reason or "",
+            )
+        else:
+            raise RuntimeError(f"unknown media action: {args.media_action}")
+    except RuntimeError as exc:
+        print(f"Response media error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"media": result}, sort_keys=True))
+
+
 def _normalize_lock_type(raw: str) -> str:
     """Normalize short lock type names to full names."""
     mapping = {
@@ -9221,17 +11560,177 @@ def available_docker_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[s
     return {line.strip() for line in stdout.splitlines() if line.strip()} - DOCKER_NON_RESTARTABLE_SERVICES
 
 
+def available_docker_setup_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[str]:
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("config", "--services", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not read Docker Compose services: {stderr or stdout}")
+    return {line.strip() for line in stdout.splitlines() if line.strip()} & DOCKER_SETUP_SERVICES
+
+
 def _docker_checkout_root(session_id: str) -> Path:
     session = _load_sessions().get("sessions", {}).get(session_id)
     if not isinstance(session, dict):
         raise RuntimeError(f"Docker restart session not found: {session_id}")
-    worktree = session.get("worktree")
-    if not isinstance(worktree, dict) or worktree.get("status") not in {"active", "changes_pending"}:
-        raise RuntimeError(f"Docker restart requires an active session worktree: {session_id}")
-    checkout_root = _validate_managed_worktree_path(str(worktree.get("path") or ""))
-    if not checkout_root.is_dir():
-        raise RuntimeError(f"Docker restart worktree is missing: {checkout_root}")
-    return checkout_root
+    return _ensure_product_runtime_checkout(refresh=False)
+
+
+def _ensure_product_runtime_checkout(*, refresh: bool) -> Path:
+    """Return the one clean checkout mounted by every product-code container."""
+    PRODUCT_RUNTIME_STATE_LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with PRODUCT_RUNTIME_STATE_LOCK_FILE.open("a+") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        try:
+            checkout = PRODUCT_RUNTIME_CHECKOUT.resolve()
+            if not (checkout / ".git").exists():
+                checkout.parent.mkdir(parents=True, exist_ok=True)
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "fetch", "origin", "dev"],
+                    cwd=str(CONTROL_PLANE_ROOT),
+                    timeout=60,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not fetch product runtime commit: {stderr}")
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "worktree", "add", "--detach", str(checkout), "origin/dev"],
+                    cwd=str(CONTROL_PLANE_ROOT),
+                    timeout=120,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not create product runtime checkout: {stderr}")
+            if _get_dirty_files(checkout_root=checkout):
+                raise RuntimeError(f"Product runtime checkout is dirty: {checkout}")
+            link_shared_worktree_resources(checkout)
+            if refresh:
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "fetch", "origin", "dev"],
+                    cwd=str(CONTROL_PLANE_ROOT),
+                    timeout=60,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not refresh product runtime commit: {stderr}")
+                rc, _stdout, stderr = _run_cmd(
+                    ["git", "merge", "--ff-only", "origin/dev"],
+                    cwd=str(checkout),
+                    timeout=60,
+                )
+                if rc != 0:
+                    raise RuntimeError(f"Could not fast-forward product runtime checkout: {stderr}")
+            return checkout
+        finally:
+            fcntl.flock(lock_handle, fcntl.LOCK_UN)
+
+
+def _load_product_runtime_state() -> dict:
+    try:
+        state = json.loads(PRODUCT_RUNTIME_STATE_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {"version": 1, "services": {}}
+    return state if isinstance(state, dict) and isinstance(state.get("services"), dict) else {"version": 1, "services": {}}
+
+
+def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
+    rc, stdout, _stderr = _run_cmd(
+        _docker_compose_command("ps", "--services", "--status", "running", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        return {}
+    mounted: dict[str, dict[str, str]] = {}
+    for service in sorted({line.strip() for line in stdout.splitlines() if line.strip()}):
+        rc, container_id, _stderr = _run_cmd(
+            _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+        )
+        container_id = container_id.strip()
+        if rc != 0 or not container_id:
+            continue
+        rc, mounts_json, _stderr = _run_cmd(
+            ["docker", "inspect", "--format", "{{json .Mounts}}", container_id],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        if rc != 0:
+            continue
+        try:
+            mounts = json.loads(mounts_json)
+        except json.JSONDecodeError:
+            continue
+        backend_mount = next(
+            (item for item in mounts if isinstance(item, dict) and item.get("Destination") == "/app/backend"),
+            None,
+        )
+        if backend_mount:
+            mounted[service] = {
+                "container_id": container_id,
+                "source": str(backend_mount.get("Source") or ""),
+            }
+    return mounted
+
+
+def _incoherent_docker_services(checkout_root: Path, backend_tree: str) -> set[str]:
+    state = _load_product_runtime_state().get("services") or {}
+    expected_source = str((checkout_root / "backend").resolve())
+    live_services = _running_backend_mounts(checkout_root)
+    incoherent: set[str] = set()
+    # A service previously managed by this runtime is incoherent when it is no
+    # longer running too. This makes an interrupted Compose recreation
+    # self-healing instead of silently accepting Created/stopped containers.
+    for service in set(live_services) | set(state):
+        live = live_services.get(service) or {}
+        recorded = state.get(service) if isinstance(state.get(service), dict) else {}
+        if (
+            not live
+            or
+            Path(str(live.get("source") or "")).resolve() != Path(expected_source)
+            or recorded.get("backend_tree") != backend_tree
+            or recorded.get("container_id") != live.get("container_id")
+        ):
+            incoherent.add(service)
+    return incoherent
+
+
+def _coherent_docker_services(requested: list[str], checkout_root: Path, backend_tree: str) -> list[str]:
+    """Expand a restart only when needed to eliminate mixed source generations."""
+    return sorted(set(requested) | _incoherent_docker_services(checkout_root, backend_tree))
+
+
+def _record_product_runtime_services(
+    services: list[str],
+    checkout_root: Path,
+    source_commit: str,
+    backend_tree: str,
+) -> None:
+    live = _running_backend_mounts(checkout_root)
+    expected_source = (checkout_root / "backend").resolve()
+    invalid = [
+        service
+        for service in services
+        if service not in live or Path(str(live[service].get("source") or "")).resolve() != expected_source
+    ]
+    if invalid:
+        raise RuntimeError(
+            "Docker runtime mount coherence failed for: " + ", ".join(sorted(invalid))
+        )
+    with PRODUCT_RUNTIME_STATE_LOCK_FILE.open("a+") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        try:
+            state = _load_product_runtime_state()
+            for service in services:
+                if service in live:
+                    state["services"][service] = {
+                        "commit": source_commit,
+                        "backend_tree": backend_tree,
+                        "container_id": live[service]["container_id"],
+                        "source": live[service]["source"],
+                        "verified_at": _now_iso(),
+                    }
+            temporary = PRODUCT_RUNTIME_STATE_FILE.with_suffix(".tmp")
+            temporary.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            temporary.replace(PRODUCT_RUNTIME_STATE_FILE)
+        finally:
+            fcntl.flock(lock_handle, fcntl.LOCK_UN)
 
 
 def _docker_service_state(service: str, checkout_root: Path = CONTROL_PLANE_ROOT) -> dict:
@@ -9345,19 +11844,23 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
 
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
     try:
-        _wait_and_acquire_session_lock(
-            "docker_rebuild",
-            args.session,
-            phase="draining_tests",
-            timeout=args.timeout,
-            poll=args.poll,
-            heartbeat=lambda: update_docker_operation(operation["id"], "queued"),
-        )
-        lock_acquired = True
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock(
+                "docker_rebuild",
+                args.session,
+                phase="draining_tests",
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+            )
+            lock_acquired = True
 
         def heartbeat() -> None:
-            _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
             update_docker_operation(operation["id"], "draining_tests")
 
         wait_for_docker_test_leases(
@@ -9366,46 +11869,170 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             poll=args.poll,
             heartbeat=heartbeat,
         )
-        if _docker_checkout_root(args.session) != checkout_root:
-            raise RuntimeError("Docker restart session worktree changed while waiting for the lock")
-        update_docker_operation(operation["id"], "restarting", waiting_for_tests=[])
-        _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
-        compose_args = (
-            ["up", "-d", "--build", *services]
-            if getattr(args, "build", False)
-            else ["restart", *services]
+        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        source_commit = _current_git_sha(checkout_root)
+        rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
+        if rc != 0 or not backend_tree.strip():
+            raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
+        backend_tree = backend_tree.strip()
+        incoherent_services = _incoherent_docker_services(checkout_root, backend_tree)
+        coherent_services = sorted(set(services) | incoherent_services)
+        added_services = sorted(set(coherent_services) - set(services))
+        if added_services:
+            print(
+                "Expanding Docker restart to restore one source generation: " + ", ".join(added_services),
+                flush=True,
+            )
+        services = coherent_services
+        invalid = sorted(set(services) - available)
+        if invalid:
+            raise RuntimeError(f"Runtime-coherence services are not restartable: {', '.join(invalid)}")
+        update_docker_operation(
+            operation["id"],
+            "restarting",
+            waiting_for_tests=[],
+            services=services,
+            source_commit=source_commit,
+            backend_tree=backend_tree,
         )
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
+        if getattr(args, "build", False):
+            compose_args = ["up", "-d", "--no-deps", "--build", *services]
+        elif incoherent_services:
+            compose_args = ["up", "-d", "--no-deps", "--force-recreate", *services]
+        else:
+            compose_args = ["restart", *services]
         rc, stdout, stderr = _run_cmd_with_heartbeat(
             _docker_compose_command(*compose_args, checkout_root=checkout_root),
             cwd=str(checkout_root),
             timeout=max(120, args.timeout),
             heartbeat=lambda: (
-                _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
                 update_docker_operation(operation["id"], "restarting"),
             ),
         )
         if rc != 0:
             raise RuntimeError((stderr or stdout or "Docker Compose restart failed").strip())
         update_docker_operation(operation["id"], "verifying")
-        _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
         health = wait_for_docker_services_healthy(
             services,
             timeout=args.health_timeout,
             poll=args.poll,
             checkout_root=checkout_root,
             heartbeat=lambda: (
-                _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
+                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
                 update_docker_operation(operation["id"], "verifying"),
             ),
         )
+        _record_product_runtime_services(services, checkout_root, source_commit, backend_tree)
         completed = update_docker_operation(operation["id"], "completed", health=health)
         print(
             f"Docker restart {completed['id']} completed for {', '.join(services)}; "
             "all services are running and healthy."
         )
-    except Exception as exc:
+    except BaseException as exc:
         try:
-            update_docker_operation(operation["id"], "failed", error=str(exc))
+            update_docker_operation(
+                operation["id"],
+                "failed",
+                error=str(exc) or type(exc).__name__,
+            )
+        except Exception:
+            pass
+        raise
+    finally:
+        if lock_acquired:
+            _release_session_lock("docker_rebuild", released_by=args.session)
+
+
+def cmd_docker_run_setup(args: argparse.Namespace) -> None:
+    """Drain dependent tests and run allowlisted one-shot setup services."""
+    services = sorted(set(args.service))
+    checkout_root = _docker_checkout_root(args.session)
+    available = available_docker_setup_services(checkout_root)
+    invalid = sorted(set(services) - available)
+    if invalid:
+        raise RuntimeError(
+            f"Services are not setup-runnable: {', '.join(invalid)}. "
+            f"Available setup services: {', '.join(sorted(available))}"
+        )
+
+    operation = request_docker_restart(args.session, services)
+    lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
+    try:
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock(
+                "docker_rebuild",
+                args.session,
+                phase="draining_tests",
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+            )
+            lock_acquired = True
+
+        def heartbeat() -> None:
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
+            update_docker_operation(operation["id"], "draining_tests")
+
+        wait_for_docker_test_leases(
+            operation["id"],
+            timeout=args.timeout,
+            poll=args.poll,
+            heartbeat=heartbeat,
+        )
+        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        source_commit = _current_git_sha(checkout_root)
+        rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
+        if rc != 0 or not backend_tree.strip():
+            raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
+
+        update_docker_operation(
+            operation["id"],
+            "restarting",
+            waiting_for_tests=[],
+            services=services,
+            source_commit=source_commit,
+            backend_tree=backend_tree.strip(),
+            action="run-setup",
+        )
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase="restarting")
+
+        for service in services:
+            compose_args = ["run", "--rm"]
+            if getattr(args, "build", False):
+                compose_args.append("--build")
+            compose_args.append(service)
+            rc, stdout, stderr = _run_cmd_with_heartbeat(
+                _docker_compose_command(*compose_args, checkout_root=checkout_root),
+                cwd=str(checkout_root),
+                timeout=max(120, args.timeout),
+                heartbeat=lambda: (
+                    None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                    update_docker_operation(operation["id"], "restarting"),
+                ),
+            )
+            if rc != 0:
+                raise RuntimeError((stderr or stdout or f"Docker setup run failed for {service}").strip())
+
+        completed = update_docker_operation(operation["id"], "completed")
+        print(
+            f"Docker setup run {completed['id']} completed for {', '.join(services)}."
+        )
+    except BaseException as exc:
+        try:
+            update_docker_operation(
+                operation["id"],
+                "failed",
+                error=str(exc) or type(exc).__name__,
+            )
         except Exception:
             pass
         raise
@@ -9419,19 +12046,233 @@ def cmd_docker(args: argparse.Namespace) -> None:
         if args.docker_action == "restart":
             cmd_docker_restart(args)
             return
+        if args.docker_action == "run-setup":
+            cmd_docker_run_setup(args)
+            return
     except RuntimeError as exc:
         print(f"Docker operation failed: {exc}", file=sys.stderr)
         sys.exit(1)
     raise RuntimeError(f"Unknown Docker action: {args.docker_action}")
 
 
+
+
+
+
+
+
+
+
+
+
+def _health_lease_key(url: str) -> str:
+    return f"api-health-{_health_url_key(url)}"
+
+
+def _health_owner_key(session_id: str) -> str:
+    """Use a restart-stable incident owner instead of a short-lived waiter PID."""
+    return f"health-session:{session_id or 'manual'}"
+
+
+
+
+
+
+
+
+
+
+
 def _active_lock_snapshot(lock_type: str) -> dict:
     """Return the active lock snapshot, or an empty dict when available/stale."""
+    if lock_type == "docker_rebuild" and _persistent_coordination_enabled():
+        operation = _persistent_active_docker_operation()
+        if operation:
+            return {
+                "status": "IN_PROGRESS",
+                "claimed_by": operation.get("session_id") or operation.get("id") or "persistent-docker",
+                "phase": operation.get("status") or "queued",
+                "since": operation.get("requested_at") or "",
+                "last_updated": operation.get("updated_at") or operation.get("started_at") or operation.get("requested_at") or "",
+                "commit_sha": "",
+            }
+        return {}
     data = _load_sessions()
     lock = data.get("locks", {}).get(lock_type, {})
     if _is_lock_active(lock, lock_type):
         return dict(lock)
     return {}
+
+
+def _set_session_resource_wait(session_id: str, lock_type: str, lock: dict) -> None:
+    """Publish a renewable, privacy-minimal resource wait for status consumers."""
+    if not session_id:
+        return
+
+    def update(data: dict) -> None:
+        sessions = data.setdefault("sessions", {})
+        repository_session_id = session_id if session_id in sessions else next(
+            (
+                candidate_id
+                for candidate_id, candidate in sessions.items()
+                if isinstance(candidate, dict) and candidate.get("opencode_session_id") == session_id
+            ),
+            "",
+        )
+        if not repository_session_id:
+            return
+        session = sessions[repository_session_id]
+        session["resource_wait"] = {
+            "status": "waiting",
+            "resource": lock_type,
+            "owner_session_id": str(lock.get("claimed_by") or ""),
+            "owner_phase": str(lock.get("phase") or ""),
+            "heartbeat_at": _now_iso(),
+            "waiter_pid": os.getpid(),
+        }
+        session["last_active"] = session["resource_wait"]["heartbeat_at"]
+
+    _mutate_sessions(update)
+
+
+def _clear_session_resource_wait(session_id: str, lock_type: str) -> None:
+    """Clear only the matching wait so an older waiter cannot erase a newer one."""
+    if not session_id:
+        return
+
+    def update(data: dict) -> None:
+        for candidate_id, session in data.setdefault("sessions", {}).items():
+            if candidate_id != session_id and session.get("opencode_session_id") != session_id:
+                continue
+            wait = session.get("resource_wait")
+            if isinstance(wait, dict) and wait.get("resource") == lock_type and wait.get("waiter_pid") == os.getpid():
+                session.pop("resource_wait", None)
+            return
+
+    _mutate_sessions(update)
+
+
+def _prune_stale_resource_waits(data: dict) -> int:
+    """Remove durable wait markers whose waiter died or stopped heartbeating."""
+    removed = 0
+    for session in data.get("sessions", {}).values():
+        if not isinstance(session, dict):
+            continue
+        wait = session.get("resource_wait")
+        if not isinstance(wait, dict) or wait.get("status") != "waiting":
+            continue
+        heartbeat_at = str(wait.get("heartbeat_at") or "")
+        try:
+            waiter_pid = int(wait.get("waiter_pid") or 0)
+        except (TypeError, ValueError):
+            waiter_pid = 0
+        heartbeat_stale = not heartbeat_at or _minutes_since(heartbeat_at) > 3
+        waiter_dead = waiter_pid > 0 and not _process_is_alive(waiter_pid)
+        if heartbeat_stale or waiter_dead:
+            session.pop("resource_wait", None)
+            removed += 1
+    return removed
+
+
+def _health_url_key(url: str) -> str:
+    """Return a compact sessions.json key for a health URL."""
+    return hashlib.sha256(url.strip().encode("utf-8")).hexdigest()[:16]
+
+
+def _probe_health_url(url: str, *, timeout: int = API_HEALTH_PROBE_TIMEOUT_SECONDS) -> dict:
+    """Probe a shared runtime health URL without raising on 5xx/connection errors."""
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "OpenMates-sessions-health-wait/1.0"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=max(1, timeout)) as response:  # noqa: S310
+            status_code = int(response.getcode() or 0)
+            return {"ok": 200 <= status_code < 300, "status_code": status_code, "error": ""}
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "status_code": int(exc.code or 0), "error": str(exc.reason or exc)}
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        return {"ok": False, "status_code": 0, "error": str(getattr(exc, "reason", None) or exc)}
+
+
+def _resource_wait_repository_session_id(data: dict, session_id: str) -> str:
+    """Resolve a repository session id for wait/incident status if possible."""
+    if not session_id:
+        return ""
+    sessions = data.setdefault("sessions", {})
+    if session_id in sessions:
+        return session_id
+    for candidate_id, candidate in sessions.items():
+        if isinstance(candidate, dict) and candidate.get("opencode_session_id") == session_id:
+            return candidate_id
+    return ""
+
+
+def _health_incident_live(incident: dict | None) -> bool:
+    """Return whether a health incident still has a live owner."""
+    if not isinstance(incident, dict) or incident.get("status") != "investigating":
+        return False
+    heartbeat_at = str(incident.get("heartbeat_at") or "")
+    heartbeat_stale = not heartbeat_at or (_minutes_since(heartbeat_at) * 60) > API_HEALTH_INCIDENT_STALE_SECONDS
+    try:
+        owner_pid = int(incident.get("owner_pid") or 0)
+    except (TypeError, ValueError):
+        owner_pid = 0
+    owner_dead = (
+        owner_pid > 0
+        and incident.get("owner_host") == socket.gethostname()
+        and not _process_is_alive(owner_pid)
+    )
+    return not heartbeat_stale and not owner_dead
+
+
+def _claim_api_health_incident(session_id: str, url: str, probe: dict) -> dict:
+    """Elect exactly one live chat to investigate a shared API health failure."""
+
+    def mutate(data: dict) -> dict:
+        incidents = _infrastructure_state(data).setdefault("health_incidents", {})
+        key = _health_url_key(url)
+        now = _now_iso()
+        owner_session_id = _resource_wait_repository_session_id(data, session_id) or session_id or "manual"
+        current = incidents.get(key)
+        current_owner = str(current.get("owner_session_id") or "") if isinstance(current, dict) else ""
+        same_owner = (
+            isinstance(current, dict)
+            and current_owner == owner_session_id
+            and current.get("owner_host") == socket.gethostname()
+        )
+        if _health_incident_live(current) and not same_owner:
+            current["last_observed_at"] = now
+            current["last_status_code"] = int(probe.get("status_code") or 0)
+            current["last_error"] = str(probe.get("error") or "")
+            return {"owned": False, "incident": dict(current)}
+        incident = {
+            "status": "investigating",
+            "url": url,
+            "key": key,
+            "owner_session_id": owner_session_id,
+            "owner_pid": os.getpid(),
+            "owner_host": socket.gethostname(),
+            "claimed_at": str(current.get("claimed_at") or now) if isinstance(current, dict) and same_owner else now,
+            "heartbeat_at": now,
+            "last_status_code": int(probe.get("status_code") or 0),
+            "last_error": str(probe.get("error") or ""),
+        }
+        incidents[key] = incident
+        return {"owned": True, "incident": dict(incident)}
+
+    return _mutate_sessions(mutate)
+
+
+def _clear_api_health_incident(url: str) -> None:
+    """Clear an API health incident once the shared health probe is green again."""
+
+    def mutate(data: dict) -> None:
+        incidents = _infrastructure_state(data).setdefault("health_incidents", {})
+        incidents.pop(_health_url_key(url), None)
+
+    _mutate_sessions(mutate)
 
 
 def cmd_wait_lock(args: argparse.Namespace) -> None:
@@ -9441,39 +12282,158 @@ def cmd_wait_lock(args: argparse.Namespace) -> None:
         print(f"Error: Unknown lock type '{args.type}'.", file=sys.stderr)
         sys.exit(1)
 
+    follow = bool(getattr(args, "follow", False))
     timeout = args.timeout
-    if timeout is None:
+    if timeout is None and not follow:
         timeout = _lock_stale_minutes(lock_type) * 60
     poll = max(1, args.poll)
-    deadline = time.time() + max(0, timeout)
+    deadline = None if timeout is None else time.time() + max(0, timeout)
     last_report = 0.0
+    last_owner_signature: tuple[str, str] | None = None
 
-    while True:
-        lock = _active_lock_snapshot(lock_type)
-        if not lock:
-            print(f"Lock '{lock_type}' is available.")
-            return
+    try:
+        while True:
+            lock = _active_lock_snapshot(lock_type)
+            if not lock:
+                print(json.dumps({
+                    "signal": "OPENMATES_WAIT_READY",
+                    "resource": lock_type,
+                    "session_id": args.session or "",
+                    "operation_type": "resource_ready",
+                    "operation_key": lock_type,
+                    "next_action": "Continue the exact operation interrupted by this resource wait without redoing completed work.",
+                }, sort_keys=True))
+                print(f"Lock '{lock_type}' is available; continue the interrupted operation in this chat.")
+                return
 
-        now = time.time()
-        if now >= deadline:
-            print(_format_lock_block_message(lock_type, lock), file=sys.stderr)
-            print(
-                f"Timed out after {timeout}s waiting for lock '{lock_type}'. "
-                "Do not force-unlock unless you have confirmed the other deploy/test is inactive.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+            _set_session_resource_wait(args.session or "", lock_type, lock)
+            now = time.time()
+            if deadline is not None and now >= deadline:
+                print(_format_lock_block_message(lock_type, lock), file=sys.stderr)
+                print(
+                    f"Timed out after {timeout}s waiting for lock '{lock_type}'. "
+                    "Do not force-unlock unless you have confirmed the other deploy/test is inactive.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
-        if last_report == 0.0 or now - last_report >= 60:
-            commit = str(lock.get("commit_sha") or "")[:9]
-            commit_text = f", commit {commit}" if commit else ""
-            print(
-                f"Waiting for lock '{lock_type}' held by {lock.get('claimed_by', '?')}"
-                f"{commit_text}, phase {lock.get('phase', '?')}..."
-            )
-            last_report = now
+            owner_signature = (str(lock.get("claimed_by") or ""), str(lock.get("phase") or ""))
+            if owner_signature != last_owner_signature or last_report == 0.0 or now - last_report >= 60:
+                commit = str(lock.get("commit_sha") or "")[:9]
+                commit_text = f", commit {commit}" if commit else ""
+                print(
+                    f"Waiting for lock '{lock_type}' held by {lock.get('claimed_by', '?')}"
+                    f"{commit_text}, phase {lock.get('phase', '?')}...",
+                    flush=True,
+                )
+                last_report = now
+                last_owner_signature = owner_signature
 
-        time.sleep(min(poll, max(1, int(deadline - now))))
+            sleep_for = poll if deadline is None else min(poll, max(1, int(deadline - now)))
+            time.sleep(sleep_for)
+    finally:
+        _clear_session_resource_wait(args.session or "", lock_type)
+
+
+
+
+def cmd_wait_health(args: argparse.Namespace) -> None:
+    """Wait for shared API health or elect one chat to investigate a real incident."""
+    url = (args.url or API_HEALTH_DEFAULT_URL).strip()
+    follow = bool(getattr(args, "follow", False))
+    timeout = args.timeout
+    if timeout is None and not follow:
+        timeout = API_HEALTH_INCIDENT_STALE_SECONDS
+    poll = max(1, args.poll)
+    probe_timeout = max(1, args.probe_timeout)
+    deadline = None if timeout is None else time.time() + max(0, timeout)
+    last_report = 0.0
+    last_owner_signature: tuple[str, str] | None = None
+    health_resource = "api_health"
+
+    try:
+        while True:
+            probe = _probe_health_url(url, timeout=probe_timeout)
+            if probe.get("ok"):
+                _clear_api_health_incident(url)
+                print(json.dumps({"signal": "OPENMATES_HEALTH_READY", "url": url, "session_id": args.session or ""}, sort_keys=True))
+                print(f"Health URL {url} is ready; continue the interrupted operation in this chat.")
+                return
+
+            docker_lock = _active_lock_snapshot("docker_rebuild")
+            if docker_lock:
+                _set_session_resource_wait(args.session or "", health_resource, docker_lock)
+                owner_signature = (
+                    str(docker_lock.get("claimed_by") or ""),
+                    str(docker_lock.get("phase") or ""),
+                )
+                owner_text = str(docker_lock.get("claimed_by") or "?")
+                phase_text = str(docker_lock.get("phase") or "?")
+                waiting_text = (
+                    f"Waiting for API health {url}; Docker/runtime operation held by "
+                    f"{owner_text}, phase {phase_text}. "
+                    f"Last health status: {probe.get('status_code') or probe.get('error') or 'unavailable'}."
+                )
+            else:
+                claim = _claim_api_health_incident(args.session or "", url, probe)
+                incident = claim.get("incident") if isinstance(claim.get("incident"), dict) else {}
+                if claim.get("owned"):
+                    print(
+                        json.dumps(
+                            {
+                                "signal": "OPENMATES_HEALTH_INVESTIGATE",
+                                "url": url,
+                                "session_id": incident.get("owner_session_id") or args.session or "",
+                                "status_code": probe.get("status_code") or 0,
+                                "error": probe.get("error") or "",
+                            },
+                            sort_keys=True,
+                        )
+                    )
+                    print(
+                        "No active Docker/runtime operation owns this health failure. "
+                        "This chat is the single API-health investigator; diagnose or restart through "
+                        "python3 scripts/sessions.py docker restart --session "
+                        f"{args.session or '<repository-session-id>'} --service api [--build]. "
+                        "Other chats should keep waiting for OPENMATES_HEALTH_READY.",
+                    )
+                    return
+                _set_session_resource_wait(
+                    args.session or "",
+                    health_resource,
+                    {
+                        "claimed_by": incident.get("owner_session_id") or "api-health-investigator",
+                        "phase": "health_investigating",
+                    },
+                )
+                owner_signature = (
+                    str(incident.get("owner_session_id") or ""),
+                    "health_investigating",
+                )
+                waiting_text = (
+                    f"Waiting for API health {url}; incident investigator is "
+                    f"{incident.get('owner_session_id') or '?'}. "
+                    f"Last health status: {probe.get('status_code') or probe.get('error') or 'unavailable'}."
+                )
+
+            now = time.time()
+            if deadline is not None and now >= deadline:
+                print(
+                    f"Timed out after {timeout}s waiting for API health {url}. "
+                    "If no Docker operation or health investigator is live, rerun wait-health so one chat can take over.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+            if owner_signature != last_owner_signature or last_report == 0.0 or now - last_report >= 60:
+                print(waiting_text, flush=True)
+                last_report = now
+                last_owner_signature = owner_signature
+
+            sleep_for = poll if deadline is None else min(poll, max(1, int(deadline - now)))
+            time.sleep(sleep_for)
+    finally:
+        _clear_session_resource_wait(args.session or "", health_resource)
 
 
 def _wait_and_acquire_session_lock(
@@ -9582,7 +12542,7 @@ def _requires_visual_smoke(files: list[str]) -> bool:
     ui_files = _visual_smoke_ui_files(files)
     if not ui_files:
         return False
-    if any(VISUAL_SMOKE_SPEC_PATH_RE.search(f) for f in files):
+    if any(VISUAL_SMOKE_PLAN_PATH_RE.search(f) for f in files):
         return True
     if len(ui_files) >= 2:
         return True
@@ -9701,6 +12661,15 @@ def _proof_video_runtime_files(files: list[str]) -> list[str]:
     ]
 
 
+def _playwright_spec_requires_proof_video(file: str) -> bool:
+    try:
+        text = (PROJECT_ROOT / file).read_text(encoding="utf-8")
+    except OSError:
+        return True
+    match = PROOF_VIDEO_NOT_REQUIRED_RE.search(text)
+    return not (match and match.group(1) in PROOF_VIDEO_NOT_REQUIRED_REASONS)
+
+
 def _requires_proof_video(session: dict, files: list[str]) -> bool:
     if not files:
         return False
@@ -9709,8 +12678,9 @@ def _requires_proof_video(session: dict, files: list[str]) -> bool:
     mode = str(session.get("mode") or "").strip().lower()
     if mode == "feature" and _proof_video_runtime_files(files):
         return True
-    if mode == "testing" and any(PROOF_VIDEO_E2E_PATH_RE.search(f) for f in files):
-        return True
+    if mode == "testing":
+        e2e_files = [f for f in files if PROOF_VIDEO_E2E_PATH_RE.search(f)]
+        return any(_playwright_spec_requires_proof_video(f) for f in e2e_files)
     return False
 
 
@@ -10101,21 +13071,33 @@ def _run_translation_build(*, checkout_root: Path | None = None) -> tuple[int, s
     return result.returncode, result.stdout, result.stderr
 
 
-def _run_contract_gate(files: list[str], *, session_id: str, checkout_root: Path) -> None:
-    """Block unresolved changed tests and unapproved contract bundle hashes."""
+SPECIFICATION_GATE_MIN_TIMEOUT_SECONDS = 60
+SPECIFICATION_GATE_MAX_TIMEOUT_SECONDS = 600
+
+
+def _specification_gate_timeout_seconds(relevant_file_count: int) -> int:
+    """Return a bounded timeout for Specification checks over large migrations."""
+    return min(
+        SPECIFICATION_GATE_MAX_TIMEOUT_SECONDS,
+        max(SPECIFICATION_GATE_MIN_TIMEOUT_SECONDS, SPECIFICATION_GATE_MIN_TIMEOUT_SECONDS + max(0, relevant_file_count)),
+    )
+
+
+def _run_specification_gate(files: list[str], *, session_id: str, checkout_root: Path) -> None:
+    """Block unresolved changed tests and unapproved Specification bundle hashes."""
     relevant = [
         path
         for path in files
-        if path.startswith("contracts/")
-        or path.startswith("docs/specs/") and Path(path).name == "spec.yml"
+        if path.startswith("specifications/")
+        or path.startswith("docs/plans/") and Path(path).name == "plan.yml"
         or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
         or Path(path).name.startswith("test_") and path.endswith(".py")
     ]
     if not relevant:
         return
-    script = checkout_root / "scripts" / "contracts.py"
+    script = checkout_root / "scripts" / "specifications.py"
     if not script.exists():
-        raise RuntimeError("contract gate unavailable: scripts/contracts.py is missing")
+        raise RuntimeError("Specification gate unavailable: scripts/specifications.py is missing")
     cmd = [
         sys.executable,
         str(script),
@@ -10126,63 +13108,70 @@ def _run_contract_gate(files: list[str], *, session_id: str, checkout_root: Path
         "--repo-root",
         str(checkout_root),
         "--approvals-file",
-        str(CONTROL_PLANE_ROOT / "scripts" / ".contracts-approvals-state.json"),
+        str(CONTROL_PLANE_ROOT / "scripts" / ".specifications-approvals-state.json"),
     ]
-    result = subprocess.run(cmd, cwd=str(checkout_root), capture_output=True, text=True, timeout=60)
+    timeout_seconds = _specification_gate_timeout_seconds(len(relevant))
+    try:
+        result = subprocess.run(cmd, cwd=str(checkout_root), capture_output=True, text=True, timeout=timeout_seconds)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            f"SPECIFICATION GATE TIMEOUT — check-changed exceeded {timeout_seconds}s "
+            f"for {len(relevant)} changed file(s)."
+        ) from exc
     if result.returncode != 0:
-        detail = result.stderr or result.stdout or "contract gate failed"
-        raise RuntimeError(f"CONTRACT GATE FAILED\n{detail.strip()}")
-    print("Contract gate: PASSED")
+        detail = result.stderr or result.stdout or "Specification gate failed"
+        raise RuntimeError(f"SPECIFICATION GATE FAILED\n{detail.strip()}")
+    print("Specification gate: PASSED")
 
 
-CONTRACT_GENERATED_FILES = (
-    "contracts/generated/registry.yml",
-    "contracts/generated/assertion-index.yml",
-    "contracts/generated/coverage.yml",
+SPECIFICATION_GENERATED_FILES = (
+    "specifications/generated/registry.yml",
+    "specifications/generated/assertion-index.yml",
+    "specifications/generated/coverage.yml",
 )
 
 
-def _should_regenerate_contract_artifacts(files: list[str]) -> bool:
-    """Return True when deploy inputs can change contract-generated artifacts."""
+def _should_regenerate_specification_artifacts(files: list[str]) -> bool:
+    """Return True when deploy inputs can change Specification-generated artifacts."""
 
     return any(
-        path.startswith("contracts/")
-        or path.startswith("docs/specs/") and Path(path).name == "spec.yml"
+        path.startswith("specifications/")
+        or path.startswith("docs/plans/") and Path(path).name == "plan.yml"
         or path.endswith((".spec.ts", ".test.ts", ".spec.tsx", ".test.tsx", ".spec.js", ".test.js", "Tests.swift", "_test.py"))
         or Path(path).name.startswith("test_") and path.endswith(".py")
         for path in files
     )
 
 
-def _regenerate_contract_artifacts_for_deploy(files: list[str], *, checkout_root: Path) -> list[str]:
-    """Regenerate and stage contract artifacts inside a disposable deploy checkout."""
+def _regenerate_specification_artifacts_for_deploy(files: list[str], *, checkout_root: Path) -> list[str]:
+    """Regenerate and stage Specification artifacts inside a disposable deploy checkout."""
 
-    if not _should_regenerate_contract_artifacts(files):
+    if not _should_regenerate_specification_artifacts(files):
         return []
-    script = checkout_root / "scripts" / "contracts.py"
+    script = checkout_root / "scripts" / "specifications.py"
     if not script.exists():
-        raise RuntimeError("contract generation unavailable: scripts/contracts.py is missing")
-    print("Regenerating contract artifacts for integration checkout...")
+        raise RuntimeError("Specification generation unavailable: scripts/specifications.py is missing")
+    print("Regenerating Specification artifacts for integration checkout...")
     rc, stdout, stderr = _run_cmd(
         [sys.executable, str(script), "generate", "--repo-root", str(checkout_root)],
         cwd=str(checkout_root),
         timeout=120,
     )
     if rc != 0:
-        detail = stderr or stdout or "contract artifact generation failed"
+        detail = stderr or stdout or "Specification artifact generation failed"
         raise RuntimeError(detail)
     rc, _stdout, stderr = _run_cmd(
-        ["git", "add", "--", *CONTRACT_GENERATED_FILES],
+        ["git", "add", "--", *SPECIFICATION_GENERATED_FILES],
         cwd=str(checkout_root),
     )
     if rc != 0:
-        raise RuntimeError(f"Could not stage contract-generated artifacts: {stderr}")
+        raise RuntimeError(f"Could not stage Specification-generated artifacts: {stderr}")
     staged = _get_staged_files(checkout_root=checkout_root)
-    generated = [path for path in CONTRACT_GENERATED_FILES if path in staged]
+    generated = [path for path in SPECIFICATION_GENERATED_FILES if path in staged]
     if generated:
-        print("Contract artifacts: REGENERATED")
+        print("Specification artifacts: REGENERATED")
     else:
-        print("Contract artifacts: CURRENT")
+        print("Specification artifacts: CURRENT")
     return generated
 
 
@@ -10197,7 +13186,7 @@ def _run_deploy_gates(
 ) -> None:
     """Run source-dependent deploy gates against one authoritative checkout."""
     if session_id:
-        _run_contract_gate(files, session_id=session_id, checkout_root=checkout_root)
+        _run_specification_gate(files, session_id=session_id, checkout_root=checkout_root)
 
     _enforce_embed_registry_validation(files, checkout_root=checkout_root)
 
@@ -10268,7 +13257,17 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
 
     worktree_metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
-    to_commit = _session_deploy_files(session, exclude)
+    try:
+        to_commit, selector = _resolve_deploy_selection(
+            session,
+            exclude=exclude,
+            use_staged=bool(getattr(args, "use_staged", False)),
+            only=list(getattr(args, "only", None) or []),
+        )
+    except RuntimeError as exc:
+        print(f"DEPLOY PLAN FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
     tracked_but_clean = [f for f in modified if f not in dirty_files]
     dirty_but_untracked = [f for f in dirty_files if f not in modified]
     excluded = [f for f in modified if f in exclude]
@@ -10276,6 +13275,10 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== DEPLOYMENT PLAN ==")
     print(f"Session: {sid}")
     print(f"Task: {session.get('task', '?')}")
+    print(f"Selector: {selector}")
+    print(f"Manifest: {manifest['manifest_id']}")
+    if manifest["patch_id"]:
+        print(f"Patch: {manifest['patch_id']}")
     if not _session_is_control_plane_repo(session):
         print(f"Repo: {_session_repo_name(session)} ({_session_repo_branch(session)})")
         print(f"Checkout: {checkout_root}")
@@ -10321,20 +13324,14 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
             print(f"  ? {f}{tag}")
         print()
 
-    # Run linter on files to commit
+    # Deployment planning must stay a quick, non-blocking preview. The deploy
+    # command and pre-commit hook run the authoritative lint gate; running the
+    # same potentially multi-minute lint here caused callers with ordinary tool
+    # timeouts to be killed mid-turn and left OpenCode tool records stale.
     if to_commit:
         lint_flags = _get_lint_flags(to_commit)
         if lint_flags and _session_is_control_plane_repo(session):
-            print("Running linter...")
-            rc, stdout, stderr = _run_lint(to_commit, checkout_root=checkout_root)
-            if rc != 0:
-                print("LINT ERRORS — fix before deploying:")
-                if stdout:
-                    print(stdout)
-                if stderr:
-                    print(stderr)
-            else:
-                print("Lint: PASSED")
+            print("Lint: DEFERRED (authoritative blocking gate runs during deploy)")
         elif lint_flags:
             print(f"Lint: SKIPPED ({_session_repo_name(session)} has no OpenMates lint_changed.sh gate)")
         print()
@@ -10406,6 +13403,107 @@ def cmd_prepare_deploy(args: argparse.Namespace) -> None:
     print("== END DEPLOYMENT PLAN ==")
 
 
+def _runtime_epoch_identity() -> str:
+    """Return a non-secret product runtime identity when one is recorded."""
+    try:
+        payload = json.loads(PRODUCT_RUNTIME_STATE_FILE.read_text())
+    except (OSError, json.JSONDecodeError):
+        return ""
+    for key in ("runtime_epoch", "deployed_commit", "commit", "revision"):
+        value = str(payload.get(key) or "")
+        if value:
+            return value
+    return ""
+
+
+def cmd_verify_prepared(args: argparse.Namespace) -> None:
+    """Run one allowlisted exact-patch profile without installing in its worktree."""
+    data = _load_sessions()
+    session = data.get("sessions", {}).get(args.session)
+    if not isinstance(session, dict):
+        raise RuntimeError(f"Session {args.session} not found")
+    files, selector = _resolve_deploy_selection(
+        session,
+        exclude=set(),
+        use_staged=bool(args.use_staged),
+        only=list(args.only or []),
+    )
+    if not files:
+        raise RuntimeError("Prepared verification requires a non-empty exact session patch")
+    manifest = _build_deploy_manifest(args.session, session, files, selector=selector)
+    expected_manifest = str(args.expected_manifest_id or "")
+    if expected_manifest and expected_manifest != manifest["manifest_id"]:
+        raise RuntimeError(
+            "Prepared verification manifest changed; rerun prepare-deploy and use its current manifest ID"
+        )
+
+    if args.profile == "installed-cli-identity":
+        result = {
+            "status": "inspected",
+            "profile": args.profile,
+            "base_commit": str((session.get("worktree") or {}).get("base_commit") or ""),
+            "patch_id": manifest["patch_id"],
+            "manifest_id": manifest["manifest_id"],
+            "lockfile_identity": _prepared_dependency_identity(_session_checkout_root(session)),
+            "runtime_epoch": _runtime_epoch_identity(),
+            "cli": _installed_cli_identity(
+                _session_checkout_root(session),
+                executable=str(args.executable or ""),
+            ),
+        }
+        print(json.dumps(result, sort_keys=True))
+        return
+
+    profile = PREPARED_VERIFICATION_PROFILES.get(args.profile)
+    if profile is None:
+        raise RuntimeError(f"Unknown prepared verification profile: {args.profile}")
+    metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else None
+    if not metadata:
+        raise RuntimeError("Prepared verification requires a managed session worktree")
+    prepared_base = _fetch_origin_dev_commit()
+    integration = _prepare_integration_worktree(
+        args.session,
+        metadata,
+        files,
+        manifest["patch_id"],
+        prepared_base,
+    )
+    checkout = Path(integration["path"])
+    try:
+        lockfile_identity = _link_prepared_dependencies(
+            checkout,
+            CONTROL_PLANE_ROOT,
+            list(profile["dependency_paths"]),
+        )
+        command = list(profile["command"])
+        completed = subprocess.run(
+            command,
+            cwd=str(checkout),
+            capture_output=True,
+            text=True,
+            timeout=int(profile["timeout"]),
+            check=False,
+            env={**os.environ, "CI": "1"},
+        )
+        result = {
+            "status": "passed" if completed.returncode == 0 else "failed",
+            "profile": args.profile,
+            "base_commit": prepared_base,
+            "patch_id": manifest["patch_id"],
+            "manifest_id": manifest["manifest_id"],
+            "lockfile_identity": lockfile_identity,
+            "runtime_epoch": _runtime_epoch_identity(),
+            "exit_code": completed.returncode,
+            "stdout": completed.stdout[-12000:],
+            "stderr": completed.stderr[-12000:],
+        }
+        print(json.dumps(result, sort_keys=True))
+        if completed.returncode != 0:
+            raise SystemExit(completed.returncode)
+    finally:
+        _remove_integration_worktree(integration)
+
+
 def _fetch_origin_dev_commit() -> str:
     """Fetch and return the exact current origin/dev commit."""
     rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(CONTROL_PLANE_ROOT))
@@ -10415,6 +13513,43 @@ def _fetch_origin_dev_commit() -> str:
     if rc != 0 or not stdout:
         raise RuntimeError(f"Could not resolve origin/dev: {stderr}")
     return stdout.strip()
+
+
+def _required_control_plane_deploy_protocol_version(origin_ref: str) -> int:
+    """Read the deploy protocol required by origin/dev, defaulting legacy refs to v1."""
+    rc, stdout, stderr = _run_cmd(
+        ["git", "show", f"{origin_ref}:{CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        commit_rc, _commit_stdout, commit_stderr = _run_cmd(
+            ["git", "cat-file", "-e", f"{origin_ref}^{{commit}}"],
+            cwd=str(CONTROL_PLANE_ROOT),
+        )
+        if commit_rc == 0:
+            return 1
+        raise RuntimeError(f"Could not inspect control-plane deploy protocol at {origin_ref}: {stderr or commit_stderr}")
+    try:
+        version = int(stdout.strip())
+    except ValueError as exc:
+        raise RuntimeError(
+            f"Malformed control-plane deploy protocol in {CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}: {stdout!r}"
+        ) from exc
+    if version < 1:
+        raise RuntimeError(
+            f"Malformed control-plane deploy protocol in {CONTROL_PLANE_DEPLOY_PROTOCOL_FILE}: {stdout!r}"
+        )
+    return version
+
+
+def _enforce_control_plane_deploy_protocol_compatible(origin_ref: str) -> None:
+    required = _required_control_plane_deploy_protocol_version(origin_ref)
+    if required > CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION:
+        raise RuntimeError(
+            f"origin/dev requires control-plane deploy protocol v{required}, "
+            f"but this runtime supports v{CONTROL_PLANE_DEPLOY_PROTOCOL_VERSION}. "
+            "Restart OpenCode onto the current control plane before deploying."
+        )
 
 
 def _fast_forward_control_plane(commit_hash: str) -> None:
@@ -10436,24 +13571,60 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
         )
 
 
-def _control_plane_sync_warning(commit_hash: str) -> str:
-    """Return actionable recovery when a pushed commit cannot load locally yet."""
-    try:
-        _fast_forward_control_plane(commit_hash)
-    except RuntimeError as exc:
-        return (
-            f"CONTROL PLANE SYNC REQUIRED — Reason: {exc} "
-            f"Next: preserve unrelated dirty files, resolve the reported checkout conflict, then run "
-            f"git merge --ff-only {commit_hash}."
+def _enforce_control_plane_sync_ready(expected_base: str) -> None:
+    """Make canonical dev a clean tracked mirror of the locked deploy base."""
+    rc, branch, stderr = _run_cmd(
+        ["git", "branch", "--show-current"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0 or branch.strip() != "dev":
+        raise RuntimeError(
+            "Canonical checkout must have local dev checked out before deploy: "
+            f"{stderr or branch or 'branch could not be resolved'}"
         )
-    return ""
+    rc, dirty, stderr = _run_cmd(
+        ["git", "status", "--porcelain", "--untracked-files=no"],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not validate canonical checkout cleanliness: {stderr}")
+    if dirty.strip():
+        raise RuntimeError(
+            "Canonical checkout has tracked changes, so local dev cannot be kept synchronized safely. "
+            "Recover or import those root changes before retrying the deploy."
+        )
+    current = _current_git_sha(CONTROL_PLANE_ROOT)
+    if current == expected_base:
+        return
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", current, expected_base],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(
+            "Canonical dev cannot be fast-forwarded to origin/dev safely: "
+            f"local={current or '<unknown>'} origin={expected_base}. "
+            f"{stderr or 'local dev is not an ancestor of origin/dev'}"
+        )
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge", "--ff-only", expected_base],
+        cwd=str(CONTROL_PLANE_ROOT),
+        timeout=300,
+    )
+    if rc != 0 or _current_git_sha(CONTROL_PLANE_ROOT) != expected_base:
+        raise RuntimeError(
+            "Canonical dev could not be fast-forwarded to origin/dev safely: "
+            f"local={current or '<unknown>'} origin={expected_base}. "
+            f"{stderr or 'HEAD did not reach origin/dev'}"
+        )
 
 
 def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
     """Build the existing deploy commit message without checkout side effects."""
-    commit_msg = args.title
-    if args.message:
-        commit_msg += "\n\n" + args.message
+    commit_msg = str(getattr(args, "title", "") or "")
+    message = str(getattr(args, "message", "") or "")
+    if message:
+        commit_msg += "\n\n" + message
     linked_task_id = session.get("task_id")
     if linked_task_id:
         linked_task = _load_task(linked_task_id)
@@ -10461,26 +13632,43 @@ def _integration_commit_message(args: argparse.Namespace, session: dict) -> str:
             task_summary = linked_task.get("summary", "").strip()
             if task_summary:
                 commit_msg += "\n\n" + task_summary
+    trailers = list(getattr(args, "trailer", None) or [])
+    invalid = [trailer for trailer in trailers if not trailer.strip() or "\n" in trailer or "\r" in trailer]
+    if invalid:
+        raise RuntimeError("--trailer values must each be one non-empty line")
+    if trailers:
+        commit_msg += "\n\n" + "\n".join(trailer.strip() for trailer in trailers)
     return commit_msg
 
 
-def _validate_contract_commit_message(files: list[str], message: str) -> None:
+def _validate_specification_commit_message(files: list[str], message: str) -> None:
     governed = [
         path
         for path in files
-        if path.startswith("contracts/") and Path(path).name in {"contract.yml", "examples.yml"}
+        if path.startswith("specifications/") and Path(path).name in {"specification.yml", "examples.yml"}
     ]
     if not governed:
         return
     missing = [
         trailer
-        for trailer in ("Contracts:", "Assertions:", "Spec:", "Contract-Impact:")
+        for trailer in ("Specifications:", "Assertions:", "Plan:", "Specification-Impact:")
         if trailer not in message
     ]
     if missing:
         raise RuntimeError(
-            "contract-governed commit is missing required trailers: " + ", ".join(missing)
+            "Specification-governed commit is missing required trailers: "
+            + ", ".join(missing)
+            + '. Use repeatable one-line arguments such as --trailer "Specifications: feature.example@1" '
+            + '--trailer "Assertions: example.behavior" --trailer "Plan: example" '
+            + '--trailer "Specification-Impact: implementation-only"; do not use ANSI-C shell quoting.'
         )
+
+
+def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, files: list[str]) -> str:
+    """Reject deterministic commit-message errors before expensive deploy gates."""
+    message = _integration_commit_message(args, session)
+    _validate_specification_commit_message(files, message)
+    return message
 
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
@@ -10502,11 +13690,55 @@ def _sync_deployed_files_to_source(
     patch_files: list[str],
     expected_patch_id: str,
 ) -> str:
-    """Align deployed files without overwriting edits made during integration."""
+    """Copy deployed paths and advance the source base when remaining work is independent."""
     source_root = Path(str(source_metadata.get("path") or ""))
     try:
         if _worktree_patch_id(source_metadata, patch_files) != expected_patch_id:
             return "Source worktree changed during deploy; deployed files were not synchronized."
+        source_head = _worktree_head(source_root)
+        rc, deployed_commit, stderr = _run_cmd(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(checkout_root),
+        )
+        if rc != 0 or not deployed_commit.strip():
+            return f"Deployed files were not synchronized because the deployed commit could not be resolved: {stderr}"
+        deployed_commit = deployed_commit.strip()
+
+        rc, changed_output, stderr = _run_cmd(
+            ["git", "diff", "--name-only", "-z", source_head, "--"],
+            cwd=str(source_root),
+        )
+        if rc != 0:
+            return f"Deployed files were not synchronized because source changes could not be inspected: {stderr}"
+        changed_before = {
+            path for path in changed_output.split("\0") if path
+        } | _worktree_untracked_files(source_metadata)
+        selected = set(files)
+        remaining = sorted(changed_before - selected)
+
+        rc, staged_output, stderr = _run_cmd(
+            ["git", "diff", "--cached", "--name-only", "-z", source_head, "--"],
+            cwd=str(source_root),
+        )
+        if rc != 0:
+            return f"Deployed files were not synchronized because staged source changes could not be inspected: {stderr}"
+        staged_remaining = {path for path in staged_output.split("\0") if path} - selected
+
+        can_advance = not staged_remaining
+        if can_advance:
+            rc, _stdout, _stderr = _run_cmd(
+                ["git", "merge-base", "--is-ancestor", source_head, deployed_commit],
+                cwd=str(source_root),
+            )
+            can_advance = rc == 0
+        if can_advance and remaining:
+            can_advance = not _selected_paths_changed_between_refs(
+                source_root,
+                source_head,
+                deployed_commit,
+                remaining,
+            )
+
         for relative_path in files:
             deployed_path = checkout_root / relative_path
             source_path = source_root / relative_path
@@ -10517,6 +13749,64 @@ def _sync_deployed_files_to_source(
                 temporary.replace(source_path)
             elif source_path.exists() or source_path.is_symlink():
                 source_path.unlink()
+        # A partial deploy can advance too when no remaining path changed in the
+        # deployed ancestry. The mixed reset preserves the undeployed bytes, and
+        # the targeted restore refreshes only paths that were clean beforehand.
+        if can_advance:
+            rc, upstream_output, stderr = _run_cmd(
+                ["git", "diff", "--name-only", "-z", source_head, deployed_commit, "--"],
+                cwd=str(source_root),
+            )
+            if rc != 0:
+                return f"Deployed files were synchronized, but upstream paths could not be inspected: {stderr}"
+            refresh_paths = sorted(
+                {path for path in upstream_output.split("\0") if path} - set(remaining)
+            )
+            rc, _stdout, stderr = _run_cmd(
+                ["git", "reset", "--mixed", deployed_commit],
+                cwd=str(source_root),
+                timeout=120,
+            )
+            if rc != 0:
+                return (
+                    "Deployed files were synchronized, but the source worktree could not be advanced safely: "
+                    f"{stderr}"
+                )
+            restore_paths = []
+            deleted_paths = []
+            for relative_path in refresh_paths:
+                rc, _stdout, _stderr = _run_cmd(
+                    ["git", "cat-file", "-e", f"{deployed_commit}:{relative_path}"],
+                    cwd=str(source_root),
+                )
+                (restore_paths if rc == 0 else deleted_paths).append(relative_path)
+            if restore_paths:
+                rc, _stdout, stderr = _run_cmd(
+                    [
+                        "git",
+                        "restore",
+                        "--source=HEAD",
+                        "--worktree",
+                        "--",
+                        *(f":(literal){path}" for path in restore_paths),
+                    ],
+                    cwd=str(source_root),
+                    timeout=120,
+                )
+                if rc != 0:
+                    return (
+                        "The source worktree base advanced, but clean upstream paths could not be refreshed: "
+                        f"{stderr}"
+                    )
+            for relative_path in deleted_paths:
+                stale_path = source_root / relative_path
+                if stale_path.is_file() or stale_path.is_symlink():
+                    stale_path.unlink()
+                elif stale_path.exists():
+                    return (
+                        "The source worktree base advanced, but an upstream-deleted path is not a file: "
+                        f"{relative_path}"
+                    )
     except (OSError, RuntimeError) as exc:
         return f"Could not synchronize deployed files into the source worktree: {exc}"
     return ""
@@ -10537,11 +13827,11 @@ def _deploy_native_worktree(
     integration: dict | None = None
     deploy_lock_held = False
     commit_hash_full = ""
-    control_plane_warning = ""
     source_sync_warning = ""
 
     try:
         prepared_base = _fetch_origin_dev_commit()
+        _enforce_control_plane_deploy_protocol_compatible(prepared_base)
         prepare_args = (
             sid,
             worktree_metadata,
@@ -10550,19 +13840,23 @@ def _deploy_native_worktree(
             prepared_base,
         )
         checkpoint_commit = str(getattr(args, "expected_checkpoint_commit", "") or "")
-        if checkpoint_commit:
-            integration = _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
-        else:
-            integration = _prepare_integration_worktree(*prepare_args)
+        if not checkpoint_commit:
+            checkpoint_commit = _create_worktree_checkpoint_commit(
+                sid,
+                worktree_metadata,
+                to_commit,
+                patch_id,
+            )
+        integration = _prepare_integration_worktree(*prepare_args, checkpoint_commit=checkpoint_commit)
 
         while True:
             checkout_root = Path(integration["path"])
             _bootstrap_integration_for_files(checkout_root, to_commit)
-            generated_contract_files = _regenerate_contract_artifacts_for_deploy(
+            generated_specification_files = _regenerate_specification_artifacts_for_deploy(
                 to_commit,
                 checkout_root=checkout_root,
             )
-            commit_files = sorted(set(to_commit).union(generated_contract_files))
+            commit_files = sorted(set(to_commit).union(generated_specification_files))
             _run_deploy_gates(
                 commit_files,
                 checkout_root=checkout_root,
@@ -10581,6 +13875,7 @@ def _deploy_native_worktree(
             )
             deploy_lock_held = True
             final_base = _fetch_origin_dev_commit()
+            _enforce_control_plane_deploy_protocol_compatible(final_base)
             if final_base != integration["prepared_base"]:
                 _release_session_lock("vercel_deploy", released_by=sid)
                 deploy_lock_held = False
@@ -10596,6 +13891,7 @@ def _deploy_native_worktree(
                 )
                 continue
 
+            _enforce_control_plane_sync_ready(final_base)
             print("Checking Vercel web app build machine...")
             _enforce_vercel_standard_build_machine()
             print("Vercel build machine: standard/fixed")
@@ -10606,8 +13902,7 @@ def _deploy_native_worktree(
             ):
                 raise RuntimeError("Integration staged-file validation failed")
 
-            commit_message = _integration_commit_message(args, session)
-            _validate_contract_commit_message(commit_files, commit_message)
+            commit_message = _preflight_deploy_commit_message(args, session, commit_files)
             commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
                 commit_cmd.append("--no-verify")
@@ -10635,6 +13930,8 @@ def _deploy_native_worktree(
             )
             if rc != 0:
                 raise RuntimeError(f"git push failed: {stderr}")
+            print("Fast-forwarding local dev checkout to the deployed commit...")
+            _fast_forward_control_plane(commit_hash_full)
             source_sync_warning = _sync_deployed_files_to_source(
                 worktree_metadata,
                 checkout_root,
@@ -10642,7 +13939,6 @@ def _deploy_native_worktree(
                 to_commit,
                 patch_id,
             )
-            control_plane_warning = _control_plane_sync_warning(commit_hash_full)
             _release_session_lock("vercel_deploy", commit_sha=commit_hash_full, released_by=sid)
             deploy_lock_held = False
             break
@@ -10671,8 +13967,6 @@ def _deploy_native_worktree(
 
     _save_last_deploy_sha(commit_hash_full)
     _mark_worktree_deployed(sid, patch_id, commit_hash_full, integration=integration)
-    if control_plane_warning:
-        print(control_plane_warning, file=sys.stderr)
     if source_sync_warning:
         print(source_sync_warning, file=sys.stderr)
     commit_hash = commit_hash_full[:7]
@@ -10912,26 +14206,38 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     worktree_metadata = session.get("worktree") if is_control_plane_repo and isinstance(session.get("worktree"), dict) else None
     checkout_root = _session_checkout_root(session)
 
-    use_staged = getattr(args, "use_staged", False)
+    use_staged = bool(getattr(args, "use_staged", False))
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
-    to_commit = _session_deploy_files(session, exclude)
-    staged_files_for_deploy = set(_get_staged_files(checkout_root=checkout_root)) if use_staged and not to_commit else set()
-    if staged_files_for_deploy:
-        allowed_staged_files = {
-            _canonical_stored_repo_path(path)
-            for path in modified
-            if _canonical_stored_repo_path(path) not in exclude
-        }
-        foreign_staged = sorted(staged_files_for_deploy - allowed_staged_files)
-        if foreign_staged:
-            print(
-                f"{_session_repo_name(session).upper()} DEPLOY FAILED — --use-staged found staged files outside this session: "
-                + ", ".join(foreign_staged),
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        to_commit = sorted(f for f in staged_files_for_deploy if f not in exclude)
-        modified = sorted(set(modified) | set(to_commit))
+    try:
+        to_commit, selector = _resolve_deploy_selection(
+            session,
+            exclude=exclude,
+            use_staged=use_staged,
+            only=list(getattr(args, "only", None) or []),
+        )
+    except RuntimeError as exc:
+        print(f"{_session_repo_name(session).upper()} DEPLOY FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        validate_product_session_deploy_paths(to_commit, session=session)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    try:
+        _preflight_deploy_commit_message(args, session, to_commit)
+    except RuntimeError as exc:
+        print(f"WORKTREE DEPLOY FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+    manifest = _build_deploy_manifest(sid, session, to_commit, selector=selector)
+    expected_manifest_id = str(getattr(args, "expected_manifest_id", "") or "")
+    if expected_manifest_id and manifest["manifest_id"] != expected_manifest_id:
+        print(
+            "WORKTREE DEPLOY BLOCKED — deploy manifest changed after preview. "
+            "Run prepare-deploy again and retry with its new manifest ID.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(f"Deploy manifest: {manifest['manifest_id']} ({selector}, {len(to_commit)} source file(s))")
     dirty_but_untracked = [f for f in dirty_files if f not in modified and f not in exclude]
     worktree_patch_id = _worktree_patch_id(worktree_metadata, to_commit) if worktree_metadata and to_commit else ""
     expected_patch_id = str(getattr(args, "expected_patch_id", "") or "")
@@ -11020,6 +14326,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
                 sys.exit(1)
             print("Vercel build machine: standard/fixed")
 
+            try:
+                _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
+            except RuntimeError as exc:
+                if deploy_lock_held:
+                    _release_session_lock("vercel_deploy", released_by=sid)
+                print(f"CONTROL-PLANE DEPLOY PROTOCOL GATE FAILED — {exc}", file=sys.stderr)
+                sys.exit(1)
+
             print(f"No files to commit; pushing {git_summary['unpushed']} existing commit(s) to origin dev...")
             rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
             if rc != 0:
@@ -11100,55 +14414,13 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             print(f"  ? {f}{tag}")
         print()
 
-    routed_modes = {"pending", "native", "pilot_fallback", "worktree_routed"}
-    if worktree_metadata and to_commit and validate_worktree_binding_mode(session) in routed_modes:
+    if worktree_metadata and to_commit:
+        validate_worktree_binding_mode(session)
         _deploy_native_worktree(args, session, worktree_metadata, to_commit, worktree_patch_id)
         return
 
-    if worktree_metadata and to_commit:
-        deploy_lock_held = False
-        try:
-            _wait_and_acquire_session_lock(
-                "vercel_deploy",
-                sid,
-                phase="integrating_worktree",
-                timeout=getattr(args, "lock_timeout", None),
-                poll=getattr(args, "lock_poll", 30),
-            )
-            deploy_lock_held = True
-        except RuntimeError as exc:
-            print(str(exc), file=sys.stderr)
-            sys.exit(1)
-        print("Dev deploy integration lock acquired for worktree diff application.")
-
-        try:
-            patch_action = _worktree_root_patch_action(sid, worktree_patch_id, to_commit)
-            if patch_action == "applied":
-                print("Session worktree diff is already integrated; continuing deploy retry.")
-            else:
-                if patch_action == "conflict":
-                    raise RuntimeError(
-                        "Selected root files changed after the previous worktree integration; "
-                        "resolve the root conflict before retrying."
-                    )
-                if patch_action == "refresh":
-                    print("Refreshing safely amended session worktree files in root...")
-                    _sync_worktree_files_to_root(worktree_metadata, to_commit)
-                else:
-                    print(f"Applying session worktree diff from {worktree_metadata.get('path')}...")
-                    _apply_worktree_diff_to_root(worktree_metadata, to_commit)
-                _record_worktree_root_patch(sid, worktree_patch_id, to_commit)
-        except (RuntimeError, OSError) as exc:
-            item = enqueue_worktree_deploy(sid, args.title, worktree_patch_id, reason=str(exc))
-            print(f"WORKTREE INTEGRATION BLOCKED — {item['id']}: {exc}", file=sys.stderr)
-            print("Resolve the root conflict, then rerun the same sessions.py deploy command.", file=sys.stderr)
-            sys.exit(1)
-        finally:
-            if deploy_lock_held:
-                _release_session_lock("vercel_deploy", released_by=sid)
-
     # Contract/test traceability is never bypassed by --skip-tests or --no-verify.
-    _run_contract_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
+    _run_specification_gate(to_commit, session_id=sid, checkout_root=PROJECT_ROOT)
 
     _enforce_embed_registry_validation(to_commit)
 
@@ -11245,6 +14517,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
         sys.exit(1)
     print("Dev deploy push lock acquired for commit preparation.")
 
+    try:
+        _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
+    except RuntimeError as exc:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        print(f"CONTROL-PLANE DEPLOY PROTOCOL GATE FAILED — {exc}", file=sys.stderr)
+        sys.exit(1)
+
     # 2. Git add — reset any staged files not belonging to this session first,
     # to prevent index bleed from concurrent sessions that already ran git add.
     staged_files = _get_staged_files()
@@ -11266,15 +14546,9 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             sys.exit(1)
 
     if use_staged:
-        staged_files = _get_staged_files()
-        missing_staged = [f for f in to_commit if f not in staged_files]
-        if missing_staged:
-            print("--use-staged requires staged changes for every tracked deploy file:", file=sys.stderr)
-            for f in sorted(missing_staged):
-                print(f"  - {f}", file=sys.stderr)
-            if deploy_lock_held:
-                _release_session_lock("vercel_deploy", released_by=sid)
-            sys.exit(1)
+        # The authoritative exact-set check immediately before commit covers
+        # both missing and foreign staged paths. Avoid a second partial check
+        # here that can race with another session and report the wrong cause.
         print(f"Using pre-staged changes for {len(to_commit)} tracked file(s)")
     else:
         # Separate existing files from deleted files — git add fails on deleted files,
@@ -11336,7 +14610,7 @@ def cmd_deploy(args: argparse.Namespace) -> None:
             if task_summary:
                 commit_msg += "\n\n" + task_summary
 
-    _validate_contract_commit_message(to_commit, commit_msg)
+    _validate_specification_commit_message(to_commit, commit_msg)
 
     no_verify = getattr(args, "no_verify", False)
     if no_verify:
@@ -11367,6 +14641,14 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
     # 4. Git push. Vercel/test readiness is commit-scoped via
     # --expected-commit, so this mutex must not outlive the push.
+    try:
+        _enforce_control_plane_deploy_protocol_compatible(_fetch_origin_dev_commit())
+    except RuntimeError as exc:
+        if deploy_lock_held:
+            _release_session_lock("vercel_deploy", released_by=sid)
+        print(f"CONTROL-PLANE DEPLOY PROTOCOL GATE FAILED — {exc}", file=sys.stderr)
+        print("Commit was created locally but not pushed.", file=sys.stderr)
+        sys.exit(1)
     print("Pushing to origin dev...")
     rc, stdout, stderr = _run_cmd(["git", "push", "origin", "dev"])
     if rc != 0:
@@ -11436,6 +14718,26 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
+    if args.worktree_action == "root-dirty":
+        try:
+            result = list_root_dirty_files(path_prefix=args.path_prefix or "")
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    if args.worktree_action == "import-root":
+        try:
+            result = import_root_dirty_file(
+                args.file,
+                session_id=args.session or "",
+                opencode_session_id=args.opencode_session or "",
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "ensure":
         try:
             metadata = ensure_session_worktree(args.session)
@@ -11470,9 +14772,25 @@ def cmd_worktree(args: argparse.Namespace) -> None:
             sys.exit(2)
         print(json.dumps(result, sort_keys=True))
         return
+    if args.worktree_action == "refresh-base":
+        try:
+            result = refresh_session_worktree_base(args.session)
+        except (RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "checkpoint":
         try:
             result = checkpoint_session_worktree(args.opencode_session, event=args.event)
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(1)
+        print(json.dumps(result, sort_keys=True))
+        return
+    if args.worktree_action == "activate":
+        try:
+            result = activate_session_worktree(args.opencode_session)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -11627,6 +14945,50 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     print("Error: unknown worktree action", file=sys.stderr)
     sys.exit(1)
+
+
+def cmd_specification(args: argparse.Namespace) -> None:
+    """Run current Specification workflow tooling against one routed worktree."""
+    if args.specification_action != "approval-pdf":
+        print(f"Unknown Specification action: {args.specification_action}", file=sys.stderr)
+        sys.exit(2)
+    try:
+        data = _load_sessions()
+        session_id = _resolve_session_id(data, session_id=args.session)
+        checkout_root = _session_checkout_root(data["sessions"][session_id]).resolve()
+        if Path(args.bundle).is_absolute():
+            raise ValueError("Specification bundle must be a repository-relative path")
+        relative_bundle = _canonical_stored_repo_path(args.bundle)
+        bundle = (checkout_root / relative_bundle).resolve()
+        bundle.relative_to(checkout_root)
+
+        # Import from the immutable current control plane, but bind all source
+        # and Git-baseline reads to the selected session checkout.
+        from scripts import specification_approval_pdf
+
+        original_specification_root = specification_approval_pdf.specifications.REPO_ROOT
+        original_module_root = specification_approval_pdf.REPO_ROOT
+        specification_approval_pdf.specifications.REPO_ROOT = checkout_root
+        specification_approval_pdf.REPO_ROOT = checkout_root
+        command = [str(bundle), "--baseline-ref", args.baseline_ref]
+        if args.new_specification:
+            command.append("--new-specification")
+        if args.no_upload:
+            command.append("--no-upload")
+        if args.dry_run_upload:
+            command.append("--dry-run-upload")
+        if args.json:
+            command.append("--json")
+        try:
+            result = specification_approval_pdf.main(command)
+        finally:
+            specification_approval_pdf.specifications.REPO_ROOT = original_specification_root
+            specification_approval_pdf.REPO_ROOT = original_module_root
+    except (OSError, RuntimeError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(2)
+    if result:
+        sys.exit(result)
 
 
 
@@ -11908,6 +15270,7 @@ def cmd_deploy_docs(args: argparse.Namespace) -> None:
 _TEST_LOCATIONS = {
     # Python unit/integration tests
     ".py": [
+        "{parent}/tests/test_{stem}.py",
         "backend/tests/test_{stem}.py",
         "backend/tests/test_rest_api_{stem}.py",
         "backend/apps/{app}/tests/test_{stem}.py",
@@ -11977,6 +15340,22 @@ def _find_tests_for_file(filepath: str, *, checkout_root: Path | None = None) ->
         if full_path.exists():
             result["unit_tests"].append(candidate)
 
+    # Infrastructure modules sometimes share a behavioral contract test whose
+    # filename cannot be inferred from the source stem. Keep that relationship
+    # explicit and reviewable instead of falling back to a broad name match.
+    source_path = root / filepath
+    if suffix == ".py" and source_path.is_file():
+        try:
+            source_header = "\n".join(source_path.read_text(encoding="utf-8").splitlines()[:40])
+        except OSError:
+            source_header = ""
+        for declared in re.findall(r"^# test-file:\s*(\S+)\s*$", source_header, flags=re.MULTILINE):
+            declared_path = Path(declared)
+            if ".." in declared_path.parts or declared_path.is_absolute():
+                continue
+            if (root / declared_path).is_file() and declared not in result["unit_tests"]:
+                result["unit_tests"].append(declared)
+
     # Also search for any test file containing the stem name. Prune generated
     # and managed-worktree roots before descending: Path.glob("**/...") walks
     # every session checkout and made this deploy gate scale by worktree count.
@@ -11997,17 +15376,21 @@ def _find_tests_for_file(filepath: str, *, checkout_root: Path | None = None) ->
         "node_modules",
         "test-results",
     }
-    for current, directories, names in os.walk(root):
-        directories[:] = [name for name in directories if name not in excluded_test_roots]
-        current_path = Path(current)
-        for name in names:
-            match = current_path / name
-            relative = match.relative_to(root)
-            if not any(relative.match(pattern) for pattern in test_glob_patterns):
-                continue
-            rel = str(match.relative_to(root))
-            if rel not in result["unit_tests"]:
-                result["unit_tests"].append(rel)
+    # Exact sibling/directive matches are authoritative for Python. A global
+    # substring scan for generic stems such as api.py otherwise pulls unrelated
+    # product suites (for example api_key_scopes) into a control-plane deploy.
+    if suffix != ".py" or not result["unit_tests"]:
+        for current, directories, names in os.walk(root):
+            directories[:] = [name for name in directories if name not in excluded_test_roots]
+            current_path = Path(current)
+            for name in names:
+                match = current_path / name
+                relative = match.relative_to(root)
+                if not any(relative.match(pattern) for pattern in test_glob_patterns):
+                    continue
+                rel = str(match.relative_to(root))
+                if rel not in result["unit_tests"]:
+                    result["unit_tests"].append(rel)
 
     # --- Search for E2E tests referencing this file/component ---
     e2e_spec_dir = root / "frontend" / "apps" / "web_app" / "tests"
@@ -13480,49 +16863,6 @@ def cmd_debug_vercel(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
-_READ_ONLY_PROMPT_MARKERS = (
-    "do not edit",
-    "do not modify",
-    "do not write",
-    "do not deploy",
-    "read-only",
-    "root-cause report, not a fix",
-    "produce a concise root-cause report",
-)
-
-_WRITE_PROMPT_MARKERS = (
-    "implement the fix",
-    "make the fix",
-    "you may edit files",
-    "may edit files",
-    "start editing",
-    "apply patches",
-    "deploy when done",
-    "use sessions.py deploy",
-    "commit and push",
-)
-
-
-def _prompt_contains_any(prompt: str, markers: tuple[str, ...]) -> bool:
-    normalized = " ".join(prompt.lower().split())
-    return any(marker in normalized for marker in markers)
-
-
-def _validate_spawn_prompt_contract(prompt: str, permission_mode: str) -> None:
-    """Reject worker prompts that combine contradictory mode/capability text."""
-
-    if permission_mode == "execute" and _prompt_contains_any(prompt, _READ_ONLY_PROMPT_MARKERS):
-        raise SystemExit(
-            "Error: --mode execute cannot be combined with read-only prompt instructions. "
-            "Use --mode execute-readonly for Bash-capable investigations, or remove the read-only prohibition."
-        )
-    if permission_mode == "execute-readonly" and _prompt_contains_any(prompt, _WRITE_PROMPT_MARKERS):
-        raise SystemExit(
-            "Error: --mode execute-readonly cannot be combined with implementation/deploy prompt instructions. "
-            "Use --mode execute for implementation workers."
-        )
-
-
 def _print_deployed_commit_handoff(commit_sha: str) -> None:
     """Print one unambiguous subject-commit handoff after a successful dev push."""
 
@@ -13531,8 +16871,14 @@ def _print_deployed_commit_handoff(commit_sha: str) -> None:
     print(f"Full commit: {commit_sha}")
     print(
         "Verify deployed spec: python3 scripts/tests.py run --spec <name>.spec.ts "
-        f"--gate-deploy --require-exact-commit --expected-commit {commit_sha}"
+        f"--gate-deploy --expected-commit {commit_sha}"
     )
+    print(json.dumps({
+        "signal": "OPENMATES_CONTINUATION_READY",
+        "operation_type": "deployment_ready",
+        "operation_key": commit_sha,
+        "next_action": "Continue with the exact-commit verification required for this deployment without repeating implementation or local gates.",
+    }, sort_keys=True))
 
 
 def _maybe_start_verification_session(args: argparse.Namespace, source_session_id: str, commit_sha: str) -> None:
@@ -13593,7 +16939,6 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Present your findings and proposed fix as a summary — do not implement it.\n\n"
         )
     elif permission_mode == "execute-readonly":
-        _validate_spawn_prompt_contract(prompt, permission_mode)
         mode_prefix = (
             "IMPORTANT: This is an EXECUTE-READONLY session. "
             "You may run repository Bash/status commands and inspect files, but you MUST NOT edit, write, "
@@ -13601,8 +16946,6 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
             "Produce findings, root-cause evidence, or a handoff only.\n\n"
         )
     else:
-        if not getattr(args, "no_deploy_instructions", False):
-            _validate_spawn_prompt_contract(prompt, permission_mode)
         if getattr(args, "no_deploy_instructions", False):
             mode_prefix = (
                 "IMPORTANT: This is an EXECUTE session. "
@@ -13711,6 +17054,177 @@ def cmd_spawn_chat(args: argparse.Namespace) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _opencode_api_json(path: str, timeout: int = 15) -> Any:
+    separator = "&" if "?" in path else "?"
+    routed_path = f"{path}{separator}{urllib.parse.urlencode({'directory': str(CONTROL_PLANE_ROOT)})}"
+    request = urllib.request.Request(f"{OPENCODE_SERVER_URL}{routed_path}", method="GET")
+    with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        return json.load(response)
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def _opencode_resume_profile(session_id: str) -> dict[str, Any]:
+    messages = _opencode_api_json(
+        f"/session/{urllib.parse.quote(session_id, safe='')}/message?limit=10"
+    )
+    if not isinstance(messages, list):
+        return {}
+    for message in reversed(messages):
+        info = message.get("info") if isinstance(message, dict) else None
+        if not isinstance(info, dict) or info.get("role") != "assistant":
+            continue
+        return {
+            "agent": info.get("agent"),
+            "provider_id": info.get("providerID"),
+            "model_id": info.get("modelID"),
+            "variant": info.get("variant"),
+        }
+    return {}
+
+
+def capture_opencode_restart_manifest(path: Path) -> dict[str, Any]:
+    """Persist every busy top-level chat before an intentional server restart."""
+    statuses = _opencode_api_json("/session/status")
+    if not isinstance(statuses, dict):
+        raise RuntimeError("OpenCode returned invalid session status data; restart capture aborted")
+
+    captured: list[dict[str, Any]] = []
+    for session_id, status in statuses.items():
+        status_type = status.get("type") if isinstance(status, dict) else None
+        if status_type not in OPENCODE_RESTART_ACTIVE_STATUSES:
+            continue
+        session = _opencode_api_json(f"/session/{urllib.parse.quote(str(session_id), safe='')}")
+        if not isinstance(session, dict) or session.get("id") != session_id:
+            raise RuntimeError(f"Could not resolve active OpenCode session {session_id}; restart capture aborted")
+        if session.get("parentID"):
+            continue
+
+        profile = _opencode_resume_profile(str(session_id))
+        agent = str(profile.get("agent") or "plan")
+        captured.append({
+            "session_id": str(session_id),
+            "title": str(session.get("title") or "(untitled session)"),
+            "directory": str(session.get("directory") or CONTROL_PLANE_ROOT),
+            "updated_before_restart": int((session.get("time") or {}).get("updated") or 0),
+            "status_before_restart": status_type,
+            "permission_mode": "plan" if agent == "plan" else "execute",
+            "provider_id": profile.get("provider_id"),
+            "model_id": profile.get("model_id"),
+            "variant": profile.get("variant"),
+            "resume_sent_at": None,
+            "resume_verified_at": None,
+        })
+
+    manifest = {
+        "version": 1,
+        "captured_at": _now_iso(),
+        "server_url": OPENCODE_SERVER_URL,
+        "sessions": sorted(captured, key=lambda item: item["session_id"]),
+    }
+    _write_json_atomic(path, manifest)
+    return manifest
+
+
+def _restore_prompt(restore: dict[str, Any], prompt: str) -> str:
+    return (
+        f"Restore preflight selected repository session {restore['repository_session_id'] or 'unmapped'}; "
+        f"worktree advanced to current origin/dev: {str(restore['advanced']).lower()}. "
+        "For every shared Docker or test operation, use the current routed coordinator: "
+        "python3 scripts/sessions.py <command>. Do not access the root checkout or another managed worktree. "
+        "A temporary shared lock is not a terminal blocker: run the intended canonical command directly so it queues, "
+        "or run `python3 scripts/sessions.py wait-lock --session <repository-session-id> --type <docker|vercel> "
+        "--follow --poll 10` with a long tool timeout, wait for OPENMATES_WAIT_READY, and continue in this same response.\n\n"
+        + prompt
+    )
+
+
+def resume_opencode_restart_manifest(path: Path) -> dict[str, Any]:
+    """Resume each captured chat once and durably record accepted continuations."""
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Could not read OpenCode restart manifest {path}: {exc}") from exc
+    sessions = manifest.get("sessions")
+    if manifest.get("version") != 1 or not isinstance(sessions, list):
+        raise RuntimeError(f"Unsupported OpenCode restart manifest: {path}")
+
+    scripts_dir = str(PROJECT_ROOT / "scripts")
+    if scripts_dir not in sys.path:
+        sys.path.insert(0, scripts_dir)
+    from _zellij_utils import resume_opencode_session
+
+    for entry in sessions:
+        if not isinstance(entry, dict) or not entry.get("session_id"):
+            raise RuntimeError(f"Invalid session entry in OpenCode restart manifest: {path}")
+        if entry.get("resume_sent_at"):
+            continue
+        session_id = str(entry["session_id"])
+        restore = prepare_opencode_restore(session_id)
+        accepted = resume_opencode_session(
+            session_name=f"restart-{session_id[:8]}",
+            opencode_session_id=session_id,
+            cwd=restore["cwd"],
+            prompt=_restore_prompt(
+                restore,
+                "The OpenCode server was intentionally restarted while this turn was running. "
+                "Continue the interrupted turn from its existing state and finish the original task. "
+                "Do not restart the task or repeat completed work.",
+            ),
+            permission_mode=str(entry.get("permission_mode") or "plan"),
+            provider_id=entry.get("provider_id"),
+            model_id=entry.get("model_id"),
+            variant=entry.get("variant"),
+        )
+        if not accepted:
+            raise RuntimeError(f"OpenCode rejected continuation for {session_id}; manifest retained at {path}")
+        entry["resume_sent_at"] = _now_iso()
+        _write_json_atomic(path, manifest)
+
+    deadline = time.monotonic() + 20
+    pending = {entry["session_id"] for entry in sessions if not entry.get("resume_verified_at")}
+    while pending and time.monotonic() < deadline:
+        statuses = _opencode_api_json("/session/status")
+        for entry in sessions:
+            session_id = entry["session_id"]
+            if session_id not in pending:
+                continue
+            status = statuses.get(session_id) if isinstance(statuses, dict) else None
+            current = _opencode_api_json(f"/session/{urllib.parse.quote(session_id, safe='')}")
+            updated = int((current.get("time") or {}).get("updated") or 0) if isinstance(current, dict) else 0
+            if (isinstance(status, dict) and status.get("type") in OPENCODE_RESTART_ACTIVE_STATUSES) or updated > int(entry.get("updated_before_restart") or 0):
+                entry["resume_verified_at"] = _now_iso()
+                pending.remove(session_id)
+                _write_json_atomic(path, manifest)
+        if pending:
+            time.sleep(0.5)
+    if pending:
+        joined = ", ".join(sorted(pending))
+        raise RuntimeError(f"Continuation was sent but not verified for: {joined}. Inspect manifest {path}; do not resend blindly.")
+    return manifest
+
+
+def cmd_opencode_restart(args: argparse.Namespace) -> None:
+    manifest_path = Path(args.manifest).expanduser().resolve()
+    try:
+        if args.restart_action == "capture":
+            manifest = capture_opencode_restart_manifest(manifest_path)
+            print(f"Captured {len(manifest['sessions'])} busy top-level OpenCode session(s): {manifest_path}")
+            for entry in manifest["sessions"]:
+                print(f"  {entry['session_id']}  {entry['title']}")
+        else:
+            manifest = resume_opencode_restart_manifest(manifest_path)
+            print(f"Verified {len(manifest['sessions'])} resumed OpenCode session(s): {manifest_path}")
+    except (OSError, RuntimeError, urllib.error.URLError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
 def _discover_interrupted_sessions(
     max_age_hours: int = 24,
     limit: int = 15,
@@ -13761,6 +17275,133 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
     if args.json:
         cmd += ["--json"]
     os.execvp(cmd[0], cmd)
+
+
+def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
+    """Validate routing and safely advance a resumable worktree to origin/dev."""
+    data = _load_sessions()
+    def matches_for(open_code_session_id: str) -> list[tuple[str, dict]]:
+        return [
+            (session_id, session)
+            for session_id, session in data.get("sessions", {}).items()
+            if isinstance(session, dict) and session.get("opencode_session_id") == open_code_session_id
+        ]
+
+    matches = matches_for(opencode_session_id)
+    if not matches:
+        for parent_opencode_session_id in _opencode_parent_chain(opencode_session_id):
+            matches = matches_for(parent_opencode_session_id)
+            if matches:
+                break
+    if not matches:
+        return {"cwd": str(CONTROL_PLANE_ROOT), "repository_session_id": "", "advanced": False}
+    if len(matches) != 1:
+        raise RuntimeError(f"OpenCode session {opencode_session_id} matches multiple repository sessions")
+    repository_session_id, session = matches[0]
+    worktree = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
+    restore_worktree_status = worktree.get("status")
+    worktree_path = Path(str(worktree.get("path") or ""))
+    if not worktree_path or not _existing_direct_managed_worktree(worktree_path):
+        raise RuntimeError(
+            f"Restore blocked: repository session {repository_session_id} has an invalid or missing managed worktree. "
+            f"Run `python3 scripts/sessions.py worktree repair --opencode-session {opencode_session_id}` first."
+        )
+    # A restore starts a new live turn. Invalidate any checkpoint that became
+    # eligible while this chat was idle before fetching or advancing its base.
+    with _worktree_checkpoint_lock(repository_session_id):
+        _mutate_sessions(
+            lambda sessions_data: _store_session_worktree_active(
+                sessions_data, repository_session_id, _now_iso()
+            )
+        )
+    advanced = False
+    if restore_worktree_status in {"active", "merged"}:
+        rc, porcelain, stderr = _run_cmd(["git", "status", "--porcelain"], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not inspect {worktree_path}: {stderr}")
+        rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not fetch origin/dev: {stderr}")
+        rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "refs/remotes/origin/dev"], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not resolve origin/dev: {stderr}")
+        current_head = _current_git_sha(worktree_path)
+        rc, _stdout, stderr = _run_cmd(["git", "merge-base", "--is-ancestor", current_head, target_commit], cwd=str(worktree_path))
+        if rc != 0:
+            raise RuntimeError("Restore blocked: the worktree diverged from origin/dev; preserve it and reconcile manually. " + stderr)
+        rc, upstream_output, stderr = _run_cmd(
+            ["git", "diff", "--name-only", current_head, target_commit, "--"], cwd=str(worktree_path)
+        )
+        if rc != 0:
+            raise RuntimeError(f"Restore preflight could not compare upstream changes: {stderr}")
+        local_paths = {
+            path
+            for line in porcelain.splitlines()
+            for path in line[3:].split(" -> ")
+            if path
+        }
+        upstream_paths = {line.strip() for line in upstream_output.splitlines() if line.strip()}
+        conflicts = sorted(local_paths.intersection(upstream_paths))
+        if conflicts:
+            if restore_worktree_status == "active":
+                # An interrupted active chat may own genuine pending edits on
+                # paths that advanced upstream. Preserve that exact checkout so
+                # the chat can reconcile its own task context after recovery.
+                link_shared_worktree_resources(worktree_path)
+                return {
+                    "cwd": str(worktree_path),
+                    "repository_session_id": repository_session_id,
+                    "advanced": False,
+                    "preserved_conflicts": conflicts,
+                }
+            integration = worktree.get("integration") if isinstance(worktree.get("integration"), dict) else {}
+            if restore_worktree_status != "merged" or integration.get("status") != "merged":
+                raise RuntimeError(
+                    "Restore blocked: local work overlaps changes in origin/dev: " + ", ".join(conflicts)
+                )
+            recovery_path = worktree_path.with_name(
+                f"{worktree_path.name}.recovery-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+            )
+            worktree_path.rename(recovery_path)
+            _run_cmd(["git", "worktree", "prune"])
+            rc, _stdout, stderr = _run_cmd(["git", "worktree", "add", str(worktree_path), target_commit])
+            if rc != 0:
+                if recovery_path.exists() and not worktree_path.exists():
+                    recovery_path.rename(worktree_path)
+                raise RuntimeError(f"Restore preflight could not recreate merged worktree: {stderr}")
+
+            def record_recreated(sessions_data: dict) -> None:
+                current = sessions_data["sessions"][repository_session_id]
+                current_worktree = current["worktree"]
+                current_worktree["base_commit"] = target_commit
+                current_worktree["status"] = "active"
+                current_worktree["recovered_from"] = str(recovery_path)
+                current_worktree["recovered_at"] = _now_iso()
+                current_worktree["last_active"] = current_worktree["recovered_at"]
+                current["last_active"] = current_worktree["last_active"]
+                current["binding_mode"] = "worktree_routed"
+
+            _mutate_sessions(record_recreated)
+            link_shared_worktree_resources(worktree_path)
+            return {"cwd": str(worktree_path), "repository_session_id": repository_session_id, "advanced": True}
+        if current_head != target_commit:
+            rc, _stdout, stderr = _run_cmd(["git", "switch", "--detach", target_commit], cwd=str(worktree_path))
+            if rc != 0:
+                raise RuntimeError(f"Restore preflight could not advance the worktree: {stderr}")
+
+        def update(sessions_data: dict) -> None:
+            current = sessions_data["sessions"][repository_session_id]
+            current_worktree = current["worktree"]
+            current_worktree["base_commit"] = target_commit
+            current_worktree["status"] = "active"
+            current_worktree["last_active"] = _now_iso()
+            current["last_active"] = current_worktree["last_active"]
+            current["binding_mode"] = "worktree_routed"
+
+        _mutate_sessions(update)
+        advanced = current_head != target_commit
+    link_shared_worktree_resources(worktree_path)
+    return {"cwd": str(worktree_path), "repository_session_id": repository_session_id, "advanced": advanced}
 
 
 def cmd_restore(args: argparse.Namespace) -> None:
@@ -13935,12 +17576,23 @@ def cmd_restore(args: argparse.Namespace) -> None:
         "Continue where you left off."
     )
 
+    try:
+        restore = prepare_opencode_restore(session_id)
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    prompt = _restore_prompt(restore, prompt)
+
+    profile = _opencode_resume_profile(session_id) if getattr(args, "mode", "plan") != "plan" else {}
     success = resume_opencode_session(
         session_name=restore_name,
         opencode_session_id=session_id,
-        cwd=str(CONTROL_PLANE_ROOT),
+        cwd=restore["cwd"],
         prompt=prompt,
         permission_mode=getattr(args, "mode", "plan"),
+        provider_id=profile.get("provider_id"),
+        model_id=profile.get("model_id"),
+        variant=profile.get("variant"),
     )
 
     if success:
@@ -14203,6 +17855,11 @@ def main() -> None:
         help="Trim the Playwright recording from this explicit capture-ready timestamp minus the fixed lead.",
     )
     p_proof_playwright.add_argument(
+        "--source-end-timestamp-seconds",
+        type=float,
+        help="Trim the Playwright recording at this explicit source timestamp after the proof-relevant state.",
+    )
+    p_proof_playwright.add_argument(
         "--demo-audio-path",
         type=Path,
         help="Optional product audio fixture to preserve playback audio when it is part of the proof.",
@@ -14395,6 +18052,57 @@ def main() -> None:
         if action != "release-task":
             p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
+    p_task_bridge = sub.add_parser("task-bridge", help="Bridge trusted OpenMates Task JSON into OpenCode")
+    p_task_bridge_sub = p_task_bridge.add_subparsers(dest="task_bridge_action", required=True)
+    p_task_bridge_stage = p_task_bridge_sub.add_parser(
+        "stage", help="Stage one completed response for idle reconciliation"
+    )
+    p_task_bridge_stage.add_argument("--session", required=True, help="Top-level OpenCode session ID")
+    p_task_bridge_stage.add_argument("--message-id", required=True, help="Completed assistant message ID")
+    for action in ("context", "reconcile"):
+        p_task_bridge_action = p_task_bridge_sub.add_parser(action)
+        p_task_bridge_action.add_argument("--session", required=True, help="Top-level OpenCode session ID")
+    p_task_bridge_tool = p_task_bridge_sub.add_parser("tool", help="Execute one typed Task operation")
+    p_task_bridge_tool.add_argument("--session", required=True, help="Top-level OpenCode session ID")
+    p_task_bridge_tool.add_argument("--json-stdin", action="store_true", required=True)
+
+    p_continuation = sub.add_parser("continuation", help="Manage bounded deterministic chat continuations")
+    p_continuation_sub = p_continuation.add_subparsers(dest="continuation_action", required=True)
+    p_continuation_record = p_continuation_sub.add_parser("record", help="Record one ready allowlisted operation")
+    p_continuation_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    p_continuation_record.add_argument("--operation-type", required=True, choices=sorted(CONTINUATION_ALLOWED_TYPES))
+    p_continuation_record.add_argument("--operation-key", required=True)
+    p_continuation_record.add_argument("--next-action", required=True)
+    for action in ("claim", "ack", "release", "cancel"):
+        p_continuation_action = p_continuation_sub.add_parser(action)
+        p_continuation_action.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+
+    p_media = sub.add_parser("media", help="Manage durable response-media delivery")
+    p_media_sub = p_media.add_subparsers(dest="media_action", required=True)
+    p_media_quarantine = p_media_sub.add_parser("quarantine", help="Quarantine undelivered legacy media records")
+    p_media_quarantine.add_argument("--session", default="", help="Optional repository or OpenCode session ID")
+    p_media_quarantine.add_argument("--reason", default="recovery hotfix")
+    p_media_record = p_media_sub.add_parser("record", help="Record one pending response artifact")
+    p_media_record.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    p_media_record.add_argument(
+        "--artifact-type", required=True, choices=["video", "figma_image", "figma_export"]
+    )
+    p_media_record.add_argument("--artifact-key", default="")
+    p_media_record.add_argument("--artifact-path", default="")
+    p_media_record.add_argument("--snippet", required=True)
+    p_media_record.add_argument("--subject-commit", default="")
+    p_media_record.add_argument("--run-id", default="")
+    p_media_claim = p_media_sub.add_parser("claim")
+    p_media_claim.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    for action in ("ack", "release"):
+        p_media_finish = p_media_sub.add_parser(action)
+        p_media_finish.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+        p_media_finish.add_argument("--artifact-key", required=True)
+    p_media_fail = p_media_sub.add_parser("fail")
+    p_media_fail.add_argument("--session", required=True, help="Repository or OpenCode session ID")
+    p_media_fail.add_argument("--artifact-key", required=True)
+    p_media_fail.add_argument("--reason", default="")
+
     p_docker = sub.add_parser("docker", help="Run coordinated Docker operations")
     p_docker_sub = p_docker.add_subparsers(dest="docker_action", required=True)
     p_docker_restart = p_docker_sub.add_parser("restart", help="Drain dependent tests and restart services")
@@ -14423,9 +18131,40 @@ def main() -> None:
         default=DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS,
         help="Seconds to wait for restarted services to become healthy",
     )
+    p_docker_setup = p_docker_sub.add_parser("run-setup", help="Drain dependent tests and run setup services")
+    p_docker_setup.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_setup.add_argument(
+        "--service",
+        action="append",
+        required=True,
+        help="Setup service to run; repeat for multiple services",
+    )
+    p_docker_setup.add_argument(
+        "--build",
+        action="store_true",
+        help="Build the setup image before running the service",
+    )
+    p_docker_setup.add_argument(
+        "--timeout",
+        type=int,
+        default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
+        help="Seconds to wait for the Docker lock and dependent tests",
+    )
+    p_docker_setup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
+    p_worktree_root_dirty = p_worktree_sub.add_parser(
+        "root-dirty", help="List safe dirty files in the canonical root without exposing contents"
+    )
+    p_worktree_root_dirty.add_argument("--path-prefix", default="", help="Optional repository-relative prefix")
+    p_worktree_import_root = p_worktree_sub.add_parser(
+        "import-root", help="Import one explicitly selected dirty root file into a clean session path"
+    )
+    import_identity = p_worktree_import_root.add_mutually_exclusive_group(required=True)
+    import_identity.add_argument("--session", "-s", help="sessions.py session ID")
+    import_identity.add_argument("--opencode-session", help="Top-level OpenCode session ID")
+    p_worktree_import_root.add_argument("--file", required=True, help="Exact repository-relative dirty root file")
     p_worktree_ensure = p_worktree_sub.add_parser("ensure", help="Create or show this session's worktree")
     p_worktree_ensure.add_argument("--session", "-s", required=True, help="Session ID")
     p_worktree_binding = p_worktree_sub.add_parser("binding", help="Record an OpenCode native-binding result")
@@ -14435,9 +18174,18 @@ def main() -> None:
     p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
     p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
     p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    p_worktree_refresh_base = p_worktree_sub.add_parser(
+        "refresh-base",
+        help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
+    )
+    p_worktree_refresh_base.add_argument("--session", "-s", required=True, help="Session ID")
     p_worktree_checkpoint = p_worktree_sub.add_parser("checkpoint", help="Checkpoint an idle or closed mutating OpenCode session")
     p_worktree_checkpoint.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_checkpoint.add_argument("--event", required=True, choices=["idle", "closed"])
+    p_worktree_activate = p_worktree_sub.add_parser(
+        "activate", help="Invalidate an idle checkpoint when a chat starts a new user turn"
+    )
+    p_worktree_activate.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
     p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
     p_worktree_expire = p_worktree_sub.add_parser(
@@ -14496,6 +18244,20 @@ def main() -> None:
     )
     p_worktree_readiness.add_argument("--format", choices=["text", "json"], default="text")
 
+    p_specification = sub.add_parser("specification", help="Run current Specification tooling against a session worktree")
+    p_specification_sub = p_specification.add_subparsers(dest="specification_action", required=True)
+    p_specification_approval = p_specification_sub.add_parser(
+        "approval-pdf",
+        help="Render and publish an exact-fingerprint approval PDF from current tooling",
+    )
+    p_specification_approval.add_argument("--session", "-s", required=True, help="sessions.py session ID")
+    p_specification_approval.add_argument("--bundle", required=True, help="Repository-relative Specification bundle")
+    p_specification_approval.add_argument("--baseline-ref", default="HEAD", help="Worktree Git ref used to highlight changes")
+    p_specification_approval.add_argument("--new-specification", action="store_true", help="Allow a bundle absent from the baseline")
+    p_specification_approval.add_argument("--no-upload", action="store_true", help="Generate without publishing")
+    p_specification_approval.add_argument("--dry-run-upload", action="store_true", help="Use a fake media upload")
+    p_specification_approval.add_argument("--json", action="store_true", help="Print structured output")
+
     # lock
     p_lock = sub.add_parser("lock", help="Acquire a lock")
     p_lock.add_argument(
@@ -14543,10 +18305,51 @@ def main() -> None:
         help="Seconds to wait before failing (default: lock stale timeout)",
     )
     p_wait_lock.add_argument(
+        "--follow",
+        action="store_true",
+        help="Keep following owner transitions until release (no default timeout)",
+    )
+    p_wait_lock.add_argument(
         "--poll",
         type=int,
         default=30,
         help="Seconds between checks (default: 30)",
+    )
+
+    # wait-health
+    p_wait_health = sub.add_parser(
+        "wait-health",
+        help="Wait for shared API health or elect one incident investigator",
+    )
+    p_wait_health.add_argument(
+        "--session", "-s", help="Session ID waiting for API health"
+    )
+    p_wait_health.add_argument(
+        "--url",
+        default=os.getenv("OPENMATES_API_HEALTH_URL", API_HEALTH_DEFAULT_URL),
+        help=f"Health URL to probe (default: {API_HEALTH_DEFAULT_URL})",
+    )
+    p_wait_health.add_argument(
+        "--timeout",
+        type=int,
+        help="Seconds to wait before failing (default: health incident stale timeout)",
+    )
+    p_wait_health.add_argument(
+        "--follow",
+        action="store_true",
+        help="Keep following Docker/incident owner transitions until health is ready",
+    )
+    p_wait_health.add_argument(
+        "--poll",
+        type=int,
+        default=30,
+        help="Seconds between checks (default: 30)",
+    )
+    p_wait_health.add_argument(
+        "--probe-timeout",
+        type=int,
+        default=API_HEALTH_PROBE_TIMEOUT_SECONDS,
+        help=f"Seconds for each HTTP health probe (default: {API_HEALTH_PROBE_TIMEOUT_SECONDS})",
     )
 
     # prepare-deploy
@@ -14561,6 +18364,39 @@ def main() -> None:
         "-e",
         nargs="*",
         help="File paths to exclude from commit",
+    )
+    p_prep.add_argument(
+        "--use-staged",
+        action="store_true",
+        dest="use_staged",
+        help="Use exactly the staged session file set for the deployment plan.",
+    )
+    p_prep.add_argument(
+        "--only",
+        nargs="+",
+        help="Use exactly these tracked dirty session files for the deployment plan.",
+    )
+
+    p_verify_prepared = sub.add_parser(
+        "verify-prepared",
+        help="Run an allowlisted exact-patch check using shared lockfile-compatible dependencies",
+    )
+    p_verify_prepared.add_argument("--session", "-s", required=True, help="Session ID")
+    p_verify_prepared.add_argument(
+        "--profile",
+        required=True,
+        choices=[*sorted(PREPARED_VERIFICATION_PROFILES), "installed-cli-identity"],
+        help="Fixed validation command or read-only installed CLI inspection",
+    )
+    p_verify_prepared.add_argument("--only", nargs="+", help="Verify exactly these tracked dirty files")
+    p_verify_prepared.add_argument(
+        "--use-staged", action="store_true", help="Verify exactly the staged session file set"
+    )
+    p_verify_prepared.add_argument(
+        "--expected-manifest-id", help="Require the immutable manifest printed by prepare-deploy"
+    )
+    p_verify_prepared.add_argument(
+        "--executable", help="Installed CLI executable to inspect (identity profile only)"
     )
 
     # deploy
@@ -14577,10 +18413,21 @@ def main() -> None:
         "--message", "-m", help="Commit body (optional)"
     )
     p_deploy.add_argument(
+        "--trailer",
+        action="append",
+        default=[],
+        help="Append one safe single-line commit trailer; repeat for contract provenance",
+    )
+    p_deploy.add_argument(
         "--exclude",
         "-e",
         nargs="*",
         help="File paths to exclude",
+    )
+    p_deploy.add_argument(
+        "--only",
+        nargs="+",
+        help="Deploy exactly these tracked dirty session files. Mutually exclusive with --use-staged.",
     )
     p_deploy.add_argument(
         "--end",
@@ -14599,8 +18446,8 @@ def main() -> None:
         "--use-staged",
         action="store_true",
         dest="use_staged",
-        help="Commit already staged hunks for the tracked session files instead of "
-        "running git add on whole files. Use for concurrent same-file edits.",
+        help="Use exactly the already staged tracked session file set. The source "
+        "worktree file contents are applied in isolated integration.",
     )
     p_deploy.add_argument(
         "--skip-tests",
@@ -14625,6 +18472,11 @@ def main() -> None:
         "--expected-patch-id",
         dest="expected_patch_id",
         help=argparse.SUPPRESS,
+    )
+    p_deploy.add_argument(
+        "--expected-manifest-id",
+        dest="expected_manifest_id",
+        help="Require the immutable manifest printed by prepare-deploy.",
     )
     p_deploy.add_argument(
         "--expected-checkpoint-commit",
@@ -14901,6 +18753,15 @@ def main() -> None:
         help="Show completed/in-review sessions too (default: hidden)",
     )
 
+    p_opencode_restart = sub.add_parser(
+        "opencode-restart",
+        help="Capture or resume the exact busy top-level chat set around a server restart",
+    )
+    p_opencode_restart_sub = p_opencode_restart.add_subparsers(dest="restart_action", required=True)
+    for restart_action in ("capture", "resume"):
+        p_restart_action = p_opencode_restart_sub.add_parser(restart_action)
+        p_restart_action.add_argument("--manifest", required=True, help="Durable restart manifest path")
+
     # task-show
     p_task_show = sub.add_parser(
         "task-show",
@@ -14973,12 +18834,18 @@ def main() -> None:
         "opencode-chat": cmd_opencode_chat,
         "chat": cmd_opencode_chat,
         "presence": cmd_presence,
+        "task-bridge": cmd_task_bridge,
+        "continuation": cmd_continuation,
+        "media": cmd_media,
         "docker": cmd_docker,
         "worktree": cmd_worktree,
+        "specification": cmd_specification,
         "lock": cmd_lock,
         "unlock": cmd_unlock,
         "wait-lock": cmd_wait_lock,
+        "wait-health": cmd_wait_health,
         "prepare-deploy": cmd_prepare_deploy,
+        "verify-prepared": cmd_verify_prepared,
         "deploy": cmd_deploy,
         "lint": cmd_lint,
         "context": cmd_context,
@@ -15000,6 +18867,7 @@ def main() -> None:
         "task-track": cmd_task_track,
         "spawn-chat": cmd_spawn_chat,
         "restore": cmd_restore,
+        "opencode-restart": cmd_opencode_restart,
         "git-stats": cmd_git_stats,
     }
 

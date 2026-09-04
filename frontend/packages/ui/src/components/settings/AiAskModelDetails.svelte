@@ -1,612 +1,246 @@
-<!-- frontend/packages/ui/src/components/settings/AiAskModelDetails.svelte
-     
-     Model details page for a specific AI model within the AI Ask skill.
-     Shows:
-     - Model name and provider
-     - Description
-     - Release date
-     - Supported input/output types
-     - Available servers with region information
-     - Pricing details
-     - Toggle to enable/disable the model
-     
-     **Data Flow**:
-     - Model metadata from modelsMetadata.ts (generated at build time)
-     - User preferences from userProfile store (disabled_ai_models, disabled_ai_servers)
-     - Changes auto-save by updating userProfile store
+<!--
+    Canonical AI model detail page used by top-level and app-skill routes.
+    Presents capability, pricing, metadata, and hosting-provider controls.
+    All visual composition uses the shared settings element system.
+    Design reference: Figma node 5816:61037.
 -->
-
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
+    import { getProviderIconUrl } from '../../data/providerIcons';
     import { authStore } from '../../stores/authStore';
-    import { userProfile, updateProfile } from '../../stores/userProfile';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
-    import SettingsItem from '../SettingsItem.svelte';
-    import { SettingsSectionHeading } from './elements';
-    import Toggle from '../Toggle.svelte';
-    import Icon from '../Icon.svelte';
-    
-    const dispatch = createEventDispatcher();
-    
-    // --- Auth state ---
-    let isAuthenticated = $derived($authStore.isAuthenticated);
-    
+    import { updateProfile, userProfile } from '../../stores/userProfile';
+    import { getAiProviderDisplay, getModelCapabilityLevel } from '../../utils/aiModelDisplay';
+    import {
+        SettingsCapabilityScale,
+        SettingsInfoBox,
+        SettingsItem,
+        SettingsLoadingState,
+        SettingsPageContainer,
+    } from './elements';
+
     interface Props {
         modelId: string;
     }
-    
+
     let { modelId }: Props = $props();
-    
-    // Get model metadata
-    let model = $derived<AIModelMetadata | undefined>(
-        modelsMetadata.find(m => m.id === modelId)
+    const model = $derived<AIModelMetadata | undefined>(modelsMetadata.find((candidate) => candidate.id === modelId));
+    const disabledModels = $derived($userProfile.disabled_ai_models ?? []);
+    const disabledServers = $derived($userProfile.disabled_ai_servers ?? {});
+    const isAuthenticated = $derived($authStore.isAuthenticated);
+    const isModelEnabled = $derived(!disabledModels.includes(modelId));
+    const providerDisplay = $derived(
+        getAiProviderDisplay(model?.provider_id ?? '', model?.provider_name ?? '')
     );
-    
-    // Get user's disabled models and servers
-    let disabledModels = $derived($userProfile.disabled_ai_models || []);
-    let disabledServers = $derived($userProfile.disabled_ai_servers || {});
-    
-    // Check if model is enabled
-    let isModelEnabled = $derived(!disabledModels.includes(modelId));
-    
-    // Format release date for display
-    let formattedReleaseDate = $derived.by(() => {
-        if (!model?.release_date) return null;
-        try {
-            const date = new Date(model.release_date);
-            return date.toLocaleDateString(undefined, { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-            });
-        } catch {
-            return model.release_date;
-        }
+    const capabilityLevel = $derived(model ? getModelCapabilityLevel(model) : 'medium');
+    const capabilityLabel = $derived($text(`settings.ai_ask.ai_ask_settings.capability_${capabilityLevel}`));
+    const formattedReleaseDate = $derived.by(() => {
+        if (!model?.release_date) return '';
+        const date = new Date(model.release_date);
+        return Number.isNaN(date.getTime())
+            ? model.release_date
+            : date.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
     });
-    
-    // Get tier display label
-    let tierLabel = $derived.by(() => {
-        if (!model) return '';
-        switch (model.tier) {
-            case 'economy': return $text('settings.ai_ask.ai_ask_model_details.tier_economy');
-            case 'standard': return $text('settings.ai_ask.ai_ask_model_details.tier_standard');
-            case 'premium': return $text('settings.ai_ask.ai_ask_model_details.tier_premium');
-            default: return model.tier;
-        }
-    });
-    
-    // Get tier CSS class for styling
-    let tierClass = $derived(model?.tier || 'standard');
-    
-    // Format input types for display
-    let inputTypesDisplay = $derived.by(() => {
-        if (!model?.input_types) return '';
-        return model.input_types.map(type => {
-            switch (type) {
-                case 'text': return $text('settings.ai_ask.ai_ask_model_details.input_type_text');
-                case 'image': return $text('common.images');
-                case 'video': return $text('settings.ai_ask.ai_ask_model_details.input_type_video');
-                case 'audio': return $text('common.audio');
-                default: return type;
-            }
-        }).join(', ');
-    });
-    
-    // Format output types for display
-    let outputTypesDisplay = $derived.by(() => {
-        if (!model?.output_types) return '';
-        return model.output_types.map(type => {
-            switch (type) {
-                case 'text': return $text('settings.ai_ask.ai_ask_model_details.output_type_text');
-                case 'image': return $text('common.images');
-                default: return type;
-            }
-        }).join(', ');
-    });
-    
-    // --- Functions ---
-    
-    function isServerEnabled(serverId: string): boolean {
-        // Check if this server is disabled for this model
-        const modelDisabledServers = disabledServers[modelId] || [];
-        return !modelDisabledServers.includes(serverId);
+    const inputTypes = $derived(model?.input_types.map(translateInputType).join(', ') ?? '');
+    const outputTypes = $derived(model?.output_types.map(translateOutputType).join(', ') ?? '');
+
+    function translateInputType(type: AIModelMetadata['input_types'][number]): string {
+        if (type === 'text') return $text('settings.ai_ask.ai_ask_model_details.input_type_text');
+        if (type === 'image') return $text('common.images');
+        if (type === 'video') return $text('settings.ai_ask.ai_ask_model_details.input_type_video');
+        return $text('common.audio');
     }
-    
-    function handleModelToggle() {
-        const currentDisabled = [...disabledModels];
-        
-        let newDisabled: string[];
-        if (isModelEnabled) {
-            // Disable the model
-            newDisabled = [...currentDisabled, modelId];
-        } else {
-            // Enable the model
-            newDisabled = currentDisabled.filter(id => id !== modelId);
-        }
-        
-        // Auto-save: update cache first, then Directus via store
-        updateProfile({ disabled_ai_models: newDisabled });
+
+    function translateOutputType(type: AIModelMetadata['output_types'][number]): string {
+        return type === 'text'
+            ? $text('settings.ai_ask.ai_ask_model_details.output_type_text')
+            : $text('common.images');
     }
-    
-    function handleServerToggle(serverId: string) {
-        // Get current disabled servers for this model
-        const currentModelDisabled = disabledServers[modelId] || [];
-        const isCurrentlyEnabled = isServerEnabled(serverId);
-        
-        let newModelDisabled: string[];
-        if (isCurrentlyEnabled) {
-            // Disable the server
-            newModelDisabled = [...currentModelDisabled, serverId];
-        } else {
-            // Enable the server
-            newModelDisabled = currentModelDisabled.filter(id => id !== serverId);
-        }
-        
-        // Update the full disabled servers record
-        const newDisabledServers = { ...disabledServers };
-        if (newModelDisabled.length > 0) {
-            newDisabledServers[modelId] = newModelDisabled;
-        } else {
-            // Remove the model key if no servers are disabled
-            delete newDisabledServers[modelId];
-        }
-        
-        // Auto-save: update cache first, then Directus via store
-        updateProfile({ disabled_ai_servers: newDisabledServers });
-    }
-    
-    function goBack() {
-        // Navigate back to top-level AI settings page
-        dispatch('openSettings', {
-            settingsPath: 'ai',
-            direction: 'back',
-            icon: 'ai',
-            title: 'AI'
+
+    function toggleModel(): void {
+        updateProfile({
+            disabled_ai_models: isModelEnabled
+                ? [...disabledModels, modelId]
+                : disabledModels.filter((id) => id !== modelId),
         });
     }
-    
-    // Get flag emoji for country code
-    function getCountryFlag(countryCode: string): string {
-        if (!countryCode || countryCode.length !== 2) return '';
-        const codePoints = countryCode
-            .toUpperCase()
-            .split('')
-            .map(char => 127397 + char.charCodeAt(0));
-        return String.fromCodePoint(...codePoints);
+
+    function isServerEnabled(serverId: string): boolean {
+        return !(disabledServers[modelId] ?? []).includes(serverId);
     }
-    
-    // Get region display with flag
-    function getRegionDisplay(region: 'EU' | 'US' | 'APAC'): string {
-        switch (region) {
-            case 'EU': return '🇪🇺 EU';
-            case 'US': return '🇺🇸 US';
-            case 'APAC': return '🌏 APAC';
-            default: return region;
-        }
+
+    function toggleServer(serverId: string): void {
+        const current = disabledServers[modelId] ?? [];
+        const next = isServerEnabled(serverId)
+            ? [...current, serverId]
+            : current.filter((id) => id !== serverId);
+        const nextDisabledServers = { ...disabledServers };
+        if (next.length > 0) nextDisabledServers[modelId] = next;
+        else delete nextDisabledServers[modelId];
+        updateProfile({ disabled_ai_servers: nextDisabledServers });
     }
-    
-    // Get provider icon name from server ID
-    function getProviderIconName(serverId: string): string {
-        // Map server IDs to icon names
-        const serverIconMap: Record<string, string> = {
-            'google': 'google',
-            'google_ai_studio': 'google',
-            'aws_bedrock': 'amazon',
-            'anthropic': 'anthropic',
-            'openai': 'openai',
-            'mistral': 'mistral',
-            'openrouter': 'openrouter',
-            'cerebras': 'cerebras',
-            'groq': 'groq',
-            'fal': 'fal'
-        };
-        return serverIconMap[serverId] || 'server';
+
+    function priceValue(tokensPerCredit: number): string {
+        return `1 ${$text('common.credits')} ${$text('settings.ai_ask.ai_ask_settings.per')} ${tokensPerCredit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`;
     }
 </script>
 
-<div class="model-details">
+<div data-testid="ai-model-details">
+<SettingsPageContainer maxWidth="wide">
     {#if !model}
-        <div class="error">
-            <p>{$text('settings.ai_ask.ai_ask_model_details.model_not_found')}</p>
-            <button class="back-button" onclick={goBack}>← {$text('settings.ai_ask.ai_ask_model_details.back_to_models')}</button>
-        </div>
+        <SettingsLoadingState variant="empty" text={$text('settings.ai_ask.ai_ask_model_details.model_not_found')} />
     {:else}
-        <!-- Description -->
-        <div class="description-section">
-            <p class="model-description">{model.description}</p>
-        </div>
-        
-        <!-- Enable/disable toggle for this model -->
-        {#if isAuthenticated}
-            <div class="section">
+        <div class="ai-model-body">
+            <SettingsInfoBox type="info" plain={true} tone="muted" data-testid="ai-model-description">
+                {model.description}
+            </SettingsInfoBox>
+
+            {#if isAuthenticated}
                 <SettingsItem
-                    type="submenu"
-                    icon="ai"
+                    type="ai-row"
+                    icon={model.provider_id}
+                    iconSrc={getProviderIconUrl(model.logo_svg)}
+                    iconAlt=""
                     title={$text('settings.ai_ask.ai_ask_model_details.enable_model')}
+                    subtitleBottom={model.name}
                     hasToggle={true}
                     checked={isModelEnabled}
-                    onClick={handleModelToggle}
+                    data-testid="ai-model-enabled-toggle"
+                    onClick={toggleModel}
                 />
-            </div>
-        {/if}
-        
-        <!-- Model info section -->
-        <div class="section">
-            <SettingsSectionHeading title={$text('common.details')} icon="insight" />
-            <div class="info-content">
-                <!-- Origin -->
-                <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.origin')}</span>
-                    <span class="info-value">
-                        <span class="country-flag">{getCountryFlag(model.country_origin)}</span>
-                        {model.provider_name}
-                    </span>
-                </div>
-                
-                <!-- Release date -->
-                {#if formattedReleaseDate}
-                    <div class="info-row">
-                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.release_date')}</span>
-                        <span class="info-value">{formattedReleaseDate}</span>
+            {/if}
+
+            <section class="ai-section" data-testid="ai-model-summary-section">
+                <h3 class="ai-section-title">{$text('common.details')}</h3>
+                <div class="ai-row-list">
+                    <div class="capability-row" data-testid="ai-model-capability-row">
+                        <SettingsCapabilityScale level={capabilityLevel} label={capabilityLabel} compact={true} />
+                        <div class="capability-copy">
+                            <span class="capability-title">{$text('settings.ai_ask.ai_ask_settings.capability')}</span>
+                            <span class="capability-value">{capabilityLabel}</span>
+                        </div>
                     </div>
-                {/if}
-                
-                <!-- Tier -->
-                <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.tier')}</span>
-                    <span class="info-value">
-                        <span class="tier-badge tier-{tierClass}">{tierLabel}</span>
-                    </span>
+                    <SettingsItem type="ai-price-row" icon="openmates" title={$text('settings.ai_ask.ai_ask_model_details.origin')} subtitleBottom={providerDisplay.companyName} data-testid="ai-model-origin-row" />
+                    {#if formattedReleaseDate}
+                        <SettingsItem type="ai-price-row" icon="time" title={$text('settings.ai_ask.ai_ask_model_details.release_date')} subtitleBottom={formattedReleaseDate} data-testid="ai-model-release-row" />
+                    {/if}
+                    <SettingsItem type="ai-price-row" icon="text" title={$text('settings.ai_ask.ai_ask_model_details.input_types')} subtitleBottom={inputTypes} data-testid="ai-model-input-types-row" />
+                    <SettingsItem type="ai-price-row" icon="document" title={$text('settings.ai_ask.ai_ask_model_details.output_types')} subtitleBottom={outputTypes} data-testid="ai-model-output-types-row" />
                 </div>
-                
-                <!-- Reasoning model badge -->
-                {#if model.reasoning}
-                    <div class="info-row">
-                        <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.type')}</span>
-                        <span class="info-value">
-                            <span class="reasoning-badge">{$text('settings.ai_ask.ai_ask_model_details.reasoning_model')}</span>
-                        </span>
+            </section>
+
+            {#if model.pricing}
+                <section class="ai-section" data-testid="ai-model-pricing-section">
+                    <h3 class="ai-section-title">{$text('common.pricing')}</h3>
+                    <div class="ai-row-list">
+                        {#if model.pricing.input_tokens_per_credit}
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_input')} subtitleBottom={priceValue(model.pricing.input_tokens_per_credit)} data-testid="ai-model-pricing-input-row" />
+                        {/if}
+                        {#if model.pricing.output_tokens_per_credit}
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_output')} subtitleBottom={priceValue(model.pricing.output_tokens_per_credit)} data-testid="ai-model-pricing-output-row" />
+                        {/if}
                     </div>
-                {/if}
-                
-                <!-- Input types -->
-                <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.input_types')}</span>
-                    <span class="info-value">{inputTypesDisplay}</span>
+                </section>
+            {/if}
+
+            <section class="ai-section" data-testid="ai-model-example-chats">
+                <h3 class="ai-section-title">{$text('settings.app_store.skills.examples')}</h3>
+                <div class="ai-example-list">
+                    <SettingsItem type="ai-example-card" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.simple_requests')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.simple_requests_description')} data-testid="ai-model-example-card" />
+                    <SettingsItem type="ai-example-card" icon="chat" title={$text('settings.ai_ask.ai_ask_settings.complex_requests')} subtitleBottom={$text('settings.ai_ask.ai_ask_settings.complex_requests_description')} data-testid="ai-model-example-card" />
                 </div>
-                
-                <!-- Output types -->
-                <div class="info-row">
-                    <span class="info-label">{$text('settings.ai_ask.ai_ask_model_details.output_types')}</span>
-                    <span class="info-value">{outputTypesDisplay}</span>
-                </div>
-            </div>
+            </section>
+
+            {#if model.servers?.length}
+                <section class="ai-section" data-testid="ai-model-provider-options">
+                    <h3 class="ai-section-title">{$text('common.provider')}</h3>
+                    <div class="ai-row-list">
+                        {#each model.servers as server (server.id)}
+                            <SettingsItem
+                                type="ai-row"
+                                icon="server"
+                                title={server.name}
+                                subtitleBottom={`${server.region} ${$text('settings.ai_ask.ai_ask_model_details.servers').toLowerCase()}`}
+                                hasToggle={isAuthenticated}
+                                checked={isServerEnabled(server.id)}
+                                data-testid={`ai-model-provider-option-${server.id}`}
+                                onClick={() => toggleServer(server.id)}
+                            />
+                        {/each}
+                    </div>
+                </section>
+            {/if}
         </div>
-        
-        <!-- Pricing section -->
-        {#if model.pricing}
-            <div class="section">
-                <SettingsSectionHeading title={$text('common.pricing')} icon="coins" />
-                <div class="pricing-content">
-                    {#if model.pricing.input_tokens_per_credit}
-                        <div class="pricing-row">
-                            <Icon name="download" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_input')}</span>
-                            <span class="pricing-value">
-                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.input_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
-                            </span>
-                        </div>
-                    {/if}
-                    {#if model.pricing.output_tokens_per_credit}
-                        <div class="pricing-row">
-                            <Icon name="coins" type="subsetting" size="24px" noAnimation={true} />
-                            <span class="pricing-type">{$text('settings.ai_ask.ai_ask_model_details.text_output')}</span>
-                            <span class="pricing-value">
-                                1 <Icon name="coins" type="default" size="16px" className="credits-icon-inline" noAnimation={true} /> {$text('settings.ai_ask.ai_ask_settings.per')} {model.pricing.output_tokens_per_credit} {$text('settings.ai_ask.ai_ask_settings.tokens')}
-                            </span>
-                        </div>
-                    {/if}
-                </div>
-            </div>
-        {/if}
-        
-        <!-- Provider section -->
-        {#if model.servers && model.servers.length > 0}
-            <div class="section">
-                <SettingsSectionHeading title={$text('common.provider')} icon="server" />
-                
-                <div class="provider-list">
-                    {#each model.servers as server (server.id)}
-                        {@const serverEnabled = isServerEnabled(server.id)}
-                        <div 
-                            class="provider-item"
-                            class:disabled={!serverEnabled}
-                        >
-                            <div class="provider-icon-wrapper">
-                                <Icon name={getProviderIconName(server.id)} type="provider" size="32px" noAnimation={true} />
-                            </div>
-                            <div class="provider-info">
-                                <span class="provider-name">{server.name}</span>
-                                <span class="provider-region">{getRegionDisplay(server.region)} {$text('settings.ai_ask.ai_ask_model_details.servers').toLowerCase()}</span>
-                            </div>
-                            {#if isAuthenticated}
-                                <div 
-                                    class="provider-toggle"
-                                    onclick={() => handleServerToggle(server.id)}
-                                    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleServerToggle(server.id); } }}
-                                    role="button"
-                                    tabindex="0"
-                                >
-                                    <!-- pointer-events:none prevents the checkbox from independently toggling 
-                                         via bind:checked when clicked — the wrapper div handles the toggle logic 
-                                         through handleServerToggle() to avoid a double-toggle bug -->
-                                    <div style="pointer-events: none;">
-                                        <Toggle 
-                                            checked={serverEnabled}
-                                            ariaLabel={`${serverEnabled ? 'Disable' : 'Enable'} ${server.name}`}
-                                        />
-                                    </div>
-                                </div>
-                            {/if}
-                        </div>
-                    {/each}
-                </div>
-            </div>
-        {/if}
     {/if}
+</SettingsPageContainer>
 </div>
 
 <style>
-    .model-details {
-        padding: 14px;
-        max-width: 1400px;
+    .ai-model-body {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        width: min(100%, 20.1875rem);
         margin: 0 auto;
     }
-    
-    /* Description */
-    .description-section {
-        margin: 0.5rem 0 1.5rem;
-    }
-    
-    .model-description {
-        margin: 0;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        line-height: 1.6;
-    }
-    
-    /* Sections */
-    .section {
-        margin-top: 2rem;
-    }
-    
-    /* Info content */
-    .info-content {
-        padding: 1rem 0 1rem 10px;
-    }
-    
-    .info-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--color-grey-15);
-    }
-    
-    .info-row:last-child {
-        border-bottom: none;
-    }
-    
-    .info-label {
-        color: var(--color-grey-60);
-        font-size: 0.9rem;
-    }
-    
-    .info-value {
-        color: var(--color-grey-100);
-        font-size: 0.9rem;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-    
-    .country-flag {
-        font-size: 1.25rem;
-    }
-    
-    /* Tier badge */
-    .tier-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: var(--radius-5);
-        font-size: 0.8rem;
-        font-weight: 500;
-        text-transform: capitalize;
-    }
-    
-    .tier-economy {
-        background: var(--color-green-10, #e8f5e9);
-        color: var(--color-green-80, #2e7d32);
-    }
-    
-    .tier-standard {
-        background: var(--color-blue-10, #e3f2fd);
-        color: var(--color-blue-80, #1565c0);
-    }
-    
-    .tier-premium {
-        background: var(--color-purple-10, #f3e5f5);
-        color: var(--color-purple-80, #7b1fa2);
-    }
-    
-    /* Reasoning badge */
-    .reasoning-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: var(--radius-5);
-        font-size: 0.8rem;
-        font-weight: 500;
-        background: var(--color-orange-10, #fff3e0);
-        color: var(--color-orange-80, #e65100);
-    }
-    
-    /* Pricing content */
-    .pricing-content {
-        padding: 1rem 0 1rem 10px;
-    }
-    
-    .pricing-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 0;
-    }
-    
-    .pricing-type {
-        color: var(--color-grey-60);
-        font-size: 0.9rem;
-        min-width: 80px;
-    }
-    
-    .pricing-value {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        color: var(--color-grey-100);
-        font-size: 1rem;
-        font-weight: 500;
-    }
-    
-    /* Inline credits icon for pricing display */
-    :global(.credits-icon-inline) {
-        display: inline-flex !important;
-        vertical-align: middle;
-        margin: 0 2px;
-    }
-    
-    /* Provider section */
-    .provider-list {
+
+    .ai-section,
+    .ai-row-list,
+    .ai-example-list {
         display: flex;
         flex-direction: column;
-        gap: 0;
-        margin-left: var(--spacing-5);
     }
-    
-    .provider-item {
-        display: flex;
-        align-items: center;
+
+    .ai-section {
+        gap: var(--spacing-5);
+    }
+
+    .ai-row-list {
+        gap: var(--spacing-4);
+    }
+
+    .ai-example-list {
         gap: var(--spacing-6);
-        padding: var(--spacing-6) var(--spacing-8);
-        border-radius: var(--radius-3);
-        transition: background var(--duration-fast);
     }
-    
-    .provider-item:hover {
-        background: var(--color-grey-10);
+
+    .ai-section-title {
+        margin: 0 var(--spacing-10);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-p);
+        font-weight: 700;
+        line-height: 1.25;
     }
-    
-    .provider-item.disabled {
-        opacity: 0.5;
-    }
-    
-    .provider-icon-wrapper {
-        flex-shrink: 0;
-        width: 32px;
-        height: 32px;
+
+    .capability-row {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 0.8125rem;
+        min-height: 2.73125rem;
+        padding: 0 var(--spacing-10);
+        border-radius: 0.559rem;
     }
-    
-    .provider-info {
-        flex: 1;
-        min-width: 0;
+
+    .capability-copy {
         display: flex;
+        min-width: 0;
         flex-direction: column;
-        gap: var(--spacing-1);
+        gap: 0.0625rem;
     }
-    
-    .provider-name {
-        font-size: 1rem;
-        font-weight: 500;
-        color: var(--color-primary-start);
+
+    .capability-title {
+        color: var(--color-ai-settings-muted, var(--color-font-secondary));
+        font-size: var(--font-size-small);
+        font-weight: 700;
+        line-height: 1.25;
     }
-    
-    .provider-region {
-        font-size: 0.875rem;
-        color: var(--color-grey-60);
-    }
-    
-    .provider-toggle {
-        flex-shrink: 0;
-    }
-    
-    /* Error state */
-    .error {
-        padding: 3rem;
-        text-align: center;
-        color: var(--error-color, #dc3545);
-    }
-    
-    .back-button {
-        background: var(--button-background, #f0f0f0);
-        border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: var(--radius-2);
-        padding: 0.5rem 1rem;
-        margin-top: 1rem;
-        cursor: pointer;
-        font-size: 0.9rem;
-        color: var(--text-primary, #000000);
-        transition: background var(--duration-normal) var(--easing-default);
-    }
-    
-    .back-button:hover {
-        background: var(--button-hover-background, #e0e0e0);
-    }
-    
-    /* Dark mode */
-    :global(.dark) .provider-item:hover {
-        background: var(--color-grey-15);
-    }
-    
-    :global(.dark) .tier-economy {
-        background: var(--color-green-20, #1b5e20);
-        color: var(--color-green-90, #a5d6a7);
-    }
-    
-    :global(.dark) .tier-standard {
-        background: var(--color-blue-20, #0d47a1);
-        color: var(--color-blue-90, #90caf9);
-    }
-    
-    :global(.dark) .tier-premium {
-        background: var(--color-purple-20, #4a148c);
-        color: var(--color-purple-90, #ce93d8);
-    }
-    
-    :global(.dark) .reasoning-badge {
-        background: var(--color-orange-20, #bf360c);
-        color: var(--color-orange-90, #ffcc80);
-    }
-    
-    /* Responsive */
-    @media (max-width: 600px) {
-        .info-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.25rem;
-        }
-        
-        .pricing-row {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 0.25rem;
-        }
-        
-        .pricing-type {
-            min-width: auto;
-        }
+
+    .capability-value {
+        color: transparent;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        background-clip: text;
+        font-size: var(--font-size-p);
+        font-weight: 700;
+        line-height: 1.25;
     }
 </style>

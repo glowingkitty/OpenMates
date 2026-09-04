@@ -41,7 +41,7 @@ const path = require('path');
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getIsolatedTestAccount(
 	'api-keys-flow.spec.ts'
 );
-const E2E_KEY_NAME_PATTERN = /(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key)/i;
+const E2E_KEY_NAME_PATTERN = /(E2E-Test-Key|E2E-RestAPI|E2E-Limit-Key|E2E-Limited-Key)/i;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -268,13 +268,34 @@ async function completeDefaultApiKeyGuidedFlow(
 	logCheckpoint: (msg: string) => void
 ): Promise<void> {
 	const createConfirmButton = page.getByTestId('api-key-create-confirm');
-	await expect(page.getByTestId('api-key-full-access-toggle')).toBeVisible({ timeout: 3000 });
+	await expect(page.getByTestId('api-key-full-access')).toBeVisible({ timeout: 3000 });
+	await expect(page.getByTestId('api-key-full-access-toggle').locator('input')).toBeChecked();
 	await expect(page.getByText(/full access can read encrypted account metadata/i)).toBeVisible({
 		timeout: 3000
 	});
 	await expect(createConfirmButton).toBeEnabled({ timeout: 3000 });
 	await createConfirmButton.click();
 	logCheckpoint('Clicked Create API Key confirm from create sub-settings page.');
+}
+
+function waitForNextApiKeyCreatePayload(page: any): Promise<any> {
+	return new Promise((resolve, reject) => {
+		const timeoutRef: { current?: ReturnType<typeof setTimeout> } = {};
+
+		const handler = (request: any) => {
+			if (request.method() !== 'POST' || !request.url().includes('/v1/settings/api-keys')) return;
+			if (timeoutRef.current) clearTimeout(timeoutRef.current);
+			page.off('request', handler);
+			resolve(JSON.parse(request.postData() || '{}'));
+		};
+
+		timeoutRef.current = setTimeout(() => {
+			page.off('request', handler);
+			reject(new Error('Timed out waiting for API key create request.'));
+		}, 15000);
+
+		page.on('request', handler);
+	});
 }
 
 async function openApiKeyDetailsByName(
@@ -364,6 +385,7 @@ async function freeApiKeySlotIfLimitReached(page: any, log: (msg: string) => voi
 // Test 1: Create → verify format → copy → done → verify in list → delete
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=sdk.auth.approved-api-key-device
 test('creates an API key, verifies format, and deletes it', async ({ page }: { page: any }) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
@@ -406,7 +428,12 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 	await screenshot(page, 'key-name-entered');
 
 	// Create with default full-access, unlimited-credit, never-expiring settings.
+	const createPayloadPromise = waitForNextApiKeyCreatePayload(page);
 	await completeDefaultApiKeyGuidedFlow(page, log);
+	const createPayload = await createPayloadPromise;
+	expect(createPayload.full_access).toBe(true);
+	expect(createPayload.scopes).toEqual({});
+	log('Confirmed full-access create payload relies on the full_access authorization flag.');
 
 	// Wait for the one-time key reveal on the create sub-settings page.
 	const createdKeyEl = page.getByTestId('api-key-created-value');
@@ -469,6 +496,7 @@ test('creates an API key, verifies format, and deletes it', async ({ page }: { p
 // Test 2: Create button is disabled when no name is entered
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=sdk.auth.approved-api-key-device
 test('create button is disabled when API key name is empty', async ({ page }: { page: any }) => {
 	attachConsoleListeners(page);
 	test.slow();
@@ -503,6 +531,49 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 	// Do NOT fill in any name — confirm button should be disabled
 	const createConfirmButton = page.getByTestId('api-key-create-confirm');
 	await expect(createConfirmButton).toBeDisabled({ timeout: 3000 });
+
+	await page.getByTestId('api-key-full-access').click();
+	await expect(page.getByTestId('api-key-full-access-toggle').locator('input')).not.toBeChecked();
+	await expect(page.getByText(/full access can read encrypted account metadata/i)).not.toBeVisible();
+	await expect(page.getByTestId('api-key-scope-chat-create-incognito')).toBeVisible({ timeout: 3000 });
+	for (const testId of [
+		'api-key-scope-chat-create-incognito',
+		'api-key-scope-chat-create-saved',
+		'api-key-scope-chat-read-existing',
+		'api-key-scope-chat-append-existing',
+		'api-key-scope-chat-delete',
+		'api-key-scope-chat-share',
+		'api-key-scope-chat-export',
+		'api-key-scope-task-read',
+		'api-key-scope-task-read-metadata',
+		'api-key-scope-task-create',
+		'api-key-scope-task-write',
+		'api-key-scope-project-read',
+		'api-key-scope-project-create',
+		'api-key-scope-project-write',
+		'api-key-scope-plan-read',
+		'api-key-scope-plan-read-metadata',
+		'api-key-scope-plan-create',
+		'api-key-scope-plan-write',
+		'api-key-scope-workflow-read',
+		'api-key-scope-workflow-create',
+		'api-key-scope-workflow-write',
+		'api-key-scope-workflow-execute',
+		'api-key-scope-memory-read',
+		'api-key-scope-memory-write',
+		'api-key-scope-account-export',
+		'api-key-scope-account-import',
+		'api-key-scope-developer-api-keys-read',
+		'api-key-scope-developer-api-keys-create',
+		'api-key-scope-developer-api-keys-revoke',
+		'api-key-scope-developer-devices-read',
+		'api-key-scope-developer-devices-approve',
+		'api-key-scope-developer-devices-revoke'
+	]) {
+		await expect(page.getByTestId(`${testId}-toggle`).locator('input')).not.toBeChecked();
+	}
+	await expect(page.getByTestId('api-key-all-app-skills-toggle').locator('input')).not.toBeChecked();
+	await expect(createConfirmButton).toBeDisabled({ timeout: 3000 });
 	log('Confirmed: Create API Key button is disabled when name is empty.');
 	await screenshot(page, 'empty-name-button-disabled');
 
@@ -518,7 +589,97 @@ test('create button is disabled when API key name is empty', async ({ page }: { 
 });
 
 // ---------------------------------------------------------------------------
-// Test 3: Create key → REST API blocked → approve device → REST API works → save key
+// Test 3: Limited API-key scope selectors submit create-only scopes
+// ---------------------------------------------------------------------------
+
+// contract-test: supporting surface=gui.web assertions=sdk.auth.approved-api-key-device
+test('creates a limited API key with individual scope toggles', async ({ page }: { page: any }) => {
+	attachConsoleListeners(page);
+	attachNetworkListeners(page);
+	test.slow();
+	test.setTimeout(240000);
+
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+
+	const log = createSignupLogger('API_KEYS_LIMITED_SCOPES', { artifactsDirname: ARTIFACTS_DIR });
+	const screenshot = createStepScreenshotter(log, { artifactsDirname: ARTIFACTS_DIR });
+	await archiveExistingScreenshots(log, { artifactsDirname: ARTIFACTS_DIR });
+
+	await loginToTestAccount(page, log, screenshot, { waitForEditor: false });
+	await page.waitForTimeout(2000);
+
+	await navigateToApiKeys(page, log);
+	await freeApiKeySlotIfLimitReached(page, log);
+
+	const createButton = page.getByTestId('api-key-create-button');
+	await expect(createButton).toBeVisible({ timeout: 5000 });
+	await expect(createButton).toBeEnabled();
+	await createButton.click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute(
+		'data-active-view',
+		'developers/api-keys/create',
+		{ timeout: 10000 }
+	);
+
+	const keyName = `E2E-Limited-Key-${Date.now()}`;
+	await page.getByTestId('api-key-name-input').fill(keyName);
+	await page.getByTestId('api-key-full-access').click();
+	for (const testId of [
+		'api-key-scope-chat-create-incognito',
+		'api-key-scope-chat-create-saved',
+		'api-key-scope-task-create',
+		'api-key-scope-project-create',
+		'api-key-scope-plan-create',
+		'api-key-scope-workflow-create',
+		'api-key-scope-memory-read',
+		'api-key-scope-memory-write',
+		'api-key-scope-account-export',
+		'api-key-scope-developer-api-keys-create'
+	]) {
+		await page.getByTestId(testId).click();
+		await expect(page.getByTestId(`${testId}-toggle`).locator('input')).toBeChecked();
+	}
+	await page.getByTestId('api-key-app-web-skill-search').click();
+	await screenshot(page, 'limited-scopes-selected');
+
+	const createPayloadPromise = waitForNextApiKeyCreatePayload(page);
+	await page.getByTestId('api-key-create-confirm').click();
+	const createPayload = await createPayloadPromise;
+	expect(createPayload.full_access).toBe(false);
+	expect(createPayload.scopes.chat).toEqual(['chat:create_incognito', 'chat:create_saved']);
+	expect(createPayload.scopes.tasks).toEqual(['task:create']);
+	expect(createPayload.scopes.projects).toEqual(['project:create']);
+	expect(createPayload.scopes.plans).toEqual(['plan:create']);
+	expect(createPayload.scopes.workflows).toEqual(['workflow:create']);
+	expect(createPayload.scopes.memories).toEqual(['memory:read', 'memory:write']);
+	expect(createPayload.scopes.account).toEqual(['account:export']);
+	expect(createPayload.scopes.developer).toEqual(['developer:api_keys:create']);
+	expect(createPayload.scopes.apps).toEqual({
+		mode: 'selected',
+		allowed_skills: ['web:search'],
+		allowed_apps: []
+	});
+	log('Confirmed limited-scope create payload.');
+
+	await expect(page.getByTestId('api-key-created-value')).toBeVisible({ timeout: 15000 });
+	await page.getByTestId('api-key-done-button').click();
+	await expect(page.getByTestId('settings-menu')).toHaveAttribute('data-active-view', 'developers/api-keys', {
+		timeout: 10000
+	});
+
+	const keyByName = page.getByTestId('api-key-item').filter({ hasText: keyName }).first();
+	await expect(keyByName).toBeVisible({ timeout: 10000 });
+	await expect(keyByName).toContainText(/Limited access/i);
+	await screenshot(page, 'limited-key-in-list');
+
+	await openApiKeyDetailsByName(page, keyName, log);
+	await revokeCurrentApiKeyFromDetails(page, log);
+	await expect(page.getByTestId('api-key-item').filter({ hasText: keyName }).first()).not.toBeVisible({ timeout: 10000 });
+	log('Limited API key test complete.');
+});
+
+// ---------------------------------------------------------------------------
+// Test 4: Create key → REST API blocked → approve device → REST API works → save key
 // ---------------------------------------------------------------------------
 
 const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
@@ -555,6 +716,7 @@ function resolveWritableArtifactsDir(): string {
 
 const ARTIFACTS_DIR = resolveWritableArtifactsDir();
 
+// contract-test: supporting surface=gui.web assertions=sdk.auth.approved-api-key-device
 test('creates API key, verifies device approval flow, and saves working key', async ({
 	page,
 	request
@@ -763,9 +925,10 @@ test('creates API key, verifies device approval flow, and saves working key', as
 });
 
 // ---------------------------------------------------------------------------
-// Test 4: At 5-key limit, create button is disabled and limit warning shown
+// Test 5: At 5-key limit, create button is disabled and limit warning shown
 // ---------------------------------------------------------------------------
 
+// contract-test: supporting surface=gui.web assertions=sdk.auth.approved-api-key-device
 test('shows limit warning and disabled create button when 5 API keys exist', async ({
 	page
 }: {

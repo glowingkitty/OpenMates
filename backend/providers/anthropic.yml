@@ -23,6 +23,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-06-09"
+    capability_level: "max"
     allow_auto_select: true
     external_ids:
       lmarena: "claude-fable-5"
@@ -72,6 +73,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-06-09"
+    capability_level: "high"
     allow_auto_select: true
     external_ids:
       lmarena: "claude-opus-5"
@@ -122,6 +124,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-06-09"
+    capability_level: "medium"
     allow_auto_select: true
     external_ids:
       lmarena: "claude-sonnet-5"
@@ -174,6 +177,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2025-10-15" # Model release date (Claude Haiku 4.5 official release)
+    capability_level: "low"
     # Allow this model to be selected by the intelligent auto-selection system.
     allow_auto_select: true
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -223,6 +227,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-02-18" # Model release date
+    capability_level: "medium"
     allow_auto_select: false
     show_in_mentions: false
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -280,6 +285,7 @@ models:
     country_origin: "US" # ISO 3166-1 alpha-2 country code for model origin
     for_app_skill: "ai.ask" # This model is for the AI ask skill (text generation)
     release_date: "2026-02-06" # Model release date
+    capability_level: "high"
     allow_auto_select: false
     show_in_mentions: false
     external_ids: # Mapping to external leaderboard IDs for cross-referencing
@@ -338,6 +344,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-04-16"
+    capability_level: "high"
     allow_auto_select: false
     show_in_mentions: false
     external_ids:
@@ -395,6 +402,7 @@ models:
     country_origin: "US"
     for_app_skill: "ai.ask"
     release_date: "2026-05-28"
+    capability_level: "high"
     allow_auto_select: false
     show_in_mentions: false
     external_ids:

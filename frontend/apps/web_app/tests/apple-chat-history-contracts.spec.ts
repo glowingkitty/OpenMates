@@ -282,6 +282,7 @@ async function captureHistoryState(
 
 test.describe('Apple stable chat-history web contracts', () => {
 	for (const dimension of DIMENSIONS) {
+		// contract-test: direct surface=gui.web assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
 		test(`captures ${dimension.id} stable history manifest`, async ({ page }) => {
 			test.setTimeout(300_000);
 			await page.setViewportSize({ width: dimension.width, height: dimension.height });

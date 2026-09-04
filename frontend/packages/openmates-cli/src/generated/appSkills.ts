@@ -33,6 +33,17 @@ export const APP_SKILL_METADATA = [
       "required": [
         "prompt"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "answer": {
+          "type": "string"
+        },
+        "conversation": {
+          "type": "string"
+        }
+      }
     }
   },
   {
@@ -211,11 +222,12 @@ export const APP_SKILL_METADATA = [
               "model": {
                 "type": "string",
                 "enum": [
+                  "eleven_v3",
                   "eleven_multilingual_v2",
                   "eleven_flash_v2_5"
                 ],
-                "default": "eleven_multilingual_v2",
-                "description": "ElevenLabs TTS model. Multilingual v2 is the higher-quality default; Flash v2.5 is the lower-cost explicit option."
+                "default": "eleven_v3",
+                "description": "ElevenLabs TTS model. Eleven v3 is the highest-quality default; Multilingual v2 provides stable long-form speech and Flash v2.5 is the lower-cost option."
               }
             },
             "required": [
@@ -323,6 +335,23 @@ export const APP_SKILL_METADATA = [
       "required": [
         "companies"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "result_count": {
+          "type": "integer"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "results": {
+          "type": "array"
+        }
+      }
     }
   },
   {
@@ -391,6 +420,251 @@ export const APP_SKILL_METADATA = [
         "library",
         "question"
       ]
+    }
+  },
+  {
+    "app_id": "code",
+    "skill_id": "run",
+    "app_namespace_ts": "code",
+    "skill_method_ts": "run",
+    "app_namespace_py": "code",
+    "skill_method_py": "run",
+    "description_key": "app_skills.code.run.description",
+    "description": "Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "description": "Array of direct or chat-bound Code Run requests for the custom REST/SDK route.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "direct",
+                  "chat_bound"
+                ],
+                "default": "direct",
+                "description": "Direct runs use caller-supplied files and stay transient; chat_bound runs use a chat/embed target and persist encrypted output."
+              },
+              "entry_path": {
+                "type": "string",
+                "description": "Entrypoint file path for direct runs."
+              },
+              "files": {
+                "type": "array",
+                "maxItems": 50,
+                "description": "Direct-run files with base64-encoded content. The backend never fetches local paths or URLs.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "content_base64": {
+                      "type": "string"
+                    },
+                    "language": {
+                      "type": "string"
+                    },
+                    "mime_type": {
+                      "type": "string",
+                      "default": "text/plain"
+                    },
+                    "is_target": {
+                      "type": "boolean",
+                      "default": false
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "content_base64"
+                  ]
+                }
+              },
+              "chat_id": {
+                "type": "string",
+                "description": "Chat ID for chat-bound runs."
+              },
+              "target_embed_id": {
+                "type": "string",
+                "description": "Target code embed ID for chat-bound runs."
+              },
+              "selected_embed_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional related embed IDs to include in chat-bound runs."
+              },
+              "dependency_installs": {
+                "type": "array",
+                "maxItems": 20,
+                "description": "Optional explicit dependency installs.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ecosystem": {
+                      "type": "string",
+                      "enum": [
+                        "python",
+                        "npm"
+                      ]
+                    },
+                    "packages": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "ecosystem",
+                    "packages"
+                  ]
+                }
+              },
+              "enable_internet": {
+                "type": "boolean",
+                "default": true,
+                "description": "Allow outbound internet access from the E2B sandbox."
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "requests"
+      ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "execution_id": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "target_filename": {
+                "type": "string"
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "credits_per_minute": {
+                "type": "integer"
+              },
+              "persisted_output": {
+                "type": "boolean"
+              },
+              "stream_path": {
+                "type": "string"
+              },
+              "status_path": {
+                "type": "string"
+              },
+              "final": {
+                "type": "object",
+                "description": "Final status fetched from status_path by SDK helpers. Direct runs remain transient.",
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  },
+                  "exit_code": {
+                    "type": "integer"
+                  },
+                  "output": {
+                    "type": "string"
+                  },
+                  "error": {
+                    "type": "string"
+                  },
+                  "duration_seconds": {
+                    "type": "number"
+                  },
+                  "charged_credits": {
+                    "type": "integer"
+                  },
+                  "charged_minutes": {
+                    "type": "integer"
+                  },
+                  "artifacts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string"
+                        },
+                        "normalized_path": {
+                          "type": "string"
+                        },
+                        "mime_type": {
+                          "type": "string"
+                        },
+                        "kind": {
+                          "type": "string"
+                        },
+                        "size_bytes": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "asset_id": {
+                          "type": "string"
+                        },
+                        "file_id": {
+                          "type": "string"
+                        },
+                        "variant": {
+                          "type": "string"
+                        },
+                        "version": {
+                          "type": "integer"
+                        },
+                        "download_url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "skipped_artifacts": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": {
+                          "type": "string"
+                        },
+                        "normalized_path": {
+                          "type": "string"
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   {
@@ -824,6 +1098,17 @@ export const APP_SKILL_METADATA = [
       "required": [
         "requests"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "result_count": {
+          "type": "integer"
+        }
+      }
     }
   },
   {
@@ -1815,6 +2100,17 @@ export const APP_SKILL_METADATA = [
       "required": [
         "requests"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "result_count": {
+          "type": "integer"
+        }
+      }
     }
   },
   {
@@ -3530,6 +3826,20 @@ export const APP_SKILL_METADATA = [
       "required": [
         "location"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "rain_probability": {
+          "type": "number"
+        },
+        "max_temperature_c": {
+          "type": "number"
+        }
+      }
     }
   },
   {
@@ -3715,6 +4025,17 @@ export const APP_SKILL_METADATA = [
       "required": [
         "requests"
       ]
+    },
+    "output_schema": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "result_count": {
+          "type": "integer"
+        }
+      }
     }
   },
   {
@@ -3957,6 +4278,14 @@ export class CodeAppSkills {
    */
   async removeSecrets<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
     return this.runSkill<T>("code", "remove_secrets", input, options);
+  }
+  /**
+   * Run code in an isolated E2B sandbox. When running code the assistant is creating in this same turn, pass the source through files[].code plus entry_path; do not invent a target_embed_id from a filename. Use target_embed_id only for an existing chat code embed. Ask the user before running unmodified user-supplied code or after the initial run plus two unprompted reruns. The sandbox installs supported dependency manifests, executes the selected file, streams terminal status, and returns safe artif
+   * Description key: app_skills.code.run.description
+   * Skill: code/run
+   */
+  async run<T = unknown>(input: SkillInput, options?: AppSkillRunOptions): Promise<T> {
+    return this.runSkill<T>("code", "run", input, options);
   }
   /**
    * Search GitHub repositories. Use this instead of web.search whenever the user asks to find GitHub repos, repositories, open-source libraries, starred repos, or repo examples by topic, language, framework, or project need. Returns licensed repository embeds. Costs 10 credits per search.

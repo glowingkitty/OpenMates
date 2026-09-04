@@ -19,6 +19,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import time
 from typing import Any
 
@@ -31,6 +32,7 @@ SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--to
 TERMINAL_GEOMETRY = "160x48"
 TERMINAL_FONT_SIZE = "14"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+RESPONSE_MEDIA_SCRIPT = Path(__file__).resolve().parent / "opencode_response_media.py"
 
 
 class CliCaptureError(RuntimeError):
@@ -191,6 +193,40 @@ def build_capture_manifest(
     return manifest
 
 
+def _response_media_run_type(classification: str) -> str:
+    suffix = re.sub(r"[^A-Za-z0-9._-]+", "-", classification.replace("_", "-")).strip("-._")
+    if not suffix or suffix == "cli-e2e":
+        return "openmates-cli-e2e"
+    return f"openmates-cli-e2e-{suffix}"[:80].rstrip("-._")
+
+
+def publish_response_media(video_path: Path, *, classification: str, dry_run: bool = False) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        str(RESPONSE_MEDIA_SCRIPT),
+        str(video_path),
+        "--alt",
+        "OpenMates CLI E2E recording",
+        "--latest-run-type",
+        _response_media_run_type(classification),
+        "--output",
+        "json",
+    ]
+    if dry_run:
+        command.append("--dry-run")
+    result = subprocess.run(command, check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise CliCaptureError(result.stderr.strip() or result.stdout.strip() or "OpenCode response-media upload failed")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise CliCaptureError("OpenCode response-media upload returned invalid JSON") from exc
+    snippets = payload.get("snippets") if isinstance(payload, dict) else None
+    if not isinstance(snippets, dict) or not snippets.get("html"):
+        raise CliCaptureError("OpenCode response-media upload returned no embeddable snippet")
+    return payload
+
+
 def extract_command_output(transcript_path: Path, *, displayed_command: str) -> str:
     """Return command output without script headers, prompt text, or ANSI codes."""
     normalized = ANSI_ESCAPE_RE.sub("", transcript_path.read_text(encoding="utf-8", errors="replace")).replace("\r", "")
@@ -284,6 +320,8 @@ def main() -> int:
     parser.add_argument("--classification", default="cli_e2e")
     parser.add_argument("--display-number", type=int, default=91)
     parser.add_argument("--timeout-seconds", type=float, default=120)
+    parser.add_argument("--no-response-media", action="store_true", help="Do not upload the latest CLI E2E video for OpenCode embedding")
+    parser.add_argument("--response-media-dry-run", action="store_true", help="Validate response-media output without Docker/S3")
     parser.add_argument("argv", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     argv = args.argv[1:] if args.argv and args.argv[0] == "--" else args.argv
@@ -296,6 +334,15 @@ def main() -> int:
             display_number=args.display_number,
             timeout_seconds=args.timeout_seconds,
         )
+        if not args.no_response_media:
+            try:
+                result["response_media"] = publish_response_media(
+                    Path(result["video_path"]),
+                    classification=args.classification,
+                    dry_run=args.response_media_dry_run,
+                )
+            except CliCaptureError as exc:
+                result["response_media_error"] = str(exc)
     except CliCaptureError as exc:
         print(json.dumps({"status": "failed", "reason": str(exc)}))
         return 2

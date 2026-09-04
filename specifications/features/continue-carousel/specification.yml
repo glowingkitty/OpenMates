@@ -1,0 +1,70 @@
+schema_version: 1
+id: feature.continue-carousel
+version: 1
+status: draft
+title: Continue Carousel
+summary: >
+  The authenticated Chats start screen promotes timely saved items and chats
+  without presenting linked items before their own relevant time window.
+
+scope:
+  includes:
+    - Time-based eligibility and labels for saved-item and chat cards in the authenticated Continue carousel.
+    - Interaction between a saved item's start time and reminders linked to that item.
+  excludes:
+    - Reminder delivery, notification timing, reminder configuration, and carousel visual styling.
+    - Normal recent-chat and pinned-chat ordering outside the Continue carousel priority layer.
+
+models:
+  TimelyContinueCandidate:
+    kind:
+      type: enum
+      required: true
+      values: [saved_item, chat]
+    item_start_at:
+      type: timestamp
+      nullable: true
+    reminder_trigger_at:
+      type: timestamp
+      nullable: true
+    eligibility_window_hours:
+      type: integer
+      required: true
+      constraints: {value: 24}
+
+assertions:
+  - id: continue-carousel.saved-item.start-time-gated
+    type: behavior
+    must: A saved item with a recorded start date or time becomes eligible for priority placement only when that item start is within 24 hours; a linked reminder that triggers earlier must not make the item appear before this window, and the priority label describes the saved item's timing rather than the reminder offset.
+    depends_on: [models.TimelyContinueCandidate, examples.saved_item_window]
+  - id: continue-carousel.chat.reminder-gated
+    type: behavior
+    must: A reminder linked directly to a chat may promote that chat when the reminder trigger is within 24 hours because the chat has no separate saved-item start time.
+    depends_on: [models.TimelyContinueCandidate, examples.chat_reminder_window]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Existing first-party reminder lookup supplies timing metadata but does not own carousel eligibility.
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: The native client does not currently expose this web Continue carousel.}
+    exceptions:
+      - id: apple-continue-carousel-out-of-scope
+        implementation: apple
+        reason: This contract governs the authenticated web start-screen carousel only.
+        equivalent_outcome: A future native equivalent must not promote dated items before their own configured eligibility window.
+
+examples:
+  file: examples.yml
+  required_groups: [saved_item_window, chat_reminder_window]

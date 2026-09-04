@@ -11,6 +11,15 @@ import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 
 const MAX_CANDIDATE_KEYS = 5;
 
+function newestTimestamp(
+  ...timestamps: Array<number | null | undefined>
+): number | undefined {
+  const presentTimestamps = timestamps.filter(
+    (timestamp): timestamp is number => timestamp !== null && timestamp !== undefined,
+  );
+  return presentTimestamps.length > 0 ? Math.max(...presentTimestamps) : undefined;
+}
+
 export async function hasEncryptedChatKeyMismatch(
   serverChat: Partial<Chat> & { id: string },
   localChat: Chat | null,
@@ -32,6 +41,19 @@ export async function hasEncryptedChatKeyMismatch(
   if (!serverRawKey || !localRawKey) return true;
 
   return !chatKeysEqual(serverRawKey, localRawKey);
+}
+
+export function isDraftUpdateBlockedByLocalDeletion(
+  localChat: Chat,
+  incomingDraftV: number,
+): boolean {
+  return (
+    (localChat.draft_v ?? 0) === 0 &&
+    !localChat.encrypted_draft_md &&
+    !localChat.encrypted_draft_preview &&
+    (localChat.cleared_draft_v ?? 0) > 0 &&
+    (localChat.cleared_draft_v ?? 0) >= incomingDraftV
+  );
 }
 
 function appendCandidateKey(
@@ -107,6 +129,7 @@ export async function mergeServerChatWithLocal(
         serverChat.encrypted_top_recommended_apps_for_chat,
       encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
+      encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
       is_anonymous: serverChat.is_anonymous,
@@ -133,6 +156,12 @@ export async function mergeServerChatWithLocal(
     serverChat,
     "draft_v",
   );
+  const localDraftVersion = localChat.draft_v ?? 0;
+  const serverDraftVersion = Math.max(
+    serverChat.draft_v ?? 0,
+    serverChat.cleared_draft_v ?? 0,
+  );
+  const serverDraftStateIsCurrent = serverDraftVersion >= localDraftVersion;
   const serverExplicitlyDeletesDraft =
     serverChat.encrypted_draft_md === null ||
     serverChat.encrypted_draft_preview === null ||
@@ -143,8 +172,14 @@ export async function mergeServerChatWithLocal(
     (serverChat.messages_v ?? 0) > 0 &&
     (localChat.messages_v ?? 0) === 0 &&
     !!(localChat.encrypted_draft_md || localChat.encrypted_draft_preview);
+  const localDraftDeletionFenceApplies = isDraftUpdateBlockedByLocalDeletion(
+    localChat,
+    serverChat.draft_v ?? 0,
+  );
   const serverClearsDraft =
-    serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell;
+    localDraftDeletionFenceApplies ||
+    (serverDraftStateIsCurrent &&
+      (serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell));
   const merged: Chat = {
     chat_id: serverChat.id,
     team_id: serverChat.team_id ?? localChat.team_id ?? null,
@@ -155,28 +190,39 @@ export async function mergeServerChatWithLocal(
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
     metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
-    draft_v: serverClearsDraft ? 0 : serverChat.draft_v ?? localChat.draft_v ?? 0,
+    draft_v: serverClearsDraft
+      ? 0
+      : serverDraftStateIsCurrent
+        ? serverChat.draft_v ?? localDraftVersion
+        : localDraftVersion,
+    cleared_draft_v: serverClearsDraft
+      ? Math.max(
+          localChat.cleared_draft_v ?? 0,
+          localChat.draft_v ?? 0,
+          serverChat.cleared_draft_v ?? 0,
+        )
+      : localChat.cleared_draft_v,
     unread_count: serverChat.unread_count ?? localChat.unread_count ?? 0,
     created_at: serverChat.created_at ?? localChat.created_at ?? nowTimestamp,
     updated_at: serverChat.updated_at ?? localChat.updated_at ?? nowTimestamp,
     last_edited_overall_timestamp:
-      serverChat.last_edited_overall_timestamp ??
-      localChat.last_edited_overall_timestamp ??
-      serverChat.updated_at ??
-      localChat.updated_at ??
-      serverChat.created_at ??
-      localChat.created_at ??
+      newestTimestamp(
+        serverChat.last_edited_overall_timestamp,
+        localChat.last_edited_overall_timestamp,
+      ) ??
+      newestTimestamp(serverChat.updated_at, localChat.updated_at) ??
+      newestTimestamp(serverChat.created_at, localChat.created_at) ??
       nowTimestamp,
     encrypted_draft_md: serverClearsDraft
       ? undefined
-      : serverHasDraftMarkdown
+      : serverHasDraftMarkdown && serverDraftStateIsCurrent
         ? serverChat.encrypted_draft_md ?? undefined
         : keyMismatch
           ? undefined
           : localChat.encrypted_draft_md,
     encrypted_draft_preview: serverClearsDraft
       ? undefined
-      : serverHasDraftPreview
+      : serverHasDraftPreview && serverDraftStateIsCurrent
         ? serverChat.encrypted_draft_preview ?? undefined
         : keyMismatch
           ? undefined
@@ -239,6 +285,10 @@ export async function mergeServerChatWithLocal(
       keyMismatch
         ? localChat.encrypted_active_focus_id
         : serverChat.encrypted_active_focus_id ?? localChat.encrypted_active_focus_id,
+    encrypted_auto_speak_response:
+      keyMismatch
+        ? localChat.encrypted_auto_speak_response
+        : serverChat.encrypted_auto_speak_response ?? localChat.encrypted_auto_speak_response,
     is_shared: serverChat.is_shared ?? localChat.is_shared,
     is_private: serverChat.is_private ?? localChat.is_private,
     is_anonymous: serverChat.is_anonymous ?? localChat.is_anonymous,

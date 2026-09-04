@@ -21,10 +21,62 @@
 
 import re
 import logging
+from urllib.parse import unquote
 from dataclasses import dataclass, field
 from typing import Optional, List, Tuple
 
 logger = logging.getLogger(__name__)
+
+MAX_WIKIPEDIA_REFERENCES = 3
+
+
+class WikipediaReferenceLimitError(ValueError):
+    """Raised when a message contains more than three Wikipedia references."""
+
+
+@dataclass(frozen=True)
+class WikipediaReference:
+    language: str
+    title: str
+
+
+@dataclass(frozen=True)
+class WikipediaDirectiveParseResult:
+    references: List[WikipediaReference]
+    cleaned_message: str
+
+
+_WIKIPEDIA_PATTERN = re.compile(r'@wikipedia:([^\s@]+)', re.IGNORECASE)
+
+
+def parse_wikipedia_directives(
+    message: str,
+    locale: str = "en",
+) -> WikipediaDirectiveParseResult:
+    """Extract canonical Wikipedia directives while leaving generic mentions intact."""
+    default_language = (locale or "en").replace("_", "-").split("-")[0].lower()
+    references: List[WikipediaReference] = []
+    for match in _WIKIPEDIA_PATTERN.finditer(message or ""):
+        token = match.group(1)
+        first, separator, remainder = token.partition(":")
+        if separator and 2 <= len(first) <= 5 and first.isalpha():
+            language = first.lower()
+            encoded_title = remainder
+        else:
+            language = default_language
+            encoded_title = token
+        title = unquote(encoded_title).replace(" ", "_")
+        if title:
+            references.append(WikipediaReference(language=language, title=title))
+
+    if len(references) > MAX_WIKIPEDIA_REFERENCES:
+        raise WikipediaReferenceLimitError("Wikipedia references are limited to three per message")
+
+    cleaned = _WIKIPEDIA_PATTERN.sub("", message or "")
+    return WikipediaDirectiveParseResult(
+        references=references,
+        cleaned_message=" ".join(cleaned.split()),
+    )
 
 
 @dataclass
@@ -54,6 +106,7 @@ class UserOverrides:
     plan_requested: bool = False
     memory_categories: List[Tuple[str, str, str]] = field(default_factory=list)
     memory_entries: List[Tuple[str, str, str]] = field(default_factory=list)
+    wikipedia_references: List[WikipediaReference] = field(default_factory=list)
     cleaned_message: str = ""
     has_overrides: bool = False
 
@@ -142,6 +195,12 @@ def parse_overrides(message: str, log_prefix: str = "") -> UserOverrides:
 
     overrides = UserOverrides(cleaned_message=message)
     cleaned = message
+
+    wikipedia = parse_wikipedia_directives(message)
+    if wikipedia.references:
+        overrides.wikipedia_references = wikipedia.references
+        overrides.has_overrides = True
+        cleaned = wikipedia.cleaned_message
 
     # Parse @ai-model override
     model_match = _MODEL_PATTERN.search(message)

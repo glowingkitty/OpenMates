@@ -53,6 +53,7 @@
   import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
+  import { assistantSpeechController } from '../services/assistantSpeechController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
   
   // Define types for message content parts
@@ -139,6 +140,7 @@
     onChatNavigate = undefined,
     canAnnotate = true,
     isForgottenMessage = false,
+    onSpeak = undefined,
   }: {
     role?: MessageRole;
     category?: string;
@@ -180,7 +182,14 @@
     canAnnotate?: boolean;
     /** True when this message is readable history outside the active compressed context. */
     isForgottenMessage?: boolean;
+    onSpeak?: () => void;
   } = $props();
+
+  const assistantSpeechPlayer = assistantSpeechController.player;
+  let activeSpeechSegment = $derived.by(() => {
+    if ($assistantSpeechPlayer.messageId !== messageId || $assistantSpeechPlayer.status !== 'playing') return null;
+    return $assistantSpeechPlayer.regions.find((region) => region.active)?.sequence ?? null;
+  });
   
   // State for thinking section expansion
   let thinkingExpanded = $state(false);
@@ -232,6 +241,12 @@
     active_sub_chat_id?: string | null;
   };
 
+  type SubChatCardStatus = {
+    label: string;
+    testId: string;
+    state: 'completed' | 'thinking' | 'waiting' | 'stopped' | 'attention' | 'queued';
+  };
+
   let subChatsOfThisMessage = $state<SubChatPreview[]>([]);
   let subChatConfirmationRequest = $state<SubChatConfirmationRequest | null>(null);
   let subChatConfirmationSubmitting = $state(false);
@@ -242,6 +257,7 @@
   let subChatContextMenuY = $state(0);
   let subChatContextMenuVisible = $state(false);
   let subChatDownloading = $state(false);
+  const SUB_CHAT_STATUS_MATE_NAME_MAX_LENGTH = 22;
 
   function getSubChatPreviewStyle(category?: string | null): string {
     const colors = getCategoryGradientColors(category || 'general_knowledge') ?? {
@@ -254,6 +270,35 @@
       `--orb-color-a: ${colors.start}`,
       `--orb-color-b: ${colors.end}`,
     ].join('; ');
+  }
+
+  function subChatStatusMateName(subChat: SubChatPreview): string {
+    const rawName = (subChat.title || 'Mate').trim();
+    if (rawName.length <= SUB_CHAT_STATUS_MATE_NAME_MAX_LENGTH) return rawName;
+    return `${rawName.slice(0, SUB_CHAT_STATUS_MATE_NAME_MAX_LENGTH).trimEnd()}...`;
+  }
+
+  function getSubChatCardStatus(subChat: SubChatPreview): SubChatCardStatus {
+    const progressStatus = subChatProgress?.status || '';
+    if (subChat.previewSummary || subChat.updated_at > subChat.created_at || progressStatus === 'completed') {
+      return { label: 'Completed', testId: 'sub-chat-status-completed', state: 'completed' };
+    }
+    if (progressStatus === 'stopped') {
+      return { label: 'Stopped', testId: 'sub-chat-status-stopped', state: 'stopped' };
+    }
+    if (status === 'failed') {
+      return { label: 'Needs attention', testId: 'sub-chat-status-attention', state: 'attention' };
+    }
+    if (subChatProgress?.active_sub_chat_id === subChat.chat_id) {
+      return { label: `${subChatStatusMateName(subChat)} is thinking...`, testId: 'sub-chat-status-thinking', state: 'thinking' };
+    }
+    if (subChatProgress?.execution_mode === 'sequential' && progressStatus !== 'completed') {
+      return { label: 'Waiting its turn', testId: 'sub-chat-status-waiting', state: 'waiting' };
+    }
+    if (status === 'streaming' || status === 'processing' || progressStatus === 'running' || progressStatus === 'stopping') {
+      return { label: `${subChatStatusMateName(subChat)} is thinking...`, testId: 'sub-chat-status-thinking', state: 'thinking' };
+    }
+    return { label: 'Queued', testId: 'sub-chat-status-queued', state: 'queued' };
   }
 
   const SUB_CHAT_BATCH_PROTOCOL_PATTERN = /"type"\s*:\s*"sub[-_]chat[-_]batch"/;
@@ -842,7 +887,7 @@
   );
   
   // Get the chat ID from the original message (needed for ExampleChatsGroup exclusion)
-  let currentChatId = $derived(original_message?.chat_id || 'demo-for-everyone');
+  let currentChatId = $derived(original_message?.chat_id || '');
   let hasInlineSubChatBatch = $derived.by(() => {
     return [original_message?.content, content, fullContent].some(containsSubChatBatch);
   });
@@ -3124,16 +3169,30 @@
       {/if}
 
       {#if role === 'assistant'}
-        {#if isMateClickable}
-          <button
-            type="button"
-            class="chat-mate-name chat-mate-name-link"
-            data-testid="chat-mate-name"
-            onclick={openMateSettings}
-          >{assistantDisplayName}</button>
-        {:else}
-          <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
-        {/if}
+        <div class="assistant-identity-row" data-testid="assistant-identity-row">
+          {#if isMateClickable}
+            <button
+              type="button"
+              class="chat-mate-name chat-mate-name-link"
+              data-testid="chat-mate-name"
+              onclick={openMateSettings}
+            >{assistantDisplayName}</button>
+          {:else}
+            <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
+          {/if}
+          {#if onSpeak && status !== 'streaming' && status !== 'processing'}
+            <button
+              type="button"
+              class="assistant-speech-action"
+              data-testid="assistant-message-speak"
+              onclick={onSpeak}
+              aria-label={$text('chat.assistant_speech.speak_response')}
+            >
+              <Icon name="audio" size="16px" noMargin={true} />
+              <span data-testid="assistant-message-speak-label">{$text('chat.assistant_speech.speak_response')}</span>
+            </button>
+          {/if}
+        </div>
       {/if}
 
       <div class="chat-message-text">
@@ -3314,6 +3373,8 @@
                 {piiMappings}
                 {piiRevealed}
                 {role}
+                speechActiveSegment={activeSpeechSegment}
+                speechPlaying={activeSpeechSegment !== null}
                 on:message-embed-click={handleEmbedClick}
             />
           {:else if hasExampleChatsPlaceholder}
@@ -3335,6 +3396,8 @@
                 {piiMappings}
                 {piiRevealed}
                 {role}
+                speechActiveSegment={activeSpeechSegment}
+                speechPlaying={activeSpeechSegment !== null}
                 on:message-embed-click={handleEmbedClick}
             />
           {/if}
@@ -3346,6 +3409,7 @@
             {#each subChatsOfThisMessage as sc (sc.chat_id)}
               {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
               {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+              {@const subChatStatus = getSubChatCardStatus(sc)}
               <button
                 type="button"
                 class="sub-chat-card sub-chat-large-card"
@@ -3364,9 +3428,10 @@
               >
                 <div
                   class="sub-chat-status-pill"
-                  data-testid={sc.updated_at > sc.created_at ? 'sub-chat-status-done' : 'sub-chat-status-active'}
+                  data-testid={subChatStatus.testId}
+                  data-status-state={subChatStatus.state}
                 >
-                  {sc.updated_at > sc.created_at ? 'Done' : 'Active'}
+                  {subChatStatus.label}
                 </div>
                 <div class="sub-chat-large-orbs" aria-hidden="true">
                   <div class="sub-chat-orb sub-chat-orb-1"></div>
@@ -3496,9 +3561,11 @@
          />
        {/if}
     </div>
-    {#if role === 'assistant' && model_name}
-      <div class="generated-by-container">
-        <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+    {#if role === 'assistant' && (model_name || onSpeak)}
+      <div class="generated-by-container" data-testid="generated-by-container">
+        {#if model_name}
+          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+        {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
@@ -3945,6 +4012,10 @@
     font-size: var(--font-size-xxs);
     font-weight: 800;
     line-height: 1;
+    max-width: calc(100% - var(--spacing-16));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .sub-chat-large-content {
@@ -4219,6 +4290,63 @@
   .generated-by-cost:focus-visible {
     color: var(--color-primary);
     text-decoration: underline;
+  }
+
+  .assistant-speech-action {
+    all: unset;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    width: auto;
+    max-width: 20px;
+    min-height: 28px;
+    box-sizing: border-box;
+    overflow: hidden;
+    color: var(--color-grey-60);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    padding: var(--spacing-1);
+    border-radius: var(--radius-4);
+    white-space: nowrap;
+    transition: max-width var(--duration-normal) var(--easing-default), color var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-identity-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .assistant-identity-row :global(.chat-mate-name) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .assistant-identity-row .assistant-speech-action {
+    flex: 0 0 auto;
+  }
+
+  .assistant-speech-action:hover,
+  .assistant-speech-action:focus-visible {
+    max-width: 180px;
+    color: var(--color-primary);
+  }
+
+  .assistant-speech-action:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+  }
+
+  .assistant-speech-action span {
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-speech-action:hover span,
+  .assistant-speech-action:focus-visible span {
+    opacity: 1;
   }
 
   .generated-by-container {

@@ -270,10 +270,42 @@ export interface CodeRunOutput {
   status?: string;
   files?: string[];
   events?: Array<{ kind: string; text: string; timestamp: number }>;
+  artifacts?: CodeRunArtifact[];
+  skipped_artifacts?: CodeRunSkippedArtifact[];
   saved_at: number;
   created_at: number;
   updated_at?: number;
   key_version?: number | null;
+}
+
+export interface CodeRunArtifactVersion {
+  path: string;
+  normalized_path: string;
+  mime_type?: string;
+  kind?: string;
+  size_bytes?: number;
+  status?: string;
+  asset_id?: string;
+  variant?: string;
+  download_url?: string;
+  download_expires_at?: number;
+  captured_at?: number;
+  native_render_payload?: CodeRunNativeRenderPayload;
+}
+
+export interface CodeRunNativeRenderPayload {
+  app_id: string;
+  frontend_type: string;
+  content: Record<string, unknown>;
+}
+
+export interface CodeRunArtifact extends CodeRunArtifactVersion {
+  versions?: CodeRunArtifactVersion[];
+}
+
+export interface CodeRunSkippedArtifact {
+  path: string;
+  reason: string;
 }
 
 export interface CodeRunOutputPayload {
@@ -281,6 +313,8 @@ export interface CodeRunOutputPayload {
   status?: string;
   files?: string[];
   events?: Array<{ kind: string; text: string; timestamp: number }>;
+  artifacts?: CodeRunArtifact[];
+  skipped_artifacts?: CodeRunSkippedArtifact[];
   saved_at: number;
   created_at: number;
   updated_at?: number;
@@ -397,6 +431,7 @@ export interface Chat {
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
   encrypted_draft_preview?: string | null; // User's encrypted draft preview (truncated text for chat list display)
   draft_v?: number; // Version of the user's draft for this chat
+  cleared_draft_v?: number; // Local-only fence preventing stale sync snapshots from restoring a cleared draft
   ideabucket?: boolean | null; // Sparse marker for IdeaBucket-origin drafts/chats.
   ideabucket_processing_window_id?: string | null; // Non-private IdeaBucket bucket/window id for UI provenance.
   ideabucket_triggered_at?: number | null; // Unix timestamp when IdeaBucket sent this chat, if already processed.
@@ -434,6 +469,7 @@ export interface Chat {
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
   encrypted_shared_short_url?: string | null; // Encrypted full /s/<token>#<shortKey> URL for reopening owner share UI
   encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
+  encrypted_auto_speak_response?: string | null; // Encrypted chat-scoped assistant-response speech preference
 
   // Cleartext fields for demo chats (already decrypted server-side, never encrypted client-side)
   // ARCHITECTURE: Demo chats use these cleartext fields instead of encrypted_* versions
@@ -443,6 +479,14 @@ export interface Chat {
   category?: string | null; // Cleartext category for demo chats
   demo_chat_category?: string | null; // Target audience: "for_everyone" or "for_developers" (set by admin during approval)
   active_focus_id?: string | null; // Cleartext active focus mode for public demo/example chats only
+  public_speech?: Record<string, Array<{
+    segment_id: string;
+    sequence: number;
+    public_url: string;
+    sha256: string;
+    duration_seconds: number;
+    waveform?: number[];
+  }>>; // Reviewed immutable public S3 fixtures for example assistant messages only
 
   // Local UI metadata derived from image-search embeds. Stored only in IndexedDB so
   // resume/recent chat cards can render decorative thumbnails without re-parsing messages.
@@ -957,6 +1001,7 @@ export interface InitialSyncResponsePayload {
     encrypted_icon?: string | null; // Encrypted icon name from Lucide library
     encrypted_category?: string | null; // Encrypted category name
     encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
+    encrypted_auto_speak_response?: string | null;
     encrypted_shared_short_url?: string | null;
     unread_count?: number;
     messages?: Message[];
@@ -983,6 +1028,7 @@ export interface SyncEmbed {
   embed_type?: string; // Alternative field name for type
   status?: string;
   hashed_chat_id?: string;
+  hashed_message_id?: string;
   hashed_user_id?: string;
   // Additional optional properties for full embed sync support
   embed_ids?: string[]; // For composite embeds (app_skill_use)

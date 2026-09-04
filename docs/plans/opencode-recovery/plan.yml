@@ -1,0 +1,615 @@
+schema_version: 2
+id: opencode-recovery
+title: OpenCode Recovery and OpenMates Task-Orchestrated Execution
+status: implementing
+
+goal: >
+  Restore OpenCode to a safe, reproducible, multi-chat coding environment where
+  model selection is isolated per chat, useful work is never stopped by an
+  arbitrary step count, compaction retains the same logical task, proof media
+  cannot leak across chats, deployed worktrees have truthful clean state, and
+  durable OpenMates Plans and Tasks decide whether stopped assistant turns
+  should be scheduled again.
+
+scope:
+  in:
+    - Preserve each chat's selected provider and model independently across reloads, compaction, continuation, and server restart.
+    - Remove the configured eight-step primary-agent limit and replace fixed-step loop protection with progress-aware task scheduling.
+    - Disable synthetic response-media user prompts and quarantine every previously undelivered media record.
+    - Prevent ordinary product chats from editing or deploying OpenCode and OpenMates orchestration control-plane files.
+    - Restore active-worktree preservation and make merged/deployed worktree metadata agree with Git HEAD and the remaining patch.
+    - Package the OpenCode binary, configuration, hook, orchestration scripts, and hashes as one testable atomic runtime release.
+    - Bind an OpenCode chat to durable OpenMates Plan and Task identifiers and schedule another turn only while runnable work remains.
+    - Preserve stopped chats and recover them sequentially only after disposable-session verification passes.
+    - Add deterministic tests and audits for every regression class in this recovery.
+  out:
+    - Changing, rebuilding, or locally serving the OpenCode web UI.
+    - Restricting OpenCode to OpenAI or any other single provider.
+    - Automatically resuming all historical chats after a server restart.
+    - Deploying the stopped Plans/Tasks worktree or its sessions.py changes without selective review.
+    - Replacing the complete OpenMates Tasks, Plans, or Workflows product contracts.
+    - Treating hooks or prompt instructions as the sole security boundary for secrets or control-plane source.
+    - Completing the product-feature work that belongs to the stopped chats.
+
+context_discovery:
+  prior_specs:
+    - docs/plans/opencode-orchestration-remediation/plan.yml
+    - docs/plans/opencode-session-coordination/plan.yml
+    - docs/plans/opencode-native-worktree-binding/plan.yml
+    - docs/plans/task-queue-auto-continuation/plan.yml
+    - docs/plans/tasks-plans-workspace/plan.yml
+  docs:
+    - AGENTS.md
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/agent-workflow-core.md
+  code_patterns:
+    - /home/superdev/opencode/packages/opencode/src/session/prompt.ts accepts the web client's globally selected model on every prompt, overriding its own last-model fallback.
+    - /home/superdev/opencode/packages/opencode/src/session/prompt.ts enforces configured agent steps.
+    - opencode.json configures agent.build.steps to eight.
+    - .opencode/plugins/openmates-hooks.js records and delivers media through synthetic user prompts.
+    - scripts/sessions.py persists continuation/media queues and manages native worktree deployment.
+    - scripts/sessions.py copies integrated files into an older source worktree before marking it merged.
+    - frontend/packages/openmates-cli provides the intended durable OpenMates Plans and Tasks client surface.
+  observed_failures:
+    - One chat's model choice changed another chat's effective model after reload.
+    - Primary agents stopped with a maximum-steps message before edits could begin.
+    - Compaction continuation stopped on repeated provider overflow or surfaced as synthetic user input.
+    - Old and malformed video records were delivered into unrelated chats.
+    - A product chat modified scripts/sessions.py while implementing unrelated product work.
+    - Worktrees reported merged/deployed while still detached on an older commit with copied deployed files shown as dirty.
+    - Later product changes functionally removed earlier active-worktree preservation behavior.
+    - Runtime source, configuration, hook, and manually patched installed binary could disagree.
+    - Plaintext credentials were readable from OpenCode configuration and appeared in diagnostic output.
+  user_direction:
+    - Keep provider choice flexible but isolate model selection per chat.
+    - Do not impose an eight-step or equivalent arbitrary useful-work limit.
+    - Continue work while open runnable Plans or Tasks remain connected to the chat.
+    - Apply an immediate media hotfix while structured OpenMates CLI proof integration is built.
+    - Fix dirty deployed worktrees and prevent product chats from changing sessions.py.
+    - Implement this recovery from a separate Codex-controlled zellij workflow before resuming product chats.
+
+clarification:
+  rounds:
+    - question: Should OpenCode be restricted to OpenAI models?
+      answer: No. Provider and model choice must remain flexible and isolated per chat.
+    - question: Should a fixed maximum number of agent steps remain as loop protection?
+      answer: No. A chat must keep working until its connected runnable work is complete or reaches a genuine waiting/blocked state.
+    - question: Should the existing stopped product chats implement the orchestration repair?
+      answer: No. Use a separate Codex-controlled workflow, then recover product chats after verification.
+  vision_summary: >
+    The assistant may finish an individual turn, but durable task state—not a
+    global model preference, fixed tool count, idle hook, or fake user message—
+    determines whether another turn is scheduled. Control-plane code and secrets
+    must be outside ordinary product-agent authority.
+  approved_by_user: true
+
+security:
+  classification: private_engineering_control_plane
+  credential_actions:
+    - Revoke and replace the exposed GitHub personal access token.
+    - Revoke and replace the exposed Penpot access token.
+    - Revoke and replace the exposed Firecrawl API key.
+    - Revoke and replace the exposed Brave Search API key.
+    - Revoke and replace the exposed Context7 API key.
+    - Replace plaintext configuration values with environment references and scan repository history without printing secrets.
+  boundaries:
+    - Ordinary OpenCode product sessions cannot edit or deploy protected control-plane paths.
+    - A hook blocks accidental access, while deploy validation provides the authoritative repository guard.
+    - The durable target is a separate Unix identity or container with control-plane and credential paths absent or read-only.
+    - New credentials are never written to chat transcripts or committed configuration.
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This recovery changes private coding infrastructure rather than OpenMates Apple product behavior.
+  verification:
+    - No Mac or Xcode run is required.
+  intentional_native_differences:
+    - OpenCode orchestration remains developer infrastructure.
+
+scenarios:
+  - id: S-1
+    title: Concurrent chats keep independent models
+    given:
+      - Chat A selects an OpenAI model.
+      - Chat B selects a Gemini model.
+    when:
+      - Both chats submit prompts, reload, compact, continue, and survive a server restart.
+    then:
+      - Each request uses its own bound provider and model.
+      - Selecting a model in one chat does not mutate another chat's binding.
+      - Global recent models influence only a brand-new unbound chat.
+
+  - id: S-2
+    title: Useful execution is not capped by tool count
+    given:
+      - A runnable task requires more than eight tool interactions.
+    when:
+      - The agent continues making observable progress.
+    then:
+      - Tools remain available.
+      - No maximum-steps message ends the turn.
+      - Repeated no-progress state is surfaced as a diagnostic rather than a useful-work count.
+
+  - id: S-3
+    title: Compaction continues the same logical task
+    given:
+      - A bound task remains runnable when provider context compaction occurs.
+    when:
+      - Context is compacted and the assistant turn ends.
+    then:
+      - The compacted context retains the session model, plan, task, task generation, and original objective.
+      - No visible synthetic user message is inserted.
+      - Another internal turn is scheduled only if the task remains runnable.
+      - Repeated compaction must monotonically reduce provider input or stop with a structured orchestration diagnostic.
+
+  - id: S-4
+    title: Media cannot cross chat or task boundaries
+    given:
+      - Historical pending media includes stale, malformed, test-fixture, or unrelated records.
+    when:
+      - OpenCode starts or a chat becomes idle.
+    then:
+      - Historical undelivered records are quarantined and never injected.
+      - Tool output is never parsed into a synthetic media user prompt.
+      - Future proof artifacts use structured task/run/commit/hash metadata and are rendered directly.
+
+  - id: S-5
+    title: Product agents cannot change the traffic controller
+    given:
+      - An ordinary product session attempts to read, edit, shell-write, or deploy a protected control-plane path.
+    when:
+      - The hook or sessions.py deploy gate evaluates the operation.
+    then:
+      - Mutation and deployment are rejected with one deterministic recovery action.
+      - Read access to secret-bearing configuration is rejected.
+      - A separately launched explicit control-plane-admin Codex workflow remains capable of reviewed changes.
+
+  - id: S-6
+    title: Deployed worktree state is truthful
+    given:
+      - A managed worktree deploys through an integration commit.
+    when:
+      - Deployment succeeds with or without edits made after its checkpoint.
+    then:
+      - With no later edits the worktree is clean at the deployed commit.
+      - With later edits only the post-checkpoint delta remains on top of the deployed commit.
+      - A recovery ref or backup preserves prior state.
+      - Registry status cannot become merged unless the HEAD and patch invariant passes.
+
+  - id: S-7
+    title: Durable OpenMates tasks control continuation
+    given:
+      - An OpenCode chat is bound to an OpenMates Plan with ordered Tasks.
+    when:
+      - An assistant turn ends or a task changes state.
+    then:
+      - Exactly one runnable task is leased to the chat and progress writes are idempotent.
+      - The scheduler resumes the chat while runnable work remains.
+      - waiting_user, waiting_resource, blocked, completed, cancelled, and explicit user stop do not auto-resume.
+      - Restart reconstructs scheduling from durable task state rather than in-memory hook state.
+
+  - id: S-8
+    title: Runtime deployment is atomic and recovery is staged
+    given:
+      - A tested release contains a binary, configuration, hook, sessions.py, startup scripts, and a hash manifest.
+    when:
+      - The release is activated and the server restarts.
+    then:
+      - All runtime components report the same release identity.
+      - Stopped historical chats remain stopped.
+      - Disposable sessions pass the recovery matrix before historical chats are resumed one at a time.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Model selection is keyed by session and survives reload, continuation, compaction, and restart without cross-chat mutation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-OPENCODE-MODELS, V-DISPOSABLE-SESSIONS]
+  - id: AC-2
+    scenario: S-2
+    text: The deployed configuration and runtime impose no fixed primary-agent tool-step limit.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-OPENCODE-STEPS, V-RUNTIME-MANIFEST]
+  - id: AC-3
+    scenario: S-3
+    text: Compaction preserves logical task identity and can continue runnable work without visible fake user messages or infinite overflow retries.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-TASK-BRIDGE, V-DISPOSABLE-SESSIONS]
+  - id: AC-4
+    scenario: S-4
+    text: Automatic response-media prompt injection is disabled and all pre-recovery undelivered records are quarantined.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MEDIA-HOTFIX, V-MEDIA-QUARANTINE]
+  - id: AC-5
+    scenario: S-5
+    text: Product sessions cannot mutate or deploy protected control-plane paths and cannot read secret-bearing configuration through routed tools.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CONTROL-PLANE-GUARD]
+  - id: AC-6
+    scenario: S-6
+    text: A worktree marked merged satisfies the deployed HEAD and remaining-patch invariant while preserving post-checkpoint edits.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-WORKTREE-INVARIANT]
+  - id: AC-7
+    scenario: S-7
+    text: Durable OpenMates Plan and Task state—not idle events or arbitrary tool counts—controls idempotent OpenCode continuation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-TASK-BRIDGE, V-DISPOSABLE-SESSIONS]
+  - id: AC-8
+    scenario: S-8
+    text: One hash-identified runtime release is activated atomically, restart preserves stopped state, and historical recovery is sequential.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-RUNTIME-RELEASE, V-RUNTIME-MANIFEST, V-HISTORICAL-RECOVERY]
+  - id: AC-9
+    scenario: S-5
+    text: Exposed credentials are revoked by the user and replacement values are absent from tracked files and agent-readable configuration.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-SECRET-CONFIG, V-CREDENTIAL-ROTATION]
+
+tests:
+  - id: T-OPENCODE-MODELS
+    type: unit
+    file: /home/superdev/opencode/packages/app/src/context/models.test.tsx
+    command: bun test packages/app/src/context/models.test.tsx packages/app/src/context/local.test.tsx
+    assertions:
+      - model binding is stored by session ID
+      - an existing session restores its own binding
+      - a new session alone may use global recent/default fallback
+    covers: [AC-1]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-OPENCODE-STEPS
+    type: unit
+    file: scripts/tests/test_opencode_runtime_config.py
+    command: python3 -m pytest scripts/tests/test_opencode_runtime_config.py
+    assertions:
+      - no configured primary agent has a fixed steps value
+      - the packaged runtime configuration matches the source contract
+    covers: [AC-2]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-MEDIA-HOTFIX
+    type: unit
+    file: scripts/tests/test_opencode_hooks_contract.mjs
+    command: node --test scripts/tests/test_opencode_hooks_contract.mjs
+    assertions:
+      - tool output cannot enqueue response media
+      - idle sessions cannot claim or inject response media
+      - direct structured proof metadata remains available without a synthetic user prompt
+    covers: [AC-4]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CONTROL-PLANE-GUARD
+    type: pytest
+    file: scripts/tests/test_opencode_control_plane_guard.py
+    command: python3 -m pytest scripts/tests/test_opencode_control_plane_guard.py && node --test scripts/tests/test_opencode_native_worktree_binding.mjs
+    assertions:
+      - ordinary sessions cannot deploy protected paths
+      - hook-routed edit and shell mutation are blocked
+      - control-plane-admin capability is explicit and narrowly scoped
+      - secret-bearing paths cannot be read by ordinary routed tools
+    covers: [AC-5]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WORKTREE-INVARIANT
+    type: pytest
+    file: scripts/tests/test_sessions_native_worktree_lifecycle.py
+    command: python3 -m pytest scripts/tests/test_sessions_native_worktree_lifecycle.py scripts/tests/test_sessions_worktree_cleanup.py
+    assertions:
+      - merged status requires the deployed HEAD and patch invariant
+      - post-checkpoint edits are reapplied without copying the entire integrated tree as dirty state
+      - active conflicting worktrees are preserved
+    covers: [AC-6]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-TASK-BRIDGE
+    type: pytest
+    file: scripts/tests/test_opencode_task_bridge.py
+    command: python3 -m pytest scripts/tests/test_opencode_task_bridge.py && node --test scripts/tests/test_opencode_task_bridge_hook.mjs
+    assertions:
+      - one runnable task is leased idempotently to one chat
+      - turn completion resumes runnable work only
+      - waiting, blocked, completed, cancelled, and user-stopped work does not resume
+      - compaction retains plan, task, generation, objective, and model identity
+      - restart reconstructs state from the OpenMates CLI contract
+    covers: [AC-3, AC-7]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-RUNTIME-RELEASE
+    type: pytest
+    file: scripts/tests/test_opencode_runtime_release.py
+    command: python3 -m pytest scripts/tests/test_opencode_runtime_release.py
+    assertions:
+      - release manifests hash every activated component
+      - activation is atomic and rollback retains the previous release
+      - startup rejects mixed component identities
+    covers: [AC-8]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SECRET-CONFIG
+    type: pytest
+    file: scripts/tests/test_opencode_secret_config.py
+    command: python3 -m pytest scripts/tests/test_opencode_secret_config.py
+    assertions:
+      - tracked and runtime OpenCode configuration contain no credential literals
+      - secret configuration permissions are owner-only
+      - history scan reports only fingerprints and paths, never secret values
+    covers: [AC-9]
+    red_phase: {required: true, expected: fail_before_fix, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+
+verifications:
+  - id: V-MEDIA-QUARANTINE
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-4]
+    evidence: {status: pending}
+  - id: V-RUNTIME-MANIFEST
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-2, AC-8]
+    evidence: {status: pending}
+  - id: V-DISPOSABLE-SESSIONS
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-1, AC-3, AC-7]
+    evidence: {status: pending}
+  - id: V-HISTORICAL-RECOVERY
+    kind: manual_check
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-8]
+    evidence: {status: pending}
+  - id: V-CREDENTIAL-ROTATION
+    kind: user_confirmation
+    phase: final
+    status: pending
+    required_for_done: true
+    covers: [AC-9]
+    evidence: {status: pending}
+
+assumptions:
+  - id: A-1
+    text: Existing product chats remain stopped until disposable-session verification passes.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - The user stopped all running chats and approved staged recovery.
+  - id: A-2
+    text: The OpenMates CLI Plans and Tasks feature remains the durable source of execution state, while OpenCode remains the coding runtime.
+    status: confirmed
+    required_before: task_execution
+    evidence:
+      - The user explicitly prioritized the OpenMates and OpenCode connection.
+  - id: A-3
+    text: Hooks are defense-in-depth and cannot replace deploy-time or operating-system access control.
+    status: confirmed
+    required_before: implementation
+    evidence:
+      - OpenCode and the control plane currently run under the same Unix identity.
+
+implementation_notes:
+  plan_path: docs/plans/opencode-recovery/plan.yml
+  architecture: >
+    Split product execution from the coding control plane. Ship a minimal hotfix
+    first, then bind sessions to durable OpenMates task state through a local CLI
+    adapter. Build immutable runtime bundles and activate them atomically. Keep
+    product sessions stopped until deterministic and disposable-session gates pass.
+  existing_patterns:
+    - scripts/sessions.py atomic session-registry updates and OpenCode REST client.
+    - OpenMates CLI task and plan contracts from task-queue-auto-continuation.
+    - OpenCode Storage and Persist contexts for durable client state.
+    - Existing native-worktree integration and recovery refs.
+  data_flow:
+    - A new or restored OpenCode session resolves its session-scoped model binding.
+    - The session bridge resolves its OpenMates plan/task binding through the CLI adapter.
+    - The scheduler leases one runnable task and sends an internal execution turn carrying task generation and model binding.
+    - Tool progress and terminal task transitions are persisted idempotently.
+    - Assistant turn completion schedules another turn only when the durable task remains runnable.
+    - Structured proof records attach to the same task/run/commit and render directly.
+  affected_files:
+    - path: docs/plans/opencode-recovery/plan.yml
+      reason: Recovery contract and evidence ledger.
+    - path: opencode.json
+      reason: Remove the fixed primary-agent step cap and enable recovery feature flags.
+    - path: .opencode/plugins/openmates-hooks.js
+      reason: Disable media prompt delivery, protect control-plane paths, and integrate durable task scheduling.
+    - path: scripts/sessions.py
+      reason: Authoritative deploy protection, worktree invariant, task bridge, quarantine, and release support.
+    - path: scripts/start-opencode-server.sh
+      reason: Activate and verify one immutable runtime bundle.
+    - path: scripts/tests/
+      reason: Deterministic recovery regression coverage.
+    - path: /home/superdev/opencode/packages/app/src/context/models.tsx
+      reason: Persist model bindings by session rather than globally.
+    - path: /home/superdev/opencode/packages/app/src/context/local.tsx
+      reason: Resolve the current model from session-scoped state.
+  verification_strategy:
+    - Write focused red tests before each behavior change.
+    - Run unit and tooling tests without restarting the live server.
+    - Build and stage a release, verify hashes, then perform exactly one controlled restart.
+    - Validate behavior with disposable sessions before historical recovery.
+  verification_order:
+    - T-OPENCODE-STEPS
+    - T-MEDIA-HOTFIX
+    - T-CONTROL-PLANE-GUARD
+    - T-OPENCODE-MODELS
+    - T-WORKTREE-INVARIANT
+    - T-TASK-BRIDGE
+    - T-RUNTIME-RELEASE
+    - T-SECRET-CONFIG
+    - V-MEDIA-QUARANTINE
+    - V-RUNTIME-MANIFEST
+    - V-DISPOSABLE-SESSIONS
+    - V-HISTORICAL-RECOVERY
+    - V-CREDENTIAL-ROTATION
+
+tasks:
+  - id: TASK-1
+    title: Freeze, snapshot, quarantine media, and add recovery guards
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5]}
+    expected_files: [.opencode/plugins/openmates-hooks.js, scripts/sessions.py, scripts/tests/test_opencode_hooks_contract.mjs, scripts/tests/test_opencode_control_plane_guard.py]
+    ownership: {files: [.opencode/plugins/openmates-hooks.js, scripts/sessions.py], shared_files: []}
+    verification_ids: [T-MEDIA-HOTFIX, T-CONTROL-PLANE-GUARD, V-MEDIA-QUARANTINE]
+    dependencies: []
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    independently_deployable: true
+  - id: TASK-2
+    title: Remove the step cap and isolate model selection per session
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2]}
+    expected_files: [opencode.json, scripts/patches/opencode-v1.17.20-session-model-binding.patch, /home/superdev/opencode/packages/opencode/src/session/index.ts, /home/superdev/opencode/packages/opencode/src/session/prompt.ts, /home/superdev/opencode/packages/opencode/src/session/model.ts]
+    ownership: {files: [opencode.json, scripts/patches/opencode-v1.17.20-session-model-binding.patch], shared_files: [/home/superdev/opencode/packages/opencode/src/session/index.ts, /home/superdev/opencode/packages/opencode/src/session/prompt.ts, /home/superdev/opencode/packages/opencode/src/session/model.ts]}
+    verification_ids: [T-OPENCODE-MODELS, T-OPENCODE-STEPS]
+    dependencies: [TASK-1]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    independently_deployable: true
+  - id: TASK-3
+    title: Repair worktree deployment state and restore active preservation
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
+    expected_files: [scripts/sessions.py, scripts/tests/test_sessions_native_worktree_lifecycle.py, scripts/tests/test_sessions_worktree_cleanup.py]
+    ownership: {files: [scripts/sessions.py, scripts/tests/test_sessions_native_worktree_lifecycle.py, scripts/tests/test_sessions_worktree_cleanup.py], shared_files: []}
+    verification_ids: [T-WORKTREE-INVARIANT]
+    dependencies: [TASK-2]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    independently_deployable: true
+  - id: TASK-4
+    title: Bind OpenCode execution to durable OpenMates Plans and Tasks
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-3, S-7], acceptance_criteria: [AC-3, AC-7]}
+    expected_files: [scripts/sessions.py, .opencode/plugins/openmates-hooks.js, scripts/tests/test_opencode_task_bridge.py, scripts/tests/test_opencode_task_bridge_hook.mjs]
+    ownership: {files: [scripts/sessions.py, .opencode/plugins/openmates-hooks.js, scripts/tests/test_opencode_task_bridge.py, scripts/tests/test_opencode_task_bridge_hook.mjs], shared_files: []}
+    verification_ids: [T-TASK-BRIDGE]
+    dependencies: [TASK-5]
+    blockers: []
+    follow_up_tasks: [TASK-6]
+    independently_deployable: false
+  - id: TASK-5
+    title: Build and activate a reproducible atomic OpenCode runtime release
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-8], acceptance_criteria: [AC-8]}
+    expected_files: [scripts/start-opencode-server.sh, scripts/tests/test_opencode_runtime_release.py]
+    ownership: {files: [scripts/start-opencode-server.sh, scripts/tests/test_opencode_runtime_release.py], shared_files: []}
+    verification_ids: [T-RUNTIME-RELEASE, V-RUNTIME-MANIFEST]
+    dependencies: [TASK-3]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    independently_deployable: false
+  - id: TASK-6
+    title: Validate disposable sessions and recover historical chats sequentially
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-7, S-8], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-7, AC-8]}
+    expected_files: [docs/plans/opencode-recovery/plan.yml]
+    ownership: {files: [docs/plans/opencode-recovery/plan.yml], shared_files: []}
+    verification_ids: [V-DISPOSABLE-SESSIONS, V-HISTORICAL-RECOVERY]
+    dependencies: [TASK-4]
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+implementation_state:
+  phase: implementation
+  subject_commit: 744bbe3baf4fbf64583310a724945e68ff220104
+  active_task: TASK-5
+  last_updated: "2026-08-28T00:00:00Z"
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-28T00:00:00Z"
+    actor: user
+    basis: The user approved the proposed recovery plan and requested an executable spec followed by implementation.
+  plan:
+    status: approved
+    approved_at: "2026-08-28T00:00:00Z"
+    actor: user
+    basis: The user explicitly requested implementation after the spec is created.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep provider choice flexible and bind model selection to each chat.
+    reason: Cross-chat global model state caused unexpected provider changes.
+    decided_at: "2026-08-28T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use durable OpenMates Plan and Task state to schedule continuation without a fixed tool-step cap.
+    reason: Useful work duration is task-dependent and cannot be represented by a global step number.
+    decided_at: "2026-08-28T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Ordinary product chats cannot own control-plane changes.
+    reason: Product work previously changed the traffic controller and destabilized unrelated chats.
+    decided_at: "2026-08-28T00:00:00Z"
+
+attempts:
+  - id: ATT-1
+    task_id: TASK-1
+    outcome: planned
+    approach: Create and validate the recovery contract in a clean Codex-owned worktree before touching the live runtime.
+    recorded_at: "2026-08-28T00:00:00Z"
+
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: Private orchestration tooling has no changed observable product surface; focused tooling tests and disposable-session probes provide completion evidence.
+    classified_at: "2026-08-28T00:00:00Z"
+    verification_ids: [T-RUNTIME-RELEASE, V-DISPOSABLE-SESSIONS]
+
+handoff:
+  current_task_id: TASK-5
+  status: in_progress
+  last_verified: null
+  last_verified_commit: 744bbe3baf4fbf64583310a724945e68ff220104
+  next_action: Add failing media-quarantine and control-plane guard tests in the isolated recovery worktree.
+  command: python3 -m pytest scripts/tests/test_opencode_control_plane_guard.py && node --test scripts/tests/test_opencode_hooks_contract.mjs
+  expected_outcome: Focused red tests demonstrate that media injection and unprivileged control-plane mutation are currently possible.
+  blocker: null

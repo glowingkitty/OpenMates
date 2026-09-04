@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import time
 from types import SimpleNamespace
@@ -59,6 +60,7 @@ class FakeFiles:
 
 class FakeE2BSandbox:
     create_kwargs: dict | None = None
+    discovery_stdout: str = ""
 
     def __init__(self) -> None:
         self.sandbox_id = "sandbox-1"
@@ -69,6 +71,9 @@ class FakeE2BSandbox:
     def _run_command(self, *_args, **kwargs):
         if kwargs.get("background"):
             return SimpleNamespace(wait=lambda **_wait_kwargs: SimpleNamespace(exit_code=0))
+        command = str(_args[0]) if _args else ""
+        if "OPENMATES_CODE_RUN_DISCOVER_OUTPUTS" in command:
+            return SimpleNamespace(exit_code=0, stdout=self.discovery_stdout, stderr="")
         return SimpleNamespace(exit_code=0)
 
     @classmethod
@@ -80,6 +85,7 @@ class FakeE2BSandbox:
         self.killed = True
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_dependency_commands_install_selected_packages_without_manifests() -> None:
     commands = _dependency_commands(
         [CodeRunFile(path="main.py", language="python")],
@@ -95,6 +101,7 @@ def test_dependency_commands_install_selected_packages_without_manifests() -> No
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.request.validated,code-run.execution.e2b-only
 def test_dependency_commands_prefer_explicit_manifests() -> None:
     commands = _dependency_commands(
         [
@@ -123,6 +130,7 @@ def test_dependency_commands_prefer_explicit_manifests() -> None:
         (CodeRunFile(path="main.go", language="go"), ["command -v go", "go run main.go"]),
     ],
 )
+# contract-test: supporting surface=rest_api assertions=code-run.execution.e2b-only,code-run.surface-parity
 def test_run_command_supports_compiled_language_targets(file: CodeRunFile, expected_parts: list[str]) -> None:
     command = _run_command_for_file(file)
 
@@ -130,12 +138,14 @@ def test_run_command_supports_compiled_language_targets(file: CodeRunFile, expec
         assert part in command
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible
 def test_redact_execution_output_allows_harmless_env_api_key_placeholder() -> None:
     output = "api_key = os.getenv('SERVICE_API_KEY', 'demo-placeholder')\nprint('ok')"
 
     assert redact_execution_output(output) == output
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.stream-status-visible
 def test_interruptible_command_kills_active_handle_when_cancelled() -> None:
     sandbox = FakeSandbox()
 
@@ -151,6 +161,7 @@ def test_interruptible_command_kills_active_handle_when_cancelled() -> None:
     assert sandbox.commands.handle.killed is True
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.execution.e2b-only,code-run.request.validated
 def test_run_code_passes_explicit_e2b_network_controls(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "e2b", SimpleNamespace(Sandbox=FakeE2BSandbox))
 
@@ -169,3 +180,41 @@ def test_run_code_passes_explicit_e2b_network_controls(monkeypatch: pytest.Monke
         "allow_internet_access": False,
         "network": {"allow_public_traffic": False},
     }
+
+
+# contract-test: direct surface=rest_api assertions=code-run.artifacts.explicit-only,code-run.execution.e2b-only
+def test_run_code_collects_explicit_output_artifacts_before_teardown(monkeypatch: pytest.MonkeyPatch) -> None:
+    FakeE2BSandbox.discovery_stdout = json.dumps({
+        "artifacts": [
+            {
+                "path": "outputs/chart.png",
+                "normalized_path": "outputs/chart.png",
+                "mime_type": "image/png",
+                "kind": "image",
+                "size_bytes": 4,
+                "content_base64": "ZGF0YQ==",
+            }
+        ],
+        "skipped": [{"path": "outputs/.env", "reason": "hidden_or_secret_path"}],
+    })
+    monkeypatch.setitem(sys.modules, "e2b", SimpleNamespace(Sandbox=FakeE2BSandbox))
+
+    result = run_code_in_e2b(
+        [CodeRunFile(path="main.py", language="python", content="print('ok')", is_target=True)],
+        "main.py",
+        lambda _kind, _text: None,
+        "test-key",
+    )
+
+    assert result.artifacts == [
+        {
+            "path": "outputs/chart.png",
+            "normalized_path": "outputs/chart.png",
+            "mime_type": "image/png",
+            "kind": "image",
+            "size_bytes": 4,
+            "content_base64": "ZGF0YQ==",
+        }
+    ]
+    assert result.skipped_artifacts == [{"path": "outputs/.env", "reason": "hidden_or_secret_path"}]
+    assert result.sandbox_id == "sandbox-1"

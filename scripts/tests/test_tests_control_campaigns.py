@@ -282,6 +282,164 @@ def test_ambiguous_campaign_overlap_returns_structured_selection_without_mutatio
     )
 
 
+def test_daily_recovery_links_legacy_campaigns_and_owns_only_unclaimed_failures(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    first_key, _ = create_parallel_campaign(control, group_count=1, campaign_key="campaign-first")
+    second_key, second_groups = create_parallel_campaign(
+        control,
+        group_count=1,
+        campaign_key="campaign-second",
+        group_prefix="second-group",
+    )
+    second_test_key = "vitest::frontend/test-2.test.ts"
+    control.get_store().update_debug_group(
+        second_groups[0]["group_key"],
+        {"member_test_keys": [second_test_key]},
+    )
+    control.get_store().update_debug_campaign(
+        second_key,
+        {"selected_test_keys": [second_test_key]},
+    )
+    control.record_run_result(failed_run("first.spec.ts", run_id="run-daily"))
+    selected_test_keys = [
+        "vitest::frontend/test-1.test.ts",
+        second_test_key,
+        "vitest::frontend/test-3.test.ts",
+    ]
+    monkeypatch.setattr(control, "build_triage", lambda: {"entries": [
+        {"key": key, "group_id": f"daily-{index}"}
+        for index, key in enumerate(selected_test_keys, start=1)
+    ]})
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "daily-coordinator")
+    legacy_state = (
+        control._debug_campaign(first_key).copy(),
+        control._debug_campaign(second_key).copy(),
+        [group.copy() for group in control.debug_groups_for_campaign(first_key)],
+        [group.copy() for group in control.debug_groups_for_campaign(second_key)],
+    )
+
+    campaign = control.start_debug_campaign(
+        session_id="daily-coordinator",
+        daily_recovery=True,
+    )
+
+    assert campaign["completion_policy"]["daily_recovery_milestone"] is True
+    assert campaign["metadata"]["ownership_campaign_keys"] == [first_key, second_key]
+    assert campaign["metadata"]["linked_owned_test_keys"] == selected_test_keys[:2]
+    assert campaign["selected_test_keys"] == selected_test_keys
+    groups = control.debug_groups_for_campaign(campaign["campaign_key"])
+    assert [group["member_test_keys"] for group in groups] == [["vitest::frontend/test-3.test.ts"]]
+    assert legacy_state == (
+        control._debug_campaign(first_key),
+        control._debug_campaign(second_key),
+        control.debug_groups_for_campaign(first_key),
+        control.debug_groups_for_campaign(second_key),
+    )
+    legacy_metadata = dict(campaign["metadata"])
+    legacy_metadata.pop("linked_owned_test_keys")
+    control.get_store().update_debug_campaign(campaign["campaign_key"], {"metadata": legacy_metadata})
+    resumed = control.start_debug_campaign(session_id="daily-coordinator", daily_recovery=True)
+    assert resumed["metadata"]["linked_owned_test_keys"] == selected_test_keys[:2]
+
+    daily_run = {
+        "run_id": "run-daily-milestone",
+        "flags": {
+            "daily": True,
+            "suite": "all",
+            "only_failed": False,
+            "critical_phase": {"status": "passed"},
+            "notification_channels": {
+                "email": {"configured": True, "status": "provider_accepted"},
+                "discord": {"configured": True, "status": "provider_accepted"},
+            },
+        },
+        "summary": {
+            "executed_product_failed": 3,
+            "infrastructure_incident": 0,
+            "dispatch_error": 0,
+            "blocked_by_parent": 0,
+        },
+        "suites": {"vitest": {"tests": [
+            {"file": key.removeprefix("vitest::"), "status": "failed"}
+            for key in selected_test_keys
+        ]}},
+    }
+    control.record_run_result(daily_run)
+
+    milestone = control.record_daily_recovery_milestone(
+        campaign["campaign_key"],
+        "run-daily-milestone",
+    )
+
+    assert milestone["campaign"]["metadata"]["daily_recovery_milestone"]["checks"][
+        "remaining_failures_owned"
+    ] is True
+
+
+def test_daily_recovery_requires_direct_group_for_regression_from_green_linked_group(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    legacy_key, legacy_groups = create_parallel_campaign(control, group_count=2)
+    control.get_store().update_debug_group(legacy_groups[0]["group_key"], {"status": "green"})
+    regressed_test_key = "vitest::frontend/test-1.test.ts"
+    pending_test_key = "vitest::frontend/test-2.test.ts"
+    current_entries = [{"key": pending_test_key, "group_id": "daily-pending"}]
+    monkeypatch.setattr(control, "build_triage", lambda: {"entries": current_entries})
+    monkeypatch.setenv("OPENCODE_SESSION_ID", "daily-coordinator")
+
+    campaign = control.start_debug_campaign(session_id="daily-coordinator", daily_recovery=True)
+
+    assert campaign["metadata"]["ownership_campaign_keys"] == [legacy_key]
+    assert campaign["metadata"]["linked_owned_test_keys"] == [pending_test_key]
+    assert control.debug_groups_for_campaign(campaign["campaign_key"]) == []
+    milestone_run = {
+        "run_id": "run-regression",
+        "flags": {
+            "daily": True,
+            "suite": "all",
+            "only_failed": False,
+            "critical_phase": {"status": "passed"},
+            "notification_channels": {
+                "email": {"configured": True, "status": "provider_accepted"},
+                "discord": {"configured": True, "status": "provider_accepted"},
+            },
+        },
+        "summary": {"executed_product_failed": 1},
+        "suites": {"vitest": {"tests": [
+            {"file": regressed_test_key.removeprefix("vitest::"), "status": "failed"},
+        ]}},
+    }
+    control.record_run_result(milestone_run)
+
+    unowned = control.record_daily_recovery_milestone(campaign["campaign_key"], "run-regression")
+
+    assert unowned["campaign"]["metadata"]["daily_recovery_milestone"]["unowned_failure_keys"] == [
+        regressed_test_key
+    ]
+    current_entries.append({"key": regressed_test_key, "group_id": "daily-regression"})
+    refreshed = control.start_debug_campaign(session_id="daily-coordinator", daily_recovery=True)
+    assert [group["member_test_keys"] for group in control.debug_groups_for_campaign(
+        refreshed["campaign_key"]
+    )] == [[regressed_test_key]]
+    owned = control.record_daily_recovery_milestone(campaign["campaign_key"], "run-regression")
+    assert owned["campaign"]["metadata"]["daily_recovery_milestone"]["unowned_failure_keys"] == []
+
+
+def test_daily_result_retains_failed_file_key_when_later_case_passes(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    shared_file = "frontend/shared-file.test.ts"
+    run = {
+        "run_id": "run-daily",
+        "suites": {"vitest": {"tests": [
+            {"name": "failed case", "file": shared_file, "status": "failed", "error": "failure"},
+            {"name": "passing case", "file": shared_file, "status": "passed"},
+        ]}},
+    }
+
+    state = control.record_run_result(run, source="daily_runner", workflow="daily")
+
+    assert state["tests"][f"vitest::{shared_file}"]["status"] == "failed"
+
+
 def test_campaign_start_with_campaign_key_requires_existing_coordinator(tmp_path, monkeypatch):
     control = load_tests_control(tmp_path, monkeypatch)
     campaign_key, _groups = create_parallel_campaign(control, group_count=1)

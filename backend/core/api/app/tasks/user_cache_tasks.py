@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import hashlib
+import os
 from typing import Optional, List, Dict, Any
 
 from backend.core.api.app.tasks.celery_config import app
@@ -8,6 +9,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData
+from backend.shared.python_utils.object_storage_regions import parse_storage_regions
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +196,7 @@ def _cached_chat_list_item_from_details(
         encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
         encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+        encrypted_auto_speak_response=chat_data.get("encrypted_auto_speak_response"),
         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
         is_shared=chat_data.get("is_shared"),
         is_private=chat_data.get("is_private"),
@@ -841,6 +844,7 @@ async def _warm_cache_phase_three(
                 encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
                 encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+                encrypted_auto_speak_response=chat_data.get("encrypted_auto_speak_response"),
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
                 is_private=chat_data.get("is_private"),
@@ -1294,7 +1298,6 @@ async def _async_delete_user_account(
         # note email task (only when email_encryption_key is available).
         if refund_invoices:
             try:
-                import os
                 from backend.core.api.app.services.payment.payment_service import PaymentService
                 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -1543,7 +1546,6 @@ async def _async_delete_user_account(
             stripe_subscription_id = (stripe_fields or {}).get("stripe_subscription_id")
 
             if stripe_customer_id or stripe_subscription_id:
-                import os
                 from backend.core.api.app.services.payment.payment_service import PaymentService
                 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -1670,17 +1672,10 @@ async def _async_delete_user_account(
             # 10-year lifecycle policy as a safety net anyway.
             deleted_s3_pdfs = 0
             skipped_s3_pdfs = 0
+            invoice_s3_keys: set[str] = set()
             invoice_ciphertexts = [*invoices, *invoice_versions]
             if invoice_ciphertexts:
                 try:
-                    from backend.core.api.app.services.s3.service import S3UploadService
-                    from backend.core.api.app.utils.secrets_manager import SecretsManager
-
-                    pdf_secrets_manager = SecretsManager()
-                    await pdf_secrets_manager.initialize()
-                    invoice_s3_service = S3UploadService(secrets_manager=pdf_secrets_manager)
-                    await invoice_s3_service.initialize()
-
                     user_data_for_vault = await directus_service.get_user_fields_direct(
                         user_id, ["vault_key_id"]
                     )
@@ -1688,9 +1683,11 @@ async def _async_delete_user_account(
 
                     for inv in invoice_ciphertexts:
                         enc_s3_key = inv.get("encrypted_s3_object_key")
-                        if not enc_s3_key or not vault_key_id_for_pdfs:
+                        if not enc_s3_key:
                             skipped_s3_pdfs += 1
                             continue
+                        if not vault_key_id_for_pdfs:
+                            raise RuntimeError("Cannot delete invoice PDF without Vault key")
                         try:
                             s3_object_key = await encryption_service.decrypt_with_user_key(
                                 enc_s3_key, vault_key_id_for_pdfs
@@ -1698,23 +1695,35 @@ async def _async_delete_user_account(
                             if not s3_object_key:
                                 skipped_s3_pdfs += 1
                                 continue
-                            await invoice_s3_service.delete_file("invoices", s3_object_key)
-                            deleted_s3_pdfs += 1
+                            invoice_s3_keys.add(s3_object_key)
                         except Exception as s3_err:
                             logger.error(
                                 f"[DELETE_ACCOUNT] Failed to delete S3 PDF for invoice "
                                 f"{inv.get('id')} (user {user_id}): {s3_err}"
                             )
-                except Exception as s3_init_err:
+                            raise RuntimeError("Cannot resolve invoice PDF storage reference") from s3_err
+                except Exception as s3_reference_err:
                     logger.error(
-                        f"[DELETE_ACCOUNT] Could not initialize S3 for invoice PDF deletion "
-                        f"(user {user_id}): {s3_init_err}. Directus rows will still be deleted; "
-                        f"S3 objects will be reaped by the 10-year lifecycle policy."
+                        f"[DELETE_ACCOUNT] Could not resolve invoice PDF storage references "
+                        f"for user {user_id}: {s3_reference_err}"
                     )
+                    raise
 
-            logger.info(
-                f"[DELETE_ACCOUNT] Invoice PDFs: deleted {deleted_s3_pdfs} from S3, "
-                f"skipped {skipped_s3_pdfs} (user {user_id})"
+            from backend.core.api.app.services.storage_reference_service import (
+                StorageReferenceInventory,
+                activate_storage_tombstones,
+                persist_reference_safe_tombstones,
+            )
+
+            invoice_tombstones = await persist_reference_safe_tombstones(
+                directus_service=directus_service,
+                deleting=StorageReferenceInventory(
+                    references={("invoices", key) for key in invoice_s3_keys},
+                    ambiguous=[],
+                ),
+                surviving=StorageReferenceInventory(references=set(), ambiguous=[]),
+                regions=parse_storage_regions(os.getenv("S3_REGIONS")),
+                now=datetime.now(timezone.utc),
             )
 
             invoice_ids = [i.get("id") for i in invoices if i.get("id")]
@@ -1722,23 +1731,52 @@ async def _async_delete_user_account(
                 version.get("id") for version in invoice_versions if version.get("id")
             ]
             if invoice_version_ids:
-                await directus_service.bulk_delete_items(
+                if not await directus_service.bulk_delete_items(
                     "invoice_ciphertext_versions",
                     invoice_version_ids,
-                )
+                ):
+                    raise RuntimeError("Failed to delete invoice ciphertext version rows")
             if invoice_ids:
-                await directus_service.bulk_delete_items("invoices", invoice_ids)
+                if not await directus_service.bulk_delete_items("invoices", invoice_ids):
+                    raise RuntimeError("Failed to delete invoice rows")
+            await activate_storage_tombstones(
+                directus_service=directus_service,
+                tombstones=invoice_tombstones,
+                now=datetime.now(timezone.utc),
+            )
+            deleted_s3_pdfs = len(invoice_tombstones)
             logger.info(
                 f"[DELETE_ACCOUNT] Deleted {len(invoice_ids)} invoices and "
-                f"{len(invoice_version_ids)} ciphertext versions for user {user_id}"
+                f"{len(invoice_version_ids)} ciphertext versions; prepared "
+                f"{deleted_s3_pdfs} regional PDF purge(s), skipped {skipped_s3_pdfs} "
+                f"for user {user_id}"
             )
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting invoices for user {user_id}: {e}", exc_info=True)
+            raise
 
         logger.info(f"[DELETE_ACCOUNT] Phase 2 complete for user {user_id}")
         
         # ===== PHASE 3: User Content & Data =====
         logger.info(f"[DELETE_ACCOUNT] Phase 3: Deleting user content for user {user_id}")
+
+        # Durable deletion authority must outlive the content and owner rows.
+        from backend.core.api.app.services.storage_reference_service import (
+            fence_account_chats_for_deletion,
+            persist_account_storage_tombstones,
+        )
+        await fence_account_chats_for_deletion(
+            directus_service=directus_service,
+            user_id_hash=user_id_hash,
+        )
+        account_storage_tombstones = await persist_account_storage_tombstones(
+            directus_service=directus_service,
+            user_id=user_id,
+            user_id_hash=user_id_hash,
+            regions=parse_storage_regions(os.getenv("S3_REGIONS")),
+            now=datetime.now(timezone.utc),
+            encryption_service=encryption_service,
+        )
         
         # 12. Delete chats, messages, embeds (using bulk delete for efficiency)
         # Note: chats uses hashed_user_id, not user_id
@@ -1785,15 +1823,36 @@ async def _async_delete_user_account(
             
             # Bulk delete: messages first, then embeds, then chats (respecting foreign key constraints)
             if all_message_ids:
-                await directus_service.bulk_delete_items("messages", all_message_ids)
+                if not await directus_service.bulk_delete_items("messages", all_message_ids):
+                    raise RuntimeError("Failed to delete account message rows")
             if all_embed_ids:
-                await directus_service.bulk_delete_items("embeds", all_embed_ids)
+                if not await directus_service.bulk_delete_items("embeds", all_embed_ids):
+                    raise RuntimeError("Failed to delete account embed rows")
             if chat_ids:
-                await directus_service.bulk_delete_items("chats", chat_ids)
+                if not await directus_service.bulk_delete_items("chats", chat_ids):
+                    raise RuntimeError("Failed to delete account chat rows")
+
+            from backend.core.api.app.services.storage_reference_service import (
+                delete_account_storage_reference_rows,
+            )
+
+            deleted_storage_rows = await delete_account_storage_reference_rows(
+                directus_service=directus_service,
+                user_id=user_id,
+                user_id_hash=user_id_hash,
+            )
             
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(chat_ids)} chats, {len(all_message_ids)} messages, and {len(all_embed_ids)} embeds for user {user_id}")
+            logger.info(
+                f"[DELETE_ACCOUNT] Deleted {len(chat_ids)} chats, {len(all_message_ids)} messages, "
+                f"{len(all_embed_ids)} embeds, "
+                f"{deleted_storage_rows['upload_files']} upload references, "
+                f"{deleted_storage_rows['user_task_archives']} task archives, and "
+                f"{deleted_storage_rows['workspace_change_archives']} workspace archives "
+                f"for user {user_id}"
+            )
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting user content for user {user_id}: {e}", exc_info=True)
+            raise
         
         # 13. Delete usage data (using bulk delete for efficiency)
         try:
@@ -1816,10 +1875,12 @@ async def _async_delete_user_account(
                 )
                 summary_ids = [s.get("id") for s in (summaries or []) if s.get("id")]
                 if summary_ids:
-                    await directus_service.bulk_delete_items(collection, summary_ids)
+                    if not await directus_service.bulk_delete_items(collection, summary_ids):
+                        raise RuntimeError(f"Failed to delete account {collection} rows")
             logger.info(f"[DELETE_ACCOUNT] Deleted usage data for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting usage data for user {user_id}: {e}", exc_info=True)
+            raise
         
         # 14. Delete app memories (using bulk delete for efficiency)
         try:
@@ -1890,16 +1951,9 @@ async def _async_delete_user_account(
 
             deleted_cn_pdfs = 0
             skipped_cn_pdfs = 0
+            credit_note_s3_keys: set[str] = set()
             if credit_notes:
                 try:
-                    from backend.core.api.app.services.s3.service import S3UploadService
-                    from backend.core.api.app.utils.secrets_manager import SecretsManager
-
-                    pdf_secrets_manager = SecretsManager()
-                    await pdf_secrets_manager.initialize()
-                    cn_s3_service = S3UploadService(secrets_manager=pdf_secrets_manager)
-                    await cn_s3_service.initialize()
-
                     user_data_for_vault = await directus_service.get_user_fields_direct(
                         user_id, ["vault_key_id"]
                     )
@@ -1907,9 +1961,11 @@ async def _async_delete_user_account(
 
                     for cn in credit_notes:
                         enc_s3_key = cn.get("encrypted_s3_object_key")
-                        if not enc_s3_key or not vault_key_id_for_pdfs:
+                        if not enc_s3_key:
                             skipped_cn_pdfs += 1
                             continue
+                        if not vault_key_id_for_pdfs:
+                            raise RuntimeError("Cannot delete credit note PDF without Vault key")
                         try:
                             s3_object_key = await encryption_service.decrypt_with_user_key(
                                 enc_s3_key, vault_key_id_for_pdfs
@@ -1917,31 +1973,49 @@ async def _async_delete_user_account(
                             if not s3_object_key:
                                 skipped_cn_pdfs += 1
                                 continue
-                            await cn_s3_service.delete_file("invoices", s3_object_key)
-                            deleted_cn_pdfs += 1
+                            credit_note_s3_keys.add(s3_object_key)
                         except Exception as s3_err:
                             logger.error(
                                 f"[DELETE_ACCOUNT] Failed to delete S3 PDF for credit note "
                                 f"{cn.get('id')} (user {user_id}): {s3_err}"
                             )
-                except Exception as s3_init_err:
+                            raise RuntimeError("Cannot resolve credit note PDF storage reference") from s3_err
+                except Exception as s3_reference_err:
                     logger.error(
-                        f"[DELETE_ACCOUNT] Could not initialize S3 for credit note PDF deletion "
-                        f"(user {user_id}): {s3_init_err}. Directus rows will still be deleted; "
-                        f"S3 objects will be reaped by the 10-year lifecycle policy."
+                        f"[DELETE_ACCOUNT] Could not resolve credit note PDF storage references "
+                        f"for user {user_id}: {s3_reference_err}"
                     )
+                    raise
 
-            logger.info(
-                f"[DELETE_ACCOUNT] Credit note PDFs: deleted {deleted_cn_pdfs} from S3, "
-                f"skipped {skipped_cn_pdfs} (user {user_id})"
+            credit_note_tombstones = await persist_reference_safe_tombstones(
+                directus_service=directus_service,
+                deleting=StorageReferenceInventory(
+                    references={("invoices", key) for key in credit_note_s3_keys},
+                    ambiguous=[],
+                ),
+                surviving=StorageReferenceInventory(references=set(), ambiguous=[]),
+                regions=parse_storage_regions(os.getenv("S3_REGIONS")),
+                now=datetime.now(timezone.utc),
             )
 
             credit_note_ids = [c.get("id") for c in credit_notes if c.get("id")]
             if credit_note_ids:
-                await directus_service.bulk_delete_items("credit_notes", credit_note_ids)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(credit_note_ids)} credit notes for user {user_id}")
+                if not await directus_service.bulk_delete_items("credit_notes", credit_note_ids):
+                    raise RuntimeError("Failed to delete credit note rows")
+            await activate_storage_tombstones(
+                directus_service=directus_service,
+                tombstones=credit_note_tombstones,
+                now=datetime.now(timezone.utc),
+            )
+            deleted_cn_pdfs = len(credit_note_tombstones)
+            logger.info(
+                f"[DELETE_ACCOUNT] Deleted {len(credit_note_ids)} credit notes; prepared "
+                f"{deleted_cn_pdfs} regional PDF purge(s), skipped {skipped_cn_pdfs} "
+                f"for user {user_id}"
+            )
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting credit notes for user {user_id}: {e}", exc_info=True)
+            raise
         
         # 19. Delete creator income records (if user was a creator) - using bulk delete
         try:
@@ -1955,6 +2029,28 @@ async def _async_delete_user_account(
             logger.info(f"[DELETE_ACCOUNT] Deleted {len(income_ids)} creator income records for user {user_id}")
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting creator income for user {user_id}: {e}", exc_info=True)
+
+        # Remove the final live profile reference, then activate every prepared
+        # tombstone. Workers cannot purge while any account reference row exists.
+        profile_reference_cleared = await directus_service.update_user(
+            user_id,
+            {
+                "profile_image_s3_key": None,
+                "encrypted_profileimage_url": None,
+            },
+        )
+        if not profile_reference_cleared:
+            raise RuntimeError("Failed to clear account profile image references")
+
+        from backend.core.api.app.services.storage_reference_service import (
+            activate_storage_tombstones,
+        )
+
+        await activate_storage_tombstones(
+            directus_service=directus_service,
+            tombstones=account_storage_tombstones,
+            now=datetime.now(timezone.utc),
+        )
 
         # 20. Delete Vault transit key — MUST be the final content step.
         #     By now every step that needed to decrypt user data (refunds in Phase 2,

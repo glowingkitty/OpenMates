@@ -526,6 +526,7 @@ async def generate_inspirations(
     tool_def = _build_tool_definition(language)
 
     result = await call_preprocessing_llm(
+        observability_purpose="inspiration",
         task_id=task_id,
         model_id=INSPIRATION_MODEL_ID,
         message_history=messages,

@@ -79,6 +79,16 @@ export interface DeferredEmbedSnapshot {
    * After the upload completes, we look up the final contentRef from EmbedStore.
    */
   contentRef: string | null;
+  /** Recording display metadata persisted in the encrypted message reference. */
+  title?: string | null;
+  transcript?: string | null;
+  transcriptOriginal?: string | null;
+  transcriptCorrected?: string | null;
+  useCorrected?: boolean | null;
+  correctionModel?: string | null;
+  duration?: string | null;
+  waveform?: unknown;
+  model?: string | null;
 }
 
 /**
@@ -427,6 +437,19 @@ export function buildPendingSendPreviewContent(
           uploadEmbedId:
             embedSnapshot?.uploadEmbedId ?? node.attrs.uploadEmbedId,
           contentRef: embedSnapshot?.contentRef ?? node.attrs.contentRef,
+          title: embedSnapshot?.title ?? node.attrs.title,
+          transcript: embedSnapshot?.transcript ?? node.attrs.transcript,
+          transcriptOriginal:
+            embedSnapshot?.transcriptOriginal ?? node.attrs.transcriptOriginal,
+          transcriptCorrected:
+            embedSnapshot?.transcriptCorrected ?? node.attrs.transcriptCorrected,
+          useCorrected:
+            embedSnapshot?.useCorrected ?? node.attrs.useCorrected,
+          correctionModel:
+            embedSnapshot?.correctionModel ?? node.attrs.correctionModel,
+          duration: embedSnapshot?.duration ?? node.attrs.duration,
+          waveform: embedSnapshot?.waveform ?? node.attrs.waveform,
+          model: embedSnapshot?.model ?? node.attrs.model,
           status: progress?.status ?? node.attrs.status ?? "uploading",
         };
       }

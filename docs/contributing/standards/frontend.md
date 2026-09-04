@@ -128,12 +128,16 @@ Standards for modifying frontend code in `frontend/` - Svelte 5 components, Type
 
 ## Component Preview Requirements
 
-Every new `.svelte` component in `frontend/packages/ui/src/components/` MUST have a companion `.preview.ts` file:
+Every new or materially modified `.svelte` UI component in
+`frontend/packages/ui/src/components/` MUST be verifiable through the deployed
+component preview endpoint before broader flow specs:
 
 - **File location:** Next to the component: `ComponentName.preview.ts` alongside `ComponentName.svelte`
-- **Default export:** `Record<string, unknown>` — realistic mock props for the default state
+- **Default export:** `Record<string, unknown>` — realistic mock props for one semantically valid default state
 - **Variants export (recommended):** `Record<string, Record<string, unknown>>` — named variant prop sets for different states (e.g., `processing`, `error`, `loading`, `mobile`)
-- **Verify on dev preview:** After creating a new component, verify it renders at `app.dev.openmates.org/dev/preview/<component-path>` with the preview data
+- **Verify on dev preview:** After creating or changing a component, verify it at `https://app.dev.openmates.org/dev/preview/{component-path}?chrome=0`. Every inspection, test, screenshot, and recording must include `chrome=0` so only the component is visible, never the configuration UI. Use the `.preview.ts` default fixture for the standard state and encode every non-default input or configuration in URL query parameters such as `variant`, `props`, `theme`, `background`, and `width`.
+- **Focused component spec:** Add or update the smallest Playwright component spec before broader route/flow specs. Drive meaningful hover, focus, click, expanded/collapsed, and on/off states with assertions before named proof checkpoints.
+- **Proof media:** Embed the focused component proof video for every modified UI component. Use separate phone and laptop proof profiles only when responsive behavior differs. Derive still frames from the completed video only for failures, explicit requests, or ambiguous visual-intent inspection; do not create screenshot galleries or browser-side screenshot calls for component proof.
 
 This enables the `/dev/preview/` system to render every component for visual inspection and testing. Components without preview files show a "Render Error" panel.
 

@@ -11,6 +11,7 @@ import XCTest
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testImportedProviderMetadataDecryptsIntoRenderIdentity() async throws {
         let chatId = "chat-imported-provider"
         let key = SymmetricKey(data: Data(repeating: 7, count: 32))
@@ -46,6 +47,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(decrypted.renderDocumentForDisplay?.identity.modelName, "gemini-import")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testImportedProviderMappingMatchesWebContract() {
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "openmates")?.iconName, "openmates")
         XCTAssertEqual(ImportedAssistantProvider.resolve(category: "chatgpt")?.iconName, "openai")
@@ -57,11 +59,12 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,chats.surface.semantic-parity
     func testStableMessageBuildsOrderedWebSemanticBlocksOnce() throws {
         let content = """
         # Synthetic result
 
-        Intro with [OpenMates](wiki:OpenMates) and @researcher.
+        Intro with [OpenMates](wiki:OpenMates), [the source](embed:source-inline), and @researcher.
 
         ```json
         {"type":"app_skill_use","embed_id":"embed-search","app_id":"web","skill_id":"search"}
@@ -82,7 +85,10 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
             updatedAt: nil,
             appId: "web",
             isStreaming: false,
-            embedRefs: [EmbedRef(id: "embed-search", type: "app_skill_use", status: "finished", data: nil)],
+            embedRefs: [
+                EmbedRef(id: "embed-search", type: "app_skill_use", status: "finished", data: nil),
+                EmbedRef(id: "source-inline", type: "web-website", status: "finished", data: nil),
+            ],
             modelName: "Synthetic Model",
             senderName: "Synthetic Mate",
             category: "research",
@@ -107,10 +113,88 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         ])
         XCTAssertEqual(document.blocks[2].embedReferences.map(\.id), ["embed-search"])
         XCTAssertEqual(document.blocks[3].embedReferences.map(\.id), ["source-result"])
-        XCTAssertEqual(document.blocks[1].inlineEntities.map(\.kind), [.wiki, .mention])
+        XCTAssertEqual(document.blocks[1].inlineEntities.map(\.kind), [.wiki, .embed, .mention])
         XCTAssertEqual(message.renderDocumentForDisplay, document)
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testUnresolvedInlineEntitiesRetainReadableFallbackText() {
+        let entities = ChatHistoryInlineEntity.parse(
+            "Compare [Kyoto](wiki:Kyoto) with [the source](embed:missing-ref)."
+        )
+
+        XCTAssertEqual(entities.map(\.kind), [.wiki, .embed])
+        XCTAssertEqual(entities.map(\.displayText), ["Kyoto", "the source"])
+        XCTAssertEqual(entities.map(\.target), ["Kyoto", "missing-ref"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
+    func testResponsiveChatLayoutMatchesWebBreakpoints() {
+        XCTAssertEqual(ChatResponsiveLayoutPolicy.contentMaximumWidth, 1_000)
+        XCTAssertTrue(ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: 500))
+        XCTAssertFalse(ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: 501))
+        XCTAssertEqual(ChatResponsiveLayoutPolicy.inlineCompactComposerHeight, 48)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testResultsViewProtocolBuildsEmbedGroupWithoutExposingMetadata() throws {
+        let message = Message(
+            id: "message-results-view",
+            chatId: "chat-synthetic",
+            role: .assistant,
+            content: """
+            ```embeds_results_view
+            title: Mapped results
+            embeds: result-one, result-two
+            sources: source-one, result-two
+            highlight: source-one
+            ```
+            """,
+            encryptedContent: nil,
+            createdAt: "2026-01-01T00:00:00Z",
+            updatedAt: nil,
+            appId: "maps",
+            isStreaming: false,
+            embedRefs: [
+                EmbedRef(id: "result-one", type: "maps-place", status: "finished", data: nil),
+                EmbedRef(id: "result-two", type: "maps-place", status: "finished", data: nil),
+                EmbedRef(id: "source-one", type: "web-website", status: "finished", data: nil),
+            ]
+        )
+
+        let document = try XCTUnwrap(message.renderDocumentForDisplay)
+
+        XCTAssertEqual(document.blocks.map(\.kind), [.embedGroup])
+        XCTAssertEqual(
+            document.blocks[0].embedReferences.map(\.id),
+            ["result-one", "result-two", "source-one"]
+        )
+        XCTAssertFalse(document.blocks.contains { $0.kind == .codeBlock })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testInlineEmbedGroupsBoundAccessibilityCardCount() {
+        let embeds = (1...12).map { index in
+            EmbedRecord(
+                id: "result-\(index)",
+                type: "maps-place",
+                status: .finished,
+                data: nil,
+                parentEmbedId: nil,
+                appId: "maps",
+                skillId: "search",
+                embedIds: nil,
+                createdAt: nil
+            )
+        }
+
+        let groups = EmbedGrouper.groupForInlineDisplay(embeds)
+
+        XCTAssertEqual(groups.flatMap(\.embeds).map(\.id), Array(embeds.prefix(6)).map(\.id))
+        XCTAssertEqual(embeds.count, 12)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testSystemMessageRetainsRoleWithoutAssistantOwnership() throws {
         let message = Message(
             id: "message-system",
@@ -132,6 +216,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertTrue(document.blocks.allSatisfy { $0.messageId == message.id })
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity
     func testColdBootRestoresEncryptedIdentityAndExactRenderDocument() throws {
         let schema = Schema([PersistedChat.self, PersistedMessage.self])
         let configuration = ModelConfiguration(
@@ -179,6 +264,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         ])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testDecodedSyncMessageAcceptsEncryptedIdentityAliases() throws {
         let payload = """
         {
@@ -207,6 +293,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(message.renderDocumentForDisplay?.messageId, "message-decoded")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testMessageAccessibilityPolicyPrefersSemanticTextOverChildren() {
         XCTAssertEqual(
             ChatMessageAccessibilityPolicy.semanticLabel(
@@ -237,8 +324,39 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         )
     }
 
-    func testStreamingRenderPolicyUsesTransientPlainTextOnlyForActiveStream() {
-        XCTAssertTrue(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: "partial answer"))
-        XCTAssertFalse(ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: nil))
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testStreamingRenderPolicyPreservesVisibleMarkdownForRichRendering() {
+        let content = "Comparing **[Kyoto](wiki:Kyoto)** and [Osaka](wiki:Osaka)."
+
+        XCTAssertEqual(ChatMessageStreamingRenderPolicy.visibleContent(content), content)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
+    func testStreamingRenderPolicyHidesInternalProtocolFences() {
+        let content = """
+        ```json
+        {"type":"app_skill_use","embed_id":"embed-search","app_id":"web","skill_id":"search"}
+        ```
+
+        Visible answer.
+        """
+
+        XCTAssertEqual(ChatMessageStreamingRenderPolicy.visibleContent(content), "\nVisible answer.")
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"type\":\"app_skill_use\""),
+            "```json\n{\"type\":\"app_skill_use\""
+        )
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"embed-search\""),
+            ""
+        )
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"answer\":true"),
+            "```json\n{\"answer\":true"
+        )
+        XCTAssertEqual(
+            ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"answer\":true}\n```"),
+            "```json\n{\"answer\":true}\n```"
+        )
     }
 }

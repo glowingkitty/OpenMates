@@ -82,6 +82,18 @@ class MateConfig(BaseModel):
             "None = no restriction (inherit platform default). Not yet enforced."
         ),
     )
+    voice_profile: "MateVoiceProfile" = Field(
+        ..., description="Fixed versioned provider-neutral voice profile for assistant response speech."
+    )
+
+
+class MateVoiceProfile(BaseModel):
+    """Stable mate voice identity; provider configuration remains audio-internal."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: str = Field(..., min_length=1, pattern=r"^[a-z][a-z0-9_]*$")
+    version: int = Field(..., ge=1)
 
 
 # Directory containing one .md file per mate (filename = category).
@@ -185,6 +197,7 @@ def _build_mate_from_file(file_path: Path) -> MateConfig:
         "tools": tools,
         "model": model,
         "focus_modes": focus_modes,
+        "voice_profile": frontmatter.get("voice_profile"),
     }
 
     return MateConfig(**mate_data)

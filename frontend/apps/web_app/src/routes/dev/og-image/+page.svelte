@@ -94,10 +94,7 @@
 				<img src="/favicon.svg" alt="OpenMates logo" class="og-logo-icon" />
 				<span class="og-logo-name"><span class="og-logo-open">Open</span>Mates</span>
 			</div>
-			<h1 class="og-slogan">
-				Digital team mates<br />
-				<mark>For everyone.</mark>
-			</h1>
+			<h1 class="og-slogan">Your AI team for getting things done</h1>
 			<ul class="og-features">
 				<li><span class="og-check">&#x2714;</span> AI for everyday tasks &amp; learning</li>
 				<li><span class="og-check">&#x2714;</span> Privacy focus</li>
@@ -296,18 +293,6 @@
 		/* Intentional hardcoded: near-white text on dark bg for OG card */
 		color: #f0f0f0;
 		margin: 0 0 28px;
-	}
-
-	/* Gradient mark — matches HeroHeader/Login <mark> pattern */
-	.og-slogan mark {
-		background: linear-gradient(135deg, #4867cd 9.04%, #5a85eb 90.06%);
-		/* Intentional vendor prefix: required for gradient text in WebKit */
-		/* stylelint-disable-next-line property-no-vendor-prefix */
-		-webkit-background-clip: text;
-		background-clip: text;
-		/* stylelint-disable-next-line property-no-vendor-prefix */
-		-webkit-text-fill-color: transparent;
-		background-color: transparent;
 	}
 
 	/* ── Feature bullet points ─────────────────────────────────────────────────── */

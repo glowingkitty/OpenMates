@@ -353,8 +353,7 @@ enum MarkdownParser {
         "[[dev_focus_modes_group]]": .developerFocusModes,
         "[[settings_memories_group]]": .memories,
         "[[dev_settings_memories_group]]": .developerMemories,
-        "[[ai_models_group]]": .aiModels,
-        "[[for_developers_embed]]": .forDevelopers
+        "[[ai_models_group]]": .aiModels
     ]
 
     static func parse(_ text: String) -> [MarkdownBlock] {
@@ -413,6 +412,9 @@ enum MarkdownParser {
                     } else {
                         blocks.append(.interactiveQuestionFallback)
                     }
+                } else if isResultsViewLanguage(language) {
+                    let references = parseResultsViewReferences(code)
+                    blocks.append(references.isEmpty ? .hiddenProtocol : .embedGroup(references))
                 } else if let embed = parseFencedEmbedReference(language: language, code: code) {
                     blocks.append(.embedGroup([embed]))
                 } else {
@@ -561,6 +563,38 @@ enum MarkdownParser {
         let end = line.index(line.endIndex, offsetBy: -2)
         guard start < end else { return nil }
         return MarkdownEmbedReference(value: String(line[start..<end]), isRef: true, isLargePreview: true)
+    }
+
+    private static func isResultsViewLanguage(_ language: String?) -> Bool {
+        guard let language else { return false }
+        let normalized = language
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: \.isWhitespace)
+            .first?
+            .lowercased()
+        return normalized == "embeds_map_view" || normalized == "embeds_results_view"
+    }
+
+    private static func parseResultsViewReferences(_ code: String) -> [MarkdownEmbedReference] {
+        var references: [MarkdownEmbedReference] = []
+        var seen = Set<String>()
+
+        for rawLine in code.components(separatedBy: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !line.isEmpty, !line.hasPrefix("#"), let separator = line.firstIndex(of: ":") else {
+                continue
+            }
+            let key = line[..<separator].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard key == "embeds" || key == "sources" else { continue }
+            let values = line[line.index(after: separator)...].split(separator: ",")
+            for rawValue in values {
+                let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !value.isEmpty, seen.insert(value).inserted else { continue }
+                references.append(MarkdownEmbedReference(value: value, isRef: false, isLargePreview: false))
+            }
+        }
+
+        return references
     }
 
     private static func parseFencedEmbedReference(language: String?, code: String) -> MarkdownEmbedReference? {
@@ -728,7 +762,7 @@ struct RichMarkdownView: View {
                     onEmbedTap?(embed)
                 }
             } else {
-                ForEach(EmbedGrouper.group(visibleEmbeds)) { group in
+                ForEach(EmbedGrouper.groupForInlineDisplay(visibleEmbeds)) { group in
                     GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                         onEmbedTap?(embed)
                     }
@@ -804,7 +838,7 @@ struct RichMarkdownView: View {
                         onEmbedTap?(embed)
                     }
                 } else {
-                    let groups = EmbedGrouper.group(embeds)
+                    let groups = EmbedGrouper.groupForInlineDisplay(embeds)
                     ForEach(groups) { group in
                         GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                             onEmbedTap?(embed)
@@ -1450,7 +1484,7 @@ struct InlineMarkdownText: View {
             Text(highlightedText(text, isBold: isBold, highlightRanges: highlightRanges))
                 .font(.omP)
                 .fontWeight(isBold ? .semibold : .medium)
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
         case .inlineCode(let text):
             Text(highlightedText(text, isBold: false, highlightRanges: highlightRanges))
                 .font(.system(size: 14, design: .monospaced))
@@ -1765,7 +1799,7 @@ private struct WikiInlineChip: View {
             chipContent
         }
         .buttonStyle(.plain)
-        .fixedSize()
+        .fixedSize(horizontal: false, vertical: true)
         .opacity(isHovering ? 0.82 : 1)
         .contentShape(Rectangle())
         .onHover { hovering in
@@ -1854,7 +1888,7 @@ private struct EmbedInlineChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
-            .fixedSize()
+            .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
             .onHover { hovering in
@@ -1865,7 +1899,7 @@ private struct EmbedInlineChip: View {
             .accessibilityLabel(displayText)
         } else {
             chipContent
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
                 .opacity(isHovering ? 0.82 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(displayText)
@@ -1921,7 +1955,7 @@ private struct MarkdownLinkChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
-            .fixedSize()
+            .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
             .onHover(perform: updateHover)
@@ -1930,7 +1964,7 @@ private struct MarkdownLinkChip: View {
             .accessibilityLabel(displayText)
         } else {
             chipContent
-                .fixedSize()
+                .fixedSize(horizontal: false, vertical: true)
                 .opacity(isHovering ? 0.82 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(displayText)
@@ -1988,35 +2022,48 @@ private struct InlineMarkdownFlowLayout: Layout {
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let arrangement = arrangeSubviews(proposal: ProposedViewSize(width: bounds.width, height: proposal.height), subviews: subviews)
         for (index, origin) in arrangement.origins.enumerated() {
+            let size = arrangement.sizes[index]
             subviews[index].place(
                 at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y),
-                proposal: .unspecified
+                proposal: ProposedViewSize(width: size.width, height: size.height)
             )
         }
     }
 
-    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> (origins: [CGPoint], size: CGSize) {
+    private func arrangeSubviews(
+        proposal: ProposedViewSize,
+        subviews: Subviews
+    ) -> (origins: [CGPoint], sizes: [CGSize], size: CGSize) {
         let maxWidth = proposal.width ?? .infinity
         var origins: [CGPoint] = []
+        var sizes: [CGSize] = []
         var cursor = CGPoint.zero
         var lineHeight: CGFloat = 0
         var measuredWidth: CGFloat = 0
 
         for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if cursor.x > 0, cursor.x + size.width > maxWidth {
+            let idealSize = subview.sizeThatFits(.unspecified)
+            if cursor.x > 0, cursor.x + idealSize.width > maxWidth {
                 cursor.x = 0
                 cursor.y += lineHeight + lineSpacing
                 lineHeight = 0
             }
+            let availableWidth = maxWidth.isFinite ? max(0, maxWidth - cursor.x) : idealSize.width
+            let proposedWidth = min(idealSize.width, availableWidth)
+            let size = subview.sizeThatFits(ProposedViewSize(width: proposedWidth, height: nil))
 
             origins.append(cursor)
+            sizes.append(size)
             cursor.x += size.width + spacing
             lineHeight = max(lineHeight, size.height)
             measuredWidth = max(measuredWidth, cursor.x)
         }
 
-        return (origins, CGSize(width: min(measuredWidth, maxWidth), height: cursor.y + lineHeight))
+        return (
+            origins,
+            sizes,
+            CGSize(width: min(measuredWidth, maxWidth), height: cursor.y + lineHeight)
+        )
     }
 }
 
@@ -2397,6 +2444,8 @@ struct ListBlockView: View {
                         onEmbedTap: onEmbedTap,
                         searchHighlightQuery: searchHighlightQuery
                     )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(1)
                 }
             }
         }
@@ -2475,7 +2524,6 @@ enum DemoGroupKind {
     case memories
     case developerMemories
     case aiModels
-    case forDevelopers
 }
 
 private struct DemoRichGroupItem: Identifiable {
@@ -2552,10 +2600,6 @@ private struct DemoRichGroupView: View {
                 .init(id: "auto", title: AppStrings.autoSelectModel, subtitle: AppStrings.autoSelectDescription, appId: "ai", icon: "ai"),
                 .init(id: "simple", title: AppStrings.simpleRequests, subtitle: AppStrings.availableModels, appId: "ai", icon: "ai"),
                 .init(id: "complex", title: AppStrings.complexRequests, subtitle: AppStrings.availableProviders, appId: "ai", icon: "ai")
-            ]
-        case .forDevelopers:
-            return [
-                .init(id: "demo-for-developers", title: AppStrings.demoForDevelopersTitle, subtitle: AppStrings.demoForDevelopersDescription, appId: "code", icon: "code")
             ]
         }
     }

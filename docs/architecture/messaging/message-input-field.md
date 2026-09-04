@@ -5,6 +5,7 @@ key_files:
 - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
 - frontend/packages/ui/src/components/enter_message/editorConfig.ts
 - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+- frontend/packages/ui/src/components/enter_message/extensions/WikiInlineNode.ts
 - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
 - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
 - frontend/packages/ui/src/message_parsing/parse_message.ts
@@ -67,6 +68,7 @@ Key extensions:
 - **MateNode** / **AIModelMentionNode** / **BestModelMentionNode** / **GenericMentionNode** -- @mention atom nodes for team mates, AI models, and generic mentions.
 - **MarkdownExtensions** -- Syntax highlighting for headings, bold, italic, lists, etc. in edit mode.
 - **SourceQuoteNode** -- Styled clickable quote cards for `> [text](embed:ref)` patterns.
+- **WikiInlineNode** -- Read-only interactive Wikipedia references in sent messages. It preserves the selected article title and language and opens the proxied article fullscreen.
 - **Placeholder** -- Placeholder text when the editor is empty.
 
 ### Content Flow
@@ -96,7 +98,7 @@ Key extensions:
 
 ### Mentions
 
-The `@` character triggers [MentionDropdown.svelte](../../frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte). Mention search is handled by [mentionSearchService.ts](../../frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts), which searches mates, AI models, and app skills. Selected mentions insert atom nodes that serialize to `@mention` syntax.
+The `@` character triggers [MentionDropdown.svelte](../../frontend/packages/ui/src/components/enter_message/MentionDropdown.svelte). Mention search is handled by [mentionSearchService.ts](../../frontend/packages/ui/src/components/enter_message/services/mentionSearchService.ts), which searches mates, AI models, app skills, and explicitly activated Wikipedia titles. Generic `@` discovery does not send query text to Wikimedia. Selecting a Wiki result inserts an atom node serialized as `@wikipedia:<language>:<percent-encoded-title>`. Read mode converts that canonical directive into an interactive `WikiInlineNode`; write mode retains the directive so editing and reserialization remain lossless.
 
 ### Drafts
 

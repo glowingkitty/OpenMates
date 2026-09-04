@@ -1,10 +1,12 @@
 ---
 status: active
-last_verified: 2026-03-24
+last_verified: 2026-08-24
 key_files:
 - backend/core/api/app/routes/payments.py
 - backend/core/api/app/services/payment/stripe_service.py
 - backend/core/api/app/services/billing_service.py
+- backend/core/api/app/services/billing_settlement_service.py
+- backend/core/api/app/tasks/billing_settlement_tasks.py
 - shared/config/pricing.yml
 claims:
 - id: arch-payments-payment-processing-behavior
@@ -82,6 +84,16 @@ sequenceDiagram
 3. Stripe.js handles card input and 3D Secure if required.
 4. On success, Stripe sends `payment_intent.succeeded` webhook.
 5. Backend extracts order details from metadata, decrypts and adds credits, updates cache, broadcasts balance via WebSocket.
+
+### Credit Settlement Reliability
+
+- Dragonfly stores the server-only plaintext balance projection and serializes personal balance mutations by hashed billing subject.
+- Directus remains authoritative: each charge atomically compares the encrypted balance snapshot, updates it, inserts raw usage, and records the immutable charge identity.
+- A valid projection avoids a pre-commit balance read. Cache misses and bounded CAS recovery read and decrypt one authoritative snapshot before rebuilding the projection.
+- Exhausted stale-balance conflicts create a Vault-encrypted `billing_settlement_outbox` row. Celery retries reuse the original charge ID; a periodic sweep recovers failed broker dispatches.
+- Retry exhaustion transitions to `manual_review` and increments an operational alert metric. A retryable conflict never changes a finalized AI response to failed once durable recovery exists.
+- Refunds use the same subject lock, encrypted-balance CAS, and a stable durable refund identity so response-loss replay cannot credit twice.
+- Analytics counters and WebSocket notifications are derived post-commit effects. Their failures are logged but cannot reverse or fail an authoritative committed charge or refund.
 
 ### Chargeback Prevention
 

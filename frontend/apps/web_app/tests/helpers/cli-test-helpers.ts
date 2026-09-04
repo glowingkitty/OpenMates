@@ -13,7 +13,7 @@
  */
 export {};
 
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const REPOSITORY_ROOT = path.resolve(__dirname, '../../../../..');
@@ -40,6 +40,26 @@ function deriveApiUrl(baseUrl: string): string {
 	return 'https://api.openmates.org';
 }
 
+function extractCliProofFrame(
+	videoPath: string,
+	run = spawnSync
+): Buffer {
+	const result = run('ffmpeg', [
+		'-v', 'error',
+		'-sseof', '-0.1',
+		'-i', videoPath,
+		'-frames:v', '1',
+		'-f', 'image2pipe',
+		'-vcodec', 'png',
+		'pipe:1'
+	], {encoding: null, maxBuffer: 16 * 1024 * 1024});
+	if (result.error || result.status !== 0 || !Buffer.isBuffer(result.stdout) || result.stdout.length === 0) {
+		const detail = result.error?.message || result.stderr?.toString() || 'empty frame output';
+		throw new Error(`CLI proof frame extraction failed: ${String(detail).slice(-1000)}`);
+	}
+	return result.stdout;
+}
+
 /**
  * Spawn the CLI with API key auth and return stdout/stderr/exit code.
  * Automatically prepends --api-key if OPENMATES_TEST_ACCOUNT_API_KEY is set.
@@ -48,15 +68,18 @@ async function runCli(
 	apiUrl: string,
 	args: string[],
 	timeoutMs = 30_000,
-	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
-): Promise<{ code: number | null; stdout: string; stderr: string }> {
+	options: { useApiKey?: boolean; record?: boolean; env?: Record<string, string | undefined> } = {}
+): Promise<{ code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }> {
 	const apiKey = options.useApiKey === false ? undefined : process.env.OPENMATES_TEST_ACCOUNT_API_KEY;
 	const cliDir = path.dirname(path.dirname(CLI_DIST));
 	const allArgs = apiKey ? ['--api-key', apiKey, ...args] : args;
-	const shouldRecord = process.env.OPENMATES_CLI_RECORD_E2E === '1' && !cliRecordingCreated;
+	const shouldRecord = options.record !== false
+		&& (process.env.OPENMATES_CLI_RECORD_E2E === '1' || options.env?.OPENMATES_CLI_RECORD_E2E === '1')
+		&& !cliRecordingCreated;
 	if (shouldRecord) {
 		cliRecordingCreated = true;
-		const specSlug = String(process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
+		const startedAt = performance.now();
+		const specSlug = String(options.env?.OPENMATES_E2E_SPEC || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e')
 			.replace(/\.spec\.ts$/, '')
 			.replace(/[^A-Za-z0-9._-]+/g, '-');
 		const outputDir = path.resolve(process.cwd(), 'test-results', 'cli-recordings', specSlug);
@@ -95,15 +118,28 @@ async function runCli(
 					const stdout = manifest.command_output_path && fs.existsSync(manifest.command_output_path)
 						? fs.readFileSync(manifest.command_output_path, 'utf8')
 						: out.join('');
-					resolve({code: manifest.exit_status ?? code, stdout, stderr: err.join('')});
+					resolve({
+						code: manifest.exit_status ?? code,
+						stdout,
+						stderr: err.join(''),
+						durationMs: performance.now() - startedAt,
+						recording: {
+							outputDir,
+							videoPath: String(manifest.video_path || path.join(outputDir, 'raw-terminal.mp4')),
+							manifestPath: String(manifest.manifest_path || path.join(outputDir, 'manifest.json')),
+							transcriptPath: String(manifest.transcript_path || path.join(outputDir, 'transcript.txt')),
+							eventsPath: String(manifest.events_path || path.join(outputDir, 'events.jsonl'))
+						}
+					});
 				} catch (error: any) {
-					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`});
+					resolve({code, stdout: out.join(''), stderr: `${err.join('')}\n${error.message}`, durationMs: performance.now() - startedAt});
 				}
 			});
 		});
 	}
 
 	return new Promise((resolve) => {
+		const startedAt = performance.now();
 		// cli-e2e-recording: shared-recorder-fallback
 		const child = spawn('node', [CLI_DIST, ...allArgs], {
 			env: {
@@ -121,13 +157,52 @@ async function runCli(
 		child.stderr.on('data', (d: Buffer) => err.push(d.toString()));
 		const timeout = setTimeout(() => {
 			child.kill('SIGTERM');
-			resolve({ code: null, stdout: out.join(''), stderr: err.join('') });
+			resolve({ code: null, stdout: out.join(''), stderr: err.join(''), durationMs: performance.now() - startedAt });
 		}, timeoutMs);
 		child.on('close', (code: number | null) => {
 			clearTimeout(timeout);
-			resolve({ code, stdout: out.join(''), stderr: err.join('') });
+			resolve({ code, stdout: out.join(''), stderr: err.join(''), durationMs: performance.now() - startedAt });
 		});
 	});
+}
+
+async function runCliProof(
+	apiUrl: string,
+	args: string[],
+	testInfo: any,
+	definition: any,
+	timeoutMs = 30_000,
+	options: { useApiKey?: boolean; env?: Record<string, string | undefined> } = {}
+): Promise<{ result: { code: number | null; stdout: string; stderr: string; durationMs: number; recording?: Record<string, string> }; proof: any; recording: Record<string, string> }> {
+	const { createVideoProofRuntime } = require('./video-proof.ts');
+	const specName = path.basename(testInfo.file || process.env.OPENMATES_E2E_SPEC || 'openmates-cli-e2e.spec.ts');
+	const proofState: {recording?: Record<string, string>} = {};
+	const proof = createVideoProofRuntime(definition, {
+		device: 'cli-terminal',
+		attach: async (name: string, attachment: {body: Buffer; contentType: string}) => testInfo.attach(name, attachment),
+		captureFrame: async () => {
+			if (!proofState.recording) throw new Error('CLI proof checkpoint was captured before the terminal recording completed');
+			return extractCliProofFrame(proofState.recording.videoPath);
+		}
+	});
+	const result = await proof.action('run-openmates-cli', async () => runCli(apiUrl, args, timeoutMs, {
+		...options,
+		env: {
+			...options.env,
+			OPENMATES_CLI_RECORD_E2E: '1',
+			OPENMATES_E2E_SPEC: specName
+		}
+	}));
+	if (!result.recording) throw new Error('CLI proof run did not produce a real terminal recording');
+	const recording = result.recording;
+	proofState.recording = recording;
+	await testInfo.attach('openmates-cli-real-terminal-video', {path: recording.videoPath, contentType: 'video/mp4'});
+	await testInfo.attach('openmates-cli-real-terminal-manifest', {path: recording.manifestPath, contentType: 'application/json'});
+	await testInfo.attach('openmates-cli-real-terminal-transcript', {path: recording.transcriptPath, contentType: 'text/plain'});
+	if (fs.existsSync(recording.eventsPath)) {
+		await testInfo.attach('openmates-cli-real-terminal-events', {path: recording.eventsPath, contentType: 'application/jsonl'});
+	}
+	return {result, proof, recording};
 }
 
 /**
@@ -170,7 +245,9 @@ function expectCliSuccess(
 module.exports = {
 	CLI_DIST,
 	deriveApiUrl,
+	extractCliProofFrame,
 	runCli,
+	runCliProof,
 	parseCliJson,
 	expectCliSuccess
 };

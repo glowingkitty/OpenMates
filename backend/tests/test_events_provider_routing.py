@@ -9,7 +9,11 @@ from typing import Any
 
 import pytest
 
-from backend.apps.events.skills.search_skill import SearchRequest, SearchSkill
+from backend.tests.runtime_import_stubs import install_code_route_import_stubs
+
+install_code_route_import_stubs()
+
+from backend.apps.events.skills.search_skill import SearchRequest, SearchSkill  # noqa: E402
 
 pytestmark = pytest.mark.anyio
 
@@ -28,6 +32,7 @@ async def _no_secrets(*args: Any, **kwargs: Any) -> tuple[None, None]:
     return None, None
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.surface-parity
 async def test_top_level_eventbrite_does_not_fallback_to_auto(monkeypatch: pytest.MonkeyPatch) -> None:
     """A user-requested Eventbrite search must not call Meetup/Luma after failure."""
 
@@ -64,6 +69,7 @@ async def test_top_level_eventbrite_does_not_fallback_to_auto(monkeypatch: pytes
     assert response.results[0]["error"] == "Eventbrite search failed: Eventbrite unavailable"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.surface-parity
 async def test_unknown_explicit_provider_is_visible_error(monkeypatch: pytest.MonkeyPatch) -> None:
     """Invalid explicit providers should fail visibly instead of becoming auto."""
 
@@ -91,14 +97,12 @@ async def test_unknown_explicit_provider_is_visible_error(monkeypatch: pytest.Mo
     assert response.results[0]["error"] == "Unknown events provider: luna"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.conference.supported,events-search.request.validated
 async def test_event_schedule_provider_allows_conference_without_location(monkeypatch: pytest.MonkeyPatch) -> None:
     """Conference searches should not require a city location when conference is set."""
 
     skill = _make_skill()
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
-
-    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-        return payload
 
     async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
         return [
@@ -111,10 +115,6 @@ async def test_event_schedule_provider_allows_conference_without_location(monkey
             }
         ], 1, None
 
-    monkeypatch.setattr(
-        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
-        fake_sanitize,
-    )
     monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
 
     response = await skill.execute(
@@ -129,14 +129,12 @@ async def test_event_schedule_provider_allows_conference_without_location(monkey
     assert response.results[0]["results"][0]["title"] == "Evaluating machine learning models"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.conference.supported,events-search.request.validated
 async def test_event_schedule_provider_allows_conference_without_query(monkeypatch: pytest.MonkeyPatch) -> None:
     """Conference-only searches should not fail validation when query is omitted."""
 
     skill = _make_skill()
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
-
-    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-        return payload
 
     async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
         return [
@@ -149,10 +147,6 @@ async def test_event_schedule_provider_allows_conference_without_query(monkeypat
             }
         ], 1, None
 
-    monkeypatch.setattr(
-        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
-        fake_sanitize,
-    )
     monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
 
     response = await skill.execute(
@@ -167,14 +161,12 @@ async def test_event_schedule_provider_allows_conference_without_query(monkeypat
     assert response.results[0]["results"][0]["title"] == "GPN24 schedule overview"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.results.actionable
 async def test_event_results_require_usable_url(monkeypatch: pytest.MonkeyPatch) -> None:
     """CLI and embed cards should not receive null event URLs."""
 
     skill = _make_skill()
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
-
-    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-        return payload
 
     async def fake_meetup(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
         return [
@@ -195,10 +187,6 @@ async def test_event_results_require_usable_url(monkeypatch: pytest.MonkeyPatch)
             },
         ], 2, None
 
-    monkeypatch.setattr(
-        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
-        fake_sanitize,
-    )
     monkeypatch.setattr(skill, "_search_meetup", fake_meetup)
 
     response = await skill.execute(
@@ -211,16 +199,15 @@ async def test_event_results_require_usable_url(monkeypatch: pytest.MonkeyPatch)
     events = response.results[0]["results"]
     assert [event["title"] for event in events] == ["Booking URL Event"]
     assert events[0]["url"] == "https://example.com/book"
+    assert "description" not in response.ignore_fields_for_inference
 
 
+# contract-test: direct surface=rest_api assertions=events-search.conference.supported,events-search.request.validated
 async def test_gpn24_conference_search_supports_ai_query(monkeypatch: pytest.MonkeyPatch) -> None:
     """Users should be able to search for a topic at the GPN24 conference."""
 
     skill = _make_skill()
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
-
-    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-        return payload
 
     async def fake_pretalx(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
         assert kwargs["query"] == "AI"
@@ -235,10 +222,6 @@ async def test_gpn24_conference_search_supports_ai_query(monkeypatch: pytest.Mon
             }
         ], 1, None
 
-    monkeypatch.setattr(
-        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
-        fake_sanitize,
-    )
     monkeypatch.setattr(skill, "_search_pretalx", fake_pretalx)
 
     response = await skill.execute(
@@ -253,6 +236,7 @@ async def test_gpn24_conference_search_supports_ai_query(monkeypatch: pytest.Mon
     assert response.results[0]["results"][0]["title"] == "AI at GPN24"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.results.actionable
 async def test_malformed_event_batch_item_does_not_block_valid_requests(monkeypatch: pytest.MonkeyPatch) -> None:
     """One missing-query LLM batch item should not turn the whole embed group into an error."""
 
@@ -288,14 +272,12 @@ async def test_malformed_event_batch_item_does_not_block_valid_requests(monkeypa
     assert response.results[2]["results"][0]["title"] == "developer events"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.surface-parity
 async def test_multi_provider_response_lists_queried_providers_without_results(monkeypatch: pytest.MonkeyPatch) -> None:
     """Embed previews should show all providers searched, not only result contributors."""
 
     skill = _make_skill()
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
-
-    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-        return payload
 
     async def empty_meetup(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
         return [], 0, None
@@ -310,10 +292,6 @@ async def test_multi_provider_response_lists_queried_providers_without_results(m
             }
         ], 1, None
 
-    monkeypatch.setattr(
-        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
-        fake_sanitize,
-    )
     monkeypatch.setattr(skill, "_search_meetup", empty_meetup)
     monkeypatch.setattr(skill, "_search_luma", luma_result)
 
@@ -334,14 +312,12 @@ async def test_multi_provider_response_lists_queried_providers_without_results(m
     assert response.results[0]["results"][0]["provider"] == "luma"
 
 
+# contract-test: direct surface=rest_api assertions=events-search.providers.explicit,events-search.conference.supported
 async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypatch: pytest.MonkeyPatch) -> None:
     """Auto mode should include pretalx only when the query names a known conference."""
 
     skill = _make_skill()
     monkeypatch.setattr(skill, "_get_or_create_secrets_manager", _no_secrets)
-
-    async def fake_sanitize(payload: list[dict[str, Any]], **kwargs: Any) -> list[dict[str, Any]]:
-        return payload
 
     async def empty_provider(*args: Any, **kwargs: Any) -> tuple[list[dict[str, Any]], int, None]:
         return [], 0, None
@@ -357,10 +333,6 @@ async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypat
             }
         ], 1, None
 
-    monkeypatch.setattr(
-        "backend.apps.events.skills.search_skill.sanitize_long_text_fields_in_payload",
-        fake_sanitize,
-    )
     monkeypatch.setattr(skill, "_search_meetup", empty_provider)
     monkeypatch.setattr(skill, "_search_luma", empty_provider)
     monkeypatch.setattr(skill, "_search_eventbrite", empty_provider)

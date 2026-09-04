@@ -115,9 +115,10 @@ preprocess_request_tool:
           - Default: 0.4 for most queries.
           - Increase for creative tasks (e.g., brainstorming, writing stories).
           - Decrease for factual recall or precision tasks (e.g., coding, technical explanations).
-      2.  **complexity**: Assess whether the request genuinely requires deep reasoning by a premium model, or whether a smaller, faster model would handle it just as well.
-          - 'simple': Use this for the majority of requests — factual lookups, skill-delegated tasks (flight/hotel/product search, news, maps, reminders, weather, appointments, video transcripts), straightforward questions, and summaries where the skill does the heavy lifting and the LLM just presents results. A smaller model is sufficient here.
-          - 'complex': Reserve this for tasks that inherently require deep multi-step reasoning, nuanced long-form writing, debugging intricate code, mathematical proofs, or where a meaningfully worse answer could cause real harm. Do NOT default to 'complex' out of caution — only use it when complexity genuinely matters.
+      2.  **complexity**: Assess whether the request genuinely requires deeper reasoning, or whether a smaller, faster model would handle it just as well.
+           - 'simple': Use this for the majority of requests — factual lookups, skill-delegated tasks (flight/hotel/product search, news, maps, reminders, weather, appointments, video transcripts), straightforward questions, and summaries where the skill does the heavy lifting and the LLM just presents results. A smaller model is sufficient here.
+           - 'complex': Reserve this for tasks that inherently require deep multi-step reasoning, nuanced long-form writing, debugging intricate code, mathematical proofs, or where a meaningfully worse answer could cause real harm. Do NOT default to 'complex' out of caution — only use it when complexity genuinely matters.
+           - 'most_demanding': Use only for sustained multi-stage reasoning plus an exceptional correctness or cross-system constraint, such as zero-downtime encrypted-data migrations across web, CLI, SDK, and native clients. Prompt length, stated importance, tool use, attachments, or dissatisfaction alone are insufficient.
       3.  **task_area**: Identify the primary task area/domain to help select the optimal model:
           - 'code': Programming, coding, software development, APIs, debugging, code review
           - 'math': Mathematics, calculations, statistics, data analysis, logical problems
@@ -214,8 +215,8 @@ preprocess_request_tool:
           description: "LLM temperature for the main response (0.0-2.0, default 0.4)."
         complexity:
           type: "string"
-          description: "Complexity of the request ('simple' or 'complex'). Use 'simple' for most requests including skill-delegated tasks (search, maps, reminders, news, flights, weather) and factual Q&A. Use 'complex' only when deep reasoning, nuanced writing, or intricate problem-solving is genuinely needed."
-          enum: ["simple", "complex"] # This enum is fine as it's a fixed small set
+          description: "Complexity of the request ('simple', 'complex', or 'most_demanding'). Use 'simple' for most requests including skill-delegated tasks and factual Q&A. Use 'complex' only when deep reasoning, nuanced writing, or intricate problem-solving is genuinely needed. Use 'most_demanding' only for sustained multi-stage reasoning plus exceptional correctness or cross-system constraints."
+          enum: ["simple", "complex", "most_demanding"]
         task_area:
           type: "string"
           description: "Primary task area for model selection: 'code' (programming), 'math' (calculations/logic), 'creative' (writing/art), 'instruction' (following instructions), 'general' (default for other topics)."

@@ -60,6 +60,10 @@ async function openImportSettings(page: any): Promise<void> {
 	await page.getByRole('menuitem', { name: /account/i }).click();
 	await page.getByRole('menuitem', { name: /import/i }).click();
 
+	const sourceSelect = page.getByTestId('account-import-source');
+	await expect(sourceSelect).toBeVisible({ timeout: 15000 });
+	await sourceSelect.selectOption('openmates');
+	await expect(sourceSelect).toHaveValue('openmates');
 	await expect(page.getByTestId(IMPORT_FILE_INPUT_TEST_ID)).toBeAttached({ timeout: 15000 });
 }
 
@@ -86,6 +90,7 @@ async function deleteChatByTitle(page: any, title: string): Promise<void> {
 	}
 }
 
+// contract-test: direct surface=gui.web assertions=account-import.source.explicit-selection,account-import.review.confirmed-results
 test('imports chats from ZIP in account settings and shows success results', async ({
 	page
 }: {

@@ -1,13 +1,19 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
-    import { onMount, onDestroy, tick } from 'svelte';
+    import { onMount, onDestroy, tick, untrack } from 'svelte';
     import { Editor } from '@tiptap/core';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { sanitizeText } from '../../utils/textSanitizer';
+    import { canonicalizeAiModelSelection, isAiModelSelectionUsable } from '../../utils/aiModelSelection';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import {
+        chatModelSelectionService,
+        registerChatModelSelectionSync,
+        type ChatModelSelection
+    } from '../../services/chatModelSelection';
     import { chatDB } from '../../services/db';
     import { isTeamAIInvocation } from '../../services/teamService';
     import { activeTeamId } from '../../stores/teamStore';
@@ -29,11 +35,13 @@
     import { getMatesById } from '../../data/matesMetadata';
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { appSettingsMemoriesStore } from '../../stores/appSettingsMemoriesStore';
+    import { isProviderHealthy } from '../../stores/appHealthStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
     import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
     import { userProfile } from '../../stores/userProfile'; // Import user profile to check credit balance
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore'; // For billing deeplink
     import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
+    import { notificationStore } from '../../stores/notificationStore';
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
@@ -53,6 +61,7 @@
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
     import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+    import { TextSelection } from '@tiptap/pm/state';
     import type { Content } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
     import type { AudioWaveformData } from '../../utils/audioWaveform';
@@ -85,6 +94,7 @@
     import {
         buildProjectMentionSyntax,
         extractMentionQuery,
+        resolveModelMentionSelection,
         type AnyMentionResult,
         type MateMentionResult,
         type ProjectMentionResult
@@ -138,6 +148,7 @@
         findPendingSendByEmbedId,
     } from '../../stores/pendingUploadStore';
     import { embedStore, type UploadedFileSearchResult } from '../../services/embedStore';
+    import { recoverUnavailableModelSelection, type UnavailableModelRecoveryPhase } from '../../services/unavailableModelRecovery';
 
     /** Unclosed block from streaming semantics analysis (code blocks, tables, URLs, etc.) */
     interface UnclosedBlock {
@@ -211,6 +222,8 @@
         anonymousFileAttachmentPending?: boolean;
         /** Logged-out welcome CTA treatment with icon, centered copy, and direct mic affordance. */
         guestCtaMode?: boolean;
+        autoSpeakResponse?: boolean;
+        onAssistantSpeechPreferenceChange: (enabled: boolean, chatId?: string) => Promise<void> | void;
     }
     let { 
         currentChatId = undefined,
@@ -234,7 +247,9 @@
         preserveChatIdOnNewChatCancellation = false,
         inlineCompact = false,
         anonymousFileAttachmentPending = $bindable(false),
-        guestCtaMode = false
+        guestCtaMode = false,
+        autoSpeakResponse = false,
+        onAssistantSpeechPreferenceChange
     }: Props = $props();
 
     // --- Refs ---
@@ -252,6 +267,135 @@
     let showCamera = $state(false);
     let showMaps = $state(false);
     let showSketch = $state(false);
+    let modelSelection = $state<ChatModelSelection>('auto');
+    let modelSelectionReady = $state(true);
+    let modelSelectionPersistenceRevision = $state(0);
+    let modelSelectionChatId = $state<string | undefined>(undefined);
+    let modelSelectionUserId = $state<string | null>(null);
+    let pendingNewChatModelSelection = $state<{ selection: ChatModelSelection; draftChatId: string | null } | null>(null);
+    let modelSelectionRestoreGeneration = 0;
+
+    function isModelSelectionUsable(selection: string): boolean {
+        const profile = get(userProfile);
+        return isAiModelSelectionUsable(
+            selection,
+            {
+                disabledModels: profile.disabled_ai_models,
+                disabledServers: profile.disabled_ai_servers,
+            },
+            get(isProviderHealthy),
+        );
+    }
+
+    async function recoverModelSelection(
+        phase: UnavailableModelRecoveryPhase,
+        selection: ChatModelSelection,
+        userId: string,
+        chatId: string
+    ): Promise<ChatModelSelection> {
+        const canonicalSelection = canonicalizeAiModelSelection(selection) ?? selection;
+        const recoveredSelection = await recoverUnavailableModelSelection({
+            phase,
+            selection: canonicalSelection,
+            isUsable: isModelSelectionUsable,
+            notify: () => notificationStore.error($text('enter_message.model_selector.unavailable_reset')),
+            persistSelection: async () => {
+                await chatModelSelectionService.select({ userId, chatId, selection: 'auto' });
+            }
+        });
+        if (canonicalSelection !== selection && recoveredSelection === canonicalSelection) {
+            await chatModelSelectionService.select({ userId, chatId, selection: canonicalSelection });
+        }
+        return recoveredSelection;
+    }
+
+    $effect(() => {
+        const userId = $userProfile.user_id;
+        const isAuthenticated = $authStore.isAuthenticated;
+        const chatId = currentChatId;
+        const pendingSelection = pendingNewChatModelSelection;
+        const previousContext = untrack(() => ({
+            userId: modelSelectionUserId,
+            chatId: modelSelectionChatId
+        }));
+
+        if (!userId || !isAuthenticated) {
+            modelSelectionRestoreGeneration += 1;
+            modelSelection = 'auto';
+            modelSelectionUserId = null;
+            modelSelectionChatId = chatId;
+            modelSelectionReady = true;
+            pendingNewChatModelSelection = null;
+            return;
+        }
+        if (isIncognitoMode) {
+            modelSelectionRestoreGeneration += 1;
+            const contextChanged = previousContext.userId !== userId || previousContext.chatId !== chatId;
+            modelSelectionUserId = userId;
+            modelSelectionChatId = chatId;
+            if (contextChanged) modelSelection = 'auto';
+            modelSelectionReady = true;
+            return;
+        }
+        if (!chatId) {
+            modelSelectionRestoreGeneration += 1;
+            modelSelectionUserId = userId;
+            modelSelectionChatId = chatId;
+            modelSelectionReady = true;
+            if (!chatId && !pendingSelection) modelSelection = 'auto';
+            return;
+        }
+        if (chatId === previousContext.chatId && userId === previousContext.userId) return;
+
+        const restoreGeneration = ++modelSelectionRestoreGeneration;
+        modelSelectionUserId = userId;
+        modelSelectionChatId = chatId;
+        modelSelectionReady = false;
+        if (pendingSelection && (!pendingSelection.draftChatId || pendingSelection.draftChatId === chatId)) {
+            modelSelection = pendingSelection.selection;
+            pendingNewChatModelSelection = null;
+            void chatModelSelectionService
+                .select({ userId, chatId, selection: pendingSelection.selection })
+                .then((persistedSelection) => {
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
+                    modelSelection = persistedSelection;
+                })
+                .catch((error) => {
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
+                    console.error('[MessageInput] Failed to persist new-chat model selection:', error);
+                    notificationStore.error($text('enter_message.model_selector.save_failed'));
+                })
+                .finally(() => {
+                    if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
+                });
+        } else {
+            modelSelection = 'auto';
+            void chatModelSelectionService
+                .restore({ userId, chatId })
+                .then((selection) => recoverModelSelection('load', selection, userId, chatId))
+                .then((selection) => {
+                    if (restoreGeneration === modelSelectionRestoreGeneration) modelSelection = selection;
+                })
+                .catch((error) => {
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
+                    console.error('[MessageInput] Failed to restore chat model selection:', error);
+                    notificationStore.error($text('enter_message.model_selector.load_failed'));
+                })
+                .finally(() => {
+                    if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
+                });
+        }
+    });
+    $effect(() => {
+        const userId = $userProfile.user_id;
+        if (!userId || !$authStore.isAuthenticated || isIncognitoMode) return;
+        return registerChatModelSelectionSync(userId, (chatId, selection, persistenceRevision) => {
+            if ($userProfile.user_id === userId && chatId === currentChatId) {
+                modelSelection = selection;
+                modelSelectionPersistenceRevision = persistenceRevision;
+            }
+        });
+    });
     // Keep the bindable isMapsOpen prop in sync with the local showMaps state so
     // the parent (ActiveChat) can react to the map overlay opening/closing.
     $effect(() => { isMapsOpen = showMaps; });
@@ -619,10 +763,21 @@
 
     const PLACEHOLDER_CYCLE_MS = 8000;
     const PLACEHOLDER_FADE_MS = 220;
+    const RECORDING_PLACEHOLDER_MIN_WIDTH_PX = 768;
+    const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
     let placeholderCycleTimer: ReturnType<typeof setInterval> | null = null;
     let placeholderCycleFadeTimer: ReturnType<typeof setTimeout> | null = null;
     let showRecordingPlaceholderHint = $state(false);
     let isPlaceholderFading = $state(false);
+
+    function isE2ELogForwardingActive(): boolean {
+        if (typeof sessionStorage === 'undefined') return false;
+        try {
+            return sessionStorage.getItem(E2E_LOG_FORWARDING_SESSION_KEY) !== null;
+        } catch {
+            return false;
+        }
+    }
 
     function isTouchInputDevice(): boolean {
         if (typeof window === 'undefined') return false;
@@ -630,7 +785,12 @@
     }
 
     function hasKeyboardShortcutSupport(): boolean {
-        return isDesktop();
+        return isDesktop() && window.innerWidth >= RECORDING_PLACEHOLDER_MIN_WIDTH_PX;
+    }
+
+    function canShowRecordingPlaceholderHint(): boolean {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth >= RECORDING_PLACEHOLDER_MIN_WIDTH_PX;
     }
 
     function getBasePlaceholderText(): string {
@@ -647,7 +807,12 @@
     }
 
     function updateCyclingPlaceholderText() {
-        if (showRecordingPlaceholderHint) {
+        if (isE2ELogForwardingActive()) {
+            messageInputPlaceholderOverride.set(getBasePlaceholderText());
+            return;
+        }
+
+        if (showRecordingPlaceholderHint && canShowRecordingPlaceholderHint()) {
             if (hasKeyboardShortcutSupport()) {
                 const shortcutKey = isMacPlatform()
                     ? 'enter_message.placeholder.record_shortcut_mac_desktop'
@@ -658,6 +823,22 @@
             }
         } else {
             messageInputPlaceholderOverride.set(getBasePlaceholderText());
+        }
+    }
+
+    function refreshPlaceholderOverrideForTranslations() {
+        if (guestCtaMode && !$authStore.isAuthenticated) {
+            messageInputPlaceholderOverride.set(getBasePlaceholderText());
+            return;
+        }
+
+        if (placeholderText) {
+            messageInputPlaceholderOverride.set(placeholderText);
+            return;
+        }
+
+        if (placeholderCycleTimer) {
+            updateCyclingPlaceholderText();
         }
     }
 
@@ -810,6 +991,8 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    let preserveComposerFocusOnNextBlur = false;
+    let preserveComposerFocusResetTimer: ReturnType<typeof setTimeout> | null = null;
     
     // --- Initial mount tracking ---
     let isInitialMount = $state(true); // Flag to prevent auto-focus during initial mount
@@ -2379,6 +2562,7 @@
         // for several seconds on page load because CustomPlaceholder calls get(text) at
         // TipTap init time, before the locale fetch completes.
         const unsubscribeText = text.subscribe(() => {
+            refreshPlaceholderOverrideForTranslations();
             if (editor && !editor.isDestroyed) {
                 editor.view.dispatch(editor.state.tr);
             }
@@ -2416,6 +2600,10 @@
     });
  
     onDestroy(() => {
+        if (preserveComposerFocusResetTimer) {
+            clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = null;
+        }
         // cleanup() is now called from the onMount return function.
         // Ensure event listeners specific to this component that were added outside onMount's return
         // (if any) are cleaned up here or in the onMount return.
@@ -2458,6 +2646,11 @@
             blurTimeoutId = null;
             console.debug('[MessageInput] Cancelled pending blur timeout - focus regained');
         }
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) {
+            clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = null;
+        }
         
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
@@ -2473,6 +2666,12 @@
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
         const chatIdAtBlur = currentChatId;
+        const preserveComposerFocusForThisBlur = preserveComposerFocusOnNextBlur;
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) {
+            clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = null;
+        }
         // Cancel any existing blur timeout before creating a new one
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -2484,6 +2683,11 @@
         // or when clicking on UI elements that should maintain focus
         blurTimeoutId = setTimeout(() => {
             blurTimeoutId = null; // Clear the timeout ID
+            if (preserveComposerFocusForThisBlur) {
+                isMessageFieldFocused = true;
+                isFocused = true;
+                return;
+            }
             // Check if editor is still actually blurred (not refocused)
             // This prevents race conditions where focus is regained quickly
             const editorDom = editor?.view.dom;
@@ -2620,39 +2824,53 @@
 
         // Insert the appropriate content based on result type
         // CRITICAL: Combine deleteRange and insert into a SINGLE chain to preserve cursor position
-        if (result.type === 'model_alias') {
-            // Use the BestModelMention node for alias shortcuts (@best, @fast)
-            // Shows @Best or @Fast in editor, serializes to @best-model:alias_id
-            const aliasResult = result as import('./services/mentionSearchService').ModelAliasMentionResult;
+        if (result.type === 'wikipedia_source') {
+            const wikipediaSearchSyntax = '@wiki:';
+            const wikipediaSearchEndPosition = atDocPosition + wikipediaSearchSyntax.length;
+            editor
+                .chain()
+                .deleteRange({ from: atDocPosition, to: from })
+                .insertContent(wikipediaSearchSyntax)
+                .run();
+            requestAnimationFrame(() => {
+                if (!editor || editor.isDestroyed) return;
+                editor.view.focus();
+                editor.view.dispatch(
+                    editor.state.tr
+                        .setSelection(TextSelection.create(editor.state.doc, wikipediaSearchEndPosition))
+                        .scrollIntoView()
+                );
+                mentionQuery = 'wiki:';
+                showMentionDropdown = true;
+            });
+            return;
+        }
+
+        if (result.type === 'wikipedia') {
+            let wikipediaReferenceCount = 0;
+            editor.state.doc.descendants((node) => {
+                if (node.type.name === 'genericMention' && node.attrs.mentionType === 'wikipedia') {
+                    wikipediaReferenceCount += 1;
+                }
+            });
+            if (wikipediaReferenceCount >= 3) {
+                notificationStore.error($text('enter_message.mention_dropdown.wikipedia_limit'));
+                return;
+            }
+        }
+
+        if (result.type === 'model_alias' || result.type === 'model') {
             editor
                 .chain()
                 .focus()
                 .deleteRange({ from: atDocPosition, to: from })
-                .setBestModelMention({
-                    category: aliasResult.aliasId,
-                    displayName: aliasResult.mentionDisplayName
-                })
-                .insertContent(' ')
                 .run();
-        } else if (result.type === 'model') {
-            // Use the custom AI model mention node for visual display
-            // Shows hyphenated name (e.g., "Claude-4.5-Opus") but serializes to @ai-model:id:provider
-            editor
-                .chain()
-                .focus()
-                .deleteRange({ from: atDocPosition, to: from })
-                .setAIModelMention({
-                    modelId: result.id,
-                    modelProvider: (result as import('./services/mentionSearchService').ModelMentionResult).providerId,
-                    displayName: result.mentionDisplayName
-                })
-                .insertContent(' ')
-                .run();
-            
-            // Debug: Log the editor state after insertion
-            console.info('[MentionSelect] DEBUG: After model insertion, editor JSON:', 
-                JSON.stringify(editor.getJSON(), null, 2)
-            );
+            const selection = resolveModelMentionSelection(result);
+            if (selection) void persistModelSelection(selection);
+            else {
+                modelSelection = 'auto';
+                notificationStore.error($text('enter_message.model_selector.unavailable_reset'));
+            }
         } else if (result.type === 'mate') {
             // Use the mate node which shows @Name with gradient color
             // Shows @Sophia but serializes to @mate:id
@@ -2671,10 +2889,10 @@
                 .insertContent(' ')
                 .run();
         } else {
-            // Use generic mention node for skills, focus modes, and settings/memories
+            // Use generic mention node for skills, focus modes, settings/memories, projects, and Wikipedia.
             // Shows @Code-Get-Docs, @Web-Research, @Code-Projects but serializes to backend syntax
             // Extract color gradient for the app-specific styling
-            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | ProjectMentionResult;
+            const genericResult = result as import('./services/mentionSearchService').SkillMentionResult | import('./services/mentionSearchService').FocusModeMentionResult | import('./services/mentionSearchService').SettingsMemoryMentionResult | import('./services/mentionSearchService').SettingsMemoryEntryMentionResult | import('./services/mentionSearchService').WikipediaMentionResult | ProjectMentionResult;
             const projectResult = isProjectMentionType(result.type) ? result as ProjectMentionResult : null;
             editor
                 .chain()
@@ -3135,7 +3353,6 @@
         window.addEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
-        messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
         // Handler for language change - updates placeholder text when language switches
         languageChangeHandler = () => {
             if (editor && !editor.isDestroyed) {
@@ -3156,12 +3373,15 @@
                         // Also update the placeholder attribute directly if the editor is empty
                         // This ensures the placeholder text is immediately visible in the new language
                         if (isContentEmptyExceptMention(editor)) {
+                            refreshPlaceholderOverrideForTranslations();
                             // Get the current placeholder text using the text store
                             const key = (typeof window !== 'undefined' && 
                                         (('ontouchstart' in window) || navigator.maxTouchPoints > 0)) ?
                                 'enter_message.placeholder.touch' :
                                 'enter_message.placeholder.desktop';
-                            const newPlaceholderText = placeholderText || $text(key);
+                            const newPlaceholderText = guestCtaMode && !$authStore.isAuthenticated
+                                ? getBasePlaceholderText()
+                                : placeholderText || $text(key);
                             
                             // Update the placeholder data attribute on the editor element
                             // TipTap's placeholder extension uses this attribute for display
@@ -3372,7 +3592,6 @@
         window.removeEventListener('embedUploadFinished', handleEmbedUploadFinished as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
-        messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
         window.removeEventListener('language-changed-complete', languageChangeHandler);
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
@@ -4032,7 +4251,16 @@
     }
 
     function handleMessageWrapperClick(event: MouseEvent) {
-        const chip = (event.target as HTMLElement).closest('[data-testid="project-access-chip"]') as HTMLElement | null;
+        const target = event.target as HTMLElement;
+        const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
+        const opensSeparateSurface = showMaps || showSketch || target.closest('[data-testid="composer-model-name"]');
+        if (preservesComposerFocus && !opensSeparateSurface) {
+            setTimeout(() => {
+                if (editor && !editor.isDestroyed) editor.commands.focus('end');
+            }, 0);
+        }
+
+        const chip = target.closest('[data-testid="project-access-chip"]') as HTMLElement | null;
         if (!chip) return;
         event.preventDefault();
         event.stopPropagation();
@@ -4046,6 +4274,17 @@
         event.preventDefault();
         event.stopPropagation();
         toggleProjectMentionAccess(chip);
+    }
+
+    function handleMessageWrapperFocusIn(event: FocusEvent) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-preserve-composer-focus="true"]')) return;
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
     }
 
     /**
@@ -4081,6 +4320,17 @@
         // Allow blur for interactive elements like buttons (outside suggestions)
         // But check if it's a suggestion button - those should maintain editor focus
         const isSuggestionButton = target.closest('.suggestion-item');
+        const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
+        if (preservesComposerFocus) {
+            if (target.closest('[data-testid="composer-model-name"]')) return;
+            preserveComposerFocusOnNextBlur = true;
+            if (preserveComposerFocusResetTimer) clearTimeout(preserveComposerFocusResetTimer);
+            preserveComposerFocusResetTimer = setTimeout(() => {
+                preserveComposerFocusOnNextBlur = false;
+                preserveComposerFocusResetTimer = null;
+            }, 0);
+            return;
+        }
         if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
@@ -4368,6 +4618,9 @@
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
         triggerSaveDraft(chatIdForRecording || currentChatId, editor);
+        if (!autoSpeakResponse && chatIdForRecording) {
+            await onAssistantSpeechPreferenceChange(true, chatIdForRecording);
+        }
         handleStopRecordingCleanup(); // Called here after recording is inserted
         await tick();
         focus();
@@ -4734,7 +4987,7 @@
         if (typeof testMockMarker !== 'string' || testMockMarker.trim().length === 0) return undefined;
 
         try {
-            const rawE2EState = sessionStorage.getItem('openmates_e2e_log_forwarding');
+            const rawE2EState = sessionStorage.getItem(E2E_LOG_FORWARDING_SESSION_KEY);
             if (!rawE2EState) return undefined;
             const parsedState = JSON.parse(rawE2EState) as { runId?: unknown; token?: unknown };
             if (typeof parsedState.runId !== 'string' || typeof parsedState.token !== 'string') {
@@ -4772,6 +5025,10 @@
         // pending embed resolves.
         if (pendingPasteEmbedCount > 0) {
             sendRequestedWhilePending = true;
+            return;
+        }
+        if (!modelSelectionReady) {
+            notificationStore.error($text('enter_message.model_selector.loading_wait'));
             return;
         }
 
@@ -4852,6 +5109,34 @@
             }
         }
 
+        if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:') && !editor.getText().includes('@best-model:')) {
+            const userId = $userProfile.user_id;
+            try {
+                if (userId && currentChatId) {
+                    modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
+                }
+            } catch (error) {
+                console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
+                modelSelection = 'auto';
+                notificationStore.error($text('enter_message.model_selector.unavailable_reset'));
+                hasContent = !isContentEmptyExceptMention(editor);
+                refreshDraftPreviewState(editor);
+                awaitingAITaskStart = false;
+                if (awaitingAITaskTimeoutId) {
+                    clearTimeout(awaitingAITaskTimeoutId);
+                    awaitingAITaskTimeoutId = null;
+                }
+                sendClickInProgress = false;
+                return;
+            }
+            const separator = modelSelection.indexOf('/');
+            if (separator > 0) {
+                const provider = modelSelection.slice(0, separator);
+                const modelId = modelSelection.slice(separator + 1);
+                editor.commands.insertContentAt(0, `@ai-model:${modelId}:${provider} `);
+            }
+        }
+
         void handleSend(
             editor,
             dispatch,
@@ -4886,6 +5171,64 @@
     function handleBuyCreditsClick() {
         console.info('[MessageInput] User clicked Buy credits — opening billing/buy-credits settings');
         settingsDeepLink.set('billing/buy-credits');
+        panelState.openSettings();
+    }
+
+    async function persistModelSelection(selection: ChatModelSelection): Promise<void> {
+        modelSelection = selection;
+        if (isIncognitoMode) return;
+        if (!$authStore.isAuthenticated) return;
+        const userId = $userProfile.user_id;
+        if (!userId || !currentChatId) {
+            pendingNewChatModelSelection = currentChatId
+                ? null
+                : { selection, draftChatId: get(draftEditorUIState).currentChatId };
+            return;
+        }
+        const selectionChatId = currentChatId;
+        const selectionGeneration = modelSelectionRestoreGeneration;
+        modelSelectionReady = false;
+
+        try {
+            const persistedSelection = await chatModelSelectionService.select({
+                userId,
+                chatId: selectionChatId,
+                selection
+            });
+            if (
+                selectionGeneration === modelSelectionRestoreGeneration &&
+                $userProfile.user_id === userId &&
+                currentChatId === selectionChatId
+            ) {
+                modelSelection = persistedSelection;
+            }
+        } catch (error) {
+            if (
+                selectionGeneration !== modelSelectionRestoreGeneration ||
+                $userProfile.user_id !== userId ||
+                currentChatId !== selectionChatId
+            ) return;
+            console.error('[MessageInput] Failed to persist chat model selection:', error);
+            notificationStore.error($text('enter_message.model_selector.save_failed'));
+        } finally {
+            if (
+                selectionGeneration === modelSelectionRestoreGeneration &&
+                $userProfile.user_id === userId &&
+                currentChatId === selectionChatId
+            ) {
+                modelSelectionReady = true;
+            }
+        }
+    }
+
+    function handleModelSelect(event: CustomEvent<{ selection: string }>): void {
+        void persistModelSelection(event.detail.selection);
+    }
+
+    function handleModelDetails(event: CustomEvent<{ modelId: string }>): void {
+        isMessageFieldFocused = false;
+        isFocused = false;
+        settingsDeepLink.set(`ai/model/${event.detail.modelId}`);
         panelState.openSettings();
     }
 
@@ -5733,6 +6076,7 @@
     onmousedown={handleMessageWrapperMouseDown}
     onclick={handleMessageWrapperClick}
     onkeydown={handleMessageWrapperKeyDown}
+    onfocusin={handleMessageWrapperFocusIn}
     data-action="message-input"
     data-current-chat-id={currentChatId ?? 'new-chat'}
 >
@@ -5790,6 +6134,7 @@
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {($recordingState.isRecordingActive || $recordingState.showRecordAudioUI) ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''} {showMaps ? 'maps-open' : ''} {isFullscreen ? 'fullscreen-expanded' : ''} {isDraftPreview ? 'draft-preview' : ''}"
         data-testid="message-field"
+        data-focused={isMessageFieldFocused}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
         class:inline-compact={inlineCompact && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
@@ -5957,7 +6302,7 @@
 
         {#if isDraftPreview && draftPreviewSummary}
             <div class="draft-preview-summary" data-testid="message-draft-summary" aria-hidden="true">
-                {draftPreviewSummary}
+                <span class="draft-preview-summary-text" data-testid="message-draft-summary-text">{draftPreviewSummary}</span>
             </div>
         {/if}
 
@@ -6011,10 +6356,17 @@
                     micPermissionState={$recordingState.micPermissionState}
                     {highlightPressHold}
                     isSketchOpen={showSketch}
+                    {modelSelection}
+                    showModelSelector={true}
+                    {modelSelectionReady}
+                    {modelSelectionPersistenceRevision}
+                    {autoSpeakResponse}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sketchClick={handleSketchClick}
+                    on:modelSelect={handleModelSelect}
+                    on:modelDetails={handleModelDetails}
                     on:sendMessage={handleSendMessage}
                     on:signUpClick={handleSignUpClick}
                     on:buyCreditsClick={handleBuyCreditsClick}
@@ -6023,6 +6375,7 @@
                     on:recordMouseLeave={onRecordMouseLeave}
                     on:recordTouchStart={onRecordTouchStart}
                     on:recordTouchEnd={onRecordTouchEnd}
+                    on:assistantSpeechToggle={(event) => onAssistantSpeechPreferenceChange(event.detail.enabled)}
                 />
             </div>
         {/if}
@@ -6084,7 +6437,7 @@
             <MapsView
                 defaultImprecise={defaultImprecise}
                 {isFullscreen}
-                on:close={() => showMaps = false}
+                on:close={() => { showMaps = false; focus(); }}
                 on:locationselected={handleLocationSelected}
                 on:toggleFullscreen={toggleFullscreen}
             />
@@ -6133,6 +6486,15 @@
 
     .message-field.placeholder-fading :global(.ProseMirror p.is-editor-empty:first-child::before) {
         opacity: 0;
+    }
+
+    .draft-preview-summary-text {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
 	.message-input-wrapper.guest-cta-mode {

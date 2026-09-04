@@ -6,6 +6,7 @@ Architecture Doc: See docs/architecture/app-skills.md for async auth-related flo
 Tests: N/A (this file is the Playwright E2E test entrypoint)
 */
 /* eslint-disable @typescript-eslint/no-require-imports */
+// proof-video: not_required reason=visual_smoke_not_needed
 export {};
 const { test, expect } = require('./helpers/cookie-audit');
 const consoleLogs: string[] = [];
@@ -50,8 +51,14 @@ const {
 	getE2EDebugUrl
 } = require('./signup-flow-helpers');
 const { openSignupInterface } = require('./helpers/chat-test-helpers');
+const { captureTestThumbnail, defineTestThumbnail } = require('./helpers/test-thumbnail');
 
 const SIGNUP_TEST_EMAIL_DOMAINS = process.env.SIGNUP_TEST_EMAIL_DOMAINS;
+const SIGNUP_THUMBNAIL = defineTestThumbnail({
+	id: 'password-signup',
+	focus: [{ testId: 'login-tabs' }],
+	padding: 48
+});
 
 function deriveApiUrl(baseUrl: string): string {
 	if (process.env.PLAYWRIGHT_TEST_API_URL) return process.env.PLAYWRIGHT_TEST_API_URL;
@@ -114,7 +121,7 @@ test('completes password signup, login with password, and delete account via ema
 	page: any;
 	context: any;
 	request: any;
-}) => {
+}, testInfo: any) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
 		consoleLogs.push(`[${timestamp}] [${msg.type()}] ${msg.text()}`);
@@ -187,6 +194,7 @@ test('completes password signup, login with password, and delete account via ema
 	const loginTabs = page.getByTestId('login-tabs');
 	await expect(loginTabs).toBeVisible();
 	await loginTabs.getByRole('button', { name: /sign up/i }).click();
+	await captureTestThumbnail(page, testInfo, SIGNUP_THUMBNAIL);
 	await takeStepScreenshot(page, 'signup-alpha');
 	await assertNoMissingTranslations(page);
 

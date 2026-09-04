@@ -53,6 +53,7 @@ from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_s
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
+from .handlers.websocket_handlers.assistant_speech_handler import handle_assistant_speech_event
 from .handlers.websocket_handlers.chat_recovery_job_handlers import (
     handle_recovery_job_claim,
     handle_recovery_job_persist,
@@ -100,6 +101,7 @@ from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     handle_get_compressed_chat_old_messages,
     handle_store_chat_compression_checkpoint,
 )
+from .handlers.websocket_handlers.chat_model_preference_handler import handle_chat_model_preference
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +111,19 @@ router = APIRouter(
 )
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
+SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
+    "segment_id",
+    "status",
+    "generated_asset_id",
+    "duration_seconds",
+    "error",
+    "retryable",
+    "sequence",
+    "kind",
+)
+SAFE_ASSISTANT_SPEECH_STATUSES = {"queued", "ready", "error"}
+SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS = ("clip_id", "audio_url")
+MAX_PENDING_EMBED_REPLAY_PER_CONNECTION = 20
 
 
 def _safe_payload_summary(payload: object) -> str:
@@ -744,6 +759,72 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 device_fingerprint_hash=device_hash
                             )
                             logger.info(f"AI Stream Listener: Forwarded '{event_type}' to active chat on {user_id_uuid}/{device_hash}")
+                    continue
+
+                if event_type in {"assistant_speech_status", "assistant_speech_acknowledgement"}:
+                    chat_id = redis_payload["chat_id"]
+                    message_id = redis_payload["message_id"]
+                    user_id_hash = redis_payload["user_id_hash"]
+                    speech_payload = redis_payload.get("payload")
+                    if not isinstance(speech_payload, dict):
+                        logger.warning(
+                            "AI Stream Listener: Malformed assistant speech event on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    if (
+                        event_type == "assistant_speech_status"
+                        and speech_payload.get("status") not in SAFE_ASSISTANT_SPEECH_STATUSES
+                    ):
+                        logger.warning(
+                            "AI Stream Listener: Invalid assistant speech status on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    if event_type == "assistant_speech_acknowledgement" and (
+                        not isinstance(speech_payload.get("clip_id"), str)
+                        or not str(speech_payload.get("audio_url") or "").startswith(
+                            "/audio/assistant-acknowledgements/"
+                        )
+                    ):
+                        logger.warning(
+                            "AI Stream Listener: Invalid assistant speech acknowledgement on channel "
+                            f"'{redis_channel_name}' (summary: {_safe_payload_summary(redis_payload)})"
+                        )
+                        continue
+                    owner_ids = [
+                        connected_user_id
+                        for connected_user_id in manager.active_connections
+                        if hashlib.sha256(connected_user_id.encode()).hexdigest() == user_id_hash
+                    ]
+                    if len(owner_ids) != 1:
+                        logger.warning(
+                            "AI Stream Listener: Could not uniquely route assistant speech event "
+                            f"for chat {chat_id}."
+                        )
+                        continue
+                    safe_fields = (
+                        SAFE_ASSISTANT_SPEECH_STATUS_FIELDS
+                        if event_type == "assistant_speech_status"
+                        else SAFE_ASSISTANT_SPEECH_ACKNOWLEDGEMENT_FIELDS
+                    )
+                    client_payload = {
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        **{
+                            field: speech_payload[field]
+                            for field in safe_fields
+                            if field in speech_payload
+                        },
+                    }
+                    owner_id = owner_ids[0]
+                    for device_hash in manager.get_connections_for_user(owner_id):
+                        if chat_id == manager.get_active_chat(owner_id, device_hash):
+                            await manager.send_personal_message(
+                                message={"type": event_type, "payload": client_payload},
+                                user_id=owner_id,
+                                device_fingerprint_hash=device_hash,
+                            )
                     continue
 
                 if event_type in ("task_event", "task_update_jobs_available"):
@@ -2036,14 +2117,16 @@ async def _deliver_pending_embeds(
         pending_ids = await cache_service.get_pending_embed_ids(user_id)
         if not pending_ids:
             return
+        pending_count = len(pending_ids)
+        replay_ids = pending_ids[:MAX_PENDING_EMBED_REPLAY_PER_CONNECTION]
 
         logger.info(
-            f"[PENDING_EMBEDS] Delivering {len(pending_ids)} pending embed(s) "
+            f"[PENDING_EMBEDS] Delivering {len(replay_ids)}/{pending_count} pending embed(s) "
             f"to user {user_id[:8]}... on device {device_fingerprint_hash[:8]}..."
         )
 
         delivered = 0
-        for embed_id in pending_ids:
+        for embed_id in replay_ids:
             try:
                 # Read vault-encrypted data from cache
                 client = await cache_service.client
@@ -2135,8 +2218,14 @@ async def _deliver_pending_embeds(
 
         if delivered > 0:
             logger.info(
-                f"[PENDING_EMBEDS] Delivered {delivered}/{len(pending_ids)} pending embeds "
+                f"[PENDING_EMBEDS] Delivered {delivered}/{len(replay_ids)} pending embeds "
                 f"to user {user_id[:8]}..."
+            )
+        remaining = pending_count - len(replay_ids)
+        if remaining > 0:
+            logger.info(
+                f"[PENDING_EMBEDS] Deferred {remaining} pending embed(s) "
+                f"for user {user_id[:8]}... to later client sync/reconnects"
             )
 
     except Exception as e:
@@ -2276,6 +2365,9 @@ async def websocket_endpoint(
         "is_admin": _user_data.get("is_admin", False),
         "debug_opted_in": _user_data.get("debug_logging_opted_in", False),
     }
+    from backend.shared.python_utils.e2e_user_detection import is_configured_test_account_profile
+
+    is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
     await manager.connect(
@@ -2419,6 +2511,7 @@ async def websocket_endpoint(
 
             elif message_type == "chat_turn_preflight":
                 await handle_chat_turn_preflight(
+                    websocket=websocket,
                     manager=manager,
                     directus_service=directus_service,
                     user_id=user_id,
@@ -2426,6 +2519,16 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "assistant_speech":
+                await handle_assistant_speech_event(
+                    manager=manager,
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             elif message_type == "recovery_job_claim":
@@ -2548,6 +2651,7 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    is_allowlisted_test_account=is_allowlisted_test_account,
                 )
 
             elif message_type == "chat_system_message_added":
@@ -2942,6 +3046,34 @@ async def websocket_endpoint(
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "get_chat_model_preference":
+                await handle_chat_model_preference(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    operation="get",
+                    user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "update_chat_model_preference":
+                await handle_chat_model_preference(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                    operation="update",
                     user_otel_attrs=user_otel_attrs,
                 )
 

@@ -11,12 +11,23 @@ changes to the documentation (to keep the documentation up to date).
 <script lang="ts">
     import { text } from '@repo/ui';
     import { tooltip } from '../../actions/tooltip';
+
+    let {
+        onClick = undefined,
+        'data-testid': testid = undefined,
+    }: {
+        onClick?: (() => void) | undefined;
+        'data-testid'?: string | undefined;
+    } = $props();
 </script>
 
 <button
+    type="button"
     use:tooltip 
     class="modify-button" 
     aria-label={$text('settings.modify')}
+    data-testid={testid}
+    onclick={onClick}
 ></button>
 
 <style>
@@ -24,6 +35,7 @@ changes to the documentation (to keep the documentation up to date).
         all: unset;
         width: 30px;
         height: 30px;
+        flex-shrink: 0;
         border-radius: 50%;
         background: var(--color-primary);
         cursor: pointer;
@@ -34,6 +46,11 @@ changes to the documentation (to keep the documentation up to date).
 
         &:hover {
             transform: scale(1.1);
+        }
+
+        &:focus-visible {
+            outline: 0.125rem solid var(--color-primary-start);
+            outline-offset: 0.125rem;
         }
 
         &::after {

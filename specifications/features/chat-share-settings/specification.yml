@@ -1,0 +1,121 @@
+schema_version: 1
+id: feature.chat-share-settings
+version: 1
+status: draft
+title: Chat Share Settings
+summary: >
+  The web Settings / Chats surface exposes chat-specific settings and sharing
+  controls without promoting Chats to a normal settings section, while keeping
+  generated share URLs explicit, selectable, and zero-knowledge safe.
+
+scope:
+  includes:
+    - Web Settings / Chats dynamic route opened from chat header controls or settings hash deep links.
+    - Chat settings header title, total known credits, scroll-collapsed title presentation, tabs, and root-back behavior.
+    - Chat Share tab generated-link, copy, QR, URL reveal, stop-sharing, public example static-link, and shared-viewer read-only states.
+    - Opening valid and invalid shared chat links on the logged-out web surface.
+  excludes:
+    - Embed sharing, which remains on the existing SettingsShare embed flow.
+    - New backend share APIs, Directus schema changes, SDKs, CLI, and Apple parity.
+    - Exact pixel values, animation durations, and OS clipboard success guarantees.
+
+models:
+  ChatSettingsShell:
+    route:
+      type: dynamic_settings_path
+      required: true
+      constraints: {pattern: "chats/{chat_id}", listed_in_root_navigation: false}
+    back_target:
+      type: settings_path
+      required: true
+      constraints: {value: main}
+    header:
+      type: visual_identity
+      required: true
+      constraints:
+        title_source: client_available_chat_metadata
+        credits_source: local_known_usage
+        expanded_alignment: centered
+        collapsed_title: single_line_ellipsis
+        restores_expanded_layout_on_scroll_top: true
+
+  ShareGeneratedControls:
+    copy_action:
+      type: button
+      required: true
+    qr_toggle:
+      type: button
+      required: true
+      constraints: {scrolls_qr_to_center: true, focuses_qr_region: true}
+    visible_url_under_copy:
+      type: boolean
+      required: true
+      constraints: {value: false}
+    url_reveal:
+      type: selectable_text
+      required: true
+      constraints: {requires_explicit_show_url_action: true, user_select: text}
+
+  SharedViewerControls:
+    readonly_notice:
+      type: text
+      required: true
+    owner_only_controls:
+      type: array
+      required: true
+      constraints: {hidden: [community_share, password, expiration, stop_sharing]}
+    original_link:
+      type: selectable_text
+      required: false
+      constraints: {requires_explicit_show_url_action: true}
+
+  SharedChatOpen:
+    valid_link:
+      type: behavior
+      required: true
+      constraints: {imports_shared_chat: true, transcript_visible: true, encrypted_key_fragment_not_logged: true}
+    invalid_link:
+      type: behavior
+      required: true
+      constraints: {shows_invalid_link_error: true, dummy_decrypted_content_absent: true}
+
+assertions:
+  - id: chat-share-settings.shell-navigation
+    type: behavior
+    must: Settings / Chats is a dynamic chat-specific settings route, not a root settings item; its banner shows centered chat title and known credits, collapses to a single-line ellipsized title on scroll, expands back at the top, and its breadcrumb/back button returns to the settings root instead of an unavailable Chats page.
+    depends_on: [models.ChatSettingsShell, examples.shell_navigation]
+  - id: chat-share-settings.generated-link-controls
+    type: behavior
+    must: Chat Share generated/public link states expose copy, QR, and explicit Show URL actions without rendering a URL under the copy button; Show QR scrolls/focuses the QR code, and Show URL reveals selectable text for the link.
+    depends_on: [models.ShareGeneratedControls, examples.generated_controls]
+  - id: chat-share-settings.readonly-viewer-controls
+    type: behavior
+    must: Shared-chat viewers see read-only chat settings that hide owner-only community, password, expiration, and stop-sharing controls while preserving explicit copy, QR, URL reveal, and download actions where the original link is available.
+    depends_on: [models.SharedViewerControls, examples.shared_viewer]
+  - id: chat-share-settings.shared-link-open
+    type: behavior
+    must: Valid shared chat links open readable shared chat content for logged-out or recipient users, including application preview handoff where present, while stale or invalid shared links show an invalid-link error instead of decrypted dummy content.
+    depends_on: [models.SharedChatOpen, examples.shared_link_open]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Existing share metadata, short-link, and shared-chat read APIs may be used, but this contract owns only the browser settings/open behavior.
+  cli:
+    required: false
+    role: CLI sharing uses separate command contracts and has no Settings / Chats surface.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Apple chat sharing parity is tracked separately and is out of scope for this web UI contract.}
+
+examples:
+  file: examples.yml
+  required_groups: [shell_navigation, generated_controls, shared_viewer, shared_link_open]

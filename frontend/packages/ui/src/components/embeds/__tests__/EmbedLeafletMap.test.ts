@@ -7,6 +7,7 @@
 
 import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import mapsMarkerIconUrl from "../../../../static/icons/maps.svg?url";
 import EmbedLeafletMap from "../EmbedLeafletMap.svelte";
 
 const leafletMocks = vi.hoisted(() => {
@@ -14,10 +15,13 @@ const leafletMocks = vi.hoisted(() => {
     addTo: ReturnType<typeof vi.fn>;
     setOpacity: ReturnType<typeof vi.fn>;
     bindTooltip: ReturnType<typeof vi.fn>;
+    eventHandlers: Record<string, () => void>;
+    elementSetAttribute: ReturnType<typeof vi.fn>;
   }> = [];
   const mapInstance = {
     fitBounds: vi.fn(),
     invalidateSize: vi.fn(),
+    on: vi.fn(),
     panBy: vi.fn(),
     remove: vi.fn(),
     setView: vi.fn(),
@@ -27,13 +31,17 @@ const leafletMocks = vi.hoisted(() => {
     mapInstance,
     markerInstances,
     tileClassToggle,
-    tileLayer: vi.fn(() => ({
-      addTo: vi.fn(),
-      getContainer: vi.fn(() => ({ classList: { toggle: tileClassToggle } })),
-    })),
+    tileLayer: vi.fn(() => {
+      const layer = {
+        addTo: vi.fn(() => layer),
+        getContainer: vi.fn(() => ({ classList: { toggle: tileClassToggle } })),
+        on: vi.fn(() => layer),
+      };
+      return layer;
+    }),
     map: vi.fn(() => mapInstance),
     control: {
-      zoom: vi.fn(() => ({ addTo: vi.fn() })),
+      zoom: vi.fn(() => ({ addTo: vi.fn(), getContainer: vi.fn(() => ({ setAttribute: vi.fn() })) })),
     },
     divIcon: vi.fn(() => ({})),
     layerGroup: vi.fn(() => {
@@ -44,10 +52,19 @@ const leafletMocks = vi.hoisted(() => {
       return layerGroup;
     }),
     marker: vi.fn(() => {
+      const elementSetAttribute = vi.fn();
+      const eventHandlers: Record<string, () => void> = {};
       const markerInstance = {
         addTo: vi.fn(() => markerInstance),
         setOpacity: vi.fn(),
         bindTooltip: vi.fn(),
+        on: vi.fn((event: string, callback: () => void) => {
+          eventHandlers[event] = callback;
+          return markerInstance;
+        }),
+        getElement: vi.fn(() => ({ setAttribute: elementSetAttribute })),
+        eventHandlers,
+        elementSetAttribute,
       };
       markerInstances.push(markerInstance);
       return markerInstance;
@@ -95,6 +112,7 @@ describe("EmbedLeafletMap theme selection", () => {
     vi.clearAllMocks();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it("uses manual light theme for tiles when the OS is dark", async () => {
     mockOsDarkMode(true);
     document.documentElement.setAttribute("data-theme", "light");
@@ -120,8 +138,10 @@ describe("EmbedLeafletMap theme selection", () => {
     target.remove();
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
   it("passes marker and path opacity to Leaflet while fitting geometry once on mount", async () => {
     mockOsDarkMode(false);
+    const onMarkerSelect = vi.fn();
     const target = document.createElement("div");
     document.body.appendChild(target);
 
@@ -130,9 +150,20 @@ describe("EmbedLeafletMap theme selection", () => {
       props: {
         center: { lat: 52.52, lon: 13.405 },
         fitBounds: true,
+        zoomControlPosition: "topleft",
         markers: [
-          { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5 },
-          { lat: 52.53, lon: 13.41, label: "Active marker", opacity: 1 },
+          { lat: 52.52, lon: 13.405, label: "Dimmed marker", opacity: 0.5, testId: "endpoint-marker" },
+          {
+            lat: 52.53,
+            lon: 13.41,
+            label: "Mainz Hbf",
+            opacity: 1,
+            testId: "stop-marker",
+            ref: "route-one",
+            relatedRefs: ["route-one", "route-two"],
+            selectionKey: "52.530000:13.410000",
+            selected: true,
+          },
         ],
         paths: [
           {
@@ -143,16 +174,36 @@ describe("EmbedLeafletMap theme selection", () => {
             ],
           },
         ],
+        onMarkerSelect,
       },
     });
 
     await flushLeafletImport();
 
     expect(leafletMocks.mapInstance.fitBounds).toHaveBeenCalledTimes(1);
+    expect(leafletMocks.control.zoom).toHaveBeenCalledWith({ position: "topleft" });
     expect(leafletMocks.markerInstances.map((marker) => marker.setOpacity.mock.calls[0]?.[0])).toEqual([
       0.5,
       1,
     ]);
+    expect(leafletMocks.markerInstances[0].elementSetAttribute).toHaveBeenCalledWith("data-testid", "endpoint-marker");
+    expect(leafletMocks.markerInstances[1].elementSetAttribute).toHaveBeenCalledWith("data-testid", "stop-marker");
+    expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
+      html: expect.stringContaining('<img'),
+    }));
+    expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
+      html: expect.stringContaining(`src="${mapsMarkerIconUrl}"`),
+    }));
+    expect(leafletMocks.markerInstances[1].bindTooltip).toHaveBeenCalledWith("Mainz Hbf", expect.objectContaining({
+      permanent: true,
+      direction: "top",
+    }));
+    leafletMocks.markerInstances[1].eventHandlers.click();
+    expect(onMarkerSelect).toHaveBeenCalledWith(
+      "route-one",
+      ["route-one", "route-two"],
+      "52.530000:13.410000",
+    );
     expect(leafletMocks.polyline).toHaveBeenCalledWith(
       [
         [52.52, 13.405],

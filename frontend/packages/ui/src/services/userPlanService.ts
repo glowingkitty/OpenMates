@@ -46,12 +46,11 @@ export interface UserTaskKeyWrapperRecord {
 export interface EncryptedUserPlanRecord {
   id?: string;
   plan_id: string;
-  encrypted_plan_key?: string | null;
   encrypted_title: string;
-  encrypted_summary?: string | null;
-  encrypted_goal?: string | null;
+  encrypted_goal: string;
   encrypted_scope_in?: string | null;
   encrypted_scope_out?: string | null;
+  encrypted_user_flows?: string | null;
   encrypted_assumptions?: string | null;
   encrypted_open_questions?: string | null;
   encrypted_constraints?: string | null;
@@ -62,9 +61,6 @@ export interface EncryptedUserPlanRecord {
   linked_project_ids?: string[] | null;
   linked_project_hashes?: string[] | null;
   encrypted_linked_project_ids?: string | null;
-  current_phase_id?: string | null;
-  current_step_id?: string | null;
-  current_task_id?: string | null;
   planner_focus_id?: string | null;
   version?: number;
   created_at: number;
@@ -76,10 +72,10 @@ export interface EncryptedUserPlanRecord {
 export interface UserPlanViewModel {
   plan_id: string;
   title: string;
-  summary: string;
   goal: string;
   scopeIn: string;
   scopeOut: string;
+  userFlows: UserPlanFlow[];
   assumptions: string;
   openQuestions: string;
   constraints: string;
@@ -88,9 +84,6 @@ export interface UserPlanViewModel {
   status: UserPlanStatus;
   primaryChatId: string | null;
   linkedProjectIds: string[];
-  currentPhaseId: string | null;
-  currentStepId: string | null;
-  currentTaskId: string | null;
   plannerFocusId: string | null;
   version: number;
   createdAt: number;
@@ -104,7 +97,6 @@ export interface EncryptedUserPlanCriterionRecord {
   type?: string | null;
   status: UserPlanCriterionStatus;
   required?: boolean | null;
-  linked_step_ids?: string[] | null;
   linked_task_ids?: string[] | null;
   verification_ids?: string[] | null;
   coverage_status?: string | null;
@@ -124,7 +116,6 @@ export interface UserPlanCriterionViewModel {
   type: string;
   status: UserPlanCriterionStatus;
   required: boolean;
-  linkedStepIds: string[];
   linkedTaskIds: string[];
   verificationIds: string[];
   coverageStatus: string;
@@ -206,7 +197,6 @@ export interface EncryptedUserPlanAssumptionRecord {
   required_before?: string | null;
   linked_sub_chat_id?: string | null;
   linked_task_id?: string | null;
-  linked_step_ids?: string[] | null;
   linked_criterion_ids?: string[] | null;
   source_count?: number | null;
   version?: number | null;
@@ -228,7 +218,6 @@ export interface UserPlanAssumptionViewModel {
   requiredBefore: string;
   linkedSubChatId: string | null;
   linkedTaskId: string | null;
-  linkedStepIds: string[];
   linkedCriterionIds: string[];
   sourceCount: number;
   correctedText: string;
@@ -292,10 +281,10 @@ export interface UserPlanDetailState {
 
 export interface CreateUserPlanInput {
   title: string;
-  summary?: string;
-  goal?: string;
+  goal: string;
   scopeIn?: string;
   scopeOut?: string;
+  userFlows?: UserPlanFlow[];
   assumptions?: string;
   openQuestions?: string;
   constraints?: string;
@@ -304,10 +293,22 @@ export interface CreateUserPlanInput {
   status?: UserPlanStatus;
   primaryChatId?: string | null;
   linkedProjectIds?: string[];
-  currentPhaseId?: string | null;
-  currentStepId?: string | null;
-  currentTaskId?: string | null;
   plannerFocusId?: string | null;
+}
+
+export type UserPlanEvidenceReference =
+  | { kind: 'embed'; embed_id: string; start_line?: number; end_line?: number }
+  | { kind: 'file'; path: string; start_line?: number; end_line?: number }
+  | { kind: 'url'; url: string };
+
+export interface UserPlanFlow {
+  flow_id: string;
+  title: string;
+  actor?: string;
+  steps: Array<{ step_id: string; text: string; references?: UserPlanEvidenceReference[] }>;
+  expected_outcome: string;
+  linked_task_ids?: string[];
+  linked_criterion_ids?: string[];
 }
 
 export interface ListUserPlansFilters {
@@ -324,7 +325,6 @@ export interface CreatePlanCriterionInput {
   type?: string;
   status?: UserPlanCriterionStatus;
   required?: boolean;
-  linkedStepIds?: string[];
   linkedTaskIds?: string[];
   verificationIds?: string[];
 }
@@ -346,7 +346,6 @@ export interface CreatePlanVerificationInput {
   expectedResult?: string;
   primaryChatId?: string | null;
   linkedProjectIds?: string[];
-  planStepId?: string | null;
   assigneeType?: string;
 }
 
@@ -368,7 +367,6 @@ export interface CreatePlanAssumptionInput {
   requiredBefore?: string;
   linkedSubChatId?: string | null;
   linkedTaskId?: string | null;
-  linkedStepIds?: string[];
   linkedCriterionIds?: string[];
   sourceCount?: number;
   correctedText?: string;
@@ -461,24 +459,60 @@ async function decryptStringArray(value: string | null | undefined, key: Uint8Ar
   return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
 }
 
+async function decryptUserFlows(value: string | null | undefined, key: Uint8Array): Promise<UserPlanFlow[]> {
+  const text = await decryptOptional(value, key);
+  if (!text) return [];
+  const parsed = JSON.parse(text) as unknown;
+  if (!Array.isArray(parsed)) throw new Error('Plan user flows must be an array');
+  return validateUserFlows(parsed as UserPlanFlow[]);
+}
+
+export function validateUserFlows(flows: unknown): UserPlanFlow[] {
+  if (!Array.isArray(flows)) throw new Error('Plan user flows must be an array');
+  for (const candidate of flows) {
+    if (!candidate || typeof candidate !== 'object') throw new Error('Each Plan user flow must be an object');
+    const flow = candidate as Partial<UserPlanFlow>;
+    if (!flow.flow_id || !flow.title || !flow.expected_outcome || !Array.isArray(flow.steps) || flow.steps.some((step: Partial<UserPlanFlow['steps'][number]>) => !step.step_id || !step.text)) {
+      throw new Error('Each Plan user flow requires flow_id, title, ordered steps, and expected_outcome');
+    }
+    for (const step of flow.steps) for (const reference of step.references ?? []) validateEvidenceReference(reference);
+  }
+  return flows as UserPlanFlow[];
+}
+
+function validateEvidenceReference(reference: UserPlanEvidenceReference): void {
+  if (reference.kind === 'url') {
+    if (new URL(reference.url).protocol !== 'https:') throw new Error('Plan evidence URLs must use HTTPS');
+    return;
+  }
+  const identifier = reference.kind === 'embed' ? reference.embed_id : reference.path;
+  if (!identifier || (reference.kind === 'file' && (identifier.startsWith('/') || identifier.split('/').includes('..')))) {
+    throw new Error('Plan evidence references require a valid embed ID or repository-relative path');
+  }
+  if (reference.start_line !== undefined && (!Number.isInteger(reference.start_line) || reference.start_line < 1)) throw new Error('Plan evidence start_line must be positive');
+  if (reference.end_line !== undefined && (!Number.isInteger(reference.end_line) || reference.end_line < (reference.start_line ?? 1))) throw new Error('Plan evidence end_line must follow start_line');
+}
+
 async function decryptPlanKey(plan: UserPlanViewModel | EncryptedUserPlanRecord): Promise<Uint8Array> {
-  const encryptedPlanKey = "encrypted" in plan ? plan.encrypted.encrypted_plan_key : plan.encrypted_plan_key;
+  const record = "encrypted" in plan ? plan.encrypted : plan;
+  const encryptedPlanKey = record.key_wrappers?.find((wrapper) => wrapper.key_type === "master")?.encrypted_plan_key;
   const planKey = await decryptChatKeyWithMasterKey(encryptedPlanKey ?? "");
   if (!planKey) throw new Error("Could not decrypt plan key");
   return planKey;
 }
 
 async function decryptPlan(record: EncryptedUserPlanRecord): Promise<UserPlanViewModel | null> {
-  if (!record.encrypted_plan_key) return null;
-  const planKey = await decryptChatKeyWithMasterKey(record.encrypted_plan_key);
+  const encryptedPlanKey = record.key_wrappers?.find((wrapper) => wrapper.key_type === "master")?.encrypted_plan_key;
+  if (!encryptedPlanKey) return null;
+  const planKey = await decryptChatKeyWithMasterKey(encryptedPlanKey);
   if (!planKey) return null;
   return {
     plan_id: record.plan_id,
     title: await decryptOptional(record.encrypted_title, planKey),
-    summary: await decryptOptional(record.encrypted_summary, planKey),
     goal: await decryptOptional(record.encrypted_goal, planKey),
     scopeIn: await decryptOptional(record.encrypted_scope_in, planKey),
     scopeOut: await decryptOptional(record.encrypted_scope_out, planKey),
+    userFlows: await decryptUserFlows(record.encrypted_user_flows, planKey),
     assumptions: await decryptOptional(record.encrypted_assumptions, planKey),
     openQuestions: await decryptOptional(record.encrypted_open_questions, planKey),
     constraints: await decryptOptional(record.encrypted_constraints, planKey),
@@ -487,9 +521,6 @@ async function decryptPlan(record: EncryptedUserPlanRecord): Promise<UserPlanVie
     status: record.status,
     primaryChatId: record.primary_chat_id ?? null,
     linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, planKey),
-    currentPhaseId: record.current_phase_id ?? null,
-    currentStepId: record.current_step_id ?? null,
-    currentTaskId: record.current_task_id ?? null,
     plannerFocusId: record.planner_focus_id ?? null,
     version: record.version ?? 1,
     createdAt: record.created_at,
@@ -506,7 +537,6 @@ async function decryptCriterion(record: EncryptedUserPlanCriterionRecord, planKe
     type: record.type ?? "functional",
     status: record.status,
     required: record.required ?? true,
-    linkedStepIds: record.linked_step_ids ?? [],
     linkedTaskIds: record.linked_task_ids ?? [],
     verificationIds: record.verification_ids ?? [],
     coverageStatus: record.coverage_status ?? "uncovered",
@@ -563,7 +593,6 @@ async function decryptAssumption(record: EncryptedUserPlanAssumptionRecord, plan
     requiredBefore: record.required_before ?? "implementation",
     linkedSubChatId: record.linked_sub_chat_id ?? null,
     linkedTaskId: record.linked_task_id ?? null,
-    linkedStepIds: record.linked_step_ids ?? [],
     linkedCriterionIds: record.linked_criterion_ids ?? [],
     sourceCount: record.source_count ?? 0,
     correctedText: await decryptOptional(record.encrypted_corrected_text, planKey),
@@ -602,15 +631,15 @@ async function decryptReferencePattern(record: EncryptedUserPlanReferencePattern
 }
 
 async function encryptPlanFields(input: CreateUserPlanInput, planKey: Uint8Array): Promise<Pick<EncryptedUserPlanRecord,
-  "encrypted_title" | "encrypted_summary" | "encrypted_goal" | "encrypted_scope_in" | "encrypted_scope_out" |
-  "encrypted_assumptions" | "encrypted_open_questions" | "encrypted_constraints" | "encrypted_decisions" | "encrypted_risks"
+  "encrypted_title" | "encrypted_goal" | "encrypted_scope_in" | "encrypted_scope_out" |
+  "encrypted_user_flows" | "encrypted_assumptions" | "encrypted_open_questions" | "encrypted_constraints" | "encrypted_decisions" | "encrypted_risks"
 >> {
   return {
     encrypted_title: await encryptWithEmbedKey(input.title, planKey),
-    encrypted_summary: await encryptWithEmbedKey(input.summary ?? "", planKey),
-    encrypted_goal: await encryptWithEmbedKey(input.goal ?? "", planKey),
+    encrypted_goal: await encryptWithEmbedKey(input.goal, planKey),
     encrypted_scope_in: await encryptWithEmbedKey(input.scopeIn ?? "", planKey),
     encrypted_scope_out: await encryptWithEmbedKey(input.scopeOut ?? "", planKey),
+    encrypted_user_flows: await encryptWithEmbedKey(JSON.stringify(validateUserFlows(input.userFlows ?? [])), planKey),
     encrypted_assumptions: await encryptWithEmbedKey(input.assumptions ?? "", planKey),
     encrypted_open_questions: await encryptWithEmbedKey(input.openQuestions ?? "", planKey),
     encrypted_constraints: await encryptWithEmbedKey(input.constraints ?? "", planKey),
@@ -709,15 +738,11 @@ export async function createUserPlan(input: CreateUserPlanInput): Promise<UserPl
   const primaryChatId = input.primaryChatId ?? null;
   const body: EncryptedUserPlanRecord = {
     plan_id: crypto.randomUUID(),
-    encrypted_plan_key: encryptedPlanKey,
     ...(await encryptPlanFields(input, planKey)),
     encrypted_linked_project_ids: await encryptWithEmbedKey(JSON.stringify(linkedProjectIds), planKey),
     status: input.status ?? "draft",
     primary_chat_id: primaryChatId,
     linked_project_ids: linkedProjectIds,
-    current_phase_id: input.currentPhaseId ?? null,
-    current_step_id: input.currentStepId ?? null,
-    current_task_id: input.currentTaskId ?? null,
     planner_focus_id: input.plannerFocusId ?? null,
     created_at: timestamp,
     updated_at: timestamp,
@@ -747,14 +772,12 @@ export async function addUserPlanKeyWrappers(planId: string, keyWrappers: UserPl
 
 export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<CreateUserPlanInput> & { status?: UserPlanStatus }): Promise<UserPlanViewModel> {
   const planKey = await decryptPlanKey(plan);
-  const encryptedPlanKey = plan.encrypted.encrypted_plan_key;
-  if (!encryptedPlanKey) throw new Error("Missing encrypted plan key");
   const body: Record<string, unknown> = { version: plan.version, updated_at: nowSeconds() };
   if (patch.title !== undefined) body.encrypted_title = await encryptWithEmbedKey(patch.title, planKey);
-  if (patch.summary !== undefined) body.encrypted_summary = await encryptWithEmbedKey(patch.summary, planKey);
   if (patch.goal !== undefined) body.encrypted_goal = await encryptWithEmbedKey(patch.goal, planKey);
   if (patch.scopeIn !== undefined) body.encrypted_scope_in = await encryptWithEmbedKey(patch.scopeIn, planKey);
   if (patch.scopeOut !== undefined) body.encrypted_scope_out = await encryptWithEmbedKey(patch.scopeOut, planKey);
+  if (patch.userFlows !== undefined) body.encrypted_user_flows = await encryptWithEmbedKey(JSON.stringify(validateUserFlows(patch.userFlows)), planKey);
   if (patch.assumptions !== undefined) body.encrypted_assumptions = await encryptWithEmbedKey(patch.assumptions, planKey);
   if (patch.openQuestions !== undefined) body.encrypted_open_questions = await encryptWithEmbedKey(patch.openQuestions, planKey);
   if (patch.constraints !== undefined) body.encrypted_constraints = await encryptWithEmbedKey(patch.constraints, planKey);
@@ -767,11 +790,10 @@ export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<Cre
   if (patch.linkedProjectIds !== undefined || patch.primaryChatId !== undefined) {
     const updatedPrimaryChatId = patch.primaryChatId !== undefined ? patch.primaryChatId : plan.primaryChatId;
     const updatedLinkedProjectIds = patch.linkedProjectIds !== undefined ? patch.linkedProjectIds : plan.linkedProjectIds;
-    body.key_wrappers = await buildPlanKeyWrappers(planKey, encryptedPlanKey, nowSeconds(), updatedPrimaryChatId ?? null, updatedLinkedProjectIds);
+    const masterWrapper = plan.encrypted.key_wrappers?.find((wrapper) => wrapper.key_type === "master");
+    if (!masterWrapper?.encrypted_plan_key) throw new Error("Missing plan master key wrapper");
+    body.key_wrappers = await buildPlanKeyWrappers(planKey, masterWrapper.encrypted_plan_key, nowSeconds(), updatedPrimaryChatId ?? null, updatedLinkedProjectIds);
   }
-  if (patch.currentPhaseId !== undefined) body.current_phase_id = patch.currentPhaseId;
-  if (patch.currentStepId !== undefined) body.current_step_id = patch.currentStepId;
-  if (patch.currentTaskId !== undefined) body.current_task_id = patch.currentTaskId;
   if (patch.plannerFocusId !== undefined) body.planner_focus_id = patch.plannerFocusId;
   const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}`, {
     method: "PATCH",
@@ -782,13 +804,11 @@ export async function updateUserPlan(plan: UserPlanViewModel, patch: Partial<Cre
   return decrypted;
 }
 
-export async function activateUserPlan(plan: UserPlanViewModel, patch: { currentStepId?: string | null; currentTaskId?: string | null } = {}): Promise<UserPlanViewModel> {
+export async function activateUserPlan(plan: UserPlanViewModel): Promise<UserPlanViewModel> {
   const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(`/v1/user-plans/${plan.plan_id}/activate`, {
     method: "POST",
     body: JSON.stringify({
       chat_id: plan.primaryChatId,
-      current_step_id: patch.currentStepId ?? plan.currentStepId,
-      current_task_id: patch.currentTaskId ?? plan.currentTaskId,
       updated_at: nowSeconds(),
       version: plan.version,
     }),
@@ -853,7 +873,6 @@ export async function createPlanCriterion(plan: UserPlanViewModel, input: Create
       type: input.type ?? "functional",
       status: input.status ?? "pending",
       required: input.required ?? true,
-      linked_step_ids: input.linkedStepIds ?? [],
       linked_task_ids: input.linkedTaskIds ?? [],
       verification_ids: input.verificationIds ?? [],
       coverage_status: input.verificationIds?.length ? "covered" : "uncovered",
@@ -921,7 +940,6 @@ export async function createPlanVerification(plan: UserPlanViewModel, input: Cre
       encrypted_expected_result: await encryptWithEmbedKey(input.expectedResult ?? "", planKey),
       primary_chat_id: primaryChatId,
       linked_project_ids: linkedProjectIds,
-      plan_step_id: input.planStepId ?? plan.currentStepId,
       assignee_type: input.assigneeType ?? "user",
       created_at: timestamp,
       updated_at: timestamp,
@@ -965,7 +983,6 @@ export async function createPlanAssumption(plan: UserPlanViewModel, input: Creat
       required_before: input.requiredBefore ?? "implementation",
       linked_sub_chat_id: input.linkedSubChatId ?? null,
       linked_task_id: input.linkedTaskId ?? null,
-      linked_step_ids: input.linkedStepIds ?? [],
       linked_criterion_ids: input.linkedCriterionIds ?? [],
       source_count: input.sourceCount ?? 0,
       encrypted_corrected_text: await encryptWithEmbedKey(input.correctedText ?? "", planKey),

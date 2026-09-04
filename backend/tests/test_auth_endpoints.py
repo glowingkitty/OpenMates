@@ -591,6 +591,30 @@ class TestAuthClientVerification:
 
             assert found_paths == expected_paths
 
+    # contract-test: supporting surface=rest_api assertions=auth.lookup.anti-enumeration
+    def test_lookup_omits_nullable_account_metadata(self):
+        import ast
+
+        route_path = Path(__file__).parent.parent / "core/api/app/routes/auth_routes/auth_login.py"
+        tree = ast.parse(route_path.read_text(), filename=str(route_path))
+        lookup_decorator = next(
+            decorator
+            for node in ast.walk(tree)
+            if isinstance(node, ast.AsyncFunctionDef) and node.name == "lookup_user"
+            for decorator in node.decorator_list
+            if isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Attribute)
+            and decorator.func.attr == "post"
+        )
+        exclude_none = next(
+            keyword.value
+            for keyword in lookup_decorator.keywords
+            if keyword.arg == "response_model_exclude_none"
+        )
+
+        assert isinstance(exclude_none, ast.Constant)
+        assert exclude_none.value is True
+
     # contract-test: direct surface=rest_api assertions=auth.passkey.origin-prf-bound
     def test_passkey_assertion_rejects_wrong_account_credential(self):
         repo_root = Path(__file__).parent.parent.parent

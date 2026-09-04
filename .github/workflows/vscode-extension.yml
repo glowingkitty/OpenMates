@@ -13,7 +13,7 @@ on:
       - "frontend/packages/ui/src/platform/runtime.ts"
       - "scripts/audit_vscode_extension_v1.py"
       - ".github/workflows/vscode-extension.yml"
-      - "docs/specs/vscode-extension-v1/spec.yml"
+      - "docs/plans/vscode-extension-v1/plan.yml"
   push:
     branches:
       - dev
@@ -27,7 +27,7 @@ on:
       - "frontend/packages/ui/src/platform/runtime.ts"
       - "scripts/audit_vscode_extension_v1.py"
       - ".github/workflows/vscode-extension.yml"
-      - "docs/specs/vscode-extension-v1/spec.yml"
+      - "docs/plans/vscode-extension-v1/plan.yml"
 
 jobs:
   test:
@@ -45,8 +45,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate VS Code extension spec
-        run: python3 scripts/spec_validate.py docs/specs/vscode-extension-v1/spec.yml
+      - name: Validate VS Code extension Plan
+        run: python3 scripts/plan_validate.py docs/plans/vscode-extension-v1/plan.yml
 
       - name: Run no-mutation audit
         run: python3 scripts/audit_vscode_extension_v1.py

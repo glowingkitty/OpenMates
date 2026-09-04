@@ -458,7 +458,8 @@ async def handle_postprocessing(
         secrets_manager=secrets_manager,
         user_app_settings_and_memories_metadata=None,  # Not needed for post-processing
         dynamic_context=None,  # No dynamic context needed
-        fallback_models=postprocess_fallbacks
+        fallback_models=postprocess_fallbacks,
+        observability_purpose="postprocess",
     )
 
     # CRITICAL FIX: Handle LLM errors gracefully instead of crashing the entire task
@@ -817,6 +818,7 @@ async def translate_chat_summary(
             user_app_settings_and_memories_metadata=None,
             dynamic_context=None,
             fallback_models=translation_fallbacks,
+            observability_purpose="translation",
         )
 
         if llm_result.error_message:
@@ -976,6 +978,7 @@ async def translate_new_chat_suggestions(
             user_app_settings_and_memories_metadata=None,
             dynamic_context=None,
             fallback_models=translation_fallbacks,
+            observability_purpose="translation",
         )
 
         if llm_result.error_message:

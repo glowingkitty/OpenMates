@@ -19,6 +19,7 @@
     onSkip,
     onDelete,
     onCancelWorkflowRun,
+    onSelect,
   }: {
     task: TasksBoardItem;
     onMove: (task: TasksBoardItem, status: UserTaskStatus) => void;
@@ -26,6 +27,7 @@
     onSkip: (task: TasksBoardItem) => void;
     onDelete: (task: TasksBoardItem) => void;
     onCancelWorkflowRun: (task: TasksBoardItem) => void;
+    onSelect: (task: TasksBoardItem) => void;
   } = $props();
 
   const statuses: UserTaskStatus[] = ['backlog', 'todo', 'in_progress', 'blocked', 'done'];
@@ -49,6 +51,15 @@
   data-testid="task-card"
   data-task-id={task.task_id}
 >
+  <button
+    type="button"
+    class="card-select"
+    data-testid={workflowRun ? 'workflow-run-projection' : 'task-card-open'}
+    data-workflow-run-id={workflowRun?.workflowRunId}
+    data-status={workflowRun?.status}
+    aria-label={workflowRun ? `Open ${workflowRun.title} run detail` : `Open ${task.title || 'task'} details`}
+    onclick={() => onSelect(task)}
+  ></button>
   <div class="task-card-main">
     {#if !workflowRun}<label class="done-toggle" data-testid="task-done-toggle">
       <input
@@ -119,6 +130,7 @@
 
 <style>
   .task-card {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -129,6 +141,11 @@
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
     color: var(--color-font-primary);
   }
+
+  .card-select { position: absolute; z-index: 1; inset: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
+  .card-select:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }
+  .task-card-main, .task-tags, .task-card-footer, .task-actions { position: relative; z-index: 2; pointer-events: none; }
+  .done-toggle, .task-actions a, .task-actions button { pointer-events: auto; }
 
   .task-card-main {
     display: flex;

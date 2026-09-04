@@ -30,6 +30,15 @@ function minimalGraph() {
   };
 }
 
+function blankGraph() {
+  return {
+    version: 1,
+    trigger_node_id: null,
+    nodes: [],
+    edges: [],
+  };
+}
+
 function templateImportPayload() {
   return {
     template_version: 1,
@@ -83,7 +92,7 @@ async function withServer(
 }
 
 describe("OpenMates SDK workflows", () => {
-  // contract-test: direct surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.encryption.local-only,sdk.surface.semantic-parity
+  // contract-test: direct surface=sdks.npm assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("manages workflows through the shared API contract", async () => {
     const graph = minimalGraph();
     const masterKey = Buffer.alloc(32, 11);
@@ -104,7 +113,7 @@ describe("OpenMates SDK workflows", () => {
           return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
         }
         if (request.url === "/v1/workflows" && request.method === "GET") {
-          return { workflows: [{ id: "wf-1", title: "Morning", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields }] };
+          return { workflows: [{ id: "wf-1", title: "Morning", category: "science", icon: "cloud-rain", status: "disabled", enabled: false, run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedSlugFields }] };
         }
         if (request.url === "/v1/workflows/temporary" && request.method === "GET") {
           return { workflows: [{ id: "wf-temp", title: "Temporary", status: "disabled", enabled: false, lifecycle: "temporary", run_content_retention: "last_5", current_version_id: "v1", created_at: 1, updated_at: 1, ...encryptedTempSlugFields }] };
@@ -178,13 +187,15 @@ describe("OpenMates SDK workflows", () => {
           return { run: { id: "run-1", workflow_id: "wf-1", version_id: "v1", trigger_type: "test", status: "completed", content_retention_mode: "none", content_available: true, content_storage: "ephemeral", node_runs: [] } };
         }
         if (request.method === "DELETE") return { deleted: true };
-        return { workflow: { id: "wf-1", title: "Morning", status: "active", enabled: true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph, ...encryptedSlugFields } };
+        return { workflow: { id: "wf-1", title: (body as any)?.title ?? "Morning", status: "active", enabled: (body as any)?.enabled ?? true, run_content_retention: (body as any)?.run_content_retention ?? "last_5", current_version_id: "v1", created_at: 1, updated_at: 2, graph: (body as any)?.graph ?? graph, ...encryptedSlugFields } };
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: material.apiKey, apiUrl });
         const listedWorkflow = (await client.workflows.list())[0];
         const temporaryWorkflow = (await client.workflows.temporary())[0];
         assert.equal(listedWorkflow?.id, "wf-1");
+        assert.equal(listedWorkflow?.category, "science");
+        assert.equal(listedWorkflow?.icon, "cloud-rain");
         assert.equal(temporaryWorkflow?.id, "wf-temp");
         assertPublicWorkflowSlug(listedWorkflow as Record<string, unknown>, "morning");
         assertPublicWorkflowSlug(temporaryWorkflow as Record<string, unknown>, "temporary");
@@ -192,6 +203,7 @@ describe("OpenMates SDK workflows", () => {
         assert.equal((await client.workflows.validateYaml("title: Morning\n")).draft_valid, true);
         const createdFromYaml = await client.workflows.createFromYaml("title: Morning\n");
         const updatedFromYaml = await client.workflows.updateFromYaml("wf-1", "title: Updated\n");
+        const blankWorkflow = await client.workflows.create({ title: "Blank", graph: blankGraph(), enabled: false });
         const createdWorkflow = await client.workflows.create({ title: "Morning", graph, enabled: true, runContentRetention: "none", lifecycle: "temporary", source: "chat", sourceChatId: CHAT_ID, createdByAssistant: true });
         const fetchedWorkflow = await client.workflows.get("wf-1");
         const updatedWorkflow = await client.workflows.update("wf-1", { enabled: false, runContentRetention: "last_5" });
@@ -201,13 +213,15 @@ describe("OpenMates SDK workflows", () => {
 
         assert.equal(createdFromYaml.workflow.id, "wf-yaml");
         assert.equal(updatedFromYaml.workflow.title, "Updated");
+        assert.equal(blankWorkflow.graph.trigger_node_id, null);
+        assert.deepEqual(blankWorkflow.graph.nodes, []);
         assert.equal(createdWorkflow.run_content_retention, "none");
         assert.equal(fetchedWorkflow.id, "wf-1");
         assert.equal(updatedWorkflow.id, "wf-1");
         assert.equal(enabledWorkflow.enabled, true);
         assert.equal(disabledWorkflow.id, "wf-1");
         assert.equal(keptWorkflow.id, "wf-1");
-        for (const workflow of [createdFromYaml.workflow, updatedFromYaml.workflow, createdWorkflow, fetchedWorkflow, updatedWorkflow, enabledWorkflow, disabledWorkflow, keptWorkflow]) {
+        for (const workflow of [createdFromYaml.workflow, updatedFromYaml.workflow, blankWorkflow, createdWorkflow, fetchedWorkflow, updatedWorkflow, enabledWorkflow, disabledWorkflow, keptWorkflow]) {
           assertPublicWorkflowSlug(workflow as Record<string, unknown>, "morning");
         }
         assert.equal((await client.workflows.run("wf-1", { idempotencyKey: "stable-run-1", mode: "test", input: { dry: true } })).content_storage, "ephemeral");
@@ -253,12 +267,15 @@ describe("OpenMates SDK workflows", () => {
         ]) {
           assert.ok(endpoints.includes(endpoint), `missing endpoint ${endpoint}`);
         }
-        const createBody = seen.find((request) => request.method === "POST" && request.url === "/v1/workflows")?.body as Record<string, unknown>;
+        const createBody = seen.find((request) => request.method === "POST" && request.url === "/v1/workflows" && (request.body as Record<string, unknown>)?.title === "Morning")?.body as Record<string, unknown>;
+        const blankCreateBody = seen.find((request) => request.method === "POST" && request.url === "/v1/workflows" && (request.body as Record<string, unknown>)?.title === "Blank")?.body as Record<string, unknown>;
         assert.equal(createBody.title, "Morning");
         assert.equal(createBody.source_chat_id, CHAT_ID);
         assert.equal(typeof createBody.encrypted_slug, "string");
         assert.equal(typeof createBody.slug_lookup_hash, "string");
         assert.equal("slug" in createBody, false);
+        assert.deepEqual(blankCreateBody.graph, blankGraph());
+        assert.equal(blankCreateBody.enabled, false);
       },
       `Bearer ${material.apiKey}`,
     );

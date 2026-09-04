@@ -108,6 +108,10 @@ function createInlineEmbedNodeFromRawRef(
   };
 }
 
+function normalizeBareEmbedRef(rawRef: string): string {
+  return rawRef.startsWith("embed:") ? rawRef.slice("embed:".length) : rawRef;
+}
+
 function convertBareEmbedRefGroupsInTextNode(
   node: any,
   fallbackAppId: string | null,
@@ -130,12 +134,13 @@ function convertBareEmbedRefGroupsInTextNode(
       .filter((ref) => BARE_EMBED_REF_TOKEN_RE.test(ref));
     const resolvedRefs = refs
       .map((ref) => {
-        const resolvedRef = resolveEmbedRefIndexReference(ref)?.embedRef;
+        const normalizedRef = normalizeBareEmbedRef(ref);
+        const resolvedRef = resolveEmbedRefIndexReference(normalizedRef)?.embedRef;
         if (resolvedRef) return resolvedRef;
         // Cold shared-chat loads may parse messages before encrypted child embeds
         // warm the in-memory ref index. Domain-shaped refs are already specific
         // enough to render as inline links and self-repair through EmbedInlineLink.
-        return BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(ref) ? ref : null;
+        return BARE_DOMAIN_EMBED_REF_TOKEN_RE.test(normalizedRef) ? normalizedRef : null;
       })
       .filter((ref): ref is string => typeof ref === "string" && ref.length > 0);
 
@@ -280,6 +285,15 @@ function collectEmbedAppIds(doc: any): string | null {
   return best;
 }
 
+function decodeWikiTitle(encodedTitle: string): string {
+  try {
+    return decodeURIComponent(encodedTitle);
+  } catch {
+    // Keep malformed legacy titles readable instead of failing the whole message.
+    return encodedTitle;
+  }
+}
+
 /**
  * Pass 2 inner: walk a node and convert embed: link marks to embedInline nodes.
  * Uses the pre-collected `fallbackAppId` when the live ref index has no entry.
@@ -287,8 +301,26 @@ function collectEmbedAppIds(doc: any): string | null {
 function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
+  role?: ParseMessageOptions["role"],
 ): any | any[] {
   if (node.type === "codeBlock") return node;
+
+  if (role === "user" && node.type === "genericMention" && node.attrs?.mentionType === "wikipedia") {
+    const match = String(node.attrs.mentionSyntax || "").match(/^@wikipedia:([a-z]{2,10}):([^\s]+)$/i);
+    if (!match) return node;
+    const wikiTitle = decodeWikiTitle(match[2]);
+    return {
+      type: "wikiInline",
+      attrs: {
+        displayText: wikiTitle.replace(/_/g, " "),
+        wikiTitle,
+        language: match[1].toLowerCase(),
+        wikidataId: null,
+        thumbnailUrl: null,
+        description: null,
+      },
+    };
+  }
 
   // Leaf text node — check for embed: or wiki: link mark
   if (node.type === "text" && Array.isArray(node.marks)) {
@@ -335,7 +367,7 @@ function convertEmbedLinksInNode(
     if (wikiMarkIndex !== -1) {
       const linkMark = node.marks[wikiMarkIndex];
       const href: string = linkMark.attrs.href as string;
-      const wikiTitle = decodeURIComponent(href.slice("wiki:".length));
+      const wikiTitle = decodeWikiTitle(href.slice("wiki:".length));
       const displayText = node.text || wikiTitle.replace(/_/g, " ");
       return {
         type: "wikiInline",
@@ -444,7 +476,7 @@ function convertEmbedLinksInNode(
   if (node.content && Array.isArray(node.content)) {
     const newContent: any[] = [];
     for (const child of node.content) {
-      const result = convertEmbedLinksInNode(child, fallbackAppId);
+      const result = convertEmbedLinksInNode(child, fallbackAppId, role);
       if (Array.isArray(result)) {
         newContent.push(...result);
       } else {
@@ -464,12 +496,12 @@ function convertEmbedLinksInNode(
  * then converts embed: links using that as a fallback for the appId gradient.
  * Returns a new document object (does not mutate the input).
  */
-function convertEmbedLinks(doc: any): any {
+function convertEmbedLinks(doc: any, role?: ParseMessageOptions["role"]): any {
   if (!doc || !doc.content) return doc;
   // Pass 1: collect app_id from embed nodes already in the document.
   const fallbackAppId = collectEmbedAppIds(doc);
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
-  const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId);
+  const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId, role);
   // Pass 3: hoist embedPreviewLarge nodes out of their
   // paragraph wrappers to become true block-level document nodes.
   return _hoistBlockEmbedPreviews(withInlineNodes);
@@ -1176,7 +1208,7 @@ export function parse_message(
     const doc = markdownToTipTap(markdown);
     // Still apply embed: link + source quote conversion in read mode even on the fast path
     if (mode === "read") {
-      const withLinks = convertEmbedLinks(doc);
+      const withLinks = convertEmbedLinks(doc, opts.role);
       return convertSourceQuotes(withLinks);
     }
     return stripWriteModeLinkMarks(doc);
@@ -1232,7 +1264,7 @@ export function parse_message(
   // Convert embed: link marks to embedInline atom nodes, then detect
   // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
-    unifiedDoc = convertEmbedLinks(unifiedDoc);
+    unifiedDoc = convertEmbedLinks(unifiedDoc, opts.role);
     // Link-based app-skill refs (`[!](embed:ref)`) are only known after
     // convertEmbedLinks(), so run grouping again to preserve the compact
     // horizontal app-skill row instead of rendering vertical single cards.

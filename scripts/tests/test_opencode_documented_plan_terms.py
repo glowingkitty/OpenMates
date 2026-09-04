@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def load_audit():
-    path = ROOT / "scripts" / "audit_opencode_spec_workflow.py"
+    path = ROOT / "scripts" / "audit_opencode_plan_workflow.py"
     spec = importlib.util.spec_from_file_location("opencode_documented_plan_audit", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
@@ -42,7 +42,7 @@ def test_demonstration_terms_may_come_from_loaded_sdd_guide(tmp_path: Path) -> N
                 "prompt": "schema_version",
                 "permission": {
                     "question": "allow",
-                    "edit": {"*": "deny", "docs/specs/**/spec.yml": "allow"},
+                    "edit": {"*": "deny", "docs/plans/**/plan.yml": "allow"},
                 },
             }
         },

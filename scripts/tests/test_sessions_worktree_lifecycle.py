@@ -44,6 +44,7 @@ def test_ensure_session_worktree_creates_deterministic_metadata(monkeypatch, tmp
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", tmp_path / "worktrees")
     monkeypatch.setattr(sessions, "_current_git_sha", lambda cwd=None: "abc123def456")
+    monkeypatch.setattr(sessions, "_fetch_origin_dev_commit", lambda: "abc123def456")
     calls: list[tuple[str, ...]] = []
 
     def fake_run(cmd, cwd=None):
@@ -69,6 +70,24 @@ def test_default_agent_worktree_directory_stays_inside_control_plane_root():
 
     assert sessions.AGENT_WORKTREES_DIR == sessions.CONTROL_PLANE_ROOT / ".openmates-agent-worktrees"
     assert sessions.SESSIONS_FILE == sessions.CONTROL_PLANE_ROOT / ".claude" / "sessions.json"
+
+
+def test_session_checkout_uses_worktree_while_repo_identity_remains_control_plane(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root = tmp_path / "OpenMates"
+    worktree = root / ".openmates-agent-worktrees" / "agent-abcd"
+    session = {
+        "repo_root": str(root),
+        "repo_id": "openmates",
+        "repo_name": "OpenMates",
+        "repo_branch": "dev",
+        "repo_remote": "origin",
+        "worktree": {"path": str(worktree)},
+    }
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+
+    assert sessions._session_checkout_root(session) == worktree.resolve()
+    assert sessions._session_is_control_plane_repo(session) is True
 
 
 def test_linked_worktree_resolves_shared_control_plane_root(tmp_path):
@@ -99,6 +118,7 @@ def test_root_guard_excludes_current_and_legacy_managed_worktrees(monkeypatch, t
 def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     worktree_path = tmp_path / "worktrees" / "agent-abcd"
+    worktree_path.mkdir(parents=True)
     sessions_file = tmp_path / "sessions.json"
     sessions_file.write_text(
         json.dumps(
@@ -127,6 +147,8 @@ def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", tmp_path / "worktrees")
     monkeypatch.setattr(sessions, "_current_git_sha", lambda cwd=None: "newsha")
     monkeypatch.setattr(sessions, "_run_cmd", lambda cmd, cwd=None: (_ for _ in ()).throw(AssertionError(cmd)))
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
 
     metadata = sessions.ensure_session_worktree("abcd")
 
@@ -134,9 +156,10 @@ def test_ensure_session_worktree_reuses_existing_metadata(monkeypatch, tmp_path)
     assert metadata["path"] == str(worktree_path)
 
 
-def test_ensure_session_worktree_rejects_merged_metadata(monkeypatch, tmp_path):
+def test_ensure_session_worktree_reactivates_merged_metadata(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     worktree_path = tmp_path / "worktrees" / "agent-abcd"
+    worktree_path.mkdir(parents=True)
     sessions_file = tmp_path / "sessions.json"
     sessions_file.write_text(
         json.dumps(
@@ -162,9 +185,14 @@ def test_ensure_session_worktree_rejects_merged_metadata(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(sessions, "AGENT_WORKTREES_DIR", tmp_path / "worktrees")
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
 
-    with pytest.raises(RuntimeError, match="already merged at abc123456"):
-        sessions.ensure_session_worktree("abcd")
+    metadata = sessions.ensure_session_worktree("abcd")
+
+    assert metadata["status"] == "active"
+    data = json.loads(sessions_file.read_text(encoding="utf-8"))
+    assert data["sessions"]["abcd"]["worktree"]["status"] == "active"
 
 
 def test_cmd_worktree_reports_missing_session_without_traceback(monkeypatch, capsys):
@@ -183,3 +211,41 @@ def test_cmd_worktree_reports_missing_session_without_traceback(monkeypatch, cap
     assert captured.out == ""
     assert captured.err == "Error: Session missing not found\n"
     assert "Traceback" not in captured.err
+
+
+def test_opencode_session_record_does_not_claim_shared_zellij_host():
+    source = SESSIONS_PATH.read_text(encoding="utf-8")
+
+    assert '"zellij_session": None if opencode_session_id else os.environ.get("ZELLIJ_SESSION_NAME")' in source
+
+
+def test_end_never_kills_zellij_for_legacy_opencode_bound_record(monkeypatch, tmp_path, capsys):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "locks": {},
+                "sessions": {
+                    "abcd": {
+                        "task": "disposable",
+                        "mode": "question",
+                        "modified_files": [],
+                        "zellij_session": "code",
+                        "opencode_session_id": "ses_disposable",
+                        "opencode_top_level_session_id": "ses_disposable",
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    killed: list[str] = []
+    monkeypatch.setitem(sys.modules, "_zellij_utils", type("Zellij", (), {"kill_session": killed.append}))
+
+    sessions.cmd_end(argparse.Namespace(session="abcd", force=False, skip_visual_smoke_reason=None))
+
+    assert killed == []
+    assert "Session abcd ended" in capsys.readouterr().out

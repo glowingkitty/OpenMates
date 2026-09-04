@@ -1223,9 +1223,10 @@ async def create_api_key(
             raise HTTPException(status_code=400, detail="Salt is required")
 
         try:
-            normalized_metadata = ApiKeyAuthorizationService().normalize_metadata({
+            authorization_service = ApiKeyAuthorizationService()
+            normalized_metadata = authorization_service.normalize_metadata({
                 "full_access": request_data.full_access,
-                "scopes": request_data.scopes,
+                "scopes": authorization_service.validate_scope_payload(request_data.scopes),
                 "credit_limit": request_data.credit_limit,
             })
         except ValueError as metadata_error:
@@ -1430,7 +1431,7 @@ async def get_api_key_devices(
                 # Pass user_id for decryption
                 devices = await directus_service.get_api_key_devices(api_key_id, user_id=current_user.id)
                 all_devices.extend(devices)
-        
+
         # Convert to response format (exclude encrypted fields from REST API)
         device_responses = [
             DeviceResponse(
@@ -2620,10 +2621,12 @@ async def get_server_status(
                 free_testing_credits = await free_testing_service.get_public_promotion()
             except Exception as promo_err:
                 logger.error("Failed to load free testing promotion metadata: %s", promo_err, exc_info=True)
-        if not is_self_hosted and directus_service:
+        if not is_self_hosted and directus_service and cache_service:
             try:
                 anonymous_free_usage_service = AnonymousFreeUsageService(
                     directus_service=directus_service,
+                    cache_service=cache_service,
+                    require_distributed_lock=True,
                 )
                 anonymous_free_usage = await anonymous_free_usage_service.get_public_status()
             except Exception as anonymous_err:
@@ -5280,6 +5283,7 @@ async def update_ai_model_defaults(
     for field_name, value in [
         ("default_ai_model_simple", request_data.default_ai_model_simple),
         ("default_ai_model_complex", request_data.default_ai_model_complex),
+        ("default_ai_model_most_demanding", request_data.default_ai_model_most_demanding),
     ]:
         if value is not None and "/" not in value:
             raise HTTPException(
@@ -5300,6 +5304,8 @@ async def update_ai_model_defaults(
         update_data['default_ai_model_simple'] = request_data.default_ai_model_simple
     if "default_ai_model_complex" in provided_fields:
         update_data['default_ai_model_complex'] = request_data.default_ai_model_complex
+    if "default_ai_model_most_demanding" in provided_fields:
+        update_data['default_ai_model_most_demanding'] = request_data.default_ai_model_most_demanding
     if "default_app_skill_models" in provided_fields:
         update_data['default_app_skill_models'] = cleaned_app_skill_models
     if "follow_up_suggestions_enabled" in provided_fields and request_data.follow_up_suggestions_enabled is not None:
@@ -5311,6 +5317,7 @@ async def update_ai_model_defaults(
         f"[AiModelDefaults] Updating default models for user {user_id}: "
         f"simple={request_data.default_ai_model_simple!r}, "
         f"complex={request_data.default_ai_model_complex!r}, "
+        f"most_demanding={request_data.default_ai_model_most_demanding!r}, "
         f"app_skill_models={cleaned_app_skill_models!r}, "
         f"follow_up_suggestions_enabled={request_data.follow_up_suggestions_enabled!r}, "
         f"quick_tips_enabled={request_data.quick_tips_enabled!r}"
@@ -6012,34 +6019,8 @@ async def delete_storage_files(
 
         logger.info(f"{log_prefix} Deleting {len(records)} record(s)")
 
-        # ── 4. Delete S3 variant objects ──────────────────────────────────────
-        s3_deleted = 0
-        s3_failed = 0
-        for record in records:
-            files_metadata = record.get("files_metadata")
-            if not files_metadata or not isinstance(files_metadata, dict):
-                continue
-            for variant_name, variant_data in files_metadata.items():
-                if not isinstance(variant_data, dict):
-                    continue
-                s3_key = variant_data.get("s3_key")
-                if not s3_key:
-                    continue
-                try:
-                    await s3_service.delete_file(bucket_key="chatfiles", file_key=s3_key)
-                    s3_deleted += 1
-                    logger.debug(
-                        f"{log_prefix} Deleted S3 chatfiles/{s3_key} (variant: {variant_name})"
-                    )
-                except Exception as s3_err:
-                    s3_failed += 1
-                    logger.warning(
-                        f"{log_prefix} Failed to delete S3 chatfiles/{s3_key}: {s3_err}"
-                    )
-
-        logger.info(
-            f"{log_prefix} S3: {s3_deleted} deleted, {s3_failed} failed"
-        )
+        # ── 4. Prepare durable regional deletion authority ───────────────────
+        tombstones = await directus_service.embed._persist_upload_tombstones(records)
 
         # ── 5. Bulk-delete Directus records ───────────────────────────────────
         directus_ids = [r.get("id") for r in records if r.get("id")]
@@ -6054,6 +6035,8 @@ async def delete_storage_files(
                 "S3 objects may already be deleted."
             )
             raise HTTPException(status_code=500, detail="Failed to delete file records")
+
+        await directus_service.embed._activate_s3_tombstones(tombstones)
 
         # ── 6. Decrement storage_used_bytes on directus_users ─────────────────
         if total_bytes_freed > 0:

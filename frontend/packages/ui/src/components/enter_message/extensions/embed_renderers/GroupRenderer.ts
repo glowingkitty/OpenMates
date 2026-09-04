@@ -366,6 +366,11 @@ export class GroupRenderer implements EmbedRenderer {
           this.renderCodeRepoComponent(item, embedData, decodedContent, content),
       ],
       [
+        "file-file",
+        (item, embedData, decodedContent, content) =>
+          this.renderFileComponent(item, embedData, decodedContent, content),
+      ],
+      [
         "docs-doc",
         (item, embedData, decodedContent, content) =>
           this.renderDocsComponent(item, embedData, decodedContent, content),
@@ -7377,6 +7382,35 @@ export class GroupRenderer implements EmbedRenderer {
         ${body ? `<div class="embed-text-subline">${esc(String(body)).slice(0, 140)}</div>` : ""}
       </div>
     `;
+  }
+
+  private async renderFileComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const existingComponent = mountedComponents.get(content);
+    if (existingComponent) await unmount(existingComponent);
+    content.innerHTML = "";
+    if (!content.isConnected) return;
+
+    const { default: FileEmbedPreview } = await import("../../../embeds/file/FileEmbedPreview.svelte");
+    const component = mount(FileEmbedPreview, {
+      target: content,
+      props: {
+        id: embedId,
+        filename: decodedContent?.filename as string | undefined,
+        path: (decodedContent?.normalized_path || decodedContent?.path) as string | undefined,
+        mimeType: decodedContent?.mime_type as string | undefined,
+        sizeBytes: decodedContent?.size_bytes as number | undefined,
+        status: (embedData?.status || decodedContent?.status || "finished") as "processing" | "finished" | "error" | "cancelled",
+        isMobile: false,
+        onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+      },
+    });
+    mountedComponents.set(content, component);
   }
 
   /**

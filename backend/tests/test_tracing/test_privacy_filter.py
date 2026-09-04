@@ -1,313 +1,249 @@
 # backend/tests/test_tracing/test_privacy_filter.py
 # @privacy-promise: telemetry-privacy-filter
-"""
-Tests for TracePrivacyFilter (wrapping SpanExporter) and determine_user_tier().
+# contract-test-file: tooling
+"""Contract tests for privacy-safe OpenTelemetry attribute export.
 
-Verifies the 3-tier privacy model:
-- Tier 1: Regular users, normal spans — strips sensitive attributes, pseudonymizes user_id
-- Tier 2: Error spans from regular users — keeps operational attrs, strips high-sensitivity
-- Tier 3: Admin/opted-in users — keeps all attributes unchanged
-- Dev server: Keeps all attributes regardless of tier
-
-Bug history this test suite guards against:
-- Initial implementation — ensures privacy filtering works before spans reach OpenObserve
+The exporter is a strict allowlist in every environment. Normal traces retain
+only low-cardinality operational fields; approved diagnostic traces may add
+exact non-content counts and reviewed identifiers. Content, stable product
+identifiers, secrets, and raw errors are never exported.
 """
 
 import os
-from datetime import date
-from unittest.mock import patch, MagicMock
+import time
+from unittest.mock import MagicMock, patch
+
 from opentelemetry.sdk.trace.export import SpanExportResult
 
 
-class TestTracePrivacyFilterTier1:
-    """Tests for Tier 1 (regular user, normal span) filtering."""
+def _export(attributes: dict, environment: str = "production") -> dict:
+    from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
 
-    def test_tier1_removes_sensitive_attributes(self, tier1_span_attributes):
-        """TracePrivacyFilter at Tier 1 removes sensitive attributes."""
+    inner = MagicMock()
+    inner.export.return_value = SpanExportResult.SUCCESS
+    exporter = TracePrivacyFilter(inner=inner)
+    span = MagicMock()
+    span.attributes = attributes
+    span.resource.attributes = {}
+
+    with patch.dict(os.environ, {"SERVER_ENVIRONMENT": environment}):
+        exporter.export([span])
+
+    return inner.export.call_args[0][0][0].attributes
+
+
+class TestTracePrivacyFilterAllowlist:
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.exporter.allowlist,ai-request-observability.structural-traces.content-free
+    def test_keeps_reviewed_operational_attributes(self):
+        attributes = {
+            "service.name": "app-ai-worker",
+            "http.method": "POST",
+            "http.route": "/v1/ws",
+            "http.status_code": 200,
+            "ws.message_type": "chat_message_added",
+            "cache.hit": True,
+            "celery.queue": "app_ai",
+            "ai.phase": "preprocess",
+            "ai.status_class": "ok",
+            "ai.model_family": "fast_routing_llm",
+            "ai.capability_category": "web_search",
+            "ai.duration_ms": 125.5,
+            "ai.provider_purpose": "postprocess",
+            "ai.terminal_class": "completed",
+            "ai.first_token_ms": 800.0,
+            "ai.final_marker_ms": 10_000.0,
+            "ai.worker_tail_ms": 5_000.0,
+            "ai.token_count_bucket": "10k_50k",
+            "ai.retry_count_bucket": "0",
+        }
+
+        assert _export(attributes) == attributes
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.exporter.allowlist,ai-request-observability.default-metrics.identity-free
+    def test_drops_unknown_content_identifiers_secrets_and_raw_errors(self):
+        attributes = {
+            "service.name": "api",
+            "unknown.future.attribute": "must not pass",
+            "enduser.id": "user-private",
+            "chat.id": "chat-private",
+            "message.id": "message-private",
+            "celery.task_id": "task-private",
+            "http.request.header.authorization": "Bearer secret",
+            "http.request.header.cookie": "session=secret",
+            "db.statement": "SELECT private_data",
+            "rpc.request.body": '{"prompt":"private"}',
+            "cache.key": "user:private",
+            "cache.value": "private",
+            "skill.params": "private",
+            "exception.message": "private provider response",
+            "exception.stacktrace": "private stack",
+            "url.full": "https://example.invalid/private",
+            "server.address": "private-provider.example",
+            "messaging.destination.name": "chat_stream::private-chat-id",
+            "file.name": "private.pdf",
+        }
+
+        assert _export(attributes) == {"service.name": "api"}
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.exporter.allowlist
+    def test_dev_uses_the_same_strict_allowlist(self):
+        attributes = {
+            "service.name": "api",
+            "enduser.id": "user-private",
+            "rpc.request.body": "private",
+            "unknown.future.attribute": "private",
+        }
+
+        assert _export(attributes, environment="dev") == {"service.name": "api"}
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.structural-traces.content-free
+    def test_drops_span_events_and_link_attributes(self):
+        from backend.shared.python_utils.tracing.privacy_filter import _FilteredSpan
+
+        original = MagicMock()
+        original.events = [MagicMock(attributes={"exception.message": "private"})]
+        original.links = [MagicMock(attributes={"user.id": "private"})]
+        original.status.status_code = MagicMock()
+        original.status.description = "private provider response"
+        from opentelemetry.sdk.resources import Resource
+
+        filtered = _FilteredSpan(
+            original,
+            {"service.name": "api"},
+            Resource({"service.name": "api"}),
+        )
+
+        assert filtered.events == ()
+        assert filtered.links == ()
+        assert filtered.status.description is None
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.exporter.allowlist,ai-request-observability.structural-traces.content-free
+    def test_filters_resource_attributes_before_otlp_export(self):
         from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
 
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
+        inner = MagicMock()
+        inner.export.return_value = SpanExportResult.SUCCESS
+        span = MagicMock()
+        span.attributes = {"ai.phase": "main"}
+        span.resource.attributes = {
+            "service.name": "app-ai-worker",
+            "server.address": "private-provider.example",
+            "messaging.destination.name": "chat_stream::private-chat-id",
+            "deployment.environment": "private-environment",
+        }
 
-        # Create a mock span with tier1 attributes
-        mock_span = MagicMock()
-        mock_span.attributes = tier1_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
+        TracePrivacyFilter(inner).export([span])
 
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"}):
-            filter_exporter.export([mock_span])
-
-        # Verify inner exporter was called
-        mock_inner.export.assert_called_once()
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        # These attributes should be REMOVED at Tier 1
-        stripped_attrs = [
-            "http.request.header.authorization",
-            "http.request.header.cookie",
-            "db.statement",
-            "rpc.request.body",
-            "ws.payload_size",
-            "cache.key",
-            "cache.value",
-            "llm.timing",
-            "skill.params",
-        ]
-        for attr in stripped_attrs:
-            assert attr not in exported_attrs, f"Tier 1 should strip '{attr}'"
-
-    def test_tier1_keeps_safe_attributes(self, tier1_span_attributes):
-        """TracePrivacyFilter at Tier 1 keeps safe operational attributes."""
-        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
-
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
-
-        mock_span = MagicMock()
-        mock_span.attributes = tier1_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
-
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"}):
-            filter_exporter.export([mock_span])
-
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        # These attributes should be KEPT at Tier 1
-        kept_attrs = ["http.method", "http.route", "http.status_code", "service.name"]
-        for attr in kept_attrs:
-            assert attr in exported_attrs, f"Tier 1 should keep '{attr}'"
-
-    def test_tier1_pseudonymizes_user_id(self, tier1_span_attributes):
-        """TracePrivacyFilter at Tier 1 pseudonymizes 'enduser.id' to a 12-char hex hash."""
-        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
-
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
-
-        mock_span = MagicMock()
-        mock_span.attributes = tier1_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
-
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"}):
-            filter_exporter.export([mock_span])
-
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        # enduser.id should be pseudonymized (12 hex chars, not the original value)
-        assert "enduser.id" in exported_attrs
-        user_id = exported_attrs["enduser.id"]
-        assert user_id != "user-f21b15a5", "Tier 1 should pseudonymize user_id"
-        assert len(user_id) == 12, "Pseudonymized user_id should be 12 hex chars"
-        assert all(c in "0123456789abcdef" for c in user_id), "Should be hex string"
+        filtered_span = inner.export.call_args[0][0][0]
+        assert dict(filtered_span.resource.attributes) == {
+            "service.name": "app-ai-worker",
+        }
 
 
-class TestTracePrivacyFilterTier2:
-    """Tests for Tier 2 (error span from regular user) filtering."""
+class TestTracePrivacyFilterDiagnosticMode:
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.diagnostic-mode.bounded,ai-request-observability.exporter.allowlist
+    def test_admin_or_opt_in_keeps_only_reviewed_exact_non_content_fields(self):
+        attributes = {
+            "enduser.is_admin": True,
+            "service.name": "app-ai-worker",
+            "ai.token_count": 39521,
+            "ai.character_count": 158000,
+            "ai.message_count": 18,
+            "ai.request_count": 2,
+            "ai.result_count": 12,
+            "ai.retry_count": 1,
+            "ai.model_id": "reviewed-model",
+            "ai.app_id": "web",
+            "ai.skill_id": "search",
+            "enduser.id": "admin-private",
+            "rpc.request.body": "private prompt",
+            "exception.stacktrace": "private stack",
+            "unknown.future.attribute": "private",
+        }
 
-    def test_tier2_keeps_operational_attrs_but_strips_high_sensitivity(self, tier2_span_attributes):
-        """TracePrivacyFilter at Tier 2 keeps operational attrs but strips high-sensitivity ones."""
-        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
+        now = time.time()
+        with patch.dict(os.environ, {
+            "OTEL_DIAGNOSTIC_AUDIT_ID": "incident-scope",
+            "OTEL_DIAGNOSTIC_OWNER": "on-call",
+            "OTEL_DIAGNOSTIC_REASON": "slow-turn-investigation",
+            "OTEL_DIAGNOSTIC_STARTED_AT": str(now - 60),
+            "OTEL_DIAGNOSTIC_EXPIRES_AT": str(now + 3600),
+        }):
+            assert _export(attributes) == {
+                "service.name": "app-ai-worker",
+                "ai.token_count": 39521,
+                "ai.character_count": 158000,
+                "ai.message_count": 18,
+                "ai.request_count": 2,
+                "ai.result_count": 12,
+                "ai.retry_count": 1,
+                "ai.model_id": "reviewed-model",
+                "ai.app_id": "web",
+                "ai.skill_id": "search",
+            }
 
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.diagnostic-mode.bounded
+    def test_expired_diagnostic_scope_drops_exact_fields(self):
+        attributes = {
+            "enduser.is_admin": True,
+            "service.name": "app-ai-worker",
+            "ai.token_count": 39521,
+        }
+        with patch.dict(os.environ, {
+            "OTEL_DIAGNOSTIC_AUDIT_ID": "expired-incident",
+            "OTEL_DIAGNOSTIC_OWNER": "on-call",
+            "OTEL_DIAGNOSTIC_REASON": "slow-turn-investigation",
+            "OTEL_DIAGNOSTIC_STARTED_AT": str(time.time() - 3600),
+            "OTEL_DIAGNOSTIC_EXPIRES_AT": str(time.time() - 1),
+        }):
+            assert _export(attributes) == {"service.name": "app-ai-worker"}
 
-        mock_span = MagicMock()
-        mock_span.attributes = tier2_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
+    def test_incomplete_diagnostic_scope_drops_exact_fields(self):
+        attributes = {
+            "enduser.is_admin": True,
+            "service.name": "app-ai-worker",
+            "ai.token_count": 39521,
+        }
+        with patch.dict(os.environ, {
+            "OTEL_DIAGNOSTIC_AUDIT_ID": "missing-owner-and-reason",
+            "OTEL_DIAGNOSTIC_EXPIRES_AT": str(time.time() + 3600),
+        }, clear=True):
+            assert _export(attributes) == {"service.name": "app-ai-worker"}
 
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"}):
-            filter_exporter.export([mock_span])
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.diagnostic-mode.bounded
+    def test_regular_trace_drops_exact_diagnostic_fields(self):
+        attributes = {
+            "enduser.is_admin": False,
+            "enduser.debug_opted_in": False,
+            "service.name": "app-ai-worker",
+            "ai.token_count": 39521,
+            "ai.model_id": "reviewed-model",
+            "ai.token_count_bucket": "10k_50k",
+        }
 
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        # Tier 2 should KEEP these (they are tier 2+ attrs)
-        assert "http.request.header.authorization_type" in exported_attrs
-        assert "cache.hit" in exported_attrs
-        assert "exception.stacktrace" in exported_attrs
-        assert "celery.task_id" in exported_attrs
-
-        # Tier 2 should STRIP tier 3 only attrs
-        assert "cache.value" not in exported_attrs
-        assert "llm.timing" not in exported_attrs
-        assert "skill.params" not in exported_attrs
-
-        # Always strip regardless of tier
-        assert "http.request.header.cookie" not in exported_attrs
-        assert "http.request.header.authorization" not in exported_attrs
-
-    def test_tier2_keeps_real_user_id(self, tier2_span_attributes):
-        """TracePrivacyFilter at Tier 2 keeps real 'enduser.id' (no pseudonymization)."""
-        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
-
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
-
-        mock_span = MagicMock()
-        mock_span.attributes = tier2_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
-
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"}):
-            filter_exporter.export([mock_span])
-
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        assert exported_attrs.get("enduser.id") == "user-f21b15a5"
-
-
-class TestTracePrivacyFilterTier3:
-    """Tests for Tier 3 (admin/opted-in user) filtering."""
-
-    def test_tier3_keeps_all_attributes_except_always_strip(self, tier3_span_attributes):
-        """TracePrivacyFilter at Tier 3 keeps all attributes unchanged (except always-strip)."""
-        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
-
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
-
-        mock_span = MagicMock()
-        mock_span.attributes = tier3_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
-
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "production"}):
-            filter_exporter.export([mock_span])
-
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        # Tier 3 should keep everything except always-strip
-        assert "ws.payload_size" in exported_attrs
-        assert "cache.key" in exported_attrs
-        assert "cache.value" in exported_attrs
-        assert "llm.timing" in exported_attrs
-        assert "skill.params" in exported_attrs
-        assert "exception.stacktrace" in exported_attrs
-        assert "celery.task_id" in exported_attrs
-        assert exported_attrs.get("enduser.id") == "admin-f21b15a5"
-
-        # Always-strip should still be removed
-        assert "http.request.header.cookie" not in exported_attrs
-        assert "http.request.header.authorization" not in exported_attrs
-
-
-class TestTracePrivacyFilterDevServer:
-    """Tests for dev server mode (bypasses all filtering)."""
-
-    def test_dev_server_keeps_all_attributes(self, tier1_span_attributes):
-        """TracePrivacyFilter on dev server keeps all attributes regardless of tier."""
-        from backend.shared.python_utils.tracing.privacy_filter import TracePrivacyFilter
-
-        mock_inner = MagicMock()
-        mock_inner.export.return_value = SpanExportResult.SUCCESS
-        filter_exporter = TracePrivacyFilter(inner=mock_inner)
-
-        mock_span = MagicMock()
-        mock_span.attributes = tier1_span_attributes
-        mock_span.name = "POST /api/v1/chat"
-        mock_span.context = MagicMock()
-        mock_span.status = MagicMock()
-
-        with patch.dict(os.environ, {"SERVER_ENVIRONMENT": "dev"}):
-            filter_exporter.export([mock_span])
-
-        exported_spans = mock_inner.export.call_args[0][0]
-        exported_attrs = exported_spans[0].attributes
-
-        # Dev server should keep ALL attributes unchanged (including normally-stripped ones)
-        assert "http.request.header.authorization" in exported_attrs
-        assert "http.request.header.cookie" in exported_attrs
-        assert "cache.value" in exported_attrs
-        assert "llm.timing" in exported_attrs
-        assert "skill.params" in exported_attrs
-        assert exported_attrs.get("enduser.id") == "user-f21b15a5"
-
-
-class TestPseudonymization:
-    """Tests for user ID pseudonymization with daily salt rotation."""
-
-    def test_pseudonymized_user_id_changes_with_daily_salt(self):
-        """Pseudonymized user_id changes when daily salt rotates (different date)."""
-        from backend.shared.python_utils.tracing.privacy_filter import _pseudonymize_user_id
-
-        user_id = "user-f21b15a5"
-
-        with patch("backend.shared.python_utils.tracing.privacy_filter.date") as mock_date:
-            mock_date.today.return_value = date(2026, 3, 27)
-            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
-            hash_day1 = _pseudonymize_user_id(user_id)
-
-        # Reset cached salt by re-importing or using a fresh instance
-        import backend.shared.python_utils.tracing.privacy_filter as pf
-        pf._cached_salt = None
-        pf._cached_salt_date = None
-
-        with patch("backend.shared.python_utils.tracing.privacy_filter.date") as mock_date:
-            mock_date.today.return_value = date(2026, 3, 28)
-            mock_date.side_effect = lambda *args, **kw: date(*args, **kw)
-            hash_day2 = _pseudonymize_user_id(user_id)
-
-        assert hash_day1 != hash_day2, "Pseudonymized IDs should differ across days"
-        assert len(hash_day1) == 12
-        assert len(hash_day2) == 12
+        assert _export(attributes) == {
+            "service.name": "app-ai-worker",
+            "ai.token_count_bucket": "10k_50k",
+        }
 
 
 class TestDetermineUserTier:
-    """Tests for the determine_user_tier() function."""
-
     def test_admin_users_get_tier_3(self):
-        """determine_user_tier returns 3 for admin users."""
         from backend.shared.python_utils.tracing.user_tier import determine_user_tier
 
-        attrs = {"enduser.is_admin": True, "otel.status_code": "OK"}
-        assert determine_user_tier(attrs) == 3
+        assert determine_user_tier({"enduser.is_admin": True}) == 3
 
     def test_opted_in_users_get_tier_3(self):
-        """determine_user_tier returns 3 for opted-in users."""
         from backend.shared.python_utils.tracing.user_tier import determine_user_tier
 
-        attrs = {"enduser.debug_opted_in": True, "otel.status_code": "OK"}
-        assert determine_user_tier(attrs) == 3
+        assert determine_user_tier({"enduser.debug_opted_in": True}) == 3
 
     def test_error_status_spans_get_tier_2(self):
-        """determine_user_tier returns 2 for ERROR status spans."""
         from backend.shared.python_utils.tracing.user_tier import determine_user_tier
 
-        attrs = {
-            "enduser.is_admin": False,
-            "enduser.debug_opted_in": False,
-            "otel.status_code": "ERROR",
-        }
-        assert determine_user_tier(attrs) == 2
+        assert determine_user_tier({"otel.status_code": "ERROR"}) == 2
 
     def test_normal_spans_from_regular_users_get_tier_1(self):
-        """determine_user_tier returns 1 for normal spans from regular users."""
         from backend.shared.python_utils.tracing.user_tier import determine_user_tier
 
-        attrs = {
-            "enduser.is_admin": False,
-            "enduser.debug_opted_in": False,
-            "otel.status_code": "OK",
-        }
-        assert determine_user_tier(attrs) == 1
+        assert determine_user_tier({"otel.status_code": "OK"}) == 1

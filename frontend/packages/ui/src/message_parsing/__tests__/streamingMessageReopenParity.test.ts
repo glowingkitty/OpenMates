@@ -29,6 +29,7 @@ const skill = (id: string) => `\`\`\`json\n${JSON.stringify({
 })}\n\`\`\``;
 
 describe("assistant live/reopen parity", () => {
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it("reconstructs the same ordered semantic document from persisted Markdown", () => {
     const prefix = `${skill("skill-old")}\n\nMadrid is Spain's capital.\n\n`;
     const finalMarkdown = [

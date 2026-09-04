@@ -17,11 +17,15 @@
 # The backend uses the existing wikipedia provider (backend/shared/providers/wikipedia)
 # which sets a proper User-Agent per Wikimedia policy and handles retries.
 
+import asyncio
 import hashlib
+import json
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse
 
 from backend.core.api.app.routes.apps_api import charge_credits_via_internal_api
@@ -29,6 +33,8 @@ from backend.core.api.app.services.limiter import limiter
 from backend.shared.providers.wikipedia.wikipedia_api import (
     fetch_page_summary,
     fetch_wikidata_entity,
+    normalize_wikipedia_language,
+    search_wikipedia_titles,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +48,92 @@ CREDITS_PER_REQUEST = 1
 # SlowAPI's decorator callable has no access to the request and can't read auth state.
 # Authenticated callers (session cookie OR API key) use the 60/minute slowapi cap.
 ANON_RATE_LIMIT_PER_MINUTE = 15
+WIKIPEDIA_PROXY_CACHE_TTL_SECONDS = 60 * 60
+WIKIPEDIA_SHARED_BUDGET_PER_MINUTE = 150
+WIKIPEDIA_UPSTREAM_CONCURRENCY = 3
+_wikipedia_upstream_semaphore = asyncio.Semaphore(WIKIPEDIA_UPSTREAM_CONCURRENCY)
+
+
+def _wikipedia_cache_key(kind: str, language: str, identifier: str, limit: Optional[int] = None) -> str:
+    normalized = json.dumps(
+        {"kind": kind, "language": language, "identifier": identifier.strip(), "limit": limit},
+        sort_keys=True,
+    )
+    return "wikipedia_proxy:" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+async def _cache_client():
+    from backend.core.api.app.services.cache import CacheService
+
+    return await CacheService().client
+
+
+async def _get_cached_payload(cache_key: str) -> Optional[Any]:
+    client = await _cache_client()
+    if not client:
+        return None
+    raw = await client.get(cache_key)
+    if not raw:
+        return None
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8")
+    return json.loads(raw)
+
+
+async def _set_cached_payload(cache_key: str, payload: Any) -> None:
+    client = await _cache_client()
+    if not client:
+        return
+    await client.setex(cache_key, WIKIPEDIA_PROXY_CACHE_TTL_SECONDS, json.dumps(payload, ensure_ascii=True))
+
+
+async def _reserve_shared_wikipedia_budget() -> None:
+    client = await _cache_client()
+    if not client:
+        raise HTTPException(status_code=503, detail="Wikipedia proxy budget store unavailable")
+    key = f"wikipedia_proxy_budget:{int(time.time()) // 60}"
+    count = await client.incr(key)
+    if count == 1:
+        await client.expire(key, 90)
+    if count > WIKIPEDIA_SHARED_BUDGET_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="Wikipedia proxy shared rate limit exceeded")
+
+
+async def _fetch_cached_wikipedia_payload(cache_key: str, fetcher: Callable[[], Awaitable[Any]]) -> Any:
+    try:
+        cached = await _get_cached_payload(cache_key)
+    except Exception as exc:
+        logger.warning("[wikipedia_proxy] cache read failed: %s", exc, exc_info=True)
+        cached = None
+    if cached is not None:
+        return cached
+
+    await _reserve_shared_wikipedia_budget()
+    async with _wikipedia_upstream_semaphore:
+        payload = await fetcher()
+
+    if payload is not None:
+        try:
+            await _set_cached_payload(cache_key, payload)
+        except Exception as exc:
+            logger.warning("[wikipedia_proxy] cache write failed: %s", exc, exc_info=True)
+    return payload
+
+
+def _summary_response_payload(data: dict[str, Any], language: str) -> dict[str, Any]:
+    titles = data.get("titles") or {}
+    desktop_urls = (data.get("content_urls") or {}).get("desktop") or {}
+    thumbnail = data.get("thumbnail") or {}
+    return {
+        "language": language,
+        "page_id": data.get("pageid"),
+        "title": data.get("title") or titles.get("normalized") or titles.get("canonical"),
+        "canonical_title": titles.get("canonical") or data.get("title"),
+        "description": data.get("description") or "",
+        "extract": data.get("extract") or "",
+        "source_url": desktop_urls.get("page") or data.get("content_urls", {}).get("page", ""),
+        "thumbnail_url": thumbnail.get("source") or thumbnail.get("url"),
+    }
 
 
 async def _check_anon_rate_limit(request: Request) -> None:
@@ -80,7 +172,45 @@ async def _check_anon_rate_limit(request: Request) -> None:
         logger.debug(f"[wikipedia_proxy] anon rate check failed (open): {e}")
 
 
-async def _authorize_request(request: Request) -> Dict[str, Any]:
+@router.get("/search")
+@limiter.limit("60/minute")
+async def wikipedia_search(
+    request: Request,
+    response: Response,
+    query: str = Query(..., min_length=1, max_length=300, description="Wikipedia title search query"),
+    language: str = Query("en", min_length=2, max_length=10, description="Wikipedia language code or locale"),
+    limit: int = Query(5, ge=1, le=10, description="Maximum number of title results"),
+) -> JSONResponse:
+    """Search Wikipedia titles without Wikidata or client-side Wikimedia requests."""
+    language = normalize_wikipedia_language(language)
+    normalized_query = query.strip()
+    if not normalized_query:
+        raise HTTPException(status_code=400, detail="Search query is required")
+
+    auth_info = await _authorize_request(request, response)
+    await _check_anon_rate_limit(request)
+    cache_key = _wikipedia_cache_key("search", language, normalized_query, limit)
+
+    try:
+        results = await _fetch_cached_wikipedia_payload(
+            cache_key,
+            lambda: search_wikipedia_titles(normalized_query, language=language, limit=limit),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"[wikipedia_proxy] search fetch error for '{normalized_query}': {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch Wikipedia search results")
+
+    response_results = [
+        result.model_dump(exclude_none=True) if hasattr(result, "model_dump") else result
+        for result in (results or [])
+    ]
+    await _charge_if_api_key(auth_info, skill_id="wikipedia_search")
+    return JSONResponse(content={"results": response_results})
+
+
+async def _authorize_request(request: Request, response: Response) -> Dict[str, Any]:
     """
     Allow the request if ANY of the following is true, else raise 401:
       1. Origin header matches an allowed web-app origin (free, used for unauth
@@ -111,6 +241,7 @@ async def _authorize_request(request: Request) -> Dict[str, Any]:
 
         auth_info = await get_session_or_api_key_info(
             request=request,
+            response=response,
             cache_service=cache_service,
             directus_service=directus_service,
             refresh_token=refresh_token,
@@ -147,6 +278,7 @@ async def _charge_if_api_key(auth_info: Dict[str, Any], skill_id: str) -> None:
 @limiter.limit("60/minute")
 async def wikipedia_summary(
     request: Request,
+    response: Response,
     title: str = Query(..., min_length=1, max_length=300, description="Canonical Wikipedia article title"),
     language: str = Query("en", min_length=2, max_length=5, description="Wikipedia language code"),
 ) -> JSONResponse:
@@ -156,14 +288,19 @@ async def wikipedia_summary(
 
     Auth: trusted Origin OR session cookie (free) OR API key (1 credit per request).
     """
-    if not all(c.isalnum() or c == "-" for c in language):
-        raise HTTPException(status_code=400, detail="Invalid language code")
+    language = normalize_wikipedia_language(language)
 
-    auth_info = await _authorize_request(request)
+    auth_info = await _authorize_request(request, response)
     await _check_anon_rate_limit(request)
+    cache_key = _wikipedia_cache_key("summary", language, title)
 
     try:
-        data = await fetch_page_summary(title=title, language=language)
+        data = await _fetch_cached_wikipedia_payload(
+            cache_key,
+            lambda: fetch_page_summary(title=title, language=language),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.warning(f"[wikipedia_proxy] summary fetch error for '{title}': {e}")
         raise HTTPException(status_code=502, detail="Failed to fetch Wikipedia summary")
@@ -172,12 +309,12 @@ async def wikipedia_summary(
         raise HTTPException(status_code=404, detail="Article not found")
 
     await _charge_if_api_key(auth_info, skill_id="wikipedia_summary")
-    return JSONResponse(content=data)
+    return JSONResponse(content=_summary_response_payload(data, language))
 
 
 @router.get("/wikidata/{qid}")
 @limiter.limit("60/minute")
-async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
+async def wikidata_entity(request: Request, response: Response, qid: str) -> JSONResponse:
     """
     Proxy a Wikidata entity lookup (structured claims, labels, descriptions).
     QID must match the Wikidata format (Q followed by digits).
@@ -187,7 +324,7 @@ async def wikidata_entity(request: Request, qid: str) -> JSONResponse:
     if not qid.startswith("Q") or not qid[1:].isdigit() or len(qid) > 20:
         raise HTTPException(status_code=400, detail="Invalid QID")
 
-    auth_info = await _authorize_request(request)
+    auth_info = await _authorize_request(request, response)
     await _check_anon_rate_limit(request)
 
     try:

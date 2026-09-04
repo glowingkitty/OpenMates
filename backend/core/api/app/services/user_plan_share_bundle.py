@@ -11,10 +11,8 @@ from typing import Any
 
 
 SHARED_PLAN_FIELDS = (
-    "plan_id,status,primary_chat_id,hashed_primary_chat_id,current_phase_id,current_step_id,"
-    "current_task_id,continuation_state,approval_state,planner_focus_id,version,created_at,"
-    "updated_at,completed_at,encrypted_plan_key,encrypted_title,encrypted_summary,encrypted_goal,"
-    "encrypted_scope_in,encrypted_scope_out,encrypted_user_flows,encrypted_current_focus,"
+    "plan_id,status,primary_chat_id,hashed_primary_chat_id,continuation_state,approval_state,planner_focus_id,version,created_at,"
+    "updated_at,completed_at,encrypted_title,encrypted_goal,encrypted_scope_in,encrypted_scope_out,encrypted_user_flows,"
     "encrypted_assumptions,encrypted_open_questions,encrypted_constraints,encrypted_decisions,"
     "encrypted_risks,encrypted_reference_patterns,encrypted_context,encrypted_continuation_policy"
 )

@@ -1,0 +1,520 @@
+schema_version: 2
+id: release-core-journeys-gate
+title: Release Core Journeys Gate
+status: implementing
+
+goal: >
+  Prevent promotion from dev to main when the deployed development release
+  candidate cannot complete essential reachability, signup, billing, and chat
+  journeys, while keeping non-core failures advisory.
+
+scope:
+  in:
+    - A short canonical core-journey Playwright suite for hourly smoke.
+    - A broader release matrix containing core availability and every signup and billing Playwright spec.
+    - A GitHub Actions workflow for dev-to-main pull requests and manual bootstrap runs.
+    - Commit-pinned test code, deployment readiness checks, and one aggregate gate result.
+    - A dev-host command that prepares core Docker services and publishes a commit status attestation.
+    - Account-level Playwright serialization and advisory rollout documentation.
+  out:
+    - Opening or merging a dev-to-main pull request in this session.
+    - Changing branch protection before advisory validation succeeds.
+    - Making the complete nightly test suite release-blocking.
+    - Giving GitHub Actions remote Docker access to the dev host.
+
+context_discovery:
+  github_issues:
+    - No matching public issue found for release gate, core journeys, branch protection, or required checks.
+  docs:
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/tests/dev-smoke/README.md
+  code_patterns:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/sessions.py
+  tests:
+    - scripts/tests/test_run_tests_account_policy.py
+    - frontend/apps/web_app/tests/dev-smoke/dev-smoke-reachability.spec.ts
+    - frontend/apps/web_app/tests/chat-flow.spec.ts
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-managed.spec.ts
+    - frontend/apps/web_app/tests/signup-flow-stripe-managed.spec.ts
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations:
+    - Release automation does not change Apple application behavior.
+  verification:
+    - Not required.
+  intentional_native_differences: [none]
+
+clarification:
+  rounds:
+    - question: Should fixed signup, billing, and chat journeys block dev-to-main promotion while other failures remain advisory?
+      answer: Yes; implement the core journeys release gate.
+    - question: Should the authoritative result run locally or in GitHub CI?
+      answer: GitHub CI owns the result while exercising the real dev deployment.
+    - question: Should this session create or merge the dev-to-main pull request?
+      answer: No; the user will handle it later.
+    - question: Should every signup and billing test pass before a pull request can complete?
+      answer: Yes; expand the existing aggregate release gate to require all of them.
+  vision_summary: >
+    GitHub exposes one stable core-journey result covering core availability and
+    every signup and billing spec. The dev host prepares and
+    attests the Docker-backed backend because GitHub-hosted runners cannot control
+    it. The workflow starts advisory and the first promotion uses the existing
+    commit-pinned test control plane because the new workflow is not yet registered on main.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-08-03T00:00:00Z"
+    reason: The user approved the plan and requested implementation.
+  plan:
+    status: approved
+    approved_at: "2026-08-03T00:00:00Z"
+    reason: The user approved GitHub CI orchestration with dev-host preparation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Require one aggregate job rather than individual matrix jobs.
+    reason: It provides a stable branch-protection contract.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Keep Docker control on the dev host and publish a commit-scoped status.
+    reason: GitHub-hosted runners cannot safely operate the local dev Docker stack.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Defer branch-protection changes until advisory runs are green.
+    reason: The current ruleset covers main and dev and the new check is unproven.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Bootstrap through scripts/tests.py run --core-journeys with an exact commit.
+    reason: GitHub does not register or trigger a brand-new workflow from a non-default branch.
+    decided_at: "2026-08-03T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Allocate core journeys to persistent account slots 2, 3, 5, and 6.
+    reason: Exact-commit preflight proved slots 1 and 4 have stale credentials while 2, 3, 5, and 6 are healthy.
+    decided_at: "2026-08-03T18:35:00Z"
+  - id: D-6
+    status: active
+    decision: Keep hourly smoke short while discovering all signup and billing specs for the promotion matrix by filename pattern.
+    reason: Pull requests must fail closed for these critical journeys, and future matching specs must not require manual gate registration.
+    decided_at: "2026-08-05T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Reuse hourly dev mode unchanged.
+    outcome: rejected
+    recorded_at: "2026-08-03T00:00:00Z"
+    note: Hourly mode lacks the required commit pinning and normal account preflight behavior.
+  - id: ATTEMPT-2
+    task_id: TASK-4
+    approach: Manually dispatch the new aggregate workflow from dev before it exists on main.
+    outcome: rejected
+    recorded_at: "2026-08-03T16:50:00Z"
+    note: GitHub returned 404 because brand-new workflows are not registered from non-default branches; bootstrap now uses the existing single-spec workflow through scripts/tests.py.
+  - id: ATTEMPT-3
+    task_id: TASK-4
+    approach: Run the exact-commit bootstrap suite after initial release-candidate preparation.
+    outcome: failed_as_expected
+    recorded_at: "2026-08-03T17:39:34Z"
+    note: Reachability passed; chat exposed an authenticated landing overlay regression, while both billing journeys exposed cloud overlay configuration disabled by missing Compose env interpolation.
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Prepare and rerun after fixing billing interpolation, chat overlay state, and unhealthy account allocation.
+    outcome: blocked
+    recorded_at: "2026-08-03T18:44:41Z"
+    note: Active Team/Project work left backend runtime paths dirty, so the corrected preparation command refused to publish a false release attestation.
+  - id: ATTEMPT-5
+    task_id: TASK-4
+    approach: Restore official-cloud overlay composition, bound the overlapping pending-embed safety net, isolate email from persistence queues, and rerun managed signup and billing serially on an exact dev commit.
+    outcome: succeeded
+    recorded_at: "2026-08-07T17:16:23Z"
+    note: Commit 68a58479d passed settings-buy-credits-stripe-managed.spec.ts in GitHub run 31200277877 and signup-flow-stripe-managed.spec.ts in run 31201187564. Live overlay attestation reported payment_enabled=true with dedicated task-worker email and core-worker persistence queue ownership.
+
+handoff:
+  current_task_id: TASK-4
+  next_action: Prepare the latest clean dev SHA, rerun the core journeys bootstrap, and record green evidence before enabling a main-only required check.
+  command: python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_DEV_SHA> && python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_DEV_SHA> --max-concurrent 4 --no-fail-fast
+  expected_outcome: Exact Vercel, hosted billing, backend services, core availability, and every signup and billing journey pass for one SHA.
+  blocker:
+    task_id: TASK-4
+    requires_user_input: true
+    reason: The shared dev host currently has uncommitted backend runtime files from active Team/Project work, and release preparation correctly fails closed.
+    question: Before tomorrow's promotion, can the operator ensure backend runtime paths are clean and run the documented preparation plus bootstrap commands for the then-current dev SHA?
+    next_action: Rerun the handoff command during a clean release window.
+  last_verified_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+
+scenarios:
+  - id: S-1
+    title: Attested release candidate passes every core journey
+    given:
+      - A dev-to-main PR or manual bootstrap identifies an exact dev commit.
+      - Vercel is Ready and backend preparation succeeded for that commit.
+    when:
+      - GitHub runs the canonical core suite.
+    then:
+      - Every spec checks out the exact commit.
+      - All specs run even if one fails.
+      - The aggregate gate succeeds only when every prerequisite succeeds.
+  - id: S-2
+    title: Core failure blocks promotion
+    given:
+      - Deployment provenance is valid.
+    when:
+      - Reachability, chat, any signup spec, or any billing spec fails.
+    then:
+      - Diagnostic artifacts are preserved.
+      - The remaining core specs complete.
+      - The aggregate gate fails.
+  - id: S-3
+    title: Missing backend preparation fails closed
+    given:
+      - The exact commit lacks a successful backend release-candidate status.
+    when:
+      - Deployment readiness runs.
+    then:
+      - Browser journeys do not start.
+      - The aggregate gate fails with preparation instructions.
+  - id: S-4
+    title: Superseded runs do not collide on shared accounts
+    given:
+      - A release workflow is active.
+    when:
+      - A newer dev commit starts another run.
+    then:
+      - The old release run is cancelled.
+      - Every single-spec workflow invocation serializes by account slot.
+  - id: S-5
+    title: Initial workflow reaches main safely
+    given:
+      - Main does not contain the release workflow yet.
+    when:
+      - The first promotion is prepared.
+    then:
+      - An operator runs the canonical suite through scripts/tests.py for the exact commit.
+      - Automation does not create or merge the PR.
+      - Required-check enforcement remains deferred until advisory proof exists.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Hourly smoke retains its four approved core specs, while release CI adds every recursively discovered non-production signup and billing spec.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PY-CORE-GATE]
+  - id: AC-2
+    scenario: S-1
+    text: The release workflow targets main pull requests without path filters and the existing control plane supports an exact-commit first-promotion bootstrap.
+    required: true
+    status: blocked
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PY-CORE-GATE, V-WORKFLOW]
+  - id: AC-3
+    scenario: S-2
+    text: One stable aggregate job fails when any prerequisite or core matrix job fails.
+    required: true
+    status: blocked
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PY-CORE-GATE, V-WORKFLOW]
+  - id: AC-4
+    scenario: S-3
+    text: Dev-host preparation verifies dev alignment, recreates core services with root environment interpolation under the Docker lock, health-checks hosted billing, and publishes status for the exact commit.
+    required: true
+    status: blocked
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-PY-CORE-GATE, V-ATTESTATION]
+  - id: AC-5
+    scenario: S-4
+    text: PR concurrency cancels superseded runs and account concurrency serializes single-spec runs.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PY-CORE-GATE]
+  - id: AC-6
+    scenario: S-1
+    text: Release jobs require the requested checkout SHA and cannot update repository credentials.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: full_ci
+    verification_ids: [T-PY-CORE-GATE]
+  - id: AC-7
+    scenario: S-5
+    text: This session creates no dev-to-main PR and changes no required-check ruleset.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids: [V-NO-PR]
+
+assumptions:
+  - id: A-1
+    text: GitHub-hosted runners can reach the configured dev web and API URLs.
+    category: infrastructure
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: .github/workflows/playwright-spec.yml
+        summary: Existing ubuntu-latest jobs use those public URLs.
+  - id: A-2
+    text: The repository can publish and read a named commit status on an exact SHA.
+    category: github
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: GitHub commit statuses API
+        summary: The authenticated repository operator can publish status and Actions can read it.
+  - id: A-3
+    text: The first automatic PR run cannot occur until the workflow exists on main.
+    category: github
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: GitHub Actions pull_request behavior
+        summary: The workflow file must exist on the base branch.
+
+contracts:
+  api:
+    - route: GitHub commit statuses API
+      access_model: internal-only
+      auth: Authenticated gh CLI writes on the dev host; workflow GITHUB_TOKEN reads.
+      rate_limits: GitHub repository API limits apply.
+      credit_budget: No OpenMates credits are used by attestation.
+      encryption_boundary: No encrypted or decrypted user data is handled.
+      request: Publish or read a stable status context for an exact SHA.
+      response: State, context, description, and target URL.
+      errors:
+        - Missing or non-success status fails readiness.
+  data:
+    - CORE_JOURNEY_SPECS is canonical for the short hourly smoke suite.
+    - RELEASE_GATE_SPECS is canonical for release CI and includes core availability plus every spec matched by RELEASE_GATE_SPEC_PATTERNS outside prod-smoke.
+    - Release-candidate attestation is keyed by exact Git SHA and a stable context and is published only after exact-SHA Vercel readiness plus backend health.
+  ui_states:
+    - No product UI changes.
+  privacy_security:
+    - Use pull_request, never pull_request_target.
+    - Reject sources other than the same-repository dev branch.
+    - Use minimum permissions and explicitly mapped secrets.
+    - Disable credential updates for release calls.
+    - Never log or persist test credentials in tracked files.
+
+tests:
+  - id: T-PY-CORE-GATE
+    type: pytest
+    file: scripts/tests/test_release_core_journeys_gate.py
+    command: python3 -m pytest scripts/tests/test_release_core_journeys_gate.py -q
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - Canonical suite contents exist and are emitted as a matrix.
+      - Release workflow triggers, guards, matrix, and aggregate result are deterministic.
+      - Reusable workflow pins checkout, serializes accounts, and blocks credential mutation.
+      - Preparation fails for branch, worktree, remote, service-health, or status errors.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest scripts/tests/test_release_core_journeys_gate.py -q
+        run_id: local-red-5-failed
+        subject_commit: b19f7ae4b0b3ee4e40b298f55e230556edf86274
+        timestamp: "2026-08-03T16:23:11Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest scripts/tests/test_release_core_journeys_gate.py scripts/tests/test_run_tests_account_policy.py scripts/tests/test_ci_workflow_scope.py -q
+        run_id: local-44-passed
+        subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+        timestamp: "2026-08-03T18:44:41Z"
+  - id: T-LINT-CORE-GATE
+    type: lint
+    file: .github/workflows/release-core-journeys.yml
+    command: bash scripts/lint_changed.sh --path .github/workflows/release-core-journeys.yml --path .github/workflows/playwright-spec.yml --path scripts/run_tests.py --path scripts/tests.py --path scripts/prepare_release_candidate.py --path scripts/tests/test_release_core_journeys_gate.py --path frontend/apps/web_app/tests/dev-smoke/README.md --path docs/plans/release-core-journeys-gate/plan.yml --path docs/architecture/test-orchestration.md --path docs/contributing/guides/git-and-deployment.md
+    covers: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]
+    assertions:
+      - Changed workflow, Python, test, and documentation files pass focused checks.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_required
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: bash scripts/lint_changed.sh --path .github/workflows/release-core-journeys.yml --path .github/workflows/playwright-spec.yml --path scripts/run_tests.py --path scripts/tests.py --path scripts/prepare_release_candidate.py --path scripts/tests/test_release_core_journeys_gate.py --path frontend/apps/web_app/tests/dev-smoke/README.md --path docs/plans/release-core-journeys-gate/plan.yml --path docs/architecture/test-orchestration.md --path docs/contributing/guides/git-and-deployment.md
+        run_id: focused-lint-and-actionlint
+        subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+        timestamp: "2026-08-03T18:44:41Z"
+
+verifications:
+  - id: V-ATTESTATION
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-4]
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Initial preparation succeeded at 9fa3763, but the corrected env-interpolation version requires replacement evidence and currently refuses dirty backend runtime paths.
+      command: python3 scripts/prepare_release_candidate.py --session <SESSION_ID> --expected-commit <FULL_DEV_SHA>
+      run_id: initial-attestation-9fa3763-invalidated
+      subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+      timestamp: "2026-08-03T18:44:41Z"
+      reason: Active unrelated backend work prevents a truthful release attestation.
+      actor: OpenCode session 263f
+      next_action: Rerun during a clean release window.
+  - id: V-WORKFLOW
+    kind: manual_check
+    phase: green
+    required_for_done: true
+    covers: [AC-2, AC-3]
+    status: blocked
+    evidence:
+      status: blocked
+      summary: Exact-commit bootstrap ran all four journeys; reachability passed and the three failures drove fixes, but a final post-fix run is blocked by dirty backend runtime paths.
+      command: python3 scripts/tests.py run --core-journeys --gate-deploy --expected-commit <FULL_DEV_SHA> --max-concurrent 4 --no-fail-fast
+      run_id: 2026-08-03T17:08:58Z
+      subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+      timestamp: "2026-08-03T18:44:41Z"
+      reason: Final release preparation cannot proceed while unrelated backend changes are mounted.
+      actor: OpenCode session 263f
+      next_action: Prepare and rerun the current clean dev SHA.
+  - id: V-NO-PR
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-7]
+    status: passed
+    evidence:
+      status: passed
+      summary: No open dev-to-main PR exists and Basic protection still has no required status-check rule.
+      reason: The user explicitly reserved PR creation and promotion for tomorrow.
+      actor: OpenCode session 263f
+      command: gh pr list --base main --head dev --state open --json number,url && gh api repos/{owner}/{repo}/rulesets/6180344
+      run_id: repository-state-20260803
+      subject_commit: 03276b929f0d0fa32e17a52f234be7a91ae02d86
+      timestamp: "2026-08-03T18:44:41Z"
+
+implementation_notes:
+  plan_path: docs/plans/release-core-journeys-gate/plan.yml
+  existing_patterns:
+    - scripts/run_tests.py owns the short hourly suite and one-workflow-per-spec dispatch.
+    - playwright-spec.yml already supports checkout refs and failure artifacts.
+    - sessions.py already provides the Docker lock.
+  architecture: >
+    Emit a matrix from one Python suite definition, call an exact-SHA reusable
+    Playwright workflow, and aggregate results in a main-targeting workflow. A
+    dev-host command prepares Docker services and publishes a named GitHub status;
+    GitHub reads but cannot create that attestation.
+  data_flow:
+    - Dev host prepares services and publishes backend status on the exact SHA.
+    - Release CI validates source, Vercel, endpoint reachability, and backend status.
+    - CI runs one reusable Playwright job per canonical spec and account.
+    - An always-run aggregate job emits the stable gate conclusion.
+  affected_files:
+    - {path: scripts/run_tests.py, reason: Canonical suite and matrix output.}
+    - {path: scripts/tests.py, reason: Commit-pinned bootstrap suite classification.}
+    - {path: .github/workflows/playwright-spec.yml, reason: Reusable exact-SHA runner and account serialization.}
+    - {path: .github/workflows/release-core-journeys.yml, reason: Release orchestration and aggregate gate.}
+    - {path: scripts/prepare_release_candidate.py, reason: Docker preparation and commit status.}
+    - {path: scripts/tests/test_release_core_journeys_gate.py, reason: Deterministic contract tests.}
+    - {path: frontend/apps/web_app/tests/dev-smoke/README.md, reason: Correct suite and operations docs.}
+    - {path: docs/architecture/test-orchestration.md, reason: CI evidence architecture.}
+    - {path: docs/contributing/guides/git-and-deployment.md, reason: Bootstrap and rollout instructions.}
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/release-core-journeys-gate/plan.yml
+    - python3 -m pytest scripts/tests/test_release_core_journeys_gate.py -q
+    - Run the focused lint command in T-LINT-CORE-GATE.
+    - Prepare and attest the committed dev SHA.
+    - Manually dispatch the advisory workflow from dev and inspect all results.
+    - Confirm no dev-to-main PR exists and rules remain unchanged.
+  verification_order:
+    - Unit and workflow contract tests.
+    - Focused lint and spec validation.
+    - Dev-host backend attestation.
+    - Manual advisory GitHub workflow.
+    - Repository state check.
+
+tasks:
+  - id: TASK-1
+    title: Add canonical suite and red contract tests
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3, S-4], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6]}
+    expected_files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_release_core_journeys_gate.py]
+    verification: [T-PY-CORE-GATE]
+    verification_ids: [T-PY-CORE-GATE]
+    dependencies: []
+    ownership: {files: [scripts/run_tests.py, scripts/tests.py, scripts/tests/test_release_core_journeys_gate.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement reusable Playwright and release workflows
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-4, S-5], acceptance_criteria: [AC-2, AC-3, AC-5, AC-6]}
+    expected_files: [.github/workflows/playwright-spec.yml, .github/workflows/release-core-journeys.yml]
+    verification: [T-PY-CORE-GATE, V-WORKFLOW]
+    verification_ids: [T-PY-CORE-GATE, V-WORKFLOW]
+    dependencies: [TASK-1]
+    ownership: {files: [.github/workflows/playwright-spec.yml, .github/workflows/release-core-journeys.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Implement backend release-candidate attestation
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-3], acceptance_criteria: [AC-4]}
+    expected_files: [scripts/prepare_release_candidate.py]
+    verification: [T-PY-CORE-GATE, V-ATTESTATION]
+    verification_ids: [T-PY-CORE-GATE, V-ATTESTATION]
+    dependencies: [TASK-1]
+    ownership: {files: [scripts/prepare_release_candidate.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Document, deploy, and verify advisory rollout
+    status: blocked
+    phase: blocked
+    covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]}
+    expected_files: [frontend/apps/web_app/tests/dev-smoke/README.md, docs/architecture/test-orchestration.md, docs/contributing/guides/git-and-deployment.md, docs/plans/release-core-journeys-gate/plan.yml]
+    verification: [T-LINT-CORE-GATE, V-ATTESTATION, V-WORKFLOW, V-NO-PR]
+    verification_ids: [T-LINT-CORE-GATE, V-ATTESTATION, V-WORKFLOW, V-NO-PR]
+    dependencies: [TASK-2, TASK-3]
+    ownership:
+      files: [frontend/apps/web_app/tests/dev-smoke/README.md, docs/architecture/test-orchestration.md, docs/contributing/guides/git-and-deployment.md, docs/plans/release-core-journeys-gate/plan.yml]
+      shared_files: []
+    blockers: []
+    follow_up_tasks:
+      - Enable a separate main-only required-check ruleset after advisory evidence is green and the workflow exists on main.
+    independently_deployable: true

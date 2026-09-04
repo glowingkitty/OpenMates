@@ -28,6 +28,17 @@ const {
 } = require('./helpers/embed-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+const GENERATED_APPLICATION_LABEL = 'Generated application';
+
+async function expectRenderedApplicationPresentation(page: any, embed: any): Promise<void> {
+	const screenshot = embed.getByTestId('application-preview-screenshot-image');
+	await expect(screenshot).toBeVisible({ timeout: 180_000 });
+	await expect.poll(
+		() => screenshot.evaluate((image: HTMLImageElement) => image.naturalWidth),
+		{ timeout: 30_000 }
+	).toBeGreaterThan(0);
+}
+
 // contract-test: direct surface=gui.web assertions=chat-share-settings.generated-link-controls,chat-share-settings.shared-link-open
 test('shared recipient starts an isolated application preview session', async ({ browser, page }: { browser: any; page: any }) => {
 	test.slow();
@@ -61,7 +72,9 @@ test('shared recipient starts an isolated application preview session', async ({
 		'application-preview-share'
 	);
 
-	await waitForEmbedFinished(page, 'code', 'application', 180_000);
+	const creatorEmbed = await waitForEmbedFinished(page, 'code', 'application', 180_000);
+	await expect(page.getByTestId('mate-message-content').last()).toContainText(GENERATED_APPLICATION_LABEL);
+	await expectRenderedApplicationPresentation(page, creatorEmbed);
 
 	await page.getByTestId('chat-share-button').click();
 	const generateLinkButton = page.getByTestId('share-generate-link');
@@ -77,7 +90,7 @@ test('shared recipient starts an isolated application preview session', async ({
 	await expect(shareUrlBlock).toBeVisible({ timeout: 30_000 });
 	await expect(shareUrlBlock).toHaveCSS('user-select', 'text');
 	const shareUrl = (await shareUrlBlock.innerText()).trim();
-	expect(shareUrl).toMatch(/\/s\/[A-Za-z0-9]{6,12}#[A-Za-z0-9]{4,12}$/);
+	expect(shareUrl).toMatch(/\/s\/[A-Za-z0-9]{8}#[A-Za-z0-9]{22}$/);
 
 	const recipientContext = await browser.newContext();
 	const recipientPage = await recipientContext.newPage();
@@ -88,6 +101,8 @@ test('shared recipient starts an isolated application preview session', async ({
 		await recipientPage.goto(shareUrl, { waitUntil: 'load' });
 
 		const recipientEmbed = await waitForEmbedFinished(recipientPage, 'code', 'application', 180_000);
+		await expect(recipientPage.getByTestId('mate-message-content').last()).toContainText(GENERATED_APPLICATION_LABEL);
+		await expectRenderedApplicationPresentation(recipientPage, recipientEmbed);
 		const recipientFullscreen = await openFullscreen(recipientPage, recipientEmbed);
 		const previewStartResponse = recipientPage.waitForResponse(
 			(response: any) => response.url().includes('/v1/applications/') && response.url().includes('/preview/start'),
@@ -99,7 +114,9 @@ test('shared recipient starts an isolated application preview session', async ({
 
 		const payload = await response.json();
 		expect(payload.session_id).toBeTruthy();
-		expect(payload.preview_url).toContain('/p/');
+		const previewUrl = new URL(payload.preview_url);
+		expect(previewUrl.protocol).toBe('https:');
+		expect(previewUrl.hostname).toMatch(/^preview-[a-z0-9]+\.dev\.openmatesusercontent\.org$/);
 		expect(payload.preview_url).not.toContain('e2b.dev');
 		await expect(recipientFullscreen.getByTestId('application-preview-iframe')).toBeVisible({ timeout: 180_000 });
 		await closeFullscreen(recipientPage, recipientFullscreen);

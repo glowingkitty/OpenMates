@@ -1,0 +1,2366 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-21'
+generated_at: '2026-08-25T12:29:32+00:00'
+range:
+  since: '2026-08-21T00:00:00+00:00'
+  until: '2026-08-22T00:00:00+00:00'
+  from_ref: null
+  to_ref: origin/dev
+  assume_released: false
+summary:
+  total_commits: 54
+  section_counts:
+    features: 2
+    bug_fixes: 34
+    improvements: 0
+    docs: 3
+    tests: 13
+    infrastructure: 1
+    internal: 0
+    other: 1
+  newsletter_ready_items: 19
+  user_facing_items: 19
+  dev_only_items: 0
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add crawlable event SEO index'
+    section: features
+    commits:
+    - 99ea9fcff
+    authored_at: '2026-08-21T13:15:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'feat: refine events newsletter previews'
+    section: features
+    commits:
+    - 5d876f332
+    authored_at: '2026-08-21T12:35:35+00:00'
+    changed_paths:
+    - backend/core/api/app/services/email/html_processor.py
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/scripts/send_newsletter.py
+    - backend/shared/python_utils/events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_render.py
+    - backend/tests/test_html_processor.py
+    - backend/tests/test_openmates_event_registry.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/automated-events-newsletter/spec.yml
+    - frontend/packages/ui/src/components/newsletter/EventsNewsletterHeader.svelte
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - scripts/generate_events_newsletter_header_assets.mjs
+    - shared/events/assets/newsletter/events-newsletter-header-mobile_de.png
+    - shared/events/assets/newsletter/events-newsletter-header-mobile_en.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.svg
+    - shared/events/assets/newsletter/events-newsletter-header_en.png
+    - shared/events/assets/newsletter/events-newsletter-header_en.svg
+    - shared/events/assets/newsletter/generate_header_assets.py
+    - shared/events/assets/newsletter/header_design.json
+    - shared/events/openmates_events.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: harden proof video passed-run workflow'
+    section: bug_fixes
+    commits:
+    - 3566673d8
+    authored_at: '2026-08-21T21:13:37+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: resolve release prep control root'
+    section: bug_fixes
+    commits:
+    - 8cb2fe251
+    authored_at: '2026-08-21T19:43:55+00:00'
+    changed_paths:
+    - scripts/prepare_release_candidate.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: use managed release prep and vscode heap'
+    section: bug_fixes
+    commits:
+    - 270b3b4f7
+    authored_at: '2026-08-21T19:41:41+00:00'
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - scripts/prepare_release_candidate.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: allow proof gate after dev test cleanup'
+    section: bug_fixes
+    commits:
+    - a07fc18c7
+    authored_at: '2026-08-21T19:28:09+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve legacy audio example filename'
+    section: bug_fixes
+    commits:
+    - 87101b8af
+    authored_at: '2026-08-21T19:27:09+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: resolve API-key chat IDs directly'
+    section: bug_fixes
+    commits:
+    - b84df4597
+    authored_at: '2026-08-21T19:16:53+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: queue AI response retries during recovery'
+    section: bug_fixes
+    commits:
+    - ae050a933
+    authored_at: '2026-08-21T19:13:49+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: handle deleted bracket paths in session summaries'
+    section: bug_fixes
+    commits:
+    - a4d84c61a
+    authored_at: '2026-08-21T18:38:52+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: clear Team continue cards on context switch'
+    section: bug_fixes
+    commits:
+    - b113bc383
+    authored_at: '2026-08-21T18:35:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: Fix chat sync recovery notification
+    section: bug_fixes
+    commits:
+    - 7ae969436
+    authored_at: '2026-08-21T16:49:14+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: hide stale continue cards during Team switch'
+    section: bug_fixes
+    commits:
+    - 8e612c676
+    authored_at: '2026-08-21T16:34:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: order tasks before plans'
+    section: bug_fixes
+    commits:
+    - 4069d4c80
+    authored_at: '2026-08-21T15:54:55+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair inline raw embed refs in shared chats'
+    section: bug_fixes
+    commits:
+    - 0f697b02f
+    authored_at: '2026-08-21T15:52:45+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: scope home continue cards to Team context'
+    section: bug_fixes
+    commits:
+    - fe9c99318
+    authored_at: '2026-08-21T15:50:48+00:00'
+    changed_paths:
+    - contracts/features/teams/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/teams-v1/spec.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: correct workspace tab icons'
+    section: bug_fixes
+    commits:
+    - 1a07bedff
+    authored_at: '2026-08-21T15:34:28+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: repair embed refs and sync status context'
+    section: bug_fixes
+    commits:
+    - 5f12d66b2
+    authored_at: '2026-08-21T15:17:59+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - backend/tests/test_phased_sync_handler.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'fix: guard release merge ancestry'
+    section: bug_fixes
+    commits:
+    - '808938710'
+    authored_at: '2026-08-21T15:15:52+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/test-failure-triager.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/test-failure-triager.md
+    - scripts/tests/test_release_intelligence.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore agent dev-server instruction'
+    section: bug_fixes
+    commits:
+    - 354aa9ec8
+    authored_at: '2026-08-21T14:55:07+00:00'
+    changed_paths:
+    - AGENTS.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: start browser proofs at asserted state'
+    section: bug_fixes
+    commits:
+    - f6c016e5f
+    authored_at: '2026-08-21T14:51:24+00:00'
+    changed_paths:
+    - AGENTS.md
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: polish event SEO metadata'
+    section: bug_fixes
+    commits:
+    - b22fa034f
+    authored_at: '2026-08-21T14:37:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: keep event date badge text white'
+    section: bug_fixes
+    commits:
+    - 232f995be
+    authored_at: '2026-08-21T14:36:56+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: show proof pause in browser chrome'
+    section: bug_fixes
+    commits:
+    - eb8d71b7b
+    authored_at: '2026-08-21T14:05:56+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore generated event SEO data'
+    section: bug_fixes
+    commits:
+    - 62f83ae7c
+    authored_at: '2026-08-21T14:02:15+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: prerender event SEO index'
+    section: bug_fixes
+    commits:
+    - a51df7555
+    authored_at: '2026-08-21T13:43:02+00:00'
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: freeze proof videos on asserted frames'
+    section: bug_fixes
+    commits:
+    - 018fab862
+    authored_at: '2026-08-21T13:06:06+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: stabilize proof checkpoint screenshots'
+    section: bug_fixes
+    commits:
+    - 4b3fec89b
+    authored_at: '2026-08-21T12:43:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: restore proof support files'
+    section: bug_fixes
+    commits:
+    - d8b9d3ab9
+    authored_at: '2026-08-21T12:18:20+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve full proof video playback'
+    section: bug_fixes
+    commits:
+    - 21f863e0e
+    authored_at: '2026-08-21T12:15:03+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: harden nightly test orchestration'
+    section: bug_fixes
+    commits:
+    - 81ab0ced0
+    authored_at: '2026-08-21T11:40:08+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/architecture/test-orchestration.md
+    - scripts/run_tests.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: restore settings content flow'
+    section: bug_fixes
+    commits:
+    - 071c10f98
+    authored_at: '2026-08-21T11:35:46+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: align proof video frame ranges'
+    section: bug_fixes
+    commits:
+    - 6aa887245
+    authored_at: '2026-08-21T11:30:48+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: 'fix: preserve motion in proof videos'
+    section: bug_fixes
+    commits:
+    - 5f0db1066
+    authored_at: '2026-08-21T11:14:00+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/cli_video_capture.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: settle ordinary Team chat state'
+    section: bug_fixes
+    commits:
+    - 8fa3d4db2
+    authored_at: '2026-08-21T11:03:58+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendClassification.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: 'fix: render proof videos in browser frame'
+    section: bug_fixes
+    commits:
+    - 4c734aa02
+    authored_at: '2026-08-21T01:11:07+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'docs: remove core journeys bootstrap gate'
+    section: docs
+    commits:
+    - 592b23aeb
+    authored_at: '2026-08-21T15:46:58+00:00'
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record final proof video evidence'
+    section: docs
+    commits:
+    - 850a7f0d4
+    authored_at: '2026-08-21T15:18:44+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  - title: 'docs: record corrected proof video evidence'
+    section: docs
+    commits:
+    - c1de5dc3b
+    authored_at: '2026-08-21T11:55:58+00:00'
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is reachable from main
+  tests:
+  - title: 'test: isolate clean Teams proof states'
+    section: tests
+    commits:
+    - 21a8db741
+    authored_at: '2026-08-21T21:52:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: hold stable Teams proof states'
+    section: tests
+    commits:
+    - 04d4c7f47
+    authored_at: '2026-08-21T21:39:13+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: harden Teams proof capture states'
+    section: tests
+    commits:
+    - 168b77f90
+    authored_at: '2026-08-21T21:21:36+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: fix saved payment EU switch selector'
+    section: tests
+    commits:
+    - 67835b77c
+    authored_at: '2026-08-21T20:19:21+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: reproduce completed AI response retry gaps'
+    section: tests
+    commits:
+    - 54c3a5ff9
+    authored_at: '2026-08-21T18:31:40+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: require empty fresh Team continue carousel'
+    section: tests
+    commits:
+    - c653b6061
+    authored_at: '2026-08-21T16:14:34+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'ci: mark skipped targeted Vitest packages as passing'
+    section: tests
+    commits:
+    - 78653fb45
+    authored_at: '2026-08-21T15:28:05+00:00'
+    changed_paths:
+    - .github/workflows/vitest.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: hold Teams proof states for review'
+    section: tests
+    commits:
+    - 0be6e7d8c
+    authored_at: '2026-08-21T12:59:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: keep Team proof within stable context flow'
+    section: tests
+    commits:
+    - 6bef8c4a7
+    authored_at: '2026-08-21T12:39:26+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: await persisted Team chat after reload'
+    section: tests
+    commits:
+    - 6932520c0
+    authored_at: '2026-08-21T12:26:37+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: end Team proof in Personal context'
+    section: tests
+    commits:
+    - 1438148a2
+    authored_at: '2026-08-21T12:10:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: hold Team isolation proof state'
+    section: tests
+    commits:
+    - bf1731ff3
+    authored_at: '2026-08-21T11:52:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: require Team header to settle'
+    section: tests
+    commits:
+    - cf6a17038
+    authored_at: '2026-08-21T00:53:10+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: remove unused test recordings page'
+    section: infrastructure
+    commits:
+    - 3c85b6c68
+    authored_at: '2026-08-21T16:46:11+00:00'
+    changed_paths:
+    - .claude/hooks/contract-test-impact.sh
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/core/api/main.py
+    - backend/tests/test_test_recordings.py
+    - deployment/dev_server/Caddyfile
+    - frontend/apps/web_app/src/routes/tests/+layout.svelte
+    - frontend/apps/web_app/src/routes/tests/+layout.ts
+    - frontend/apps/web_app/src/routes/tests/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/testRecordings.ts
+    - scripts/audit_playwright_proof_metadata.py
+    - scripts/audit_rest_api_surface.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_playwright_proof_metadata_audit.py
+    - scripts/tests/test_sessions_integration_concurrency.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal: []
+  other:
+  - title: 'Restore complete PR #498 commit ancestry (#505)'
+    section: other
+    commits:
+    - ef5de15b4
+    authored_at: '2026-08-21T17:05:32+02:00'
+    changed_paths: []
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is reachable from main
+unreleased_progress:
+  dev_only: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'chore: remove unused test recordings page'
+    commits:
+    - 3c85b6c68
+    section: infrastructure
+    release_status: released_main
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter:
+  - title: 'fix: preserve legacy audio example filename'
+    commits:
+    - 87101b8af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: resolve API-key chat IDs directly'
+    commits:
+    - b84df4597
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: clear Team continue cards on context switch'
+    commits:
+    - b113bc383
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: hide stale continue cards during Team switch'
+    commits:
+    - 8e612c676
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: order tasks before plans'
+    commits:
+    - 4069d4c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: scope home continue cards to Team context'
+    commits:
+    - fe9c99318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: correct workspace tab icons'
+    commits:
+    - 1a07bedff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: repair embed refs and sync status context'
+    commits:
+    - 5f12d66b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: polish event SEO metadata'
+    commits:
+    - b22fa034f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: keep event date badge text white'
+    commits:
+    - 232f995be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore generated event SEO data'
+    commits:
+    - 62f83ae7c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: prerender event SEO index'
+    commits:
+    - a51df7555
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: add crawlable event SEO index'
+    commits:
+    - 99ea9fcff
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: freeze proof videos on asserted frames'
+    commits:
+    - 018fab862
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: stabilize proof checkpoint screenshots'
+    commits:
+    - 4b3fec89b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'feat: refine events newsletter previews'
+    commits:
+    - 5d876f332
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: restore settings content flow'
+    commits:
+    - 071c10f98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: preserve motion in proof videos'
+    commits:
+    - 5f0db1066
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: 'fix: settle ordinary Team chat state'
+    commits:
+    - 8fa3d4db2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  social_or_video:
+  - title: 'fix: preserve legacy audio example filename'
+    commits:
+    - 87101b8af
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: resolve API-key chat IDs directly'
+    commits:
+    - b84df4597
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: clear Team continue cards on context switch'
+    commits:
+    - b113bc383
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: hide stale continue cards during Team switch'
+    commits:
+    - 8e612c676
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: order tasks before plans'
+    commits:
+    - 4069d4c80
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: scope home continue cards to Team context'
+    commits:
+    - fe9c99318
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: correct workspace tab icons'
+    commits:
+    - 1a07bedff
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: repair embed refs and sync status context'
+    commits:
+    - 5f12d66b2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: 'fix: polish event SEO metadata'
+    commits:
+    - b22fa034f
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: keep event date badge text white'
+    commits:
+    - 232f995be
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore generated event SEO data'
+    commits:
+    - 62f83ae7c
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: prerender event SEO index'
+    commits:
+    - a51df7555
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: add crawlable event SEO index'
+    commits:
+    - 99ea9fcff
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: freeze proof videos on asserted frames'
+    commits:
+    - 018fab862
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: stabilize proof checkpoint screenshots'
+    commits:
+    - 4b3fec89b
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'feat: refine events newsletter previews'
+    commits:
+    - 5d876f332
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: restore settings content flow'
+    commits:
+    - 071c10f98
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: preserve motion in proof videos'
+    commits:
+    - 5f0db1066
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: 'fix: settle ordinary Team chat state'
+    commits:
+    - 8fa3d4db2
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 21a8db74159b8cbcd8a714fd65a766c12e591d9c
+    short_sha: 21a8db741
+    authored_at: '2026-08-21T21:52:10+00:00'
+    subject: 'test: isolate clean Teams proof states'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 04d4c7f4771ac7f470879c856adc158c1027f3ad
+    short_sha: 04d4c7f47
+    authored_at: '2026-08-21T21:39:13+00:00'
+    subject: 'test: hold stable Teams proof states'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 168b77f90922edd7a9acc3b340d6011d171d3c73
+    short_sha: 168b77f90
+    authored_at: '2026-08-21T21:21:36+00:00'
+    subject: 'test: harden Teams proof capture states'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 3566673d8f8a0a8c1c4b304ca2b747e34642f2a4
+    short_sha: 3566673d8
+    authored_at: '2026-08-21T21:13:37+00:00'
+    subject: 'fix: harden proof video passed-run workflow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/sessions.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_sessions_proof_video.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 67835b77c01cd3f4894909c5a1d7b88d19783c8c
+    short_sha: 67835b77c
+    authored_at: '2026-08-21T20:19:21+00:00'
+    subject: 'test: fix saved payment EU switch selector'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    related_feature_ids: []
+  - sha: 8cb2fe25148817f74cf4f0f938a297b61a59dd7d
+    short_sha: 8cb2fe251
+    authored_at: '2026-08-21T19:43:55+00:00'
+    subject: 'fix: resolve release prep control root'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/prepare_release_candidate.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids: []
+  - sha: 270b3b4f78e2d50d5dc0816783bec4caa6c5ccbd
+    short_sha: 270b3b4f7
+    authored_at: '2026-08-21T19:41:41+00:00'
+    subject: 'fix: use managed release prep and vscode heap'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vscode-extension.yml
+    - scripts/prepare_release_candidate.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids: []
+  - sha: a07fc18c7bf1aeaf09ea9854648d96ee83e430c9
+    short_sha: a07fc18c7
+    authored_at: '2026-08-21T19:28:09+00:00'
+    subject: 'fix: allow proof gate after dev test cleanup'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: 87101b8af626eac10e6fe89818b2344b752f7fd7
+    short_sha: 87101b8af
+    authored_at: '2026-08-21T19:27:09+00:00'
+    subject: 'fix: preserve legacy audio example filename'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    related_feature_ids: []
+  - sha: b84df4597a7975028e37273aa6737249d626cf1b
+    short_sha: b84df4597
+    authored_at: '2026-08-21T19:16:53+00:00'
+    subject: 'fix: resolve API-key chat IDs directly'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/exampleChats.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    related_feature_ids: []
+  - sha: ae050a933c948b396cc4421b467298a7118d9a40
+    short_sha: ae050a933
+    authored_at: '2026-08-21T19:13:49+00:00'
+    subject: 'fix: queue AI response retries during recovery'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: a4d84c61a6bf4fbd85daecc5508fea8bc89409ef
+    short_sha: a4d84c61a
+    authored_at: '2026-08-21T18:38:52+00:00'
+    subject: 'fix: handle deleted bracket paths in session summaries'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_deploy.py
+    related_feature_ids: []
+  - sha: b113bc383cb9f87a7c0d7b31c3472c34ee5a2776
+    short_sha: b113bc383
+    authored_at: '2026-08-21T18:35:11+00:00'
+    subject: 'fix: clear Team continue cards on context switch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 54c3a5ff9b2b38a81115db7b117376bec8ce0b95
+    short_sha: 54c3a5ff9
+    authored_at: '2026-08-21T18:31:40+00:00'
+    subject: 'test: reproduce completed AI response retry gaps'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesAIResponse.test.ts
+    related_feature_ids: []
+  - sha: 7ae969436621789a33a20c9b6b3ad67c3ec985ed
+    short_sha: 7ae969436
+    authored_at: '2026-08-21T16:49:14+00:00'
+    subject: Fix chat sync recovery notification
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    related_feature_ids: []
+  - sha: 3c85b6c688000e4afd9ad285c676dafbe4b2ed2d
+    short_sha: 3c85b6c68
+    authored_at: '2026-08-21T16:46:11+00:00'
+    subject: 'chore: remove unused test recordings page'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .claude/hooks/contract-test-impact.sh
+    - backend/core/api/app/routes/test_recordings.py
+    - backend/core/api/main.py
+    - backend/tests/test_test_recordings.py
+    - deployment/dev_server/Caddyfile
+    - frontend/apps/web_app/src/routes/tests/+layout.svelte
+    - frontend/apps/web_app/src/routes/tests/+layout.ts
+    - frontend/apps/web_app/src/routes/tests/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/tests/testRecordings.ts
+    - scripts/audit_playwright_proof_metadata.py
+    - scripts/audit_rest_api_surface.py
+    - scripts/run_tests.py
+    - scripts/sessions.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_playwright_proof_metadata_audit.py
+    - scripts/tests/test_sessions_integration_concurrency.py
+    related_feature_ids: []
+  - sha: 8e612c6762000667818af3b87f5285dbe1ea0b8c
+    short_sha: 8e612c676
+    authored_at: '2026-08-21T16:34:56+00:00'
+    subject: 'fix: hide stale continue cards during Team switch'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: c653b60611edc895c4647e07675412ecb937e820
+    short_sha: c653b6061
+    authored_at: '2026-08-21T16:14:34+00:00'
+    subject: 'test: require empty fresh Team continue carousel'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_phased_sync_handler.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids: []
+  - sha: 4069d4c8039629ababdd26f8f30562b758118d0e
+    short_sha: 4069d4c80
+    authored_at: '2026-08-21T15:54:55+00:00'
+    subject: 'fix: order tasks before plans'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    related_feature_ids: []
+  - sha: 0f697b02f1a020c7bbf41f6e800580d7f8a50a2a
+    short_sha: 0f697b02f
+    authored_at: '2026-08-21T15:52:45+00:00'
+    subject: 'fix: repair inline raw embed refs in shared chats'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: fe9c99318b01898f84d188f60e2f4fcffd376d13
+    short_sha: fe9c99318
+    authored_at: '2026-08-21T15:50:48+00:00'
+    subject: 'fix: scope home continue cards to Team context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/features/teams/contract.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/registry.yml
+    - docs/specs/teams-v1/spec.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: 592b23aeb46a140d69c4b20ddbccf68001e6cb37
+    short_sha: 592b23aeb
+    authored_at: '2026-08-21T15:46:58+00:00'
+    subject: 'docs: remove core journeys bootstrap gate'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    related_feature_ids: []
+  - sha: 1a07bedffebd235f0b2bb999724e2905b9cd7517
+    short_sha: 1a07bedff
+    authored_at: '2026-08-21T15:34:28+00:00'
+    subject: 'fix: correct workspace tab icons'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/Header.svelte
+    - frontend/packages/ui/src/components/chats/ChatSettingsPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    related_feature_ids: []
+  - sha: 78653fb4583cf2d4ab3b5e7335fec8f3cc807ab7
+    short_sha: 78653fb45
+    authored_at: '2026-08-21T15:28:05+00:00'
+    subject: 'ci: mark skipped targeted Vitest packages as passing'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/vitest.yml
+    related_feature_ids: []
+  - sha: 850a7f0d4bf25930fd8845a3b65217790aa000c5
+    short_sha: 850a7f0d4
+    authored_at: '2026-08-21T15:18:44+00:00'
+    subject: 'docs: record final proof video evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: 5f12d66b22f6188c81550f9f459dd8d2b3d26ef2
+    short_sha: 5f12d66b2
+    authored_at: '2026-08-21T15:17:59+00:00'
+    subject: 'fix: repair embed refs and sync status context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/tests/test_grouped_bare_embed_refs.py
+    - backend/tests/test_phased_sync_handler.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersPhasedSync.test.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/types/chat.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 8089387105adbda748e84b104f408ca2b9fe6537
+    short_sha: '808938710'
+    authored_at: '2026-08-21T15:15:52+00:00'
+    subject: 'fix: guard release merge ancestry'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-pr/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .claude/skills/create-pr/SKILL.md
+    - .codex/agents/e2e-test-investigator.toml
+    - .codex/agents/test-failure-triager.toml
+    - .opencode/agents/e2e-test-investigator.md
+    - .opencode/agents/test-failure-triager.md
+    - scripts/tests/test_release_intelligence.py
+    related_feature_ids: []
+  - sha: ef5de15b4fe2046362eaa152a71f871dedf146b2
+    short_sha: ef5de15b4
+    authored_at: '2026-08-21T17:05:32+02:00'
+    subject: 'Restore complete PR #498 commit ancestry (#505)'
+    in_main: true
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: 354aa9ec82b93efc76a14fdab7866a10bca3a083
+    short_sha: 354aa9ec8
+    authored_at: '2026-08-21T14:55:07+00:00'
+    subject: 'fix: restore agent dev-server instruction'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    related_feature_ids: []
+  - sha: f6c016e5f0d38dcf06fe817af10b58a66bb83316
+    short_sha: f6c016e5f
+    authored_at: '2026-08-21T14:51:24+00:00'
+    subject: 'fix: start browser proofs at asserted state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: b22fa034fc8c885bfc8dc262344c0975de72e356
+    short_sha: b22fa034f
+    authored_at: '2026-08-21T14:37:59+00:00'
+    subject: 'fix: polish event SEO metadata'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.svelte
+    related_feature_ids: []
+  - sha: 232f995be91ae8dbdbd0eba929adee6464a93c3b
+    short_sha: 232f995be
+    authored_at: '2026-08-21T14:36:56+00:00'
+    subject: 'fix: keep event date badge text white'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chats.svelte
+    related_feature_ids: []
+  - sha: eb8d71b7b0d59c8c8fdc273a07d0fc6e1b3fe6a3
+    short_sha: eb8d71b7b
+    authored_at: '2026-08-21T14:05:56+00:00'
+    subject: 'fix: show proof pause in browser chrome'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    related_feature_ids: []
+  - sha: 62f83ae7cfbc2d8fea1cf6cbc80dcdf29f63479c
+    short_sha: 62f83ae7c
+    authored_at: '2026-08-21T14:02:15+00:00'
+    subject: 'fix: restore generated event SEO data'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    related_feature_ids: []
+  - sha: a51df7555e34f881b45c929bc13f47b08a794fe9
+    short_sha: a51df7555
+    authored_at: '2026-08-21T13:43:02+00:00'
+    subject: 'fix: prerender event SEO index'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.ts
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    related_feature_ids: []
+  - sha: 99ea9fcff0c968875db4daaba9be61f0de026a42
+    short_sha: 99ea9fcff
+    authored_at: '2026-08-21T13:15:49+00:00'
+    subject: 'feat: add crawlable event SEO index'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.server.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.svelte
+    - frontend/apps/web_app/src/routes/(seo)/events/+page.ts
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.svelte
+    - frontend/apps/web_app/src/routes/sitemap.xml/+server.ts
+    related_feature_ids: []
+  - sha: 018fab862a5cc4723ef1d996a59267bac3b01e5d
+    short_sha: 018fab862
+    authored_at: '2026-08-21T13:06:06+00:00'
+    subject: 'fix: freeze proof videos on asserted frames'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 0be6e7d8c93bacc3e14896e8e1d35e2121260586
+    short_sha: 0be6e7d8c
+    authored_at: '2026-08-21T12:59:43+00:00'
+    subject: 'test: hold Teams proof states for review'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 4b3fec89b10820938777a2655a86c2abf8f0a21f
+    short_sha: 4b3fec89b
+    authored_at: '2026-08-21T12:43:53+00:00'
+    subject: 'fix: stabilize proof checkpoint screenshots'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 6bef8c4a785eb43594144b2935bd9b98e498dffa
+    short_sha: 6bef8c4a7
+    authored_at: '2026-08-21T12:39:26+00:00'
+    subject: 'test: keep Team proof within stable context flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 5d876f3327ac4020b50841cbfadae99e7334e209
+    short_sha: 5d876f332
+    authored_at: '2026-08-21T12:35:35+00:00'
+    subject: 'feat: refine events newsletter previews'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/email/html_processor.py
+    - backend/core/api/templates/email/newsletter.mjml
+    - backend/scripts/send_newsletter.py
+    - backend/shared/python_utils/events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_render.py
+    - backend/tests/test_html_processor.py
+    - backend/tests/test_openmates_event_registry.py
+    - contracts/generated/assertion-index.yml
+    - docs/specs/automated-events-newsletter/spec.yml
+    - frontend/packages/ui/src/components/newsletter/EventsNewsletterHeader.svelte
+    - frontend/packages/ui/src/data/openmatesEvents.ts
+    - scripts/generate_events_newsletter_header_assets.mjs
+    - shared/events/assets/newsletter/events-newsletter-header-mobile_de.png
+    - shared/events/assets/newsletter/events-newsletter-header-mobile_en.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.png
+    - shared/events/assets/newsletter/events-newsletter-header_de.svg
+    - shared/events/assets/newsletter/events-newsletter-header_en.png
+    - shared/events/assets/newsletter/events-newsletter-header_en.svg
+    - shared/events/assets/newsletter/generate_header_assets.py
+    - shared/events/assets/newsletter/header_design.json
+    - shared/events/openmates_events.yml
+    related_feature_ids: []
+  - sha: 6932520c0574c53959c17b24ea2d8b6bb76c2b2f
+    short_sha: 6932520c0
+    authored_at: '2026-08-21T12:26:37+00:00'
+    subject: 'test: await persisted Team chat after reload'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: d8b9d3ab90540ecec30c22b4850b1e28b980689a
+    short_sha: d8b9d3ab9
+    authored_at: '2026-08-21T12:18:20+00:00'
+    subject: 'fix: restore proof support files'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 21f863e0e8470b25ca43073d987063190737962d
+    short_sha: 21f863e0e
+    authored_at: '2026-08-21T12:15:03+00:00'
+    subject: 'fix: preserve full proof video playback'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    related_feature_ids: []
+  - sha: 1438148a261dcc8652c4b92ec2b498411186b656
+    short_sha: 1438148a2
+    authored_at: '2026-08-21T12:10:49+00:00'
+    subject: 'test: end Team proof in Personal context'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: c1de5dc3bc7e8c086ec868f892b19597601bf960
+    short_sha: c1de5dc3b
+    authored_at: '2026-08-21T11:55:58+00:00'
+    subject: 'docs: record corrected proof video evidence'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    related_feature_ids: []
+  - sha: bf1731ff3d7b1c0c200e09b97723358ed722b567
+    short_sha: bf1731ff3
+    authored_at: '2026-08-21T11:52:33+00:00'
+    subject: 'test: hold Team isolation proof state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+  - sha: 81ab0ced062afd09ef5427eb314f0e2b8a396c5f
+    short_sha: 81ab0ced0
+    authored_at: '2026-08-21T11:40:08+00:00'
+    subject: 'fix: harden nightly test orchestration'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/architecture/test-orchestration.md
+    - scripts/run_tests.py
+    - scripts/tests/test_playwright_determinism_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_run_tests_backend_mock_preflight.py
+    related_feature_ids: []
+  - sha: 071c10f98fb2f78f8584c36d866099b33786071b
+    short_sha: 071c10f98
+    authored_at: '2026-08-21T11:35:46+00:00'
+    subject: 'fix: restore settings content flow'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    related_feature_ids: []
+  - sha: 6aa8872450358279a8d72990ca0156d1c71dfbb7
+    short_sha: 6aa887245
+    authored_at: '2026-08-21T11:30:48+00:00'
+    subject: 'fix: align proof video frame ranges'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 5f0db10669efafa5390a961fef70bd69edda5dd4
+    short_sha: 5f0db1066
+    authored_at: '2026-08-21T11:14:00+00:00'
+    subject: 'fix: preserve motion in proof videos'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - frontend/apps/web_app/tests/proof-video-architecture.spec.ts
+    - scripts/cli_video_capture.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    related_feature_ids: []
+  - sha: 8fa3d4db2aa7397962a4a517fef89a5d22df6700
+    short_sha: 8fa3d4db2
+    authored_at: '2026-08-21T11:03:58+00:00'
+    subject: 'fix: settle ordinary Team chat state'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendClassification.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+    - frontend/packages/ui/src/services/__tests__/chatKeyWriteGuard.test.ts
+    - frontend/packages/ui/src/services/__tests__/sendersChatMessagesProtocol.test.ts
+    - frontend/packages/ui/src/services/db/__tests__/encryptChatForStorage.test.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/teamService.ts
+    related_feature_ids: []
+  - sha: 4c734aa02b7484ed5ee88edf58143c9b3413b31a
+    short_sha: 4c734aa02
+    authored_at: '2026-08-21T01:11:07+00:00'
+    subject: 'fix: render proof videos in browser frame'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/specs/focused-proof-video-workflow/spec.yml
+    - scripts/sessions.py
+    - scripts/tests.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    - tooling/proof-video-remotion/src/BrowserTutorial.tsx
+    related_feature_ids: []
+  - sha: cf6a170383211795f9e0a5d9e1579d28d1bea829
+    short_sha: cf6a17038
+    authored_at: '2026-08-21T00:53:10+00:00'
+    subject: 'test: require Team header to settle'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/teams-settings-context.spec.ts
+    related_feature_ids: []
+llm_summary:
+  status: deterministic
+  overview: Deterministic release summary generated from 54 structured change items.
+  released_changes:
+  - text: 'feat: add crawlable event SEO index'
+    evidence:
+      commits:
+      - 99ea9fcff
+    release_status: released_main
+  - text: 'feat: refine events newsletter previews'
+    evidence:
+      commits:
+      - 5d876f332
+    release_status: released_main
+  bug_fixes:
+  - text: 'fix: preserve legacy audio example filename'
+    evidence:
+      commits:
+      - 87101b8af
+    release_status: released_main
+  - text: 'fix: resolve API-key chat IDs directly'
+    evidence:
+      commits:
+      - b84df4597
+    release_status: released_main
+  - text: 'fix: clear Team continue cards on context switch'
+    evidence:
+      commits:
+      - b113bc383
+    release_status: released_main
+  - text: 'fix: hide stale continue cards during Team switch'
+    evidence:
+      commits:
+      - 8e612c676
+    release_status: released_main
+  - text: 'fix: order tasks before plans'
+    evidence:
+      commits:
+      - 4069d4c80
+    release_status: released_main
+  - text: 'fix: scope home continue cards to Team context'
+    evidence:
+      commits:
+      - fe9c99318
+    release_status: released_main
+  - text: 'fix: correct workspace tab icons'
+    evidence:
+      commits:
+      - 1a07bedff
+    release_status: released_main
+  - text: 'fix: repair embed refs and sync status context'
+    evidence:
+      commits:
+      - 5f12d66b2
+    release_status: released_main
+  - text: 'fix: polish event SEO metadata'
+    evidence:
+      commits:
+      - b22fa034f
+    release_status: released_main
+  - text: 'fix: keep event date badge text white'
+    evidence:
+      commits:
+      - 232f995be
+    release_status: released_main
+  - text: 'fix: restore generated event SEO data'
+    evidence:
+      commits:
+      - 62f83ae7c
+    release_status: released_main
+  - text: 'fix: prerender event SEO index'
+    evidence:
+      commits:
+      - a51df7555
+    release_status: released_main
+  unreleased_progress: []
+  internal_progress:
+  - text: 'fix: harden proof video passed-run workflow'
+    evidence:
+      commits:
+      - 3566673d8
+    release_status: released_main
+  - text: 'fix: resolve release prep control root'
+    evidence:
+      commits:
+      - 8cb2fe251
+    release_status: released_main
+  - text: 'fix: use managed release prep and vscode heap'
+    evidence:
+      commits:
+      - 270b3b4f7
+    release_status: released_main
+  - text: 'fix: allow proof gate after dev test cleanup'
+    evidence:
+      commits:
+      - a07fc18c7
+    release_status: released_main
+  - text: 'fix: queue AI response retries during recovery'
+    evidence:
+      commits:
+      - ae050a933
+    release_status: released_main
+  - text: 'fix: handle deleted bracket paths in session summaries'
+    evidence:
+      commits:
+      - a4d84c61a
+    release_status: released_main
+  - text: Fix chat sync recovery notification
+    evidence:
+      commits:
+      - 7ae969436
+    release_status: released_main
+  - text: 'fix: repair inline raw embed refs in shared chats'
+    evidence:
+      commits:
+      - 0f697b02f
+    release_status: released_main
+  - text: 'fix: guard release merge ancestry'
+    evidence:
+      commits:
+      - '808938710'
+    release_status: released_main
+  - text: 'fix: restore agent dev-server instruction'
+    evidence:
+      commits:
+      - 354aa9ec8
+    release_status: released_main
+  - text: 'fix: start browser proofs at asserted state'
+    evidence:
+      commits:
+      - f6c016e5f
+    release_status: released_main
+  - text: 'fix: show proof pause in browser chrome'
+    evidence:
+      commits:
+      - eb8d71b7b
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: 'fix: preserve legacy audio example filename'
+      evidence:
+        commits:
+        - 87101b8af
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: resolve API-key chat IDs directly'
+      evidence:
+        commits:
+        - b84df4597
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: clear Team continue cards on context switch'
+      evidence:
+        commits:
+        - b113bc383
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: hide stale continue cards during Team switch'
+      evidence:
+        commits:
+        - 8e612c676
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: order tasks before plans'
+      evidence:
+        commits:
+        - 4069d4c80
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: scope home continue cards to Team context'
+      evidence:
+        commits:
+        - fe9c99318
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: correct workspace tab icons'
+      evidence:
+        commits:
+        - 1a07bedff
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: repair embed refs and sync status context'
+      evidence:
+        commits:
+        - 5f12d66b2
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: polish event SEO metadata'
+      evidence:
+        commits:
+        - b22fa034f
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: keep event date badge text white'
+      evidence:
+        commits:
+        - 232f995be
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: restore generated event SEO data'
+      evidence:
+        commits:
+        - 62f83ae7c
+      reason: Deterministically classified as released and ready for public communication.
+    - text: 'fix: prerender event SEO index'
+      evidence:
+        commits:
+        - a51df7555
+      reason: Deterministically classified as released and ready for public communication.
+    exclude: []
+    rationale: Only deterministically released and communication-ready items are included.
+  social_video_recommendations: []
+  quality_notes:
+  - Generated without LLM interpretation; review grouped commit titles before publication.
+  validation_warnings: []

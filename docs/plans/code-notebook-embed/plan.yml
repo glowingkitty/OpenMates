@@ -1,0 +1,1262 @@
+schema_version: 2
+id: code-notebook-embed
+title: Code Notebook Embed And Python Execution
+status: implementing
+
+goal: >
+  Let OpenMates create, render, and execute assistant-generated Jupyter
+  notebooks as a first-class Code app embed. The canonical `.ipynb` notebook
+  content stays encrypted and immutable unless the assistant edits source cells;
+  user-triggered Python execution runs only in E2B and saves rich cell outputs in
+  encrypted sidecars instead of mutating the notebook embed.
+
+scope:
+  in:
+    - Add a `code-notebook` direct embed type for nbformat `.ipynb` content generated or updated in chat.
+    - Render notebook previews as structured notebook cells, not raw JSON, including the first visible markdown/code cells and a cell count.
+    - Render notebook fullscreen with markdown, code, raw cells, metadata summary, latest sidecar outputs, and run controls.
+    - Support Python-only notebook execution in v1 through E2B when an authenticated user explicitly clicks Run.
+    - Support run-all and targeted cell execution for Python code cells, with markdown/raw cells skipped.
+    - Persist cell outputs, execution status, errors, timing, and saved_at metadata in encrypted notebook-run sidecars keyed by chat, notebook embed, and runner.
+    - Keep source edits and output persistence separate: assistant diffs edit notebook cells; runtime outputs update only sidecars.
+    - Apply existing Code Run billing, rate limits, cancellation/status/streaming patterns where practical.
+    - Add sync/share payload support so saved outputs reload across the owner's devices without exposing plaintext in Directus.
+    - Create a realistic natural-language OpenMates CLI chat against the dev API that asks for a Jupyter notebook, confirm the real chat creates the notebook embed as expected, and convert the successful source chat into a public example chat for UI validation.
+    - Add Apple read-only notebook rendering parity in v1, with execution intentionally disabled unless the native Run UI is implemented behind the same API contract.
+  out:
+    - Executing R, Julia, Bash, JavaScript, SQL, or mixed-kernel notebooks in v1.
+    - Mutating canonical `.ipynb` embeds just because a user ran cells.
+    - Auto-running notebooks immediately after generation.
+    - Persisting E2B filesystem state, variables, or kernel memory after the run completes.
+    - Letting notebook code execute on OpenMates API, worker, browser, or Apple client hosts.
+    - Public anonymous share-page notebook execution.
+    - Full collaborative live kernels or multi-user simultaneous notebook sessions.
+    - Importing arbitrary local notebooks from a user's filesystem in this first slice.
+    - Hand-authoring or fixture-replaying the public notebook example chat instead of creating it from a real CLI chat.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP issue search previously returned 401 Bad credentials. Local `gh issue list --search \"jupyter OR notebook OR ipynb OR e2b\" --limit 20` returned no direct notebook issue. Adjacent known issues: #447 agentic coding planning/permissions, #459 chat/embed storage scale, #442 plan view for multi-step chats, #453 Electronics/PCB support, #415 PCB viewer/rendering."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/code-run-cli-app-skill/plan.yml
+    - docs/plans/code-execution-fullscreen-ui/plan.yml
+    - docs/plans/application-embeds/plan.yml
+    - docs/plans/app-skill-output-safety/plan.yml
+    - docs/user-guide/apps/code.md
+    - docs/user-guide/cli/chats.md
+    - docs/user-guide/cli/embeds-and-sharing.md
+    - .agents/skills/add-example-chat/SKILL.md
+  design:
+    - "scripts/.figma-index.json lists Figma node 3643:52844 at https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/OpenMates?node-id=3643-52844 with snippets: `figma_html_css_converter... 14 cells, Notebook`, `Write 4 cells ...`, and `render via notebookjs + add Run button that triggers creation in e2b.dev instance`."
+    - "Direct Figma API inspection succeeded for file PzgE78TVxG0eWuEeO6o8ve node 3643:52844 on 2026-07-31. The frame includes started/finished preview cards, mini preview cards, desktop and mobile fullscreen states, `14 cells, Notebook` labeling, `Write 4 cells ...` progress copy, and the note to render via notebookjs with a Run button backed by e2b.dev."
+  code_patterns:
+    - backend/apps/code/app.yml declares current Code app direct embed types `code` and `application`; no notebook embed type exists yet.
+    - backend/core/api/app/routes/code_execution.py implements `/v1/code/run`, Code Run auth, rate limits, E2B task start/status/cancel/stream, executable allowlists, package validation, and client file fallback behavior.
+    - backend/shared/providers/e2b_code_runner.py is the isolated E2B execution boundary and never gives sandboxes OpenMates credentials.
+    - backend/core/directus/schemas/code_run_outputs.yml defines encrypted Code Run terminal-output sidecars keyed by `chat_id`, `embed_id`, and `author_user_id`.
+    - backend/core/api/app/routes/handlers/websocket_handlers/code_run_output_handlers.py validates chat/embed access, upserts encrypted sidecars, broadcasts sync events, and writes a compact vault-encrypted inference cache.
+    - frontend/packages/ui/src/services/db/codeRunOutputs.ts stores decrypted Code Run sidecars locally without mutating canonical code embed content.
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte and CodeEmbedFullscreen.svelte are the current source-like preview/fullscreen patterns.
+    - frontend/packages/ui/src/components/embeds/code/codeHighlighting.ts registers `.ipynb` as a Python highlight alias only; it does not parse notebooks.
+    - frontend/packages/ui/src/data/embedRegistry.generated.ts is generated from app metadata and should not be hand-edited.
+    - backend/apps/ai/tasks/stream_consumer.py and backend/apps/ai/instructions/base_code_block_instruction.md are likely generation/parser touchpoints for assistant notebook artifacts.
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift is the native code/embed rendering parity surface.
+  tests:
+    - backend/tests/test_e2b_code_runner.py
+    - frontend/apps/web_app/tests/code-generation-multiturn.spec.ts
+    - frontend/apps/web_app/tests/file-attachment-code-flow.spec.ts
+    - frontend/apps/web_app/tests/embed-showcase.spec.ts
+    - frontend/apps/web_app/tests/share-chat-flow.spec.ts
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/apps/web_app/tests/apple-embed-rendering-contracts.spec.ts
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+    - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+    - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+    - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+  parity_expectations:
+    - Apple renders code-notebook previews and fullscreen content as notebook cells, not raw JSON.
+    - Apple may keep notebook execution disabled in v1 if the native Run UI is not implemented, but the disabled state must be explicit and localized.
+    - Apple does not execute notebook code locally; any future native Run action must call the same first-party notebook execution API and E2B boundary as web.
+  verification:
+    - Run or attempt `python3 scripts/apple_remote.py status` before Apple verification.
+    - Run or attempt `python3 scripts/apple_remote.py build-ios` after native rendering changes, or a targeted notebook embed parity UI test if one exists.
+  intentional_native_differences:
+    - Native text rasterization, scroll physics, and safe-area behavior may differ while preserving the same cell hierarchy, labels, and read-only execution state.
+    - Native notebook execution can be deferred from v1 if web execution is complete and Apple renders a clear unsupported-yet state.
+
+clarification:
+  rounds:
+    - question: Should the preview card render notebook cells or show raw `.ipynb` JSON?
+      answer: The preview card must render the first notebook lines/cells non-interactively; fullscreen is interactive.
+    - question: Should run results be stored separately from the canonical notebook embed or written back into the `.ipynb` content after every run?
+      answer: Store run results separately like current Code Run sidecars; do not use diff editing for execution outputs.
+    - question: For v1, should executable notebooks be Python-only?
+      answer: Yes. Support Python-only `.ipynb` execution first via E2B, and show non-Python notebooks as readable but execution unsupported.
+  vision_summary: >
+    Notebook embeds are source artifacts, while runtime outputs are per-user run
+    artifacts. The preview should look like a notebook immediately, fullscreen
+    should be the interactive notebook workspace, and v1 execution is strictly
+    Python-only in E2B with encrypted sidecar output persistence.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-07-30T20:29:08Z"
+  plan:
+    status: approved
+    approved_at: "2026-07-30T20:29:08Z"
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Store notebook run outputs in encrypted sidecars instead of mutating canonical notebook embeds.
+    reason: Execution output is user/session-specific, can be large, and would create noisy embed versions if written back to source content.
+    decided_at: "2026-07-30T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Limit executable notebooks to Python kernels in v1.
+    reason: Python covers the primary Jupyter use case while avoiding multi-kernel security, dependency, image, and billing complexity for the first slice.
+    decided_at: "2026-07-30T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Notebook execution is explicit user action only; generation and preview never auto-run code.
+    reason: E2B runtime has billing and untrusted-code implications, so users must intentionally start execution.
+    decided_at: "2026-07-30T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft the product contract from existing Code Run, sidecar, embed, and Figma-index patterns before implementation.
+    outcome: planned
+    recorded_at: "2026-07-30T00:00:00Z"
+  - id: ATTEMPT-2
+    task_id: TASK-5
+    approach: Run `npm run check` in `frontend/apps/web_app` after notebook UI wiring.
+    outcome: blocked
+    recorded_at: "2026-07-30T21:10:00Z"
+    notes: The command failed on 1071 existing TypeScript/svelte-check errors in unrelated Playwright test files before it could serve as focused notebook evidence.
+  - id: ATTEMPT-3
+    task_id: TASK-5
+    approach: Run production web build with an increased Node heap after fixing the notebook scoped `$text` usage.
+    outcome: succeeded
+    recorded_at: "2026-07-30T21:19:00Z"
+    notes: "`NODE_OPTIONS=--max-old-space-size=8192 npm run build` completed, including generated assets, Vite build, and example chat SEO audit."
+  - id: ATTEMPT-4
+    task_id: TASK-3
+    approach: Run direct dev REST/API notebook access-model proof against `https://api.dev.openmates.org/v1/code/notebooks/run` after allowing the route through live dev Caddy.
+    outcome: succeeded
+    recorded_at: "2026-07-31T09:44:06Z"
+    notes: "Unauthenticated POST returned 401; temporary CLI test-account session POST with an inaccessible chat/embed returned 403. No E2B run was started. Caddy source fix deployed in 2027bd1; live Caddy was patched in-memory through the local admin route because non-interactive sudo was unavailable for `/etc/caddy/Caddyfile`."
+  - id: ATTEMPT-5
+    task_id: TASK-7
+    approach: Deploy the generated Open-Meteo notebook example chat, inspect the failing Vercel build, then add notebook JSON-block SEO summarization for notebook-only assistant replies.
+    outcome: succeeded
+    recorded_at: "2026-07-31T12:19:06Z"
+    notes: "The first real Vercel failure was `audit-example-seo.js`: `/example/open-meteo-weather-notebook` had no QAPage mainEntity because the assistant message contained only a notebook JSON artifact reference. Commit ce743f9 made notebook JSON artifact references produce crawlable acceptedAnswer text; Vercel deployment dpl_FwECfbXLspyDyHYqkb1fyuVqu8oc became Ready."
+  - id: ATTEMPT-6
+    task_id: TASK-3
+    approach: Start a minimal authenticated notebook run against the real Open-Meteo source chat/embed using a one-cell Python nbformat payload through `/v1/code/notebooks/run`.
+    outcome: succeeded
+    recorded_at: "2026-07-31T12:19:06Z"
+    notes: "Execution e0ffce21-28ed-4d10-be68-3610983393e3 started via the workspace CLI session, installed notebook dependencies, ran `openmates_notebook_runner.py`, and reached status `finished` after three status polls. Sanitized start/status outputs are in `/tmp/opencode/notebook-run-start.json` and `/tmp/opencode/notebook-run-status.json`."
+  - id: ATTEMPT-7
+    task_id: TASK-8
+    approach: Load the Apple parity workflow, inspect native embed routing/renderers for notebook support, and run the sanitized remote Mac status wrapper.
+    outcome: blocked
+    recorded_at: "2026-07-31T13:19:33Z"
+    notes: "`python3 scripts/apple_remote.py status` reported sanitized SSH reachability. Static inspection found no `code-notebook`/Notebook renderer, `EmbedType` enum case, or `EmbedContentView` routing case yet, so Apple read-only notebook parity still requires implementation. Per the Apple workflow, native implementation is deferred until `V-USER-CONFIRM-NOTEBOOK-UI` confirms the deployed web notebook UI."
+  - id: ATTEMPT-8
+    task_id: TASK-5
+    approach: Run an authenticated Firecrawl CDP smoke against the deployed public Open-Meteo notebook example and click the real notebook `Run cell` and `Run all` controls in laptop and mobile viewports.
+    outcome: succeeded
+    recorded_at: "2026-08-01T10:07:41Z"
+    notes: "Firecrawl session `019fbcc3-d8ca-77ef-86eb-6d4305ae0261` authenticated through the web UI and then hash-deep-linked the public example in the same page because Firecrawl did not persist the stay-logged-in master key across full reloads. Laptop and mobile runs both posted `200` to `/v1/code/notebooks/run`; `Run cell` sent `run_scope: cells` with `cell_indices: [1]`, `Run all` sent `run_scope: all`, both payloads included `client_notebook`, live output rendered inline under the executed cell, no direct fullscreen global run panel appeared, logs stayed tailed, and no notebook API failures were observed. `python3 scripts/sessions.py visual-smoke --session cf55 ... --run-id 019fbcc3-d8ca-77ef-86eb-6d4305ae0261` recorded the evidence for current dev commit `d313020a1`; notebook fix commit `9544421` is an ancestor."
+
+handoff:
+  current_task_id: TASK-8
+  next_action: "Ask for user confirmation of the deployed notebook preview/fullscreen UI at `/example/open-meteo-weather-notebook`; after confirmation, implement Apple read-only code-notebook routing/rendering and run remote Mac build verification."
+  command: "python3 scripts/plan_verify.py docs/plans/code-notebook-embed/plan.yml"
+  expected_outcome: "The spec remains active until user confirmation and Apple read-only notebook build evidence are recorded or explicitly waived."
+  blocker:
+    verification: V-USER-CONFIRM-NOTEBOOK-UI
+    reason: Apple read-only notebook implementation waits for user confirmation of the deployed web notebook UI per the Apple parity workflow.
+  last_verified_commit: 4b18d03
+
+scenarios:
+  - id: S-1
+    title: Assistant creates a Python notebook embed
+    given:
+      - Alice is authenticated in a normal chat.
+      - Alice asks OpenMates to create a notebook that fetches and analyzes weather forecast data from a no-key public API.
+    when:
+      - The assistant emits a notebook artifact or `.ipynb` payload.
+    then:
+      - OpenMates validates the payload as nbformat JSON with `nbformat`, `nbformat_minor`, `metadata`, and `cells`.
+      - OpenMates creates one encrypted direct `code-notebook` embed with filename `open_meteo_weather_analysis.ipynb`.
+      - The notebook content contains markdown and Python code cells but no runtime outputs unless the assistant intentionally authored static example output.
+      - The assistant message shows a notebook preview labeled `14 cells, Notebook`, not a raw JSON code block.
+
+  - id: S-2
+    title: Preview renders first cells without interactivity
+    given:
+      - Alice has a finished notebook embed containing markdown and code cells.
+    when:
+      - Alice views the chat message at desktop or mobile preview size.
+    then:
+      - The preview shows the notebook filename, total cell count, and a Notebook type label.
+      - The preview renders the first visible markdown/code cells with safe markdown and syntax highlighting.
+      - The preview does not expose Run, Run all, editable cell controls, or raw `.ipynb` JSON.
+      - Processing previews can show progress such as `Write 4 cells ...` while cells stream in.
+
+  - id: S-3
+    title: Fullscreen notebook shows source plus latest saved outputs
+    given:
+      - Alice opens a finished Python notebook embed in fullscreen.
+      - Alice previously ran cell 2 and saved an encrypted notebook-run sidecar.
+    when:
+      - The fullscreen view loads.
+    then:
+      - Markdown, code, and raw cells render in notebook order with stable cell indexes.
+      - The latest decrypted sidecar output for Alice is merged into the rendered view without changing the canonical notebook content.
+      - Outputs support at least stdout/stderr streams, execute_result/display_data text, HTML rendered through sanitization, PNG/SVG images, and Python errors.
+      - Alice can inspect source cells and saved outputs after reload.
+
+  - id: S-4
+    title: User runs Python notebook cells in E2B
+    given:
+      - Alice has a Python notebook embed with a valid Python kernelspec or Python language metadata.
+      - Alice has enough credits for Code Run pricing.
+    when:
+      - Alice clicks Run all or runs a selected code cell in fullscreen.
+    then:
+      - The web app sends a first-party authenticated notebook run request for the notebook embed and selected cell scope.
+      - The backend validates chat access, notebook ownership, nbformat shape, Python-only execution support, dependency selections, and payload limits.
+      - The backend starts an E2B task; OpenMates API, worker, browser, and Apple hosts never execute notebook code.
+      - The stream reports per-cell status, stdout/stderr, final outputs, errors, cancellation, and terminal run state.
+      - The run is billed at the existing Code Run price of 5 credits per started minute unless implementation discovery requires a separate approved SKU.
+
+  - id: S-5
+    title: Non-Python notebooks render read-only
+    given:
+      - Alice opens a notebook whose kernelspec language is R, Julia, Bash, JavaScript, or missing/ambiguous.
+    when:
+      - Alice views preview or fullscreen.
+    then:
+      - OpenMates renders the notebook cells safely.
+      - Run controls are hidden or disabled with a localized message such as `Python notebooks only in v1`.
+      - A direct notebook execution API call for the same embed returns a structured unsupported-language error and starts no E2B task.
+
+  - id: S-6
+    title: Run outputs persist as encrypted sidecars
+    given:
+      - Alice completes a Python notebook run that produced stdout, a dataframe display, and one error cell.
+    when:
+      - The web app saves the run result.
+    then:
+      - The client encrypts a notebook-run output payload with the notebook embed key.
+      - Directus stores only routeable sidecar metadata plus `encrypted_payload`; canonical notebook embed content is unchanged.
+      - The sidecar is keyed by `chat_id`, `notebook_embed_id`, and `author_user_id` so each runner can keep their latest output independently.
+      - Other signed-in devices for Alice receive a sync event and can decrypt the latest output with the embed key.
+
+  - id: S-7
+    title: Source edits do not mix with runtime outputs
+    given:
+      - Alice asks the assistant to add a data-cleaning cell after she has already run the notebook.
+    when:
+      - The assistant updates the notebook source.
+    then:
+      - The edit updates canonical notebook cells through the normal encrypted embed update/diff path.
+      - Existing run sidecars remain separate and are marked stale or visually tied to the source version they were produced from.
+      - Running the notebook again creates or updates a sidecar for the new source version.
+
+  - id: S-8
+    title: Unauthorized or unsafe execution is rejected before E2B
+    given:
+      - Mallory is unauthenticated or does not have access to Alice's notebook chat.
+    when:
+      - Mallory posts to the notebook run route.
+    then:
+      - The route returns 401 when unauthenticated and 403 when the notebook is outside the user's accessible chats.
+      - Oversized notebooks, too many cells, suspicious secret-like content, unsafe dependency specs, and malformed nbformat payloads are rejected before E2B starts.
+      - The response is structured and does not include raw stack traces or decrypted notebook content.
+
+  - id: S-9
+    title: CLI and SDK do not expose notebook execution in v1
+    given:
+      - A developer inspects the OpenMates CLI, npm SDK, and pip SDK after notebook web execution ships.
+    when:
+      - They look for public notebook run methods or commands.
+    then:
+      - No public developer API, CLI command, npm method, or pip method is added for notebook execution in v1 unless a later approved plan explicitly adds parity.
+      - The first-party web route is documented as a first-party client surface only, not a developer API-key surface.
+      - The SDK/CLI parity audit records the intentional non-exposure.
+
+  - id: S-10
+    title: Apple renders notebook embeds read-only
+    given:
+      - Alice opens a chat containing a code-notebook embed on the Apple app.
+    when:
+      - The native embed preview or fullscreen view renders.
+    then:
+      - Apple shows notebook cells, filename, and cell count instead of raw JSON.
+      - Apple does not execute notebook code locally.
+      - If native execution is not implemented in v1, Apple shows no Run action or a localized unsupported-yet state.
+
+  - id: S-11
+    title: Real CLI notebook chat becomes a public example chat
+    given:
+      - The full dev web app notebook implementation has been deployed and verified enough to render notebook previews and fullscreen.
+      - A logged-in OpenMates CLI session targets `https://api.dev.openmates.org`.
+    when:
+      - The implementer runs a realistic natural-language chat prompt such as `openmates chats new "Create a Jupyter notebook that pulls the next 7 days of hourly weather data for Berlin from the free Open-Meteo API, no API key. Use Python requests and pandas to fetch temperature, precipitation, wind speed, and cloud cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short explanation of what the forecast means for planning a weekend bike ride. Use markdown explanations and Python cells only."`.
+    then:
+      - The real chat response creates a `code-notebook` embed rather than a raw JSON code block.
+      - The notebook is useful as a public product demo: it has a clear use case, explanatory markdown cells, Python-only code cells, and enough visual/content structure to validate preview and fullscreen UI.
+      - The implementer inspects the real chat in CLI and web, confirms the notebook embed renders correctly, and rejects the candidate if the content is weak or the embed is malformed.
+      - The selected real chat is shared through `openmates chats share <chat-id>` and converted with `scripts/create-example-chat-from-share.mjs`.
+      - The resulting public example chat is deployed and verified at `/example/<slug>` so the user can validate notebook preview and fullscreen UI from stable demo content.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Assistant-generated `.ipynb` content creates a validated encrypted `code-notebook` embed with nbformat fields and notebook metadata.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-ARTIFACT
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+  - id: AC-2
+    scenario: S-2
+    text: The preview card renders the first notebook cells non-interactively with filename, cell count, and Notebook labeling.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-NOTEBOOK-RENDERER
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+      - V-FIGMA-NOTEBOOK-REVIEW
+      - V-USER-CONFIRM-NOTEBOOK-UI
+  - id: AC-3
+    scenario: S-3
+    text: Fullscreen renders notebook cells and merges latest decrypted sidecar outputs without mutating canonical notebook content.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+      - V-USER-CONFIRM-NOTEBOOK-UI
+  - id: AC-4
+    scenario: S-4
+    text: Python-only notebook execution runs in E2B on explicit user action and streams per-cell status and outputs.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-API
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+  - id: AC-5
+    scenario: S-5
+    text: Non-Python or ambiguous-kernel notebooks remain readable but cannot start execution in v1.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-API
+      - T-VITEST-NOTEBOOK-RENDERER
+  - id: AC-6
+    scenario: S-6
+    text: Notebook run outputs persist as encrypted sidecars keyed by chat, notebook embed, and author user, never as automatic source mutations.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-SIDECAR
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+  - id: AC-7
+    scenario: S-7
+    text: Assistant source edits update notebook cells separately from stale or refreshed runtime output sidecars.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-ARTIFACT
+  - id: AC-8
+    scenario: S-8
+    text: The notebook run API enforces first-party auth, chat/embed access, limits, billing, rate limits, and pre-E2B validation.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-API
+  - id: AC-9
+    scenario: S-9
+    text: Notebook execution is intentionally not exposed as a public developer API, CLI command, npm SDK method, or pip SDK method in v1.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-LINT-SDK-CLI-PARITY
+  - id: AC-10
+    scenario: S-10
+    text: Apple renders code-notebook embeds read-only as cells and does not execute code locally.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - T-APPLE-NOTEBOOK-BUILD
+  - id: AC-11
+    scenario: S-11
+    text: A successful real OpenMates CLI chat that asks naturally for a Python Jupyter notebook is inspected, confirmed to create a valid notebook embed, converted into a public example chat, deployed, and verified for UI validation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: manual
+    verification_ids:
+      - T-MANUAL-REALISTIC-CLI-CHAT
+      - V-EXAMPLE-NOTEBOOK-CHAT
+
+assumptions:
+  - id: A-1
+    text: The chosen E2B sandbox image can install or run the Python notebook execution stack needed for nbformat execution, such as nbclient/ipykernel, within acceptable startup time.
+    category: provider
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: /tmp/opencode/notebook-run-status.json
+        summary: "Authenticated dev API notebook run e0ffce21-28ed-4d10-be68-3610983393e3 installed dependencies and reached status `finished` for a minimal Python nbformat payload against source chat 938fb208-3c64-4a32-8e28-7a213ab35090 and notebook embed bed8cbe3-2ce3-47f0-ac01-1b864a17e574."
+      - source: backend/core/api/app/routes/code_notebook_execution.py
+        summary: "The notebook run bundle installs nbformat, nbclient, ipykernel, pandas, requests, and matplotlib, then executes selected cells through `NotebookClient` inside the existing E2B Code Run path."
+  - id: A-2
+    text: The existing embed key model can encrypt notebook-run sidecar payloads with the same security boundary used by Code Run output sidecars.
+    category: encryption
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/code_run_outputs.yml
+        summary: Existing Code Run output sidecars are encrypted with the embed key and keyed by chat, embed, and author.
+      - source: frontend/packages/ui/src/services/db/codeRunOutputs.ts
+        summary: Local decrypted output storage keeps canonical code embed content unchanged.
+  - id: A-3
+    text: The Figma notebook frame exists and exact node data is available for visual review.
+    category: design
+    required_before: task_execution
+    status: confirmed
+    evidence:
+      - source: scripts/.figma-index.json
+        summary: Local Figma index includes node 3643:52844 for `apps/code/previews/notebook/` and the notebook/E2B text snippets.
+      - source: Figma file PzgE78TVxG0eWuEeO6o8ve node 3643:52844
+        summary: "Direct Figma inspection succeeded and confirmed started/finished preview cards, mini preview cards, desktop and mobile fullscreen states, `14 cells, Notebook` labeling, `Write 4 cells ...` progress copy, and notebookjs/E2B Run guidance. Visual artifact saved to `test-results/figma/code-notebook-figma-3643-52844.png`."
+  - id: A-4
+    text: Apple has an embed-rendering counterpart that must render code-notebook cells read-only for parity.
+    category: apple
+    required_before: completion
+    status: confirmed
+    evidence:
+      - source: apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+        summary: Existing native code/embed renderer is the likely parity surface for notebook rendering.
+
+contracts:
+  api:
+    - route: POST /v1/code/notebooks/run
+      access_model: first-party client surface only
+      auth: Authenticated OpenMates session or approved first-party device auth; no public anonymous or developer API-key access in v1.
+      request: >
+        `{ chat_id: string, notebook_embed_id: string, run_scope: "all" | "cells",
+        cell_indices?: number[], enable_internet?: boolean, dependency_installs?:
+        CodeRunDependencyInstall[] }` plus optional client notebook content fallback when
+        server cache cannot resolve encrypted notebook source.
+      response: >
+        `{ execution_id, status, credits_per_minute, stream_path, status_path,
+        notebook_embed_id, source_version }`.
+      errors:
+        - 401 when unauthenticated.
+        - 403 when the chat or notebook embed is not accessible to the current user.
+        - 402 or existing budget error shape when credits are insufficient.
+        - 422 for malformed nbformat, unsupported kernel, unsafe dependency specs, oversized notebooks, invalid cell indices, or missing runnable Python code cells.
+        - 429 when user or provider creation rate limits are exceeded.
+      rate_limits:
+        - Reuse or define a notebook equivalent to Code Run start limits, initially 10 starts per minute per authenticated user unless implementation discovery requires a stricter value.
+        - Enforce the existing active-run cap, initially 5 active code/notebook runs per user and provider-level active E2B cap.
+      billing:
+        - Existing Code Run price of 5 credits per started minute of E2B runtime for v1.
+      plaintext_boundary:
+        - The run route may handle decrypted notebook source transiently to validate and forward to E2B; it must not persist plaintext notebook source or outputs in Directus.
+    - route: GET /v1/code/notebooks/run/{execution_id}/status
+      access_model: first-party client surface only
+      auth: Same authenticated user that started the run or an authorized device for that user.
+      response: >
+        Current run status, selected cell statuses, elapsed time, cancellation state,
+        and billing/runtime metadata without raw decrypted notebook source.
+    - route: WebSocket /v1/code/notebooks/run/{execution_id}/stream
+      access_model: first-party client surface only
+      auth: Authenticated WebSocket session for the runner.
+      response: >
+        Ordered events for run_started, cell_started, stream, display_data,
+        execute_result, error, cell_finished, run_finished, timeout, failed, and cancelled.
+    - route: WebSocket event upsert_notebook_run_output
+      access_model: first-party client surface only
+      auth: Authenticated WebSocket session with chat and notebook embed access.
+      request: >
+        Routeable metadata plus `encrypted_payload` encrypted client-side with the
+        notebook embed key. Optional compact inference payload must follow Code Run
+        truncation, redaction, TTL, and user-vault encryption rules.
+      response: notebook_run_output_synced broadcast to the runner's devices.
+  data:
+    - Add Directus collection `notebook_run_outputs` with `id`, `chat_id`, `notebook_embed_id`, `author_user_id`, `source_version`, `key_version`, `encrypted_payload`, `created_at`, and `updated_at`.
+    - Add a unique index on `[chat_id, notebook_embed_id, author_user_id]` for the latest saved output per runner.
+    - Encrypted payload shape includes notebook output version, run_id, status, selected cell indices, source version, per-cell execution_count, outputs, errors, saved_at, duration, and truncation flags.
+    - IndexedDB gets a `notebook_run_outputs` store with `chat_id` and `notebook_embed_id` indexes.
+    - Sync payloads include notebook run outputs only after metadata phases, matching the existing code_run_outputs pattern.
+  ui_states:
+    - Processing preview with streamed cell count such as `Write 4 cells ...`.
+    - Finished preview with filename, cell count, Notebook label, and first visible cells.
+    - Error preview for invalid notebook generation.
+    - Fullscreen default source view with latest saved outputs merged in.
+    - Run all, run selected cell, running, cancelling, cancelled, failed, timeout, unsupported kernel, insufficient credits, and saved output after reload states.
+  privacy_security:
+    - Treat notebook source and outputs as client-side encrypted chat material.
+    - Do not expose OpenMates auth cookies, API tokens, vault keys, provider keys, or user secrets to E2B.
+    - Sanitize markdown and rich HTML outputs before rendering; no scripts, event handlers, unsafe URLs, or raw iframe execution from outputs.
+    - Reject or warn on secret-like notebook source before execution, following Code Run secret checks.
+    - Do not auto-start E2B during preview, generation, sync, or share rendering.
+
+tests:
+  - id: T-PYTEST-NOTEBOOK-ARTIFACT
+    type: pytest
+    file: backend/tests/test_code_notebook_artifacts.py
+    command: python3 -m pytest backend/tests/test_code_notebook_artifacts.py
+    covers:
+      - AC-1
+      - AC-7
+    assertions:
+      - Valid Python nbformat payloads create `code-notebook` embed metadata and encrypted content fields.
+      - Malformed notebooks are rejected with structured errors.
+      - Assistant source edits change notebook cells through embed update paths without touching notebook-run sidecars.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Implementation resumed from an already-created working tree; no useful red run was available for this local continuation.
+        timestamp: "2026-07-30T21:20:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest "backend/tests/test_code_notebook_artifacts.py" "backend/tests/test_code_notebook_execution.py" "backend/tests/test_notebook_run_outputs.py"
+        run_id: local-pytest-code-notebook-focused-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
+
+  - id: T-PYTEST-NOTEBOOK-API
+    type: pytest
+    file: backend/tests/test_code_notebook_execution.py
+    command: python3 -m pytest backend/tests/test_code_notebook_execution.py
+    covers:
+      - AC-4
+      - AC-5
+      - AC-8
+    assertions:
+      - Unauthenticated notebook run requests return 401 and unauthorized notebook access returns 403.
+      - Non-Python kernels and ambiguous kernels return unsupported-language errors without starting E2B.
+      - Valid Python run requests enforce limits, create a Celery/E2B execution task, expose status/stream paths, and apply billing metadata.
+      - Oversized notebooks, unsafe dependency specs, and invalid cell indices fail before provider start.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Implementation resumed from an already-created working tree; no useful red run was available for this local continuation.
+        timestamp: "2026-07-30T21:20:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest "backend/tests/test_code_notebook_artifacts.py" "backend/tests/test_code_notebook_execution.py" "backend/tests/test_notebook_run_outputs.py"
+        run_id: local-pytest-code-notebook-focused-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
+
+  - id: T-PYTEST-NOTEBOOK-SIDECAR
+    type: pytest
+    file: backend/tests/test_notebook_run_outputs.py
+    command: python3 -m pytest backend/tests/test_notebook_run_outputs.py
+    covers:
+      - AC-6
+    assertions:
+      - "`notebook_run_outputs` upsert requires chat access and a notebook embed in that chat."
+      - Rows are keyed by chat, notebook embed, and author user.
+      - Directus stores encrypted payloads only, plus routeable metadata.
+      - Sync payloads and request handlers return only sidecar rows the user can access.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: skipped_with_reason
+        reason: Implementation resumed from an already-created working tree; no useful red run was available for this local continuation.
+        timestamp: "2026-07-30T21:20:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest "backend/tests/test_code_notebook_artifacts.py" "backend/tests/test_code_notebook_execution.py" "backend/tests/test_notebook_run_outputs.py"
+        run_id: local-pytest-code-notebook-focused-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
+
+  - id: T-VITEST-NOTEBOOK-RENDERER
+    type: vitest
+    file: frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts
+    command: python3 scripts/tests.py run --suite vitest
+    covers:
+      - AC-2
+      - AC-5
+    assertions:
+      - Notebook nbformat payloads normalize to filename, language, and markdown/code cell counts.
+      - Plain-text rendering includes notebook cells and the Notebook label without raw JSON.
+      - Non-Python kernels are detected as non-executable for the v1 read-only boundary.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        reason: The dedicated notebook content helper test did not exist before implementation; no useful red run was available for this continuation.
+        timestamp: "2026-07-31T12:19:06Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --suite vitest --expected-commit 4b18d03
+        run_id: github-actions-30634202676
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:23:54Z"
+        reason: "GitHub Actions Vitest control-plane run passed 667/667 tests against the latest deployed notebook subject commit, including `frontend/packages/ui/src/components/embeds/code/__tests__/notebookContent.test.ts` and the embed registry durable content catalog guard for `code.notebook`."
+
+  - id: T-PLAYWRIGHT-NOTEBOOK-FLOW
+    type: playwright
+    file: frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    command: python3 scripts/tests.py run --spec code-notebook-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+      - AC-6
+    assertions:
+      - The deployed real-notebook public example appears as a Notebook preview, not raw nbformat JSON.
+      - Fullscreen opens to rendered markdown/code notebook cells.
+      - A synced notebook-run sidecar output is merged into the rendered cell output area.
+      - The merged sidecar output does not mutate the rendered source-code cell lines.
+      - Anonymous public-example Run attempts open login and do not POST to the notebook execution API.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: missing_test
+        reason: The dedicated notebook flow Playwright spec did not exist before this continuation. Earlier browser coverage used the generic example-chat loader, while REST/API evidence covered real authenticated E2B execution.
+        timestamp: "2026-07-31T12:45:00Z"
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed
+        command: python3 scripts/tests.py run --spec code-notebook-flow.spec.ts --expected-commit 4b18d03
+        run_id: github-actions-30633706419
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:16:52Z"
+        target: app.dev.openmates.org
+        deployment_reference: dpl_HK5pAuZoQU6YbK3wnhzwtdVn1CnC
+        reason: "The deployed Playwright gate passed after Vercel Ready. The initial run 30632578113 failed only on an over-specific filename assertion because fullscreen intentionally uses the notebook markdown heading; commit 4b18d03 removed that assertion and the rerun passed. Account slot 1 preflight remained unavailable (`user_lookup_failed`), so the control plane used fallback slot 2."
+
+  - id: T-MANUAL-REALISTIC-CLI-CHAT
+    type: manual
+    command: >
+      openmates chats new "Create a Jupyter notebook that pulls the next 7 days of hourly weather data for Berlin from the free Open-Meteo API, no API key. Use Python requests and pandas to fetch temperature, precipitation, wind speed, and cloud cover, clean the JSON into a dataframe, calculate daily min/max temperature and total precipitation, plot the 7-day temperature trend and precipitation by day, and end with a short explanation of what the forecast means for planning a weekend bike ride. Use markdown explanations and Python cells only."
+    covers:
+      - AC-11
+    assertions:
+      - The command runs through the real OpenMates CLI against `https://api.dev.openmates.org` after the implementation is deployed.
+      - The resulting real chat creates a `code-notebook` embed, not a raw JSON or Python-only code block.
+      - The notebook has a realistic public-demo use case, markdown explanation cells, Python-only code cells, and no private or secret data.
+      - The implementer inspects the same source chat in web fullscreen and confirms notebook preview/fullscreen render correctly before converting it.
+      - The source chat ID, share URL with redacted key fragment, and inspection notes are recorded in spec evidence or handoff.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Real CLI chat generation requires the deployed notebook implementation and is a green/final validation gate.
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: node dist/cli.js chats new <open-meteo-notebook-prompt> --auto-approve --no-pii-detection --json --response-timeout-seconds 900
+        run_id: source-chat-938fb208-3c64-4a32-8e28-7a213ab35090-embed-bed8cbe3-2ce3-47f0-ac01-1b864a17e574
+        subject_commit: ce743f9e3
+        timestamp: "2026-07-31T12:19:06Z"
+        reason: "The real workspace CLI chat against api.dev.openmates.org produced assistant message 6ccefa80-15de-5af3-a70e-212b25c75158 with finished notebook embed bed8cbe3-2ce3-47f0-ac01-1b864a17e574 (`open_meteo_weather_analysis.ipynb`, 7 cells, Python). The share URL/key fragment remains local-only in `/tmp/opencode/notebook-share.json` and was not committed."
+
+  - id: T-LINT-SDK-CLI-PARITY
+    type: lint
+    file: scripts/audit_sdk_cli_parity.py
+    command: python3 scripts/audit_sdk_cli_parity.py
+    covers:
+      - AC-9
+    assertions:
+      - Notebook execution is not accidentally listed as a public CLI, npm SDK, or pip SDK method in v1.
+      - Any future public exposure requires explicit spec update and CLI/SDK tests against the dev server.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Audit is a guardrail, not a red-phase behavioral reproduction.
+        timestamp: "2026-07-30T21:33:00Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/audit_sdk_cli_parity.py
+        run_id: local-audit-sdk-cli-parity-2026-07-31T13-25Z
+        subject_commit: 4b18d0363e64adbac242009a2a760298713c520e
+        timestamp: "2026-07-31T13:25:04Z"
+
+  - id: T-APPLE-NOTEBOOK-BUILD
+    type: build
+    file: apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+    command: python3 scripts/apple_remote.py build-ios
+    covers:
+      - AC-10
+    assertions:
+      - Apple builds after native code-notebook read-only rendering changes.
+      - Native notebook rendering does not introduce local code execution.
+      - Any unsupported execution state is localized and explicit.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        reason: Apple build is a parity/build gate after implementation, not a red-phase test.
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: ""
+        command: ""
+        run_id: ""
+        subject_commit: ""
+        timestamp: ""
+
+verifications:
+  - id: V-FIGMA-NOTEBOOK-REVIEW
+    kind: artifact_review
+    phase: green
+    required_for_done: true
+    covers:
+      - AC-2
+    status: passed
+    evidence:
+      status: passed
+      summary: "Direct Figma node inspection for `apps/code/previews/notebook/` succeeded. The design contains started and finished preview variants, mini previews, desktop and mobile fullscreen states, `14 cells, Notebook` labeling, `Write 4 cells ...` progress copy, and the explicit notebookjs plus E2B Run note."
+      timestamp: "2026-07-31T12:28:24Z"
+      reason: "Figma MCP returned node data for file PzgE78TVxG0eWuEeO6o8ve node 3643:52844, and the frame was exported for local visual evidence."
+      actor: opencode
+      artifact: test-results/figma/code-notebook-figma-3643-52844.png
+  - id: V-USER-CONFIRM-NOTEBOOK-UI
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-2
+      - AC-3
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-EXAMPLE-NOTEBOOK-CHAT
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-11
+    status: passed
+    evidence:
+      status: passed
+      summary: "The real CLI source chat was converted into `/example/open-meteo-weather-notebook`, deployed, and verified by `example-chats-load.spec.ts` against ce743f9e3. The Vercel SEO audit initially failed because the notebook-only assistant reply had empty QAPage acceptedAnswer text; ce743f9 fixed the SEO summarization and Vercel deployment dpl_FwECfbXLspyDyHYqkb1fyuVqu8oc became Ready."
+      timestamp: "2026-07-31T12:19:06Z"
+      reason: "GitHub Actions Playwright run 30629505063 passed for `example-chats-load.spec.ts` after the deployed Vercel commit ce743f9e3 was Ready."
+      command: python3 scripts/tests.py run --suite playwright --spec example-chats-load.spec.ts --environment development --force --expected-commit ce743f9e3
+      run_id: github-actions-30629505063
+      subject_commit: ce743f9e3
+      target: app.dev.openmates.org
+      deployment_reference: dpl_FwECfbXLspyDyHYqkb1fyuVqu8oc
+      required_workflow: >
+        Create a real CLI chat, inspect it, share it, convert with
+        `node scripts/create-example-chat-from-share.mjs`, deploy, then verify
+        the deployed `/example/<slug>` page renders messages, notebook preview,
+        and notebook fullscreen correctly before giving the user the link.
+
+implementation_notes:
+  plan_path: docs/plans/code-notebook-embed/plan.yml
+  existing_patterns:
+    - backend/apps/code/app.yml direct embed metadata for `code` and `application`.
+    - backend/core/api/app/routes/code_execution.py Code Run auth, rate limits, E2B task lifecycle, status, stream, and cancellation patterns.
+    - backend/core/directus/schemas/code_run_outputs.yml encrypted sidecar storage model.
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedPreview.svelte preview behavior for source-like embeds.
+    - frontend/packages/ui/src/components/embeds/code/CodeEmbedFullscreen.svelte fullscreen and run-action behavior for source-like embeds.
+    - .agents/skills/add-example-chat/SKILL.md required workflow for turning a real CLI chat into a public example chat.
+    - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift native embed rendering parity surface.
+  architecture: >
+    Add notebook as a Code app direct embed with encrypted nbformat source. Web
+    renders notebooks client-side and starts Python execution through a new
+    first-party notebook run route that reuses Code Run's E2B isolation,
+    pricing, rate limits, and stream/status concepts. Execution outputs are
+    client-encrypted into notebook-run sidecars and merged into fullscreen views
+    at render time, while source changes remain ordinary encrypted embed edits.
+  data_flow:
+    - Assistant emits a structured notebook artifact or `.ipynb` payload.
+    - Backend validates nbformat and creates an encrypted `code-notebook` embed.
+    - Preview/fullscreen decrypt and render notebook cells locally.
+    - User clicks Run all or Run cell in fullscreen.
+    - First-party notebook API validates auth, access, Python kernel support, limits, and billing, then starts E2B.
+    - E2B executes selected Python cells and streams cell outputs back to the client.
+    - Client encrypts the latest run result with the notebook embed key and upserts `notebook_run_outputs`.
+    - Sync broadcasts encrypted sidecars to the runner's devices; fullscreen merges decrypted sidecar output on reload.
+    - After deployed web verification, a real CLI chat asks for the notebook use case and produces a real notebook embed.
+    - The source chat is inspected in CLI and web, shared with a key-fragment URL, and converted into a public example chat.
+    - The deployed example page becomes the stable UI validation surface for the user.
+  affected_files:
+    - path: backend/apps/code/app.yml
+      reason: Add `code-notebook` embed metadata and content fields.
+    - path: backend/apps/ai/tasks/stream_consumer.py
+      reason: Detect or accept assistant notebook artifacts and avoid treating `.ipynb` as raw Python code.
+    - path: backend/apps/ai/instructions/base_code_block_instruction.md
+      reason: Teach generation rules for notebook artifacts and Python-only execution expectations.
+    - path: backend/core/api/app/routes/code_notebook_execution.py
+      reason: New first-party notebook run route, status, stream, auth, billing, and validation contract.
+    - path: backend/shared/providers/e2b_code_runner.py
+      reason: Add or factor notebook execution helpers that run Python cells safely in E2B.
+    - path: backend/core/directus/schemas/notebook_run_outputs.yml
+      reason: Encrypted Directus sidecar storage for rich notebook outputs.
+    - path: backend/shared/python_schemas/notebook_run_outputs.py
+      reason: Shared schema for sync and API-side notebook output rows.
+    - path: backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+      reason: WebSocket upsert/request/sync handling for encrypted notebook output sidecars.
+    - path: backend/core/api/app/routes/sync_api.py
+      reason: Include notebook sidecars in authenticated sync payloads after metadata phases.
+    - path: backend/core/api/app/routes/share.py
+      reason: Include existing notebook sidecars in share/embed payloads where safe, without enabling anonymous execution.
+    - path: frontend/packages/ui/src/services/db.ts
+      reason: Add IndexedDB store/version for notebook run outputs.
+    - path: frontend/packages/ui/src/services/db/notebookRunOutputs.ts
+      reason: Local decrypted sidecar storage helpers.
+    - path: frontend/packages/ui/src/services/sendersNotebookRunOutputs.ts
+      reason: Client encryption and upsert sender for notebook output sidecars.
+    - path: frontend/packages/ui/src/services/handlersNotebookRunOutputs.ts
+      reason: Decrypt and apply synced notebook output sidecars.
+    - path: frontend/packages/ui/src/services/codeNotebookRunService.ts
+      reason: Web client for notebook run start/status/stream/cancel.
+    - path: frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+      reason: Notebook preview card renderer.
+    - path: frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+      reason: Notebook fullscreen renderer and execution UI.
+    - path: frontend/packages/ui/src/components/embeds/code/notebookRendering.ts
+      reason: Safe nbformat parsing, markdown sanitization, output normalization, and source/output merge helpers.
+    - path: frontend/packages/ui/src/i18n/sources/embeds.yml
+      reason: Notebook labels and unsupported execution messages.
+    - path: frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+      reason: Live dev E2E coverage for generation, rendering, execution, and reload.
+    - path: frontend/packages/ui/src/demo_chats/data/example_chats/open_meteo_weather_notebook.ts
+      reason: Public example chat generated from the successful real CLI source chat.
+    - path: frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      reason: Register the notebook example chat after conversion.
+    - path: frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+      reason: Localized public example chat transcript created by the scaffold workflow.
+    - path: apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      reason: Native read-only notebook rendering parity.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/code-notebook-embed/plan.yml
+    - python3 -m pytest backend/tests/test_code_notebook_artifacts.py
+    - python3 -m pytest backend/tests/test_code_notebook_execution.py
+    - python3 -m pytest backend/tests/test_notebook_run_outputs.py
+    - python3 scripts/tests.py run --suite vitest
+    - Restart the affected local Docker service under the Docker lock before dev-server REST/API proof.
+    - Direct REST/API proof against https://api.dev.openmates.org for 401, 403, 422, and valid Python start/status/stream behavior.
+    - python3 scripts/audit_sdk_cli_parity.py
+    - Deploy to dev before Playwright green-phase verification.
+    - python3 scripts/tests.py run --spec code-notebook-flow.spec.ts
+    - Run the realistic CLI chat prompt against https://api.dev.openmates.org and inspect the resulting real chat for a valid `code-notebook` embed.
+    - Share the selected real chat and run `node scripts/create-example-chat-from-share.mjs "<SHARE_URL>" --slug "open-meteo-weather-notebook" --title "Open-Meteo weather notebook" --summary "A Python notebook that fetches no-key weather forecast data, analyzes daily trends, and plots conditions for planning a bike ride." --icon "weather" --category "work" --keywords "jupyter notebook,python,pandas,open-meteo,weather api,data analysis"`.
+    - Build/validate example chat translations and verify the deployed `/example/open-meteo-weather-notebook` page.
+    - User confirmation of deployed notebook preview/fullscreen/run UX.
+    - python3 scripts/apple_remote.py status followed by python3 scripts/apple_remote.py build-ios or targeted UI test.
+  verification_order:
+    - Direct REST API/WebSocket backend contract against the dev server first, with access model, auth, rate-limit, credit/budget, and encryption-boundary classification.
+    - CLI gate second is intentionally not applicable for v1 because notebook execution is first-party web only; record this through `python3 scripts/audit_sdk_cli_parity.py`.
+    - npm SDK and pip SDK gates third are intentionally not applicable for v1 because no developer API surface is exposed; record this through `python3 scripts/audit_sdk_cli_parity.py`.
+    - GitHub Actions CI/daily-test reproduction only after local REST/API proof and local frontend/backend tests are green.
+    - Web Playwright fourth after deploy to app.dev.openmates.org.
+    - Real CLI notebook chat and example-chat conversion fifth, only after deployed web notebook behavior works.
+    - User confirmation sixth for deployed web notebook preview, fullscreen, run UX, and example-chat UI validation.
+    - Apple remote build or targeted test last for read-only notebook rendering parity.
+
+tasks:
+  - id: TASK-1
+    title: Approve and refine notebook product contract
+    status: done
+    phase: awaiting_approval
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+        - S-7
+        - S-8
+        - S-9
+        - S-10
+        - S-11
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+        - AC-8
+        - AC-9
+        - AC-10
+        - AC-11
+    expected_files:
+      - docs/plans/code-notebook-embed/plan.yml
+    verification:
+      - T-PYTEST-NOTEBOOK-ARTIFACT
+      - T-PYTEST-NOTEBOOK-API
+      - T-PYTEST-NOTEBOOK-SIDECAR
+      - T-VITEST-NOTEBOOK-RENDERER
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+      - T-LINT-SDK-CLI-PARITY
+      - T-APPLE-NOTEBOOK-BUILD
+      - T-MANUAL-REALISTIC-CLI-CHAT
+      - V-FIGMA-NOTEBOOK-REVIEW
+      - V-USER-CONFIRM-NOTEBOOK-UI
+      - V-EXAMPLE-NOTEBOOK-CHAT
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-ARTIFACT
+      - T-PYTEST-NOTEBOOK-API
+      - T-PYTEST-NOTEBOOK-SIDECAR
+      - T-VITEST-NOTEBOOK-RENDERER
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+      - T-LINT-SDK-CLI-PARITY
+      - T-APPLE-NOTEBOOK-BUILD
+      - T-MANUAL-REALISTIC-CLI-CHAT
+      - V-FIGMA-NOTEBOOK-REVIEW
+      - V-USER-CONFIRM-NOTEBOOK-UI
+      - V-EXAMPLE-NOTEBOOK-CHAT
+    dependencies: []
+    ownership:
+      files:
+        - docs/plans/code-notebook-embed/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+  - id: TASK-2
+    title: Add notebook embed creation and validation
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-7
+      acceptance_criteria:
+        - AC-1
+        - AC-7
+    expected_files:
+      - backend/apps/code/app.yml
+      - backend/apps/ai/tasks/stream_consumer.py
+      - backend/apps/ai/instructions/base_code_block_instruction.md
+      - backend/tests/test_code_notebook_artifacts.py
+    verification:
+      - T-PYTEST-NOTEBOOK-ARTIFACT
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-ARTIFACT
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/apps/code/app.yml
+        - backend/apps/ai/tasks/stream_consumer.py
+        - backend/apps/ai/instructions/base_code_block_instruction.md
+        - backend/tests/test_code_notebook_artifacts.py
+      shared_files:
+        - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-3
+    title: Implement Python notebook execution API and E2B runner
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-8
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-8
+    expected_files:
+      - backend/core/api/app/routes/code_notebook_execution.py
+      - backend/shared/providers/e2b_code_runner.py
+      - backend/tests/test_code_notebook_execution.py
+    verification:
+      - T-PYTEST-NOTEBOOK-API
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-API
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/core/api/app/routes/code_notebook_execution.py
+        - backend/shared/providers/e2b_code_runner.py
+        - backend/tests/test_code_notebook_execution.py
+      shared_files:
+        - backend/core/api/app/main.py
+        - backend/core/api/app/tasks/celery_config.py
+    blockers:
+      - assumption: A-1
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-4
+    title: Add encrypted notebook output sidecar sync
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-6
+        - S-7
+      acceptance_criteria:
+        - AC-3
+        - AC-6
+        - AC-7
+    expected_files:
+      - backend/core/directus/schemas/notebook_run_outputs.yml
+      - backend/shared/python_schemas/notebook_run_outputs.py
+      - backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+      - backend/core/api/app/routes/sync_api.py
+      - backend/core/api/app/routes/share.py
+      - frontend/packages/ui/src/services/db.ts
+      - frontend/packages/ui/src/services/db/notebookRunOutputs.ts
+      - frontend/packages/ui/src/services/sendersNotebookRunOutputs.ts
+      - frontend/packages/ui/src/services/handlersNotebookRunOutputs.ts
+      - backend/tests/test_notebook_run_outputs.py
+    verification:
+      - T-PYTEST-NOTEBOOK-SIDECAR
+      - T-VITEST-NOTEBOOK-RENDERER
+    verification_ids:
+      - T-PYTEST-NOTEBOOK-SIDECAR
+      - T-VITEST-NOTEBOOK-RENDERER
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - backend/core/directus/schemas/notebook_run_outputs.yml
+        - backend/shared/python_schemas/notebook_run_outputs.py
+        - backend/core/api/app/routes/handlers/websocket_handlers/notebook_run_output_handlers.py
+        - frontend/packages/ui/src/services/db/notebookRunOutputs.ts
+        - frontend/packages/ui/src/services/sendersNotebookRunOutputs.ts
+        - frontend/packages/ui/src/services/handlersNotebookRunOutputs.ts
+        - backend/tests/test_notebook_run_outputs.py
+      shared_files:
+        - backend/core/api/app/routes/sync_api.py
+        - backend/core/api/app/routes/share.py
+        - frontend/packages/ui/src/services/db.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-5
+    title: Build web notebook renderer and execution UI
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+      - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+      - frontend/packages/ui/src/components/embeds/code/notebookRendering.ts
+      - frontend/packages/ui/src/services/codeNotebookRunService.ts
+      - frontend/packages/ui/src/i18n/sources/embeds.yml
+      - frontend/packages/ui/src/components/embeds/code/NotebookEmbed.test.ts
+      - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+    verification:
+      - T-VITEST-NOTEBOOK-RENDERER
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+      - V-FIGMA-NOTEBOOK-REVIEW
+      - V-USER-CONFIRM-NOTEBOOK-UI
+    verification_ids:
+      - T-VITEST-NOTEBOOK-RENDERER
+      - T-PLAYWRIGHT-NOTEBOOK-FLOW
+      - V-FIGMA-NOTEBOOK-REVIEW
+      - V-USER-CONFIRM-NOTEBOOK-UI
+    dependencies:
+      - TASK-3
+      - TASK-4
+    ownership:
+      files:
+        - frontend/packages/ui/src/components/embeds/code/NotebookEmbedPreview.svelte
+        - frontend/packages/ui/src/components/embeds/code/NotebookEmbedFullscreen.svelte
+        - frontend/packages/ui/src/components/embeds/code/notebookRendering.ts
+        - frontend/packages/ui/src/services/codeNotebookRunService.ts
+        - frontend/packages/ui/src/components/embeds/code/NotebookEmbed.test.ts
+        - frontend/apps/web_app/tests/code-notebook-flow.spec.ts
+      shared_files:
+        - frontend/packages/ui/src/i18n/sources/embeds.yml
+        - frontend/packages/ui/src/data/embedRegistry.generated.ts
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-6
+    title: Record CLI and SDK intentional non-exposure
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-9
+      acceptance_criteria:
+        - AC-9
+    expected_files:
+      - scripts/audit_sdk_cli_parity.py
+      - docs/user-guide/apps/code.md
+    verification:
+      - T-LINT-SDK-CLI-PARITY
+    verification_ids:
+      - T-LINT-SDK-CLI-PARITY
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - docs/user-guide/apps/code.md
+      shared_files:
+        - scripts/audit_sdk_cli_parity.py
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-7
+    title: Create and verify public notebook example chat
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-11
+      acceptance_criteria:
+        - AC-11
+    expected_files:
+      - frontend/packages/ui/src/demo_chats/data/example_chats/open_meteo_weather_notebook.ts
+      - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+      - frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+    verification:
+      - T-MANUAL-REALISTIC-CLI-CHAT
+      - V-EXAMPLE-NOTEBOOK-CHAT
+    verification_ids:
+      - T-MANUAL-REALISTIC-CLI-CHAT
+      - V-EXAMPLE-NOTEBOOK-CHAT
+    dependencies:
+      - TASK-5
+    ownership:
+      files:
+        - frontend/packages/ui/src/demo_chats/data/example_chats/open_meteo_weather_notebook.ts
+        - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+        - frontend/packages/ui/src/i18n/sources/example_chats/open_meteo_weather_notebook.yml
+      shared_files:
+        - frontend/packages/ui/src/i18n/locales/en.json
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+
+  - id: TASK-8
+    title: Add Apple read-only notebook rendering parity
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-10
+      acceptance_criteria:
+        - AC-10
+    expected_files:
+      - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+      - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+      - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+      - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+    verification:
+      - T-APPLE-NOTEBOOK-BUILD
+    verification_ids:
+      - T-APPLE-NOTEBOOK-BUILD
+    dependencies:
+      - TASK-5
+      - TASK-7
+    ownership:
+      files:
+        - apple/OpenMates/Sources/Features/Embeds/Renderers/CodeRenderers.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/EmbedContentView.swift
+        - apple/OpenMates/Sources/Features/Embeds/Views/EmbedFullscreenView.swift
+        - apple/OpenMates/Sources/Core/I18n/AppStrings.swift
+        - apple/OpenMatesUITests/EmbedRenderingParityUITests.swift
+      shared_files: []
+    blockers:
+      - verification: V-USER-CONFIRM-NOTEBOOK-UI
+    follow_up_tasks: []
+    independently_deployable: false

@@ -1,0 +1,32 @@
+# Durable bounded Account Export V1 part payloads.
+# Part rows are scoped through account_export_jobs before any client can read
+# them; payloads are redacted export records or cold archive part references.
+account_export_parts:
+  type: collection
+  note: "Bounded Account Export part payloads"
+  fields:
+    id: {type: uuid, primary: true}
+    export_id: {type: string, length: 64, required: true}
+    chunk_id: {type: string, length: 96, required: true}
+    part_id: {type: string, length: 96, required: true}
+    hashed_user_id: {type: string, length: 64, required: true}
+    hashed_team_id: {type: string, length: 64, nullable: true}
+    domain: {type: string, length: 64, required: true}
+    sequence: {type: integer, required: true}
+    status: {type: string, length: 32, required: true}
+    content_type: {type: string, length: 128, required: true}
+    payload: {type: json, required: true}
+    payload_bytes: {type: integer, required: true}
+    created_at: {type: datetime, required: true}
+    updated_at: {type: datetime, required: true}
+  indexes:
+    - name: idx_account_export_parts_export_sequence
+      fields: [export_id, sequence]
+      unique: true
+    - name: idx_account_export_parts_export_chunk
+      fields: [export_id, chunk_id]
+      unique: true
+    - name: idx_account_export_parts_user
+      fields: [hashed_user_id, created_at]
+    - name: idx_account_export_parts_team
+      fields: [hashed_team_id, created_at]

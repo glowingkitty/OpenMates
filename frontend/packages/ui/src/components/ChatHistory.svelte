@@ -1155,6 +1155,7 @@
     olderMessagesLoading = false,
     onSuggestionClick = undefined,
     onChatNavigate = undefined,
+    onSpeakMessage = undefined,
     canAnnotate = true,
   }: {
     disablePointerEvents?: boolean;
@@ -1228,6 +1229,7 @@
     /** Callback fired when the user clicks a follow-up suggestion. */
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
+    onSpeakMessage?: (messageId: string, content: string) => Promise<void> | void;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
@@ -1330,8 +1332,9 @@
     untrack(() => updateMessages(incomingMessages));
   });
 
+  const COMPOSER_CLEARANCE_PX = 24;
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
-  let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight - 30)}px`);
+  let containerStyle = $derived(`bottom: ${Math.max(0, messageInputHeight + COMPOSER_CLEARANCE_PX)}px`);
 
   // PII visibility: derive whether PII is revealed for the current chat.
   // Default is false (hidden) — user must explicitly toggle to reveal sensitive data.
@@ -2755,14 +2758,6 @@
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
 <div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
-<div 
-    class="chat-history-container"
-    data-testid="chat-history-container"
-    class:empty={displayMessages.length === 0}
-    class:is-at-top={isAtTop}
-    bind:this={container}
-    onscroll={handleScroll}
->
     {#if parentChatId}
         <button
             type="button"
@@ -2783,6 +2778,14 @@
             <span>{$text('chats.chat.sub_chats.return_to_parent')}</span>
         </button>
     {/if}
+<div 
+    class="chat-history-container"
+    data-testid="chat-history-container"
+    class:empty={displayMessages.length === 0}
+    class:is-at-top={isAtTop}
+    bind:this={container}
+    onscroll={handleScroll}
+>
     <!-- Chat header banner: absolutely positioned at the top of the scroll container
          so it spans the full width regardless of the .chat-history-content max-width.
          Scrolls naturally with the content because it lives in the scroll container. -->
@@ -2880,6 +2883,9 @@
             {/if}
 
             {#each virtualizedDisplayMessages as msg, msgIndex (msg.id)}
+                {@const speechContent = typeof msg.original_message?.content === 'string'
+                  ? msg.original_message.content
+                  : typeof msg.content === 'string' ? msg.content : null}
                 <!-- Disable fade/flip animations for streaming and processing messages
                      to prevent visual glitches when content height changes rapidly.
                      Duration 0 effectively disables the animation without removing the directive. -->
@@ -2890,6 +2896,7 @@
                       data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
                       data-message-id={msg.id}
+					  data-status={msg.status}
                       data-streaming={msg.status === 'streaming' ? 'true' : 'false'}
                       aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
                       style={`
@@ -2925,6 +2932,9 @@
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
+                        onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent
+                          ? () => onSpeakMessage(msg.id, speechContent)
+                          : undefined}
                     />
 
                 </div>
@@ -3076,6 +3086,7 @@
     top: 0;
     left: 0;
     right: 0;
+    container: chat-history / inline-size;
   }
 
   .chat-history-wrapper.disable-pointer-events {
@@ -3201,7 +3212,7 @@
   /* Only apply padding-top and min-height when there are messages */
   /* This prevents the first message from overlaying the button */
   .chat-history-content.has-messages {
-    padding-top: 50px;
+    padding-top: calc(50px + var(--assistant-speech-overlay-reserve, 0px));
     /* ActiveChat's action buttons float over both inline edges. Reserve those
        lanes in the scrollable message column so auto-scroll cannot move a
        bubble underneath them after the sidebar narrows the canvas. */
@@ -3217,12 +3228,17 @@
      stacks on top of it — we only need the extra padding-top offset removed since
      the banner already occupies the top space. */
   .chat-history-content.has-messages.has-header {
-    padding-top: var(--spacing-6);
+    padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
   }
 
-  @media (max-width: 730px) {
+  @container chat-history (max-width: 730px) {
     .chat-history-content.has-messages {
-      padding-inline: 55px;
+      padding-top: calc(70px + var(--assistant-speech-overlay-reserve, 0px));
+      padding-inline: 0;
+    }
+
+    .chat-history-content.has-messages.has-header {
+      padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
     }
   }
 

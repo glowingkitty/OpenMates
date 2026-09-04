@@ -13,7 +13,7 @@ import json
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, AsyncContextManager
 
 
 HOT_HISTORY_LIMIT = 10
@@ -277,7 +277,14 @@ class WorkspaceChangeHistoryService:
         )
         return {**result, "object": after, **build_history_commands(result["change_set"]["change_set_id"], result["entries"])}
 
-    async def undo_change_set(self, *, user_id: str, change_set_id: str, workflow_undo_handler: WorkflowUndoHandler | None = None) -> dict[str, Any]:
+    async def undo_change_set(
+        self,
+        *,
+        user_id: str,
+        change_set_id: str,
+        workflow_undo_handler: WorkflowUndoHandler | None = None,
+        delete_guard: Callable[[str], AsyncContextManager[Any]] | None = None,
+    ) -> dict[str, Any]:
         existing = await self.get_change_set(user_id, change_set_id)
         if not existing:
             raise ValueError("Workspace change set not found")
@@ -294,8 +301,15 @@ class WorkspaceChangeHistoryService:
             object_id = str(entry.get("object_id") or "")
             if object_type in {"task", "plan", "project"} and object_id:
                 target = self.snapshot_for_entry_state(entry, "before")
-                compensating_entry["before"] = await self._current_object_state(user_id, object_type, object_id)
-                compensating_entry["after"] = await self._apply_object_restore(user_id, object_type, object_id, target)
+                if target is None and object_type in {"task", "plan"} and delete_guard is not None:
+                    async with delete_guard(f"{object_type}:{object_id}") as lease:
+                        if hasattr(lease, "assert_held"):
+                            await lease.assert_held()
+                        compensating_entry["before"] = await self._current_object_state(user_id, object_type, object_id)
+                        compensating_entry["after"] = await self._apply_object_restore(user_id, object_type, object_id, target)
+                else:
+                    compensating_entry["before"] = await self._current_object_state(user_id, object_type, object_id)
+                    compensating_entry["after"] = await self._apply_object_restore(user_id, object_type, object_id, target)
             elif object_type == "workflow" and workflow_undo_handler is not None:
                 workflow_result = await workflow_undo_handler(entry)
                 if workflow_result:
@@ -486,7 +500,7 @@ class WorkspaceChangeHistoryService:
         current = await plan_methods.get_plan(plan_id, user_id)
         if target is None:
             if current and current.get("id"):
-                await self.directus_service.delete_item("user_plans", current["id"])
+                await plan_methods.delete_plan(plan_id, user_id)
             return None
         payload = self._plan_restore_payload(target)
         if current:
@@ -515,9 +529,10 @@ class WorkspaceChangeHistoryService:
         allowed = {
             "encrypted_task_key", "encrypted_title", "encrypted_description", "encrypted_labels", "encrypted_tags",
             "encrypted_linked_project_ids", "encrypted_activity_summary", "encrypted_latest_instruction", "label_hashes",
-            "status", "assignee_type", "assignee_hash", "primary_chat_id", "linked_project_ids", "parent_task_id", "plan_id",
-            "plan_step_id", "task_type", "verification_id", "due_at", "priority", "position", "created_at", "updated_at",
-            "started_at", "completed_at", "blocked_reason_code", "queue_state", "ai_execution_state", "key_wrappers",
+            "status", "assignee_type", "assignee_hash", "primary_chat_id", "external_chat_provider", "external_chat_lookup_hash",
+            "encrypted_external_chat_id", "encrypted_external_chat_title", "linked_project_ids", "parent_task_id", "plan_id",
+            "task_type", "verification_id", "due_at", "priority", "position", "created_at", "updated_at",
+            "started_at", "completed_at", "blocked_reason_code", "encrypted_blocked_reason", "queue_state", "ai_execution_state", "key_wrappers",
         }
         return {key: value for key, value in snapshot.items() if key in allowed}
 

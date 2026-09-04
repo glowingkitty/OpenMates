@@ -7,11 +7,9 @@
 from __future__ import annotations
 
 import importlib.util
-import importlib.machinery
 import re
 import sys
 import types
-from pathlib import Path
 from types import SimpleNamespace
 
 
@@ -41,8 +39,9 @@ def install_code_route_import_stubs() -> None:
         sys.modules.setdefault("toon_format", toon_format_stub)
 
     if _module_missing("celery"):
+        celery_stub = types.ModuleType("celery")
         tasks_stub = types.ModuleType("backend.core.api.app.tasks")
-        tasks_stub.__path__ = [str(Path(__file__).resolve().parents[1] / "core/api/app/tasks")]
+        tasks_stub.__path__ = []
         celery_config_stub = types.ModuleType("backend.core.api.app.tasks.celery_config")
         celery_result_stub = types.ModuleType("celery.result")
 
@@ -61,7 +60,9 @@ def install_code_route_import_stubs() -> None:
 
         celery_config_stub.app = _CeleryAppStub()
         celery_config_stub.get_worker_cache_service = _missing_worker_cache_service
+        celery_stub.Celery = _CeleryAppStub
         celery_result_stub.AsyncResult = _AsyncResultStub
+        sys.modules.setdefault("celery", celery_stub)
         sys.modules.setdefault("backend.core.api.app.tasks", tasks_stub)
         sys.modules.setdefault("backend.core.api.app.tasks.celery_config", celery_config_stub)
         sys.modules.setdefault("celery.result", celery_result_stub)
@@ -69,8 +70,6 @@ def install_code_route_import_stubs() -> None:
     if _module_missing("redis"):
         redis_stub = types.ModuleType("redis")
         redis_asyncio_stub = types.ModuleType("redis.asyncio")
-        redis_stub.__spec__ = importlib.machinery.ModuleSpec("redis", loader=None)
-        redis_asyncio_stub.__spec__ = importlib.machinery.ModuleSpec("redis.asyncio", loader=None)
 
         class _RedisStub:
             def __init__(self, *_args, **_kwargs):
@@ -90,6 +89,11 @@ def install_code_route_import_stubs() -> None:
         aiohttp_stub = types.ModuleType("aiohttp")
         aiohttp_stub.ClientSession = object
         sys.modules.setdefault("aiohttp", aiohttp_stub)
+
+    if _module_missing("dotenv"):
+        dotenv_stub = types.ModuleType("dotenv")
+        dotenv_stub.load_dotenv = lambda *_args, **_kwargs: None
+        sys.modules.setdefault("dotenv", dotenv_stub)
 
     if _module_missing("slowapi"):
         slowapi_stub = types.ModuleType("slowapi")

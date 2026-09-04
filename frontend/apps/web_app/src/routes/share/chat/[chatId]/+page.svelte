@@ -869,6 +869,7 @@
 
 			// Compute hashed_chat_id for matching embed_keys
 			const hashedChatId = await computeSHA256(chatId);
+			const directlyKeyedEmbedIds = new Set<string>();
 
 			if (fetchedEmbedKeys && fetchedEmbedKeys.length > 0) {
 				// Store embed keys and unwrap them with chat key
@@ -890,6 +891,7 @@
 										if (embedIdHash === keyEntry.hashed_embed_id) {
 											// Store the unwrapped embed key in cache for decryption
 											embedStore.setEmbedKeyInCache(embed.embed_id, embedKey, hashedChatId);
+											directlyKeyedEmbedIds.add(embed.embed_id);
 											console.debug(
 												'[ShareChat] Unwrapped and cached embed key for:',
 												embed.embed_id
@@ -916,7 +918,10 @@
 				// Ensure child embeds can resolve the parent key in shared-chat (non-auth) flows.
 				// The EmbedStore can reuse a parent's embed key for a child embed if `parent_embed_id` is stored.
 				// Some payloads include `parent_embed_id` directly; otherwise we can derive it from parent `embed_ids`.
-				const derivedParentByChild = deriveParentByChildEmbeds(uniqueFetchedEmbeds);
+				const derivedParentByChild = deriveParentByChildEmbeds(
+					uniqueFetchedEmbeds,
+					directlyKeyedEmbedIds
+				);
 
 				// CRITICAL: Pre-cache embed keys for child embeds.
 				// putEncrypted tries to decrypt content to extract embed_ref, which requires

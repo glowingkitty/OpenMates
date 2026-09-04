@@ -51,6 +51,9 @@ sys.modules.setdefault("backend.shared.providers.e2b_application_preview", e2b_p
 
 from backend.core.api.app.services.embed_service import EmbedService  # noqa: E402  # Import after stubbing optional dependencies.
 
+if sys.modules.get("backend.shared.providers.e2b_application_preview") is e2b_preview_stub:
+    del sys.modules["backend.shared.providers.e2b_application_preview"]
+
 encode = toon_stub.encode
 
 
@@ -58,12 +61,23 @@ class FakeRedisClient:
     def __init__(self, embed_data: dict):
         self.values = {"embed:embed-1": json.dumps(embed_data)}
         self.published = []
+        self.operations = []
 
     async def get(self, key: str):
         return self.values.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None):
+    async def set(self, key: str, value: str, ex: int | None = None, nx: bool = False):
+        if nx and key in self.values:
+            return False
         self.values[key] = value
+        self.operations.append(("set", key))
+        return True
+
+    async def eval(self, _script: str, _key_count: int, key: str, token: str):
+        if self.values.get(key) == token:
+            del self.values[key]
+            return 1
+        return 0
 
     async def sadd(self, key: str, value: str):
         return 1
@@ -73,6 +87,7 @@ class FakeRedisClient:
 
     async def publish(self, channel: str, message: str):
         self.published.append((channel, json.loads(message)))
+        self.operations.append(("publish", channel))
         return 1
 
 
@@ -93,6 +108,7 @@ class FakeEncryptionService:
         return encrypted_content
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_versioned_finished_code_update_publishes_same_embed_snapshot():
     initial_toon = encode(
@@ -146,3 +162,168 @@ async def test_versioned_finished_code_update_publishes_same_embed_snapshot():
     cached_after = json.loads(cache._client.values["embed:embed-1"])
     assert cached_after["version_number"] == 2
     assert cached_after["content_hash"] == "content-hash-v2"
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,code-run.artifacts.encrypted-indexed,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_application_thumbnail_update_publishes_versioned_finished_parent():
+    initial_toon = encode(
+        {
+            "type": "application",
+            "app_id": "code",
+            "skill_id": "application",
+            "name": "Counter",
+            "framework": "svelte",
+            "runtime": "node",
+            "file_refs": [{"path": "src/App.svelte", "embed_id": "file-1"}],
+            "entrypoints": [{"name": "frontend", "command": "npm run dev", "port": 5173}],
+            "embed_ids": ["file-1"],
+            "status": "finished",
+            "version_number": 1,
+        }
+    )
+    cache = FakeCacheService(
+        {
+            "embed_id": "embed-1",
+            "type": "application",
+            "encrypted_content": initial_toon,
+            "status": "finished",
+            "message_id": "message-1",
+            "version_number": 1,
+            "is_private": False,
+            "is_shared": False,
+            "created_at": 1760000000,
+            "updated_at": 1760000000,
+        }
+    )
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+
+    ok = await service.update_application_embed_thumbnail(
+        embed_id="embed-1",
+        screenshot_metadata={
+            "asset_id": "embed-1",
+            "variant": "preview",
+            "files": {"preview": {"s3_key": "user/preview.png", "mime_type": "image/png"}},
+            "s3_base_url": "https://chatfiles.example.invalid",
+            "aes_key": "base64-key",
+            "aes_nonce": "base64-nonce",
+            "vault_wrapped_aes_key": "vault-only-key",
+            "captured_at": "2026-08-31T17:00:00+00:00",
+            "download_url": "https://api.example.invalid/expiring-owner-url",
+        },
+        chat_id="chat-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+    )
+
+    assert ok is True
+    assert len(cache._client.published) == 1
+    channel, message = cache._client.published[0]
+    payload = message["payload"]
+    content = json.loads(payload["content"])
+    assert channel == "websocket:user:user-hash"
+    assert payload["embed_id"] == "embed-1"
+    assert payload["type"] == "application"
+    assert payload["version_number"] == 2
+    assert content["version_number"] == 2
+    assert content["latest_screenshot"]["files"]["preview"]["s3_key"] == "user/preview.png"
+    assert content["latest_screenshot"]["aes_key"] == "base64-key"
+    assert "vault_wrapped_aes_key" not in content["latest_screenshot"]
+    assert "download_url" not in content["latest_screenshot"]
+    assert "latest_screenshot_url" not in content
+
+    cached_after = json.loads(cache._client.values["embed:embed-1"])
+    assert cached_after["version_number"] == 2
+    assert "lock:embed:embed-1:application-thumbnail" not in cache._client.values
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_application_parent_is_cached_before_plaintext_publish():
+    cache = FakeCacheService({})
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+
+    result = await service.create_application_embed(
+        name="Counter",
+        framework="svelte",
+        runtime="node",
+        file_refs=[{"path": "src/App.svelte", "embed_id": "file-1"}],
+        entrypoints=[{"name": "frontend", "command": "npm run dev", "port": 5173}],
+        chat_id="chat-1",
+        message_id="message-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+        task_id="task-1",
+    )
+
+    assert result and result["embed_id"]
+    embed_cache_key = f"embed:{result['embed_id']}"
+    assert cache._client.operations.index(("set", embed_cache_key)) < cache._client.operations.index(
+        ("publish", "websocket:user:user-hash")
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.chat-bound-versioned,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_application_thumbnail_update_rejects_stale_capture():
+    initial_toon = encode(
+        {
+            "type": "application",
+            "app_id": "code",
+            "skill_id": "application",
+            "name": "Counter",
+            "status": "finished",
+            "version_number": 2,
+            "latest_screenshot": {
+                "asset_id": "embed-1",
+                "variant": "preview",
+                "files": {"preview": {"s3_key": "user/newer.png"}},
+                "s3_base_url": "https://chatfiles.example.invalid",
+                "aes_key": "base64-key",
+                "aes_nonce": "",
+                "captured_at": "2026-08-31T17:05:00+00:00",
+            },
+        }
+    )
+    cache = FakeCacheService(
+        {
+            "embed_id": "embed-1",
+            "type": "application",
+            "encrypted_content": initial_toon,
+            "status": "finished",
+            "message_id": "message-1",
+            "version_number": 2,
+            "is_private": False,
+            "is_shared": False,
+        }
+    )
+    service = EmbedService(cache, directus_service=object(), encryption_service=FakeEncryptionService())
+    service._schedule_embed_persistence_fallback = lambda embed_id: None
+
+    ok = await service.update_application_embed_thumbnail(
+        embed_id="embed-1",
+        screenshot_metadata={
+            "asset_id": "embed-1",
+            "variant": "preview",
+            "files": {"preview": {"s3_key": "user/older.png", "mime_type": "image/png"}},
+            "s3_base_url": "https://chatfiles.example.invalid",
+            "aes_key": "base64-key",
+            "aes_nonce": "",
+            "captured_at": "2026-08-31T17:00:00+00:00",
+        },
+        chat_id="chat-1",
+        user_id="user-1",
+        user_id_hash="user-hash",
+        user_vault_key_id="vault-1",
+    )
+
+    assert ok is False
+    assert cache._client.published == []
+    cached_after = json.loads(cache._client.values["embed:embed-1"])
+    content_after = json.loads(cached_after["encrypted_content"])
+    assert cached_after["version_number"] == 2
+    assert content_after["latest_screenshot"]["files"]["preview"]["s3_key"] == "user/newer.png"

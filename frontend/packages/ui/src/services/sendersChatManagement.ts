@@ -340,7 +340,7 @@ export async function sendSetActiveChatImpl(
 
 	// CRITICAL: Skip public/demo/legal chats — they are client-side-only static content
 	// and must NEVER be persisted as last_opened. If sent to the server, demo chat IDs
-	// (e.g. "demo-for-everyone") overwrite the real last_opened UUID, breaking the
+	// (for example, static public chat IDs) overwrite the real last_opened UUID, breaking the
 	// "Continue where you left off" resume card on next login.
 	if (chatId !== null) {
 		const { isPublicChat } = await import("../demo_chats/convertToChat");

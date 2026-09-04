@@ -305,7 +305,7 @@ async def send_chat_metadata(
     ("service_type", "methods_id_field", "item_id", "update_name", "not_found_error", "encrypted_description_field"),
     [
         (UserTaskService, "task_id", "task-1", "update_task", UserTaskNotFoundError, "encrypted_description"),
-        (UserPlanService, "plan_id", "plan-1", "update_plan", UserPlanNotFoundError, "encrypted_summary"),
+        (UserPlanService, "plan_id", "plan-1", "update_plan", UserPlanNotFoundError, "encrypted_goal"),
     ],
 )
 async def test_task_and_plan_metadata_versions_are_owner_scoped_and_server_monotonic(

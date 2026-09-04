@@ -15,6 +15,7 @@
     import { getSessionId } from '../utils/sessionId';
     import {
         notificationStore,
+        SECURITY_REMINDER_NOTIFICATION_DURATION_MS,
         SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
     } from '../stores/notificationStore';
     import AccountRecovery from './AccountRecovery.svelte';
@@ -300,6 +301,7 @@
                             await userDB.saveUserData(data.user);
                             
                             const userProfileData = {
+                                user_id: data.user.id || null,
                                 username: data.user.username || '',
                                 profile_image_url: data.user.profile_image_url || null,
                                 credits: data.user.credits || 0,
@@ -383,6 +385,7 @@
                             await userDB.saveUserData(data.user);
                             
                             const userProfileData = {
+                                user_id: data.user.id || null,
                                 username: data.user.username || '',
                                 profile_image_url: data.user.profile_image_url || null,
                                 credits: data.user.credits || 0,
@@ -632,7 +635,7 @@
                                 window.location.hash = '#settings/account/security';
                             }
                         },
-                        duration: 0,
+                        duration: SECURITY_REMINDER_NOTIFICATION_DURATION_MS,
                         dismissible: true,
                         dedupeKey: SECURITY_REMINDER_NOTIFICATION_DEDUPE_KEY,
                     });
@@ -666,6 +669,7 @@
                 }
 
                 const userProfileData = {
+                    user_id: data.user.id || null,
                     username: data.user.username || '',
                     profile_image_url: data.user.profile_image_url || null,
                     credits: data.user.credits || 0,

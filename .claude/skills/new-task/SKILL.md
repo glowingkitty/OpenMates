@@ -32,7 +32,7 @@ Analyze the user's input and determine:
    - `UI`, `Backend`, `DevOps`, `testing`, `docs`, `marketing`, `payment`
    - `cronjob`, `user-feedback`, `SEO`
 6. **Project**: Suggest Web App or CLI based on content
-7. **Milestone**: Suggest the current product line for ongoing work (for example `v0.16`) or the next minor product line for larger features (for example `v0.16`). Alpha artifact numbers such as `0.16.0-alpha.1` are package revisions, not user-facing milestones.
+7. **Milestone**: Suggest the current product line for ongoing work (for example `v0.17`) or the next minor product line for larger features (for example `v0.17`). Alpha artifact numbers such as `0.17.0-alpha.1` are package revisions, not user-facing milestones.
 8. **Spec size**: Decide `none`, `inline`, or `full` using `docs/contributing/guides/spec-driven-development.md`
 
 ### Step 2: Present the Suggested Task
@@ -47,7 +47,7 @@ Show the user what will be created:
 **Priority:** High (2)
 **Labels:** Bug, UI
 **Project:** Web App
-**Milestone:** v0.16
+**Milestone:** v0.17
 
 ### Description
 The create reminder UI is broken — [expanded description based on user input].
@@ -61,7 +61,7 @@ The create reminder UI is broken — [expanded description based on user input].
 
 ### Spec Readiness
 - Spec size: inline | full | none
-- Full spec path: docs/specs/<slug>/spec.yml (if needed)
+- Full Plan path: docs/plans/<slug>/plan.yml (if needed)
 ```
 
 ### Step 3: Ask for Confirmation
@@ -74,9 +74,9 @@ Use `AskUserQuestion`:
 
 For GitHub-default tasks, call `github_issue_write` with a concise title, structured body, labels, and assignees only when the user requested them.
 
-If the task needs a full spec, include a `Spec Readiness` section in the issue
-body and tell the user to run `specify` before implementation. Do not implement
-full-spec work directly from a bare issue.
+If the task needs a full Plan, include a `Plan Readiness` section in the issue
+body and tell the user to run `create-plan` before implementation. Do not
+implement full-Plan work directly from a bare issue.
 
 For Linear-only tasks, use `python3 scripts/linear.py create --team OPE --title "..." --description "..."` and add state/priority/labels when needed. Do not use Linear MCP tools.
 

@@ -21,6 +21,7 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testBannerTranscriptAndComposerMatchResponsiveWebContract() throws {
         let app = launchFixture()
         let metrics = element(in: app, identifier: "chat-history-layout-metrics")
@@ -41,10 +42,12 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         XCTAssertGreaterThanOrEqual(try metric("composer-safe-area-clearance", in: label), 0)
 
         assertVisibleHistoryOrder(in: app)
+        assertAssistantUsesTranscriptWidth(in: app)
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat product UI must not use default List/table chrome")
         attachScreenshot(name: "Chat history responsive parity")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testRTLAndAccessibilityDynamicTypePreserveSemanticOrderAndClearance() throws {
         let app = launchFixture(
             extraArguments: ["-AppleLanguages", "(ar)", "-AppleLocale", "ar"],
@@ -73,6 +76,7 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         attachScreenshot(name: "Chat history RTL accessibility Dynamic Type")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testKeyboardFocusKeepsComposerVisibleAndHistoryTapDismissesKeyboard() throws {
         let app = launchFixture()
         scrollToFinalContent(in: app)
@@ -119,6 +123,24 @@ final class ChatHistoryFullParityUITests: XCTestCase {
         XCTAssertTrue(assistant.waitForExistence(timeout: 8))
         XCTAssertLessThan(banner.frame.minY, user.frame.minY)
         XCTAssertLessThan(user.frame.minY, assistant.frame.minY)
+    }
+
+    private func assertAssistantUsesTranscriptWidth(in app: XCUIApplication) {
+        let history = element(in: app, identifier: "chat-history-container")
+        let assistantContent = element(in: app, identifier: "assistant-message-content")
+        let senderName = element(in: app, identifier: "message-sender-name")
+        XCTAssertTrue(assistantContent.waitForExistence(timeout: 5))
+        XCTAssertTrue(senderName.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(
+            senderName.frame.minX,
+            history.frame.minX + 24,
+            "Assistant response was centered instead of leading-aligned"
+        )
+        XCTAssertGreaterThanOrEqual(
+            assistantContent.frame.width,
+            history.frame.width - 48,
+            "Assistant response did not use the available transcript width"
+        )
     }
 
     private func scrollToFinalContent(in app: XCUIApplication) {

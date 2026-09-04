@@ -1,0 +1,128 @@
+schema_version: 1
+id: feature.app-skill.travel-search
+version: 1
+status: draft
+title: Travel Connection Search
+summary: >
+  Search transport providers for connection options that honor the caller's
+  route, departure constraints, and provider selection without presenting
+  unrelated results or false successful empty states.
+
+inherits:
+  - architecture.app-skill-execution@1
+  - architecture.platform-parity@1
+
+scope:
+  includes:
+    - Flight, train, bus, and ferry connection discovery through supported providers
+    - Local departure-time windows used for provider retrieval and result filtering
+    - Scheduled and available realtime timing, platform, cancellation, and disruption metadata
+    - Additive OpenMates-optimized regional alternatives derived from bounded DB train-run overlap and minimum transfer time
+    - Source-labelled, cached food, shop, and toilet context for eligible train and bus transfer stops
+  excludes:
+    - Guaranteeing vehicle capacity, boarding, or provider uptime
+    - Inventing a more specific disruption cause than the source supplies
+    - Ticket issuance, refunds, or merchant-of-record responsibilities
+
+models:
+  TravelSearchRequestItem:
+    legs:
+      type: array
+      required: true
+      constraints: {min_items: 1}
+    transport_methods:
+      type: array
+      constraints: {values: [airplane, train, bus, boat]}
+    providers:
+      type: array
+      nullable: true
+    min_departure_time:
+      type: string
+      nullable: true
+      constraints: {format: local_HH_MM}
+    max_departure_time:
+      type: string
+      nullable: true
+      constraints: {format: local_HH_MM, inclusive: true}
+
+  TravelSegmentResult:
+    departure_time: {type: string, required: true}
+    arrival_time: {type: string, required: true}
+    scheduled_departure_time: {type: string, nullable: true}
+    actual_departure_time: {type: string, nullable: true}
+    scheduled_arrival_time: {type: string, nullable: true}
+    actual_arrival_time: {type: string, nullable: true}
+    departure_platform: {type: string, nullable: true}
+    arrival_platform: {type: string, nullable: true}
+    cancelled: {type: boolean, nullable: true}
+    realtime_notes: {type: array, nullable: true, items: string}
+
+  TravelLayoverResult:
+    duration_minutes: {type: integer, nullable: true}
+    overnight: {type: boolean, nullable: true}
+    amenities: {type: object, nullable: true}
+
+  TravelLegResult:
+    departure: {type: string, required: true}
+    arrival: {type: string, required: true}
+    segments: {type: array, required: true, items: TravelSegmentResult}
+    layovers: {type: array, nullable: true, items: TravelLayoverResult}
+
+  TravelConnectionResult:
+    source_provider: {type: string, required: true}
+    departure: {type: string, required: true}
+    arrival: {type: string, required: true}
+    legs: {type: array, required: true, items: TravelLegResult}
+    transfer_quality: {type: object, nullable: true}
+    optimization: {type: object, nullable: true}
+
+assertions:
+  - id: travel-search.departure-window.upstream
+    type: behavior
+    must: A minimum departure time constrains provider retrieval to that local time or later; it is never implemented only by filtering results fetched for an unrelated fixed time.
+    depends_on: [models.TravelSearchRequestItem.min_departure_time, examples.valid_inputs, examples.boundary_cases]
+  - id: travel-search.departure-window.filtered
+    type: invariant
+    must: Returned connections satisfy the caller's inclusive departure-time window, including supported overnight windows.
+    depends_on: [models.TravelSearchRequestItem.min_departure_time, models.TravelSearchRequestItem.max_departure_time, examples.successful_outputs, examples.boundary_cases]
+  - id: travel-search.realtime.source-faithful
+    type: invariant
+    must: Realtime times, platforms, cancellations, capacity warnings, and disruption notes are attributed to their source and preserve source uncertainty without invented causes or guarantees.
+    depends_on: [models.TravelConnectionResult, examples.successful_outputs, examples.error_outputs]
+  - id: travel-search.optimization.additive-provenance
+    type: invariant
+    must: A bounded train-run overlap improvement is returned as an additional normal connection with its feasible transfer and Optimized by OpenMates provenance; it never silently overwrites the provider connection.
+    depends_on: [models.TravelConnectionResult.optimization, models.TravelConnectionResult.transfer_quality, examples.successful_outputs, examples.boundary_cases]
+  - id: travel-search.transfer-amenities.source-labelled
+    type: invariant
+    must: Eligible transfer stops may include bounded, cached food, shop, and toilet context with provider attribution and explicit matched, no-match, missing-coordinate, or provider-error states; amenities are not claimed to drive route selection unless a future approved contract adds that behavior.
+    depends_on: [models.TravelLayoverResult.amenities, examples.successful_outputs, examples.error_outputs, examples.boundary_cases]
+  - id: travel-search.no-results.explicit
+    type: failure
+    must: A filtered-out result is distinguishable from provider failure and from a successful search with no matching connections.
+    depends_on: [examples.error_outputs, examples.boundary_cases]
+  - id: travel-search.surface-parity
+    type: parity
+    must: REST API, CLI, npm/pip SDKs, and web/Apple GUI preserve the same route, departure-window, provider-attribution, realtime, optimized-route, transfer-amenity, empty, and error semantics.
+    depends_on: [models, examples, applies_to]
+
+applies_to:
+  rest_api: {required: true}
+  cli: {required: true}
+  sdks:
+    required: true
+    parity: strict
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true}
+    exceptions: []
+
+examples:
+  file: examples.yml
+  required_groups: [valid_inputs, invalid_inputs, successful_outputs, error_outputs, boundary_cases]

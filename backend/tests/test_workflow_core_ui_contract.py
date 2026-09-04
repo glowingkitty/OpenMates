@@ -35,6 +35,21 @@ def scheduled_title_draft_graph() -> dict:
     }
 
 
+def ready_scheduled_graph() -> dict:
+    graph = scheduled_title_draft_graph()
+    graph["nodes"].append({"id": "notify", "type": "send_notification", "config": {"title": "Ready", "body": "Ready"}})
+    graph["edges"].append({"from": "schedule", "to": "notify"})
+    return graph
+
+
+def ready_manual_graph() -> dict:
+    graph = manual_title_draft_graph()
+    graph["nodes"].append({"id": "notify", "type": "send_notification", "config": {"title": "Ready", "body": "Ready"}})
+    graph["edges"].append({"from": "manual", "to": "notify"})
+    return graph
+
+
+# contract-test: supporting surface=rest_api assertions=workflows-ui.workspace.title-first-draft
 def test_title_only_manual_draft_is_persisted_disabled_with_exact_title() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -51,6 +66,7 @@ def test_title_only_manual_draft_is_persisted_disabled_with_exact_title() -> Non
     assert workflow.graph.edges == []
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.content.encrypted-retained
 def test_workflow_description_round_trips_without_plaintext_record_storage() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
@@ -73,14 +89,15 @@ def test_workflow_description_round_trips_without_plaintext_record_storage() -> 
     assert "description" not in record
 
 
+# contract-test: supporting surface=rest_api assertions=workflows-ui.workspace.recommendation-led-composition
 def test_workflow_list_prioritizes_next_scheduled_runs_then_recent_remaining_entries() -> None:
     repository = InMemoryWorkflowRepository()
     service = workflow_service(repository=repository)
-    scheduled_later = service.create_workflow("alice", "Scheduled later", scheduled_title_draft_graph(), enabled=True)
-    scheduled_earlier = service.create_workflow("alice", "Scheduled earlier", scheduled_title_draft_graph(), enabled=True)
+    scheduled_later = service.create_workflow("alice", "Scheduled later", ready_scheduled_graph(), enabled=True)
+    scheduled_earlier = service.create_workflow("alice", "Scheduled earlier", ready_scheduled_graph(), enabled=True)
     disabled = service.create_workflow("alice", "Disabled", scheduled_title_draft_graph())
     draft = service.create_workflow("alice", "Draft", manual_title_draft_graph())
-    manual = service.create_workflow("alice", "Manual", manual_title_draft_graph(), enabled=True)
+    manual = service.create_workflow("alice", "Manual", ready_manual_graph(), enabled=True)
 
     repository.workflows[scheduled_later.id].update({"next_run_at": 300, "updated_at": 10})
     repository.workflows[scheduled_earlier.id].update({"next_run_at": 100, "updated_at": 20})

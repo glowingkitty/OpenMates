@@ -27,9 +27,9 @@ PLAINTEXT_MARKERS = ("Imported task", "Imported plan", "Imported project", "Impo
 FORBIDDEN_STORAGE_KEYS = {"title", "description", "name", "master_key", "task_key", "project_key", "key_wrappers"}
 
 
-def assert_encrypted_payload(payload: dict[str, object], *, encrypted_key: str, encrypted_fields: tuple[str, ...], allow_key_wrappers: bool = False) -> list[str]:
+def assert_encrypted_payload(payload: dict[str, object], *, encrypted_key: str | None, encrypted_fields: tuple[str, ...], allow_key_wrappers: bool = False) -> list[str]:
     failures: list[str] = []
-    if not isinstance(payload.get(encrypted_key), str):
+    if encrypted_key is not None and not isinstance(payload.get(encrypted_key), str):
         failures.append(f"missing {encrypted_key}")
     for field in encrypted_fields:
         if not isinstance(payload.get(field), str):
@@ -62,8 +62,11 @@ def verify_synthetic() -> list[str]:
         "description": "Imported description",
     })
     failures = assert_encrypted_payload(task_payload, encrypted_key="encrypted_task_key", encrypted_fields=("encrypted_title", "encrypted_description"))
-    failures.extend(assert_encrypted_payload(plan_payload, encrypted_key="encrypted_plan_key", encrypted_fields=("encrypted_title", "encrypted_goal"), allow_key_wrappers=True))
-    failures.extend(assert_encrypted_payload(project_payload, encrypted_key="encrypted_project_key", encrypted_fields=("encrypted_name", "encrypted_description")))
+    failures.extend(assert_encrypted_payload(plan_payload, encrypted_key=None, encrypted_fields=("encrypted_title", "encrypted_goal"), allow_key_wrappers=True))
+    wrappers = plan_payload.get("key_wrappers")
+    if not isinstance(wrappers, list) or not any(isinstance(wrapper, dict) and wrapper.get("key_type") == "master" and isinstance(wrapper.get("encrypted_plan_key"), str) for wrapper in wrappers):
+        failures.append("missing master plan key wrapper")
+    failures.extend(assert_encrypted_payload(project_payload, encrypted_key="encrypted_project_key", encrypted_fields=("encrypted_name", "encrypted_description"), allow_key_wrappers=True))
     return failures
 
 

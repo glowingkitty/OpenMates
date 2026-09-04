@@ -88,6 +88,7 @@ export interface UserProfile {
   // Format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
   default_ai_model_simple?: string | null;
   default_ai_model_complex?: string | null;
+  default_ai_model_most_demanding?: string | null;
   // Default model overrides for app skills keyed by "app.skill".
   // Format: { "images.generate": "provider/model_id" }.
   default_app_skill_models?: Record<string, string>;

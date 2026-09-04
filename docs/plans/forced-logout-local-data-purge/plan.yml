@@ -1,0 +1,864 @@
+schema_version: 2
+id: forced-logout-local-data-purge
+title: Forced Logout Local Data Purge
+status: implementing
+
+goal: >
+  Enforce one security invariant across OpenMates clients: when an account session
+  becomes unauthenticated through forced logout, session revocation, account
+  deletion, or normal logout, private account and team data must be removed from
+  local storage, decrypted keys must be cleared, and the user must not continue
+  seeing or loading a private active chat while unauthenticated.
+
+scope:
+  in:
+    - Web forced logout/session invalidation/account deletion cleanup for private IndexedDB, crypto keys, caches, drafts, active chat state, URL hash, and logged-out new-chat screen state.
+    - Web IndexedDB deletion reliability, including blocked deletion retry markers and cross-tab close coordination.
+    - Web route/render guards that prevent logged-out private chat loading from surviving local IndexedDB rows or cached private keys.
+    - CLI normal logout, forced WebSocket logout, session-revoked logout, account-deleted logout, and next-command stale-session cleanup.
+    - CLI deletion of session credentials, master key, email key, team keys, personal and team sync caches, and active remote-access/WebSocket sessions.
+    - Backend broadcast coverage for session revocation, logout-all-devices, and account deletion paths that invalidate active sessions.
+    - Regression tests for web unit behavior, web Playwright `*.spec.ts` session revocation cleanup, CLI storage/client behavior, and backend broadcast wiring.
+  out:
+    - Changing the zero-knowledge encryption format for chats, messages, embeds, memories, or team keys.
+    - Deleting anonymous/public/example chat state that is explicitly not account-owned or encrypted with a user/team key.
+    - Redesigning Settings session-management UI beyond test selectors or assertions required for cleanup verification.
+    - Adding new public/developer REST endpoints.
+    - Server-side permanent account deletion semantics outside ensuring logout broadcasts are sent before or during deletion.
+
+context_discovery:
+  github_issues:
+    - "GitHub MCP get_me failed with 401 Bad credentials; issue search could not be completed through MCP."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/architecture/data/device-sessions.md
+    - docs/architecture/core/encryption-architecture.md
+    - docs/architecture/core/client-side-encryption.md
+    - docs/architecture/platforms/cli-feature-parity.md
+    - docs/plans/apple-auth-security-parity/plan.yml
+    - docs/plans/sdk-cli-parity-v1/plan.yml
+  code_patterns:
+    - frontend/packages/ui/src/stores/authSessionActions.ts
+    - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+    - frontend/packages/ui/src/services/db.ts
+    - frontend/packages/ui/src/services/userDB.ts
+    - frontend/packages/ui/src/services/encryption/ChatKeyManager.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/apps/web_app/src/routes/+page.svelte
+    - frontend/packages/openmates-cli/src/storage.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - backend/core/api/app/routes/auth_routes/auth_sessions.py
+    - backend/core/api/app/routes/settings.py
+    - backend/core/api/app/routes/websockets.py
+  tests:
+    - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    - frontend/packages/ui/src/stores/__tests__/logoutCleanup.test.ts
+    - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - frontend/apps/web_app/tests/unauthenticated-chat-navigation.spec.ts
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+  verified_assumptions:
+    - id: VA-1
+      status: confirmed
+      finding: Web chatDB and userDB currently resolve `deleteDatabase().onblocked` as success, allowing logout to proceed while private IndexedDB data remains.
+      evidence: frontend/packages/ui/src/services/db.ts:2417; frontend/packages/ui/src/services/userDB.ts:1581
+    - id: VA-2
+      status: confirmed
+      finding: Web session-expiry cleanup currently depends on master-key presence for the main cleanup path and can skip cleanup when the key is already missing.
+      evidence: frontend/packages/ui/src/stores/authSessionActions.ts:804
+    - id: VA-3
+      status: confirmed
+      finding: Logged-out web deep links currently load from `chats_db` without proving the row is public, anonymous, or shared-key-backed.
+      evidence: frontend/apps/web_app/src/routes/+page.svelte:936
+    - id: VA-4
+      status: confirmed
+      finding: ActiveChat currently treats any cached chat key as a shared-chat signal while unauthenticated, even though private keys can be cached.
+      evidence: frontend/packages/ui/src/components/ActiveChat.svelte:1054
+    - id: VA-5
+      status: confirmed
+      finding: CLI local state includes session credentials, keychain/encrypted key material, personal sync cache, team keys, and team sync cache under `~/.openmates`.
+      evidence: frontend/packages/openmates-cli/src/storage.ts:156; frontend/packages/openmates-cli/src/storage.ts:389; frontend/packages/openmates-cli/src/storage.ts:454
+    - id: VA-6
+      status: confirmed
+      finding: CLI manual logout clears session credentials but not sync caches today.
+      evidence: frontend/packages/openmates-cli/src/client.ts:3939
+    - id: VA-7
+      status: confirmed
+      finding: CLI WebSocket transport has no `force_logout` handling today.
+      evidence: frontend/packages/openmates-cli/src/ws.ts:352
+    - id: VA-8
+      status: confirmed
+      finding: Backend session revocation and logout-all-devices already broadcast `force_logout`, but account deletion currently logs out sessions without an explicit `force_logout` broadcast in the route.
+      evidence: backend/core/api/app/routes/auth_routes/auth_sessions.py:303; backend/core/api/app/routes/auth_routes/auth_sessions.py:437; backend/core/api/app/routes/settings.py:4287
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Auth/**/*.swift
+    - apple/OpenMates/Sources/Features/Settings/**/*.swift
+    - apple/OpenMates/Sources/Features/Chat/**/*.swift
+  parity_expectations:
+    - Apple must clear native local account/team chat caches and keys on forced logout/session revocation/account deletion if equivalent local persistence exists.
+    - This implementation slice changes web, CLI, and backend first; Apple parity is verified or explicitly handed off after those gates are green.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+  intentional_native_differences:
+    - Apple uses Keychain/native persistence rather than IndexedDB or `~/.openmates`, but must preserve the same security outcome.
+
+clarification:
+  rounds:
+    - question: Should all CLI logout paths purge local encrypted cache, user keys, team cache, and team keys, or only forced/session-revoked/account-deleted logout?
+      answer: All logout types must purge local encrypted cache/user keys and team cache/keys.
+    - question: What must happen on web forced logout?
+      answer: Ensure local data is deleted, active chat is cleared, and the not-authenticated new-chat screen is opened.
+    - question: What must happen when the user disconnects a CLI device from the web app?
+      answer: Forced logout must disconnect the remote-access session, delete the local copy of user/team data, and clear local keys.
+  vision_summary: >
+    Web and CLI must treat logout as a trust-boundary crossing, not only an auth
+    flag change. The visible chat state, encrypted local caches, and decrypted
+    keys must all be cleared reliably, with online forced logout delivered by
+    WebSocket and offline clients purging on their next authenticated operation.
+  approved_by_user: true
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Resolve logout cleanup only after private local data is either deleted or a durable purge marker remains for retry.
+    reason: Treating blocked IndexedDB deletion as success allows logged-out clients to retain private data.
+    decided_at: "2026-07-26T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Logged-out web clients may preserve only explicit public, anonymous, session-only draft, or shared-key-provenance chats.
+    reason: A surviving private IndexedDB row or cached private key must never be enough to render a logged-out chat.
+    decided_at: "2026-07-26T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: CLI normal logout and forced logout share the same destructive local purge helper.
+    reason: A logout command should not leave encrypted account/team caches or local keys behind.
+    decided_at: "2026-07-26T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Account deletion must broadcast logout to active clients in addition to invalidating server sessions.
+    reason: Online clients should purge immediately instead of waiting for a later failed auth request.
+    decided_at: "2026-07-26T00:00:00Z"
+
+scenarios:
+  - id: S-1
+    title: Web forced logout clears private local data and opens logged-out new chat
+    given:
+      - Alice is authenticated in the web app and has a private chat open.
+      - "`chats_db`, `user_db`, local crypto storage, chat caches, and active chat state contain Alice's private account data."
+    when:
+      - The server invalidates Alice's session through session revocation, all-devices logout, account deletion, or session expiry.
+    then:
+      - The active chat and URL hash are cleared immediately.
+      - The app shows the not-authenticated new-chat screen with login/signup available.
+      - Private browser databases, local crypto keys, chat caches, drafts, pending responses, and account/team markers are purged or remain durably marked for retry if the browser blocks deletion.
+
+  - id: S-2
+    title: Blocked web IndexedDB deletion stays unsafe until retry succeeds
+    given:
+      - A second web tab or lingering connection blocks `chats_db` or `user_db` deletion.
+    when:
+      - A logout or forced logout starts local data cleanup.
+    then:
+      - Cleanup does not clear initialized/needs-cleanup markers as if deletion succeeded.
+      - Other tabs receive a close/purge signal and clear in-memory keys/UI.
+      - Future app boot or auth checks retry deletion before allowing private chat reads while unauthenticated.
+
+  - id: S-3
+    title: Logged-out web cannot load private chat rows or private cached keys
+    given:
+      - A private chat row or cached private chat key survives locally after logout.
+    when:
+      - The logged-out app starts with `#chat-id=<PRIVATE_CHAT_ID>` or ActiveChat sees auth become false.
+    then:
+      - The private chat is not loaded or rendered.
+      - The app clears the active chat and returns to logged-out new-chat.
+      - Public/example, anonymous, session draft, and explicit shared-key chats remain allowed only through their explicit provenance.
+
+  - id: S-4
+    title: CLI logout purges all local account and team artifacts
+    given:
+      - Alice has logged into the CLI and has personal sync cache, team sync cache, master key, email key, and team key material on the local device.
+    when:
+      - Alice runs normal CLI logout, or a command detects the session is invalid.
+    then:
+      - The CLI deletes session credentials, master key, email key, team keys, personal sync cache, and every team sync cache.
+      - Subsequent CLI commands report that Alice must log in again and cannot read stale cached encrypted account/team data.
+
+  - id: S-5
+    title: CLI device removal from web forces CLI purge and remote disconnect
+    given:
+      - Alice has an active CLI WebSocket or remote-access session.
+      - Alice removes that CLI session from the web app Active Sessions screen.
+    when:
+      - The backend broadcasts `force_logout` to the revoked CLI connection.
+    then:
+      - The CLI closes the WebSocket/remote-access session.
+      - The CLI runs the same local purge as normal logout.
+      - Any in-flight CLI command stops with a re-authentication error and leaves no local account/team cache or key material.
+
+  - id: S-6
+    title: Account deletion broadcasts forced logout before clients go stale
+    given:
+      - Alice has active web and CLI sessions.
+    when:
+      - Alice's account deletion starts from web, CLI, or a policy-triggered server path.
+    then:
+      - Active sessions receive `force_logout` with an account-deletion reason when online.
+      - Offline clients purge local account/team artifacts the next time they call `/v1/auth/session` or open an authenticated WebSocket.
+      - The deleting client also purges local data before reporting completion.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Web forced logout/session invalidation clears active private chat, URL hash, in-memory private chat state, and lands on logged-out new-chat screen.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-WEB-001
+      - T-E2E-WEB-001
+  - id: AC-2
+    scenario: S-2
+    text: Web IndexedDB deletion blocked by another connection leaves durable purge markers and retries instead of treating cleanup as successful.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-WEB-002
+  - id: AC-3
+    scenario: S-3
+    text: Logged-out web loads only explicit public, anonymous, session-draft, or shared-key-provenance chats, never private IndexedDB rows or private cached keys.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-VITEST-WEB-003
+      - T-E2E-WEB-001
+  - id: AC-4
+    scenario: S-4
+    text: Every CLI logout path purges session credentials, master/email keys, team keys, personal sync cache, and all team sync caches.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-UNIT-001
+      - T-CLI-UNIT-002
+  - id: AC-5
+    scenario: S-5
+    text: CLI receives remote `force_logout`, closes its WebSocket/remote-access session, purges local account/team artifacts, and stops with a re-authentication error.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-UNIT-003
+      - T-E2E-WEB-001
+  - id: AC-6
+    scenario: S-6
+    text: Account deletion and logout-all-devices paths broadcast forced logout to online clients and stale offline clients purge on next auth/session or WebSocket check.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-BACKEND-001
+      - T-CLI-UNIT-004
+  - id: AC-7
+    scenario: S-1
+    text: Apple auth/chat persistence parity is checked or handed off with sanitized remote Mac evidence after web and CLI gates are green.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - V-APPLE-001
+
+assumptions:
+  - id: A-1
+    text: "`force_logout` is the canonical real-time client event for session revocation and logout-all-devices."
+    category: backend_contract
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/routes/auth_routes/auth_sessions.py
+        summary: "Session revoke and logout-all-devices publish `event_for_client: force_logout`."
+  - id: A-2
+    text: CLI remote-access sessions use the same OpenMatesWsClient transport or an equivalent WebSocket that can receive account/session events.
+    category: cli_contract
+    required_before: task_execution
+    status: checking
+  - id: A-3
+    text: Anonymous/public/example chat state is not encrypted with the user's account or team keys and can be preserved when explicitly identified.
+    category: privacy_security
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/ui/src/components/ActiveChat.svelte
+        summary: Public, anonymous, and session-draft chat paths are separate from authenticated private chat loading.
+
+contracts:
+  api:
+    - route: WebSocket user_updates force_logout
+      access_model: first-party client surface only
+      auth: authenticated WebSocket session/cookie/token
+      rate_limits: backend event fanout only; no public caller surface
+      encrypted_data: no decrypted chat content in event payload
+      changes:
+        - Account deletion paths must publish `force_logout` before or while server sessions are invalidated.
+        - CLI and web clients must treat `reason` values including `session_revoked`, `all_other_sessions_revoked`, `all_devices_logout`, and account-deletion reasons as local purge triggers.
+    - route: POST /v1/auth/session
+      access_model: first-party client surface only
+      auth: refresh-token cookie/session token
+      rate_limits: existing auth/session rate policy
+      encrypted_data: may return encrypted user metadata only; no decrypted chat plaintext
+      changes:
+        - CLI and web stale-session handling must purge local account/team artifacts when the response proves the local session is invalid.
+  data:
+    - "Web private stores: `chats_db`, `user_db`, `openmates_crypto`, shared in-memory chat/key caches, drafts, pending AI responses, and logout retry markers."
+    - "CLI private stores: `~/.openmates/session.json`, keychain/encrypted/plaintext master and email key entries, `sync_cache.json`, `sync_cache.team.*.json`, and `team_keys.json` entries."
+    - Deletion must be idempotent and safe when files/databases are already absent.
+  ui_states:
+    - Web forced logout clears active chat and URL hash.
+    - Web forced logout closes private fullscreen embeds/settings surfaces that depend on authenticated private data.
+    - Web forced logout shows logged-out new-chat state with login/signup available.
+    - CLI forced logout prints or throws a re-authentication message and does not continue using stale local cache.
+  privacy_security:
+    - Decrypted chat keys and master/team keys must be cleared from memory and durable storage on logout.
+    - Private encrypted account/team caches must not be readable as logged-out state even if deletion is delayed by browser locks.
+    - Logs and test artifacts must not include raw chat content, keys, cookies, tokens, private emails, or share URL `#key=` fragments.
+
+tests:
+  - id: T-VITEST-WEB-001
+    type: vitest
+    file: frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter authSessionAutoLogoutCleanup
+    covers:
+      - AC-1
+    assertions:
+      - Session-expiry and re-auth-required paths call the shared private local purge cleanup.
+      - Active chat, phased sync, chat caches, draft storage, crypto keys, and login/session flags are cleared synchronously.
+      - Auth state is unauthenticated and initialized after cleanup.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        run_id: "npm run test:run -- src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts"
+        timestamp: "2026-07-26T18:25:13Z"
+
+  - id: T-VITEST-WEB-002
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/logoutIndexedDbPurge.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter logoutIndexedDbPurge
+    covers:
+      - AC-2
+    assertions:
+      - Blocked `chats_db` or `user_db` deletion does not clear durable purge markers.
+      - Successful deletion clears initialized and purge markers only after `onsuccess`.
+      - Cross-tab purge messages close local DB handles and clear in-memory keys.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-VITEST-WEB-003
+    type: vitest
+    file: frontend/packages/ui/src/components/__tests__/loggedOutPrivateChatGuard.test.ts
+    command: python3 scripts/tests.py run --suite vitest --filter loggedOutPrivateChatGuard
+    covers:
+      - AC-3
+    assertions:
+      - Private key provenance sources such as `master_key`, `server_sync`, `bulk_init`, and `created` do not preserve logged-out chats.
+      - "`shared_storage`, `share_link`, `anonymous_session`, public/example, and explicit session-draft states are the only logged-out preservation paths."
+      - Private `#chat-id` hashes are cleared while unauthenticated.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-E2E-WEB-001
+    type: playwright
+    file: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    command: python3 scripts/tests.py run --spec session-revoke-flow.spec.ts
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-3
+      - AC-5
+    assertions:
+      - Session B receives force logout after Session A revokes it.
+      - Session B shows logged-out login/signup new-chat state.
+      - Session B no longer has private `chats_db`, `user_db`, local crypto DB data, or active private chat hash after force logout.
+      - Session A remains authenticated and does not receive the force logout event.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+
+  - id: T-CLI-UNIT-001
+    type: unit
+    file: frontend/packages/openmates-cli/tests/storage.test.ts
+    command: npm run test:unit:storage
+    covers:
+      - AC-4
+    assertions:
+      - CLI purge removes session file, personal sync cache, every team sync cache, and team key records.
+      - CLI purge deletes keychain/encrypted/plaintext master, email, and team key entries when metadata exists.
+      - CLI purge is idempotent when files are absent.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        run_id: "npm run test:unit:storage"
+        timestamp: "2026-07-26T18:25:13Z"
+
+  - id: T-CLI-UNIT-002
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern "purges local private data|uses destructive local purge" tests/client.test.ts
+    covers:
+      - AC-4
+    assertions:
+      - "`OpenMatesClient.logout()` uses the destructive local purge helper, not session-only cleanup."
+      - Account deletion local cleanup uses the same purge helper.
+      - Invalid `/v1/auth/session` response during CLI session checks triggers local purge.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        run_id: "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'purges local private data|uses destructive local purge' tests/client.test.ts"
+        timestamp: "2026-07-26T18:25:13Z"
+
+  - id: T-CLI-UNIT-003
+    type: unit
+    file: frontend/packages/openmates-cli/tests/ws.test.ts
+    command: npm run test:unit:ws
+    covers:
+      - AC-5
+    assertions:
+      - CLI WebSocket receives `force_logout`, closes the socket, invokes local purge, and rejects in-flight waits with a re-authentication error.
+      - Remote-access/local connector sessions built on OpenMatesWsClient inherit the same force-logout behavior.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        run_id: "npm run test:unit:ws"
+        timestamp: "2026-07-26T18:25:13Z"
+
+  - id: T-CLI-UNIT-004
+    type: unit
+    file: frontend/packages/openmates-cli/tests/client.test.ts
+    command: node --test --experimental-strip-types frontend/packages/openmates-cli/tests/client.test.ts
+    covers:
+      - AC-6
+    assertions:
+      - Offline CLI with an invalidated session purges local artifacts on the next auth/session refresh.
+      - CLI does not save rotated cookies or sync cache after a failed session response.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        run_id: "node --test --experimental-strip-types --loader ./tests/loader.mjs --test-name-pattern 'purges local private data|uses destructive local purge' tests/client.test.ts"
+        timestamp: "2026-07-26T18:25:13Z"
+
+  - id: T-PYTEST-BACKEND-001
+    type: pytest
+    file: backend/tests/test_settings_account_delete_force_logout.py
+    command: python3 -m pytest backend/tests/test_settings_account_delete_force_logout.py
+    covers:
+      - AC-6
+    assertions:
+      - Session revoke broadcasts `force_logout` only to the revoked connection.
+      - Logout-all-devices broadcasts `force_logout` to all active connections.
+      - Account deletion publishes `force_logout` before or during server session invalidation.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: pending
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: pass
+        run_id: "python3 -m pytest backend/tests/test_settings_account_delete_force_logout.py"
+        timestamp: "2026-07-26T18:25:13Z"
+
+verifications:
+  - id: V-APPLE-001
+    kind: manual_check
+    phase: final
+    status: pending
+    covers:
+      - AC-7
+    required_for_done: true
+    command: python3 scripts/apple_remote.py status && python3 scripts/apple_remote.py build-ios --simulator "iPhone 17"
+    evidence:
+      status: pending
+      run_id: ""
+      timestamp: ""
+      notes: "Run after web, CLI, and backend green evidence. If remote Mac is unavailable, record sanitized failure class."
+
+implementation_notes:
+  plan_path: docs/plans/forced-logout-local-data-purge/plan.yml
+  architecture: >
+    Introduce shared purge helpers instead of duplicating partial cleanup logic.
+    Web cleanup must fail closed by clearing UI/key state immediately and keeping
+    durable purge markers until IndexedDB deletion succeeds. CLI cleanup must use
+    one local purge helper from all logout paths and WebSocket force-logout handling.
+  existing_patterns:
+    - Web manual logout already has `resetLocalLogoutState()` for immediate UI/cache cleanup.
+    - Web session-expiry cleanup already dispatches `userLoggingOut` for one path.
+    - ChatKeyManager already tracks key provenance with `master_key`, `server_sync`, `bulk_init`, `shared_storage`, `share_link`, and `anonymous_session`.
+    - CLI storage centralizes session and cache files in `storage.ts`.
+    - Backend force-logout broadcast helper already exists in `auth_sessions.py`.
+  data_flow:
+    - Backend invalidates session or account and publishes `force_logout`.
+    - Web/CLI receive force logout, synchronously clear active UI and in-memory keys, then delete durable private data.
+    - If durable deletion is blocked, a persistent marker blocks private logged-out reads and retries on startup or next auth check.
+    - Offline CLI detects invalid session on `/v1/auth/session` or WebSocket auth failure and runs the same purge helper.
+  affected_files:
+    - path: frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+      reason: Share reliable private local purge between manual and forced web logout paths.
+    - path: frontend/packages/ui/src/stores/authSessionActions.ts
+      reason: Route every auth-false security path through the shared purge behavior.
+    - path: frontend/packages/ui/src/services/db.ts
+      reason: Make `chats_db` deletion markers truthful and blocked deletion retryable.
+    - path: frontend/packages/ui/src/services/userDB.ts
+      reason: Make `user_db` deletion markers truthful and blocked deletion retryable.
+    - path: frontend/packages/ui/src/components/ActiveChat.svelte
+      reason: Prevent private key provenance from preserving logged-out chats.
+    - path: frontend/apps/web_app/src/routes/+page.svelte
+      reason: Prevent logged-out private IndexedDB deep-link loading.
+    - path: frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+      reason: Add deployed browser regression assertions for local data and active chat cleanup.
+    - path: frontend/packages/openmates-cli/src/storage.ts
+      reason: Add destructive local purge helper for session, caches, and keys.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Use purge helper on all CLI logout/account/session-invalid paths.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Handle `force_logout` and close remote-access/WebSocket sessions.
+    - path: backend/core/api/app/routes/settings.py
+      reason: Broadcast force logout during account deletion.
+    - path: backend/tests/test_forced_logout_broadcasts.py
+      reason: Prove backend broadcast wiring.
+  verification_strategy:
+    - Add or extend tests first and run red where possible.
+    - Implement web storage purge and guard behavior before Playwright deployment.
+    - Implement CLI purge and WebSocket force-logout handling before SDK parity checks because CLI is the affected non-browser surface.
+    - Add backend broadcast test and implementation for account deletion.
+    - Deploy before Playwright green verification.
+    - Attempt Apple remote status/build after web and CLI/backend green gates.
+  verification_order:
+    - T-PYTEST-BACKEND-001 red/green for backend broadcast wiring.
+    - T-CLI-UNIT-001 through T-CLI-UNIT-004 red/green for CLI local purge and force logout.
+    - T-VITEST-WEB-001 through T-VITEST-WEB-003 red/green for web local behavior.
+    - T-E2E-WEB-001 red/green after deploy against app.dev.openmates.org.
+    - V-APPLE-001 final parity check or sanitized blocker.
+
+tasks:
+  - id: TASK-1
+    title: Add executable spec and red regression coverage
+    status: in_progress
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - docs/plans/forced-logout-local-data-purge/plan.yml
+      - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+      - frontend/packages/ui/src/services/__tests__/logoutIndexedDbPurge.test.ts
+      - frontend/packages/ui/src/components/__tests__/loggedOutPrivateChatGuard.test.ts
+      - frontend/packages/openmates-cli/tests/storage.test.ts
+      - frontend/packages/openmates-cli/tests/client.test.ts
+      - frontend/packages/openmates-cli/tests/ws.test.ts
+      - backend/tests/test_settings_account_delete_force_logout.py
+      - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+    verification_ids:
+      - T-VITEST-WEB-001
+      - T-VITEST-WEB-002
+      - T-VITEST-WEB-003
+      - T-CLI-UNIT-001
+      - T-CLI-UNIT-002
+      - T-CLI-UNIT-003
+      - T-CLI-UNIT-004
+      - T-PYTEST-BACKEND-001
+      - T-E2E-WEB-001
+    dependencies: []
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/plans/forced-logout-local-data-purge/plan.yml
+      shared_files:
+        - frontend/packages/ui/src/stores/__tests__/authSessionAutoLogoutCleanup.test.ts
+        - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+
+  - id: TASK-2
+    title: Implement reliable web forced-logout purge and logged-out guards
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+      - frontend/packages/ui/src/stores/authSessionActions.ts
+      - frontend/packages/ui/src/services/db.ts
+      - frontend/packages/ui/src/services/userDB.ts
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/apps/web_app/src/routes/+page.svelte
+    verification_ids:
+      - T-VITEST-WEB-001
+      - T-VITEST-WEB-002
+      - T-VITEST-WEB-003
+      - T-E2E-WEB-001
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/ui/src/stores/authLoginLogoutActions.ts
+        - frontend/packages/ui/src/stores/authSessionActions.ts
+        - frontend/packages/ui/src/services/db.ts
+        - frontend/packages/ui/src/services/userDB.ts
+        - frontend/packages/ui/src/components/ActiveChat.svelte
+        - frontend/apps/web_app/src/routes/+page.svelte
+      shared_files: []
+
+  - id: TASK-3
+    title: Implement CLI destructive purge and force-logout handling
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - frontend/packages/openmates-cli/src/storage.ts
+      - frontend/packages/openmates-cli/src/client.ts
+      - frontend/packages/openmates-cli/src/ws.ts
+    verification_ids:
+      - T-CLI-UNIT-001
+      - T-CLI-UNIT-002
+      - T-CLI-UNIT-003
+      - T-CLI-UNIT-004
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/storage.ts
+        - frontend/packages/openmates-cli/src/client.ts
+        - frontend/packages/openmates-cli/src/ws.ts
+      shared_files: []
+
+  - id: TASK-4
+    title: Implement backend account-deletion forced logout broadcast
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-6
+      acceptance_criteria:
+        - AC-6
+    expected_files:
+      - backend/core/api/app/routes/settings.py
+      - backend/tests/test_settings_account_delete_force_logout.py
+    verification_ids:
+      - T-PYTEST-BACKEND-001
+    dependencies:
+      - TASK-1
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - backend/core/api/app/routes/settings.py
+        - backend/tests/test_forced_logout_broadcasts.py
+      shared_files: []
+
+  - id: TASK-5
+    title: Deploy and run web plus Apple verification
+    status: pending
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-5
+      acceptance_criteria:
+        - AC-1
+        - AC-3
+        - AC-5
+        - AC-7
+    expected_files:
+      - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+      - docs/plans/forced-logout-local-data-purge/plan.yml
+    verification_ids:
+      - T-E2E-WEB-001
+      - V-APPLE-001
+    dependencies:
+      - TASK-2
+      - TASK-3
+      - TASK-4
+    blockers: []
+    follow_up_tasks: []
+    ownership:
+      files:
+        - docs/plans/forced-logout-local-data-purge/plan.yml
+      shared_files:
+        - frontend/apps/web_app/tests/session-revoke-flow.spec.ts
+
+implementation_state:
+  subject_commit: 337717f85008502b7a584267cce4d1064418a81e
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-07-26T00:00:00Z"
+    reason: User approved the clarified web and CLI forced-logout local-data purge contract and requested implementation.
+  plan:
+    status: approved
+    approved_at: "2026-07-26T00:00:00Z"
+    reason: User requested approval and implementation in the same turn; plan keeps tests first and follows backend/CLI/web/Apple verification order.
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Create approved Schema V2 executable spec from verified source discovery and user clarification.
+    outcome: planned
+    recorded_at: "2026-07-26T00:00:00Z"
+    summary: Spec created before implementation; validation and red tests are the next steps.
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Add shared CLI destructive purge helper, wire logout/account-deletion/session-invalidation/force-logout paths to it, and add focused storage/client/WebSocket tests.
+    outcome: succeeded
+    recorded_at: "2026-07-26T18:25:13Z"
+    summary: Focused CLI purge tests passed; full client.test.ts remains blocked by unrelated memory registry drift and timeout after the new tests pass.
+  - id: ATTEMPT-3
+    task_id: TASK-2
+    approach: Reuse web local logout reset for session expiry, clear URL hash, and keep IndexedDB cleanup markers until delete success.
+    outcome: succeeded
+    recorded_at: "2026-07-26T18:25:13Z"
+    summary: Focused authSessionAutoLogoutCleanup Vitest passed; deeper logged-out private chat and deployed E2E coverage remain pending.
+  - id: ATTEMPT-4
+    task_id: TASK-4
+    approach: Broadcast account_deleted force_logout before account deletion invalidates server sessions.
+    outcome: succeeded
+    recorded_at: "2026-07-26T18:25:13Z"
+    summary: Focused backend source guard passed without importing the full FastAPI dependency graph.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Deploy the scoped changes, run the session-revoke Playwright flow against app.dev.openmates.org, then run or hand off Apple parity verification.
+  command: python3 scripts/plan_validate.py docs/plans/forced-logout-local-data-purge/plan.yml
+  expected_outcome: Spec stays valid before deploy/E2E/Apple evidence is collected.
+  blocker:
+    reason: Unrelated dirty worktree changes exist outside this task and must not be included in a scoped deploy.
+    owner: operator
+  last_verified_commit: 337717f85008502b7a584267cce4d1064418a81e

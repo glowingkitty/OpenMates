@@ -81,13 +81,65 @@ def test_resolve_deploy_removes_superseded_records_for_merged_session(monkeypatc
         encoding="utf-8",
     )
     monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_worktree_head", lambda _path: "commit456")
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: [])
 
     sessions._mark_worktree_deployed("abcd", "patch123", "commit456")
 
     data = json.loads(sessions_file.read_text(encoding="utf-8"))
     assert data["sessions"]["abcd"]["worktree"]["status"] == "merged"
     assert data["sessions"]["abcd"]["worktree"]["merged_commit"] == "commit456"
+    assert data["sessions"]["abcd"]["worktree"]["base_commit"] == "commit456"
     assert data["deploy_queue"] == [{"session_id": "other", "patch_id": "patch123"}]
+
+
+def test_deploy_registry_refuses_merged_status_when_source_head_is_stale(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps({"sessions": {"abcd": {"worktree": {"path": "/tmp/agent-abcd"}}}, "deploy_queue": []}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_worktree_head", lambda _path: "older-head")
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: ["file.py"])
+
+    sessions._mark_worktree_deployed("abcd", "patch123", "commit456")
+
+    worktree = json.loads(sessions_file.read_text(encoding="utf-8"))["sessions"]["abcd"]["worktree"]
+    assert worktree["status"] == "changes_pending"
+    assert worktree["merged_commit"] == "commit456"
+
+
+def test_deploy_registry_advances_base_for_partial_worktree(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    sessions_file = tmp_path / "sessions.json"
+    sessions_file.write_text(
+        json.dumps(
+            {
+                "sessions": {
+                    "abcd": {
+                        "workspace_state": "changes_pending",
+                        "worktree": {"path": "/tmp/agent-abcd", "base_commit": "older-head"},
+                    }
+                },
+                "deploy_queue": [],
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(sessions, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(sessions, "_worktree_head", lambda _path: "commit456")
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: ["remaining.py"])
+
+    sessions._mark_worktree_deployed("abcd", "patch123", "commit456")
+
+    session = json.loads(sessions_file.read_text(encoding="utf-8"))["sessions"]["abcd"]
+    assert session["worktree"]["status"] == "changes_pending"
+    assert session["worktree"]["base_commit"] == "commit456"
+    assert session["worktree"]["merged_commit"] == "commit456"
+    assert session["workspace_state"] == "changes_pending"
 
 
 def test_pending_worktree_commit_is_used_only_for_exact_clean_retry(monkeypatch):
@@ -175,17 +227,17 @@ def test_session_state_removes_orphaned_and_merged_blocked_deploys():
     ]
 
 
-def test_contract_generated_artifacts_are_not_replayed_as_source_patches():
+def test_specification_generated_artifacts_are_not_replayed_as_source_patches():
     sessions = load_sessions_module()
 
-    source, generated = sessions._split_contract_generated_artifacts([
+    source, generated = sessions._split_specification_generated_artifacts([
         "frontend/apps/web_app/tests/startup-sync-contract.spec.ts",
-        "contracts/generated/assertion-index.yml",
-        "contracts/generated/coverage.yml",
+        "specifications/generated/assertion-index.yml",
+        "specifications/generated/coverage.yml",
     ])
 
     assert source == ["frontend/apps/web_app/tests/startup-sync-contract.spec.ts"]
-    assert generated == ["contracts/generated/assertion-index.yml", "contracts/generated/coverage.yml"]
+    assert generated == ["specifications/generated/assertion-index.yml", "specifications/generated/coverage.yml"]
 
 
 def test_worktree_retry_blocks_root_drift_and_refreshes_safe_amendment(monkeypatch, tmp_path):
@@ -224,7 +276,7 @@ def test_worktree_retry_can_safely_expand_files_unchanged_from_source_base(monke
     sessions_file = tmp_path / "sessions.json"
     root = tmp_path / "root"
     worktree = tmp_path / "worktree"
-    first = "docs/spec.yml"
+    first = "docs/plans/example/plan.yml"
     added = "scripts/new.py"
     for base in (root, worktree):
         path = base / first

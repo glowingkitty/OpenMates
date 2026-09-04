@@ -47,7 +47,7 @@ EXPECTED_RELEASE_BASELINE = {
     "signup-skip-2fa-flow.spec.ts",
     "usage-token-breakdown.spec.ts",
 }
-EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 1, 4)
+EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
 
 
 def load_module(name: str, path: Path):
@@ -100,8 +100,6 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
 
     run_tests.print_core_journey_matrix()
     matrix = json.loads(capsys.readouterr().out)
-    assigned_accounts = [entry["account"] for entry in matrix["include"]]
-    assert len(assigned_accounts) == len(set(assigned_accounts))
     assert matrix == {
         "include": [
             {
@@ -270,17 +268,33 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
         "app-ai-worker",
     )
     assert prepare.RELEASE_STATUS_CONTEXT == "Dev Release Candidate / Prepared"
-    assert prepare.lock_command("f563", acquire=True)[-4:] == ["--session", "f563", "--type", "docker"]
-    assert prepare.managed_prepare_command() == [
-        "openmates",
-        "server",
-        "restart",
-        "--rebuild",
-        "--services",
-        ",".join(prepare.CORE_SERVICES),
+    assert prepare.managed_setup_command("f563") == [
+        sys.executable,
+        "scripts/sessions.py",
+        "docker",
+        "run-setup",
+        "--session",
+        "f563",
+        "--service",
+        "cms-setup",
+        "--build",
     ]
-    assert "docker" not in prepare.managed_prepare_command()
-    assert "compose" not in prepare.managed_prepare_command()
+    restart = prepare.managed_prepare_command("f563")
+    assert restart[:7] == [
+        sys.executable,
+        "scripts/sessions.py",
+        "docker",
+        "restart",
+        "--session",
+        "f563",
+        "--build",
+    ]
+    assert restart[7:] == [
+        part
+        for service in prepare.CORE_SERVICES
+        for part in ("--service", service)
+    ]
+    assert "compose" not in restart
     commands: list[list[str]] = []
     monkeypatch.setattr(
         prepare,

@@ -1,0 +1,3434 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-22'
+generated_at: '2026-08-23T00:20:07+00:00'
+range:
+  since: '2026-08-22T00:00:00+00:00'
+  until: '2026-08-23T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 70
+  section_counts:
+    features: 2
+    bug_fixes: 34
+    improvements: 0
+    docs: 1
+    tests: 24
+    infrastructure: 2
+    internal: 6
+    other: 1
+  newsletter_ready_items: 5
+  user_facing_items: 23
+  dev_only_items: 47
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: automate cli proof videos'
+    section: features
+    commits:
+    - 6ac3a62c0
+    authored_at: '2026-08-22T12:03:18+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.test.ts
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/TerminalTutorial.tsx
+    - tooling/proof-video-remotion/src/render.mjs
+    - tooling/proof-video-remotion/src/types.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add since filter to server logs'
+    section: features
+    commits:
+    - e83f63442
+    authored_at: '2026-08-22T11:21:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  bug_fixes:
+  - title: 'fix: stabilize events proof visuals'
+    section: bug_fixes
+    commits:
+    - 57af768d1
+    authored_at: '2026-08-22T23:58:28+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: polish mobile events map proof'
+    section: bug_fixes
+    commits:
+    - aa0b1608e
+    authored_at: '2026-08-22T23:43:54+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: anchor proof captions to checkpoints'
+    section: bug_fixes
+    commits:
+    - 3fa3bd8bf
+    authored_at: '2026-08-22T22:26:48+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: align proof captions to actions'
+    section: bug_fixes
+    commits:
+    - 0f8fe1fac
+    authored_at: '2026-08-22T22:11:52+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: include proof reload action timing'
+    section: bug_fixes
+    commits:
+    - 3cfbcdf0e
+    authored_at: '2026-08-22T21:42:04+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep cli recording upload nonfatal'
+    section: bug_fixes
+    commits:
+    - 38b83d3ec
+    authored_at: '2026-08-22T21:25:30+00:00'
+    changed_paths:
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep live HTTP cache writes non-fatal'
+    section: bug_fixes
+    commits:
+    - e10855300
+    authored_at: '2026-08-22T18:10:51+00:00'
+    changed_paths:
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep live record cache writes non-fatal'
+    section: bug_fixes
+    commits:
+    - 5df33a3e7
+    authored_at: '2026-08-22T17:47:16+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resume event newsletter safely'
+    section: bug_fixes
+    commits:
+    - 4beb42f83
+    authored_at: '2026-08-22T17:45:06+00:00'
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    - backend/tests/test_events_newsletter_broadcast.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix blank sheet preview in deep research proof
+    section: bug_fixes
+    commits:
+    - e5b18a111
+    authored_at: '2026-08-22T16:47:38+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - scripts/spec_demo.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix Brevo runtime health email delivery
+    section: bug_fixes
+    commits:
+    - 69e0fb4ac
+    authored_at: '2026-08-22T16:38:25+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: route explicit app skill mentions'
+    section: bug_fixes
+    commits:
+    - b7847ef89
+    authored_at: '2026-08-22T16:18:40+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_preprocessor_skill_resolver.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: use app embed links in event emails'
+    section: bug_fixes
+    commits:
+    - a66b7997b
+    authored_at: '2026-08-22T16:06:21+00:00'
+    changed_paths:
+    - backend/shared/python_utils/events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_render.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix sub-chat return navigation visibility
+    section: bug_fixes
+    commits:
+    - 1068f8cca
+    authored_at: '2026-08-22T15:56:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: avoid retrying completed app skills after output safety failure'
+    section: bug_fixes
+    commits:
+    - 9087d3b5c
+    authored_at: '2026-08-22T15:39:49+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/dd2d9aa8dd90303f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/5cd230365e6ad08f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/a5a475465b2fbc6e.json
+    - backend/tests/test_skill_executor_registry_refresh.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: honor proof-video spec exemptions in session gate'
+    section: bug_fixes
+    commits:
+    - 1d1a6742a
+    authored_at: '2026-08-22T15:02:26+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_proof_video.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix Playwright proof rendering and sub-chat labels
+    section: bug_fixes
+    commits:
+    - 47500c7ee
+    authored_at: '2026-08-22T14:30:13+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hold readable cli proof frame'
+    section: bug_fixes
+    commits:
+    - d019a4b94
+    authored_at: '2026-08-22T13:46:37+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - scripts/spec_demo.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bound events search sanitizer latency'
+    section: bug_fixes
+    commits:
+    - 14f734d7b
+    authored_at: '2026-08-22T13:45:18+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_events_search_output_safety.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - contracts/architecture/app-skill-execution/contract.yml
+    - contracts/architecture/app-skill-execution/examples.yml
+    - contracts/features/app-skills/events-search/contract.yml
+    - contracts/features/app-skills/events-search/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:events, embed:events:search, skill:events:search'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: support event newsletter simulation'
+    section: bug_fixes
+    commits:
+    - 6edafb50b
+    authored_at: '2026-08-22T13:36:04+00:00'
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    - backend/tests/test_events_newsletter_broadcast.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hold cli proof output frames'
+    section: bug_fixes
+    commits:
+    - 8fcf0800f
+    authored_at: '2026-08-22T13:30:29+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: sample cli proof output frames'
+    section: bug_fixes
+    commits:
+    - 3d515fa6f
+    authored_at: '2026-08-22T13:09:40+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: package encrypted slug migration'
+    section: bug_fixes
+    commits:
+    - a7b7f529a
+    authored_at: '2026-08-22T12:52:49+00:00'
+    changed_paths:
+    - .agents/skills/update-prod-server/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/tests/test_cli_object_slugs.py
+    - contracts/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate visual results view instructions'
+    section: bug_fixes
+    commits:
+    - 1c5097318
+    authored_at: '2026-08-22T12:46:09+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: expand cli proof transcript'
+    section: bug_fixes
+    commits:
+    - 5699bbc49
+    authored_at: '2026-08-22T12:42:30+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: select named cli proof recording'
+    section: bug_fixes
+    commits:
+    - fd332d0e0
+    authored_at: '2026-08-22T12:31:46+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow cli proof video profile dispatch'
+    section: bug_fixes
+    commits:
+    - 8655b7def
+    authored_at: '2026-08-22T12:21:00+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix deep research proof capture
+    section: bug_fixes
+    commits:
+    - 33a7bdef1
+    authored_at: '2026-08-22T11:57:49+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Fix spec proof video rendering
+    section: bug_fixes
+    commits:
+    - 333009e6e
+    authored_at: '2026-08-22T11:05:10+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: Fix billing credit refresh after payment
+    section: bug_fixes
+    commits:
+    - 1b05b19f9
+    authored_at: '2026-08-22T07:10:08+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is reachable from main
+  - title: Fix PR self-host docs worker build
+    section: bug_fixes
+    commits:
+    - 4ded02126
+    authored_at: '2026-08-22T03:32:18+00:00'
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is reachable from main
+  - title: Fix standalone embed ref normalization guard
+    section: bug_fixes
+    commits:
+    - cfef15e20
+    authored_at: '2026-08-22T03:14:02+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: Fix remaining Pytest encoding checks
+    section: bug_fixes
+    commits:
+    - dd1c41f75
+    authored_at: '2026-08-22T03:02:55+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_execution.py
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: Fix Pytest release blockers
+    section: bug_fixes
+    commits:
+    - cc967a499
+    authored_at: '2026-08-22T02:51:10+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/pytest.ini
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_travel_departure_time_contract.py
+    - backend/tests/test_unified_detail_metadata.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_product_success_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_friendly_welcome_message.yml
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    newsletter_ready: true
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  improvements: []
+  docs:
+  - title: 'chore: sync agent skill mirror'
+    section: docs
+    commits:
+    - 016c39b96
+    authored_at: '2026-08-22T21:10:00+00:00'
+    changed_paths:
+    - .agents/skills/tasks-from-spec/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: auto-pace proof videos'
+    section: tests
+    commits:
+    - a90355066
+    authored_at: '2026-08-22T23:28:15+00:00'
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert natural events prompt'
+    section: tests
+    commits:
+    - be797ee9e
+    authored_at: '2026-08-22T23:12:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: use natural events proof prompt'
+    section: tests
+    commits:
+    - a592359f3
+    authored_at: '2026-08-22T23:00:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clarify reload proof transition'
+    section: tests
+    commits:
+    - c66cb8480
+    authored_at: '2026-08-22T22:48:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: wait for hydrated events map proof'
+    section: tests
+    commits:
+    - 9700e4561
+    authored_at: '2026-08-22T21:55:52+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: publish latest proof videos'
+    section: tests
+    commits:
+    - 2b91273d8
+    authored_at: '2026-08-22T21:08:30+00:00'
+    changed_paths:
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/cli_video_capture.py
+    - scripts/opencode_response_media.py
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add events proof timeline'
+    section: tests
+    commits:
+    - 30aa3c061
+    authored_at: '2026-08-22T19:47:07+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep laptop events proof at laptop size'
+    section: tests
+    commits:
+    - 636ca8997
+    authored_at: '2026-08-22T19:30:14+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep events proof recordings clean'
+    section: tests
+    commits:
+    - 1e39e91bd
+    authored_at: '2026-08-22T19:14:46+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_test_markers.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: dismiss notifications before events proof report issue'
+    section: tests
+    commits:
+    - 3d3a68e4e
+    authored_at: '2026-08-22T18:40:48+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: report CLI duration in Playwright helper'
+    section: tests
+    commits:
+    - deb357799
+    authored_at: '2026-08-22T15:53:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: add API account preflight mode'
+    section: tests
+    commits:
+    - 9850cc8d5
+    authored_at: '2026-08-22T13:59:30+00:00'
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - scripts/audit_playwright_proof_metadata.py
+    - scripts/run_tests.py
+    - scripts/tests/test_playwright_proof_metadata_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_verify_test_account_login.py
+    - scripts/verify_test_account_login.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align map view hydration assertion'
+    section: tests
+    commits:
+    - e928919ed
+    authored_at: '2026-08-22T13:12:56+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Persist daily test progress snapshots
+    section: tests
+    commits:
+    - 4cfca3197
+    authored_at: '2026-08-22T11:22:48+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: stabilize events search phone proof'
+    section: tests
+    commits:
+    - 2e29a0f18
+    authored_at: '2026-08-22T10:53:56+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/dd2d9aa8dd90303f.json
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'proof: compact spec-owned Playwright videos'
+    section: tests
+    commits:
+    - a9330caad
+    authored_at: '2026-08-22T10:38:21+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: extend events search CLI proof timeout'
+    section: tests
+    commits:
+    - d48a366be
+    authored_at: '2026-08-22T10:14:25+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: Stabilize settings EU Stripe test
+    section: tests
+    commits:
+    - '766177632'
+    authored_at: '2026-08-22T07:53:29+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: Wait for saved payment auth prompt
+    section: tests
+    commits:
+    - df64f8755
+    authored_at: '2026-08-22T06:29:11+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: Restore recording cleanup regression coverage
+    section: tests
+    commits:
+    - 0d6ce2b87
+    authored_at: '2026-08-22T05:56:45+00:00'
+    changed_paths:
+    - scripts/tests/test_disk_cleanup_safety.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: Restore release gate artifact safeguards
+    section: tests
+    commits:
+    - 7950946a3
+    authored_at: '2026-08-22T05:54:37+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: Assign unique release gate test accounts
+    section: tests
+    commits:
+    - da25450aa
+    authored_at: '2026-08-22T05:42:56+00:00'
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  - title: 'test: add events search preprocessing cassettes'
+    section: tests
+    commits:
+    - a785a5290
+    authored_at: '2026-08-22T01:57:11+00:00'
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/5cd230365e6ad08f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/a5a475465b2fbc6e.json
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: app:ai'
+    - commit is reachable from main
+  - title: 'test: keep expensive inference specs manual-only'
+    section: tests
+    commits:
+    - a225b8fbb
+    authored_at: '2026-08-22T01:31:23+00:00'
+    changed_paths:
+    - scripts/ci/get_spec_batch.py
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is reachable from main
+  infrastructure:
+  - title: 'chore: advance dev to v0.17'
+    section: infrastructure
+    commits:
+    - 0cea2c2c0
+    authored_at: '2026-08-22T13:18:25+00:00'
+    changed_paths:
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .github/workflows/advance-dev-version.yml
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - .opencode/plugins/openmates-hooks.js
+    - README.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/apps/openapi_docs_gen.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/preview/main.py
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/package.json
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/typescript-config/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - package.json
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    - scripts/bump_alpha_version_line.py
+    - scripts/check_advance_dev_version.py
+    - scripts/prepare_cli_publish_version.mjs
+    - scripts/tests/test_advance_dev_version_workflow.py
+    - scripts/tests/test_bump_alpha_version_line.py
+    - scripts/tests/test_check_advance_dev_version.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - shared/config/product_version.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - 'matches feature availability gates: platform:ios, platform:macos'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'proof: capture deep research at laptop size'
+    section: infrastructure
+    commits:
+    - 280ce0226
+    authored_at: '2026-08-22T10:24:29+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is reachable from main
+  internal:
+  - title: 'proof: align terminal proof presentation'
+    section: internal
+    commits:
+    - ff1501aea
+    authored_at: '2026-08-22T15:25:25+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.test.ts
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - scripts/cli_video_capture.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_cli_video_capture.py
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/TerminalTutorial.tsx
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Harden automatic test account cleanup
+    section: internal
+    commits:
+    - b32332157
+    authored_at: '2026-08-22T12:00:05+00:00'
+    changed_paths:
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Stabilize Playwright account preflight
+    section: internal
+    commits:
+    - d24b6a3e7
+    authored_at: '2026-08-22T11:39:16+00:00'
+    changed_paths:
+    - docs/contributing/guides/testing.md
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/run_tests.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    - scripts/tests/test_run_tests_account_policy.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Tighten deep research proof assertions
+    section: internal
+    commits:
+    - b24d5974f
+    authored_at: '2026-08-22T11:26:34+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: 'proof: trust spec-owned video contracts'
+    section: internal
+    commits:
+    - 86187e81d
+    authored_at: '2026-08-22T10:11:02+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_proof_video_workflow.py
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  - title: Stabilize settings EU card purchase spec
+    section: internal
+    commits:
+    - 1628e74b6
+    authored_at: '2026-08-22T04:05:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    release_status: released_main
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is reachable from main
+  other:
+  - title: Recover empty finished sheet previews
+    section: other
+    commits:
+    - '321819142'
+    authored_at: '2026-08-22T17:42:31+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'fix: stabilize events proof visuals'
+    commits:
+    - 57af768d1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: polish mobile events map proof'
+    commits:
+    - aa0b1608e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: auto-pace proof videos'
+    commits:
+    - a90355066
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: assert natural events prompt'
+    commits:
+    - be797ee9e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: use natural events proof prompt'
+    commits:
+    - a592359f3
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clarify reload proof transition'
+    commits:
+    - c66cb8480
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: anchor proof captions to checkpoints'
+    commits:
+    - 3fa3bd8bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: align proof captions to actions'
+    commits:
+    - 0f8fe1fac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: wait for hydrated events map proof'
+    commits:
+    - 9700e4561
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: include proof reload action timing'
+    commits:
+    - 3cfbcdf0e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep cli recording upload nonfatal'
+    commits:
+    - 38b83d3ec
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: sync agent skill mirror'
+    commits:
+    - 016c39b96
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: publish latest proof videos'
+    commits:
+    - 2b91273d8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: add events proof timeline'
+    commits:
+    - 30aa3c061
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep laptop events proof at laptop size'
+    commits:
+    - 636ca8997
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep events proof recordings clean'
+    commits:
+    - 1e39e91bd
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: dismiss notifications before events proof report issue'
+    commits:
+    - 3d3a68e4e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep live HTTP cache writes non-fatal'
+    commits:
+    - e10855300
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep live record cache writes non-fatal'
+    commits:
+    - 5df33a3e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: resume event newsletter safely'
+    commits:
+    - 4beb42f83
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Recover empty finished sheet previews
+    commits:
+    - '321819142'
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix blank sheet preview in deep research proof
+    commits:
+    - e5b18a111
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix Brevo runtime health email delivery
+    commits:
+    - 69e0fb4ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: route explicit app skill mentions'
+    commits:
+    - b7847ef89
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: use app embed links in event emails'
+    commits:
+    - a66b7997b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Fix sub-chat return navigation visibility
+    commits:
+    - 1068f8cca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: report CLI duration in Playwright helper'
+    commits:
+    - deb357799
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: avoid retrying completed app skills after output safety failure'
+    commits:
+    - 9087d3b5c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'proof: align terminal proof presentation'
+    commits:
+    - ff1501aea
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: honor proof-video spec exemptions in session gate'
+    commits:
+    - 1d1a6742a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix Playwright proof rendering and sub-chat labels
+    commits:
+    - 47500c7ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: add API account preflight mode'
+    commits:
+    - 9850cc8d5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hold readable cli proof frame'
+    commits:
+    - d019a4b94
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: bound events search sanitizer latency'
+    commits:
+    - 14f734d7b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+  - title: 'fix: support event newsletter simulation'
+    commits:
+    - 6edafb50b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hold cli proof output frames'
+    commits:
+    - 8fcf0800f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: advance dev to v0.17'
+    commits:
+    - 0cea2c2c0
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:ios
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: platform:macos
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'test: align map view hydration assertion'
+    commits:
+    - e928919ed
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: sample cli proof output frames'
+    commits:
+    - 3d515fa6f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: package encrypted slug migration'
+    commits:
+    - a7b7f529a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: gate visual results view instructions'
+    commits:
+    - 1c5097318
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: expand cli proof transcript'
+    commits:
+    - 5699bbc49
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: select named cli proof recording'
+    commits:
+    - fd332d0e0
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow cli proof video profile dispatch'
+    commits:
+    - 8655b7def
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: automate cli proof videos'
+    commits:
+    - 6ac3a62c0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Harden automatic test account cleanup
+    commits:
+    - b32332157
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix deep research proof capture
+    commits:
+    - 33a7bdef1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'test: add API account preflight mode'
+    commits:
+    - 9850cc8d5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Fix Pytest release blockers
+    commits:
+    - cc967a499
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+marketing_candidates:
+  newsletter:
+  - title: 'feat: add since filter to server logs'
+    commits:
+    - e83f63442
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Fix billing credit refresh after payment
+    commits:
+    - 1b05b19f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+  - title: Fix standalone embed ref normalization guard
+    commits:
+    - cfef15e20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Fix remaining Pytest encoding checks
+    commits:
+    - dd1c41f75
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: Fix Pytest release blockers
+    commits:
+    - cc967a499
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  social_or_video:
+  - title: 'fix: stabilize events proof visuals'
+    commits:
+    - 57af768d1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: polish mobile events map proof'
+    commits:
+    - aa0b1608e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: include proof reload action timing'
+    commits:
+    - 3cfbcdf0e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep live record cache writes non-fatal'
+    commits:
+    - 5df33a3e7
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: Recover empty finished sheet previews
+    commits:
+    - '321819142'
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix blank sheet preview in deep research proof
+    commits:
+    - e5b18a111
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix Brevo runtime health email delivery
+    commits:
+    - 69e0fb4ac
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: route explicit app skill mentions'
+    commits:
+    - b7847ef89
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: use app embed links in event emails'
+    commits:
+    - a66b7997b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix sub-chat return navigation visibility
+    commits:
+    - 1068f8cca
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: avoid retrying completed app skills after output safety failure'
+    commits:
+    - 9087d3b5c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: Fix Playwright proof rendering and sub-chat labels
+    commits:
+    - 47500c7ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hold readable cli proof frame'
+    commits:
+    - d019a4b94
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: bound events search sanitizer latency'
+    commits:
+    - 14f734d7b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: embed:events:search
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    - id: skill:events:search
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:events
+      source: backend/apps/events/app.yml
+    newsletter_ready: false
+  - title: 'fix: gate visual results view instructions'
+    commits:
+    - 1c5097318
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: expand cli proof transcript'
+    commits:
+    - 5699bbc49
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: automate cli proof videos'
+    commits:
+    - 6ac3a62c0
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Fix deep research proof capture
+    commits:
+    - 33a7bdef1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: add since filter to server logs'
+    commits:
+    - e83f63442
+    section: features
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: Fix billing credit refresh after payment
+    commits:
+    - 1b05b19f9
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features: []
+    newsletter_ready: true
+  - title: Fix standalone embed ref normalization guard
+    commits:
+    - cfef15e20
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: Fix remaining Pytest encoding checks
+    commits:
+    - dd1c41f75
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+  - title: Fix Pytest release blockers
+    commits:
+    - cc967a499
+    section: bug_fixes
+    release_status: released_main
+    communication_status: ready_for_public_communication
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: true
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 57af768d193fd729a859b644cc43d8dfd91384be
+    short_sha: 57af768d1
+    authored_at: '2026-08-22T23:58:28+00:00'
+    subject: 'fix: stabilize events proof visuals'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/events/EventsSearchEmbedPreview.svelte
+    related_feature_ids:
+    - embed:events:search
+  - sha: aa0b1608e1d1380fdbc9386d95abb46e8b4dad90
+    short_sha: aa0b1608e
+    authored_at: '2026-08-22T23:43:54+00:00'
+    subject: 'fix: polish mobile events map proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: a903550667b1adf50531cff0d10a25cf0ade4c98
+    short_sha: a90355066
+    authored_at: '2026-08-22T23:28:15+00:00'
+    subject: 'test: auto-pace proof videos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/proof_video_workflow.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: be797ee9eb2b5cf990362478ff48d976912d58e0
+    short_sha: be797ee9e
+    authored_at: '2026-08-22T23:12:11+00:00'
+    subject: 'test: assert natural events prompt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: a592359f3be2eff3949fce33c2f12512e2fdce1e
+    short_sha: a592359f3
+    authored_at: '2026-08-22T23:00:34+00:00'
+    subject: 'test: use natural events proof prompt'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: c66cb84808fd5ae84e80df8208be2722a4f9f167
+    short_sha: c66cb8480
+    authored_at: '2026-08-22T22:48:07+00:00'
+    subject: 'test: clarify reload proof transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3fa3bd8bfe0380a1ea8d04002bc02772306ebd3f
+    short_sha: 3fa3bd8bf
+    authored_at: '2026-08-22T22:26:48+00:00'
+    subject: 'fix: anchor proof captions to checkpoints'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 0f8fe1fac742ea1a7fb5f8a5159f8eba35503c5b
+    short_sha: 0f8fe1fac
+    authored_at: '2026-08-22T22:11:52+00:00'
+    subject: 'fix: align proof captions to actions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 9700e4561af452aac61ffde479e13f0059c60c40
+    short_sha: 9700e4561
+    authored_at: '2026-08-22T21:55:52+00:00'
+    subject: 'test: wait for hydrated events map proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3cfbcdf0e7727825ce575dc7454948a0422f79e6
+    short_sha: 3cfbcdf0e
+    authored_at: '2026-08-22T21:42:04+00:00'
+    subject: 'fix: include proof reload action timing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 38b83d3eca00d525ba9d23c140e121cfaa5fb49b
+    short_sha: 38b83d3ec
+    authored_at: '2026-08-22T21:25:30+00:00'
+    subject: 'fix: keep cli recording upload nonfatal'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/cli_video_capture.py
+    - scripts/tests/test_cli_video_capture.py
+    related_feature_ids: []
+  - sha: 016c39b96639b6dc6d895e8044f754010e2eaa02
+    short_sha: 016c39b96
+    authored_at: '2026-08-22T21:10:00+00:00'
+    subject: 'chore: sync agent skill mirror'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/tasks-from-spec/SKILL.md
+    related_feature_ids: []
+  - sha: 2b91273d8cd864e05da57620e46bd3c04aea4802
+    short_sha: 2b91273d8
+    authored_at: '2026-08-22T21:08:30+00:00'
+    subject: 'test: publish latest proof videos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/skills/tasks-from-spec/SKILL.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/spec-driven-development.md
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - scripts/audit_opencode_spec_workflow.py
+    - scripts/cli_video_capture.py
+    - scripts/opencode_response_media.py
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_cli_video_capture.py
+    - scripts/tests/test_opencode_response_media.py
+    - scripts/tests/test_opencode_spec_workflow_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 30aa3c0619d81c33f7888a867fc8c2689e2a748e
+    short_sha: 30aa3c061
+    authored_at: '2026-08-22T19:47:07+00:00'
+    subject: 'test: add events proof timeline'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 636ca8997c2c38c7fe57b508cd32d0bebe5eb73e
+    short_sha: 636ca8997
+    authored_at: '2026-08-22T19:30:14+00:00'
+    subject: 'test: keep laptop events proof at laptop size'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 1e39e91bda7aeb8aa7ffc95529b8504cd39edb39
+    short_sha: 1e39e91bd
+    authored_at: '2026-08-22T19:14:46+00:00'
+    subject: 'test: keep events proof recordings clean'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/tests/test_message_received_test_markers.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3d3a68e4ef977a58ada963374da26000d85cbfdc
+    short_sha: 3d3a68e4e
+    authored_at: '2026-08-22T18:40:48+00:00'
+    subject: 'test: dismiss notifications before events proof report issue'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: e1085530067bd442d6f97211e62a95f6303c2f4c
+    short_sha: e10855300
+    authored_at: '2026-08-22T18:10:51+00:00'
+    subject: 'fix: keep live HTTP cache writes non-fatal'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/testing/caching_http_transport.py
+    - backend/tests/test_caching_http_transport.py
+    related_feature_ids: []
+  - sha: 5df33a3e7adf026a2d81ad864f3364cd22321d4a
+    short_sha: 5df33a3e7
+    authored_at: '2026-08-22T17:47:16+00:00'
+    subject: 'fix: keep live record cache writes non-fatal'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/caching_llm_wrapper.py
+    - backend/tests/test_caching_llm_wrapper.py
+    related_feature_ids:
+    - app:ai
+  - sha: 4beb42f8373897390f337b7d212552a44efb6b9b
+    short_sha: 4beb42f83
+    authored_at: '2026-08-22T17:45:06+00:00'
+    subject: 'fix: resume event newsletter safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    - backend/tests/test_events_newsletter_broadcast.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 321819142413dd10b3c93cb3fc26ec7ec8f37d42
+    short_sha: '321819142'
+    authored_at: '2026-08-22T17:42:31+00:00'
+    subject: Recover empty finished sheet previews
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    related_feature_ids: []
+  - sha: e5b18a111db03d8baaf55657a014a7f1804ee789
+    short_sha: e5b18a111
+    authored_at: '2026-08-22T16:47:38+00:00'
+    subject: Fix blank sheet preview in deep research proof
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/components/embeds/sheets/SheetEmbedPreview.svelte
+    - scripts/spec_demo.py
+    related_feature_ids: []
+  - sha: 69e0fb4acf9c57702d88c7639d5696a1e31665b3
+    short_sha: 69e0fb4ac
+    authored_at: '2026-08-22T16:38:25+00:00'
+    subject: Fix Brevo runtime health email delivery
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/serverHealth.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: b7847ef89694017af210c9c4615dedf7b159fe96
+    short_sha: b7847ef89
+    authored_at: '2026-08-22T16:18:40+00:00'
+    subject: 'fix: route explicit app skill mentions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_preprocessor_skill_resolver.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+  - sha: a66b7997bb3456ee2e30ac27b79889042a529089
+    short_sha: a66b7997b
+    authored_at: '2026-08-22T16:06:21+00:00'
+    subject: 'fix: use app embed links in event emails'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/shared/python_utils/events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_generator.py
+    - backend/tests/test_events_newsletter_render.py
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/src/routes/(seo)/events/[slug]/+page.server.ts
+    related_feature_ids: []
+  - sha: 1068f8ccad79353bfa2fb89aee6b57c39df476d3
+    short_sha: 1068f8cca
+    authored_at: '2026-08-22T15:56:36+00:00'
+    subject: Fix sub-chat return navigation visibility
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: deb3577993b863672dbad0af138ffc207e615f1a
+    short_sha: deb357799
+    authored_at: '2026-08-22T15:53:53+00:00'
+    subject: 'test: report CLI duration in Playwright helper'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    related_feature_ids: []
+  - sha: 9087d3b5c208bead384c3383fd01791331c468f8
+    short_sha: 9087d3b5c
+    authored_at: '2026-08-22T15:39:49+00:00'
+    subject: 'fix: avoid retrying completed app skills after output safety failure'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/dd2d9aa8dd90303f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/5cd230365e6ad08f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/a5a475465b2fbc6e.json
+    - backend/tests/test_skill_executor_registry_refresh.py
+    related_feature_ids:
+    - app:ai
+  - sha: ff1501aeac05276e6cebfeba260214912b9153a4
+    short_sha: ff1501aea
+    authored_at: '2026-08-22T15:25:25+00:00'
+    subject: 'proof: align terminal proof presentation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.test.ts
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - scripts/cli_video_capture.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_cli_video_capture.py
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/TerminalTutorial.tsx
+    related_feature_ids: []
+  - sha: 1d1a6742a5a7249800fcaae2c78cb46098ed248c
+    short_sha: 1d1a6742a
+    authored_at: '2026-08-22T15:02:26+00:00'
+    subject: 'fix: honor proof-video spec exemptions in session gate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_proof_video.py
+    related_feature_ids: []
+  - sha: 47500c7ee8e2d82ad01d0075ca8d74312bb06d0d
+    short_sha: 47500c7ee
+    authored_at: '2026-08-22T14:30:13+00:00'
+    subject: Fix Playwright proof rendering and sub-chat labels
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/apps/web_app/tests/focus-mode-example-chats.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/sub_chats/SubChatBatchPreview.svelte
+    - scripts/spec_demo.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    related_feature_ids: []
+  - sha: 9850cc8d54911fbc310def0e6808f53973bb55bb
+    short_sha: 9850cc8d5
+    authored_at: '2026-08-22T13:59:30+00:00'
+    subject: 'test: add API account preflight mode'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - docs/contributing/guides/agent-workflow-core.md
+    - docs/contributing/guides/testing.md
+    - frontend/apps/web_app/tests/test-account-preflight.spec.ts
+    - scripts/audit_playwright_proof_metadata.py
+    - scripts/run_tests.py
+    - scripts/tests/test_playwright_proof_metadata_audit.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_verify_test_account_login.py
+    - scripts/verify_test_account_login.py
+    related_feature_ids: []
+  - sha: d019a4b94294b96991a4b1620fca16c160c10fc0
+    short_sha: d019a4b94
+    authored_at: '2026-08-22T13:46:37+00:00'
+    subject: 'fix: hold readable cli proof frame'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/server.ts
+    - scripts/spec_demo.py
+    related_feature_ids: []
+  - sha: 14f734d7b830e7d27d99337b122be19587beb79f
+    short_sha: 14f734d7b
+    authored_at: '2026-08-22T13:45:18+00:00'
+    subject: 'fix: bound events search sanitizer latency'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/events/skills/search_skill.py
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_events_provider_routing.py
+    - backend/tests/test_events_search_output_safety.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - contracts/architecture/app-skill-execution/contract.yml
+    - contracts/architecture/app-skill-execution/examples.yml
+    - contracts/features/app-skills/events-search/contract.yml
+    - contracts/features/app-skills/events-search/examples.yml
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - contracts/generated/registry.yml
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids:
+    - app:ai
+    - app:events
+    - embed:events:search
+    - skill:events:search
+  - sha: 6edafb50bc55306e2d9b864e592b69fb192732d1
+    short_sha: 6edafb50b
+    authored_at: '2026-08-22T13:36:04+00:00'
+    subject: 'fix: support event newsletter simulation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/scripts/send_newsletter.py
+    - backend/tests/test_events_newsletter_broadcast.py
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 8fcf0800f385bce95b2a296488cdc6824c70b4f3
+    short_sha: 8fcf0800f
+    authored_at: '2026-08-22T13:30:29+00:00'
+    subject: 'fix: hold cli proof output frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    related_feature_ids: []
+  - sha: 0cea2c2c091517ba590abe155f50343cfd3dcbcb
+    short_sha: 0cea2c2c0
+    authored_at: '2026-08-22T13:18:25+00:00'
+    subject: 'chore: advance dev to v0.17'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-release/SKILL.md
+    - .agents/skills/new-task/SKILL.md
+    - .claude/skills/create-release/SKILL.md
+    - .claude/skills/new-task/SKILL.md
+    - .github/workflows/advance-dev-version.yml
+    - .github/workflows/publish-cli.yml
+    - .github/workflows/publish-python-sdk.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - .opencode/plugins/openmates-hooks.js
+    - README.md
+    - apple/OpenMates.xcodeproj/project.pbxproj
+    - apple/project.yml
+    - backend/apps/openapi_docs_gen.py
+    - backend/core/docker-compose.selfhost.yml
+    - backend/preview/main.py
+    - backend/status/frontend/package-lock.json
+    - backend/status/frontend/package.json
+    - docs/architecture/platforms/cli-package.md
+    - docs/contributing/guides/git-and-deployment.md
+    - docs/contributing/guides/publish-python-sdk.md
+    - docs/user-guide/cli/server-management.md
+    - frontend/apps/web_app/package.json
+    - frontend/packages/eslint-config/package.json
+    - frontend/packages/openmates-cli/README.md
+    - frontend/packages/openmates-cli/package.json
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverConfig.ts
+    - frontend/packages/secret-scanner/package.json
+    - frontend/packages/typescript-config/package.json
+    - frontend/packages/ui/package.json
+    - frontend/packages/ui/src/i18n/sources/signup/main.yml
+    - package.json
+    - packages/openmates-python/README.md
+    - packages/openmates-python/pyproject.toml
+    - scripts/bump_alpha_version_line.py
+    - scripts/check_advance_dev_version.py
+    - scripts/prepare_cli_publish_version.mjs
+    - scripts/tests/test_advance_dev_version_workflow.py
+    - scripts/tests/test_bump_alpha_version_line.py
+    - scripts/tests/test_check_advance_dev_version.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - shared/config/product_version.json
+    related_feature_ids:
+    - platform:ios
+    - platform:macos
+  - sha: e928919eda5e42c6da0057e53732d47f7473e703
+    short_sha: e928919ed
+    authored_at: '2026-08-22T13:12:56+00:00'
+    subject: 'test: align map view hydration assertion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/embeds-map-view.spec.ts
+    related_feature_ids: []
+  - sha: 3d515fa6fed07a74028bf2412bd31e618301190f
+    short_sha: 3d515fa6f
+    authored_at: '2026-08-22T13:09:40+00:00'
+    subject: 'fix: sample cli proof output frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    related_feature_ids: []
+  - sha: a7b7f529aac4c52501ced1b7a42a638c2515d3cd
+    short_sha: a7b7f529a
+    authored_at: '2026-08-22T12:52:49+00:00'
+    subject: 'fix: package encrypted slug migration'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/update-prod-server/SKILL.md
+    - .claude/skills/update-prod-server/SKILL.md
+    - backend/core/directus/Dockerfile.setup.selfhost
+    - backend/tests/test_cli_object_slugs.py
+    - contracts/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 1c50973184d0073059179d82e6a56290accec07b
+    short_sha: 1c5097318
+    authored_at: '2026-08-22T12:46:09+00:00'
+    subject: 'fix: gate visual results view instructions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/tasks/async_skill_continuation.py
+    - backend/apps/ai/utils/embeds_map_view.py
+    - backend/tests/test_async_skill_continuation.py
+    - backend/tests/test_embeds_map_view_contract.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 5699bbc493c4a7680f56cc19a10dade20a647f5d
+    short_sha: 5699bbc49
+    authored_at: '2026-08-22T12:42:30+00:00'
+    subject: 'fix: expand cli proof transcript'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    related_feature_ids: []
+  - sha: fd332d0e0ebcbf6b995bbe027f9b37bc96d3ced1
+    short_sha: fd332d0e0
+    authored_at: '2026-08-22T12:31:46+00:00'
+    subject: 'fix: select named cli proof recording'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 8655b7def597fd17ff415fbbb6064895ce2954d8
+    short_sha: 8655b7def
+    authored_at: '2026-08-22T12:21:00+00:00'
+    subject: 'fix: allow cli proof video profile dispatch'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: 6ac3a62c09cd683e79ce364b89bcf036bea0ffde
+    short_sha: 6ac3a62c0
+    authored_at: '2026-08-22T12:03:18+00:00'
+    subject: 'feat: automate cli proof videos'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.test.ts
+    - frontend/apps/web_app/tests/helpers/cli-test-helpers.ts
+    - frontend/apps/web_app/tests/proof-video-cli.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    - scripts/tests/test_run_tests_account_policy.py
+    - scripts/tests/test_tests_control.py
+    - tooling/proof-video-remotion/src/Root.tsx
+    - tooling/proof-video-remotion/src/TerminalTutorial.tsx
+    - tooling/proof-video-remotion/src/render.mjs
+    - tooling/proof-video-remotion/src/types.ts
+    related_feature_ids: []
+  - sha: b3233215716f2eadee910a6fe1355936c79919cf
+    short_sha: b32332157
+    authored_at: '2026-08-22T12:00:05+00:00'
+    subject: Harden automatic test account cleanup
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    related_feature_ids: []
+  - sha: 33a7bdef1fbc53dc23cb7181584b29e01698f905
+    short_sha: 33a7bdef1
+    authored_at: '2026-08-22T11:57:49+00:00'
+    subject: Fix deep research proof capture
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: d24b6a3e799c8e850147956e65774ab941abe12c
+    short_sha: d24b6a3e7
+    authored_at: '2026-08-22T11:39:16+00:00'
+    subject: Stabilize Playwright account preflight
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/testing.md
+    - scripts/cleanup_dev_signup_accounts.py
+    - scripts/run_tests.py
+    - scripts/tests/test_cleanup_dev_signup_accounts.py
+    - scripts/tests/test_run_tests_account_policy.py
+    related_feature_ids: []
+  - sha: b24d5974ff6960ce16afc18f17f0fbd31b37dbc3
+    short_sha: b24d5974f
+    authored_at: '2026-08-22T11:26:34+00:00'
+    subject: Tighten deep research proof assertions
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 4cfca31978fa60371b456050ce90dcc0cad61382
+    short_sha: 4cfca3197
+    authored_at: '2026-08-22T11:22:48+00:00'
+    subject: Persist daily test progress snapshots
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests.py
+    - scripts/tests/test_run_tests_progress_snapshots.py
+    - scripts/tests/test_tests_control_directus_auth.py
+    related_feature_ids: []
+  - sha: e83f634428544e3932c1c563149caec4920bebe3
+    short_sha: e83f63442
+    authored_at: '2026-08-22T11:21:50+00:00'
+    subject: 'feat: add since filter to server logs'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/openmates-cli/src/server.ts
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    related_feature_ids: []
+  - sha: 333009e6e7a450b7b7c4ef48482c8242c1a2bd6b
+    short_sha: 333009e6e
+    authored_at: '2026-08-22T11:05:10+00:00'
+    subject: Fix spec proof video rendering
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 2e29a0f18584264448e74747027538e1896028d3
+    short_sha: 2e29a0f18
+    authored_at: '2026-08-22T10:53:56+00:00'
+    subject: 'test: stabilize events search phone proof'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/events_search_web/llm__gemini-3.5-flash-lite/dd2d9aa8dd90303f.json
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: a9330caad49d89b15ed907c94c552f9bed7a4a35
+    short_sha: a9330caad
+    authored_at: '2026-08-22T10:38:21+00:00'
+    subject: 'proof: compact spec-owned Playwright videos'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 280ce02267c9f91b368d89e71dd3722f729a3fcc
+    short_sha: 280ce0226
+    authored_at: '2026-08-22T10:24:29+00:00'
+    subject: 'proof: capture deep research at laptop size'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - scripts/run_tests.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    related_feature_ids: []
+  - sha: d48a366becd3f21694e2dc911bbd24ad61f7c8c7
+    short_sha: d48a366be
+    authored_at: '2026-08-22T10:14:25+00:00'
+    subject: 'test: extend events search CLI proof timeout'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 86187e81d6d55789e9f92a9ff0476491e628cd70
+    short_sha: 86187e81d
+    authored_at: '2026-08-22T10:11:02+00:00'
+    subject: 'proof: trust spec-owned video contracts'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    - scripts/proof_video_workflow.py
+    - scripts/spec_demo.py
+    - scripts/tests/test_proof_video_workflow.py
+    related_feature_ids: []
+  - sha: 766177632ad4edf17aa1dde18089c6545efcc03c
+    short_sha: '766177632'
+    authored_at: '2026-08-22T07:53:29+00:00'
+    subject: Stabilize settings EU Stripe test
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    related_feature_ids: []
+  - sha: 1b05b19f932ee1800cfe08121174fb8a9a6fdc64
+    short_sha: 1b05b19f9
+    authored_at: '2026-08-22T07:10:08+00:00'
+    subject: Fix billing credit refresh after payment
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: df64f87553564cbcd92b7593c1c08fa4cbb41041
+    short_sha: df64f8755
+    authored_at: '2026-08-22T06:29:11+00:00'
+    subject: Wait for saved payment auth prompt
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/saved-payment-invoice-flow.spec.ts
+    related_feature_ids: []
+  - sha: 0d6ce2b87e0cd216071a64e4aec9d3d6598e3e23
+    short_sha: 0d6ce2b87
+    authored_at: '2026-08-22T05:56:45+00:00'
+    subject: Restore recording cleanup regression coverage
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/tests/test_disk_cleanup_safety.py
+    related_feature_ids: []
+  - sha: 7950946a35a04c3c6c1278a64fe8b6c85e11162c
+    short_sha: 7950946a3
+    authored_at: '2026-08-22T05:54:37+00:00'
+    subject: Restore release gate artifact safeguards
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_disk_cleanup_safety.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids: []
+  - sha: da25450aa6825d1b292d4fe87fd8c8a025268843
+    short_sha: da25450aa
+    authored_at: '2026-08-22T05:42:56+00:00'
+    subject: Assign unique release gate test accounts
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/run_tests.py
+    - scripts/tests/test_release_core_journeys_gate.py
+    related_feature_ids: []
+  - sha: 1628e74b6b71fbf610df8d81903a852d0e9dbca4
+    short_sha: 1628e74b6
+    authored_at: '2026-08-22T04:05:05+00:00'
+    subject: Stabilize settings EU card purchase spec
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/settings-buy-credits-stripe-eu.spec.ts
+    - frontend/packages/ui/src/components/settings/billing/SettingsBuyCreditsPayment.svelte
+    related_feature_ids: []
+  - sha: 4ded02126febd8049b439c9105f2ce95a9f8bbc8
+    short_sha: 4ded02126
+    authored_at: '2026-08-22T03:32:18+00:00'
+    subject: Fix PR self-host docs worker build
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - .github/workflows/publish-selfhost-images.yml
+    related_feature_ids: []
+  - sha: cfef15e203cde7745d16934a9d0a7321b7dde269
+    short_sha: cfef15e20
+    authored_at: '2026-08-22T03:14:02+00:00'
+    subject: Fix standalone embed ref normalization guard
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    related_feature_ids:
+    - app:ai
+  - sha: dd1c41f75302976ac4b162f86ea112befe5ec3fc
+    short_sha: dd1c41f75
+    authored_at: '2026-08-22T03:02:55+00:00'
+    subject: Fix remaining Pytest encoding checks
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/tests/test_code_execution.py
+    related_feature_ids:
+    - app:ai
+  - sha: cc967a499c15fe562d9b78bc1c4b409e5e9c4042
+    short_sha: cc967a499
+    authored_at: '2026-08-22T02:51:10+00:00'
+    subject: Fix Pytest release blockers
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/pytest.ini
+    - backend/tests/runtime_import_stubs.py
+    - backend/tests/test_code_execution.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_projects.py
+    - backend/tests/test_travel_departure_time_contract.py
+    - backend/tests/test_unified_detail_metadata.py
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-generate-product-success-chime.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/audio-speak-friendly-welcome-message.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_generate_product_success_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/audio_speak_friendly_welcome_message.yml
+    related_feature_ids:
+    - app:ai
+  - sha: a785a52901389dc4c3b9396db25ccc87225231e9
+    short_sha: a785a5290
+    authored_at: '2026-08-22T01:57:11+00:00'
+    subject: 'test: add events search preprocessing cassettes'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/5cd230365e6ad08f.json
+    - backend/apps/ai/testing/api_cache/events_search_web/llm_non_stream__mistral-small-2506/a5a475465b2fbc6e.json
+    related_feature_ids:
+    - app:ai
+  - sha: a225b8fbb142abc36f6cd2d903de682eab7b55b0
+    short_sha: a225b8fbb
+    authored_at: '2026-08-22T01:31:23+00:00'
+    subject: 'test: keep expensive inference specs manual-only'
+    in_main: true
+    in_dev: true
+    changed_paths:
+    - scripts/ci/get_spec_batch.py
+    - scripts/run_tests.py
+    - scripts/sync_obsidian_test_results.py
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates introduced a new time-based filter for CLI server logs and resolved several critical blockers for AI
+    task processing and billing. Significant progress was also made on automating product demonstration videos for the CLI
+    and deep research features, alongside a version bump to v0.17.
+  released_changes:
+  - text: The OpenMates CLI now includes a '--since' filter for server logs, enabling more targeted debugging of recent events.
+    evidence:
+      commits:
+      - e83f63442
+    release_status: released_main
+  - text: Billing credit balances are now updated automatically in the settings view following a successful transaction.
+    evidence:
+      commits:
+      - 1b05b19f9
+    release_status: released_main
+  - text: AI task processing was enhanced with improved standalone embed reference normalization and resolved encoding issues
+      during code execution.
+    evidence:
+      commits:
+      - cfef15e20
+      - dd1c41f75
+      - cc967a499
+    release_status: released_main
+  bug_fixes:
+  - text: Fixed a synchronization issue where billing credit balances did not refresh in the UI immediately after a successful
+      payment.
+    evidence:
+      commits:
+      - 1b05b19f9
+    release_status: released_main
+  - text: Resolved several critical blockers for AI task processing, including embed reference normalization guards and Pytest
+      encoding errors.
+    evidence:
+      commits:
+      - cfef15e20
+      - dd1c41f75
+      - cc967a499
+    release_status: released_main
+  - text: Corrected a build failure for the self-hosted documentation worker in pull request workflows.
+    evidence:
+      commits:
+      - 4ded02126
+    release_status: released_main
+  unreleased_progress:
+  - text: Development is underway for automated CLI proof videos, including terminal tutorial rendering and expanded transcripts.
+    evidence:
+      commits:
+      - 6ac3a62c0
+      - d019a4b94
+      - 5699bbc49
+      - ff1501aea
+    release_status: dev_only
+  - text: The project advanced to v0.17, incorporating infrastructure updates for unreleased iOS and macOS platforms.
+    evidence:
+      commits:
+      - 0cea2c2c0
+    release_status: dev_only
+  - text: Polishing continued for events search visuals, mobile map views, and the inclusion of app embed links in event newsletters.
+    evidence:
+      commits:
+      - 57af768d1
+      - aa0b1608e
+      - 14f734d7b
+      - a66b7997b
+    release_status: dev_only
+  - text: Deep research proofing was improved with fixes for sheet previews, sub-chat navigation visibility, and Playwright
+      rendering.
+    evidence:
+      commits:
+      - e5b18a111
+      - 33a7bdef1
+      - 47500c7ee
+      - 1068f8cca
+    release_status: dev_only
+  - text: AI safety and routing logic were refined to handle explicit skill mentions and prevent unnecessary retries after
+      safety failures.
+    evidence:
+      commits:
+      - b7847ef89
+      - 9087d3b5c
+      - 1c5097318
+    release_status: dev_only
+  internal_progress:
+  - text: Hardened automatic test account cleanup and stabilized Playwright preflight checks to ensure environment consistency.
+    evidence:
+      commits:
+      - b32332157
+      - d24b6a3e7
+    release_status: dev_only
+  - text: Implemented persistence for daily test progress snapshots to better track development velocity.
+    evidence:
+      commits:
+      - 4cfca3197
+    release_status: released_main
+  - text: Restored release gate safeguards and artifact cleanup routines for core journey testing.
+    evidence:
+      commits:
+      - 0d6ce2b87
+      - 7950946a3
+      - da25450aa
+    release_status: released_main
+  newsletter_recommendation:
+    include:
+    - text: OpenMates CLI now supports a 'since' filter for server logs.
+      evidence:
+        commits:
+        - e83f63442
+      reason: Adds a useful debugging filter for CLI users.
+    - text: Billing credit balances now refresh automatically after payment.
+      evidence:
+        commits:
+        - 1b05b19f9
+      reason: Resolves a common user friction point in the billing workflow.
+    - text: Improved AI task reliability and embed normalization.
+      evidence:
+        commits:
+        - cfef15e20
+        - dd1c41f75
+        - cc967a499
+      reason: Critical stability improvements for the core AI task engine.
+    exclude:
+    - text: Automated CLI proof video generation.
+      evidence:
+        commits:
+        - 6ac3a62c0
+      reason: This feature is currently dev-only and relates to internal proof-video automation.
+    - text: Advance development version to v0.17.
+      evidence:
+        commits:
+        - 0cea2c2c0
+      reason: This is an infrastructure version bump and includes work for disabled platforms (iOS/macOS).
+    rationale: The updates to CLI logging and billing provide immediate value to users, while the AI stability fixes ensure
+      the core product remains reliable. Dev-only automation and infrastructure versioning are excluded.
+  social_video_recommendations:
+  - idea: A short clip demonstrating the new CLI '--since' filter to quickly isolate server logs.
+    priority: Medium
+    reason: Concrete CLI improvement that is easy to visualize for technical users.
+    evidence:
+      commits:
+      - e83f63442
+  quality_notes:
+  - CLI log filtering improves developer experience for self-hosted instances.
+  - AI task engine stability was a primary focus for this release cycle.
+  - Billing UI responsiveness was improved to prevent user confusion after credit purchases.
+  validation_warnings: []

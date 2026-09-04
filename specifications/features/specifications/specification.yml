@@ -1,0 +1,309 @@
+schema_version: 1
+id: feature.specifications
+version: 1
+status: draft
+title: Specifications
+summary: >
+  Specifications are versioned, approval-bound definitions of durable product truth.
+  They describe capability requirements, domain states, user flows, and equivalent
+  behavior across interfaces without becoming implementation plans or test logs.
+
+purpose:
+  outcomes:
+    - Give users and agents one durable source for what a capability must do.
+    - Make UI, API, CLI, SDK, privacy, and accessibility obligations traceable to stable Requirements backed by canonical assertion ids.
+    - Let Projects display Specifications as encrypted, editable file-like embeds with reviewable revisions.
+    - Present Specification truth as a readable human document with visual diagrams instead of requiring readers to understand raw YAML or diagram source.
+    - Support a universal core with optional UX, finance, marketing, research, operations, event, and other domain templates.
+
+scope:
+  includes:
+    - Specification identity, goal, scope, extensible models and requirement categories, rich-content flows and edge cases, applicability, relationships, revisions, and approvals.
+    - Capability-first composition with optional links to independently reusable or independently versioned Specifications.
+    - UI Specifications only for substantial, reusable, independently owned, approved, or versioned behavior; small UI details stay in their governing Specification.
+    - Human-readable Specification pages composed from custom capability chapters, typed semantic blocks, explanatory text, embedded media, coverage, and history.
+    - Version-pinned diagram embeds that retain encrypted editable source and a source-matched encrypted rendered preview.
+    - A default diagram-tool policy for architecture, runtime behavior, state, data, UI-flow, wireframe, and design-reference views.
+    - Project-linked Specification preview and fullscreen embed experiences with draft editing, revision comparison, approval, coverage, and history.
+    - Links from Plans, Checks, documentation, implementation sources, and other Specifications to exact Specification revisions, requirement ids, or flow ids.
+    - Client-encrypted private Specification content and minimal server-visible identity, revision, approval, routing, and relationship metadata.
+  excludes:
+    - Implementation Tasks, execution scheduling, Check Run output, and mutable work progress.
+    - Requiring a separate UI Specification or independently stored embed for every screen, component, user flow, edge case, step, or visual state.
+    - A separate Scenario model in V1; edge cases use the same rich-content flow representation and may identify a parent user flow.
+    - Requiring a standalone Diagrams chapter when diagrams, images, mind maps, and other embeds are clearer in their relevant outcome, chapter, model, flow, or edge-case content.
+    - Treating Figma, Penpot, source code, tests, or user guides as replacements for approved product truth.
+    - Treating a rendered diagram image as the only durable copy or as a replacement for editable diagram source.
+    - Showing raw Specification YAML, encrypted payloads, diagram source, or implementation metadata as the default reading experience.
+    - Sending private Specification or diagram plaintext to public rendering services or requiring a diagrams.net MCP server in the product runtime.
+    - Pixel geometry, decorative styling, or transient implementation details unless they are required for accessibility or behavior.
+
+relationships:
+  composition_rule: >
+    Keep related capability behavior, including its UI flows, in one primary
+    Specification. Link a sub-Specification only when the behavior is reused by multiple
+    capabilities, has an independent lifecycle or approval boundary, or would
+    otherwise make ownership materially ambiguous.
+  related_specifications:
+    - feature.projects
+    - feature.plans
+    - feature.checks
+    - feature.settings-ui
+
+diagram_policy:
+  selection:
+    c4_plantuml:
+      use_for: [system_context, container_architecture, component_architecture, deployment, trust_boundary, provider_integration]
+      reason: C4 semantics keep scope, responsibilities, technologies, boundaries, and protocols explicit and reviewable in concise text.
+    mermaid:
+      use_for: [sequence, state_machine, decision_flow, simple_activity_flow, lifecycle, small_data_model]
+      reason: Mermaid provides the lowest creation and modification effort for ordered behavior and compact graph structure.
+    drawio:
+      use_for: [ui_flow, wireframe, annotated_screenshot, stakeholder_overview, cross_functional_flow, large_curated_data_model]
+      reason: diagrams.net supports editable visual composition, images, metadata, and manual refinement for human-facing views.
+    design_reference:
+      use_for: [high_fidelity_ui, exact_visual_reference]
+      providers: [figma, penpot, image]
+      reason: Final design pixels stay in a design tool or image reference rather than being recreated as diagram geometry.
+  rendering:
+    c4_plantuml: local_or_self_hosted
+    mermaid: client_side_strict
+    drawio: self_hosted_embed_editor_and_local_cli
+    diagrams_net_mcp: not_required
+  readability_gates:
+    - Every diagram has a human title, purpose, scope, accessible description, and stable rule links.
+    - Architecture relationships identify direction, intent, and protocol where applicable.
+    - Inline previews remain readable without shrinking text below the product minimum; large diagrams open fullscreen with pan and zoom.
+    - Overlap, clipping, unreadable contrast, stale previews, missing source, and unlabelled material relationships are visible failures.
+
+actors:
+  - id: specification_author
+    role: Creates and refines a draft Specification revision.
+  - id: specification_approver
+    role: Approves an exact immutable revision after reviewing its material Requirements.
+  - id: implementer
+    role: Uses approved Requirements, flows, and surface applicability while executing a linked Plan.
+  - id: product_user
+    role: Reads understandable behavior and flow descriptions without needing source code or YAML knowledge.
+
+models:
+  SpecificationRecord:
+    specification_id: {type: stable_id, required: true}
+    current_revision_id: {type: stable_id, required: true}
+    status: {type: enum, values: [draft, approved, superseded, archived], required: true}
+    home_project_hash: {type: sha256_hex, required: true}
+    linked_project_hashes: {type: hashed_id_list, nullable: true}
+    encrypted_title: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+    encrypted_summary: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+
+  SpecificationRevision:
+    revision_id: {type: stable_id, required: true}
+    revision_number: {type: integer, required: true, constraints: {monotonic: true}}
+    content_hash: {type: sha256_hex, required: true}
+    project_surface_catalog_revision_id: {type: stable_id, required: true}
+    approval_state: {type: enum, values: [draft, approved, rejected, superseded], required: true}
+    supersedes_revision_id: {type: stable_id_or_null, nullable: true}
+    encrypted_specification_document: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+
+  SpecificationRequirement:
+    requirement_id: {type: stable_semantic_id, required: true, constraints: {canonical_source: assertions_id}}
+    category: {type: extensible_identifier, required: true, constraints: {examples: [behavior, invariant, privacy, security, accessibility, parity, financial_control, research_method, operational_safety, marketing_claim]}}
+    importance: {type: enum, values: [required, recommended], required: true}
+    encrypted_statement: {type: client_ciphertext, required: true, constraints: {human_readable: true}}
+    applies_to: {type: applicability_selector, required: true, constraints: {dimensions: [channels, audiences, locations, systems, devices, markets, teams, artifacts]}}
+    required_check_refs: {type: revision_bound_check_reference_list, nullable: true}
+    elements: {type: encrypted_structured_list, nullable: true}
+    interactions: {type: encrypted_structured_list, nullable: true}
+    states: {type: encrypted_structured_list, nullable: true}
+    accessibility: {type: encrypted_structured_list, nullable: true}
+    responsive_behavior: {type: encrypted_structured_list, nullable: true}
+    design_references: {type: encrypted_reference_list, nullable: true, constraints: {optional: true, providers: [figma, penpot, image, project_embed]}}
+
+  SpecificationChapter:
+    chapter_id: {type: stable_semantic_id, required: true}
+    encrypted_title: {type: client_ciphertext, required: true}
+    position: {type: integer, required: true}
+    default_applies_to: {type: applicability_selector, nullable: true}
+    blocks: {type: encrypted_typed_block_list, required: true, constraints: {values: [rich_text, requirement_ref, user_flow_ref, edge_case_ref, model_ref, embed_ref]}}
+
+  SpecificationFlowEntry:
+    flow_id: {type: stable_semantic_id, required: true}
+    kind: {type: enum, values: [user_flow, edge_case], required: true}
+    parent_flow_id: {type: stable_semantic_id_or_null, nullable: true, constraints: {allowed_only_when_kind_edge_case: true}}
+    encrypted_title: {type: client_ciphertext, required: true}
+    encrypted_rich_content: {type: client_ciphertext, required: true, constraints: {supports_text_and_embed_references: true}}
+    requirement_ids: {type: stable_id_list, required: true}
+    applies_to: {type: applicability_selector, required: true}
+    required_check_refs: {type: revision_bound_check_reference_list, nullable: true}
+
+  SpecificationModelDefinition:
+    model_id: {type: stable_semantic_id, required: true}
+    specification_revision_id: {type: stable_id, required: true, constraints: {must_reference_owning_specification_revision: true}}
+    kind: {type: extensible_identifier, required: true, constraints: {examples: [domain_entity, api_request, api_response, event, encrypted_envelope, configuration, state, interface_schema, financial_ledger, campaign, research_protocol, runbook, event_brief]}}
+    encrypted_definition: {type: client_ciphertext, required: true}
+    content_hash: {type: sha256_hex, required: true}
+
+  SpecificationEmbedReference:
+    target_embed_id: {type: stable_id, required: true}
+    target_embed_version: {type: integer, required: true, constraints: {immutable_when_revision_approved: true}}
+    target_content_hash: {type: sha256_hex, required: true}
+    relationship: {type: enum, values: [normative, explanatory], required: true}
+    placement: {type: enum, values: [inline, card, figure, link], required: true}
+    encrypted_caption: {type: client_ciphertext_or_null, nullable: true}
+    encrypted_accessible_description: {type: client_ciphertext, required: true}
+
+  SpecificationModelPlacement:
+    model_id: {type: stable_semantic_id, required: true, constraints: {references_global_specification_model: true}}
+    specification_revision_id: {type: stable_id, required: true, constraints: {must_match_model_definition_revision: true}}
+    chapter_id: {type: stable_semantic_id, required: true}
+    selected_fields: {type: stable_id_list, nullable: true}
+    encrypted_context: {type: client_ciphertext_or_null, nullable: true}
+
+  SpecificationHumanPresentation:
+    chapter_order: {type: ordered_section_ids, required: true}
+    composition:
+      type: capability_chapter_document
+      required: true
+      constraints: {custom_chapters: true, typed_blocks: true, generated_indexes: [requirements, user_flows, edge_cases, models, checks, history], readable_text: true, raw_yaml_default: false}
+    technical_disclosure:
+      type: on_demand_detail
+      required: true
+      constraints: {diagram_source: available, specification_source: available_when_authorized, collapsed_by_default: true}
+
+  SpecificationDiagramView:
+    diagram_id: {type: stable_semantic_id, required: true}
+    purpose:
+      type: enum
+      values: [system_context, container_architecture, component_architecture, deployment, trust_boundary, provider_integration, sequence, state_machine, decision_flow, activity_flow, lifecycle, data_model, ui_flow, wireframe, annotated_screenshot, stakeholder_overview, cross_functional_flow]
+      required: true
+    diagram_embed_ref: {type: encrypted_reference, required: true}
+    diagram_embed_version: {type: integer, required: true, constraints: {immutable_when_revision_approved: true}}
+    source_hash: {type: sha256_hex, required: true}
+    linked_requirement_ids: {type: stable_id_list, required: true}
+    presentation: {type: enum, values: [primary, inline, supplementary], required: true}
+    status: {type: enum, values: [current, stale, render_failed], required: true}
+
+  SpecificationDiagramPayload:
+    source_format: {type: enum, values: [c4_plantuml, mermaid, drawio], required: true}
+    encrypted_source: {type: client_ciphertext, required: true, constraints: {plaintext_private_content: forbidden}}
+    source_hash: {type: sha256_hex, required: true}
+    encrypted_rendered_preview_ref: {type: encrypted_artifact_reference, required: true}
+    rendered_preview_format: {type: enum, values: [svg, png], required: true}
+    rendered_preview_source_hash: {type: sha256_hex, required: true, constraints: {equals_source_hash: true}}
+    renderer_version: {type: version_identifier, required: true}
+    encrypted_accessible_description: {type: client_ciphertext, required: true, constraints: {human_readable: true}}
+    edit_mode: {type: enum, values: [text_source, diagrams_net], required: true}
+    download_extension: {type: enum, values: [puml, mmd, drawio], required: true}
+
+  SpecificationLink:
+    relation: {type: enum, values: [requires, extends, governs, implements, verifies, documents, supersedes], required: true}
+    target_type: {type: enum, values: [specification, specification_requirement, specification_flow, plan, check, project, source, documentation], required: true}
+    target_id: {type: encrypted_or_hashed_reference, required: true}
+    target_revision: {type: revision_or_hash_or_null, nullable: true}
+
+assertions:
+  - id: contracts.definition.durable-truth
+    type: invariant
+    must: A Specification defines durable product truth through stable Requirements and rich-content flows and edge cases; it owns required Check references but never owns implementation Tasks, execution progress, reusable Check definitions, or Check Run results.
+    depends_on: [models.SpecificationRequirement, examples.specification_boundaries]
+  - id: contracts.revision.exact-approval
+    type: invariant
+    must: Approval binds an immutable Specification revision and content hash; later material edits create a new draft revision and cannot inherit approval from superseded content.
+    depends_on: [models.SpecificationRevision, examples.specification_revisions]
+  - id: contracts.composition.capability-first
+    type: behavior
+    must: One primary capability Specification contains its related domain and UI flows; sub-Specifications are linked only for independently reusable, independently versioned, or independently approved behavior, never merely because a feature has several screens.
+    depends_on: [examples.specification_composition]
+  - id: contracts.ui.structured-interactions
+    type: behavior
+    must: Requirements may describe named elements, interactions, visible states, accessibility, responsive behavior, and optional design references while preserving usable behavior when no design artboard exists; Applies to is shown with each Requirement rather than requiring an authored Surfaces chapter.
+    depends_on: [models.SpecificationRequirement, examples.specification_ui_requirements, applies_to.gui]
+  - id: contracts.flows.rich-content-inline
+    type: behavior
+    must: User flows and edge cases are Specification-owned rich-content entries with stable ids, text, and version-pinned references to ordinary image, diagram, mind-map, wireframe, or other embeds; they use one renderer, edge cases may identify a parent flow, and V1 has no separate Scenario model or independently shareable User Flow embed.
+    depends_on: [models.SpecificationFlowEntry, models.SpecificationEmbedReference, examples.specification_flows]
+  - id: contracts.models.global-contextual
+    type: invariant
+    must: Data and interface models have one canonical Specification definition and may be placed contextually in several capability chapters by reference or selected-field view without copying or redefining the model.
+    depends_on: [models.SpecificationModelDefinition, models.SpecificationModelPlacement, examples.specification_model_placement]
+  - id: contracts.ui.human-readable-default
+    type: behavior
+    must: The web Specification detail renders a localized human document using canonical settings page composition, semantic section headings, readable explanatory text, visible revision and approval state, and progressive technical disclosure; raw YAML, ciphertext, and diagram source are never the default reading surface.
+    depends_on: [models.SpecificationHumanPresentation, examples.specification_human_presentation, applies_to.gui]
+  - id: contracts.diagrams.tool-selection
+    type: invariant
+    must: Architecture and specialist Specification diagrams use C4-PlantUML for architecture and trust boundaries, Mermaid for sequence, state, decision, lifecycle, and small data views, diagrams.net for UI, wireframe, annotated, stakeholder, and large curated views, and Figma, Penpot, or images only as linked high-fidelity references; flow visuals are contextual embed references and do not require a standalone Diagrams section.
+    depends_on: [models.SpecificationDiagramView, examples.specification_diagrams, applies_to.gui]
+  - id: contracts.diagrams.source-and-preview
+    type: invariant
+    must: Every Specification diagram preserves encrypted editable source in a versioned diagram embed and displays a saved encrypted SVG or PNG derived from the exact source hash; an image-only diagram, missing source, stale source-preview pair, or silent render failure cannot satisfy an approved revision.
+    depends_on: [models.SpecificationDiagramView, models.SpecificationDiagramPayload, examples.specification_diagrams]
+  - id: contracts.diagrams.revision-pinned-editing
+    type: behavior
+    must: A Specification revision pins the exact diagram embed version and source hash; readers see the rendered preview by default, may open fullscreen, inspect or copy source, and download the native source, while editing occurs only on demand and creates a new diagram version plus a new draft Specification revision when approved content would change.
+    depends_on: [models.SpecificationRevision, models.SpecificationDiagramView, models.SpecificationDiagramPayload, examples.specification_diagrams]
+  - id: contracts.diagrams.private-rendering
+    type: privacy
+    must: Private C4-PlantUML rendering is local or self-hosted, Mermaid renders client-side with strict security, and diagrams.net editing uses a self-hosted editor plus local CLI export; private source is never sent to a public renderer and the product runtime does not depend on diagrams.net MCP.
+    depends_on: [models.SpecificationDiagramPayload, examples.specification_diagrams, applies_to.gui]
+  - id: contracts.project.encrypted-embed
+    type: privacy
+    must: Specifications appear in Projects as client-encrypted preview/fullscreen embeds with readable sections, edit and approval state, revision history, linked coverage, and no durable plaintext private Specification content.
+    depends_on: [models.SpecificationRecord, models.SpecificationRevision, examples.specification_project_embed]
+  - id: contracts.links.revision-traceable
+    type: invariant
+    must: Plans, Checks, sources, documentation, and related Specifications link to exact Specification revisions or stable Requirement and flow ids so changes and stale proof can be identified without copying Specification text.
+    depends_on: [models.SpecificationLink, examples.specification_links]
+  - id: contracts.surface.semantic-parity
+    type: parity
+    must: REST, CLI, SDK, web, and later Apple channels preserve the same revision, approval, composition, linking, encryption, and visible-failure semantics wherever Specification operations are exposed.
+    depends_on: [models, examples, applies_to]
+
+applies_to:
+  rest_api:
+    required: true
+    role: First-party authenticated routes persist encrypted Specification records, immutable revisions, approvals, relationships, and safe routing metadata without decrypting private content.
+  cli:
+    required: true
+    parity: semantic
+    requirements:
+      - Create, inspect, revise, link, validate, and request approval for Specifications without requiring users to edit raw YAML.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+        requirements:
+          - id: contracts.gui.preview
+            elements: [title, status, version, summary, scope_summary, primary_diagram_preview, coverage_summary]
+            interactions: [open_fullscreen]
+            states: [draft, approved, superseded, stale_coverage, stale_diagram_preview, loading, error]
+          - id: contracts.gui.fullscreen
+            elements: [header, outcome, scope_and_boundaries, custom_capability_chapters, requirements_with_surfaces, rich_content_user_flows, rich_content_edge_cases, relevant_models, linked_checks, generated_indexes, history, approve_action]
+            interactions: [edit_draft, undo_unsaved_changes, compare_revisions, approve_exact_revision, open_nested_flow_detail, return_to_specification, open_linked_check, open_referenced_embed_fullscreen]
+            accessibility: [keyboard_reachable_sections, semantic_headings, announced_approval_state, non_color_status_labels]
+            responsive_behavior: [split_detail_when_space_allows, fullscreen_overlay_on_compact_viewports]
+            design_references: optional
+          - id: contracts.gui.diagram
+            elements: [title, purpose, rendered_preview, accessible_description, source_format, version, render_status]
+            interactions: [pan, zoom, show_source, copy_source, download_native_source, edit_on_demand, regenerate_stale_preview]
+            states: [current, stale, render_failed, source_missing, loading]
+            accessibility: [descriptive_alt_text, text_source_fallback, keyboard_reachable_controls, zoom_not_required_for_primary_meaning]
+            responsive_behavior: [readable_inline_crop, fullscreen_for_large_diagrams, no_page_level_horizontal_overflow]
+      apple: {required: false}
+    exceptions:
+      - id: apple-specification-editor-deferred
+        implementation: apple
+        reason: Specification authoring starts with REST, CLI, SDK, and web; Apple may initially provide read-only Specification detail.
+        equivalent_outcome: Apple must preserve the same readable Requirements, revision identity, approval state, and links when implemented.
+
+examples:
+  file: examples.yml
+  required_groups: [specification_boundaries, specification_revisions, specification_composition, specification_ui_requirements, specification_flows, specification_model_placement, specification_human_presentation, specification_diagrams, specification_project_embed, specification_links, specification_surface_parity]

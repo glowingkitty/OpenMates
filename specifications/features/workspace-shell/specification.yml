@@ -1,0 +1,147 @@
+schema_version: 1
+id: feature.workspace-shell
+version: 2
+status: draft
+title: Workspace Shell
+summary: >
+  First-party web workspace surfaces expose released top-level workspaces through
+  the shared OpenMates header and preserve the Chats start screen as the visual
+  shell baseline while retaining surface-specific board and content semantics.
+
+scope:
+  includes:
+    - Header release-gated workspace tab visibility for Chats, Projects, Plans, Workflows, and Tasks.
+    - Chats-relative start-screen shell affordances for released Projects, Plans, Workflows, and Tasks.
+    - Surface-specific Daily Inspiration placement, background identity icon, and bottom composer mount points.
+    - Figma-referenced Tasks and Plans board-control placement on desktop and narrow viewports.
+    - Tasks and Plans Kanban board containment, including vertical shell scrolling under a fixed bottom composer and horizontal board scrolling on narrow viewports.
+  excludes:
+    - Hardcoded copies of current pixel values, gradients, animation timing, copy punctuation, and unrelated Figma-only visual variants.
+    - Task, Plan, Project, Workflow, Daily Inspiration, and chat CRUD/privacy semantics already covered by their feature Specifications.
+    - Apple-native workspace presentation unless a native workspace shell is explicitly implemented and mapped later.
+
+models:
+  ReleasedWorkspaceNav:
+    workspaces:
+      type: ordered_set
+      required: true
+      constraints: {values: [chats, projects, plans, workflows, tasks], excludes_unreleased: true}
+    desktop_tabs:
+      type: navigation_links
+      required: true
+      constraints: {released_workspaces_visible: true, disabled_workspaces_hidden: true}
+    mobile_selector:
+      type: responsive_navigation
+      required: true
+      constraints: {small_viewport_navigation_equivalent: true}
+
+  WorkspaceStartShell:
+    surface:
+      type: enum
+      required: true
+      values: [chats, projects, workflows, tasks, plans]
+    chats_visual_baseline:
+      type: relative_visual_specification
+      required: true
+      constraints:
+        matching_regions: [workspace_container, daily_inspiration_area, report_issue_control, bottom_composer]
+        viewports: [desktop, mobile]
+        allows_surface_specific_content: true
+    daily_inspiration_area:
+      type: mounted_region
+      required: true
+      constraints: {surface_specific_source: true, visible_on_start_shell: true}
+    background_identity_icon:
+      type: decorative_region
+      required: true
+      constraints: {surface_specific: true, hidden_from_accessibility_tree: true}
+    bottom_composer:
+      type: input_region
+      required: true
+      constraints: {surface_specific_action: true, mounted_at_shell_bottom: true}
+
+  KanbanBoardControls:
+    surfaces:
+      type: set
+      required: true
+      constraints: {values: [tasks, plans]}
+    tasks_desktop:
+      type: figma_referenced_layout
+      required: true
+      constraints: {compact_search_link: true, tags_below_search: true, filter_control_at_inline_end: true, board_summary_absent: true}
+    plans_desktop:
+      type: figma_referenced_layout
+      required: true
+      constraints: {search_absent: true, tags_absent: true, filter_control_at_inline_end: true, board_summary_absent: true}
+    narrow_viewport:
+      type: responsive_layout
+      required: true
+      constraints: {search_absent: true, tags_absent: true, filter_control_visible: true}
+
+  KanbanWorkspaceContent:
+    surfaces:
+      type: set
+      required: true
+      constraints: {values: [tasks, plans]}
+    columns:
+      type: ordered_status_columns
+      required: true
+      constraints: {minimum_columns: [backlog, todo, in_progress, blocked, done]}
+    vertical_scroll_layer:
+      type: scroll_container
+      required: true
+      constraints: {content_can_scroll_under_bottom_composer: true, composer_stays_mounted: true}
+    narrow_viewport_board:
+      type: horizontal_scroll_container
+      required: true
+      constraints: {columns_remain_reachable_without_page_overflow: true}
+
+assertions:
+  - id: workspace-shell.nav.released-surfaces-visible
+    type: behavior
+    must: Released top-level workspaces render as first-party header navigation targets on desktop and keep equivalent mobile navigation, while disabled or unreleased workspace feature ids remain absent from normal navigation.
+    depends_on: [models.ReleasedWorkspaceNav, examples.released_navigation]
+  - id: workspace-shell.start.shared-affordances
+    type: behavior
+    must: Projects, Workflows, Tasks, and Plans start shells render a surface-specific Daily Inspiration area, decorative background identity icon, and bottom-mounted surface-specific composer without importing chat message persistence or post-send chat processing ownership.
+    depends_on: [models.WorkspaceStartShell, examples.start_shells]
+  - id: workspace-shell.start.chat-visual-parity
+    type: behavior
+    must: Projects, Workflows, Tasks, and Plans match the rendered Chats start screen for workspace container surface treatment and viewport positioning, Daily Inspiration geometry, Report Issue control size, and bottom composer geometry on desktop and mobile while preserving surface-specific content.
+    depends_on: [models.WorkspaceStartShell, examples.visual_parity]
+  - id: workspace-shell.kanban.figma-controls
+    type: behavior
+    must: The Tasks desktop board places a compact Search link and tags at the upper inline end beside the circular filter control, while Plans omits Search and tags and keeps the circular filter control; both omit the dashboard-style board summary, and narrow viewports hide Search and tags while preserving the filter control and horizontal Kanban.
+    depends_on: [models.KanbanBoardControls, examples.figma_board_controls]
+  - id: workspace-shell.kanban.scroll-containment
+    type: behavior
+    must: Tasks and Plans preserve their Kanban status columns inside the shared workspace shell; board content can scroll vertically beneath a fixed bottom composer, and narrow viewports keep all columns reachable through horizontal board scrolling instead of replacing Kanban with a non-board layout.
+    depends_on: [models.KanbanWorkspaceContent, examples.kanban_scroll]
+
+applies_to:
+  rest_api:
+    required: false
+    role: Feature availability APIs may supply enabled or disabled ids, but this Specification owns browser chrome and shell presentation only.
+  cli:
+    required: false
+    role: CLI workspace commands have their own terminal navigation and do not render the web workspace shell.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Native Apple workspace presentation is not launch-gated by this web shell Specification.}
+    exceptions:
+      - id: apple-workspace-shell-out-of-scope
+        implementation: apple
+        reason: Current workspace-shell evidence covers the first-party web header and shared Svelte workspace shell only.
+        equivalent_outcome: Apple must preserve equivalent released workspace discoverability and surface-specific start affordances when native workspace shell parity is implemented.
+
+examples:
+  file: examples.yml
+  required_groups: [released_navigation, start_shells, visual_parity, figma_board_controls, kanban_scroll]

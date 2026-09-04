@@ -6,7 +6,7 @@ globs:
 ## Discovery And Clarifying Questions (Mandatory)
 
 Before planning, debugging, or writing code, perform bounded discovery first:
-related specs, architecture docs, source patterns, tests, and tracker context
+related Specifications, Plans, architecture docs, source patterns, tests, and tracker context
 when relevant. Do not ask users for facts the repository can answer.
 
 **Protocol:** State verified facts, uncertainties, scope, and non-goals. Then ask
@@ -52,13 +52,12 @@ Before planning any new feature or provider implementation:
 Every non-trivial task needs a checklist of verifiable acceptance criteria before implementation.
 
 Use the risk tiers in `docs/contributing/guides/spec-driven-development.md`.
-Ordinary Tier 1 work uses a concise issue or session contract; do not require a
-full YAML evidence ledger solely because work is multi-file or user-facing.
+Ordinary Tier 1 work uses a concise issue or session Specification; do not
+require a YAML Plan solely because work is multi-file or user-facing.
 
-For full-spec work, required acceptance criteria need explicit verification IDs,
-user confirmation, waiver, or accepted blocker records. Define the test contract
-before implementation; red evidence may be flexible, but record what happened
-and why.
+For Plan work, only the user-authored goal is required. Define required Checks
+explicitly; optional acceptance criteria, verification IDs, user confirmation,
+waivers, blockers, and Run evidence do not become implicit completion gates.
 
 ## Debugging Attempt Limit
 

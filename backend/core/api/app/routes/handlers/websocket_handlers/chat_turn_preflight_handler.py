@@ -128,6 +128,7 @@ async def enqueue_chat_turn(
 
 async def handle_chat_turn_preflight(
     *,
+    websocket: Any | None = None,
     manager: Any,
     directus_service: Any,
     user_id: str,
@@ -136,6 +137,16 @@ async def handle_chat_turn_preflight(
     payload: dict[str, Any],
     user_otel_attrs: dict | None = None,
 ) -> None:
+    async def send_response(message: dict[str, Any]) -> None:
+        if websocket is not None:
+            await websocket.send_json(message)
+            return
+        await manager.send_personal_message(
+            message,
+            user_id,
+            device_fingerprint_hash,
+        )
+
     _otel_span, _otel_token = _start_ws_span(
         "chat_turn_preflight",
         user_id,
@@ -143,16 +154,41 @@ async def handle_chat_turn_preflight(
         user_otel_attrs,
     )
     try:
+        turn_id = str(payload.get("turn_id", ""))
+        inference_request_payload = payload.get("inference_request")
+        debug_enabled = (
+            isinstance(inference_request_payload, dict)
+            and isinstance(inference_request_payload.get("test_mock_marker"), str)
+        )
+
+        async def send_debug_phase(phase: str) -> None:
+            if not debug_enabled:
+                return
+            await send_response(
+                {
+                    "type": "chat_turn_preflight_debug",
+                    "payload": {"turn_id": turn_id, "phase": phase},
+                }
+            )
+
+        await send_debug_phase("received")
+        logger.info("Chat preflight phase=cutover_started turn=%s", turn_id[:8])
         recovery_service = ChatRecoveryService(directus_service)
         cutover_state = await recovery_service.execute(
             "get_cutover_state",
             {"protocol_version": 1},
         )
+        logger.info(
+            "Chat preflight phase=cutover_completed turn=%s epoch=%s",
+            turn_id[:8],
+            cutover_state.get("protocol_epoch"),
+        )
+        await send_debug_phase("cutover_completed")
         if cutover_state.get("protocol_epoch") == 0:
             legacy_preflight_id = str(
                 uuid.uuid5(uuid.UUID(payload["turn_id"]), "legacy-preflight")
             )
-            await manager.send_personal_message(
+            await send_response(
                 {
                     "type": "chat_turn_preflight_ack",
                     "payload": {
@@ -160,9 +196,7 @@ async def handle_chat_turn_preflight(
                         "state": "LEGACY",
                         "turn_id": payload["turn_id"],
                     },
-                },
-                user_id,
-                device_fingerprint_hash,
+                }
             )
             return
         encrypted_user_message = dict(payload["encrypted_user_message"])
@@ -202,20 +236,20 @@ async def handle_chat_turn_preflight(
             transaction_data["encrypted_chat_metadata"] = payload["encrypted_chat_metadata"]
         started_at = start_recovery_timing()
         try:
+            logger.info("Chat preflight phase=prepare_started turn=%s", turn_id[:8])
             result = await recovery_service.execute(
                 "prepare_preflight",
                 transaction_data,
             )
+            logger.info("Chat preflight phase=prepare_completed turn=%s", turn_id[:8])
+            await send_debug_phase("prepare_completed")
         finally:
             record_recovery_duration("durable_preflight", started_at)
         result["turn_id"] = payload["turn_id"]
-        await manager.send_personal_message(
-            {"type": "chat_turn_preflight_ack", "payload": result},
-            user_id,
-            device_fingerprint_hash,
-        )
+        await send_response({"type": "chat_turn_preflight_ack", "payload": result})
+        logger.info("Chat preflight phase=ack_sent turn=%s", turn_id[:8])
     except ChatRecoveryProtocolError as exc:
-        await manager.send_personal_message(
+        await send_response(
             {
                 "type": "error",
                 "payload": {
@@ -223,9 +257,7 @@ async def handle_chat_turn_preflight(
                     "message": "Encrypted chat preflight was rejected.",
                     "turn_id": payload.get("turn_id"),
                 },
-            },
-            user_id,
-            device_fingerprint_hash,
+            }
         )
     except Exception:
         # WebSocket boundary: fail closed and keep ciphertext/plaintext out of logs.
@@ -234,7 +266,7 @@ async def handle_chat_turn_preflight(
             user_id[:8],
             device_fingerprint_hash[:8],
         )
-        await manager.send_personal_message(
+        await send_response(
             {
                 "type": "error",
                 "payload": {
@@ -242,9 +274,7 @@ async def handle_chat_turn_preflight(
                     "message": "Encrypted chat preflight is temporarily unavailable.",
                     "turn_id": payload.get("turn_id"),
                 },
-            },
-            user_id,
-            device_fingerprint_hash,
+            }
         )
     finally:
         _end_ws_span(_otel_span, _otel_token)

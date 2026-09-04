@@ -80,6 +80,7 @@ test.afterEach(async ({}, testInfo: any) => {
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const PDF_MAGIC_BYTES = '%PDF';
+const STRIPE_CARD_FIELD_TIMEOUT_MS = 60_000;
 
 async function expectPdfAttachment(
 	emailClient: any,
@@ -298,60 +299,56 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 
 	// Card number — Stripe Checkout uses a single iframe for card inputs.
 	// Use getByPlaceholder/getByLabel for robustness (autocomplete attrs vary by Stripe version).
-	try {
-		const cardInput = checkoutFrame
-			.locator('input[autocomplete="cc-number"], input[name="number"], input[name="cardNumber"]')
-			.first();
-		await cardInput.waitFor({ state: 'visible', timeout: 20000 });
-		await cardInput.click();
-		await cardInput.pressSequentially('4242424242424242', { delay: 30 });
-
-		const expiryInput = checkoutFrame
-			.locator('input[autocomplete="cc-exp"], input[name="expiry"], input[name="cardExpiry"]')
-			.first();
-		await expiryInput.click();
-		await expiryInput.pressSequentially('1234', { delay: 30 });
-
-		const cvcInput = checkoutFrame
-			.locator('input[autocomplete="cc-csc"], input[name="cvc"], input[name="cardCvc"]')
-			.first();
-		await cvcInput.click();
-		await cvcInput.pressSequentially('123', { delay: 30 });
-
-		// Cardholder name — required. Match by placeholder shown in the UI ("Full name on card").
-		const cardholderInput = checkoutFrame.getByPlaceholder(/full name on card/i);
-		if (await cardholderInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await cardholderInput.click();
-			await cardholderInput.pressSequentially('Test User', { delay: 30 });
-		}
-
-		// Billing address line 1 (City/ZIP/State appear in the Link interstitial AFTER Pay, not here)
-		const addressInput = checkoutFrame.getByPlaceholder(/^address$/i);
-		if (await addressInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-			await addressInput.click();
-			await addressInput.pressSequentially('123 Test St', { delay: 30 });
-			// Dismiss Google autocomplete
-			await page.keyboard.press('Escape');
-			await page.waitForTimeout(500);
-		}
-
-		// Postal code — may be present in initial form (US geo without Link)
-		const postalInput = checkoutFrame
-			.locator(
-				'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
+	const cardInput = checkoutFrame
+		.getByRole('textbox', { name: /card number/i })
+		.or(
+			checkoutFrame.locator(
+				'input[autocomplete="cc-number"], input[name="number"], input[name="cardNumber"]'
 			)
-			.first();
-		if (await postalInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-			await postalInput.click();
-			await postalInput.pressSequentially('10001', { delay: 30 });
-		}
-	} catch (e) {
-		// Stripe Checkout may render card fields in nested iframes
-		log(`Card input fallback triggered: ${e}`);
-		const cardFrame = checkoutFrame.frameLocator('iframe[title*="card number"]');
-		const cardInput = cardFrame.locator('input').first();
-		await cardInput.waitFor({ state: 'visible', timeout: 15000 });
-		await cardInput.pressSequentially('4242424242424242', { delay: 30 });
+		)
+		.first();
+	await cardInput.waitFor({ state: 'visible', timeout: STRIPE_CARD_FIELD_TIMEOUT_MS });
+	await cardInput.click();
+	await cardInput.pressSequentially('4242424242424242', { delay: 30 });
+
+	const expiryInput = checkoutFrame
+		.locator('input[autocomplete="cc-exp"], input[name="expiry"], input[name="cardExpiry"]')
+		.first();
+	await expiryInput.click();
+	await expiryInput.pressSequentially('1234', { delay: 30 });
+
+	const cvcInput = checkoutFrame
+		.locator('input[autocomplete="cc-csc"], input[name="cvc"], input[name="cardCvc"]')
+		.first();
+	await cvcInput.click();
+	await cvcInput.pressSequentially('123', { delay: 30 });
+
+	// Cardholder name — required. Match by placeholder shown in the UI ("Full name on card").
+	const cardholderInput = checkoutFrame.getByPlaceholder(/full name on card/i);
+	if (await cardholderInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await cardholderInput.click();
+		await cardholderInput.pressSequentially('Test User', { delay: 30 });
+	}
+
+	// Billing address line 1 (City/ZIP/State appear in the Link interstitial AFTER Pay, not here)
+	const addressInput = checkoutFrame.getByPlaceholder(/^address$/i);
+	if (await addressInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+		await addressInput.click();
+		await addressInput.pressSequentially('123 Test St', { delay: 30 });
+		// Dismiss Google autocomplete
+		await page.keyboard.press('Escape');
+		await page.waitForTimeout(500);
+	}
+
+	// Postal code — may be present in initial form (US geo without Link)
+	const postalInput = checkoutFrame
+		.locator(
+			'input[autocomplete="postal-code"], input[name="postalCode"], input[name="postal_code"]'
+		)
+		.first();
+	if (await postalInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+		await postalInput.click();
+		await postalInput.pressSequentially('10001', { delay: 30 });
 	}
 
 	await screenshot(page, 'checkout-card-filled');
@@ -493,6 +490,20 @@ test('settings buy credits: completes Stripe Managed Payments (Checkout Session)
 		.filter({ hasText: /payment confirmation/i })
 		.first();
 	await expect(latestManagedInvoice).toBeVisible({ timeout: 10000 });
+
+	const documentDownloadButton = latestManagedInvoice.getByRole('button', {
+		name: /payment confirmation/i
+	});
+	await expect(documentDownloadButton).toBeVisible({ timeout: 10000 });
+	await expect(documentDownloadButton).toBeEnabled({ timeout: 10000 });
+	const documentDownloadPromise = page.waitForEvent('download', { timeout: 120000 });
+	await documentDownloadButton.click();
+	const documentDownload = await documentDownloadPromise;
+	expect(await documentDownload.failure(), 'Managed payment confirmation download must succeed').toBeNull();
+	expect(documentDownload.suggestedFilename()).toMatch(/payment_confirmation.*\.pdf$/i);
+	log('Managed payment confirmation downloaded successfully.', {
+		filename: documentDownload.suggestedFilename()
+	});
 
 	const refundButton = latestManagedInvoice.getByRole('button', { name: /refund/i });
 	await expect(refundButton).toBeVisible({ timeout: 10000 });

@@ -5,9 +5,11 @@
 -->
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import DailyInspirationBanner from '../DailyInspirationBanner.svelte';
   import TaskBoard from './TaskBoard.svelte';
+  import TaskDetailFullscreen from './TaskDetailFullscreen.svelte';
+  import WorkflowRunTaskDetail from './WorkflowRunTaskDetail.svelte';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import WorkspacePromptComposer from '../workspace/WorkspacePromptComposer.svelte';
   import { loadDefaultInspirations } from '../../demo_chats/loadDefaultInspirations';
@@ -34,6 +36,7 @@
     type UserTaskStatus,
     type UserTaskViewModel,
     type TasksBoardItem,
+    type WorkflowRunTaskProjectionViewModel,
   } from '../../services/userTaskService';
   import {
     activateUserPlan,
@@ -78,6 +81,9 @@
   let showTaskSearch = $state(false);
   let showDesktopTaskTags = $state(true);
   let showMobileTaskTags = $state(false);
+  let selectedWorkflowRunProjection = $state<WorkflowRunTaskProjectionViewModel | null>(null);
+  let selectedTask = $state<UserTaskViewModel | null>(null);
+  let taskBoardPanel: HTMLElement | null = $state(null);
   let featureAvailabilityReady = $derived($featureAvailabilityStore.initialized && $featureAvailabilityStore.disabledById !== null);
   let tasksEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:tasks'] !== true);
   let plansEnabled = $derived(featureAvailabilityReady && $featureAvailabilityStore.disabledById?.['platform:plans'] !== true);
@@ -122,6 +128,21 @@
       .filter((task) => normalized.includes(task.title.toLowerCase()))
       .sort((a, b) => b.title.length - a.title.length);
     return matches[0] ?? null;
+  }
+
+  async function revealTaskBoardPanel(): Promise<void> {
+    if (!isCentralTasksWorkspace || !taskBoardPanel) return;
+    await tick();
+    taskBoardPanel?.scrollIntoView({ block: isNarrowTasksWorkspace ? 'start' : 'center', inline: 'nearest', behavior: 'auto' });
+  }
+
+  function handleSelectTask(task: TasksBoardItem): void {
+    if (isWorkflowRunTaskProjectionViewModel(task) && task.workflowRunId) {
+      selectedWorkflowRunProjection = task;
+      void revealTaskBoardPanel();
+      return;
+    }
+    if (!isWorkflowRunTaskProjectionViewModel(task)) selectedTask = task;
   }
 
   function parseTaskStatus(request: string): UserTaskStatus | null {
@@ -592,7 +613,7 @@
           showReportIssue
           onStartInspiration={handleStartTaskInspiration}
         >
-      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board">
+      <section class="task-board-panel" data-testid="tasks-board-workspace" aria-label="Tasks board" bind:this={taskBoardPanel}>
         <div class="task-workspace-toolbar">
           <div class="task-search-cluster" aria-label="Task search and filters">
             <div class="task-search-stack">
@@ -644,19 +665,29 @@
             <button type="button" onclick={() => void refreshTasks()}>Retry</button>
           </div>
         {:else}
-          <div class="task-board-stage">
-            <TaskBoard
-              tasks={visibleTasks}
-              onMove={(task, status) => void handleMove(task, status)}
-              onStartAI={(task) => void handleStartAI(task)}
-              onSkip={(task) => void handleSkip(task)}
-              onDelete={(task) => void handleDelete(task)}
-              onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
-            />
-            {#if visibleTasks.length === 0 && searchTerm.trim()}
-              <div class="tasks-filter-empty" data-testid="tasks-filter-empty">No tasks match that filter.</div>
-            {:else if visibleTasks.length === 0}
-              <div class="tasks-filter-empty" data-testid="tasks-empty">Click above to add your first task.</div>
+          <div class="task-board-detail-layout" class:split={selectedWorkflowRunProjection && !isNarrowTasksWorkspace}>
+            <div class="task-board-stage">
+              <TaskBoard
+                tasks={visibleTasks}
+                onMove={(task, status) => void handleMove(task, status)}
+                onStartAI={(task) => void handleStartAI(task)}
+                onSkip={(task) => void handleSkip(task)}
+                onDelete={(task) => void handleDelete(task)}
+                onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
+                onSelect={handleSelectTask}
+              />
+              {#if visibleTasks.length === 0 && searchTerm.trim()}
+                <div class="tasks-filter-empty" data-testid="tasks-filter-empty">No tasks match that filter.</div>
+              {:else if visibleTasks.length === 0}
+                <div class="tasks-filter-empty" data-testid="tasks-empty">Click above to add your first task.</div>
+              {/if}
+            </div>
+            {#if selectedWorkflowRunProjection}
+              <WorkflowRunTaskDetail
+                projection={selectedWorkflowRunProjection}
+                presentation={isNarrowTasksWorkspace ? 'overlay' : 'split'}
+                onClose={() => { selectedWorkflowRunProjection = null; }}
+              />
             {/if}
           </div>
         {/if}
@@ -836,8 +867,12 @@
       onSkip={(task) => void handleSkip(task)}
       onDelete={(task) => void handleDelete(task)}
       onCancelWorkflowRun={(task) => void handleCancelWorkflowRun(task)}
+      onSelect={handleSelectTask}
     />
   {/if}
+  {/if}
+  {#if selectedTask}
+    <TaskDetailFullscreen task={selectedTask} onClose={() => { selectedTask = null; }} />
   {/if}
 </section>
 {/if}
@@ -1061,6 +1096,9 @@
     z-index: 1;
     min-height: 0;
   }
+
+  .task-board-detail-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-5); min-width: 0; min-height: 0; }
+  .task-board-detail-layout.split { grid-template-columns: minmax(0, 1fr) minmax(360px, 40%); }
 
   .task-board-stage :global(.task-board) {
     grid-template-columns: repeat(5, minmax(260px, 280px));

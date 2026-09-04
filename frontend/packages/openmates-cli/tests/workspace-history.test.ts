@@ -70,15 +70,16 @@ function encryptedTaskCreate(): UserTaskCreateInput {
 function encryptedPlanCreate(): UserPlanCreateInput {
   return {
     plan_id: "plan-1",
-    encrypted_plan_key: "cipher-plan-key",
     encrypted_title: "cipher-title",
     encrypted_goal: "cipher-goal",
+    key_wrappers: [{ key_type: "master", encrypted_plan_key: "cipher-plan-key" }],
     status: "draft",
     version: 1,
   };
 }
 
 describe("OpenMatesClient workspace history", () => {
+  // contract-test: supporting surface=sdks.npm assertions=plans.lifecycle.visible,plans.surface.semantic-parity,projects.surface.semantic-parity,tasks.lifecycle.visible,tasks.surface.semantic-parity,sdk.surface.semantic-parity
   it("uses global and namespace-specific history endpoints", async () => {
     await withServer((request, response, seen) => {
       seen.push({ method: request.method, url: request.url });
@@ -132,6 +133,7 @@ describe("OpenMatesClient workspace history", () => {
     });
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=plans.surface.semantic-parity,projects.surface.semantic-parity,tasks.surface.semantic-parity,workflows.surface.semantic-parity,sdk.surface.semantic-parity
   it("uses namespace-specific ask endpoints", async () => {
     await withServer((request, response, seen) => {
       seen.push({ method: request.method, url: request.url });

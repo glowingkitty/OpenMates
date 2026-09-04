@@ -3,36 +3,22 @@
   "instructions": [
     "docs/contributing/guides/agent-workflow-core.md"
   ],
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "tail_turns": 1,
+    "preserve_recent_tokens": 32000,
+    "reserved": 64000
+  },
   "permission": {
-    "firecrawl_firecrawl_agent": "ask",
-    "firecrawl_firecrawl_agent_status": "ask",
-    "firecrawl_firecrawl_check_crawl_status": "ask",
-    "firecrawl_firecrawl_crawl": "ask",
-    "firecrawl_firecrawl_extract": "ask",
-    "firecrawl_firecrawl_feedback": "ask",
-    "firecrawl_firecrawl_interact": "ask",
-    "firecrawl_firecrawl_interact_stop": "ask",
-    "firecrawl_firecrawl_map": "ask",
-    "firecrawl_firecrawl_monitor_check": "ask",
-    "firecrawl_firecrawl_monitor_checks": "ask",
-    "firecrawl_firecrawl_monitor_create": "ask",
-    "firecrawl_firecrawl_monitor_delete": "ask",
-    "firecrawl_firecrawl_monitor_get": "ask",
-    "firecrawl_firecrawl_monitor_list": "ask",
-    "firecrawl_firecrawl_monitor_run": "ask",
-    "firecrawl_firecrawl_monitor_update": "ask",
-    "firecrawl_firecrawl_parse": "deny",
-    "firecrawl_firecrawl_research_inspect_paper": "ask",
-    "firecrawl_firecrawl_research_read_paper": "ask",
-    "firecrawl_firecrawl_research_related_papers": "ask",
-    "firecrawl_firecrawl_research_search_github": "ask",
-    "firecrawl_firecrawl_research_search_papers": "ask",
-    "firecrawl_firecrawl_scrape": "ask",
-    "firecrawl_firecrawl_search": "ask",
-    "firecrawl_firecrawl_search_feedback": "ask",
+    "todowrite": "deny",
+    "todoread": "deny",
+    "task": "allow",
+    "openmates_task": "allow",
     "external_directory": {
       "/home/superdev/projects/OpenMatesCloud/**": "allow",
-      "/home/superdev/projects/.openmates-agent-worktrees/**": "allow"
+      "/home/superdev/projects/.openmates-agent-worktrees/**": "allow",
+      "/home/superdev/projects/.openmates-runtime/opencode-server/**": "allow"
     },
     "skill": {
       "*": "allow",
@@ -42,7 +28,8 @@
   "provider": {
     "openai": {
       "options": {
-        "headerTimeout": 300000
+        "headerTimeout": 300000,
+        "chunkTimeout": 120000
       }
     }
   },
@@ -60,7 +47,7 @@
       }
     },
     "plan": {
-      "description": "Read-only OpenMates planning mode for spec-driven development; creates or updates executable spec.yml contracts before implementation.",
+      "description": "Read-only OpenMates planning mode; creates or updates executable plan.yml files before implementation.",
       "mode": "primary",
       "permission": {
         "read": "allow",
@@ -68,15 +55,16 @@
         "grep": "allow",
         "bash": "ask",
         "task": "allow",
-        "todowrite": "allow",
+        "todowrite": "deny",
+        "todoread": "deny",
         "question": "allow",
         "skill": "allow",
         "edit": {
           "*": "deny",
-          "docs/specs/**/spec.yml": "allow"
+          "docs/plans/**/plan.yml": "allow"
         }
       },
-      "prompt": "You are OpenMates read-only Plan Mode. Choose the lightest risk tier from docs/contributing/guides/spec-driven-development.md: Tier 0 needs no spec, ordinary Tier 1 work uses a concise issue/session contract, and Tier 2 high-risk or durable multi-session work uses docs/specs/<slug>/spec.yml. You may edit only Tier 2 spec.yml files. Discover existing issues, docs, source patterns, and tests before asking one clarifying question at a time. Every clarifying question must include `Recommendation:` with the evidence-based preferred answer and rationale plus `Examples:` with task-specific options or outcomes; if uncertain, recommend the safest reversible default and state the uncertainty. New full specs use schema_version: 2 with scenarios, acceptance_criteria, tests, implementation_plan, tasks, assumptions, approvals, decisions, attempts, handoff, coverage_status, verification_ids, and subject_commit evidence. Larger UI work requires V-UI-VISUAL-SMOKE with viewports: [laptop, mobile], a narration outline, and frame-only review before user confirmation. Normalize vague criteria, run spec_validate.py after edits, and run spec_verify.py before verified status. Failed required checks keep implementation active until fixed, user-confirmed, waived, or blocked by important unresolved user input."
+      "prompt": "You are OpenMates read-only Plan Mode. Choose the lightest risk tier from docs/contributing/guides/spec-driven-development.md: Tier 0 needs no Plan, ordinary Tier 1 work uses a concise issue/session Plan, and Tier 2 high-risk or durable multi-session work uses docs/plans/<slug>/plan.yml. You may edit only Tier 2 plan.yml files. Discover existing issues, docs, source patterns, and tests before asking one clarifying question at a time. Every clarifying question must include `Recommendation:` with the evidence-based preferred answer and rationale plus `Examples:` with task-specific options or outcomes; if uncertain, recommend the safest reversible default and state the uncertainty. New full Plans use schema_version: 3 with scenarios, acceptance_criteria, checks, tasks, assumptions, approvals, decisions, attempts, handoff, coverage_status, verification_ids, and subject_commit evidence. Larger UI work requires V-UI-VISUAL-SMOKE with viewports: [laptop, mobile], a narration outline, and frame-only review before user confirmation. Normalize vague criteria, run plan_validate.py after edits, and run plan_verify.py before verified status. Failed required checks keep implementation active until fixed, user-confirmed, waived, or blocked by important unresolved user input."
     },
     "cron-research": {
       "description": "Strictly read-only unattended research over bounded local evidence; returns findings without changing files or launching children.",
@@ -89,9 +77,6 @@
         "grep": "allow",
         "skill": "allow",
         "webfetch": "allow",
-        "brave-search_brave_web_search": "allow",
-        "context7_resolve-library-id": "allow",
-        "context7_query-docs": "allow",
         "bash": "deny",
         "edit": "deny",
         "task": "deny",

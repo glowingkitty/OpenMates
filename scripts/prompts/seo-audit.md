@@ -32,7 +32,7 @@ Use `curl` or equivalent safe HTTP requests against `https://openmates.org`:
 - `/sitemap.xml`
 - `/robots.txt`
 - `/`
-- `/intro/for-everyone`
+- `/intro/who-develops-openmates`
 - `/example` if available
 - One example/demo chat page from the sitemap
 - `/docs`

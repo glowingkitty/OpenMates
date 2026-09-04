@@ -27,6 +27,7 @@ function deriveApiUrl(baseUrl: string): string {
 }
 
 test.describe('Workflows editor', () => {
+	// contract-test: supporting surface=gui.web assertions=workflows-ui.template.centered-in-place-editor,workflows-ui.versions.timeline-readonly-restore-new
 	test('opens a focused editor with explicit dirty-state controls', async ({ page }) => {
 		test.setTimeout(180000);
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
@@ -52,14 +53,14 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflows-page')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-mixed-row')).toBeVisible();
 			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Tell me if it will rain tomorrow' }).click();
-			await expect(page.getByTestId('workflow-editor')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details/);
 			await expect(page.getByTestId('workflows-list')).toHaveCount(0);
 			await page.getByTestId('workflow-detail-back').click();
 			await expect(page).toHaveURL(/\/workflows$/);
 			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
 			await page.getByTestId('workflow-mixed-row').getByTestId('workflow-landing-card').filter({ hasText: 'Daily rain alert' }).first().click();
-			await expect(page.getByTestId('workflow-editor')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details/);
 			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-header-system', 'workflow-detail');
 			await expect(page.getByTestId('workflow-detail-actions')).toBeVisible();
@@ -82,14 +83,15 @@ test.describe('Workflows editor', () => {
 			await expect(page.getByTestId('workflow-runs')).toBeVisible();
 			await page.getByTestId('workflow-runs-back-to-editor').click();
 			await expect(page).toHaveURL(/\/workflows#workflow-id=[^&]+&workflow-tab=details$/);
-			await expect(page.getByTestId('workflow-editor')).toBeVisible();
+			await expect(page.getByTestId('workflow-graph-renderer')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('workflow-action-palette')).toContainText('Add action');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('then');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('If true:');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('If false:');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Do nothing');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Berlin');
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('rain probability > 60');
+			const templateNodeStack = page.getByTestId('workflow-graph-renderer').getByTestId('workflow-node-stack');
+			await expect(templateNodeStack).toContainText('then');
+			await expect(templateNodeStack).toContainText('If true:');
+			await expect(templateNodeStack).toContainText('If false:');
+			await expect(templateNodeStack).toContainText('Do nothing');
+			await expect(templateNodeStack).toContainText('Weather | Get forecast for Berlin');
+			await expect(templateNodeStack).toContainText('rain probability > 60');
 
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
@@ -107,7 +109,7 @@ test.describe('Workflows editor', () => {
 			);
 			await page.getByTestId('save-workflow').click();
 			await saveWorkflowResponse;
-			await expect(page.getByTestId('workflow-node-stack')).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
+			await expect(templateNodeStack).toContainText('Weather | Get forecast for Paris', { timeout: 30000 });
 			await expect(page.getByTestId('save-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('undo-workflow')).toHaveCount(0);
 			await expect(page.getByTestId('workflow-version-history')).toBeVisible();

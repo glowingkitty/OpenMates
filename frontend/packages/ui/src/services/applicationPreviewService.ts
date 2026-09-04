@@ -5,10 +5,12 @@
 // actual app traffic is loaded from the separate user-content preview origin.
 
 import { getApiUrl } from '../config/api';
-import { decodeToonContent, extractEmbedReferences, resolveEmbed } from './embedResolver';
+import { decodeToonContent, extractEmbedReferences, loadEmbedsWithRetry, resolveEmbed } from './embedResolver';
 
 const AUTO_START_RESOLVE_ATTEMPTS = 6;
 const AUTO_START_RESOLVE_DELAY_MS = 500;
+const AUTO_START_START_ATTEMPTS = 4;
+const AUTO_START_START_DELAY_MS = 1_000;
 
 export interface ApplicationPreviewStartResponse {
   session_id: string;
@@ -143,25 +145,57 @@ export async function autoStartCreatedApplicationPreview(
   messageId: string,
   markdown: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
-  const applicationRefs = extractEmbedReferences(markdown).filter((ref) => ref.type === 'application' || ref.type === 'code-application');
-  const applicationEmbedId = applicationRefs.length ? applicationRefs[applicationRefs.length - 1].embed_id : undefined;
+  const applicationEmbedId = await resolveCreatedApplicationEmbedId(markdown);
   if (!applicationEmbedId) return undefined;
 
-  const attemptKey = `${chatId}:${messageId}:${applicationEmbedId}`;
+  return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
+}
+
+export async function autoStartApplicationPreviewForEmbed(
+  chatId: string,
+  messageId: string | undefined,
+  applicationEmbedId: string,
+): Promise<ApplicationPreviewStartResponse | undefined> {
+  if (!await waitForApplicationEmbed(applicationEmbedId)) return undefined;
+
+  return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
+}
+
+async function startApplicationPreviewOnce(
+  chatId: string,
+  messageId: string | undefined,
+  applicationEmbedId: string,
+): Promise<ApplicationPreviewStartResponse | undefined> {
+  const attemptKey = `${chatId}:${messageId ?? 'unknown-message'}:${applicationEmbedId}`;
   if (autoStartAttempts.has(attemptKey)) return undefined;
   autoStartAttempts.add(attemptKey);
 
-  try {
-    const embedReady = await waitForApplicationEmbed(applicationEmbedId);
-    if (!embedReady) return undefined;
-    return await startApplicationPreview(chatId, applicationEmbedId, {
-      autoStarted: true,
-      sourceMessageId: messageId,
-    });
-  } catch (error) {
-    console.warn('[applicationPreviewService] Auto-start application preview failed:', error);
-    return undefined;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < AUTO_START_START_ATTEMPTS; attempt += 1) {
+    try {
+      return await startApplicationPreview(chatId, applicationEmbedId, {
+        autoStarted: true,
+        sourceMessageId: messageId,
+      });
+    } catch (error) {
+      lastError = error;
+      if (attempt < AUTO_START_START_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, AUTO_START_START_DELAY_MS));
+      }
+    }
   }
+  autoStartAttempts.delete(attemptKey);
+  console.warn('[applicationPreviewService] Auto-start application preview failed:', lastError);
+  return undefined;
+}
+
+async function resolveCreatedApplicationEmbedId(markdown: string): Promise<string | undefined> {
+  const embedRefs = extractEmbedReferences(markdown);
+  for (let index = embedRefs.length - 1; index >= 0; index -= 1) {
+    const ref = embedRefs[index];
+    if (await waitForApplicationEmbed(ref.embed_id)) return ref.embed_id;
+  }
+  return undefined;
 }
 
 async function waitForApplicationEmbed(applicationEmbedId: string): Promise<boolean> {
@@ -187,12 +221,14 @@ export async function buildApplicationPreviewSharedContext(
     : [];
   if (!fileRefs.length) return undefined;
 
-  const childContents: Record<string, Record<string, unknown>> = {};
-  for (const ref of fileRefs) {
-    const embedId = typeof ref.embed_id === 'string' ? ref.embed_id : '';
-    if (!embedId) return undefined;
+  const embedIds = fileRefs.map((ref) => typeof ref.embed_id === 'string' ? ref.embed_id : '');
+  if (embedIds.some((embedId) => !embedId)) return undefined;
 
-    const embed = await resolveEmbed(embedId);
+  const childEmbeds = await loadEmbedsWithRetry(embedIds);
+  const childEmbedsById = new Map(childEmbeds.map((embed) => [embed.embed_id, embed]));
+  const childContents: Record<string, Record<string, unknown>> = {};
+  for (const embedId of embedIds) {
+    const embed = childEmbedsById.get(embedId);
     const decoded = await decodeToonContent(embed?.content);
     if (!decoded) return undefined;
     childContents[embedId] = decoded;

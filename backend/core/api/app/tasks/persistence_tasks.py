@@ -82,6 +82,7 @@ def _chat_list_cache_data_from_metadata(
         encrypted_quick_tip_slugs=chat_metadata.get("encrypted_quick_tip_slugs"),
         encrypted_shared_short_url=chat_metadata.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_metadata.get("encrypted_active_focus_id"),
+        encrypted_auto_speak_response=chat_metadata.get("encrypted_auto_speak_response"),
         last_message_timestamp=chat_metadata.get("last_message_timestamp"),
         parent_id=chat_metadata.get("parent_id"),
         is_sub_chat=chat_metadata.get("is_sub_chat"),
@@ -196,6 +197,24 @@ def cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
         return asyncio.run(_async_cleanup_expired_chat_recovery_jobs())
     except Exception:
         logger.exception("Periodic chat recovery cleanup failed")
+        raise
+
+
+async def _async_cleanup_expired_account_exports() -> dict[str, int]:
+    from backend.core.api.app.services.account_export_service import AccountExportService
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+    service = AccountExportService(directus_service=directus_service)
+    return await service.purge_expired_exports()
+
+
+@app.task(name="app.tasks.persistence_tasks.cleanup_expired_account_exports")
+def cleanup_expired_account_exports() -> dict[str, int]:
+    try:
+        return asyncio.run(_async_cleanup_expired_account_exports())
+    except Exception:
+        logger.exception("Periodic account export cleanup failed")
         raise
 
 
@@ -2098,8 +2117,9 @@ async def _async_persist_encrypted_chat_metadata(
                     for field in ("encrypted_title", "encrypted_icon", "encrypted_category",
                                    "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_chat_tags",
                                    "encrypted_follow_up_request_suggestions",
-                                   "encrypted_top_recommended_apps_for_chat",
-                                  "encrypted_quick_tip_slugs", "encrypted_shared_short_url"):
+                                    "encrypted_top_recommended_apps_for_chat",
+                                   "encrypted_quick_tip_slugs", "encrypted_shared_short_url",
+                                   "encrypted_auto_speak_response"):
                         if field in update_fields:
                             rejected_metadata.append(field)
                             update_fields.pop(field)
@@ -2116,7 +2136,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
                 "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_chat_key",
                 "encrypted_top_recommended_apps_for_chat",
-                "encrypted_quick_tip_slugs", "encrypted_shared_short_url",
+                "encrypted_quick_tip_slugs", "encrypted_shared_short_url", "encrypted_auto_speak_response",
                 "updated_at"
             }
             
@@ -2251,6 +2271,7 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
                         encrypted_shared_short_url=encrypted_metadata.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
+                        encrypted_auto_speak_response=encrypted_metadata.get("encrypted_auto_speak_response"),
                         last_message_timestamp=last_message,
                         parent_id=encrypted_metadata.get("parent_id"),
                         is_sub_chat=encrypted_metadata.get("is_sub_chat"),
@@ -2328,6 +2349,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
                 "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
                 "encrypted_shared_short_url": encrypted_metadata.get("encrypted_shared_short_url"),
+                "encrypted_auto_speak_response": encrypted_metadata.get("encrypted_auto_speak_response"),
                 "parent_id": encrypted_metadata.get("parent_id"),
                 "is_sub_chat": encrypted_metadata.get("is_sub_chat"),
             }

@@ -102,6 +102,8 @@ test("general child mutation routes to the parent worktree without creating a ch
       parent: {
         opencode_session_id: "ses-parent",
         mode: "feature",
+        repo_root: worktreePath,
+        repo_name: "control-plane-test",
         worktree: { path: worktreePath, status: "active" },
       },
     },

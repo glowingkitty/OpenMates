@@ -28,7 +28,7 @@
 //              height:40px; font-weight:500 }
 //            .action-buttons { position:absolute; bottom:1rem; left:1rem; right:1rem }
 //
-// messageList / StreamingIndicator:
+// messageList:
 //   Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
 //   CSS:     frontend/packages/ui/src/styles/chat.css
 //            .chat-history-container { padding:10px; overflow-y:auto }
@@ -86,18 +86,25 @@ private struct ChatMessageFramePreferenceKey: PreferenceKey {
     }
 }
 
-private enum ChatResponsiveBreakpoint {
+enum ChatResponsiveLayoutPolicy {
     /// Web `ChatMessage.svelte`: assistant messages use `.mobile-stacked`
     /// when the measured chat container width is <= 500 px.
-    static let assistantStacked: CGFloat = 500
+    private static let assistantStackedBreakpoint: CGFloat = 500
     /// Web `ActiveChat.svelte`: input-adjacent New chat label hides at
     /// `@container chat-side (max-width: 550px)`.
     static let inlineNewChatCompact: CGFloat = 550
+    static let contentMaximumWidth: CGFloat = 1_000
+    static let inlineCompactComposerHeight: CGFloat = 48
+
+    static func stacksAssistantIdentity(containerWidth: CGFloat) -> Bool {
+        containerWidth <= assistantStackedBreakpoint
+    }
 }
 
 private enum ChatHistoryLayoutMetric {
-    static let contentMaximumWidth: CGFloat = 1_000
     static let wideWindowMinimumWidth: CGFloat = 900
+    static let streamingUpdateDebounceMilliseconds = 50
+    static let streamingFinalizationDelayMilliseconds = 250
 }
 
 private enum ChatMessageLayoutMetric {
@@ -184,6 +191,7 @@ struct ChatView: View {
     @State private var chatContainerWidth: CGFloat = 0
     @State private var isAtTop = true
     @State private var isAtBottom = false
+    @State private var followsStreamingResponse = false
     @State private var hasRestoredInitialScroll = false
     @State private var isRestoringScroll = false
     @State private var handledInputFocusRequest = 0
@@ -193,6 +201,7 @@ struct ChatView: View {
     @State private var selectedAssistantRating: Int?
     @State private var assistantFeedbackSubmitted = false
     @State private var scrollPositionDebounceTask: Task<Void, Never>?
+    @State private var streamingScrollTask: Task<Void, Never>?
     @State private var draftSaveTask: Task<Void, Never>?
     @State private var suppressNextDraftSave = false
     @State private var broadcastToSiblingSubChats = false
@@ -247,11 +256,6 @@ struct ChatView: View {
             return []
         }
         return [.fromPreprocessing(step)]
-    }
-
-    private var introTeaserVideoURL: URL? {
-        Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4", subdirectory: "Videos")
-            ?? Bundle.main.url(forResource: "intro-teaser", withExtension: "mp4")
     }
 
     var body: some View {
@@ -822,13 +826,9 @@ struct ChatView: View {
                                     state: banner,
                                     createdAt: effectiveBannerCreatedAt,
                                     isExampleChat: chatId.hasPrefix("example-"),
-                                    isIntroChat: chatId == "demo-for-everyone",
-                                    teaserVideoURL: chatId == "demo-for-everyone"
-                                        ? introTeaserVideoURL
-                                        : nil,
-                                    fullVideoURL: chatId == "demo-for-everyone"
-                                        ? URL(string: "https://vod.api.video/vod/vi43o2FOchAMACeh5blHumCa/mp4/source.mp4")
-                                        : nil,
+                                    isIntroChat: false,
+                                    teaserVideoURL: nil,
+                                    fullVideoURL: nil,
                                     iconName: publicChatIconName(for: chatId) ?? viewModel.chat?.icon,
                                     isSettingsOpen: isSettingsOpen,
                                     viewportHeight: chatViewportHeight,
@@ -926,14 +926,9 @@ struct ChatView: View {
 
                                 if !activeProcessingSteps.isEmpty {
                                     ProcessingDetailsView(steps: activeProcessingSteps, isComplete: false)
-                                        .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 86 : 0)
-                                        .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 12 : 0)
+                                        .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 86)
+                                        .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 12)
                                         .id("processing-details")
-                                }
-
-                                if viewModel.isStreaming && viewModel.streamingContent.isEmpty && !viewModel.streamingLifecycle.shouldShowThinkingDetails {
-                                    StreamingIndicator()
-                                        .id("streaming")
                                 }
 
                                 if showAssistantFeedback {
@@ -945,8 +940,8 @@ struct ChatView: View {
                                             onReportIssue?(.featureRequest())
                                         }
                                     )
-                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 75 : 0)
-                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 20 : 0)
+                                    .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 75)
+                                    .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 20)
                                     .id("assistant-response-feedback")
                                 }
 
@@ -958,15 +953,15 @@ struct ChatView: View {
                                     ) { suggestion in
                                         messageText = suggestion
                                     }
-                                    .padding(.leading, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 75 : 0)
-                                    .padding(.trailing, scrollGeo.size.width > ChatResponsiveBreakpoint.assistantStacked ? 20 : 0)
+                                    .padding(.leading, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 75)
+                                    .padding(.trailing, ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: scrollGeo.size.width) ? 0 : 20)
                                     .id("follow-up-suggestions")
                                 }
                             }
                             .padding(.horizontal, .spacing4)
                             .padding(.vertical, .spacing4)
                             // Cap message area width on iPad/Mac, centered
-                            .frame(maxWidth: ChatHistoryLayoutMetric.contentMaximumWidth)
+                            .frame(maxWidth: ChatResponsiveLayoutPolicy.contentMaximumWidth)
                             .frame(maxWidth: .infinity)
                             .accessibilityIdentifier("chat-history-content")
 
@@ -978,6 +973,11 @@ struct ChatView: View {
                     .contentShape(Rectangle())
                     .accessibilityIdentifier("chat-history-container")
                     .scrollDismissesKeyboard(.interactively)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 4).onChanged { _ in
+                            stopFollowingStreamingResponse()
+                        }
+                    )
                     .onTapGesture {
                         dismissInputIfNeeded()
                     }
@@ -1031,6 +1031,28 @@ struct ChatView: View {
                 .onChange(of: viewModel.messages.map(\.id)) { _, _ in
                     restoreInitialScrollIfNeeded(proxy: proxy)
                     scrollToSearchTargetIfNeeded(proxy: proxy)
+                    scrollToStreamingResponseIfNeeded(proxy: proxy)
+                }
+                .onChange(of: viewModel.streamingContent) { _, _ in
+                    scrollToStreamingResponseIfNeeded(proxy: proxy)
+                }
+                .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
+                    if !wasStreaming, isStreaming {
+                        followsStreamingResponse = displayedChatMessages.last?.role == .user || isAtBottom
+                        scrollToStreamingResponseIfNeeded(proxy: proxy)
+                        return
+                    }
+                    guard wasStreaming, !isStreaming, followsStreamingResponse else { return }
+                    finalizeStreamingResponseScroll(proxy: proxy)
+                }
+                .onChange(of: viewModel.followUpSuggestions) { _, suggestions in
+                    guard !suggestions.isEmpty, followsStreamingResponse || isAtBottom else { return }
+                    Task { @MainActor in
+                        await Task.yield()
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+                        }
+                    }
                 }
                 .onChange(of: searchTarget) { _, _ in
                     scrollToSearchTargetIfNeeded(proxy: proxy)
@@ -1051,7 +1073,7 @@ struct ChatView: View {
     }
 
     private func chatHistoryLayoutMetricsProbe(containerSize: CGSize) -> some View {
-        let transcriptWidth = min(containerSize.width, ChatHistoryLayoutMetric.contentMaximumWidth)
+        let transcriptWidth = min(containerSize.width, ChatResponsiveLayoutPolicy.contentMaximumWidth)
         let mobileBanner = containerSize.width <= 730
         let minimumBannerHeight: CGFloat = mobileBanner ? 230 : 240
         let bannerHeight = max(minimumBannerHeight, chatViewportHeight * 0.35)
@@ -1281,6 +1303,39 @@ struct ChatView: View {
         viewModel.loadOlderMessages()
     }
 
+    private func scrollToStreamingResponseIfNeeded(proxy: ScrollViewProxy) {
+        guard followsStreamingResponse else { return }
+        streamingScrollTask?.cancel()
+        streamingScrollTask = Task { @MainActor in
+            try? await Task.sleep(
+                for: .milliseconds(ChatHistoryLayoutMetric.streamingUpdateDebounceMilliseconds)
+            )
+            guard !Task.isCancelled, followsStreamingResponse else { return }
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+        }
+    }
+
+    private func finalizeStreamingResponseScroll(proxy: ScrollViewProxy) {
+        streamingScrollTask?.cancel()
+        streamingScrollTask = Task { @MainActor in
+            await Task.yield()
+            guard !Task.isCancelled, followsStreamingResponse else { return }
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+            try? await Task.sleep(
+                for: .milliseconds(ChatHistoryLayoutMetric.streamingFinalizationDelayMilliseconds)
+            )
+            guard !Task.isCancelled, followsStreamingResponse else { return }
+            proxy.scrollTo("scroll-bottom", anchor: .bottom)
+            followsStreamingResponse = false
+        }
+    }
+
+    private func stopFollowingStreamingResponse() {
+        streamingScrollTask?.cancel()
+        streamingScrollTask = nil
+        followsStreamingResponse = false
+    }
+
     private func scrollSentinel(id: String, edge: ChatScrollSentinelEdge) -> some View {
         GeometryReader { geo in
             Color.clear.preference(
@@ -1310,6 +1365,7 @@ struct ChatView: View {
         lastReportedVisibleMessageId = nil
         scrollPositionDebounceTask?.cancel()
         scrollPositionDebounceTask = nil
+        stopFollowingStreamingResponse()
     }
 
     private func handleAssistantFeedbackSubmit() {
@@ -1520,7 +1576,6 @@ struct ChatView: View {
         }
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing2)
-        .background(Color.grey0)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(AppStrings.aiResponding)
         .accessibilityIdentifier("streaming-banner")
@@ -1561,7 +1616,10 @@ struct ChatView: View {
         return VStack(spacing: composerOpen ? .spacing3 : 0) {
             HStack(alignment: .bottom, spacing: .spacing3) {
                 newChatInlineButton
-                    .frame(width: composerOpen ? 0 : (useCompactInlineNewChat ? 48 : nil), height: 48)
+                    .frame(
+                        width: composerOpen ? 0 : (useCompactInlineNewChat ? ChatResponsiveLayoutPolicy.inlineCompactComposerHeight : nil),
+                        height: ChatResponsiveLayoutPolicy.inlineCompactComposerHeight
+                    )
                     .opacity(composerOpen ? 0 : 1)
                     .clipped()
                     .allowsHitTesting(!composerOpen)
@@ -1578,11 +1636,10 @@ struct ChatView: View {
                     .transition(.opacity)
             }
         }
-        .frame(maxWidth: ChatHistoryLayoutMetric.contentMaximumWidth)
+        .frame(maxWidth: ChatResponsiveLayoutPolicy.contentMaximumWidth)
         .frame(maxWidth: .infinity)
         .padding(.horizontal, .spacing4)
         .padding(.vertical, .spacing3)
-        .background(Color.grey0)
         .animation(.easeInOut(duration: 0.25), value: isInputFocused)
     }
 
@@ -1595,7 +1652,6 @@ struct ChatView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, .spacing4)
             .padding(.vertical, .spacing3)
-            .background(Color.grey0)
     }
 
     @ViewBuilder
@@ -2447,7 +2503,7 @@ struct ChatView: View {
 
     private var useCompactInlineNewChat: Bool {
         if chatContainerWidth > 0 {
-            return chatContainerWidth <= ChatResponsiveBreakpoint.inlineNewChatCompact
+            return chatContainerWidth <= ChatResponsiveLayoutPolicy.inlineNewChatCompact
         }
         return sizeClass == .compact
     }
@@ -2742,6 +2798,7 @@ struct ChatView: View {
             return
         }
         messageText = ""
+        followsStreamingResponse = true
         viewModel.error = nil
         detectedPIIMatches = []
         piiExclusions = []
@@ -2756,6 +2813,7 @@ struct ChatView: View {
                 composerEmbeds: composerEmbeds.isEmpty ? nil : composerEmbeds
             )
             if viewModel.error != nil {
+                stopFollowingStreamingResponse()
                 messageText = originalText
             } else {
                 for nodeID in documentNodeIDs {
@@ -2942,7 +3000,7 @@ struct ChatView: View {
 
     private func publicChatIconName(for chatId: String) -> String? {
         switch chatId {
-        case "demo-for-developers", "example-beautiful-single-page-html":
+        case "example-beautiful-single-page-html":
             return "code"
         case "demo-who-develops-openmates":
             return "user"
@@ -3115,8 +3173,56 @@ enum ChatMessageAccessibilityPolicy {
 }
 
 enum ChatMessageStreamingRenderPolicy {
-    static func usesTransientPlainText(streamingContent: String?) -> Bool {
-        streamingContent != nil
+    static func visibleContent(_ content: String) -> String {
+        let lines = content.components(separatedBy: "\n")
+        var visibleLines: [String] = []
+        var index = 0
+
+        while index < lines.count {
+            let trimmed = lines[index].trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("```") else {
+                visibleLines.append(lines[index])
+                index += 1
+                continue
+            }
+
+            let language = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            var endIndex = index + 1
+            while endIndex < lines.count,
+                  !lines[endIndex].trimmingCharacters(in: .whitespaces).hasPrefix("```") {
+                endIndex += 1
+            }
+
+            let isClosed = endIndex < lines.count
+            let body = lines[(index + 1)..<min(endIndex, lines.count)].joined(separator: "\n")
+            if isInternalProtocolFence(language: language, body: body, isClosed: isClosed) {
+                index = isClosed ? endIndex + 1 : lines.count
+                continue
+            }
+
+            let finalIndex = isClosed ? endIndex : lines.count - 1
+            visibleLines.append(contentsOf: lines[index...finalIndex])
+            index = finalIndex + 1
+        }
+
+        return visibleLines.joined(separator: "\n")
+    }
+
+    private static func isInternalProtocolFence(language: String, body: String, isClosed: Bool) -> Bool {
+        if language == "interactive_response" || language == "interactive_question" {
+            return true
+        }
+        guard language == "json" || language == "json_embed" else { return false }
+        guard isClosed else {
+            return language == "json_embed"
+                || (body.contains("\"app_skill_use\"") && body.contains("\"embed_id\""))
+        }
+        guard let data = body.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return false
+        }
+        return language == "json_embed"
+            || (object["type"] != nil && object["embed_id"] != nil)
     }
 }
 
@@ -3170,7 +3276,7 @@ struct MessageBubble: View {
     /// Web: ≤500px uses stacked layout (avatar above message).
     private var useStackedLayout: Bool {
         if containerWidth > 0 {
-            return containerWidth <= ChatResponsiveBreakpoint.assistantStacked
+            return ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: containerWidth)
         }
         return sizeClass == .compact
     }
@@ -3186,7 +3292,10 @@ struct MessageBubble: View {
     }
 
     var displayContent: String {
-        let content = streamingContent ?? message.content ?? ""
+        let rawContent = streamingContent ?? message.content ?? ""
+        let content = streamingContent == nil
+            ? rawContent
+            : ChatMessageStreamingRenderPolicy.visibleContent(rawContent)
         guard isPIIRevealed else { return content }
         return PIIDetector.restorePII(in: content, mappings: piiMappings)
     }
@@ -3202,23 +3311,18 @@ struct MessageBubble: View {
 
     @ViewBuilder
     private var assistantMarkdownContent: some View {
-        if ChatMessageStreamingRenderPolicy.usesTransientPlainText(streamingContent: streamingContent) {
-            Text(displayContent)
-                .fixedSize(horizontal: false, vertical: true)
-        } else {
-            RichMarkdownView(
-                content: displayContent,
-                renderDocument: stableRenderDocument,
-                isUserMessage: false,
-                onOpenPublicChat: onOpenPublicChat,
-                embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
-                allEmbedRecords: allEmbedRecords,
-                hiddenEmbedIds: hiddenInlineEmbedIds,
-                onEmbedTap: onEmbedTap,
-                onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
-                searchHighlightQuery: searchHighlightQuery
-            )
-        }
+        RichMarkdownView(
+            content: displayContent,
+            renderDocument: stableRenderDocument,
+            isUserMessage: false,
+            onOpenPublicChat: onOpenPublicChat,
+            embedLookup: EmbedRecord.dictionaryById(embeds, context: "chatView.richMarkdown"),
+            allEmbedRecords: allEmbedRecords,
+            hiddenEmbedIds: hiddenInlineEmbedIds,
+            onEmbedTap: onEmbedTap,
+            onInteractiveQuestionSubmit: viewAllowsInteractiveQuestionSubmit ? onInteractiveQuestionSubmit : nil,
+            searchHighlightQuery: searchHighlightQuery
+        )
     }
 
     private var stableRenderDocument: ChatHistoryRenderDocument? {
@@ -3341,8 +3445,6 @@ struct MessageBubble: View {
     // MARK: - Assistant avatar with AI badge
 
     private static let openMatesOfficialChatIds: Set<String> = [
-        "demo-for-everyone",
-        "demo-for-developers",
         "demo-who-develops-openmates",
         "announcements-introducing-openmates-v09",
         "legal-privacy",
@@ -3487,7 +3589,7 @@ struct MessageBubble: View {
                     }
             } else if !embeds.isEmpty {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    ForEach(EmbedGrouper.group(embeds)) { group in
+                    ForEach(EmbedGrouper.groupForInlineDisplay(embeds)) { group in
                         GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
                             onEmbedTap(embed)
                         }
@@ -3510,7 +3612,7 @@ struct MessageBubble: View {
 
     private var assistantContent: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if !displayContent.isEmpty {
+            if !displayContent.isEmpty || thinkingContent?.isEmpty == false || !topLevelAppSkillEmbeds.isEmpty {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(assistantDisplayName)
@@ -3550,10 +3652,13 @@ struct MessageBubble: View {
                             .padding(.bottom, .spacing2)
                         }
 
-                        assistantMarkdownContent
+                        if !displayContent.isEmpty {
+                            assistantMarkdownContent
+                        }
                     }
                     .foregroundStyle(Color.grey100)
                     .padding(.spacing6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color.grey0)
                     .clipShape(RoundedRectangle(cornerRadius: 13))
                     .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
@@ -3564,12 +3669,21 @@ struct MessageBubble: View {
                     .onLongPressGesture {
                         onShowActions?()
                     }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("assistant-message-content")
 
                     if let modelName = message.modelName, !modelName.isEmpty {
                         generatedByContainer(modelName: modelName)
                     }
                 }
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(alignment: .bottomLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("message-assistant-tail")
         }
     }
 
@@ -3749,34 +3863,3 @@ private struct SpeechTailView: View {
 
 // MarkdownText and IsUserMessage environment removed — replaced by
 // RichMarkdownView / InlineMarkdownText in RichMarkdownRenderer.swift
-
-// MARK: - Streaming indicator
-
-struct StreamingIndicator: View {
-    @State private var dotCount = 0
-    let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
-
-    var body: some View {
-        HStack {
-            HStack(spacing: .spacing1) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .fill(Color.fontTertiary)
-                        .frame(width: 6, height: 6)
-                        .opacity(index <= dotCount ? 1 : 0.3)
-                }
-            }
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing4)
-            .background(Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: 13))
-            .shadow(color: .black.opacity(0.25), radius: 4, x: 0, y: 4)
-
-            Spacer()
-        }
-        .onReceive(timer) { _ in
-            dotCount = (dotCount + 1) % 3
-        }
-        .accessibilityIdentifier("streaming-indicator")
-    }
-}

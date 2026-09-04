@@ -146,6 +146,7 @@ class FakeS3Service:
         return self.uploads.get(object_key)
 
 
+# contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
 @pytest.mark.asyncio
 async def test_record_change_set_creates_metadata_and_entries_without_plaintext_title() -> None:
     directus = FakeDirectus()
@@ -174,6 +175,7 @@ async def test_record_change_set_creates_metadata_and_entries_without_plaintext_
     assert directus.collections["workspace_change_sets"][0]["namespace"] == "tasks"
 
 
+# contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_s3_archive_io_uses_workspace_history_bucket_and_checksummed_payload() -> None:
     s3 = FakeS3Service()
@@ -187,6 +189,7 @@ async def test_s3_archive_io_uses_workspace_history_bucket_and_checksummed_paylo
     assert restored == payload
 
 
+# contract-test: infrastructure
 @pytest.mark.asyncio
 async def test_archive_due_keeps_latest_10_and_marks_oldest_10_archived() -> None:
     directus = FakeDirectus()
@@ -215,6 +218,7 @@ async def test_archive_due_keeps_latest_10_and_marks_oldest_10_archived() -> Non
     assert len(hot) == 10
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,tasks.content.client-encrypted
 @pytest.mark.asyncio
 async def test_cold_restore_loads_archived_entry_when_hot_snapshot_refs_are_missing() -> None:
     directus = FakeDirectus()
@@ -267,6 +271,7 @@ async def test_cold_restore_loads_archived_entry_when_hot_snapshot_refs_are_miss
     assert restored["object"]["version"] == 2
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible
 @pytest.mark.asyncio
 async def test_undo_marks_original_entries_and_creates_compensating_change_set() -> None:
     directus = FakeDirectus()
@@ -291,6 +296,7 @@ async def test_undo_marks_original_entries_and_creates_compensating_change_set()
     assert await directus.get_task("task-1", "user-1") is None
 
 
+# contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.content.client-encrypted
 @pytest.mark.asyncio
 async def test_restore_task_entry_applies_opaque_snapshot_as_new_version() -> None:
     directus = FakeDirectus()
@@ -327,6 +333,50 @@ async def test_restore_task_entry_applies_opaque_snapshot_as_new_version() -> No
     assert restored["rollback_entry_commands"][0].startswith("openmates tasks restore task-1 --entry")
 
 
+# contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.blocking.encrypted-reason
+@pytest.mark.asyncio
+async def test_restore_task_entry_preserves_external_context_and_encrypted_blocked_reason() -> None:
+    directus = FakeDirectus()
+    service = WorkspaceChangeHistoryService(directus)
+    created = await directus.create_task(
+        "user-1",
+        {"task_id": "task-1", "encrypted_title": "cipher-current", "encrypted_task_key": "key", "version": 1, "created_at": 1, "updated_at": 1},
+    )
+    target = {
+        **created,
+        "primary_chat_id": None,
+        "external_chat_provider": "opencode",
+        "external_chat_lookup_hash": "c" * 64,
+        "encrypted_external_chat_id": "cipher-external-id",
+        "encrypted_external_chat_title": "cipher-external-title",
+        "blocked_reason_code": "needs_user_input",
+        "encrypted_blocked_reason": "cipher-blocked-reason",
+        "version": 2,
+    }
+    change = await service.record_change_set(
+        user_id="user-1",
+        source="cli",
+        namespace="tasks",
+        action_type="update",
+        entries=[{"object_type": "task", "object_id": "task-1", "operation": "update", "before": created, "after": target}],
+    )
+
+    restored = await service.restore_object_to_entry(
+        user_id="user-1",
+        object_type="task",
+        object_id="task-1",
+        entry_id=change["entries"][0]["entry_id"],
+        state="after",
+    )
+
+    assert restored["object"]["external_chat_provider"] == "opencode"
+    assert restored["object"]["external_chat_lookup_hash"] == "c" * 64
+    assert restored["object"]["encrypted_external_chat_id"] == "cipher-external-id"
+    assert restored["object"]["encrypted_external_chat_title"] == "cipher-external-title"
+    assert restored["object"]["encrypted_blocked_reason"] == "cipher-blocked-reason"
+
+
+# contract-test: direct surface=rest_api assertions=plans.lifecycle.visible,plans.content.client-encrypted
 @pytest.mark.asyncio
 async def test_restore_plan_entry_applies_opaque_snapshot() -> None:
     directus = FakeDirectus()
@@ -362,6 +412,7 @@ async def test_restore_plan_entry_applies_opaque_snapshot() -> None:
     assert restored["rollback_entry_commands"][0].startswith("openmates plans restore plan-1 --entry")
 
 
+# contract-test: direct surface=rest_api assertions=projects.lifecycle.encrypted-crud
 @pytest.mark.asyncio
 async def test_restore_project_entry_can_delete_created_project() -> None:
     directus = FakeDirectus()
@@ -391,6 +442,7 @@ async def test_restore_project_entry_can_delete_created_project() -> None:
     assert restored["rollback_entry_commands"][0].startswith("openmates projects restore project-1 --entry")
 
 
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_undo_workflow_change_set_fails_visibly_instead_of_noop() -> None:
     directus = FakeDirectus()
@@ -409,6 +461,7 @@ async def test_undo_workflow_change_set_fails_visibly_instead_of_noop() -> None:
     assert directus.collections["workspace_change_entries"][0]["undone_at"] is None
 
 
+# contract-test: direct surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_undo_workflow_change_set_uses_injected_workflow_handler() -> None:
     directus = FakeDirectus()
@@ -444,6 +497,7 @@ async def test_undo_workflow_change_set_uses_injected_workflow_handler() -> None
     assert directus.collections["workspace_change_entries"][0]["undone_at"] is not None
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible,workflows.content.encrypted-retained
 @pytest.mark.asyncio
 async def test_workflow_status_history_keeps_opaque_status_snapshot_for_undo() -> None:
     directus = FakeDirectus()

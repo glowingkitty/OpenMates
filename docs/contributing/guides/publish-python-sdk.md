@@ -32,7 +32,7 @@ key:
 ```json
 {
   "python": {
-    "stableBase": "0.16.0",
+    "stableBase": "0.17.0",
     "prereleaseLabel": "a"
   }
 }
@@ -42,8 +42,8 @@ The checked-in `packages/openmates-python/pyproject.toml` version should match
 `python.stableBase`. The publish workflow rewrites that version in CI when publishing:
 
 - Pull requests validate tests and package builds only. They never publish to PyPI.
-- `dev` publishes the next alpha on the configured fixed train. For example, `0.16.0a0`, then `0.16.0a1`.
-- `main` publishes the configured stable base, for example `0.16.0`, and PyPI skips duplicate files if that exact version already exists.
+- `dev` publishes the next alpha on the configured fixed train. For example, `0.17.0a0`, then `0.17.0a1`.
+- `main` publishes the configured stable base, for example `0.17.0`, and PyPI skips duplicate files if that exact version already exists.
 
 Use prerelease installs only when a prerelease has been published manually or by
 a historical workflow run:

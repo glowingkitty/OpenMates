@@ -19,6 +19,8 @@ from pathlib import Path
 import subprocess
 import sys
 
+from scripts import spec_demo as canonical_spec_demo
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -47,11 +49,32 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
     caption.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nSanitized captions.\n", encoding="utf-8")
     audio.write_bytes(b"synthetic-audio")
     frame.write_bytes(b"synthetic-frame")
-    frame_index_hash = "sha256:" + "f" * 64
     source_artifact_hash = f"sha256:{hashlib.sha256(video.read_bytes()).hexdigest()}"
     caption_artifact_hash = f"sha256:{hashlib.sha256(caption.read_bytes()).hexdigest()}"
     proof_contract_hash = "sha256:" + "c" * 64
-    proof_group_id = "sha256:" + "e" * 64
+    request = canonical_spec_demo.build_review_request(
+        spec_id="example",
+        subject_commit="abc1234",
+        captions=[{"id": "CAP-1", "narration_id": "NARR-1", "text": "Sanitized captions.", "start": 0.0, "end": 1.0, "claim_ids": ["visible"]}],
+        expected_proof=[{"claim_id": "visible", "text": "The proof state is visible.", "acceptance_criteria": ["AC-1"], "evidence_intervals": [[0.0, 1.0]]}],
+        frames=[{"timestamp_seconds": 0.0, "path": "frames/frame-001.png", "sha256": canonical_spec_demo.sha256_file(frame)}],
+        video_metadata={"duration_seconds": 1.0, "sha256": source_artifact_hash, "captions_sha256": caption_artifact_hash, "width": 320, "height": 240},
+        narration_audio={
+            "status": "passed",
+            "provider": "elevenlabs",
+            "model": "eleven_flash_v2_5",
+            "voice": "warm_neutral",
+            "path": str(audio),
+            "sha256": f"sha256:{hashlib.sha256(audio.read_bytes()).hexdigest()}",
+            "mime_type": "audio/mpeg",
+            "duration_seconds": 1.0,
+            "reused_from": "",
+        },
+        proof_contract_hash=proof_contract_hash,
+    )
+    (run_dir / "review-request.json").write_text(json.dumps(request, sort_keys=True) + "\n", encoding="utf-8")
+    frame_index_hash = str(request["frame_index_hash"])
+    proof_group_id = str(request["proof_group_id"])
     receipt = {
         "status": "passed",
         "reviewer_session_id": "ses_reviewer",
@@ -60,9 +83,29 @@ def demo_run(tmp_path: Path) -> tuple[Path, dict]:
         "proof_group_id": proof_group_id,
         "source_artifact_hash": source_artifact_hash,
         "caption_artifact_hash": caption_artifact_hash,
+        "review_request_hash": canonical_spec_demo.review_request_hash(request),
         "subject_commit": "abc1234",
         "correction_round": 0,
         "correction_kind": "none",
+        "reviewed_frames": ["frames/frame-001.png"],
+        "frame_reviews": [
+            {
+                "frame": "frames/frame-001.png",
+                "checks": {
+                    "layout": "pass",
+                    "readability": "pass",
+                    "geometry": "pass",
+                    "controls": "pass",
+                    "visual_assets": "pass",
+                    "application_state": "pass",
+                    "consistency": "pass",
+                    "proof_alignment": "pass",
+                },
+                "observation": "Completed the independent critical UI scan.",
+            }
+        ],
+        "assertions": [{"id": "visible", "verdict": "supported", "frames": ["frames/frame-001.png"], "observation": "Visible."}],
+        "incidental_findings": [],
         "workflow": {"requires_user_input": False},
     }
     receipt_path = run_dir / "review-receipt.json"
@@ -166,6 +209,8 @@ def test_confirmed_response_media_publication_deletes_video_and_frames_but_retai
     assert result["publication"]["delivery_kind"] == "opencode_response_media"
     assert result["publication"]["response_media_key"] == "opencode-responses/2026/08/14/demo.mp4"
     assert result["publication"]["response_media_html"].startswith("<video")
+    assert result["publication"]["snippet_html"].startswith("<video")
+    assert result["publication"]["snippet_markdown"].startswith("[Demo]")
     assert not Path(manifest["video_path"]).exists()
     assert not (run_dir / "frames" / "frame-001.png").exists()
 

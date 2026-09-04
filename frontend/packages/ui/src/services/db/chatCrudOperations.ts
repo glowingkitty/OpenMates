@@ -1654,7 +1654,12 @@ export async function clearCurrentUserChatDraft(
         `[ChatDatabase] Clearing draft for chat ${chat_id}. Current draft_v: ${chat.draft_v}`,
       );
 
-      // When clearing a draft, the content becomes null and version should be 0.
+      // Preserve the consumed version locally so an in-flight sync snapshot
+      // cannot restore the draft after this deletion.
+      chat.cleared_draft_v = Math.max(
+        chat.cleared_draft_v ?? 0,
+        chat.draft_v ?? 0,
+      );
       chat.encrypted_draft_md = null;
       chat.encrypted_draft_preview = null; // Clear preview as well
       chat.draft_v = 0; // Reset draft version to 0

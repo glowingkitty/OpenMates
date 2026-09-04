@@ -1,0 +1,1305 @@
+schema_version: 1
+cadence: daily
+date: '2026-08-23'
+generated_at: '2026-08-24T00:20:04+00:00'
+range:
+  since: '2026-08-23T00:00:00+00:00'
+  until: '2026-08-24T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 25
+  section_counts:
+    features: 0
+    bug_fixes: 15
+    improvements: 0
+    docs: 0
+    tests: 10
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 13
+  dev_only_items: 25
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features: []
+  bug_fixes:
+  - title: 'fix: place chat loading status below header'
+    section: bug_fixes
+    commits:
+    - acc417226
+    authored_at: '2026-08-23T16:40:34+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep continue cards stable during reconnect'
+    section: bug_fixes
+    commits:
+    - e591d652d
+    authored_at: '2026-08-23T16:20:21+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: trim proof videos before cleanup'
+    section: bug_fixes
+    commits:
+    - b0a21d2e6
+    authored_at: '2026-08-23T14:24:31+00:00'
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: clean proof video draft previews'
+    section: bug_fixes
+    commits:
+    - 6811c7812
+    authored_at: '2026-08-23T13:59:06+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep proof UI clear of composer and mock markers'
+    section: bug_fixes
+    commits:
+    - 3ce9f118e
+    authored_at: '2026-08-23T13:36:22+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore deep research continuation'
+    section: bug_fixes
+    commits:
+    - eaefea8bf
+    authored_at: '2026-08-23T12:02:16+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_mode_routing.py
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: prevent test help from starting runs'
+    section: bug_fixes
+    commits:
+    - 8d4f2ad8f
+    authored_at: '2026-08-23T10:48:34+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: skip online event placeholders in map view'
+    section: bug_fixes
+    commits:
+    - 213daecbc
+    authored_at: '2026-08-23T03:22:30+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: wait for map tiles in proof'
+    section: bug_fixes
+    commits:
+    - dfafba1a6
+    authored_at: '2026-08-23T02:28:36+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: resolve embed-prefixed map sources'
+    section: bug_fixes
+    commits:
+    - db9b7be9d
+    authored_at: '2026-08-23T02:12:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: normalize map-view embed refs'
+    section: bug_fixes
+    commits:
+    - 73e36d86b
+    authored_at: '2026-08-23T02:06:11+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide bare embed refs in assistant prose'
+    section: bug_fixes
+    commits:
+    - fdc4c61d1
+    authored_at: '2026-08-23T01:44:43+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide inactive settings apps'
+    section: bug_fixes
+    commits:
+    - 903c1eb9a
+    authored_at: '2026-08-23T00:27:39+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: hide inactive settings apps'
+    section: bug_fixes
+    commits:
+    - 7911c89c5
+    authored_at: '2026-08-23T00:24:32+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/data/appsMetadata.d.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore mobile chat transcript width'
+    section: bug_fixes
+    commits:
+    - 70e4aa6b4
+    authored_at: '2026-08-23T00:13:13+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs: []
+  tests:
+  - title: 'test: align deep research proof assertions'
+    section: tests
+    commits:
+    - 23d2e885e
+    authored_at: '2026-08-23T13:17:24+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: retime events proof captions'
+    section: tests
+    commits:
+    - e446a63f4
+    authored_at: '2026-08-23T02:51:22+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: map leaflet contract metadata'
+    section: tests
+    commits:
+    - 3005e4a83
+    authored_at: '2026-08-23T02:36:18+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: restore map-view tab-list expectation'
+    section: tests
+    commits:
+    - 49d53b21f
+    authored_at: '2026-08-23T01:50:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: assert phone proof before reload'
+    section: tests
+    commits:
+    - 22b22610b
+    authored_at: '2026-08-23T01:21:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: keep reload outside proof capture'
+    section: tests
+    commits:
+    - bbb341eec
+    authored_at: '2026-08-23T01:10:05+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: remove invisible reload proof claim'
+    section: tests
+    commits:
+    - 7f2010189
+    authored_at: '2026-08-23T00:55:24+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover inactive settings apps'
+    section: tests
+    commits:
+    - 3b6eb8077
+    authored_at: '2026-08-23T00:40:50+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: apply proof chrome after send'
+    section: tests
+    commits:
+    - dc17627e5
+    authored_at: '2026-08-23T00:30:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: hide proof capture chrome'
+    section: tests
+    commits:
+    - '824558322'
+    authored_at: '2026-08-23T00:14:44+00:00'
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'fix: place chat loading status below header'
+    commits:
+    - acc417226
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep continue cards stable during reconnect'
+    commits:
+    - e591d652d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: trim proof videos before cleanup'
+    commits:
+    - b0a21d2e6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: clean proof video draft previews'
+    commits:
+    - 6811c7812
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: keep proof UI clear of composer and mock markers'
+    commits:
+    - 3ce9f118e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: align deep research proof assertions'
+    commits:
+    - 23d2e885e
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore deep research continuation'
+    commits:
+    - eaefea8bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: prevent test help from starting runs'
+    commits:
+    - 8d4f2ad8f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: skip online event placeholders in map view'
+    commits:
+    - 213daecbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: retime events proof captions'
+    commits:
+    - e446a63f4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: map leaflet contract metadata'
+    commits:
+    - 3005e4a83
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: wait for map tiles in proof'
+    commits:
+    - dfafba1a6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: resolve embed-prefixed map sources'
+    commits:
+    - db9b7be9d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: normalize map-view embed refs'
+    commits:
+    - 73e36d86b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: restore map-view tab-list expectation'
+    commits:
+    - 49d53b21f
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hide bare embed refs in assistant prose'
+    commits:
+    - fdc4c61d1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: assert phone proof before reload'
+    commits:
+    - 22b22610b
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: keep reload outside proof capture'
+    commits:
+    - bbb341eec
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: remove invisible reload proof claim'
+    commits:
+    - 7f2010189
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: cover inactive settings apps'
+    commits:
+    - 3b6eb8077
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: apply proof chrome after send'
+    commits:
+    - dc17627e5
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: hide inactive settings apps'
+    commits:
+    - 903c1eb9a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: hide inactive settings apps'
+    commits:
+    - 7911c89c5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: hide proof capture chrome'
+    commits:
+    - '824558322'
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: restore mobile chat transcript width'
+    commits:
+    - 70e4aa6b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'fix: hide inactive settings apps'
+    commits:
+    - 7911c89c5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'fix: place chat loading status below header'
+    commits:
+    - acc417226
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep continue cards stable during reconnect'
+    commits:
+    - e591d652d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: clean proof video draft previews'
+    commits:
+    - 6811c7812
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: keep proof UI clear of composer and mock markers'
+    commits:
+    - 3ce9f118e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore deep research continuation'
+    commits:
+    - eaefea8bf
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: skip online event placeholders in map view'
+    commits:
+    - 213daecbc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: wait for map tiles in proof'
+    commits:
+    - dfafba1a6
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: resolve embed-prefixed map sources'
+    commits:
+    - db9b7be9d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: normalize map-view embed refs'
+    commits:
+    - 73e36d86b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide bare embed refs in assistant prose'
+    commits:
+    - fdc4c61d1
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide inactive settings apps'
+    commits:
+    - 903c1eb9a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: hide inactive settings apps'
+    commits:
+    - 7911c89c5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore mobile chat transcript width'
+    commits:
+    - 70e4aa6b4
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: acc417226fb23e5f9d8dbe3038b4c8db2a2db056
+    short_sha: acc417226
+    authored_at: '2026-08-23T16:40:34+00:00'
+    subject: 'fix: place chat loading status below header'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: e591d652d17afa2075c49b223004c22694df290e
+    short_sha: e591d652d
+    authored_at: '2026-08-23T16:20:21+00:00'
+    subject: 'fix: keep continue cards stable during reconnect'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/startup-sync-contract.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    related_feature_ids: []
+  - sha: b0a21d2e63df60c848297aa7614aad5c6a3bbac2
+    short_sha: b0a21d2e6
+    authored_at: '2026-08-23T14:24:31+00:00'
+    subject: 'fix: trim proof videos before cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/spec_demo.py
+    - scripts/tests.py
+    - scripts/tests/test_spec_demonstration_pipeline.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 6811c7812c936651effbd901853c86b29bc7bbe1
+    short_sha: 6811c7812
+    authored_at: '2026-08-23T13:59:06+00:00'
+    subject: 'fix: clean proof video draft previews'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/chats/Chat.svelte
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 3ce9f118e1496efdda5d952e68bea497f70af760
+    short_sha: 3ce9f118e
+    authored_at: '2026-08-23T13:36:22+00:00'
+    subject: 'fix: keep proof UI clear of composer and mock markers'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 23d2e885e9dbbb039335c9ffead26cefbd8e5422
+    short_sha: 23d2e885e
+    authored_at: '2026-08-23T13:17:24+00:00'
+    subject: 'test: align deep research proof assertions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/deep-research-real-inference.spec.ts
+    related_feature_ids: []
+  - sha: eaefea8bfc82a997cb165052232ecb649c0c897d
+    short_sha: eaefea8bf
+    authored_at: '2026-08-23T12:02:16+00:00'
+    subject: 'fix: restore deep research continuation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_focus_mode_routing.py
+    - frontend/apps/web_app/tests/reminder-button-settings.spec.ts
+    related_feature_ids:
+    - app:ai
+  - sha: 8d4f2ad8f4085043135ed47c980d81cb9cb61143
+    short_sha: 8d4f2ad8f
+    authored_at: '2026-08-23T10:48:34+00:00'
+    subject: 'fix: prevent test help from starting runs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 213daecbc845a973062237ab4adf310927f15c58
+    short_sha: 213daecbc
+    authored_at: '2026-08-23T03:22:30+00:00'
+    subject: 'fix: skip online event placeholders in map view'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: e446a63f4a21d297898452d9668713cef9fdd235
+    short_sha: e446a63f4
+    authored_at: '2026-08-23T02:51:22+00:00'
+    subject: 'test: retime events proof captions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3005e4a835bba57b6bf47d9c6f6e04e73691ec26
+    short_sha: 3005e4a83
+    authored_at: '2026-08-23T02:36:18+00:00'
+    subject: 'test: map leaflet contract metadata'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
+    related_feature_ids: []
+  - sha: dfafba1a62fd54180a93139c593173feb96350d6
+    short_sha: dfafba1a6
+    authored_at: '2026-08-23T02:28:36+00:00'
+    subject: 'fix: wait for map tiles in proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    - frontend/packages/ui/src/components/embeds/EmbedLeafletMap.svelte
+    related_feature_ids: []
+  - sha: db9b7be9d9ff33cf949482443fbae819198841e1
+    short_sha: db9b7be9d
+    authored_at: '2026-08-23T02:12:32+00:00'
+    subject: 'fix: resolve embed-prefixed map sources'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    related_feature_ids: []
+  - sha: 73e36d86b2bab41dd9b824d431a952bde97b7e1c
+    short_sha: 73e36d86b
+    authored_at: '2026-08-23T02:06:11+00:00'
+    subject: 'fix: normalize map-view embed refs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/EmbedsMapView.svelte
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: 49d53b21f6314aaa338d7549d64a12d963ba07e9
+    short_sha: 49d53b21f
+    authored_at: '2026-08-23T01:50:32+00:00'
+    subject: 'test: restore map-view tab-list expectation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    related_feature_ids: []
+  - sha: fdc4c61d1e929a11ac7ed5f517a34da93626f367
+    short_sha: fdc4c61d1
+    authored_at: '2026-08-23T01:44:43+00:00'
+    subject: 'fix: hide bare embed refs in assistant prose'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/packages/ui/src/components/embeds/__tests__/EmbedsMapView.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/parse_message_grouped_bare_embed_refs.test.ts
+    - frontend/packages/ui/src/message_parsing/parse_message.ts
+    related_feature_ids: []
+  - sha: 22b22610bf12d9e60022b1fbdb334472ea2efdb7
+    short_sha: 22b22610b
+    authored_at: '2026-08-23T01:21:41+00:00'
+    subject: 'test: assert phone proof before reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: bbb341eecfab6c96c9189b850e3d03a575f82d9c
+    short_sha: bbb341eec
+    authored_at: '2026-08-23T01:10:05+00:00'
+    subject: 'test: keep reload outside proof capture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 7f201018952d3660d27f236573f227ff3edf9c77
+    short_sha: 7f2010189
+    authored_at: '2026-08-23T00:55:24+00:00'
+    subject: 'test: remove invisible reload proof claim'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 3b6eb80772174bfe800d54a1a67cd026641fa4fb
+    short_sha: 3b6eb8077
+    authored_at: '2026-08-23T00:40:50+00:00'
+    subject: 'test: cover inactive settings apps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    related_feature_ids: []
+  - sha: dc17627e576a16dec3049c48fbaddac330ddbbd6
+    short_sha: dc17627e5
+    authored_at: '2026-08-23T00:30:33+00:00'
+    subject: 'test: apply proof chrome after send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 903c1eb9ad5c41376945a7cd19f2c184e8e229bb
+    short_sha: 903c1eb9a
+    authored_at: '2026-08-23T00:27:39+00:00'
+    subject: 'fix: hide inactive settings apps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/apps/web_app/tests/settings-apps-navigation.spec.ts
+    related_feature_ids: []
+  - sha: 7911c89c54e56e0d0eb2cf0d8a2e1982636cabcb
+    short_sha: 7911c89c5
+    authored_at: '2026-08-23T00:24:32+00:00'
+    subject: 'fix: hide inactive settings apps'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - contracts/generated/coverage.yml
+    - frontend/packages/ui/src/components/settings/SettingsAllApps.svelte
+    - frontend/packages/ui/src/components/settings/SettingsAppStore.svelte
+    - frontend/packages/ui/src/data/appsMetadata.d.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - frontend/packages/ui/src/stores/appSkillsStore.ts
+    related_feature_ids: []
+  - sha: 8245583226d555c21ca4bf97c2af24ee6f42279c
+    short_sha: '824558322'
+    authored_at: '2026-08-23T00:14:44+00:00'
+    subject: 'test: hide proof capture chrome'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/skill-events-search.spec.ts
+    related_feature_ids: []
+  - sha: 70e4aa6b465c13061bda6f789a90e5fc1f740184
+    short_sha: 70e4aa6b4
+    authored_at: '2026-08-23T00:13:13+00:00'
+    subject: 'fix: restore mobile chat transcript width'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - contracts/generated/assertion-index.yml
+    - frontend/apps/web_app/tests/demo-chat-embeds.spec.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on refining the chat interface and map embed functionality. Key updates include improved stability
+    for deep research tasks, better handling of map data sources, and UI layout adjustments for mobile and loading states.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: The chat interface received several layout refinements, including better placement of loading statuses, improved
+      stability for continue cards during reconnection, and restored transcript widths for mobile devices.
+    evidence:
+      commits:
+      - acc417226
+      - e591d652d
+      - 3ce9f118e
+      - 70e4aa6b4
+    release_status: dev_only
+  - text: Map embeds were updated to better resolve data sources, normalize references, and hide internal markers in assistant
+      prose.
+    evidence:
+      commits:
+      - 213daecbc
+      - dfafba1a6
+      - db9b7be9d
+      - 73e36d86b
+      - fdc4c61d1
+    release_status: dev_only
+  - text: Deep research continuation was restored to ensure AI processing can resume correctly after interruptions.
+    evidence:
+      commits:
+      - eaefea8bf
+    release_status: dev_only
+  - text: The settings interface now correctly hides applications that are not currently active.
+    evidence:
+      commits:
+      - 903c1eb9a
+      - 7911c89c5
+    release_status: dev_only
+  - text: Cleanup logic for proof video draft previews was implemented to maintain a clean UI state.
+    evidence:
+      commits:
+      - 6811c7812
+    release_status: dev_only
+  internal_progress:
+  - text: Refined internal test scripts to prevent accidental runs and improve video cleanup during demonstration pipelines.
+    evidence:
+      commits:
+      - b0a21d2e6
+      - 8d4f2ad8f
+    release_status: dev_only
+  - text: Expanded the test suite to cover map metadata, deep research assertions, and settings navigation for inactive applications.
+    evidence:
+      commits:
+      - 23d2e885e
+      - e446a63f4
+      - 3005e4a83
+      - 49d53b21f
+      - 22b22610b
+      - bbb341eec
+      - 7f2010189
+      - 3b6eb8077
+      - dc17627e5
+      - '824558322'
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Chat interface stability and layout improvements.
+      evidence:
+        commits:
+        - acc417226
+        - e591d652d
+        - 3ce9f118e
+        - 70e4aa6b4
+      reason: These chat UI refinements are currently in development and have not been merged to the main branch.
+    - text: Map view data handling and reference normalization.
+      evidence:
+        commits:
+        - 213daecbc
+        - dfafba1a6
+        - db9b7be9d
+        - 73e36d86b
+        - fdc4c61d1
+      reason: Map embed enhancements are currently in development and have not been merged to the main branch.
+    - text: Restoration of deep research continuation.
+      evidence:
+        commits:
+        - eaefea8bf
+      reason: Deep research stability fixes are currently in development and have not been merged to the main branch.
+    rationale: No changes from this period have reached the main branch or been marked as ready for public communication.
+      All work is currently in development.
+  social_video_recommendations:
+  - idea: Demonstrate the improved map view functionality, showing how it resolves various data sources and handles online
+      event placeholders.
+    priority: medium
+    reason: The map view updates provide a more consistent visual experience for location-based queries.
+    evidence:
+      commits:
+      - 213daecbc
+      - db9b7be9d
+      - 73e36d86b
+  - idea: Showcase the continuity of deep research tasks, highlighting the assistant's ability to resume complex processing.
+    priority: medium
+    reason: Deep research is a core AI capability that benefits from visible stability improvements.
+    evidence:
+      commits:
+      - eaefea8bf
+  quality_notes:
+  - All 25 commits are currently in the development branch and have not yet reached production.
+  - Significant focus was placed on improving the reliability of the automated 'proof' demonstration system.
+  validation_warnings: []

@@ -145,6 +145,12 @@ DISABLED_FUTURE_NODE_TYPES = {
     WorkflowNodeType.WEBHOOK_TRIGGER,
     WorkflowNodeType.CUSTOM_CODE,
 }
+QUALIFYING_WORKFLOW_EFFECT_TYPES = {
+    WorkflowNodeType.CREATE_CHAT_REPORT,
+    WorkflowNodeType.START_NEW_CHAT,
+    WorkflowNodeType.SEND_NOTIFICATION,
+    WorkflowNodeType.SEND_EMAIL_NOTIFICATION,
+}
 FORBIDDEN_WORKFLOW_TEMPLATE_KEYS = {
     "token",
     "refreshtoken",
@@ -197,7 +203,7 @@ class WorkflowNode(BaseModel):
 
 class WorkflowGraph(BaseModel):
     version: int = 1
-    trigger_node_id: str
+    trigger_node_id: str | None = None
     nodes: list[WorkflowNode]
     edges: list[WorkflowEdge] = Field(default_factory=list)
     variables: dict[str, Any] = Field(default_factory=dict)
@@ -217,6 +223,8 @@ class WorkflowSummary(BaseModel):
     encrypted_slug: str | None = None
     slug_lookup_hash: str | None = None
     description: str | None = None
+    category: str = "general_knowledge"
+    icon: str = "help-circle"
     status: WorkflowStatus
     enabled: bool
     lifecycle: WorkflowLifecycle = WorkflowLifecycle.PERSISTED
@@ -325,16 +333,18 @@ def validate_workflow_graph(graph: WorkflowGraph) -> None:
         raise WorkflowValidationError("Duplicate workflow node ids are not allowed")
 
     nodes_by_id = {node.id: node for node in graph.nodes}
-    if graph.trigger_node_id not in nodes_by_id:
-        raise WorkflowValidationError("trigger_node_id must reference an existing node")
-
     trigger_nodes = [
         node for node in graph.nodes
         if node.type in {WorkflowNodeType.SCHEDULE_TRIGGER, WorkflowNodeType.MANUAL_TRIGGER, WorkflowNodeType.WEBHOOK_TRIGGER, WorkflowNodeType.EVENT_TRIGGER}
     ]
-    if len(trigger_nodes) != 1:
+    if len(trigger_nodes) > 1:
         raise WorkflowValidationError("Workflows V1 must contain exactly one trigger node")
-    if trigger_nodes[0].id != graph.trigger_node_id:
+    if not trigger_nodes:
+        if graph.trigger_node_id is not None:
+            raise WorkflowValidationError("trigger_node_id must be null when a workflow has no trigger node")
+    elif graph.trigger_node_id not in nodes_by_id:
+        raise WorkflowValidationError("trigger_node_id must reference an existing node")
+    elif trigger_nodes[0].id != graph.trigger_node_id:
         raise WorkflowValidationError("trigger_node_id must point to the only trigger node")
 
     for node in graph.nodes:
@@ -351,8 +361,33 @@ def validate_workflow_graph(graph: WorkflowGraph) -> None:
             raise WorkflowValidationError("Decision node edges must include a branch label")
 
 
+def validate_workflow_readiness(graph: WorkflowGraph) -> None:
+    """Require an executable trigger path with a user-visible side effect."""
+    if graph.trigger_node_id is None:
+        raise WorkflowValidationError("Workflow readiness requires exactly one trigger")
+
+    nodes_by_id = {node.id: node for node in graph.nodes}
+    reachable = {graph.trigger_node_id}
+    pending = [graph.trigger_node_id]
+    outgoing: dict[str, list[str]] = {}
+    for edge in graph.edges:
+        outgoing.setdefault(edge.from_node, []).append(edge.to_node)
+
+    while pending:
+        node_id = pending.pop()
+        for next_node_id in outgoing.get(node_id, []):
+            if next_node_id not in reachable:
+                reachable.add(next_node_id)
+                pending.append(next_node_id)
+
+    if not any(nodes_by_id[node_id].type in QUALIFYING_WORKFLOW_EFFECT_TYPES for node_id in reachable):
+        raise WorkflowValidationError("Workflow readiness requires a reachable qualifying effect")
+
+
 def build_workflow_template_share_payload(workflow: WorkflowDetail) -> WorkflowTemplateSharePayload:
     """Build a template-only share payload without runtime grants or run state."""
+    if workflow.graph.trigger_node_id is None:
+        raise WorkflowValidationError("Workflow template sharing requires exactly one trigger")
     trigger = next(node for node in workflow.graph.nodes if node.id == workflow.graph.trigger_node_id)
     non_trigger_nodes = [node for node in workflow.graph.nodes if node.id != workflow.graph.trigger_node_id]
     payload = WorkflowTemplateSharePayload(
@@ -518,6 +553,7 @@ def _validate_node_config(node: WorkflowNode) -> None:
 
 def validate_manual_run_input(graph: WorkflowGraph, input_payload: dict[str, Any] | None) -> None:
     """Validate run-now input against the trigger's required start input schema."""
+    validate_workflow_readiness(graph)
     trigger = next(node for node in graph.nodes if node.id == graph.trigger_node_id)
     schema = trigger.config.get("required_start_input_schema")
     if schema is None:

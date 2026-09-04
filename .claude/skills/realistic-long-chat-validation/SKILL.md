@@ -18,7 +18,7 @@ no max credit, token, or time cap unless the user adds one for the session.
 
 ## Product Contract
 
-Source of truth: `docs/specs/realistic-long-chat-cli-validation/spec.yml`.
+Source of truth: `docs/plans/realistic-long-chat-cli-validation/plan.yml`.
 
 Do not run this workflow as a hidden unattended deterministic script. It is fine
 to use short helper commands for inspection, checkpoint queries, or CLI command
@@ -112,7 +112,7 @@ After the live chat succeeds:
 
 ## Evidence Requirements
 
-Update `docs/specs/realistic-long-chat-cli-validation/spec.yml` as work proceeds.
+Update `docs/plans/realistic-long-chat-cli-validation/plan.yml` as work proceeds.
 Record command, run id or manual evidence id, timestamp, subject commit, and a
 short summary for each verification gate. If a bug pauses the workflow, record it
 as an attempt/blocker with the next action.

@@ -643,6 +643,15 @@ provider_groups:
           - Place search or matching queries needed for Maps enrichment
           - Approximate coordinates, location bias, category/filter parameters, and Geoapify place IDs when needed for Place Details
           - Note: Shared server-side without OpenMates user identifiers, chat IDs, or API keys
+      wikimedia:
+        privacy_policy: https://foundation.wikimedia.org/wiki/Policy:Privacy_policy  # verified 2026-08-28
+        location: US
+        used_for:
+          - explicit Wikipedia title search and selected article summary retrieval
+        data_shared:
+          - The article query and language typed after explicit @wiki activation
+          - The canonical article title selected for summary retrieval
+          - Note: Requests are sent server-side without OpenMates user identifiers, chat IDs, or client IP addresses
       youtube:
         privacy_policy: https://www.youtube.com/howyoutubeworks/privacy/
         location: US

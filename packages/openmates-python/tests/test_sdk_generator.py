@@ -34,6 +34,11 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
         for skill in APP_SKILL_METADATA
         if skill["app_id"] == "design" and skill["skill_id"] == "search_icons"
     )
+    code_run = next(
+        skill
+        for skill in APP_SKILL_METADATA
+        if skill["app_id"] == "code" and skill["skill_id"] == "run"
+    )
     models3d_search = next(
         skill
         for skill in APP_SKILL_METADATA
@@ -74,12 +79,13 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
         "calm_narrator",
     ]
     assert audio_speak["schema"]["properties"]["requests"]["items"]["properties"]["model"]["enum"] == [
+        "eleven_v3",
         "eleven_multilingual_v2",
         "eleven_flash_v2_5",
     ]
     assert (
         audio_speak["schema"]["properties"]["requests"]["items"]["properties"]["model"]["default"]
-        == "eleven_multilingual_v2"
+        == "eleven_v3"
     )
 
     assert web_search["app_namespace_py"] == "web"
@@ -93,6 +99,16 @@ def test_generated_metadata_includes_audio_web_search_images_generate_business_a
     assert design_search_icons["app_namespace_py"] == "design"
     assert design_search_icons["skill_method_py"] == "search_icons"
     assert "requests" in design_search_icons["schema"]["properties"]
+
+    assert code_run["app_namespace_py"] == "code"
+    assert code_run["skill_method_py"] == "run"
+    code_run_request = code_run["schema"]["properties"]["requests"]["items"]["properties"]
+    assert code_run_request["mode"]["default"] == "direct"
+    assert "content_base64" in code_run_request["files"]["items"]["properties"]
+    assert (
+        code_run["output_schema"]["properties"]["results"]["items"]["properties"]["final"]["properties"]["artifacts"]["items"]["properties"]["download_url"]["type"]
+        == "string"
+    )
 
     assert models3d_search["app_namespace_py"] == "models3d"
     assert models3d_search["skill_method_py"] == "search"
@@ -140,6 +156,7 @@ def test_generated_native_methods_delegate_to_runner():
     audio_result = apps.audio.generate({"requests": [{"prompt": "soft tick", "provider": "elevenlabs"}]})
     speech_result = apps.audio.speak({"requests": [{"text": "Welcome back.", "provider": "elevenlabs"}]})
     icon_result = apps.design.search_icons({"requests": [{"query": "home"}]})
+    code_run_result = apps.code.run({"requests": [{"mode": "direct", "entry_path": "main.py", "files": []}]})
     fitness_result = apps.fitness.search_classes({"requests": [{"address": "Sorauer Str. 12"}]})
     models3d_result = apps.models3d.search({"requests": [{"query": "benchy"}]})
     business_result = apps.business.company_financials(
@@ -151,6 +168,7 @@ def test_generated_native_methods_delegate_to_runner():
     assert audio_result == {"ok": True}
     assert speech_result == {"ok": True}
     assert icon_result == {"ok": True}
+    assert code_run_result == {"ok": True}
     assert fitness_result == {"ok": True}
     assert models3d_result == {"ok": True}
     assert business_result == {"ok": True}
@@ -169,6 +187,12 @@ def test_generated_native_methods_delegate_to_runner():
             "options": {"prompt_injection_protection": None},
         },
         {"app_id": "design", "skill_id": "search_icons", "input_data": {"requests": [{"query": "home"}]}, "options": {"prompt_injection_protection": None}},
+        {
+            "app_id": "code",
+            "skill_id": "run",
+            "input_data": {"requests": [{"mode": "direct", "entry_path": "main.py", "files": []}]},
+            "options": {"prompt_injection_protection": None},
+        },
         {
             "app_id": "fitness",
             "skill_id": "search_classes",

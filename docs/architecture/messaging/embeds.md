@@ -162,6 +162,15 @@ The gateway stores only a hash of the path token, redacts `/p/<session>/<token>/
 URLs from logs, and proxies sandbox traffic server-side so raw E2B URLs remain
 server-only.
 
+### Code Run Artifact Embeds
+
+Code Run keeps terminal output on the parent `code-code` embed and materializes
+generated files as child code, image, or generic file embeds. Children reuse the
+parent embed key and inherit its exact `hashed_chat_id`, `hashed_message_id`, and
+`hashed_user_id`. After child persistence succeeds, `EmbedStore.updateChildEmbedIds()`
+updates the encrypted parent row and returns the complete versioned persistence
+payload so sync can publish the parent-child relationship without dropping indexes.
+
 ### `embed_keys` Collection
 
 | key_type | wrapping | use case |

@@ -16,7 +16,7 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "0.16.0"
+    MARKETING_VERSION: "0.17.0"
     CURRENT_PROJECT_VERSION: 12
     DEVELOPMENT_TEAM: Z9B2YFKN2X
     CODE_SIGN_STYLE: Automatic
@@ -88,10 +88,12 @@ targets:
       configs:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+          APS_ENVIRONMENT: development
           OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
           # StoreKit testing configuration for sandbox purchases
           STOREKIT_CONFIGURATION: OpenMates/Resources/OpenMates.storekit
         Release:
+          APS_ENVIRONMENT: production
           SWIFT_OPTIMIZATION_LEVEL: -Owholemodule
           OPENMATES_DEV_WEBCREDENTIALS: webcredentials:app.dev.openmates.org
     entitlements:
@@ -104,6 +106,7 @@ targets:
           - group.org.openmates.app.shared
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
+        aps-environment: $(APS_ENVIRONMENT)
         com.apple.developer.associated-domains:
           - webcredentials:openmates.org
           - $(OPENMATES_DEV_WEBCREDENTIALS)
@@ -155,6 +158,33 @@ targets:
       - target: OpenMatesWatch
         platforms: [iOS]
         embed: true
+      - target: OpenMatesNotificationService
+        platforms: [iOS]
+        embed: true
+
+  OpenMatesNotificationService:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: OpenMatesNotificationService
+      - path: OpenMates/Sources/Core/Crypto/KeychainHelper.swift
+      - path: OpenMates/Sources/Core/Networking/NotificationPreviewCrypto.swift
+    settings:
+      base:
+        APPLICATION_EXTENSION_API_ONLY: YES
+        INFOPLIST_FILE: OpenMatesNotificationService/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: org.openmates.app.notification-service
+        CODE_SIGN_ENTITLEMENTS: OpenMatesNotificationService/OpenMatesNotificationService.entitlements
+        SWIFT_VERSION: "6.0"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    entitlements:
+      path: OpenMatesNotificationService/OpenMatesNotificationService.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)$(CFBundleIdentifier)
+          - $(AppIdentifierPrefix)org.openmates.app
+        com.apple.security.application-groups:
+          - group.org.openmates.app.shared
 
   # Independent watchOS app — starts with standalone target plumbing; auth/chat UI lands in later spec tasks.
   OpenMatesWatch:

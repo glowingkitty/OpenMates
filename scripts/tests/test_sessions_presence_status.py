@@ -8,6 +8,10 @@ Run: python3 -m pytest scripts/tests/test_sessions_presence_status.py.
 
 # contract-test-file: tooling
 
+from pathlib import Path
+
+import pytest
+
 from scripts import sessions
 
 
@@ -30,6 +34,14 @@ def fixtures():
         "task_claims": {},
     }
     return durable, presence
+
+
+def test_dirty_file_status_tolerates_only_explicitly_allowed_missing_checkout(tmp_path: Path):
+    missing = tmp_path / "agent-missing"
+
+    assert sessions._get_dirty_files(checkout_root=missing, missing_ok=True) == set()
+    with pytest.raises(RuntimeError, match="Cannot inspect missing checkout"):
+        sessions._get_dirty_files(checkout_root=missing)
 
 
 def test_default_status_groups_live_reality_and_excludes_merged_history():
@@ -79,8 +91,9 @@ def test_status_projects_persisted_child_role_onto_existing_presence():
     assert view["session"]["children"][0]["child_role"] == "reviewer"
 
 
-def test_infrastructure_view_exposes_active_and_recent_docker_operations():
+def test_infrastructure_view_exposes_active_and_recent_docker_operations(monkeypatch):
     durable, presence = fixtures()
+    monkeypatch.setattr(sessions, "_list_persistent_docker_operations", lambda: [])
     durable["infrastructure"] = {
         "test_leases": {
             "run-1": {"lease_id": "run-1", "owner": "tests", "resources": ["dev-stack"]},
@@ -96,6 +109,21 @@ def test_infrastructure_view_exposes_active_and_recent_docker_operations():
     assert view["infrastructure"]["active_docker_operation"]["id"] == "docker-live"
     assert view["infrastructure"]["test_leases"][0]["lease_id"] == "run-1"
     assert view["infrastructure"]["recent_docker_operations"][0]["id"] == "docker-old"
+
+
+def test_resource_wait_is_visible_instead_of_looking_idle():
+    durable, presence = fixtures()
+    durable["sessions"]["a111"]["resource_wait"] = {
+        "status": "waiting",
+        "resource": "docker_rebuild",
+        "owner_session_id": "b222",
+        "heartbeat_at": sessions._now_iso(),
+    }
+
+    view = sessions.presence_status_view(durable, presence)
+
+    assert [item["repository_session_id"] for item in view["waiting_for_resource"]] == ["a111"]
+    assert view["working"] == []
 
 
 def test_coordination_section_lists_current_sessions_without_merged_history(monkeypatch):

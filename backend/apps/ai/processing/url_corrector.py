@@ -96,6 +96,7 @@ Maintain the same response structure, tone, and content - only remove broken lin
             tool_definition=correction_tool,
             secrets_manager=secrets_manager,
             fallback_models=url_correction_fallbacks,
+            observability_purpose="safety",
         )
         
         # Extract the corrected response from function call result
@@ -132,4 +133,3 @@ Maintain the same response structure, tone, and content - only remove broken lin
             exc_info=True
         )
         return None
-

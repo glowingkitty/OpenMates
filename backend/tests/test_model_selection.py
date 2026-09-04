@@ -12,6 +12,8 @@
 
 import pytest
 from typing import Dict, Any
+from pathlib import Path
+import yaml
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -126,6 +128,23 @@ def mock_leaderboard_data() -> Dict[str, Any]:
 
 class TestModelSelector:
     """Tests for the ModelSelector class."""
+
+    def test_gemini_3_8_is_available_as_explicit_model_only(self):
+        """Gemini 3.8 is catalogued without entering automatic selection."""
+        provider_path = Path(__file__).parents[1] / "providers" / "google.yml"
+        provider_config = yaml.safe_load(provider_path.read_text())
+        model = next(
+            model for model in provider_config["models"]
+            if model["id"] == "gemini-3.8-flash"
+        )
+
+        assert model["for_app_skill"] == "ai.ask"
+        assert model["allow_auto_select"] is False
+        assert model["tier"] == "premium"
+        assert model["pricing"]["tokens"] == {
+            "input": {"per_credit_unit": 450},
+            "output": {"per_credit_unit": 90},
+        }
 
     def test_select_models_basic(self, mock_leaderboard_data):
         """Test basic model selection returns top-ranked models."""

@@ -29,6 +29,7 @@ sys.modules.setdefault(
 class FakeManager:
     def __init__(self):
         self.calls = []
+        self.broadcasts = []
 
     def set_active_chat(self, user_id, device_fingerprint_hash, chat_id):
         self.calls.append(("set_active_chat", user_id, device_fingerprint_hash, chat_id))
@@ -37,6 +38,7 @@ class FakeManager:
         self.calls.append(("send_personal_message", message.get("type"), user_id, device_fingerprint_hash))
 
     async def broadcast_to_user(self, message, user_id, exclude_device_hash=None):
+        self.broadcasts.append(message)
         self.calls.append(("broadcast_to_user", message.get("type"), user_id, exclude_device_hash))
 
     async def broadcast_to_user_specific_event(self, user_id, event_name, payload):
@@ -100,8 +102,7 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
         ),
-        delete_user_draft_from_cache=AsyncMock(return_value=False),
-        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=4),
         get_ai_messages_history=AsyncMock(return_value=[]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
@@ -175,6 +176,11 @@ def test_message_send_marks_origin_connection_active_before_ai_dispatch(monkeypa
     assert not any(call[0] == "broadcast_to_user_specific_event" and call[1] == "chat_message_confirmed" for call in manager.calls)
     cutover.get_epoch.assert_awaited_once_with(authoritative=True)
     cache_service.set_active_ai_task.assert_awaited_once_with("chat-123", "task-123")
+    cache_service.increment_and_tombstone_user_draft.assert_awaited_once_with("user-123", "chat-123")
+    assert {
+        "type": "draft_deleted",
+        "payload": {"chat_id": "chat-123", "draft_v": 4},
+    } in manager.broadcasts
 
 
 def test_message_send_forwards_client_embed_ref_index(monkeypatch):
@@ -200,8 +206,7 @@ def test_message_send_forwards_client_embed_ref_index(monkeypatch):
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
         ),
-        delete_user_draft_from_cache=AsyncMock(return_value=False),
-        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         set_embed_in_cache=AsyncMock(),
         add_embed_id_to_chat_index=AsyncMock(),
         get_ai_messages_history=AsyncMock(return_value=[]),
@@ -352,8 +357,7 @@ def test_team_recovery_send_skips_personal_cache_completeness_gate(monkeypatch):
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 5, "last_edited_overall_timestamp": 1_700_000_010}
         ),
-        delete_user_draft_from_cache=AsyncMock(return_value=False),
-        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(return_value=cached_messages),
         delete_chat_messages_history=AsyncMock(),
         add_message_to_chat_history=AsyncMock(),
@@ -488,8 +492,7 @@ def test_recovery_send_marks_enqueue_failed_when_dispatch_returns_no_task(monkey
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 2, "last_edited_overall_timestamp": 1_700_000_010}
         ),
-        delete_user_draft_from_cache=AsyncMock(return_value=False),
-        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(return_value=[cached_current_message]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
@@ -678,8 +681,7 @@ def test_contextual_pdf_processing_preserves_embed_ref(monkeypatch):
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 1, "last_edited_overall_timestamp": 1_700_000_000}
         ),
-        delete_user_draft_from_cache=AsyncMock(return_value=False),
-        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(return_value=[]),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),
@@ -817,8 +819,7 @@ def test_existing_personal_chat_rejects_user_user_ai_cache_history(monkeypatch):
         save_chat_message_and_update_versions=AsyncMock(
             return_value={"messages_v": 3, "last_edited_overall_timestamp": 1_700_000_020}
         ),
-        delete_user_draft_from_cache=AsyncMock(return_value=False),
-        delete_user_draft_version_from_chat_versions=AsyncMock(return_value=False),
+        increment_and_tombstone_user_draft=AsyncMock(return_value=1),
         get_ai_messages_history=AsyncMock(return_value=cached_messages),
         get_user_by_id=AsyncMock(return_value={"language": "en"}),
         get_chat_list_item_data=AsyncMock(return_value={}),

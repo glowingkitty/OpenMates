@@ -39,7 +39,10 @@ export function dedupeShareChatEmbeds<T extends ShareChatEmbedLike>(embeds: T[])
   return deduped;
 }
 
-export function deriveParentByChildEmbeds(embeds: ShareChatEmbedLike[]): Map<string, string> {
+export function deriveParentByChildEmbeds(
+  embeds: ShareChatEmbedLike[],
+  directlyKeyedEmbedIds: ReadonlySet<string> = new Set(),
+): Map<string, string> {
   const derivedParentByChild = new Map<string, string>();
 
   for (const embed of embeds) {
@@ -48,6 +51,7 @@ export function deriveParentByChildEmbeds(embeds: ShareChatEmbedLike[]): Map<str
     if (!parentId || childIds.length === 0) continue;
 
     for (const childId of childIds) {
+      if (directlyKeyedEmbedIds.has(childId)) continue;
       if (!derivedParentByChild.has(childId)) {
         derivedParentByChild.set(childId, parentId);
       }

@@ -3,7 +3,7 @@
  * Approve a pending API-key SDK device for a logged-in test account.
  *
  * Purpose: unblock live SDK smoke tests without manual browser approval.
- * Scope: test/dev accounts only; reads the normal ~/.openmates/session.json.
+ * Scope: test/dev accounts only; reads the active CLI state directory.
  * Security: never prints session cookies or API keys; approval is explicit.
  * Usage: node scripts/approve_test_api_key_device.mjs --api-url https://api.dev.openmates.org
  */
@@ -34,8 +34,11 @@ Approves the first pending API-key device in the logged-in CLI test-account sess
 }
 
 function readSession() {
-  const sessionPath = join(homedir(), ".openmates", "session.json");
-  if (!existsSync(sessionPath)) throw new Error("Missing ~/.openmates/session.json; run scripts/openmates_cli_test_account.mjs login first.");
+  const profile = process.env.OPENMATES_PROFILE?.trim();
+  const stateDir = process.env.OPENMATES_STATE_DIR?.trim()
+    || (profile ? join(homedir(), ".openmates", "profiles", profile) : join(homedir(), ".openmates"));
+  const sessionPath = join(stateDir, "session.json");
+  if (!existsSync(sessionPath)) throw new Error("Missing active CLI session; log in with the selected test/dev profile first.");
   return JSON.parse(readFileSync(sessionPath, "utf8"));
 }
 
@@ -86,7 +89,8 @@ async function main() {
   const data = await requestJson(options.apiUrl, "/v1/settings/api-key-devices", { method: "GET", headers });
   const device = findPendingDevice(data, options.deviceId);
   if (!device?.id) {
-    console.log(JSON.stringify({ approved: false, reason: "no_pending_device" }, null, 2));
+    const devices = Array.isArray(data.devices) ? data.devices : Array.isArray(data.api_key_devices) ? data.api_key_devices : [];
+    console.log(JSON.stringify({ approved: false, reason: "no_pending_device", device_count: devices.length, pending_count: devices.filter((candidate) => !candidate?.approved_at).length }, null, 2));
     return;
   }
   const result = await requestJson(options.apiUrl, `/v1/settings/api-key-devices/${encodeURIComponent(device.id)}/approve`, {

@@ -140,6 +140,288 @@ def test_playwright_source_rejects_missing_required_provenance(tmp_path: Path) -
         )
 
 
+def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    source.write_bytes(b"video")
+    first = tmp_path / "first.png"
+    second = tmp_path / "second.png"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+    timeline = {
+        "contract": {
+            "surface": "web",
+            "domain": "app.dev.openmates.org",
+            "devices": ["web-laptop"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [
+                {"id": "first", "text": "First state.", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second", "text": "Second stable state.", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+            "assertions": [
+                {"id": "first.visible", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second.visible", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+        },
+        "events": [
+            {"kind": "checkpoint", "id": "first-ready", "at_ms": 1000},
+            {"kind": "action", "id": "open-second", "start_ms": 1500, "end_ms": 1700},
+            {"kind": "checkpoint", "id": "second-ready", "at_ms": 3000},
+        ],
+        "assertion_results": [
+            {"id": "first.visible", "status": "passed", "at_ms": 1000},
+            {"id": "second.visible", "status": "passed", "at_ms": 2200},
+        ],
+        "checkpoint_frames": [
+            {"checkpoint": "first-ready", "path": str(first), "sha256": module.sha256_file(first)},
+            {"checkpoint": "second-ready", "path": str(second), "sha256": module.sha256_file(second)},
+        ],
+    }
+
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=4.0,
+        device_profile_name="web-laptop",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+
+    assert plan["request"]["renderer"] == "openmates-remotion-browser-v1"
+    assert plan["request"]["presentationMode"] == "browser-frame-scaled-full-viewport"
+    assert plan["request"]["domain"] == "app.dev.openmates.org"
+    assert plan["request"]["sourceHash"] == module.sha256_file(source)
+    assert plan["request"]["segments"] == [
+        {"kind": "video", "source_from_ms": 850, "source_to_ms": 4000, "duration_ms": 3150},
+    ]
+    assert plan["caption_segments"] == [
+        {"id": "CAP-1", "narration_id": "NARR-1", "text": "First state.", "start": 0.0, "end": 0.65, "claim_ids": ["first.visible"]},
+        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Second stable state.", "start": 0.65, "end": 3.15, "claim_ids": ["second.visible"]},
+    ]
+    assert plan["claim_anchor_times"] == {"first.visible": 0.15, "second.visible": 1.35}
+    assert plan["claim_evidence_intervals"] == {
+        "first.visible": [[0.15, 0.55]],
+        "second.visible": [[1.35, 3.15]],
+    }
+    assert plan["duration_seconds"] == 3.15
+
+    timeline["contract"]["assertions"][1]["checkpoint"] = "missing"
+    with pytest.raises(module.DemonstrationError, match="must map to one captured transcript checkpoint"):
+        module.build_browser_tutorial_plan(
+            timeline,
+            source_video=source,
+            source_end_seconds=4.0,
+            device_profile_name="web-laptop",
+            contract_hash="sha256:" + "a" * 64,
+            timeline_hash="sha256:" + "b" * 64,
+            narration_id="NARR-1",
+        )
+
+    timeline["contract"]["assertions"][1]["checkpoint"] = "second-ready"
+    timeline["contract"]["assertions"][0]["checkpoint"] = "second-ready"
+    with pytest.raises(module.DemonstrationError, match="transcript checkpoint must carry an assertion"):
+        module.build_browser_tutorial_plan(
+            timeline,
+            source_video=source,
+            source_end_seconds=4.0,
+            device_profile_name="web-laptop",
+            contract_hash="sha256:" + "a" * 64,
+            timeline_hash="sha256:" + "b" * 64,
+            narration_id="NARR-1",
+        )
+    timeline["contract"]["assertions"][0]["checkpoint"] = "first-ready"
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=4.0,
+        device_profile_name="web-laptop",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+    source.write_bytes(b"changed")
+    with pytest.raises(module.DemonstrationError, match="source video is missing or changed"):
+        module.render_browser_tutorial(plan["request"], tmp_path / "output.mp4")
+    source.write_bytes(b"video")
+    first.write_bytes(b"changed-frame")
+    with pytest.raises(module.DemonstrationError, match="checkpoint frame is missing or changed"):
+        module.build_browser_tutorial_plan(
+            timeline,
+            source_video=source,
+            source_end_seconds=4.0,
+            device_profile_name="web-laptop",
+            contract_hash="sha256:" + "a" * 64,
+            timeline_hash="sha256:" + "b" * 64,
+            narration_id="NARR-1",
+        )
+
+
+def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_path: Path) -> None:
+    module = load_module()
+    source_dir = tmp_path / "recording" / "videos"
+    source_dir.mkdir(parents=True)
+    source = source_dir / "source.webm"
+    source.write_bytes(b"video")
+    first = tmp_path / "first.png"
+    late_second = tmp_path / "late-second.png"
+    first.write_bytes(b"first")
+    late_second.write_bytes(b"late-second")
+    timeline = {
+        "contract": {
+            "surface": "web",
+            "domain": "app.dev.openmates.org",
+            "devices": ["web-laptop"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [
+                {"id": "first", "text": "First state.", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second", "text": "Second stable state.", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+            "assertions": [
+                {"id": "first.visible", "checkpoint": "first-ready", "devices": ["web-laptop"]},
+                {"id": "second.visible", "checkpoint": "second-ready", "devices": ["web-laptop"]},
+            ],
+        },
+        "events": [
+            {"kind": "checkpoint", "id": "first-ready", "at_ms": 1000},
+            {"kind": "action", "id": "open-second", "start_ms": 1400, "end_ms": 1600},
+            {"kind": "checkpoint", "id": "second-ready", "at_ms": 3000},
+        ],
+        "assertion_results": [
+            {"id": "first.visible", "status": "passed", "at_ms": 1000},
+            {"id": "second.visible", "status": "passed", "at_ms": 2000},
+        ],
+        "checkpoint_frames": [
+            {"checkpoint": "first-ready", "path": str(first), "sha256": module.sha256_file(first)},
+            {"checkpoint": "second-ready", "path": str(late_second), "sha256": module.sha256_file(late_second)},
+        ],
+    }
+
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=4.0,
+        device_profile_name="web-laptop",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+
+    assert plan["request"]["segments"] == [
+        {"kind": "video", "source_from_ms": 850, "source_to_ms": 4000, "duration_ms": 3150},
+    ]
+    assert plan["caption_segments"][1]["start"] == 0.55
+    assert plan["claim_anchor_times"]["second.visible"] == 1.15
+    assert plan["claim_evidence_intervals"]["second.visible"] == [[1.15, 3.15]]
+
+
+def test_web_phone_tutorial_plan_uses_iphone_safari_content_viewport(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    frame = tmp_path / "ready.png"
+    source.write_bytes(b"video")
+    frame.write_bytes(b"frame")
+    timeline = {
+        "contract": {
+            "surface": "web",
+            "domain": "app.dev.openmates.org",
+            "devices": ["web-phone"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [
+                {"id": "ready", "text": "The phone page is visible.", "checkpoint": "ready", "devices": ["web-phone"]},
+            ],
+            "assertions": [
+                {"id": "phone.visible", "checkpoint": "ready", "devices": ["web-phone"]},
+            ],
+        },
+        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 1000}],
+        "assertion_results": [{"id": "phone.visible", "status": "passed", "at_ms": 800}],
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": module.sha256_file(frame)}],
+    }
+
+    plan = module.build_browser_tutorial_plan(
+        timeline,
+        source_video=source,
+        source_end_seconds=2.0,
+        device_profile_name="web-phone",
+        contract_hash="sha256:" + "a" * 64,
+        timeline_hash="sha256:" + "b" * 64,
+        narration_id="NARR-1",
+    )
+
+    assert plan["request"]["viewport"] == {"width": 390, "height": 630}
+    assert plan["request"]["output"] == {"width": 390, "height": 844, "fps": 30}
+    assert plan["request"]["browserChrome"] == {
+        "kind": "iphone13-pro-safari",
+        "tabGroupLabel": "Personal",
+        "topInset": 128,
+        "bottomInset": 86,
+        "devicePixelRatio": 3,
+    }
+
+
+def test_node_remotion_renderer_rejects_tampered_browser_inputs(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.webm"
+    frame = tmp_path / "frame.png"
+    source.write_bytes(b"source")
+    frame.write_bytes(b"frame")
+    request = {
+        "renderer": "openmates-remotion-browser-v1",
+        "sourceVideo": str(source),
+        "sourceHash": "sha256:" + "0" * 64,
+        "segments": [],
+    }
+    request_path = tmp_path / "request.json"
+    request_path.write_text(json.dumps(request), encoding="utf-8")
+    renderer = ROOT / "tooling/proof-video-remotion/src/render.mjs"
+
+    source_result = subprocess.run(
+        ["node", str(renderer), str(request_path), str(tmp_path / "output.mp4")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert source_result.returncode != 0
+    assert "source hash changed after planning" in source_result.stderr
+
+    request["sourceHash"] = module.sha256_file(source)
+    request["segments"] = [
+        {
+            "kind": "freeze",
+            "source_image": str(frame),
+            "source_sha256": "sha256:" + "0" * 64,
+            "duration_ms": 1000,
+            "cue_id": "ready",
+        }
+    ]
+    request_path.write_text(json.dumps(request), encoding="utf-8")
+    frame_result = subprocess.run(
+        ["node", str(renderer), str(request_path), str(tmp_path / "output.mp4")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert frame_result.returncode != 0
+    assert "accepts only real source-video segments" in frame_result.stderr
+
+    request = {
+        "renderer": "openmates-remotion-terminal-v1",
+        "sourceVideo": str(source),
+        "sourceHash": module.sha256_file(source),
+        "sourceSha256": "sha256:" + "0" * 64,
+    }
+    request_path.write_text(json.dumps(request), encoding="utf-8")
+    terminal_result = subprocess.run(
+        ["node", str(renderer), str(request_path), str(tmp_path / "output.mp4")],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert terminal_result.returncode != 0
+    assert "source hash changed after planning" in terminal_result.stderr
+
+
 def test_pty_capture_records_exact_argv_output_timing_and_exit_status(tmp_path: Path) -> None:
     module = load_module()
     result = module.capture_pty(
@@ -466,6 +748,148 @@ def test_prepare_review_artifacts_clamps_captions_to_encoded_duration(
     assert {2.0, 6.75, 7.0, 7.25, 11.75, 12.0, 12.25}.issubset(timestamps)
 
 
+def test_prepare_review_artifacts_maps_ordered_claim_intervals_to_action_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:16.000\nVisible.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        module,
+        "video_metadata",
+        lambda _path: {
+            "duration_seconds": 16.0,
+            "width": 1440,
+            "height": 900,
+            "sha256": "sha256:" + "b" * 64,
+            "has_audio": False,
+            "tags": {},
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "extract_frame",
+        lambda _video_path, *, timestamp_seconds, output_path: {
+            "timestamp_seconds": round(timestamp_seconds, 3),
+            "path": str(output_path),
+            "sha256": "sha256:" + "c" * 64,
+        },
+    )
+
+    manifest = module.prepare_review_artifacts(
+        run_dir=tmp_path,
+        video_path=video,
+        spec_id="events-search-map-response",
+        subject_commit="abc1234",
+        narration_id="NARR-1",
+        caption_text="Request visible. Cards visible. Map visible. Reload preserves results.",
+        captions_path=captions,
+        expected_proof="Events search proof.",
+        acceptance_criteria=["request-visible"],
+        source={"kind": "playwright"},
+        narration_audio=module.narration_audio_not_required(),
+        caption_segments=[
+            {"id": "CAP-1", "narration_id": "NARR-1", "text": "Request visible.", "start": 0.0, "end": 4.0, "claim_ids": ["CLAIM-1"]},
+            {"id": "CAP-2", "narration_id": "NARR-1", "text": "Cards visible.", "start": 4.0, "end": 8.0, "claim_ids": ["CLAIM-1"]},
+            {"id": "CAP-3", "narration_id": "NARR-1", "text": "Map visible.", "start": 8.0, "end": 13.0, "claim_ids": ["CLAIM-1"]},
+            {"id": "CAP-4", "narration_id": "NARR-1", "text": "Reload preserves results.", "start": 13.0, "end": 16.0, "claim_ids": ["CLAIM-1"]},
+        ],
+        proof_assertions=[
+            {"id": "request-visible", "description": "The request is visible."},
+            {"id": "events-embed-visible", "description": "The cards are visible."},
+            {"id": "map-view-populated", "description": "The map is visible."},
+            {"id": "reload-preserves-results", "description": "Reload preserves the map."},
+        ],
+        action_times=[12.0, 14.0],
+    )
+
+    assert [caption["claim_ids"] for caption in manifest["captions"]] == [
+        ["request-visible"],
+        ["events-embed-visible"],
+        ["map-view-populated"],
+        ["reload-preserves-results"],
+    ]
+    assert manifest["captions"][2]["end"] == 12.0
+    assert manifest["captions"][3]["start"] == 12.0
+    assert manifest["expected_proof"][2]["evidence_intervals"] == [[8.0, 11.9]]
+    assert manifest["expected_proof"][3]["evidence_intervals"] == [[12.0, 16.0]]
+
+
+def test_prepare_review_artifacts_preserves_explicit_caption_claim_intervals(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_module()
+    video = tmp_path / "demo.mp4"
+    video.write_bytes(b"synthetic")
+    captions = tmp_path / "captions.vtt"
+    captions.write_text("WEBVTT\n\n00:00:00.000 --> 00:00:12.000\nVisible.\n", encoding="utf-8")
+    monkeypatch.setattr(
+        module,
+        "video_metadata",
+        lambda _path: {
+            "duration_seconds": 12.0,
+            "width": 390,
+            "height": 844,
+            "sha256": "sha256:" + "b" * 64,
+            "has_audio": False,
+            "tags": {},
+        },
+    )
+    monkeypatch.setattr(
+        module,
+        "extract_frame",
+        lambda _video_path, *, timestamp_seconds, output_path: {
+            "timestamp_seconds": round(timestamp_seconds, 3),
+            "path": str(output_path),
+            "sha256": "sha256:" + "c" * 64,
+        },
+    )
+
+    manifest = module.prepare_review_artifacts(
+        run_dir=tmp_path,
+        video_path=video,
+        spec_id="chat-streaming-phone-parity",
+        subject_commit="abc1234",
+        narration_id="NARR-1",
+        caption_text="Request visible. Processing visible. Response chunk visible.",
+        captions_path=captions,
+        expected_proof="Chat streaming proof.",
+        acceptance_criteria=["request", "processing", "composer", "chunk"],
+        source={"kind": "playwright"},
+        narration_audio=module.narration_audio_not_required(),
+        caption_segments=[
+            {"id": "CAP-1", "narration_id": "NARR-1", "text": "Request visible.", "start": 0.0, "end": 3.0, "claim_ids": ["request"]},
+            {
+                "id": "CAP-2",
+                "narration_id": "NARR-1",
+                "text": "Processing visible.",
+                "start": 3.0,
+                "end": 7.0,
+                "claim_ids": ["processing", "composer"],
+            },
+            {"id": "CAP-3", "narration_id": "NARR-1", "text": "Response chunk visible.", "start": 7.0, "end": 12.0, "claim_ids": ["chunk"]},
+        ],
+        proof_assertions=[
+            {"id": "request", "description": "The request is visible."},
+            {"id": "processing", "description": "The processing state is visible."},
+            {"id": "composer", "description": "The composer is visible."},
+            {"id": "chunk", "description": "The response chunk is visible."},
+        ],
+    )
+
+    assert [caption["claim_ids"] for caption in manifest["captions"]] == [
+        ["request"],
+        ["processing", "composer"],
+        ["chunk"],
+    ]
+    assert manifest["expected_proof"][1]["evidence_intervals"] == [[3.0, 6.9]]
+    assert manifest["expected_proof"][2]["evidence_intervals"] == [[3.0, 6.9]]
+
+
 def test_scene_change_detection_extracts_ffmpeg_showinfo_timestamps(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_module()
     video = tmp_path / "demo.mp4"
@@ -520,6 +944,20 @@ def test_review_frame_times_keep_later_action_centers_before_nearby_variants() -
     assert {6.0, 12.0, 18.0, 24.0}.issubset(set(times))
 
 
+def test_review_frame_times_prioritize_claim_anchors_before_transition_ends() -> None:
+    module = load_module()
+
+    times = module.build_review_frame_times(
+        duration_seconds=27.883,
+        interval_seconds=5,
+        action_times=[4.0, 14.709, 19.056, 24.316],
+        caption_intervals=[(0.0, 4.0), (11.042, 14.709), (16.056, 19.056), (20.983, 24.316)],
+        state_change_times=[0.0, 11.042, 16.056, 20.983],
+    )
+
+    assert {11.042, 16.056, 20.983}.issubset(set(times))
+
+
 def test_tutorial_narration_rejects_generic_non_visible_claims(tmp_path: Path) -> None:
     module = load_module()
 
@@ -538,6 +976,16 @@ def test_device_profile_dimensions_reject_landscape_mobile_wrapper() -> None:
 
     with pytest.raises(module.DemonstrationError, match="390x844"):
         module.assert_device_profile_dimensions({"width": 800, "height": 450}, profile)
+
+
+def test_web_phone_source_recording_uses_constrained_safari_viewport() -> None:
+    module = load_module()
+    profile = module.resolve_device_profile("web-phone")
+
+    module.assert_source_device_profile_dimensions({"width": 390, "height": 630}, profile)
+    module.assert_device_profile_dimensions({"width": 390, "height": 844}, profile)
+    with pytest.raises(module.DemonstrationError, match="390x630"):
+        module.assert_source_device_profile_dimensions({"width": 390, "height": 844}, profile)
 
 
 def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
@@ -563,6 +1011,39 @@ def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
 
     with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
         module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
+
+
+def test_black_bar_scan_allows_dark_iphone_safari_top_and_bottom_chrome(tmp_path: Path) -> None:
+    module = load_module()
+    video = tmp_path / "safari-chrome.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=white:s=390x844:r=10",
+            "-vf",
+            "drawbox=x=0:y=0:w=390:h=128:color=black:t=fill,drawbox=x=0:y=758:w=390:h=86:color=black:t=fill",
+            "-t",
+            "1",
+            str(video),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    metadata = module.video_metadata(video)
+
+    with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
+        module.assert_no_letterbox_or_pillarbox(video, metadata)
+    result = module.assert_no_letterbox_or_pillarbox(
+        video,
+        metadata,
+        device_profile=module.resolve_device_profile("web-phone"),
+    )
+
+    assert result["ignored_dark_horizontal_edges"] is True
 
 
 @pytest.mark.parametrize("suffix", ["_", "-", "=", "/"])
@@ -696,6 +1177,26 @@ def test_ready_marker_trim_uses_fixed_lead_and_preserves_dimensions(tmp_path: Pa
     assert (module.video_metadata(output)["width"], module.video_metadata(output)["height"]) == (320, 240)
 
 
+def test_ready_marker_trim_preserves_odd_apple_profile_dimensions(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "iphone-source.mp4"
+    output = tmp_path / "iphone-trimmed.mp4"
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=394x852:r=10",
+            "-vf", "format=yuv444p,crop=393:852",
+            "-t", "1", "-c:v", "libx264", "-pix_fmt", "yuv444p", str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    module.trim_source_to_ready_marker(source, output, ready_timestamp_seconds=0.5, lead_seconds=0)
+
+    metadata = module.video_metadata(output)
+    assert (metadata["width"], metadata["height"]) == (393, 852)
+
+
 def test_ready_marker_trim_starts_at_requested_visible_frame(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "black-then-blue.mp4"
@@ -733,6 +1234,42 @@ def test_ready_marker_trim_starts_at_requested_visible_frame(tmp_path: Path) -> 
     assert green < 50
 
 
+def test_ready_marker_trim_can_exclude_cleanup_tail(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "trimmed.mp4"
+    subprocess.run(
+        [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=blue:s=320x240:r=10:d=1",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=red:s=320x240:r=10:d=1",
+            "-filter_complex",
+            "[0:v][1:v]concat=n=2:v=1:a=0",
+            str(source),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    metadata = module.trim_source_to_ready_marker(
+        source,
+        output,
+        ready_timestamp_seconds=0,
+        end_timestamp_seconds=1.0,
+        lead_seconds=0,
+    )
+
+    assert metadata["trim_end_seconds"] == 1.0
+    assert metadata["trimmed_duration_seconds"] < 1.2
+
+
 def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.mp4"
@@ -767,32 +1304,8 @@ def test_playwright_production_enforces_focused_pacing_bounds(tmp_path: Path) ->
 
     with pytest.raises(module.DemonstrationError, match="0.75"):
         module.produce_playwright_demonstration(**kwargs, playback_rate=0.5)
-    with pytest.raises(module.DemonstrationError, match="1.0"):
-        module.produce_playwright_demonstration(**kwargs, playback_rate=1.25)
     with pytest.raises(module.DemonstrationError, match="35 seconds"):
         module.produce_playwright_demonstration(**kwargs, playback_rate=0.75, hold_last_frame_seconds=30)
-
-
-def test_spec_timeline_render_uses_checkpoint_frame_holds_without_speedup(tmp_path: Path) -> None:
-    module = load_module()
-    frame = tmp_path / "checkpoint.png"
-    subprocess.run(
-        ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=blue:s=390x844", "-frames:v", "1", str(frame)],
-        check=True,
-        capture_output=True,
-    )
-    output = tmp_path / "demo.mp4"
-
-    metadata = module.render_spec_timeline_video(
-        {"checkpoint_frames": [{"path": str(frame), "sha256": module.sha256_file(frame)}]},
-        output,
-        caption_text="The screen shows the first visible action. The selected result remains visible for review. The final screen confirms the expected state.",
-    )
-
-    assert metadata["rendered_from"] == "spec_timeline_checkpoint_frames"
-    assert metadata["checkpoint_frame_count"] == 1
-    assert output.is_file()
-    assert module.video_metadata(output)["duration_seconds"] <= module.MAX_PROOF_OUTPUT_SECONDS
 
 
 def test_product_audio_requires_explicit_narration_audio(tmp_path: Path) -> None:

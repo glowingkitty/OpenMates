@@ -107,16 +107,20 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 	const reachedCheckpoints = new Set<string>();
 	const executedAssertions = new Set<string>();
 	const checkpointFrames: Array<Record<string, unknown>> = [];
-	if (contract.surface === 'web' && !options.captureFrame) {
-		throw new Error('Web video proof runtime requires captureFrame for checkpoint attestation');
-	}
-
 	return {
 		async action<T>(id: string, callback: () => Promise<T>): Promise<T> {
 			requireText(id, 'action id');
-			const start = now() - startedAt;
+			const startAtEpochMs = now();
 			const result = await callback();
-			events.push({id, kind: 'action', start_ms: start, end_ms: now() - startedAt});
+			const endAtEpochMs = now();
+			events.push({
+				id,
+				kind: 'action',
+				start_ms: startAtEpochMs - startedAt,
+				end_ms: endAtEpochMs - startedAt,
+				start_at_epoch_ms: startAtEpochMs,
+				end_at_epoch_ms: endAtEpochMs
+			});
 			return result;
 		},
 		async assert<T>(id: string, callback: () => Promise<T>): Promise<T> {
@@ -125,19 +129,33 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 			const at = now() - startedAt;
 			try {
 				const result = await callback();
+				const capturedAtEpochMs = now();
 				executedAssertions.add(id);
-				assertionResults.push({id, status: 'passed', at_ms: now() - startedAt});
-				events.push({id, kind: 'assertion', at_ms: at, status: 'passed'});
+				assertionResults.push({id, status: 'passed', at_ms: capturedAtEpochMs - startedAt, captured_at_epoch_ms: capturedAtEpochMs});
+				events.push({id, kind: 'assertion', at_ms: capturedAtEpochMs - startedAt, captured_at_epoch_ms: capturedAtEpochMs, status: 'passed'});
 				return result;
 			} catch (error) {
-				assertionResults.push({id, status: 'failed', at_ms: now() - startedAt});
-				events.push({id, kind: 'assertion', at_ms: at, status: 'failed'});
+				const capturedAtEpochMs = now();
+				assertionResults.push({id, status: 'failed', at_ms: capturedAtEpochMs - startedAt, captured_at_epoch_ms: capturedAtEpochMs});
+				events.push({id, kind: 'assertion', at_ms: at, captured_at_epoch_ms: capturedAtEpochMs, status: 'failed'});
 				throw error;
 			}
 		},
 		async checkpoint(id: string): Promise<void> {
 			requireText(id, 'checkpoint id');
-			if (options.captureFrame) {
+			const capturedAtEpochMs = now();
+			const atMs = capturedAtEpochMs - startedAt;
+			if (contract.surface === 'web') {
+				const frame: Record<string, unknown> = {checkpoint: id, at_ms: atMs, captured_at_epoch_ms: capturedAtEpochMs};
+				if (options.captureFrame) {
+					const body = await options.captureFrame();
+					const attachmentName = `openmates-proof-frame-${id}`;
+					await options.attach(attachmentName, {body, contentType: 'image/png'});
+					frame.attachment_name = attachmentName;
+					frame.sha256 = `sha256:${createHash('sha256').update(body).digest('hex')}`;
+				}
+				checkpointFrames.push(frame);
+			} else if (options.captureFrame) {
 				const body = await options.captureFrame();
 				const attachmentName = `openmates-proof-frame-${id}`;
 				await options.attach(attachmentName, {body, contentType: 'image/png'});
@@ -148,7 +166,7 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 				});
 			}
 			reachedCheckpoints.add(id);
-			events.push({id, kind: 'checkpoint', at_ms: now() - startedAt});
+			events.push({id, kind: 'checkpoint', at_ms: atMs, captured_at_epoch_ms: capturedAtEpochMs});
 		},
 		async attach(): Promise<void> {
 			for (const assertion of contract.assertions.filter((item) => item.devices.includes(options.device))) {
@@ -159,7 +177,7 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 				if (!reachedCheckpoints.has(cue.checkpoint)) throw new Error(`Video proof checkpoint ${cue.checkpoint} was not reached`);
 			}
 			const payload = {
-				schema_version: 1,
+				schema_version: contract.surface === 'web' ? 2 : 1,
 				device: options.device,
 				contract,
 				events,

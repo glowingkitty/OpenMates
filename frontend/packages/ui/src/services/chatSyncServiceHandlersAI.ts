@@ -3474,6 +3474,11 @@ async function persistClientEncryptedEmbedDiffRows(
 export async function handleSendEmbedDataImpl(
   serviceInstance: ChatSynchronizationService,
   payload: SendEmbedDataPayload,
+  persistenceIndexes?: {
+    hashed_chat_id: string;
+    hashed_message_id: string;
+    hashed_user_id: string;
+  },
 ): Promise<void> {
   // FIX: The WebSocket service extracts rawMessage.payload and passes it to handlers,
   // so 'payload' here is already the inner embed data object, NOT the full message structure.
@@ -4156,9 +4161,12 @@ export async function handleSendEmbedDataImpl(
       const { computeSHA256 } = await import("../message_parsing/utils");
 
       // 0. Hash IDs first (needed for parent key lookup if this is a child embed)
-      const hashedChatId = await computeSHA256(embedData.chat_id);
-      const hashedMessageId = await computeSHA256(embedData.message_id);
-      const hashedUserId = await computeSHA256(embedData.user_id);
+      const hashedChatId = persistenceIndexes?.hashed_chat_id
+        ?? await computeSHA256(embedData.chat_id);
+      const hashedMessageId = persistenceIndexes?.hashed_message_id
+        ?? await computeSHA256(embedData.message_id);
+      const hashedUserId = persistenceIndexes?.hashed_user_id
+        ?? await computeSHA256(embedData.user_id);
       const hashedEmbedId = await computeSHA256(embedData.embed_id);
 
       let hashedTaskId: string | undefined;
@@ -4469,6 +4477,7 @@ export async function handleSendEmbedDataImpl(
         status: embedData.status,
         hashed_chat_id: hashedChatId,
         hashed_message_id: hashedMessageId,
+        hashed_user_id: hashedUserId,
         hashed_task_id: hashedTaskId,
         embed_ids: embedData.embed_ids,
         parent_embed_id: parentEmbedId || embedData.parent_embed_id, // Use detected parent_embed_id if found

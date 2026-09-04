@@ -181,8 +181,7 @@ async function typeQuestionAndSend(
 	logCheckpoint('Clicked send button.');
 	await takeStepScreenshot(page, `${stepLabel}-message-sent`);
 
-	// Wait for URL to update to the new chat ID. When sending from demo-for-everyone,
-	// the app creates a new chat and navigates to it. We must wait for this navigation
+	// Wait for URL to update to the new chat ID after sending. We must wait for this navigation
 	// so that: (a) the frontend's WebSocket subscribes to the new chat stream before
 	// the AI response arrives, and (b) initialCount in waitForResponseAndVerifyModel
 	// is captured on the correct (empty) chat rather than a stale one.
@@ -305,6 +304,7 @@ async function waitForResponseAndVerifyModel(
  * 5. Send message
  * 6. Verify response shows "Qwen" in generated-by text
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('select qwen model via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -395,6 +395,7 @@ test('select qwen model via @ mention dropdown', async ({ page }: { page: any })
  * 5. Send message
  * 6. Verify response shows "GPT-5.4" in generated-by text
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any }) => {
 	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
 
@@ -484,6 +485,7 @@ test('select gpt-5.4 model via @ mention dropdown', async ({ page }: { page: any
  * 4. Test GPT-5.4: Select via @gpt-5.4, send question, verify response
  * 5. Delete chat
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: { page: any }) => {
 	test.skip(SHOULD_SKIP_GPT54_LIVE, GPT54_LIVE_SKIP_REASON);
 
@@ -605,6 +607,7 @@ test('switch between qwen and gpt-5.4 via @ mention dropdown', async ({ page }: 
  * 5. Send message
  * 6. Verify response shows "Kimi" in generated-by text
  */
+// contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('select kimi k2.6 model via @ mention dropdown', async ({ page }: { page: any }) => {
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();

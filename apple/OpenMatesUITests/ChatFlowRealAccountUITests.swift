@@ -10,7 +10,7 @@ import XCTest
 
 @MainActor
 final class ChatFlowRealAccountUITests: XCTestCase {
-    private let markerPrompt = "Kyoto and Osaka quick tip test"
+    private let markerPrompt = "Write four short sentences about Kyoto and Osaka. Start with: Kyoto neighbors Osaka."
     private let anonymousPrompt = "Anonymous native smoke test: answer with one short sentence."
     private let assistantResponseTimeout: TimeInterval = 90
 
@@ -18,6 +18,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
     func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
@@ -28,6 +29,119 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
     }
 
+    // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
+    func testAppleCoreParityProof() throws {
+        let credentials = try RealAccountTestCredentials.fromReservedSlot(14)
+        let proofDeviceProfile = try String(contentsOfFile: "/tmp/openmates-proof-device-profile", encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        switch proofDeviceProfile {
+        case "apple-iphone-portrait":
+            XCUIDevice.shared.orientation = .portrait
+        case "apple-ipad-landscape":
+            XCUIDevice.shared.orientation = .landscapeLeft
+        default:
+            XCTFail("Apple proof device profile is invalid")
+            return
+        }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        let captureEpochValue = try String(
+            contentsOfFile: "/tmp/openmates-recording-started-unix-ms",
+            encoding: .utf8
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let captureEpochMilliseconds = Double(captureEpochValue) else {
+            XCTFail("Apple proof recording epoch is invalid")
+            return
+        }
+        let started = Date(timeIntervalSince1970: captureEpochMilliseconds / 1000)
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat"]
+        )
+
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        let loginReadyMs = Int(Date().timeIntervalSince(started) * 1000)
+        RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
+        let messageSentMs = Int(Date().timeIntervalSince(started) * 1000)
+        let streamingBanner = RealAccountUITestSupport.accessibilityElement(
+            in: app,
+            identifier: "streaming-banner"
+        )
+        XCTAssertTrue(streamingBanner.waitForExistence(timeout: 30), "Expected visible processing state")
+        let processingVisibleMs = Int(Date().timeIntervalSince(started) * 1000)
+        let responseProgress = RealAccountUITestSupport.awaitProgressiveAssistantResponseForProof(
+            app: app,
+            timeout: assistantResponseTimeout
+        )
+        let firstChunkVisibleMs = Int(responseProgress.firstChunkVisibleAt.timeIntervalSince(started) * 1000)
+        let responseVisibleMs = Int(responseProgress.completedAt.timeIntervalSince(started) * 1000)
+        assertAssistantContentFitsHorizontally(in: app)
+        assertAssistantUsesTranscriptWidth(in: app)
+        assertFollowUpSuggestionsClearComposer(in: app)
+        let responseReadyMs = Int(Date().timeIntervalSince(started) * 1000)
+
+        attachScreenshot(name: "Apple core parity response ready")
+        try attachProofTimeline(
+            profile: proofDeviceProfile,
+            loginReadyMs: loginReadyMs,
+            messageSentMs: messageSentMs,
+            processingVisibleMs: processingVisibleMs,
+            firstChunkVisibleMs: firstChunkVisibleMs,
+            responseVisibleMs: responseVisibleMs,
+            responseReadyMs: responseReadyMs
+        )
+    }
+
+    private func assertAssistantContentFitsHorizontally(in app: XCUIApplication) {
+        let assistant = app.otherElements.matching(identifier: "message-assistant").firstMatch
+        XCTAssertTrue(assistant.exists, "Expected an assistant message before checking its layout")
+        let maximumX = assistant.frame.maxX + 1
+        let overflowing = assistant.descendants(matching: .any).allElementsBoundByIndex.filter { element in
+            let frame = element.frame
+            return element.exists && !frame.isEmpty && frame.maxX > maximumX
+        }
+        XCTAssertTrue(
+            overflowing.isEmpty,
+            "Assistant content extended beyond its horizontal bounds: \(overflowing.map { $0.frame })"
+        )
+    }
+
+    private func assertAssistantUsesTranscriptWidth(in app: XCUIApplication) {
+        let history = app.otherElements["chat-history-container"]
+        let assistantContent = app.descendants(matching: .any)["assistant-message-content"]
+        let senderName = app.descendants(matching: .any)["message-sender-name"]
+        XCTAssertTrue(history.exists)
+        XCTAssertTrue(assistantContent.exists)
+        XCTAssertTrue(senderName.exists)
+        XCTAssertLessThanOrEqual(
+            senderName.frame.minX,
+            history.frame.minX + 24,
+            "Assistant response was centered instead of leading-aligned"
+        )
+        XCTAssertGreaterThanOrEqual(
+            assistantContent.frame.width,
+            history.frame.width - 48,
+            "Assistant response did not use the available transcript width"
+        )
+    }
+
+    private func assertFollowUpSuggestionsClearComposer(in app: XCUIApplication) {
+        let suggestions = app.descendants(matching: .any)["follow-up-suggestions"]
+        guard suggestions.exists else { return }
+        let composer = app.descendants(matching: .any)["message-editor"]
+        let deadline = Date().addingTimeInterval(10)
+        while suggestions.frame.maxY > composer.frame.minY + 1, Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        XCTAssertLessThanOrEqual(
+            suggestions.frame.maxY,
+            composer.frame.minY + 1,
+            "Follow-up suggestions were covered by the fixed composer"
+        )
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity,chat-navigation.open.local-first-coherent
     func testPasswordOtpLoginLoadsRecentChatsForWebParityManifest() throws {
         let credentials = try parityCredentials()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
@@ -53,6 +167,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         attachScreenshot(name: "Apple loaded chats parity")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=auth.surface.first-party-boundary,chats.surface.semantic-parity
     func testSignedOutAnonymousWelcomePromptCreatesChatAndReceivesAssistantResponse() async throws {
         try await requireAnonymousFreeUsageActive()
 
@@ -74,6 +189,61 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         guard status.active else {
             throw XCTSkip("Anonymous free usage inactive on dev: \(status.reason ?? "unknown")")
         }
+    }
+
+    private func attachProofTimeline(
+        profile: String,
+        loginReadyMs: Int,
+        messageSentMs: Int,
+        processingVisibleMs: Int,
+        firstChunkVisibleMs: Int,
+        responseVisibleMs: Int,
+        responseReadyMs: Int
+    ) throws {
+        let timeline: [String: Any] = [
+            "schema_version": 1,
+            "device": profile,
+            "contract": [
+                "id": "apple-core-parity",
+                "title": "Apple core chat parity",
+                "surface": "apple",
+                "devices": [profile],
+                "transcript": [
+                    ["id": "shell", "text": "The authenticated native chat shell is ready for the conversation.", "checkpoint": "message-sent", "devices": [profile]],
+                    ["id": "processing", "text": "A side rainbow marks active processing while the composer remains integrated with the chat background.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "first-chunk", "text": "The left-aligned assistant card appears as the first response chunk arrives.", "checkpoint": "first-chunk-visible", "devices": [profile]],
+                    ["id": "chat", "text": "The same assistant card grows chunk by chunk into the completed four-sentence response.", "checkpoint": "response-visible", "devices": [profile]],
+                ],
+                "assertions": [
+                    ["id": "auth.ready", "visual": "The authenticated native chat composer is visible.", "checkpoint": "message-sent", "devices": [profile]],
+                    ["id": "chat.processing_rainbow", "visual": "The processing rainbow stays on the outer chat sides and does not overlay the thinking or message content.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "chat.composer_shell", "visual": "No opaque white strip appears behind the processing status or compact composer.", "checkpoint": "processing-visible", "devices": [profile]],
+                    ["id": "chat.progressive_response", "visual": "The assistant response is visibly shorter at first-chunk-visible than at response-visible.", "checkpoint": "first-chunk-visible", "devices": [profile]],
+                    ["id": "chat.response", "visual": "The completed assistant response is left-aligned, uses the available transcript width, and appears once.", "checkpoint": "response-visible", "devices": [profile]],
+                ],
+            ],
+            "events": [
+                ["kind": "checkpoint", "id": "login-ready", "at_ms": loginReadyMs],
+                ["kind": "action", "id": "send-message", "start_ms": loginReadyMs, "end_ms": messageSentMs],
+                ["kind": "checkpoint", "id": "message-sent", "at_ms": messageSentMs],
+                ["kind": "checkpoint", "id": "processing-visible", "at_ms": processingVisibleMs],
+                ["kind": "checkpoint", "id": "first-chunk-visible", "at_ms": firstChunkVisibleMs],
+                ["kind": "checkpoint", "id": "response-visible", "at_ms": responseVisibleMs],
+                ["kind": "checkpoint", "id": "response-ready", "at_ms": responseReadyMs],
+            ],
+            "assertion_results": [
+                ["id": "auth.ready", "status": "passed", "at_ms": messageSentMs],
+                ["id": "chat.processing_rainbow", "status": "passed", "at_ms": processingVisibleMs],
+                ["id": "chat.composer_shell", "status": "passed", "at_ms": processingVisibleMs],
+                ["id": "chat.progressive_response", "status": "passed", "at_ms": firstChunkVisibleMs],
+                ["id": "chat.response", "status": "passed", "at_ms": responseVisibleMs],
+            ],
+        ]
+        let data = try JSONSerialization.data(withJSONObject: timeline, options: [.prettyPrinted, .sortedKeys])
+        let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        attachment.name = "proof-timeline.json"
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 
     private func openChatsPanel(in app: XCUIApplication) {

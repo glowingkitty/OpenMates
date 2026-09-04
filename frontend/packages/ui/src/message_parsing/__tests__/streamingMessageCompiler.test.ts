@@ -27,6 +27,7 @@ function findNodes(node: any, type: string): any[] {
 }
 
 describe("compileAssistantDisplayMessage", () => {
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
   it("uses identical display semantics for a complete streaming snapshot and final message", () => {
     const markdown = [
       "Use [the selected event](embed:event-one-ref) and this result:",
@@ -63,6 +64,7 @@ describe("compileAssistantDisplayMessage", () => {
     });
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("preserves completed-prefix identities while an incomplete suffix grows", () => {
     const completePrefix = [
       "First result:",
@@ -82,6 +84,7 @@ describe("compileAssistantDisplayMessage", () => {
     expect(findNodes(later, "embedPreviewLarge")[0]?.attrs.embedRef).toBe("event-one-ref");
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
   it("emits a closed result-view descriptor before surrounding prose completes", () => {
     const markdown = [
       "Here is the comparison:",

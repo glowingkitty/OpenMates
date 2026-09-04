@@ -125,6 +125,7 @@ def _hash(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_start_export_creates_resumable_job_without_updating_last_export_at() -> None:
     directus = FakeDirectusService()
@@ -136,10 +137,31 @@ async def test_start_export_creates_resumable_job_without_updating_last_export_a
     assert job["selected_domains"] == service.default_domains
     assert job["default_domains"] == service.default_domains
     assert job["progress"]["total_domains"] == len(service.default_domains)
-    assert [chunk["domain"] for chunk in job["chunks"]] == service.default_domains
+    chunk_domains = list(dict.fromkeys(chunk["domain"] for chunk in job["chunks"]))
+    assert chunk_domains == service.default_domains
     assert directus.updated_users == []
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_deferred_start_returns_before_chunks_are_materialized() -> None:
+    service = AccountExportService(directus_service=FakeDirectusService())
+
+    job = await service.start_export(user_id="user-1", build_immediately=False)
+
+    assert job["status"] == "queued"
+    assert job["chunks"] == []
+    assert job["domain_results"] == {}
+
+    ready = await service.build_export(user_id="user-1", export_id=job["export_id"])
+
+    assert ready["status"] == "ready"
+    assert list(dict.fromkeys(chunk["domain"] for chunk in ready["chunks"])) == service.default_domains
+    assert ready["progress"]["total_parts"] == len(ready["chunks"])
+    assert ready["domain_results"]["chats"]["status"] == "ready"
+
+
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_manifest_excludes_team_scoped_rows_and_counts_defaults() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
@@ -153,6 +175,7 @@ async def test_manifest_excludes_team_scoped_rows_and_counts_defaults() -> None:
     assert manifest["excluded"]["team_data"] == "personal_export_excludes_team_scoped_rows"
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_billing_export_selects_latest_verified_invoice_ciphertext() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
@@ -171,6 +194,7 @@ async def test_billing_export_selects_latest_verified_invoice_ciphertext() -> No
     assert "encrypted_aes_key" not in chunk["payload"]["items"][0]
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_default_export_materializes_all_default_domains() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
@@ -192,6 +216,7 @@ async def test_default_export_materializes_all_default_domains() -> None:
     assert manifest["domains"]["compliance_consent_history"]["count"] == 1
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_export_payload_includes_related_messages_embeds_uploads_and_s3_references() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
@@ -211,6 +236,7 @@ async def test_export_payload_includes_related_messages_embeds_uploads_and_s3_re
     assert by_domain["tasks"]["archives"] == [{"archive_s3_key": "task-archives/hash/tasks.json.gz", "task_count": 1}]
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete
 @pytest.mark.asyncio
 async def test_start_export_rejects_unsupported_domain_filters() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())
@@ -223,6 +249,7 @@ async def test_start_export_rejects_unsupported_domain_filters() -> None:
         )
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete
 @pytest.mark.asyncio
 async def test_partial_export_requires_explicit_acceptance_for_last_export_at() -> None:
     directus = FakeDirectusService()
@@ -246,6 +273,7 @@ async def test_partial_export_requires_explicit_acceptance_for_last_export_at() 
     assert "last_export_at" in directus.updated_users[0][1]
 
 
+# contract-test: direct surface=rest_api assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_download_chunks_never_emit_forbidden_secret_fields() -> None:
     service = AccountExportService(directus_service=FakeDirectusService())

@@ -48,6 +48,7 @@ import {
   type UserTaskRecord,
   type UserTaskStatus,
   type UserPlanCriterionRecord,
+  type UserPlanAssumptionRecord,
   type UserPlanRecord,
   type UserPlanStatus,
   type UserPlanVerificationStatus,
@@ -60,15 +61,22 @@ import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMeta
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
+import { parse as parseYaml } from "yaml";
 import WebSocket from "ws";
+import {
+  assertTrustedAccountId,
+  loadTrustedAccountId,
+  saveTrustedAccountId,
+} from "./storage.js";
 
 import {
   parseMentions,
+  resolveWikipediaMentions,
   listMentionOptions,
   type MentionType,
 } from "./mentions.js";
@@ -77,7 +85,7 @@ import { OutputRedactor } from "./outputRedactor.js";
 import { processFilesAsync, formatEmbedsForMessage } from "./fileEmbed.js";
 import type { PreparedEmbed } from "./embedCreator.js";
 import type { ShareDuration } from "./shareEncryption.js";
-import { transcribeUploadedAudio, uploadFile, type UploadFileResponse } from "./uploadService.js";
+import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile, type UploadFileResponse } from "./uploadService.js";
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
@@ -85,6 +93,7 @@ import { handleServer, printServerHelp } from "./server.js";
 import {
   buildCodeRunRequestsFromFlags,
   buildCodeRunStreamUrl,
+  formatCodeRunFinalStatusOutput,
 } from "./codeRunInput.js";
 import {
   exportDesignIcon,
@@ -147,22 +156,34 @@ import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./sel
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
+  buildCreateTaskActivityInput,
+  buildBlockUserTaskInput,
   buildUpdateUserTaskInput,
+  decryptTaskActivityEntries,
+  decryptTaskActivityEntry,
   decryptUserTask,
   decryptUserTasks,
+  decryptUserTasksForCli,
+  externalChatLookupHash,
   findTask,
   labelHashes as buildLabelHashes,
   normalizeLabels,
+  parseExternalChatRef,
   normalizeTaskPriority,
   normalizeTaskStatus,
   parseDueAt,
   renderTaskBoard,
+  renderTaskActivityList,
   renderTaskDetail,
   renderTaskList,
   splitCsvFlag,
+  taskEditLookupScope,
+  taskLookupScopes,
   workflowProjectionDeleteGuidance,
   type DecryptedUserTask,
+  type DecryptedTaskActivityEntry,
   type TaskCreateOptions,
+  type TaskLookupScope,
   type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
@@ -179,6 +200,7 @@ import {
   decryptPlanLearnings,
   decryptUserPlan,
   decryptUserPlans,
+  decryptUserPlansForCli,
   finalizedLearningNeedsTaskSafetyScan,
   findPlan,
   findPlanLearning,
@@ -194,7 +216,10 @@ import {
   type DecryptedPlanLearning,
   type DecryptedUserPlan,
   type PlanProjectKey,
+  planKeyFromRecord,
+  serializeAssumptionProofInputs,
 } from "./plansCli.js";
+import { findRecoveryConflicts, projectPlanAssumption, projectPlanRevision, recoveryDocumentSemanticMismatchPaths, recoveryDocumentsSemanticallyEqual, validateWorkRecoveryDocument, writeWorkRecoveryAtomically, type WorkRecoveryDocument } from "./workRecovery.js";
 import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
 import { buildEncryptedObjectSlugMetadata, objectSlugMatches } from "./objectSlugs.js";
 import {
@@ -219,12 +244,25 @@ type CliArgs = {
 async function main(): Promise<void> {
   const parsed = parseArgs(process.argv.slice(2));
   const [command, subcommand, ...rest] = parsed.positionals;
+  const accountGuardRequired = process.env.OPENMATES_ACCOUNT_GUARD === "required";
+  if (accountGuardRequired && parsed.flags.help !== true) {
+    assertTrustedAccountGuardEnvironment(parsed.flags);
+    assertTrustedAccountCommandAllowed(command);
+  }
   const client = OpenMatesClient.load({
     apiUrl:
       typeof parsed.flags["api-url"] === "string"
         ? parsed.flags["api-url"]
         : undefined,
   });
+
+  if (
+    accountGuardRequired
+    && parsed.flags.help !== true
+    && shouldRequireTrustedAccountGuard(command)
+  ) {
+    await enforceTrustedAccount(client);
+  }
 
   const redactor = new OutputRedactor();
   const piiDetectionEnabled = parsed.flags["no-pii-detection"] !== true;
@@ -317,6 +355,10 @@ async function main(): Promise<void> {
     }
     if (command === "projects") {
       printProjectsHelp();
+      return;
+    }
+    if (command === "recovery") {
+      console.log("Recovery commands: full-sync --project <id> --root <external-root>; validate --file <projection.yml>; restore --file <projection.yml> --dry-run|--confirm-restore.");
       return;
     }
     if (command === "teams") {
@@ -426,6 +468,15 @@ async function main(): Promise<void> {
 
   if (command === "login") {
     await client.loginWithPairAuth();
+    if (accountGuardRequired) {
+      try {
+        const user = await client.whoAmI();
+        saveTrustedAccountId(accountIdFromWhoAmI(user));
+      } catch (error) {
+        await client.logout();
+        throw error;
+      }
+    }
     console.log("Login successful.");
     return;
   }
@@ -488,6 +539,11 @@ async function main(): Promise<void> {
 
   if (command === "projects") {
     await handleProjects(client, subcommand, rest, parsed.flags, redactor);
+    return;
+  }
+
+  if (command === "recovery") {
+    await handleWorkRecovery(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -587,6 +643,64 @@ async function main(): Promise<void> {
   }
 
   throw new Error(`Unknown command '${command}'. Run 'openmates help'.`);
+}
+
+const TRUST_GUARD_EXEMPT_COMMANDS = new Set([
+  "login",
+  "logout",
+  "whoami",
+  "help",
+  "version",
+  "server",
+  "docs",
+  "support",
+  "update",
+  "upgrade",
+]);
+const TRUST_GUARD_BLOCKED_COMMANDS = new Set(["signup", "e2e"]);
+const TRUST_GUARD_PROFILE = "opencode-personal";
+const TRUST_GUARD_API_URL = "https://api.dev.openmates.org";
+
+export function shouldRequireTrustedAccountGuard(command: string | undefined): boolean {
+  return !command || !TRUST_GUARD_EXEMPT_COMMANDS.has(command);
+}
+
+export function assertTrustedAccountCommandAllowed(command: string | undefined): void {
+  if (command && TRUST_GUARD_BLOCKED_COMMANDS.has(command)) {
+    throw new Error(`The '${command}' command is disabled for the trusted OpenCode CLI profile.`);
+  }
+}
+
+export function assertTrustedAccountGuardEnvironment(
+  flags: Record<string, string | boolean>,
+  environment: NodeJS.ProcessEnv = process.env,
+): void {
+  if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
+    throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
+  }
+  if (environment.OPENMATES_STATE_DIR) {
+    throw new Error("Trusted OpenCode CLI commands cannot override OPENMATES_STATE_DIR.");
+  }
+  if (environment.OPENMATES_API_URL?.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
+    throw new Error(`Trusted OpenCode CLI commands require ${TRUST_GUARD_API_URL}.`);
+  }
+  const requestedApiUrl = flags["api-url"];
+  if (typeof requestedApiUrl === "string" && requestedApiUrl.replace(/\/$/, "") !== TRUST_GUARD_API_URL) {
+    throw new Error("Trusted OpenCode CLI commands cannot override the configured dev API URL.");
+  }
+}
+
+function accountIdFromWhoAmI(user: Record<string, unknown>): string {
+  const accountId = typeof user.id === "string" ? user.id.trim() : "";
+  if (!accountId) throw new Error("OpenMates account verification returned no account ID.");
+  return accountId;
+}
+
+async function enforceTrustedAccount(client: OpenMatesClient): Promise<void> {
+  const trustedAccountId = loadTrustedAccountId();
+  if (!trustedAccountId) assertTrustedAccountId(null, "");
+  const user = await client.whoAmI();
+  assertTrustedAccountId(trustedAccountId, accountIdFromWhoAmI(user));
 }
 
 function handleSupport(flags: Record<string, string | boolean>): void {
@@ -699,13 +813,62 @@ async function handleTasks(
   const masterKey = client.getMasterKeyBytes();
   const scope = await resolveTaskScope(client, masterKey, flags, taskScopeFromFlags(flags, masterKey));
 
+  if (subcommand === "activity") {
+    const action = rest[0] ?? "list";
+    const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
+    const context = { teamId: scope.teamId, personal: scope.personal };
+    if (action === "list") {
+      const records = [];
+      let cursor: string | undefined;
+      do {
+        const page = await client.listUserTaskActivity(task.taskId, {
+          ...context,
+          cursor,
+          limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
+        });
+        records.push(...page.entries);
+        cursor = page.next_cursor ?? undefined;
+      } while (cursor);
+      const entries = await decryptTaskActivityEntries(task, masterKey, records);
+      if (flags.json === true) printJson({ entries: entries.map(taskActivityToJson) });
+      else console.log(renderTaskActivityList(entries));
+      return;
+    }
+    if (action === "add") {
+      const message = typeof flags.message === "string" ? flags.message : rest.slice(2).join(" ");
+      if (!message.trim()) throw new Error("Missing comment. Usage: openmates tasks activity add <task-id> --message <text>");
+      const input = await buildCreateTaskActivityInput(task, masterKey, { message });
+      const entry = await decryptTaskActivityEntry(
+        task,
+        masterKey,
+        await client.createUserTaskActivity(task.taskId, input, context),
+      );
+      if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
+      else console.log(renderTaskActivityList([entry]));
+      return;
+    }
+    if (action === "delete") {
+      const entryId = rest[2];
+      if (!entryId) throw new Error("Missing Activity entry ID. Usage: openmates tasks activity delete <task-id> <entry-id>");
+      const entry = await decryptTaskActivityEntry(
+        task,
+        masterKey,
+        await client.deleteUserTaskActivity(task.taskId, entryId, context),
+      );
+      if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
+      else console.log(renderTaskActivityList([entry]));
+      return;
+    }
+    throw new Error("Usage: openmates tasks activity list|add|delete <task-id> [<entry-id>] [--message <text>]");
+  }
+
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
     const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
-    const updated = await client.updateUserTask(task.taskId, patch);
+    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -715,9 +878,36 @@ async function handleTasks(
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "remove-from-project");
     const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: removeId(task.linkedProjectIds, project.projectId) });
-    const updated = await client.updateUserTask(task.taskId, patch);
+    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
+  }
+
+  if (subcommand === "dependencies") {
+    const action = rest[0] ?? "list";
+    const task = await requiredResolvedTask(client, masterKey, rest[1], { ...scope, status: undefined }, `dependencies ${action}`);
+    if (action === "list") {
+      const result = await client.getTaskDependencies(task.taskId);
+      if (flags.json === true) printJson(result);
+      else printDependencies(result);
+      return;
+    }
+    const target = await resolveDependencyTarget(client, masterKey, flags.target ?? rest[2], scope, planScopeFromFlags(flags));
+    if (action === "add") {
+      const dependency = await client.addTaskDependency(task.taskId, `${target.kind}:${target.id}`);
+      if (flags.json === true) printJson({ dependency });
+      else console.log(`Task dependency added: ${dependency.target_ref}`);
+      await projectWorkRecoveryIfConfigured(client, masterKey, flags, task.linkedProjectIds);
+      return;
+    }
+    if (action === "remove") {
+      const result = await client.removeTaskDependency(task.taskId, target.kind, target.id);
+      if (flags.json === true) printJson(result);
+      else console.log(`Task dependency removed: ${target.kind}:${target.id}`);
+      await projectWorkRecoveryIfConfigured(client, masterKey, flags, task.linkedProjectIds);
+      return;
+    }
+    throw new Error("Usage: openmates tasks dependencies list|add|remove <task-id> [--target plan:<id>|task:<id>]");
   }
 
   if (subcommand === "list" || subcommand === "status") {
@@ -806,6 +996,7 @@ async function handleTasks(
       status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
       assign: taskAssignFlag(flags),
       chatId: typeof flags.chat === "string" ? flags.chat : null,
+      externalChat: externalChatFromFlags(flags),
       projectIds: splitCsvFlag(flags.project ?? flags.projects),
       planId: typeof flags.plan === "string" ? flags.plan : null,
       dueAt: parseDueAt(flags.due),
@@ -820,7 +1011,7 @@ async function handleTasks(
   if (subcommand === "edit") {
     const id = rest[0];
     if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
-    const task = await resolveTask(client, masterKey, id, scope);
+    const task = await resolveTask(client, masterKey, id, taskEditLookupScope(scope));
     const patch = await buildUpdateUserTaskInput(task, masterKey, await resolveTaskUpdateOptions(client, masterKey, flags, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
@@ -830,12 +1021,13 @@ async function handleTasks(
       status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
       assign: taskAssignFlag(flags),
       chatId: flags.chat === true ? null : typeof flags.chat === "string" ? flags.chat : undefined,
+      externalChat: externalChatFromFlags(flags),
       projectIds: flags.project || flags.projects ? splitCsvFlag(flags.project ?? flags.projects) : undefined,
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
     }));
-    const updated = await client.updateUserTask(task.taskId, patch);
+    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -878,10 +1070,16 @@ async function handleTasks(
 
   if (["block", "unblock", "skip", "done"].includes(subcommand)) {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
-    const payload: UserTaskActionInput = { version: task.version };
+    let payload: UserTaskActionInput = { version: task.version };
     if (subcommand === "block") {
-      if (typeof flags.reason !== "string") throw new Error("Blocking a task requires --reason <code>.");
-      payload.blocked_reason_code = flags.reason;
+      const reasonCode = typeof flags["reason-code"] === "string"
+        ? flags["reason-code"]
+        : typeof flags.reason === "string" ? flags.reason : undefined;
+      if (!reasonCode) throw new Error("Blocking a task requires --reason-code <code> (or legacy --reason <code>).");
+      payload = await buildBlockUserTaskInput(task, masterKey, {
+        reasonCode,
+        reasonText: typeof flags["reason-text"] === "string" ? flags["reason-text"] : undefined,
+      });
     }
     const updated = subcommand === "block"
       ? await client.blockUserTask(task.taskId, payload)
@@ -911,15 +1109,29 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+  const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
     chatId: typeof flags.chat === "string" ? flags.chat : undefined,
     projectId: typeof flags.project === "string" ? flags.project : undefined,
     planId: typeof flags.plan === "string" ? flags.plan : undefined,
     labelHashes: buildLabelHashes(masterKey, labelFlags(flags)),
+    ...(externalChat ? {
+      externalChatProvider: externalChat.provider,
+      externalChatLookupHash: externalChatLookupHash(masterKey, externalChat),
+    } : {}),
     priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
     ...teamContextFromFlags(flags),
+  };
+}
+
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "opencode"; id: string; title?: string } | undefined {
+  if (typeof flags["external-chat"] !== "string") return undefined;
+  const ref = parseExternalChatRef(flags["external-chat"]);
+  return {
+    ...ref,
+    ...(typeof flags["external-chat-title"] === "string" ? { title: flags["external-chat-title"] } : {}),
   };
 }
 
@@ -927,7 +1139,7 @@ async function resolveTaskScope(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   flags: Record<string, string | boolean>,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
 ): Promise<typeof scope> {
   let chatId = scope.chatId;
   if (chatId) {
@@ -973,10 +1185,11 @@ async function resolveTaskUpdateOptions(
 async function loadTasks(
   client: OpenMatesClient,
   masterKey: Uint8Array,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
+  limit?: number,
 ): Promise<DecryptedUserTask[]> {
-  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, priority: scope.priority, teamId: scope.teamId, personal: scope.personal });
-  const tasks = await decryptUserTasks(records, masterKey);
+  const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, externalChatProvider: scope.externalChatProvider, externalChatLookupHash: scope.externalChatLookupHash, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
+  const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
 
@@ -984,16 +1197,23 @@ async function resolveTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
 ): Promise<DecryptedUserTask> {
-  return findTask(await loadTasks(client, masterKey, { ...scope, status: undefined }), id);
+  const candidates: DecryptedUserTask[] = [];
+  for (const lookupScope of taskLookupScopes(scope)) {
+    const tasks = await loadTasks(client, masterKey, lookupScope, 500);
+    const exactMatch = tasks.find((task) => task.taskId === id);
+    if (exactMatch) return exactMatch;
+    candidates.push(...tasks);
+  }
+  return findTask(candidates, id);
 }
 
 async function requiredResolvedTask(
   client: OpenMatesClient,
   masterKey: Uint8Array,
   id: string | undefined,
-  scope: { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; priority?: number; teamId?: string | null; personal?: boolean },
+  scope: TaskLookupScope,
   action: string,
 ): Promise<DecryptedUserTask> {
   if (!id) throw new Error(`Missing task ID. Usage: openmates tasks ${action} <task-id>`);
@@ -1801,8 +2021,85 @@ async function handlePlans(
   }
 
   const masterKey = client.getMasterKeyBytes();
-  const statusBelongsToChild = ["tasks", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
+  const statusBelongsToChild = ["tasks", "assumptions", "success-criteria", "criterion", "criteria", "learning", "learnings", "check", "checks", "verification"].includes(subcommand);
   const scope = await resolvePlanScope(client, masterKey, flags, planScopeFromFlags(flags, { ignoreStatus: statusBelongsToChild }));
+
+  if (subcommand === "dependencies") {
+    const action = rest[0] ?? "list";
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `dependencies ${action}`);
+    if (action === "list") {
+      const result = await client.getPlanDependencies(plan.planId);
+      if (flags.json === true) printJson(result); else printDependencies(result);
+      return;
+    }
+    const target = await resolveDependencyTarget(client, masterKey, flags.target ?? rest[2], taskScopeFromFlags(flags, masterKey), scope);
+    const result = action === "add"
+      ? await client.addPlanDependency(plan.planId, `${target.kind}:${target.id}`)
+      : action === "remove"
+        ? await client.removePlanDependency(plan.planId, target.kind, target.id)
+        : null;
+    if (!result) throw new Error("Usage: openmates plans dependencies list|add|remove <plan-id> --target plan:<id>|task:<id>");
+    if (flags.json === true) printJson(result); else console.log(`Plan dependency ${action}ed: ${target.kind}:${target.id}`);
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
+    return;
+  }
+
+  if (subcommand === "assumptions") {
+    const action = rest[0] ?? "list";
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `assumptions ${action}`);
+    if (action === "list") {
+      const assumptions = await client.listPlanAssumptions(plan.planId);
+      if (flags.json === true) printJson({ assumptions }); else console.log(JSON.stringify(assumptions, null, 2));
+      return;
+    }
+    const proof = parseAssumptionProofFlags(flags);
+    const encryptedSources = proof.length ? await encryptPlanAssumptionSources(plan, masterKey, proof) : undefined;
+    if (action === "create" || action === "add") {
+      const assumption = await client.createPlanAssumption(plan.planId, {
+        assumption_id: typeof flags.id === "string" ? flags.id : randomUUID(),
+        encrypted_text: await encryptPlanAssumptionSources(plan, masterKey, requiredStringFlag(flags.text ?? rest.slice(2).join(" "), "--text <assumption>")),
+        status: typeof flags.status === "string" ? flags.status : undefined,
+        linked_sub_chat_id: typeof flags["sub-chat"] === "string" ? flags["sub-chat"] : undefined,
+        encrypted_sources: encryptedSources,
+        created_at: nowSeconds(), updated_at: nowSeconds(),
+      });
+      if (flags.json === true) printJson({ assumption }); else console.log(`Plan assumption added: ${assumption.assumption_id}`);
+    } else if (action === "update") {
+      const assumptionId = requiredStringFlag(flags.assumption ?? rest[2], "--assumption <id>");
+      const patch: Record<string, unknown> = { updated_at: nowSeconds() };
+      if (typeof flags.status === "string") patch.status = flags.status;
+      if (typeof flags["sub-chat"] === "string") patch.linked_sub_chat_id = flags["sub-chat"];
+      if (typeof flags.corrected === "string") patch.encrypted_corrected_text = await encryptPlanAssumptionSources(plan, masterKey, flags.corrected);
+      if (encryptedSources) patch.encrypted_sources = encryptedSources;
+      const assumption = await client.updatePlanAssumption(plan.planId, assumptionId, patch);
+      if (flags.json === true) printJson({ assumption }); else console.log(`Plan assumption updated: ${assumption.assumption_id}`);
+    } else throw new Error("Usage: openmates plans assumptions list|create|update <plan-id> [--assumption <id>] [--proof-embed|--proof-file|--proof-url]");
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
+    return;
+  }
+
+  if (subcommand === "revisions") {
+    const action = rest[0] ?? "list";
+    const plan = await requiredResolvedPlan(client, masterKey, rest[1], { ...scope, status: undefined }, `revisions ${action}`);
+    if (action === "list") {
+      const revisions = await client.listPlanRevisions(plan.planId);
+      if (flags.json === true) printJson({ revisions }); else console.log(JSON.stringify(revisions, null, 2));
+      return;
+    }
+    if (action === "status") {
+      const approval = await client.getPlanApprovalStatus(plan.planId);
+      if (flags.json === true) printJson({ approval }); else console.log(JSON.stringify(approval, null, 2));
+      return;
+    }
+    if (action === "diff") throw new Error("Revision diffs are reviewed in the authenticated web review page; use submit-for-review to print its URL.");
+    if (action !== "submit-for-review") throw new Error("Usage: openmates plans revisions list|submit-for-review|status|diff <plan-id>");
+    const snapshot = JSON.stringify(planToJson(plan));
+    const revision = await client.submitPlanRevision(plan.planId, { fingerprint: createHash("sha256").update(snapshot).digest("hex"), encrypted_snapshot: await encryptPlanAssumptionSources(plan, masterKey, snapshot), created_at: nowSeconds() });
+    const reviewUrl = `${deriveAppUrl(client.apiUrl)}/plans/${plan.planId}/review?revision=${revision.revision_id}`;
+    if (flags.json === true) printJson({ revision, review_url: reviewUrl }); else console.log(`Plan revision submitted for web review: ${reviewUrl}`);
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
+    return;
+  }
 
   if (rest[0] === "add-to-project") {
     rejectRemoteCopyFlags(flags);
@@ -1895,7 +2192,7 @@ async function handlePlans(
       return;
     }
     const proposal = isShortWorkspaceAsk(instruction)
-      ? { title: instruction, summary: "", goal: instruction }
+      ? { title: instruction, goal: instruction }
       : extractRecord(await client.planUserPlanAsk({ instruction }), "proposed_plan");
     const title = requiredString(proposal, "title", instruction);
     const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, {
@@ -1904,8 +2201,7 @@ async function handlePlans(
     });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
-      summary: typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "summary") ?? "",
-      goal: typeof flags.goal === "string" ? flags.goal : optionalString(proposal, "goal") ?? title,
+      goal: typeof flags.goal === "string" ? flags.goal : typeof flags.summary === "string" ? flags.summary : optionalString(proposal, "goal") ?? optionalString(proposal, "summary") ?? title,
       status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
       primaryChatId: linkContext.primaryChatId,
@@ -1927,12 +2223,10 @@ async function handlePlans(
     });
     const input = await buildCreateUserPlanInput(masterKey, {
       title,
-      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : "",
-      goal: typeof flags.goal === "string" ? flags.goal : "",
+      goal: requiredPlanGoal(flags),
       scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : "",
       scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : "",
-      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : "",
-      currentFocus: typeof flags["current-focus"] === "string" ? flags["current-focus"] : "",
+      userFlows: parsePlanUserFlowsFlag(flags["user-flows"]),
       assumptions: typeof flags.assumptions === "string" ? flags.assumptions : "",
       openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : "",
       constraints: typeof flags.constraints === "string" ? flags.constraints : "",
@@ -1946,13 +2240,20 @@ async function handlePlans(
       primaryChatKey: linkContext.primaryChatKey,
       linkedProjectIds: linkContext.linkedProjectIds,
       linkedProjectKeys: linkContext.linkedProjectKeys,
-      currentPhaseId: typeof flags.phase === "string" ? flags.phase : null,
-      currentStepId: typeof flags.step === "string" ? flags.step : null,
-      currentTaskId: typeof flags.task === "string" ? flags.task : null,
       plannerFocusId: typeof flags.focus === "string" ? flags.focus : null,
     });
     const created = await client.createUserPlan(input);
     printPlanOutput(await decryptUserPlan(created, masterKey), flags);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const plan = await requiredResolvedPlan(client, masterKey, rest[0], scope, "delete");
+    if (flags.confirm !== true) throw new Error("Deleting a plan requires --confirm.");
+    const result = await client.deleteUserPlan(plan.planId, plan.version);
+    if (flags.json === true) printJson(result);
+    else console.log(`Plan deleted: ${plan.shortId}`);
+    await projectWorkRecoveryIfConfigured(client, masterKey, flags, plan.linkedProjectIds);
     return;
   }
 
@@ -1973,12 +2274,10 @@ async function handlePlans(
       : null;
     const patch = await buildUpdateUserPlanInput(plan, masterKey, {
       title: typeof flags.title === "string" ? flags.title : undefined,
-      summary: typeof flags.summary === "string" ? flags.summary : typeof flags.description === "string" ? flags.description : undefined,
       goal: typeof flags.goal === "string" ? flags.goal : undefined,
       scopeIn: typeof flags["scope-in"] === "string" ? flags["scope-in"] : undefined,
       scopeOut: typeof flags["scope-out"] === "string" ? flags["scope-out"] : undefined,
-      userFlows: typeof flags["user-flows"] === "string" ? flags["user-flows"] : undefined,
-      currentFocus: flags["current-focus"] === true ? "" : typeof flags["current-focus"] === "string" ? flags["current-focus"] : undefined,
+      userFlows: flags["user-flows"] === undefined ? undefined : parsePlanUserFlowsFlag(flags["user-flows"]),
       assumptions: typeof flags.assumptions === "string" ? flags.assumptions : undefined,
       openQuestions: typeof flags["open-questions"] === "string" ? flags["open-questions"] : undefined,
       constraints: typeof flags.constraints === "string" ? flags.constraints : undefined,
@@ -1992,9 +2291,6 @@ async function handlePlans(
       primaryChatKey: linkContext?.primaryChatKey ?? undefined,
       linkedProjectIds: hasProjectRelink ? linkContext?.linkedProjectIds ?? [] : undefined,
       linkedProjectKeys: linkContext?.linkedProjectKeys,
-      currentPhaseId: flags.phase === true ? null : typeof flags.phase === "string" ? flags.phase : undefined,
-      currentStepId: flags.step === true ? null : typeof flags.step === "string" ? flags.step : undefined,
-      currentTaskId: flags.task === true ? null : typeof flags.task === "string" ? flags.task : undefined,
       plannerFocusId: flags.focus === true ? null : typeof flags.focus === "string" ? flags.focus : undefined,
     });
     const updated = await client.updateUserPlan(plan.planId, patch);
@@ -2107,7 +2403,6 @@ async function handlePlans(
       type: typeof flags.type === "string" ? flags.type : undefined,
       status: typeof flags.status === "string" ? flags.status : undefined,
       required: flags.required === true ? true : flags.optional === true ? false : undefined,
-      linkedStepIds: splitCsvFlag(flags.step ?? flags.steps),
       linkedTaskIds: splitCsvFlag(flags.task ?? flags.tasks),
       verificationIds: splitCsvFlag(flags.verification ?? flags.verifications),
     });
@@ -2337,7 +2632,7 @@ async function loadPlans(
   scope: { status?: UserPlanStatus; chatId?: string; projectId?: string; activeOnly?: boolean; teamId?: string | null; personal?: boolean },
 ): Promise<DecryptedUserPlan[]> {
   const records = await client.listUserPlans(scope);
-  return decryptUserPlans(records, masterKey);
+  return decryptUserPlansForCli(records, masterKey, console.error);
 }
 
 async function loadPlanLearnings(client: OpenMatesClient, masterKey: Uint8Array, plan: DecryptedUserPlan): Promise<DecryptedPlanLearning[]> {
@@ -2365,16 +2660,224 @@ async function requiredResolvedPlan(
   return resolvePlan(client, masterKey, id, scope);
 }
 
+type DependencyTarget = { kind: "plan" | "task"; id: string };
+
+async function resolveDependencyTarget(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  raw: string | boolean | undefined,
+  taskScope: Parameters<typeof resolveTask>[3],
+  planScope: Parameters<typeof resolvePlan>[3],
+): Promise<DependencyTarget> {
+  if (typeof raw !== "string") throw new Error("Dependency target is required. Use --target plan:<id> or --target task:<id>.");
+  const match = /^(plan|task):(.+)$/.exec(raw);
+  if (!match) throw new Error("Dependency target must use plan:<id> or task:<id>.");
+  if (match[1] === "plan") return { kind: "plan", id: (await resolvePlan(client, masterKey, match[2], { ...planScope, status: undefined })).planId };
+  return { kind: "task", id: (await resolveTask(client, masterKey, match[2], { ...taskScope, status: undefined })).taskId };
+}
+
+function printDependencies(value: { dependencies: Array<{ target_ref: string; satisfied?: unknown }>; blockers: Array<{ source_ref: string; target_ref: string }> }): void {
+  if (value.dependencies.length === 0 && value.blockers.length === 0) {
+    console.log("No dependencies or blockers.");
+    return;
+  }
+  for (const dependency of value.dependencies) console.log(`Depends on: ${dependency.target_ref} (${dependency.satisfied === true ? "satisfied" : "open"})`);
+  for (const blocker of value.blockers) console.log(`Blocks: ${blocker.source_ref}`);
+}
+
+function parseAssumptionProofFlags(flags: Record<string, string | boolean>): Parameters<typeof serializeAssumptionProofInputs>[0] {
+  const proof: Parameters<typeof serializeAssumptionProofInputs>[0] = [];
+  for (const embedId of splitCsvFlag(flags["proof-embed"])) proof.push({ kind: "embed", embedId });
+  for (const url of splitCsvFlag(flags["proof-url"])) proof.push({ kind: "url", url });
+  for (const value of splitCsvFlag(flags["proof-file"])) {
+    const [path, startLine, endLine] = value.split(":");
+    proof.push({ kind: "file", path, ...(startLine ? { startLine: Number(startLine) } : {}), ...(endLine ? { endLine: Number(endLine) } : {}) });
+  }
+  return proof;
+}
+
+async function encryptPlanAssumptionSources(plan: DecryptedUserPlan, masterKey: Uint8Array, value: string | Parameters<typeof serializeAssumptionProofInputs>[0]): Promise<string> {
+  const key = await planKeyFromRecord(plan.encrypted, masterKey);
+  const plaintext = typeof value === "string" ? value : serializeAssumptionProofInputs(value);
+  return encryptWithAesGcmCombined(plaintext, key);
+}
+
+async function projectWorkRecoveryIfConfigured(
+  client: OpenMatesClient,
+  masterKey: Uint8Array,
+  flags: Record<string, string | boolean>,
+  projectIds: string[],
+): Promise<void> {
+  const root = typeof flags["recovery-root"] === "string" ? flags["recovery-root"] : process.env.OPENMATES_WORK_RECOVERY_ROOT;
+  if (!root || projectIds.length === 0) return;
+  for (const projectId of projectIds) await writeProjectWorkRecovery(client, masterKey, projectId, root);
+}
+
+async function writeProjectWorkRecovery(client: OpenMatesClient, masterKey: Uint8Array, projectId: string, root: string): Promise<void> {
+  writeWorkRecoveryAtomically(`${root.replace(/\/$/, "")}/${projectId}.yml`, await buildProjectWorkRecoveryDocument(client, masterKey, projectId));
+}
+
+async function handleWorkRecovery(client: OpenMatesClient, subcommand: string | undefined, rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  const root = typeof flags.root === "string" ? flags.root : typeof flags["recovery-root"] === "string" ? flags["recovery-root"] : process.env.OPENMATES_WORK_RECOVERY_ROOT;
+  if (!subcommand || flags.help === true) {
+    console.log("Usage: openmates recovery full-sync --project <project-id> --root <external-root>; openmates recovery validate --file <path>; openmates recovery restore --file <path> --dry-run|--confirm-restore");
+    return;
+  }
+  if (subcommand === "validate" || subcommand === "restore") {
+    const path = requiredStringFlag(flags.file ?? rest[0], "--file <projection.yml>");
+    if (!existsSync(path)) throw new Error(`Recovery projection does not exist: ${path}`);
+    const document = parseYaml(readFileSync(path, "utf8"));
+    validateWorkRecoveryDocument(document);
+    if (subcommand === "validate") {
+      if (flags.json === true) printJson({ valid: true }); else console.log("Recovery projection is valid; no data was changed.");
+      return;
+    }
+    const projectId = requiredStringFlag(flags.project, "--project <project-id>");
+    const masterKey = client.getMasterKeyBytes();
+    const project = await requiredResolvedProject(client, masterKey, projectId, flags);
+    if (document.project.project_id !== project.projectId) throw new Error("Recovery restore --project must exactly match document.project.project_id.");
+    const [currentPlans, currentTasks] = await Promise.all([loadPlans(client, masterKey, { projectId: project.projectId }), loadTasks(client, masterKey, { projectId: project.projectId })]);
+    const conflicts = findRecoveryConflicts(document, project.projectId, { planIds: currentPlans.map((plan) => plan.planId), taskIds: currentTasks.map((task) => task.taskId) });
+    if (flags["dry-run"] === true) {
+      const report = { valid: true, dry_run: true, project_id: project.projectId, conflicts, would_restore: conflicts.length === 0 ? { plans: document.plans.length, tasks: document.tasks.length, assumptions: document.assumptions.length, dependencies: document.dependencies.length, revisions: document.revisions.length } : null };
+      if (flags.json === true) printJson(report); else console.log(JSON.stringify(report, null, 2));
+      return;
+    }
+    if (flags["confirm-restore"] !== true) throw new Error("Recovery restore requires --confirm-restore and an explicit --project. Use --dry-run first.");
+    if (conflicts.length > 0) throw new Error(`Recovery restore found conflicts and made no changes: ${JSON.stringify(conflicts)}`);
+    const applied: string[] = [];
+    try {
+      for (const record of document.plans) {
+        const linkContext = await resolvePlanLinkKeyContext(client, masterKey, flags, { primaryChatId: typeof record.primary_chat_id === "string" ? record.primary_chat_id : null, linkedProjectIds: [project.projectId] });
+        const input = await buildCreateUserPlanInput(masterKey, recoveryPlanCreateOptions(record, linkContext));
+        await client.createUserPlan(input); applied.push(`plan:${input.plan_id}`);
+      }
+      for (const record of document.tasks) {
+        const input = await buildCreateUserTaskInput(masterKey, recoveryTaskCreateOptions(record, project.projectId));
+        await client.createUserTask(input); applied.push(`task:${input.task_id}`);
+      }
+      const restoredPlans = await loadPlans(client, masterKey, { projectId: project.projectId });
+      const planById = new Map(restoredPlans.map((plan) => [plan.planId, plan]));
+      for (const record of document.assumptions) {
+        const planId = recoveryString(record, "plan_id"); const plan = planById.get(planId);
+        if (!plan) throw new Error(`Restored plan ${planId} was not available for its assumption.`);
+        await client.createPlanAssumption(planId, await recoveryAssumptionInput(plan, masterKey, record)); applied.push(`assumption:${recoveryString(record, "assumption_id")}`);
+      }
+      for (const dependency of document.dependencies) {
+        const [kind, id] = dependency.source_ref.split(":", 2);
+        if (kind === "plan") await client.addPlanDependency(id, dependency.target_ref); else await client.addTaskDependency(id, dependency.target_ref);
+        applied.push(`dependency:${dependency.source_ref}->${dependency.target_ref}`);
+      }
+      for (const record of document.revisions) {
+        const planId = recoveryString(record, "plan_id"); const snapshot = JSON.stringify(record.snapshot);
+        const plan = planById.get(planId); if (!plan) throw new Error(`Restored plan ${planId} was not available for its revision.`);
+        await client.submitPlanRevision(planId, { fingerprint: recoveryString(record, "fingerprint"), encrypted_snapshot: await encryptPlanAssumptionSources(plan, masterKey, snapshot), created_at: nowSeconds() }); applied.push(`revision:${recoveryString(record, "revision_id")}`);
+      }
+    } catch (error) {
+      throw new Error(`Recovery restore partially applied (${applied.join(", ") || "nothing"}); it is not cross-object atomic. ${error instanceof Error ? error.message : String(error)}`);
+    }
+    const restored = await buildProjectWorkRecoveryDocument(client, masterKey, project.projectId);
+    if (!recoveryDocumentsSemanticallyEqual(document, restored)) {
+      throw new Error(`Recovery restore completed but regenerated YAML is not semantically equal at: ${recoveryDocumentSemanticMismatchPaths(document, restored).join(", ")}.`);
+    }
+    if (flags.json === true) printJson({ restored: true, project_id: project.projectId, applied }); else console.log(`Recovery restored and verified: ${project.projectId}`);
+    return;
+  }
+  if (subcommand !== "full-sync") throw new Error("Unknown recovery command. Use full-sync, validate, or restore.");
+  if (!root) throw new Error("Recovery full-sync requires --root <external-root> or OPENMATES_WORK_RECOVERY_ROOT.");
+  const masterKey = client.getMasterKeyBytes();
+  const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(flags.project ?? rest[0], "--project <project-id>"), flags);
+  await writeProjectWorkRecovery(client, masterKey, project.projectId, root);
+  if (flags.json === true) printJson({ project_id: project.projectId, path: `${root.replace(/\/$/, "")}/${project.projectId}.yml` });
+  else console.log(`Recovery projection synced: ${root.replace(/\/$/, "")}/${project.projectId}.yml`);
+}
+
+async function buildProjectWorkRecoveryDocument(client: OpenMatesClient, masterKey: Uint8Array, projectId: string): Promise<WorkRecoveryDocument> {
+  const [plans, tasks] = await Promise.all([loadPlans(client, masterKey, { projectId }), loadTasks(client, masterKey, { projectId })]);
+  const dependencies: WorkRecoveryDocument["dependencies"] = []; const assumptions: WorkRecoveryDocument["assumptions"] = []; const revisions: WorkRecoveryDocument["revisions"] = [];
+  for (const plan of plans) {
+    const [edges, rawAssumptions, rawRevisions] = await Promise.all([client.getPlanDependencies(plan.planId), client.listPlanAssumptions(plan.planId), client.listPlanRevisions(plan.planId)]);
+    dependencies.push(...edges.dependencies.map((edge) => ({ source_ref: `plan:${plan.planId}`, target_ref: edge.target_ref })));
+    assumptions.push(...await Promise.all(rawAssumptions.map((entry) => projectPlanAssumption(plan, masterKey, entry))));
+    revisions.push(...await Promise.all(rawRevisions.map((entry) => projectPlanRevision(plan, masterKey, entry))));
+  }
+  for (const task of tasks) { const edges = await client.getTaskDependencies(task.taskId); dependencies.push(...edges.dependencies.map((edge) => ({ source_ref: `task:${task.taskId}`, target_ref: edge.target_ref }))); }
+  return { schema_version: 1, project: { project_id: projectId }, plans: plans.map(planToJson), tasks: tasks.map(taskToJson), dependencies, assumptions, revisions };
+}
+
+function recoveryString(record: Record<string, unknown>, key: string): string {
+  const value = record[key];
+  if (typeof value !== "string") throw new Error(`Recovery record requires ${key}.`);
+  return value;
+}
+
+function recoveryStrings(record: Record<string, unknown>, key: string): string[] {
+  const value = record[key];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) throw new Error(`Recovery record requires ${key} string array.`);
+  return value;
+}
+
+function parsePlanUserFlowsFlag(value: unknown): Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"] {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error("--user-flows must be a JSON array.");
+  const parsed = JSON.parse(value) as unknown;
+  if (!Array.isArray(parsed)) throw new Error("--user-flows must be a JSON array.");
+  return parsed as Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"];
+}
+
+function recoveryPlanUserFlows(record: Record<string, unknown>): Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"] {
+  const flows = record.user_flows;
+  if (!Array.isArray(flows)) throw new Error("Recovery record requires user_flows array.");
+  return flows as Parameters<typeof buildCreateUserPlanInput>[1]["userFlows"];
+}
+
+function requiredPlanGoal(flags: Record<string, unknown>): string {
+  if (typeof flags.goal !== "string" || !flags.goal.trim()) throw new Error("Creating a plan requires --goal.");
+  return flags.goal;
+}
+
+function recoveryPlanCreateOptions(record: Record<string, unknown>, linkContext: PlanLinkKeyContext): Parameters<typeof buildCreateUserPlanInput>[1] {
+  return {
+    planId: recoveryString(record, "plan_id"), title: recoveryString(record, "title"), goal: recoveryString(record, "goal"),
+    scopeIn: recoveryString(record, "scope_in"), scopeOut: recoveryString(record, "scope_out"), userFlows: recoveryPlanUserFlows(record),
+    assumptions: recoveryString(record, "assumptions"), openQuestions: recoveryString(record, "open_questions"), constraints: recoveryString(record, "constraints"), decisions: recoveryString(record, "decisions"),
+    risks: recoveryString(record, "risks"), referencePatterns: recoveryString(record, "reference_patterns"), context: recoveryString(record, "context"),
+    status: recoveryString(record, "status") as UserPlanStatus, slug: typeof record.slug === "string" ? record.slug : undefined,
+    primaryChatId: linkContext.primaryChatId, primaryChatKey: linkContext.primaryChatKey,
+    linkedProjectIds: linkContext.linkedProjectIds, linkedProjectKeys: linkContext.linkedProjectKeys,
+    plannerFocusId: typeof record.planner_focus_id === "string" ? record.planner_focus_id : null,
+  };
+}
+
+function recoveryTaskCreateOptions(record: Record<string, unknown>, projectId: string): TaskCreateOptions {
+  return {
+    taskId: recoveryString(record, "task_id"), title: recoveryString(record, "title"), description: recoveryString(record, "description"), labels: recoveryStrings(record, "labels"),
+    status: recoveryString(record, "status") as UserTaskStatus, assign: typeof record.assignee_hash === "string" ? record.assignee_hash : recoveryString(record, "assignee_type"),
+    chatId: typeof record.primary_chat_id === "string" ? record.primary_chat_id : null, projectIds: [projectId], planId: typeof record.plan_id === "string" ? record.plan_id : null,
+    dueAt: typeof record.due_at === "number" ? record.due_at : null, priority: typeof record.priority === "number" ? record.priority : null, slug: typeof record.slug === "string" ? record.slug : undefined,
+  };
+}
+
+async function recoveryAssumptionInput(plan: DecryptedUserPlan, masterKey: Uint8Array, record: Record<string, unknown>): Promise<UserPlanAssumptionRecord> {
+  const encrypt = (key: string): Promise<string> => encryptPlanAssumptionSources(plan, masterKey, typeof record[key] === "string" ? record[key] as string : "");
+  return {
+    assumption_id: recoveryString(record, "assumption_id"), encrypted_text: await encrypt("text"), category: typeof record.category === "string" ? record.category : undefined,
+    status: typeof record.status === "string" ? record.status : undefined, required_before: typeof record.required_before === "string" ? record.required_before : undefined,
+    linked_sub_chat_id: typeof record.linked_sub_chat_id === "string" ? record.linked_sub_chat_id : null, linked_task_id: typeof record.linked_task_id === "string" ? record.linked_task_id : null,
+    linked_criterion_ids: Array.isArray(record.linked_criterion_ids) ? record.linked_criterion_ids as string[] : [],
+    encrypted_corrected_text: await encrypt("corrected_text"), encrypted_evidence_summary: await encrypt("evidence_summary"), encrypted_blocker_reason: await encrypt("blocker_reason"),
+    encrypted_waiver_reason: await encrypt("waiver_reason"), encrypted_sources: await encryptPlanAssumptionSources(plan, masterKey, JSON.stringify(record.sources)), created_at: nowSeconds(), updated_at: nowSeconds(),
+  };
+}
+
 type PlanTextSection = {
   label: string;
-  option: "goal" | "currentFocus" | "scopeIn" | "scopeOut" | "userFlows" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
+  option: "goal" | "scopeIn" | "scopeOut" | "assumptions" | "openQuestions" | "constraints" | "decisions" | "risks" | "referencePatterns" | "context";
   read: (plan: DecryptedUserPlan) => string;
 };
 
 const PLAN_TEXT_SECTIONS: Record<string, PlanTextSection> = {
   goal: { label: "Goal", option: "goal", read: (plan) => plan.goal },
-  "current-focus": { label: "Current focus", option: "currentFocus", read: (plan) => plan.currentFocus },
-  "user-flows": { label: "User flows", option: "userFlows", read: (plan) => plan.userFlows },
   "scope-in": { label: "Scope in", option: "scopeIn", read: (plan) => plan.scopeIn },
   "scope-out": { label: "Scope out", option: "scopeOut", read: (plan) => plan.scopeOut },
   assumptions: { label: "Assumptions", option: "assumptions", read: (plan) => plan.assumptions },
@@ -2469,7 +2972,6 @@ async function handleGoalChat(
   });
   const planInput = await buildCreateUserPlanInput(masterKey, {
     title: typeof flags.title === "string" && flags.title.trim() ? flags.title.trim() : goal,
-    summary: typeof flags.summary === "string" ? flags.summary : "",
     goal,
     status: normalizePlanStatus(typeof flags.status === "string" ? flags.status : undefined),
     primaryChatId: linkContext.primaryChatId,
@@ -2522,6 +3024,20 @@ async function handleProjects(
 
   const context = await resolveProjectContext(client, flags, subcommand === "files");
   const masterKey = client.getMasterKeyBytes();
+
+  if (subcommand === "plans" || subcommand === "tasks") {
+    const project = await requiredResolvedProject(client, masterKey, requiredProjectTarget(rest, subcommand), flags, context);
+    if (subcommand === "plans") {
+      const plans = await loadPlans(client, masterKey, { projectId: project.projectId, ...teamContextFromFlags(flags) });
+      if (flags.json === true) printJson({ project_id: project.projectId, plans: plans.map(planToJson) });
+      else console.log(renderPlanList(plans));
+    } else {
+      const tasks = await loadTasks(client, masterKey, { projectId: project.projectId, ...teamContextFromFlags(flags) });
+      if (flags.json === true) printJson({ project_id: project.projectId, tasks: tasks.map(taskToJson) });
+      else console.log(renderTaskList(tasks));
+    }
+    return;
+  }
 
   if (subcommand === "list") {
     const projects = await loadProjects(client, masterKey, flags, context);
@@ -2805,8 +3321,11 @@ async function handleProjectFiles(
 }
 
 class CliContractError extends Error {
-  constructor(public readonly code: string, message: string) {
+  public readonly code: string;
+
+  constructor(code: string, message: string) {
     super(message);
+    this.code = code;
     this.name = "CliContractError";
   }
 }
@@ -3540,6 +4059,11 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     assignee_type: task.assigneeType,
     assignee_hash: task.assigneeHash,
     primary_chat_id: task.primaryChatId,
+    external_chat: task.externalChat ? {
+      provider: task.externalChat.provider,
+      id: task.externalChat.id,
+      title: task.externalChat.title ?? "",
+    } : null,
     linked_project_ids: task.linkedProjectIds,
     plan_id: task.planId,
     due_at: task.dueAt,
@@ -3548,8 +4072,31 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     position: task.position,
     queue_state: task.queueState,
     blocked_reason_code: task.blockedReasonCode,
+    blocked_reason: task.blockedReason || null,
     ai_execution_state: task.aiExecutionState,
     version: task.version,
+  };
+}
+
+function taskActivityToJson(entry: DecryptedTaskActivityEntry): Record<string, unknown> {
+  return {
+    entry_id: entry.entryId,
+    task_id: entry.taskId,
+    kind: entry.kind,
+    actor_type: entry.actorType,
+    actor_hash: entry.actorHash,
+    actor_display_name: entry.actorDisplayName,
+    actor_profile_image_url: entry.actorProfileImageUrl,
+    author_hash: entry.authorHash,
+    event_type: entry.eventType,
+    source_surface: entry.sourceSurface,
+    created_at: entry.createdAt,
+    deleted_at: entry.deletedAt,
+    deleted_by_hash: entry.deletedByHash,
+    deleted_by_display_name: entry.deletedByDisplayName,
+    ...(entry.message !== undefined ? { message: entry.message } : {}),
+    ...(entry.embedKeyMaterial !== undefined ? { embed_key_material: entry.embedKeyMaterial } : {}),
+    embed_refs: entry.embedRefs,
   };
 }
 
@@ -3559,21 +4106,20 @@ function planToJson(plan: DecryptedUserPlan): Record<string, unknown> {
     short_id: plan.shortId,
     slug: plan.slug || null,
     title: plan.title,
-    summary: plan.summary,
     goal: plan.goal,
     scope_in: plan.scopeIn,
     scope_out: plan.scopeOut,
+    user_flows: plan.userFlows,
     assumptions: plan.assumptions,
     open_questions: plan.openQuestions,
     constraints: plan.constraints,
     decisions: plan.decisions,
     risks: plan.risks,
+    reference_patterns: plan.referencePatterns,
+    context: plan.context,
     status: plan.status,
     primary_chat_id: plan.primaryChatId,
     linked_project_ids: plan.linkedProjectIds,
-    current_phase_id: plan.currentPhaseId,
-    current_step_id: plan.currentStepId,
-    current_task_id: plan.currentTaskId,
     planner_focus_id: plan.plannerFocusId,
     version: plan.version,
     created_at: plan.createdAt,
@@ -4071,6 +4617,21 @@ async function handleChats(
 
   const apiKey = resolveApiKey(flags) ?? undefined;
   const teamContext = teamContextFromFlags(flags);
+
+  if (subcommand === "speak") {
+    if (apiKey) throw new Error("Chat speech through --api-key is not supported; use an authenticated CLI session.");
+    if (!client.hasSession()) throw new Error("Run `openmates login` before generating assistant speech.");
+    const chatId = requiredStringFlag(rest[0], "<chat-id>");
+    const messageId = typeof flags.message === "string" ? flags.message : undefined;
+    const result = await client.generateExistingAssistantSpeech(chatId, { messageId, all: flags.all === true }, teamContext);
+    if (flags.json === true) printJson(result);
+    else {
+      process.stdout.write(`Assistant speech saved for ${result.messages} message(s).\n`);
+      process.stdout.write(`Generated ${result.generated_segments}, reused ${result.reused_segments}, failed ${result.failed_segments}.\n`);
+    }
+    if (result.failed_segments > 0) process.exitCode = 1;
+    return;
+  }
 
   if (rest[0] === "add-to-project") {
     if (apiKey) throw new Error("Chat add-to-project through --api-key is not supported by the CLI command; use an authenticated CLI session.");
@@ -5174,10 +5735,11 @@ async function sendApiKeyChatNew(
   try {
     response = await sdk.chats.send(message, {
       saveToAccount: false,
+      model: typeof flags.model === "string" ? flags.model : undefined,
       recoveryTimeoutMs: parseResponseTimeoutMs(flags),
     });
   } catch (err) {
-    if (!isSdkChatScopeDenied(err)) throw err;
+    if (!isSdkChatUnavailableForApiKey(err)) throw err;
     const aiAskResult = await client.runSkill({
       app: "ai",
       skill: "ask",
@@ -5186,11 +5748,13 @@ async function sendApiKeyChatNew(
         stream: false,
         apps_enabled: true,
         is_incognito: true,
+        model: typeof flags.model === "string" ? flags.model : undefined,
       },
       apiKey,
     });
     response = {
       content: extractAiAskContent(aiAskResult),
+      modelName: typeof flags.model === "string" ? flags.model : undefined,
       raw: aiAskResult,
     };
   }
@@ -5217,8 +5781,10 @@ async function sendApiKeyChatNew(
   return result;
 }
 
-function isSdkChatScopeDenied(err: unknown): boolean {
-	if (!(err instanceof OpenMatesApiError) || err.status !== 403) return false;
+function isSdkChatUnavailableForApiKey(err: unknown): boolean {
+	if (!(err instanceof OpenMatesApiError)) return false;
+	if (err.status === 401) return true;
+	if (err.status !== 403) return false;
 	const data = err.data;
 	const detail = data && typeof data === "object"
 		? (data as Record<string, unknown>).detail
@@ -5949,7 +6515,8 @@ function printWorkflowList(workflows: WorkflowSummary[]): void {
   }
   header(`Workflows  \x1b[2m(${workflows.length})\x1b[0m\n`);
   for (const workflow of workflows) {
-    kv(workflow.slug || workflow.id.slice(0, 8), `${workflow.title} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 18);
+    const identity = [workflow.category, workflow.icon ? `icon: ${workflow.icon}` : null].filter(Boolean).join(" · ");
+    kv(workflow.slug || workflow.id.slice(0, 8), `${workflow.title}${identity ? ` · ${identity}` : ""} · ${workflow.status}${workflow.trigger_summary ? ` · ${workflow.trigger_summary}` : ""}`, 18);
   }
 }
 
@@ -5957,6 +6524,8 @@ function printWorkflowDetail(workflow: WorkflowDetail): void {
   header(`${workflow.title}\n`);
   if (workflow.slug) kv("Slug", workflow.slug);
   kv("ID", workflow.id);
+  if (workflow.category) kv("Category", workflow.category);
+  if (workflow.icon) kv("Icon", workflow.icon);
   kv("Status", workflow.status);
   kv("Enabled", String(workflow.enabled));
   kv("Run content", workflow.run_content_retention ?? "last_5");
@@ -7101,7 +7670,9 @@ async function handleCodeRun(
 
   const streamAuth = apiKey ? null : await client.getCodeRunStreamAuth();
   let finalStatus: Record<string, unknown>;
+  let usedStream = false;
   if (streamAuth && result.stream_path) {
+    usedStream = true;
     const url = buildCodeRunStreamUrl({
       apiUrl: client.apiUrl,
       executionId: result.execution_id,
@@ -7126,6 +7697,9 @@ async function handleCodeRun(
 
   if (flags.json === true) {
     printJson({ ...result, final: finalStatus });
+  } else {
+    const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
+    if (finalOutput) process.stdout.write(finalOutput);
   }
 }
 
@@ -7573,7 +8147,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
   { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
   { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
-  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506", "openmates settings ai models set-defaults --simple auto"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506 --complex auto --most-demanding google/gemini-3.7-flash-high", "openmates settings ai models set-defaults --simple auto --complex auto --most-demanding auto"] },
   { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
@@ -9279,8 +9853,16 @@ async function handleSettings(
     if (flags.complex !== undefined) {
       body.default_ai_model_complex = parseModelDefaultFlag(flags.complex, "--complex");
     }
+    if (flags["most-demanding"] !== undefined) {
+      body.default_ai_model_most_demanding = parseModelDefaultFlag(
+        flags["most-demanding"],
+        "--most-demanding",
+      );
+    }
     if (Object.keys(body).length === 0) {
-      throw new Error("Provide --simple <model-id|auto> and/or --complex <model-id|auto>.");
+      throw new Error(
+        "Provide --simple, --complex, and/or --most-demanding <model-id|auto>.",
+      );
     }
     await printSettingsMutationResult(client.settingsPost("ai-model-defaults", body, apiKey), flags);
     return;
@@ -10384,11 +10966,21 @@ async function sendMessageStreaming(
   // Parse @mentions in the message, resolve to backend wire syntax.
   // If any mentions fail to resolve, show error and abort.
   let finalMessage = params.message;
+  let resolvedWikipediaMentions: Awaited<ReturnType<typeof resolveWikipediaMentions>>["resolved"] = [];
   const isTeamAiTrigger = params.personal !== true && (typeof params.teamId === "string" || Boolean(client.getActiveTeamId()));
   if (params.message.includes("@")) {
     try {
+      const defaultWikipediaLanguage = process.env.OPENMATES_LANGUAGE
+        ?? Intl.DateTimeFormat().resolvedOptions().locale
+        ?? "en";
+      const wikipediaResult = await resolveWikipediaMentions(
+        params.message,
+        defaultWikipediaLanguage,
+        (query, language, limit) => client.searchWikipediaTitles(query, language, limit),
+      );
+      resolvedWikipediaMentions = wikipediaResult.resolved;
       const mentionCtx = await client.buildMentionContext();
-      const parsed = parseMentions(params.message, mentionCtx);
+      const parsed = parseMentions(wikipediaResult.processedMessage, mentionCtx);
       finalMessage = parsed.processedMessage;
 
       // Report unresolved mentions as errors
@@ -10475,6 +11067,7 @@ async function sendMessageStreaming(
             try {
               const session = client.getSession();
               const uploadResult = await uploadFile(fe.localPath, session);
+              adoptUploadEmbedId(fe.embed, uploadResult.embed_id);
 
               const embedType = fe.embed.type;
               const audioTranscription =
@@ -10586,9 +11179,10 @@ async function sendMessageStreaming(
       }
 
       // Show resolved mentions as confirmation
-      if (parsed.resolved.length > 0 && !params.json) {
+      const resolvedMentions = [...resolvedWikipediaMentions, ...parsed.resolved];
+      if (resolvedMentions.length > 0 && !params.json) {
         clearTyping();
-        for (const r of parsed.resolved) {
+        for (const r of resolvedMentions) {
           const typeLabel = r.type.replace("_", " ");
           process.stderr.write(
             `\x1b[2m  ${r.original} → ${r.displayName} (${typeLabel})\x1b[0m\n`,
@@ -10598,9 +11192,15 @@ async function sendMessageStreaming(
 
     } catch (error) {
       clearTyping();
+      const alternatives = error instanceof Error && "alternatives" in error
+        ? (error as Error & { alternatives?: string[] }).alternatives ?? []
+        : [];
       process.stderr.write(
         `\x1b[31mError:\x1b[0m Failed to process mentions or file attachments - ${error instanceof Error ? error.message : String(error)}\n`,
       );
+      if (alternatives.length > 0) {
+        process.stderr.write(`  Choose one of: ${alternatives.join(", ")}\n`);
+      }
       process.exit(1);
     }
   }
@@ -12924,6 +13524,7 @@ function printChatsHelp(): void {
   console.log(`Chats commands:
   openmates chats list [--limit <n>] [--page <n>] [--json]
   openmates chats show <chat-id> [--raw] [--json] [--all]
+  openmates chats speak <chat-id> (--message <message-id> | --all) [--json]
   openmates chats messages <chat-id> [--json]
   openmates chats files <chat-id> [--json]
   openmates chats <chat-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
@@ -12951,7 +13552,11 @@ Options for 'list':
 Options for 'show':
   --all         Load full chat history. By default, show loads latest 30 messages.
   --raw         Show raw decrypted message content without rendering embeds
-                or cleaning embed references. Useful for debugging.
+                 or cleaning embed references. Useful for debugging.
+
+Options for 'speak':
+  --message <id>  Generate or reuse private encrypted paragraph audio for one assistant message.
+  --all           Generate or reuse audio for every eligible assistant message in the chat.
 
 Options for 'files':
   Lists uploaded and generated files connected to a saved or public example chat.
@@ -13063,23 +13668,28 @@ Examples:
 
 function printTasksHelp(): void {
   console.log(`Tasks commands:
-  openmates tasks list [--status <status>] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
-  openmates tasks board [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks list [--status <status>] [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
   openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
-  openmates tasks block <task-id|short-id> --reason <code> [--json]
+  openmates tasks block <task-id|short-id> --reason-code <code> [--reason-text <private-text>] [--json]
   openmates tasks unblock <task-id|short-id> [--json]
   openmates tasks skip <task-id|short-id> [--json]
   openmates tasks done <task-id|short-id> [--json]
   openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
+  openmates tasks dependencies list <task-id|short-id> [--json]
+  openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
+  openmates tasks activity list <task-id|short-id> [--limit <n>] [--json]
+  openmates tasks activity add <task-id|short-id> --message <text> [--json]
+  openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Chat-scoped aliases:
   openmates chats <chat-id> tasks list
@@ -13095,7 +13705,7 @@ Priority levels:
 Notes:
   Task IDs accept full task_id or human short IDs such as OM-6.
   Labels organize tasks privately. --tag, --tags, --add-tag, and --remove-tag are accepted aliases.
-  Normal output decrypts task title, description, and labels locally; use --json for machine-readable plaintext fields.`);
+   --reason remains a compatibility alias for --reason-code. External context, titles, and blocker explanations are encrypted locally; use --json for authorized plaintext fields.`);
 }
 
 function printPlansHelp(): void {
@@ -13117,6 +13727,12 @@ function printPlansHelp(): void {
   openmates plans resume <plan-id|short-id> [--json]
   openmates plans archive <plan-id|short-id> [--json]
   openmates plans complete <plan-id|short-id> [--json]
+  openmates plans delete <plan-id|short-id> --confirm [--recovery-root <external-root>] [--json]
+  openmates plans dependencies list <plan-id|short-id> [--json]
+  openmates plans dependencies add|remove <plan-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
+  openmates plans assumptions list <plan-id|short-id> [--json]
+  openmates plans assumptions create|update <plan-id|short-id> [--assumption <id>] [--text <text>] [--sub-chat opencode:<session>] [--proof-embed <id>|--proof-file <path[:start[:end]]>|--proof-url <https-url>] [--json]
+  openmates plans revisions list|submit-for-review|status|diff <plan-id|short-id> [--json]
   openmates plans success-criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
   openmates plans criteria add|edit|remove <plan-id|short-id> --criterion <id> --text <criterion> [--type <type>] [--required] [--json]
   openmates plans tasks list|add|edit|remove <plan-id|short-id> [...task options]
@@ -13193,6 +13809,8 @@ function printProjectsHelp(): void {
   openmates projects ask <name> [--description <text>] [--json]
   openmates projects history <project-id> [--limit <n>] [--json]
   openmates projects restore <project-id> --entry <history-entry-id> [--state before|after] [--json]
+  openmates projects plans <project> [--json]
+  openmates projects tasks <project> [--json]
 
 Notes:
   Project metadata is encrypted by clients. History and restore operate on opaque encrypted snapshots.

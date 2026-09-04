@@ -114,6 +114,42 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+# contract-test: direct surface=sdks.pip assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
+def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
+    requests_seen = []
+
+    class FakeResponse:
+        status_code = 200
+        ok = True
+
+        def json(self):
+            return {"language": "de", "title": "Albert Einstein"}
+
+    def fake_get(url, *, headers, timeout):
+        requests_seen.append((url, headers["Authorization"]))
+        return FakeResponse()
+
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+    wikipedia = OpenMates(api_key="sk-api-test").wikipedia
+
+    assert wikipedia.search("AlbertEin", language="de", limit=3) == {
+        "language": "de",
+        "title": "Albert Einstein",
+    }
+    wikipedia.summary("Albert_Einstein", language="de")
+
+    assert requests_seen == [
+        (
+            "https://api.openmates.org/v1/wikipedia/search?query=AlbertEin&language=de&limit=3",
+            "Bearer sk-api-test",
+        ),
+        (
+            "https://api.openmates.org/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+            "Bearer sk-api-test",
+        ),
+    ]
+
+
 def test_native_app_skill_method_resolves_async_task_response(monkeypatch):
     requests = []
 
@@ -163,6 +199,85 @@ def test_native_app_skill_method_resolves_async_task_response(monkeypatch):
     assert [(method, url) for method, url, _body, _headers in requests] == [
         ("POST", "https://api.openmates.org/v1/apps/code/skills/image_to_html"),
         ("GET", "https://api.openmates.org/v1/tasks/task-image-html"),
+    ]
+
+
+def test_code_run_app_skill_resolves_status_path_artifact_metadata(monkeypatch):
+    requests = []
+
+    class FakeResponse:
+        status_code = 200
+        ok = True
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    def fake_post(url, *, json, headers, timeout):
+        requests.append(("POST", url, json, headers))
+        return FakeResponse(
+            {
+                "success": True,
+                "data": {
+                    "results": [
+                        {
+                            "execution_id": "exec-1",
+                            "status": "queued",
+                            "target_filename": "main.py",
+                            "files": ["main.py"],
+                            "persisted_output": False,
+                            "stream_path": "/v1/code/run/exec-1/stream",
+                            "status_path": "/v1/code/run/exec-1",
+                        }
+                    ]
+                },
+            }
+        )
+
+    def fake_get(url, *, headers, timeout):
+        requests.append(("GET", url, None, headers))
+        return FakeResponse(
+            {
+                "status": "finished",
+                "exit_code": 0,
+                "output": "ok\n",
+                "artifacts": [
+                    {
+                        "normalized_path": "outputs/summary.csv",
+                        "mime_type": "text/csv",
+                        "size_bytes": 12,
+                        "download_url": "https://example.test/download/summary.csv",
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
+
+    client = OpenMates(api_key="sk-api-test")
+    result = client.apps.code.run({"requests": [{"mode": "direct", "entry_path": "main.py", "files": []}]})
+
+    first_result = result["data"]["results"][0]
+    assert first_result["persisted_output"] is False
+    assert first_result["final"] == {
+        "status": "finished",
+        "exit_code": 0,
+        "output": "ok\n",
+        "artifacts": [
+            {
+                "normalized_path": "outputs/summary.csv",
+                "mime_type": "text/csv",
+                "size_bytes": 12,
+                "download_url": "https://example.test/download/summary.csv",
+            }
+        ],
+    }
+    assert [(method, url) for method, url, _body, _headers in requests] == [
+        ("POST", "https://api.openmates.org/v1/apps/code/skills/run"),
+        ("GET", "https://api.openmates.org/v1/code/run/exec-1"),
     ]
 
 
@@ -1778,6 +1893,11 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
     client.chats.search("Madrid", limit=5)
     client.chats.load(CHAT_ID)
     client.settings.set_dark_mode(True)
+    client.settings.set_model_defaults(
+        default_ai_model_simple="google/gemini-3.5-flash-lite",
+        default_ai_model_complex="google/gemini-3.7-flash",
+        default_ai_model_most_demanding="google/gemini-3.7-flash-high",
+    )
     client.billing.list_invoices()
     client.docs.search("sdk")
     client.embeds.versions("embed-1")
@@ -1795,6 +1915,7 @@ def test_named_cli_parity_namespaces_use_sdk_routes(monkeypatch):
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/chats?limit=0&offset=0"},
         {"method": "GET", "url": f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/settings/dark-mode"},
+        {"method": "POST", "url": "https://api.openmates.org/v1/sdk/settings/ai-model-defaults"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/billing/invoices"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/docs/search?q=sdk"},
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/embeds/embed-1/versions"},

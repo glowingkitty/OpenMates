@@ -8,6 +8,7 @@ import asyncio
 import json
 import time
 import os
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, Optional
 import httpx
 
@@ -23,6 +24,9 @@ from backend.core.api.app.services.degraded_services_report import (
     select_degraded_report_webhook_url,
     send_discord_degraded_report,
 )
+from backend.core.api.app.services.operational_monitoring import PROVIDER_HEALTH_INVENTORY_KEY
+from backend.core.api.app.services.payment_readiness import StripeSdkReadOnlyGateway, collect_stripe_readiness
+from backend.core.api.app.services.purchase_settlement_ledger import PURCHASE_SETTLEMENT_COLLECTION
 from backend.apps.ai.utils.llm_utils import (
     PROVIDER_CLIENT_REGISTRY,
     _get_provider_client,
@@ -183,6 +187,8 @@ SIGHTENGINE_HEALTH_CHECK_INTERVAL_SECONDS = 7200  # 2 hours
 SIGHTENGINE_USAGE_LIMIT_ERROR = "usage_limit"
 CEREBRAS_HEALTH_CHECK_DEFAULT_MODEL_ID = "gpt-oss-120b"
 CELERY_WORKER_INSPECT_TIMEOUT_SECONDS = 5.0
+STRIPE_WEBHOOK_HEALTH_URL = "http://api:8000/v1/payments/webhook"
+STRIPE_SETTLEMENT_STALE_AFTER = timedelta(minutes=15)
 GOOGLE_PROVIDER_HEALTH_ID = "google"
 GOOGLE_AI_STUDIO_SERVER_ID = "google_ai_studio"
 
@@ -206,14 +212,6 @@ def _get_health_alert_email_recipient() -> Optional[str]:
 
 def _get_health_alert_discord_webhook(environment: str) -> Optional[str]:
     """Return the Discord webhook for health transition alerts, if configured."""
-    explicit = os.getenv("OPENMATES_HEALTH_ALERT_DISCORD_WEBHOOK_URL", "").strip()
-    if explicit:
-        return explicit
-
-    self_host = os.getenv("OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL", "").strip()
-    if self_host:
-        return self_host
-
     return select_degraded_report_webhook_url(environment)
 
 
@@ -1652,10 +1650,57 @@ async def _check_app_health(app_id: str, port: int = 8000, active_workers: Optio
     return health_data
 
 
+async def _stripe_payment_route_registered() -> bool:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(STRIPE_WEBHOOK_HEALTH_URL)
+        return response.status_code == 405
+    except Exception:
+        return False
+
+
+async def _stripe_payment_workers_healthy() -> bool:
+    active_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+    if "email" not in _active_queue_names(active_workers):
+        retry_workers = await asyncio.to_thread(_inspect_active_worker_queues)
+        if active_workers and retry_workers:
+            active_workers.update(retry_workers)
+        elif retry_workers:
+            active_workers = retry_workers
+    return "email" in _active_queue_names(active_workers)
+
+
+async def _stripe_settlements_healthy(now: datetime) -> bool:
+    from backend.core.api.app.services.directus import DirectusService
+
+    directus = DirectusService()
+    try:
+        rows = await directus.get_items(
+            PURCHASE_SETTLEMENT_COLLECTION,
+            {
+                "limit": 1,
+                "fields": "state",
+                "filter": {"_and": [
+                    {"record_type": {"_eq": "purchase"}},
+                    {"state": {"_eq": "pending"}},
+                    {"started_at": {"_lt": (now - STRIPE_SETTLEMENT_STALE_AFTER).isoformat()}},
+                ]},
+            },
+            admin_required=True,
+            raise_on_error=True,
+        )
+        return not rows
+    except Exception:
+        return False
+    finally:
+        await directus.close()
+
+
 async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any]:
-    """Check Stripe API health via a lightweight API call."""
+    """Collect Stripe and payment-runtime readiness without mutating objects."""
     logger.info("Health check: Checking Stripe API...")
     cache_service = CacheService()
+    readiness = None
 
     try:
         import stripe
@@ -1677,12 +1722,23 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
             start_time = time.time()
 
             try:
-                # Lightweight test: list account (requires no parameters)
-                stripe.Account.retrieve()
+                checked_at = datetime.now(timezone.utc)
+                routes_registered, workers_healthy, settlements_healthy = await asyncio.gather(
+                    _stripe_payment_route_registered(),
+                    _stripe_payment_workers_healthy(),
+                    _stripe_settlements_healthy(checked_at),
+                )
+                readiness = collect_stripe_readiness(
+                    StripeSdkReadOnlyGateway(stripe),
+                    routes_registered=routes_registered,
+                    workers_healthy=workers_healthy,
+                    settlements_healthy=settlements_healthy,
+                    now=checked_at,
+                )
                 response_time_ms = (time.time() - start_time) * 1000
-                status = "healthy"
-                last_error = None
-                logger.info(f"Health check: Stripe API is healthy ({response_time_ms:.1f}ms)")
+                status = "healthy" if readiness["status"] == "healthy" else "degraded"
+                last_error = None if status == "healthy" else f"stripe_readiness_{readiness['status']}"
+                logger.info("Health check: Stripe payment readiness is %s (%.1fms)", readiness["status"], response_time_ms)
             except stripe.error.StripeError as e:
                 response_time_ms = (time.time() - start_time) * 1000
                 status = "unhealthy"
@@ -1712,7 +1768,8 @@ async def _check_stripe_health(secrets_manager: SecretsManager) -> Dict[str, Any
         "status": status,
         "last_check": current_timestamp,
         "last_error": last_error,
-        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {}
+        "response_times_ms": {str(current_timestamp): round(response_time_ms, 2)} if response_time_ms else {},
+        "readiness": readiness,
     }
 
     try:
@@ -2598,6 +2655,7 @@ def check_all_providers_health(self):
                 if not providers:
                     logger.warning("Health check: No providers found in registry. Skipping health checks.")
                     return
+                await client.set(PROVIDER_HEALTH_INVENTORY_KEY, json.dumps(sorted(providers)), ex=PROVIDER_HEALTH_CHECK_CACHE_TTL)
 
                 logger.info(f"Health check: Found {len(providers)} LLM provider(s) to check: {', '.join(providers)}")
 

@@ -78,9 +78,13 @@ Usage:
     docker exec -it api python /app/backend/scripts/send_newsletter.py \\
         --slug <slug> --send --admin-email admin@openmates.org --resume
 
-    # OpenMates Events preview only (EN + DE to one admin, no subscriber fetch):
+    # OpenMates Events admin preview only (EN + DE to one admin, no subscriber fetch):
     docker exec api python /app/backend/scripts/send_newsletter.py \\
         --events-preview --admin-email admin@openmates.org
+
+    # OpenMates Events broadcast simulation (fetches eligible subscribers, no sends):
+    docker exec api python /app/backend/scripts/send_newsletter.py \\
+        --events-preview --send --admin-email admin@openmates.org --simulate
 
 Directus prerequisite:
     The ``email_deliveries`` collection must exist. It is defined in
@@ -269,7 +273,9 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
             return value
 
     # body_i18n_key = "demo_chats.<kind>_<snake_slug>.message"
-    body_key = manifest["body_i18n_key"]
+    body_key = manifest.get("body_i18n_key")
+    if not isinstance(body_key, str):
+        return None
     m = re.match(r"^demo_chats\.([a-z0-9_]+)\.message$", body_key)
     if not m:
         raise ValueError(f"Unexpected body_i18n_key format: {body_key}")
@@ -287,6 +293,29 @@ def load_body_text(manifest: Dict[str, Any], lang: str) -> Optional[str]:
     if value and value.strip():
         return value
     return None
+
+
+def load_broadcast_manifest(args: argparse.Namespace) -> Dict[str, Any]:
+    """Load either a published issue manifest or the registry-backed events campaign."""
+
+    if args.events_preview:
+        if args.slug:
+            raise ValueError("--slug cannot be combined with --events-preview")
+        run_at = _parse_events_run_at(args.run_at)
+        manifest = build_events_preview_manifest(load_openmates_events(), run_at)
+        payload_hash = (manifest.get("metadata") or {}).get("payload_hash")
+        logger.info(
+            "Loaded events newsletter campaign: %s payload_hash=%s",
+            manifest["slug"],
+            payload_hash,
+        )
+        return manifest
+
+    if not args.slug:
+        raise ValueError("--slug is required (matches backend/newsletters/issues/<slug>.yml).")
+    manifest = load_manifest(args.slug)
+    logger.info(f"Loaded manifest: {manifest['slug']} ({manifest['kind']}/{manifest['category']})")
+    return manifest
 
 
 def _video_link_for_manifest(manifest: Dict[str, Any], base_url: str) -> str:
@@ -636,7 +665,7 @@ def prompt_confirmation(
     manifest: Dict[str, Any],
     simulate: bool = False,
     non_interactive_approved: bool = False,
-) -> bool:
+) -> Optional[bool]:
     if simulate:
         print(f"\n[SIMULATE] Auto-confirming broadcast to {eligible_count} subscribers.")
         return True
@@ -809,11 +838,11 @@ async def send_one(
 ) -> bool:
     from backend.core.api.app.services.email_delivery_guard import send_email_once
 
-    body_md = load_body_text(manifest, recipient_lang) or load_body_text(manifest, "en")
+    lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
+    body_md = load_body_text(manifest, lang) or load_body_text(manifest, "en")
     if body_md is None:
         logger.error("No body text found for en — cannot send.")
         return False
-    lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
     subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
     context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode, is_registered)
     # Thumbnail is a ``data:`` URI inside the HTML (see _intro_thumbnail_data_uri)
@@ -836,6 +865,7 @@ async def send_one(
     )
     if status == "already_reserved":
         logger.info("Newsletter %s already reserved for subscriber %s", manifest["slug"], subscriber_id)
+        return None
     return sent
 
 
@@ -882,7 +912,7 @@ def _print_summary(
 
 
 async def run(args: argparse.Namespace) -> int:
-    if args.events_preview:
+    if args.events_preview and not (args.send or args.test_to):
         return await run_events_preview(args)
 
     from backend.core.api.app.services.cache import CacheService
@@ -892,11 +922,11 @@ async def run(args: argparse.Namespace) -> int:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
     # ── Load manifest ────────────────────────────────────────────────────
-    if not args.slug:
-        logger.error("--slug is required (matches backend/newsletters/issues/<slug>.yml).")
+    try:
+        manifest = load_broadcast_manifest(args)
+    except (FileNotFoundError, ValueError) as exc:
+        logger.error(str(exc))
         return 2
-    manifest = load_manifest(args.slug)
-    logger.info(f"Loaded manifest: {manifest['slug']} ({manifest['kind']}/{manifest['category']})")
 
     # ── Services ─────────────────────────────────────────────────────────
     secrets_manager = SecretsManager()
@@ -1195,7 +1225,7 @@ async def run(args: argparse.Namespace) -> int:
                 is_registered=is_registered,
             )
 
-        status = "sent" if success else "failed"
+        status = "sent" if success else "skipped_already_sent" if success is None else "failed"
         append_audit(
             audit_path,
             {"ts": datetime.now(timezone.utc).isoformat(), "subscriber_id": sub_id, "lang": lang, "status": status},
@@ -1203,6 +1233,8 @@ async def run(args: argparse.Namespace) -> int:
 
         if success:
             stats["sent"] += 1
+        elif success is None:
+            stats["skipped_already_sent"] += 1
         else:
             stats["failed"] += 1
             failed_ids.append(sub_id)
@@ -1215,9 +1247,15 @@ async def run(args: argparse.Namespace) -> int:
     status_bar.finish()
 
     # Persist sent_at so a future accidental broadcast aborts.
-    if stats["sent"] > 0 and not args.simulate:
+    if stats["sent"] > 0 and not args.simulate and not _is_events_campaign(manifest):
         sent_at_iso = datetime.now(timezone.utc).isoformat()
         write_sent_at(manifest["slug"], sent_at_iso)
+    elif stats["sent"] > 0 and not args.simulate:
+        logger.info(
+            "Skipping sent_at file write for registry-backed events campaign; "
+            "email_deliveries still prevents duplicate sends for %s.",
+            manifest["slug"],
+        )
 
     _print_summary(manifest["slug"], stats, lang_breakdown, failed_ids, args.simulate, audit_path)
 

@@ -1,0 +1,39 @@
+{
+  "run_id": "assistant-speech-live-20260901T130610Z",
+  "generated_at": "2026-09-01T13:06:45Z",
+  "api_url": "https://api.dev.openmates.org",
+  "endpoint_access_model": "first_party_authenticated_websocket",
+  "auth": {
+    "cli_session_cookie_used": true,
+    "api_key_used": false
+  },
+  "checks": [
+    {
+      "status": "passed",
+      "chat_id": "c9045787-b324-414a-824a-baa29daab201",
+      "assistant_message_id": "c4f25fc1-901b-579d-b6df-60f016d9f629",
+      "assistant_text_sha256": "082e8169909cbf2f736ef30966b3408311f2ce5ee5eab4d65f4443c7e09a7831",
+      "accepted_status": "queued",
+      "ready_status": "ready",
+      "safe_ready_fields": [
+        "chat_id",
+        "duration_seconds",
+        "generated_asset_id",
+        "message_id",
+        "segment_id",
+        "sequence",
+        "status"
+      ],
+      "delete_acknowledged": true,
+      "chat_deleted": true,
+      "plaintext_in_ready_payload": false,
+      "encrypted_audio_in_ready_payload": false
+    }
+  ],
+  "privacy": {
+    "prompt_persisted_in_manifest": false,
+    "assistant_plaintext_persisted_in_manifest": false,
+    "cookies_persisted": false,
+    "api_key_persisted": false
+  }
+}

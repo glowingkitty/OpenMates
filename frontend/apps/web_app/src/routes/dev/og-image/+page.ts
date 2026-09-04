@@ -2,7 +2,7 @@
  * OG image preview page configuration.
  *
  * Renders a 1200×600px design card showing the app slogan on the left
- * and the real web app (demo-for-everyone chat) in a phone frame on the right.
+ * and the real web app welcome screen in a phone frame on the right.
  *
  * Purpose: Playwright screenshots this page to generate up-to-date OG images
  * and GitHub/README assets that always reflect the current design.

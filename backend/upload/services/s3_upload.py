@@ -17,16 +17,51 @@
 #   e.g. user-uuid-123/sha256abc.../original.bin
 #        user-uuid-123/sha256abc.../preview.bin
 
+import asyncio
+import hashlib
 import logging
 import os
-from typing import Optional
+from typing import NamedTuple, Optional
+from urllib.parse import urlparse
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import (
+    ClientError,
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    HTTPClientError,
+    ReadTimeoutError,
+)
 import httpx
 
+from backend.shared.python_utils.object_storage_regions import (
+    RETRYABLE_STORAGE_ERROR_CODES,
+    endpoint_for_region,
+    is_retryable_storage_error,
+    parse_storage_regions,
+    resolve_regional_bucket_name,
+)
+
 logger = logging.getLogger(__name__)
+
+
+class StoredS3Object(NamedTuple):
+    """Internal upload result with the region that accepted the ciphertext."""
+
+    key: str
+    region: str
+
+
+RETRYABLE_UPLOAD_ERROR_CODES = set(RETRYABLE_STORAGE_ERROR_CODES)
+RETRYABLE_UPLOAD_TRANSPORT_ERRORS = (
+    ConnectionClosedError,
+    ConnectTimeoutError,
+    EndpointConnectionError,
+    HTTPClientError,
+    ReadTimeoutError,
+)
 
 
 class UploadsS3Service:
@@ -41,6 +76,8 @@ class UploadsS3Service:
         self.vault_url = os.environ.get("VAULT_URL", "http://vault:8200")
         self.vault_token_path = "/vault-data/api.token"
         self.client = None
+        self.region_clients = {}
+        self.configured_regions: tuple[str, ...] = ()
         self.region_name: Optional[str] = None
         self.endpoint_url: Optional[str] = None
         self.base_domain: Optional[str] = None
@@ -99,7 +136,11 @@ class UploadsS3Service:
             raise RuntimeError("[S3Upload] S3 credentials not found in local Vault")
 
         self.region_name = region or "nbg1"
-        self.endpoint_url = f"https://{self.region_name}.your-objectstorage.com"
+        configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        self.configured_regions = configured_regions
+        if self.region_name not in configured_regions:
+            raise ValueError("Active S3 region must be present in S3_REGIONS")
+        self.endpoint_url = endpoint_for_region(self.region_name)
 
         from urllib.parse import urlparse
         self.base_domain = urlparse(self.endpoint_url).netloc
@@ -118,14 +159,18 @@ class UploadsS3Service:
             retries={"max_attempts": 3},
         )
 
-        self.client = boto3.client(
-            "s3",
-            endpoint_url=self.endpoint_url,
-            region_name=self.region_name,
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            config=config,
-        )
+        self.region_clients = {
+            configured_region: boto3.client(
+                "s3",
+                endpoint_url=endpoint_for_region(configured_region),
+                region_name=configured_region,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                config=config,
+            )
+            for configured_region in configured_regions
+        }
+        self.client = self.region_clients[self.region_name]
 
         logger.info(
             f"[S3Upload] Initialised — bucket: {self.bucket_name}, "
@@ -141,7 +186,10 @@ class UploadsS3Service:
         # Profile images (private bucket): ACL 'private' — bytes are AES-256-GCM
         # encrypted before upload. Served via GET /v1/users/{id}/profile-image
         # (authenticated API proxy that decrypts server-side).
-        for bucket_name in (self.bucket_name_dev, self.bucket_name_prod):
+        for bucket_name in (
+            self.get_bucket_for_env("dev"),
+            self.get_bucket_for_env("prod"),
+        ):
             try:
                 self.client.put_bucket_acl(Bucket=bucket_name, ACL="private")
                 logger.info(f"[S3Upload] Set private ACL on chatfiles bucket '{bucket_name}'")
@@ -151,7 +199,10 @@ class UploadsS3Service:
                 )
 
         # New private profile-images buckets — encrypted bytes, no anonymous access.
-        for bucket_name in (self.profile_private_bucket_name_dev, self.profile_private_bucket_name_prod):
+        for bucket_name in (
+            self.get_profile_private_bucket_for_env("dev"),
+            self.get_profile_private_bucket_for_env("prod"),
+        ):
             try:
                 self.client.put_bucket_acl(Bucket=bucket_name, ACL="private")
                 logger.info(f"[S3Upload] Set private ACL on private profile bucket '{bucket_name}'")
@@ -160,7 +211,7 @@ class UploadsS3Service:
                     f"[S3Upload] Failed to set private ACL on private profile bucket '{bucket_name}': {acl_e}."
                 )
 
-    def get_bucket_for_env(self, target_env: str = "prod") -> str:
+    def get_bucket_for_env(self, target_env: str = "prod", *, region: str | None = None) -> str:
         """
         Return the correct S3 bucket name for the given environment.
 
@@ -174,17 +225,339 @@ class UploadsS3Service:
         Returns:
             The bucket name for the specified environment.
         """
-        if target_env == "dev":
-            return self.bucket_name_dev
-        return self.bucket_name_prod
+        legacy_bucket = self.bucket_name_dev if target_env == "dev" else self.bucket_name_prod
+        selected_region = region or self.region_name
+        if not selected_region:
+            raise RuntimeError("[S3Upload] Active S3 region is not configured")
+        return resolve_regional_bucket_name(legacy_bucket, selected_region)
 
-    async def upload_file(
+    def _candidate_upload_regions(self, preferred_region: str | None = None) -> tuple[str, ...]:
+        configured_regions = self.configured_regions or tuple(self.region_clients)
+        selected_preference = preferred_region or self.region_name
+        if not selected_preference:
+            return tuple(configured_regions)
+        return (selected_preference,) + tuple(
+            region for region in configured_regions if region != selected_preference
+        )
+
+    def _bucket_for_logical_name(self, logical_bucket: str, target_env: str, region: str) -> str:
+        if logical_bucket == "profile_images_private":
+            return self.get_profile_private_bucket_for_env(target_env, region=region)
+        if logical_bucket == "chatfiles":
+            return self.get_bucket_for_env(target_env, region=region)
+        raise RuntimeError(f"[S3Upload] Unsupported replicated bucket: {logical_bucket}")
+
+    async def _delete_written_object(
+        self,
+        *,
+        logical_bucket: str,
+        object_key: str,
+        target_env: str,
+        region: str,
+        client: object,
+    ) -> None:
+        bucket = self._bucket_for_logical_name(logical_bucket, target_env, region)
+        await asyncio.to_thread(
+            client.delete_object,
+            Bucket=bucket,
+            Key=object_key,
+        )
+
+    async def _persist_replication_outbox(
+        self,
+        *,
+        logical_bucket: str,
+        object_key: str,
+        content: bytes,
+        target_env: str,
+        cleanup_on_failure: bool,
+        active_region: str | None = None,
+        active_client: object | None = None,
+    ) -> None:
+        if target_env == "dev":
+            core_api_url = os.environ.get("DEV_CORE_API_URL", "")
+            internal_token = os.environ.get("DEV_INTERNAL_API_SHARED_TOKEN", "")
+        else:
+            core_api_url = os.environ.get("PROD_CORE_API_URL", "http://api:8000")
+            internal_token = os.environ.get("PROD_INTERNAL_API_SHARED_TOKEN", "")
+        selected_region = active_region or self.region_name
+        selected_client = active_client or self.client
+        if not core_api_url or not internal_token or not selected_region:
+            raise RuntimeError("[S3Upload] Durable replication outbox is unavailable")
+
+        outbox_url = f"{core_api_url.rstrip('/')}/internal/storage/replication-jobs"
+        outbox_headers = {"X-Internal-Service-Token": internal_token}
+        outbox_payload = {
+            "logical_bucket": logical_bucket,
+            "object_key": object_key,
+            "generation": 1,
+            "checksum": hashlib.sha256(content).hexdigest(),
+            "active_region": selected_region,
+        }
+
+        async def _post_outbox_once() -> None:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.post(
+                    outbox_url,
+                    headers=outbox_headers,
+                    json=outbox_payload,
+                )
+                response.raise_for_status()
+
+        async def _cleanup_after_outbox_failure() -> None:
+            if not cleanup_on_failure or selected_client is None:
+                return
+            try:
+                await self._delete_written_object(
+                    logical_bucket=logical_bucket,
+                    object_key=object_key,
+                    target_env=target_env,
+                    region=selected_region,
+                    client=selected_client,
+                )
+            except Exception as cleanup_error:
+                logger.error(
+                    "[S3Upload] Failed to remove object after outbox failure: logical_bucket=%s region=%s error=%s",
+                    logical_bucket,
+                    selected_region,
+                    type(cleanup_error).__name__,
+                )
+                raise RuntimeError("[S3Upload] Durable replication outbox is unavailable and cleanup failed") from cleanup_error
+
+        try:
+            await _post_outbox_once()
+        except httpx.TransportError as transport_error:
+            try:
+                await _post_outbox_once()
+                return
+            except httpx.HTTPStatusError as retry_status_error:
+                status_code = retry_status_error.response.status_code
+                logger.error(
+                    "[S3Upload] Replication outbox transport status remained ambiguous after retry: status=%s",
+                    status_code,
+                )
+                raise RuntimeError("[S3Upload] Durable replication outbox status is ambiguous") from retry_status_error
+            except httpx.TransportError as retry_error:
+                logger.error(
+                    "[S3Upload] Replication outbox transport status remained ambiguous after retry: retry_error=%s",
+                    type(retry_error).__name__,
+                )
+                raise RuntimeError("[S3Upload] Durable replication outbox status is ambiguous") from retry_error
+            except Exception as retry_error:
+                logger.error(
+                    "[S3Upload] Replication outbox transport status remained ambiguous after retry: retry_error=%s",
+                    type(retry_error).__name__,
+                )
+                raise RuntimeError("[S3Upload] Durable replication outbox status is ambiguous") from retry_error
+            finally:
+                transport_error.add_note("Initial outbox request failed before retry")
+        except httpx.HTTPStatusError as status_error:
+            status_code = status_error.response.status_code
+            if 500 <= status_code < 600:
+                try:
+                    await _post_outbox_once()
+                    return
+                except Exception as retry_error:
+                    logger.error(
+                        "[S3Upload] Replication outbox status remained ambiguous after retry: status=%s retry_error=%s",
+                        status_code,
+                        type(retry_error).__name__,
+                    )
+                    raise RuntimeError("[S3Upload] Durable replication outbox status is ambiguous") from retry_error
+            await _cleanup_after_outbox_failure()
+            raise RuntimeError("[S3Upload] Durable replication outbox is unavailable") from status_error
+        except Exception as exc:
+            await _cleanup_after_outbox_failure()
+            if isinstance(exc, RuntimeError):
+                raise
+            raise RuntimeError("[S3Upload] Durable replication outbox is unavailable") from exc
+
+    async def _record_region_error(
+        self,
+        *,
+        target_env: str,
+        region: str,
+        error_code: str,
+        http_status: int | None = None,
+    ) -> None:
+        if target_env == "dev":
+            core_api_url = os.environ.get("DEV_CORE_API_URL", "")
+            internal_token = os.environ.get("DEV_INTERNAL_API_SHARED_TOKEN", "")
+        else:
+            core_api_url = os.environ.get("PROD_CORE_API_URL", "http://api:8000")
+            internal_token = os.environ.get("PROD_INTERNAL_API_SHARED_TOKEN", "")
+        if not core_api_url or not internal_token:
+            logger.warning("[S3Upload] Cannot record storage region health without core API configuration")
+            return
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                response = await client.post(
+                    f"{core_api_url.rstrip('/')}/internal/storage/region-errors",
+                    headers={"X-Internal-Service-Token": internal_token},
+                    json={
+                        "region": region,
+                        "error_code": error_code,
+                        "http_status": http_status,
+                    },
+                )
+                response.raise_for_status()
+        except Exception as error:
+            logger.warning(
+                "[S3Upload] Failed to record storage region health: region=%s error=%s",
+                region,
+                type(error).__name__,
+            )
+
+    async def _upload_replicated_object(
+        self,
+        *,
+        logical_bucket: str,
+        s3_key: str,
+        content: bytes,
+        target_env: str,
+        preferred_region: str | None = None,
+        cache_control: str | None = None,
+        allow_region_fallback: bool = True,
+    ) -> StoredS3Object:
+        if self.client is None:
+            raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
+
+        content_checksum = hashlib.sha256(content).hexdigest()
+        candidate_regions = self._candidate_upload_regions(preferred_region)
+        if not allow_region_fallback and preferred_region:
+            candidate_regions = (preferred_region,)
+        last_error: BaseException | None = None
+
+        async def _probe_ambiguous_write(active_client: object, bucket: str) -> str:
+            try:
+                existing = await asyncio.to_thread(
+                    active_client.head_object,
+                    Bucket=bucket,
+                    Key=s3_key,
+                )
+            except ClientError as head_error:
+                head_code = str(head_error.response.get("Error", {}).get("Code") or "")
+                if head_code in {"404", "NoSuchKey"}:
+                    return "missing"
+                raise RuntimeError("S3 upload write status is ambiguous after failed verification") from head_error
+            except RETRYABLE_UPLOAD_TRANSPORT_ERRORS as head_error:
+                raise RuntimeError("S3 upload write status is ambiguous after failed verification") from head_error
+            if (existing.get("Metadata") or {}).get("openmates-sha256") == content_checksum:
+                return "matching"
+            raise RuntimeError("Immutable storage key already exists with different content")
+
+        for index, active_region in enumerate(candidate_regions):
+            active_client = self.region_clients.get(active_region)
+            if active_client is None:
+                continue
+            bucket = self._bucket_for_logical_name(logical_bucket, target_env, active_region)
+            cleanup_on_failure = True
+            put_parameters = {
+                "Bucket": bucket,
+                "Key": s3_key,
+                "Body": content,
+                "ContentType": "application/octet-stream",
+                "ACL": "private",
+                "Metadata": {"openmates-sha256": content_checksum},
+                "IfNoneMatch": "*",
+            }
+            if cache_control:
+                put_parameters["CacheControl"] = cache_control
+
+            try:
+                await asyncio.to_thread(active_client.put_object, **put_parameters)
+            except ClientError as error:
+                error_code = str(error.response.get("Error", {}).get("Code") or "")
+                http_status = (error.response.get("ResponseMetadata") or {}).get("HTTPStatusCode")
+                if error_code in {"PreconditionFailed", "412"}:
+                    if await _probe_ambiguous_write(active_client, bucket) != "matching":
+                        raise RuntimeError("Immutable storage key already exists with different content") from error
+                    cleanup_on_failure = False
+                elif is_retryable_storage_error(error_code, http_status):
+                    try:
+                        probe_result = await _probe_ambiguous_write(active_client, bucket)
+                    except RuntimeError:
+                        await self._record_region_error(
+                            target_env=target_env,
+                            region=active_region,
+                            error_code=error_code,
+                            http_status=http_status,
+                        )
+                        raise
+                    if probe_result == "matching":
+                        cleanup_on_failure = False
+                    else:
+                        last_error = error
+                        await self._record_region_error(
+                            target_env=target_env,
+                            region=active_region,
+                            error_code=error_code,
+                            http_status=http_status,
+                        )
+                    if probe_result != "matching" and index + 1 < len(candidate_regions):
+                        logger.warning(
+                            "[S3Upload] Retryable regional upload failure; trying fallback region=%s error=%s",
+                            active_region,
+                            error_code,
+                        )
+                        continue
+                    if probe_result != "matching":
+                        raise RuntimeError(f"S3 upload failed: {error}") from error
+                else:
+                    raise RuntimeError(f"S3 upload failed: {error}") from error
+            except RETRYABLE_UPLOAD_TRANSPORT_ERRORS as error:
+                try:
+                    probe_result = await _probe_ambiguous_write(active_client, bucket)
+                except RuntimeError:
+                    await self._record_region_error(
+                        target_env=target_env,
+                        region=active_region,
+                        error_code=type(error).__name__,
+                    )
+                    raise
+                if probe_result == "matching":
+                    logger.info("[S3Upload] Transport failure followed by matching immutable object head")
+                    cleanup_on_failure = False
+                    last_error = None
+                else:
+                    last_error = error
+                    await self._record_region_error(
+                        target_env=target_env,
+                        region=active_region,
+                        error_code=type(error).__name__,
+                    )
+                if probe_result != "matching" and index + 1 < len(candidate_regions):
+                    logger.warning(
+                        "[S3Upload] Retryable regional upload transport failure; trying fallback region=%s error=%s",
+                        active_region,
+                        type(error).__name__,
+                    )
+                    continue
+                if probe_result != "matching":
+                    raise RuntimeError(f"S3 upload failed: {type(error).__name__}") from error
+
+            await self._persist_replication_outbox(
+                logical_bucket=logical_bucket,
+                object_key=s3_key,
+                content=content,
+                target_env=target_env,
+                cleanup_on_failure=cleanup_on_failure,
+                active_region=active_region,
+                active_client=active_client,
+            )
+            logger.info("[S3Upload] Uploaded encrypted object: size=%s region=%s", len(content), active_region)
+            return StoredS3Object(key=s3_key, region=active_region)
+        raise RuntimeError("S3 upload failed in every configured region") from last_error
+
+    async def upload_file_with_region(
         self,
         s3_key: str,
         content: bytes,
         content_type: str = "application/octet-stream",
         target_env: str = "prod",
-    ) -> str:
+        preferred_region: str | None = None,
+        allow_region_fallback: bool = True,
+    ) -> StoredS3Object:
         """
         Upload encrypted file bytes to S3.
 
@@ -201,34 +574,37 @@ class UploadsS3Service:
         Raises:
             RuntimeError: If the client is not initialised or the upload fails.
         """
-        if self.client is None:
-            raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
+        return await self._upload_replicated_object(
+            logical_bucket="chatfiles",
+            s3_key=s3_key,
+            content=content,
+            target_env=target_env,
+            preferred_region=preferred_region,
+            allow_region_fallback=allow_region_fallback,
+        )
 
-        bucket = self.get_bucket_for_env(target_env)
-        import asyncio
+    async def upload_file(
+        self,
+        s3_key: str,
+        content: bytes,
+        content_type: str = "application/octet-stream",
+        target_env: str = "prod",
+    ) -> str:
+        result = await self.upload_file_with_region(
+            s3_key=s3_key,
+            content=content,
+            content_type=content_type,
+            target_env=target_env,
+        )
+        return result.key
 
-        def _put() -> None:
-            self.client.put_object(
-                Bucket=bucket,
-                Key=s3_key,
-                Body=content,
-                ContentType="application/octet-stream",  # Always octet-stream since encrypted
-                ACL="private",  # Chatfiles are private — served via presigned URLs
-            )
-
-        try:
-            await asyncio.to_thread(_put)
-            logger.info(
-                f"[S3Upload] Uploaded {len(content)} bytes → s3://{bucket}/{s3_key}"
-            )
-            return s3_key
-        except ClientError as e:
-            logger.error(
-                f"[S3Upload] Upload failed for key {s3_key} (bucket={bucket}): {e}", exc_info=True
-            )
-            raise RuntimeError(f"S3 upload failed: {e}") from e
-
-    async def check_file_exists(self, s3_key: str, target_env: str = "prod") -> bool:
+    async def check_file_exists(
+        self,
+        s3_key: str,
+        target_env: str = "prod",
+        *,
+        region: str | None = None,
+    ) -> bool:
         """
         Check whether an object exists in the S3 bucket without downloading it.
 
@@ -244,15 +620,21 @@ class UploadsS3Service:
         Does NOT raise — any error (network, permissions) is treated as "not found"
         so the caller falls back to a fresh upload rather than returning a broken record.
         """
-        if self.client is None:
+        if self.client is None and not self.region_clients:
             return False
 
-        bucket = self.get_bucket_for_env(target_env)
+        selected_region = region or self.region_name
+        if selected_region is None:
+            return False
+        selected_client = self.region_clients.get(selected_region)
+        if selected_client is None:
+            return False
+        bucket = self.get_bucket_for_env(target_env, region=selected_region)
         import asyncio
 
         def _head() -> bool:
             try:
-                self.client.head_object(Bucket=bucket, Key=s3_key)
+                selected_client.head_object(Bucket=bucket, Key=s3_key)
                 return True
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
@@ -307,17 +689,19 @@ class UploadsS3Service:
             logger.error(f"[S3Upload] Failed to generate presigned URL for {s3_key}: {e}")
             raise RuntimeError(f"Presigned URL generation failed: {e}") from e
 
-    def get_base_url(self, target_env: str = "prod") -> str:
+    def get_base_url(self, target_env: str = "prod", *, region: str | None = None) -> str:
         """
         Return the base URL for constructing full file URLs (for embed content).
 
         Args:
             target_env: "dev" or "prod" — selects the correct S3 bucket.
         """
-        bucket = self.get_bucket_for_env(target_env)
-        return f"https://{bucket}.{self.base_domain}"
+        selected_region = region or self.region_name
+        bucket = self.get_bucket_for_env(target_env, region=selected_region)
+        base_domain = urlparse(endpoint_for_region(selected_region)).netloc
+        return f"https://{bucket}.{base_domain}"
 
-    def get_profile_private_bucket_for_env(self, target_env: str = "prod") -> str:
+    def get_profile_private_bucket_for_env(self, target_env: str = "prod", *, region: str | None = None) -> str:
         """
         Return the correct private profile-images bucket name for the given environment.
 
@@ -331,16 +715,24 @@ class UploadsS3Service:
         Returns:
             The private profile-images bucket name for the specified environment.
         """
-        if target_env == "dev":
-            return self.profile_private_bucket_name_dev
-        return self.profile_private_bucket_name_prod
+        legacy_bucket = (
+            self.profile_private_bucket_name_dev
+            if target_env == "dev"
+            else self.profile_private_bucket_name_prod
+        )
+        selected_region = region or self.region_name
+        if not selected_region:
+            raise RuntimeError("[S3Upload] Active S3 region is not configured")
+        return resolve_regional_bucket_name(legacy_bucket, selected_region)
 
-    async def upload_profile_image_private(
+    async def upload_profile_image_private_with_region(
         self,
         s3_key: str,
         content: bytes,
         target_env: str = "prod",
-    ) -> str:
+        preferred_region: str | None = None,
+        allow_region_fallback: bool = True,
+    ) -> StoredS3Object:
         """
         Upload AES-256-GCM encrypted profile image bytes to the private bucket.
 
@@ -361,36 +753,28 @@ class UploadsS3Service:
         Raises:
             RuntimeError: If the client is not initialised or the upload fails.
         """
-        if self.client is None:
-            raise RuntimeError("[S3Upload] S3 client not initialised — call initialize() first")
+        return await self._upload_replicated_object(
+            logical_bucket="profile_images_private",
+            s3_key=s3_key,
+            content=content,
+            target_env=target_env,
+            preferred_region=preferred_region,
+            cache_control="no-cache, no-store, must-revalidate",
+            allow_region_fallback=allow_region_fallback,
+        )
 
-        bucket = self.get_profile_private_bucket_for_env(target_env)
-        import asyncio
-
-        def _put() -> None:
-            self.client.put_object(  # type: ignore[union-attr]
-                Bucket=bucket,
-                Key=s3_key,
-                Body=content,
-                ContentType="application/octet-stream",
-                ACL="private",
-                CacheControl="no-cache, no-store, must-revalidate",
-            )
-
-        try:
-            await asyncio.to_thread(_put)
-            logger.info(
-                f"[S3Upload] Private profile image uploaded "
-                f"{len(content) / 1024:.1f} KB → s3://{bucket}/{s3_key}"
-            )
-            return s3_key
-        except ClientError as e:
-            logger.error(
-                f"[S3Upload] Private profile image upload failed for key {s3_key} "
-                f"(bucket={bucket}): {e}",
-                exc_info=True,
-            )
-            raise RuntimeError(f"S3 private profile image upload failed: {e}") from e
+    async def upload_profile_image_private(
+        self,
+        s3_key: str,
+        content: bytes,
+        target_env: str = "prod",
+    ) -> str:
+        result = await self.upload_profile_image_private_with_region(
+            s3_key=s3_key,
+            content=content,
+            target_env=target_env,
+        )
+        return result.key
 
     async def delete_profile_image_private(
         self,

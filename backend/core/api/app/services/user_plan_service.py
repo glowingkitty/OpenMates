@@ -9,6 +9,7 @@ import uuid
 from typing import Any
 
 from backend.core.api.app.services.directus.user_plan_methods import UserPlanMethods
+from backend.core.api.app.services.user_work_control_service import is_resolved_assumption
 
 
 COMPLETION_PASSING_STATUSES = {"passed", "passed_unexpectedly", "waived"}
@@ -52,6 +53,10 @@ class UserPlanService:
         if not created:
             raise ValueError("Failed to create plan")
         return created
+
+    async def delete_plan(self, plan_id: str, user_id: str) -> None:
+        if not await self.plan_methods.delete_plan(plan_id, user_id):
+            raise UserPlanNotFoundError("Plan not found")
 
     async def update_plan(self, plan_id: str, user_id: str, patch: dict[str, Any]) -> dict[str, Any]:
         existing = await self.plan_methods.get_plan(plan_id, user_id)
@@ -121,7 +126,7 @@ class UserPlanService:
         for assumption in assumptions:
             if assumption.get("required_before") not in {"implementation", "task_execution", "completion"}:
                 continue
-            if assumption.get("status") not in ASSUMPTION_RESOLVED_STATUSES:
+            if assumption.get("status") not in ASSUMPTION_RESOLVED_STATUSES or not is_resolved_assumption(assumption):
                 blockers.append({"kind": "assumption", "id": assumption.get("assumption_id"), "status": assumption.get("status")})
         for pattern in reference_patterns:
             if pattern.get("required_before") not in {"completion", "implementation", "task_execution"}:
@@ -142,7 +147,9 @@ class UserPlanService:
         patterns = await self.plan_methods.list_reference_patterns(plan_id) if hasattr(self.plan_methods, "list_reference_patterns") else []
         blockers: list[dict[str, Any]] = []
         for assumption in assumptions:
-            if assumption.get("required_before") in {"implementation", "task_execution"} and assumption.get("status") not in ASSUMPTION_RESOLVED_STATUSES:
+            if assumption.get("required_before") in {"implementation", "task_execution"} and (
+                assumption.get("status") not in ASSUMPTION_RESOLVED_STATUSES or not is_resolved_assumption(assumption)
+            ):
                 blockers.append({"kind": "assumption", "id": assumption.get("assumption_id"), "status": assumption.get("status")})
         for pattern in patterns:
             if pattern.get("required_before") in {"implementation", "task_execution"} and pattern.get("status") not in REFERENCE_IMPLEMENTATION_READY_STATUSES:
@@ -280,7 +287,6 @@ class UserPlanService:
             task_payload = {
                 "task_id": str(uuid.uuid4()),
                 "version": 1,
-                "encrypted_task_key": plan.get("encrypted_plan_key"),
                 "key_wrappers": task_key_wrappers,
                 "encrypted_title": learning.get("encrypted_title"),
                 "encrypted_description": learning.get("encrypted_task_draft"),
@@ -324,7 +330,6 @@ class UserPlanService:
                 "primary_chat_id": payload.get("primary_chat_id"),
                 "linked_project_ids": payload.get("linked_project_ids", []),
                 "plan_id": plan_id,
-                "plan_step_id": payload.get("plan_step_id"),
                 "task_type": "verification",
                 "verification_id": payload.get("verification_id"),
                 "created_at": payload.get("created_at"),
@@ -340,7 +345,6 @@ class UserPlanService:
             "encrypted_title",
             "primary_chat_id",
             "linked_project_ids",
-            "plan_step_id",
             "assignee_type",
             "assigned_to",
         ):

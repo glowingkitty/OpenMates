@@ -40,8 +40,8 @@ import {
   type PersonalDataEntry,
   type PIIDetectionSettings,
 } from "../../../stores/personalDataStore"; // Privacy settings store
-import { demoMode } from "../../../stores/demoModeStore";
 import {
+  isDraftOnlyChatMissingDurableKey,
   isUnsupportedTeamIncognitoContext,
   shouldDispatchDraftChatAsNewChat,
 } from "./sendClassification";
@@ -782,6 +782,15 @@ export async function handleSend(
           filename: (node.attrs.filename as string) || "Attachment",
           uploadEmbedId: (node.attrs.uploadEmbedId as string) || null,
           contentRef: (node.attrs.contentRef as string) || null,
+          title: (node.attrs.title as string) || null,
+          transcript: (node.attrs.transcript as string) || null,
+          transcriptOriginal: (node.attrs.transcriptOriginal as string) || null,
+          transcriptCorrected: (node.attrs.transcriptCorrected as string) || null,
+          useCorrected: (node.attrs.useCorrected as boolean) ?? null,
+          correctionModel: (node.attrs.correctionModel as string) || null,
+          duration: (node.attrs.duration as string) || null,
+          waveform: node.attrs.waveform ?? null,
+          model: (node.attrs.model as string) || null,
         });
       }
       return true;
@@ -792,7 +801,7 @@ export async function handleSend(
     const stillBlockingEmbedIds = new Set(blockingEmbeds.map((e) => e.id));
     for (const { id } of blockingEmbeds) {
       const snapshot = embedSnapshots.get(id);
-      if (snapshot?.contentRef || snapshot?.uploadEmbedId) {
+      if (snapshot?.contentRef) {
         stillBlockingEmbedIds.delete(id);
       }
     }
@@ -1423,7 +1432,7 @@ export async function handleSend(
     // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
     // This ensures:
     // 1. The chat can't be identified as demo/legal later
-    // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-for-everyone}-{uuid_v4}
+    // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of deriving from a static public-chat ID.
     let sourceDemoId: string | null = null;
     if (chatIdToUse && isPublicChat(chatIdToUse)) {
       sourceDemoId = chatIdToUse;
@@ -1467,10 +1476,11 @@ export async function handleSend(
         existingChatHasUsableKey = true;
       }
 
-      const isDraftOnlyChatMissingKey =
-        !existingChatHasUsableKey &&
-        draftState.currentChatId === chatIdToUse &&
-        (existingChatCheck.messages_v ?? 0) === 0;
+      const isDraftOnlyChatMissingKey = isDraftOnlyChatMissingDurableKey({
+        draftChatId: draftState.currentChatId,
+        chatIdToUse,
+        existingChat: existingChatCheck,
+      });
       if (isDraftOnlyChatMissingKey) {
         console.warn(
           `[handleSend] Draft chat ${chatIdToUse} exists without a usable key; treating it as new chat creation`,
@@ -1844,6 +1854,10 @@ export async function handleSend(
           existingChat.updated_at = Math.floor(Date.now() / 1000);
 
           // Clear draft fields after message is sent (especially important for draft chats)
+          existingChat.cleared_draft_v = Math.max(
+            existingChat.cleared_draft_v ?? 0,
+            existingChat.draft_v ?? 0,
+          );
           existingChat.encrypted_draft_md = null;
           existingChat.encrypted_draft_preview = null;
           existingChat.draft_v = 0;
@@ -2036,7 +2050,15 @@ export async function handleSend(
     // This prevents race conditions where the backend starts processing the message
     // and tries to stream chunks before knowing which chat is active, causing chunks to be dropped
     // This is especially important for new chats where the active_chat might be null or the old chat ID
-    await chatSyncService.sendSetActiveChat(chatIdToUse);
+		recordSendDebugStep("send_set_active_chat_started", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
+		await chatSyncService.sendSetActiveChat(chatIdToUse);
+		recordSendDebugStep("send_set_active_chat_complete", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
     console.debug(
       "[handleSend] Notified backend about active chat before sending message:",
       chatIdToUse,
@@ -2057,10 +2079,18 @@ export async function handleSend(
     const serverMessagePayload = e2eServerContentOverride
       ? ({ ...messagePayload, testMockMarker: e2eServerContentOverride.testMockMarker } as Message & { testMockMarker: string })
       : messagePayload;
-    await chatSyncService.sendNewMessage(
-      serverMessagePayload,
-      encryptedSuggestionToDelete,
-    );
+		recordSendDebugStep("send_new_message_started", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
+		await chatSyncService.sendNewMessage(
+			serverMessagePayload,
+			encryptedSuggestionToDelete,
+		);
+		recordSendDebugStep("send_new_message_complete", {
+			chatIdToUse,
+			messageId: messagePayload.message_id,
+		});
     console.debug(
       "[handleSend] Message sent to chatSyncService:",
       {
@@ -2238,6 +2268,17 @@ export async function executeDeferredSend(
 
           if (contentRef) {
             node.attrs.contentRef = contentRef;
+          }
+          if (snap.embedType === "recording") {
+            node.attrs.title = snap.title;
+            node.attrs.transcript = snap.transcript;
+            node.attrs.transcriptOriginal = snap.transcriptOriginal;
+            node.attrs.transcriptCorrected = snap.transcriptCorrected;
+            node.attrs.useCorrected = snap.useCorrected;
+            node.attrs.correctionModel = snap.correctionModel;
+            node.attrs.duration = snap.duration;
+            node.attrs.waveform = snap.waveform;
+            node.attrs.model = snap.model;
           }
         }
       }
@@ -2489,59 +2530,8 @@ export function createKeyboardHandlingExtension() {
 
     addKeyboardShortcuts() {
       return {
-        // Handle regular Enter press
-        Enter: ({ editor }) => {
-          const desktop = isDesktop();
-
-          // On mobile, Enter should create a new line. Returning false lets TipTap handle it.
-          if (!desktop) {
-            return false;
-          }
-
-          // On desktop, Enter sends the message.
-          // But we don't handle Enter if Shift is pressed (that's for newlines).
-          // The 'Shift-Enter' shortcut below handles that case by returning false.
-
-          // Don't do anything if there's a text selection, let the user replace it.
-          if (
-            this.editor.view.state.selection.$anchor.pos !==
-            this.editor.view.state.selection.$head.pos
-          ) {
-            return false;
-          }
-
-          if (hasActualContent(editor)) {
-            // CRITICAL: Check authentication status before sending
-            // Unauthenticated users should be prompted to sign in, not have their message sent
-            // (which would fail because WebSocket requires authentication)
-            const isAuthenticated = get(authStore).isAuthenticated;
-
-            if (!isAuthenticated && !get(demoMode)) {
-              // Dispatch sign-up event instead of send event for unauthenticated users
-              // This triggers the sign-up flow which saves the draft and opens signup interface
-              const signUpEvent = new Event("custom-sign-up-click", {
-                bubbles: true,
-                cancelable: true,
-              });
-              editor.view.dom.dispatchEvent(signUpEvent);
-              console.debug(
-                "[KeyboardShortcuts] User not authenticated, triggering sign-up flow instead of send",
-              );
-              return true; // We've handled the event.
-            }
-
-            // Dispatch our custom event to send the message.
-            const sendEvent = new Event("custom-send-message", {
-              bubbles: true,
-              cancelable: true,
-            });
-            editor.view.dom.dispatchEvent(sendEvent);
-            return true; // We've handled the event.
-          } else {
-            vibrateMessageField();
-            return true; // We've handled the event, even if we did nothing.
-          }
-        },
+        // Plain Enter inserts a line break. Sending is owned by the explicit send button.
+        Enter: () => false,
 
         // Handle Shift+Enter for line breaks
         "Shift-Enter": () => {

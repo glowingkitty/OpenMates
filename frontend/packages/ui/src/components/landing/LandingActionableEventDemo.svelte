@@ -50,21 +50,21 @@
     embed_id: 'landing-actionable-event-preview',
     id: 'landing-actionable-depin-berlin',
     provider: 'luma',
-    title: $text('demo_chats.for_everyone.landing_actionable_event_title'),
-    description: $text('demo_chats.for_everyone.landing_actionable_event_detail'),
+    title: $text('guest_onboarding.landing_actionable_event_title'),
+    description: $text('guest_onboarding.landing_actionable_event_detail'),
     url: 'https://luma.com/depin-berlin',
     date_start: demoStartDate.toISOString(),
     date_end: demoEndDate.toISOString(),
     event_type: 'PHYSICAL',
     venue: {
-      name: $text('demo_chats.for_everyone.landing_actionable_event_venue'),
-      address: $text('demo_chats.for_everyone.landing_actionable_event_address'),
-      city: $text('demo_chats.for_everyone.landing_actionable_event_city'),
-      country: $text('demo_chats.for_everyone.landing_actionable_event_country'),
+      name: $text('guest_onboarding.landing_actionable_event_venue'),
+      address: $text('guest_onboarding.landing_actionable_event_address'),
+      city: $text('guest_onboarding.landing_actionable_event_city'),
+      country: $text('guest_onboarding.landing_actionable_event_country'),
       lat: 52.5094,
       lon: 13.4307,
     },
-    organizer: { name: $text('demo_chats.for_everyone.landing_actionable_event_organizer') },
+    organizer: { name: $text('guest_onboarding.landing_actionable_event_organizer') },
     rsvp_count: 460,
     is_paid: false,
     image_url: 'https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/event-covers/g3/d98ef380-57c3-4dd8-b751-d7c0ae6c2519',
@@ -154,7 +154,7 @@
               <div class="chat-message user landing-actionable-message-stage" data-testid="landing-actionable-user-row">
                 <div class="message-align-right">
                   <div class="user-message-content" data-testid="landing-actionable-user-message">
-                    <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_user_message')}</div>
+                    <div class="chat-message-text">{$text('guest_onboarding.landing_actionable_event_user_message')}</div>
                   </div>
                 </div>
               </div>
@@ -164,7 +164,7 @@
                 <div class="message-align-left">
                   <div class="mate-message-content" data-testid="landing-actionable-assistant-message">
                     <div class="chat-mate-name" data-testid="landing-actionable-assistant-name">{$text('mates.general_knowledge')}</div>
-                    <div class="chat-message-text">{$text('demo_chats.for_everyone.landing_actionable_event_assistant_message')}</div>
+                    <div class="chat-message-text">{$text('guest_onboarding.landing_actionable_event_assistant_message')}</div>
                   </div>
                 </div>
               </div>
@@ -178,9 +178,9 @@
                   id="landing-actionable-event-preview-card"
                   event={demoEvent}
                   isMobile={false}
-                  onlineLabel={$text('demo_chats.for_everyone.landing_actionable_event_online')}
-                  inPersonLabel={$text('demo_chats.for_everyone.landing_actionable_event_in_person')}
-                  rsvpLabel={$text('demo_chats.for_everyone.landing_actionable_event_rsvps')}
+                  onlineLabel={$text('guest_onboarding.landing_actionable_event_online')}
+                  inPersonLabel={$text('guest_onboarding.landing_actionable_event_in_person')}
+                  rsvpLabel={$text('guest_onboarding.landing_actionable_event_rsvps')}
                   onFullscreen={noop}
                 />
               </div>
@@ -190,7 +190,7 @@
                 data-testid="landing-actionable-luma-button"
                 data-demo-pressed={interactionState === 'cta-clicked' ? 'true' : 'false'}
               >
-                {$text('demo_chats.for_everyone.landing_actionable_event_open_luma')}
+                {$text('guest_onboarding.landing_actionable_event_open_luma')}
               </div>
             {/if}
           </div>

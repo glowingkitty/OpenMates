@@ -650,6 +650,8 @@ export const Embed = Node.create<EmbedOptions>({
       waveform: { default: null, rendered: false },
       /** MIME type of the original recording (e.g. 'audio/webm') */
       mimeType: { default: null, rendered: false },
+      /** Transcription model name retained as encrypted display fallback metadata */
+      model: { default: null, rendered: false },
     };
   },
 

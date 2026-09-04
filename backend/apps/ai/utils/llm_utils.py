@@ -41,6 +41,7 @@ from backend.core.api.app.utils.text_sanitization import (
 from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_utils.tracing.ai_observability import ai_provider_span
 from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
@@ -932,7 +933,8 @@ async def call_preprocessing_llm(
     secrets_manager: Optional[SecretsManager] = None,
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
     dynamic_context: Optional[Dict[str, Any]] = None,
-    fallback_models: Optional[List[str]] = None  # List of fallback model IDs to try if primary fails
+    fallback_models: Optional[List[str]] = None,  # List of fallback model IDs to try if primary fails
+    observability_purpose: str = "preprocess",
 ) -> LLMPreprocessingCallResult:
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -1058,6 +1060,15 @@ async def call_preprocessing_llm(
                     # Redact chat_tags (user-generated content)
                     if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
                         sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+                    if "category" in sanitized_args and isinstance(sanitized_args["category"], str):
+                        sanitized_args["category"] = "[REDACTED_CONTENT]"
+                    if "icon" in sanitized_args and isinstance(sanitized_args["icon"], str):
+                        sanitized_args["icon"] = "[REDACTED_CONTENT]"
+                    if "icon_names" in sanitized_args and isinstance(sanitized_args["icon_names"], list):
+                        sanitized_args["icon_names"] = {
+                            "count": len(sanitized_args["icon_names"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
                     if "injection_strings" in sanitized_args and isinstance(sanitized_args["injection_strings"], list):
                         sanitized_args["injection_strings"] = {
                             "count": len(sanitized_args["injection_strings"]),
@@ -1339,7 +1350,11 @@ async def call_preprocessing_llm(
                 f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
             )
 
-            result = await _call_single_provider(provider_model_id, is_last_provider=is_last_provider)
+            with ai_provider_span(observability_purpose):
+                result = await _call_single_provider(
+                    provider_model_id,
+                    is_last_provider=is_last_provider,
+                )
 
             # Success — return immediately.
             # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.
@@ -1783,6 +1798,9 @@ async def call_main_llm_stream(
                                 server_llm_input_details["model_id"] = server_actual_model_id
                                 logger.debug(f"{attempt_log_prefix} Using fallback server model_id '{server_actual_model_id}' for openrouter")
                             break
+
+        if server_provider_prefix == "openai" and original_model_id.startswith("openai/"):
+            server_llm_input_details["catalog_model_id"] = original_model_id.split("/", 1)[1]
 
         # Select provider client using dynamic registry - no hardcoded provider names!
         provider_client = _get_provider_client(server_provider_prefix)

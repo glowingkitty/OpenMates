@@ -144,13 +144,16 @@ async def handle_set_active_chat(
             device_fingerprint_hash,
         )
 
-        await _send_inflight_ai_stream_snapshot(
-            manager,
-            cache_service,
-            user_id,
-            device_fingerprint_hash,
-            active_chat_id,
-        )
+        if active_chat_id:
+            asyncio.create_task(
+                _send_inflight_ai_stream_snapshot(
+                    manager,
+                    cache_service,
+                    user_id,
+                    device_fingerprint_hash,
+                    active_chat_id,
+                )
+            )
 
         if _is_real_chat_id(active_chat_id):
             asyncio.create_task(

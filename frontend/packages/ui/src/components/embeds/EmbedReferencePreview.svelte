@@ -8,9 +8,10 @@
   // See docs/architecture/embeds.md for renderer routing.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
-  import { mount, onDestroy, unmount } from 'svelte';
+  import { mount, onDestroy, onMount, unmount } from 'svelte';
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
+  import { chatSyncService } from '../../services/chatSyncService';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
   import { normalizeEmbedType } from '../../data/embedRegistry.generated';
   import InteractiveQuestionContainer from '../interactive_questions/InteractiveQuestionContainer.svelte';
@@ -48,6 +49,7 @@
   let retryCount = 0;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
   let deepResolvedEmbedId = $state<string | null>(null);
+  let embedUpdateListener: ((event: Event) => void) | null = null;
 
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
@@ -85,6 +87,29 @@
     'health_result', 'recipe', 'price_calendar_result', 'listing',
   ]);
   const INTERACTIVE_QUESTION_LANGUAGE = 'interactive_question';
+  const EMBED_DATA_RETRY_DELAYS_MS = [1_000, 2_000, 3_000];
+  let embedDataRetryCount = 0;
+  let embedDataRetryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearEmbedDataRetry(): void {
+    if (embedDataRetryTimer) clearTimeout(embedDataRetryTimer);
+    embedDataRetryTimer = null;
+  }
+
+  function scheduleEmbedDataRetry(): void {
+    if (embedDataRetryTimer) return;
+    const delay = EMBED_DATA_RETRY_DELAYS_MS[embedDataRetryCount];
+    if (delay === undefined) {
+      loading = false;
+      errorText = 'Preview unavailable';
+      return;
+    }
+    embedDataRetryCount += 1;
+    embedDataRetryTimer = setTimeout(() => {
+      embedDataRetryTimer = null;
+      void renderResolvedPreview();
+    }, delay);
+  }
 
   function normalizedLanguage(value: unknown): string {
     return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -276,9 +301,12 @@
 
       if (!embedData) {
         if (await renderInlineMailPreview()) return;
-        loading = false;
+        scheduleEmbedDataRetry();
         return;
       }
+
+      clearEmbedDataRetry();
+      embedDataRetryCount = 0;
 
       // Guard: container must still be attached to the DOM.
       // During streaming, TipTap may destroy and recreate node views,
@@ -360,8 +388,32 @@
     renderResolvedPreview();
   });
 
+  onMount(() => {
+    embedUpdateListener = ((event: CustomEvent) => {
+      const { embed_id: updatedEmbedId, status } = event.detail || {};
+      if (updatedEmbedId !== resolvedEmbedId) return;
+      if (status === 'error' || status === 'cancelled') {
+        renderVersion += 1;
+        clearEmbedDataRetry();
+        cleanupMountedPreviewComponent();
+        if (containerEl) containerEl.innerHTML = '';
+        loading = false;
+        errorText = 'Preview unavailable';
+        return;
+      }
+      clearEmbedDataRetry();
+      void renderResolvedPreview();
+    }) as (event: Event) => void;
+    chatSyncService.addEventListener('embedUpdated', embedUpdateListener);
+  });
+
   onDestroy(() => {
     if (retryTimer) clearTimeout(retryTimer);
+    clearEmbedDataRetry();
+    if (embedUpdateListener) {
+      chatSyncService.removeEventListener('embedUpdated', embedUpdateListener);
+      embedUpdateListener = null;
+    }
     if (containerEl) {
       cleanupMountedPreviewComponent();
       containerEl.innerHTML = '';
@@ -370,7 +422,7 @@
 </script>
 
 <div class="embed-reference-preview embed-reference-preview--{variant}">
-  {#if loading && !resolvedEmbedId}
+  {#if loading}
     <div class="embed-reference-preview-placeholder">Loading preview...</div>
   {/if}
 

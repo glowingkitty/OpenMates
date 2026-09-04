@@ -18,7 +18,10 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 )
 # Import utils and common functions
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
-from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.routes.auth_routes.auth_common import (
+    set_session_security_country,
+    verify_authenticated_user,
+)
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, parse_user_agent, get_geo_data_from_ip # Updated imports
 # Import Celery app instance
 from backend.core.api.app.tasks.celery_config import app
@@ -72,7 +75,7 @@ async def verify_device_2fa(
         # Verify user authentication first (device check not strictly needed here,
         # as the trigger assumes a valid token but mismatched device)
         # We need user_data to get the secret.
-        is_auth, user_data, _, auth_status = await verify_authenticated_user(
+        is_auth, user_data, refresh_token, auth_status = await verify_authenticated_user(
             request, cache_service, directus_service, require_known_device=False
         )
 
@@ -160,14 +163,17 @@ async def verify_device_2fa(
             logger.error(f"Failed to add/update device hash {stable_hash[:8]}... for user {user_id}: {update_msg}")
             # Continue even if DB update fails, as the user has successfully verified.
 
-        # Update last_session_country after successful device verification
-        # This ensures the new country is stored so it won't trigger re-auth again on next session check
-        if country_code and country_code not in ("Local", "Unknown", None):
-            try:
-                await cache_service.update_user(user_id, {"last_session_country": country_code})
-                logger.debug(f"Updated last_session_country to {country_code} for user {user_id[:6]}... after 2FA device verification.")
-            except Exception as e:
-                logger.error(f"Failed to update last_session_country for user {user_id}: {e}", exc_info=True)
+        # Advance only the verified logical session's country baseline.
+        try:
+            await set_session_security_country(
+                cache_service,
+                user_id,
+                refresh_token,
+                country_code,
+                stay_logged_in=bool(user_data.get("stay_logged_in", False)),
+            )
+        except Exception as e:
+            logger.error(f"Failed to update session security country for user {user_id}: {e}", exc_info=True)
 
         # Log successful verification for compliance without IP (only failed attempts keep IP)
         compliance_service.log_auth_event_safe(

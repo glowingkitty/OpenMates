@@ -36,7 +36,7 @@ const DAILY_INSPIRATION_REFERENCE_HEIGHT = 190;
 const DAILY_INSPIRATION_DESKTOP_MIN_HEIGHT = 250;
 const DAILY_INSPIRATION_MAX_HEIGHT = 420;
 const DAILY_INSPIRATION_MAX_VIEWPORT_HEIGHT_RATIO = 0.35;
-const LANDING_INTRO_HEADLINE_TEXT = 'Simply ask your\nAI team mates';
+const LANDING_INTRO_HEADLINE_TEXT = 'Your AI team\nfor getting things done';
 const LANDING_INTRO_REQUESTS = [
 	'Find doctor appointments',
 	'Find events',
@@ -71,6 +71,13 @@ async function waitForLandingIntroExamples(page: any): Promise<void> {
 		}
 	}
 	throw lastError;
+}
+
+async function getGuestComposerPlaceholder(page: any): Promise<string> {
+	return page.getByTestId('message-editor').evaluate((element: HTMLElement) => {
+		const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
+		return paragraph?.dataset.placeholder ?? '';
+	});
 }
 
 async function landingIntroLayoutMetrics(page: any): Promise<{
@@ -753,29 +760,95 @@ test.describe('Landing page onboarding refresh', () => {
 	});
 
 	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
-	test('settings panel keeps active chat fixed inside the viewport', async ({ page }: { page: any }) => {
+	test('settings stays beside active chat on laptop', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
-		await page.setViewportSize({ width: 1920, height: 1080 });
+		await page.setViewportSize({ width: 1440, height: 900 });
+		const exampleChatId = 'example-berlin-dermatology-appointments';
 
-		await page.goto(getE2EDebugUrl('/?settings-active-chat-layout'), { waitUntil: 'domcontentloaded' });
+		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
+		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', exampleChatId, { timeout: 15000 });
+		await expect(page.getByTestId('mate-message-content').last()).toContainText('dermatology', { timeout: 15000 });
 
 		await page.getByTestId('profile-container').click();
 		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().width),
+			{ timeout: 3000 }
+		).toBeGreaterThan(300);
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
+			{ timeout: 3000 }
+		).not.toBe('fixed');
+		await expect.poll(
+			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
+			{ timeout: 3000 }
+		).toBe(false);
 
-		const activeChatLayout = await page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => {
-			const rect = element.getBoundingClientRect();
+		const laptopLayout = await page.evaluate(() => {
+			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+			const settings = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
+			if (!activeChat || !settings) throw new Error('Expected active chat and settings panel');
+			const activeChatRect = activeChat.getBoundingClientRect();
+			const settingsRect = settings.getBoundingClientRect();
 			return {
-				bottom: rect.bottom,
-				overflowY: getComputedStyle(element).overflowY,
+				activeChatBottom: activeChatRect.bottom,
+				activeChatRight: activeChatRect.right,
+				activeChatOverflowY: getComputedStyle(activeChat).overflowY,
+				settingsLeft: settingsRect.left,
+				settingsRight: settingsRect.right,
 				viewportHeight: window.innerHeight
 			};
 		});
-		expect(activeChatLayout.overflowY, 'active chat itself must not become vertically scrollable').toBe('hidden');
-		expect(activeChatLayout.bottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
-			activeChatLayout.viewportHeight - 1
+		expect(laptopLayout.activeChatOverflowY, 'active chat itself must not become vertically scrollable').toBe('hidden');
+		expect(laptopLayout.activeChatBottom, 'settings panel must not push active chat below the viewport').toBeLessThanOrEqual(
+			laptopLayout.viewportHeight - 1
 		);
+		expect(laptopLayout.activeChatRight, 'laptop settings must sit beside active chat without overlap').toBeLessThanOrEqual(
+			laptopLayout.settingsLeft + 1
+		);
+		expect(laptopLayout.settingsRight, 'laptop settings must remain inside the viewport').toBeLessThanOrEqual(1440);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
+	test('settings overlays active chat only on narrow viewports', async ({ page }: { page: any }) => {
+		test.setTimeout(45000);
+		await page.setViewportSize({ width: 1100, height: 800 });
+
+		await page.goto(getE2EDebugUrl('/?settings-active-chat-narrow-layout'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
+		await page.getByTestId('profile-container').click();
+		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
+			{ timeout: 3000 }
+		).toBe('fixed');
+		await expect.poll(
+			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
+			{ timeout: 3000 }
+		).toBe(true);
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => element.getBoundingClientRect().right),
+			{ message: 'narrow settings overlay must remain inside the viewport', timeout: 3000 }
+		).toBeLessThanOrEqual(1100);
+
+		await page.setViewportSize({ width: 1101, height: 800 });
+		await expect.poll(
+			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
+			{ timeout: 3000 }
+		).not.toBe('fixed');
+		await expect.poll(
+			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
+			{ timeout: 3000 }
+		).toBe(false);
+		await expect.poll(async () => page.evaluate(() => {
+			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
+			const settings = document.querySelector<HTMLElement>('[data-testid="settings-menu"]');
+			if (!activeChat || !settings) return true;
+			return activeChat.getBoundingClientRect().right > settings.getBoundingClientRect().left + 1;
+		}), { message: 'first split-layout width must not overlap active chat', timeout: 3000 }).toBe(false);
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress,landing-onboarding.manual-navigation
@@ -1282,10 +1355,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.keyboard.press('Escape');
 		await expect(page.getByTestId('record-overlay')).toHaveCount(0, { timeout: 5000 });
 
-		const guestPlaceholder = await page.getByTestId('message-editor').evaluate((element: HTMLElement) => {
-			const paragraph = element.querySelector<HTMLElement>('.ProseMirror p[data-placeholder]');
-			return paragraph?.dataset.placeholder ?? '';
-		});
+		const guestPlaceholder = await getGuestComposerPlaceholder(page);
 		expect(guestPlaceholder).toMatch(/Click here to (test for free|ask anything)/);
 		await expect(page.getByTestId('resume-chat-card').first()).toBeVisible();
 		await expect(page.getByTestId('resume-chat-large-card')).toHaveCount(0);
@@ -1319,6 +1389,28 @@ test.describe('Landing page onboarding refresh', () => {
 		await expect(allExamplesView).toBeVisible({ timeout: 5000 });
 		await expect(allExamplesView.getByTestId('resume-chat-large-card').first()).toBeVisible();
 		await expect(page.getByTestId('message-input-wrapper')).toBeVisible();
+	});
+
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
+	test('guest composer placeholder resolves after async locale load', async ({ page }: { page: any }) => {
+		test.setTimeout(30000);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.addInitScript(() => {
+			localStorage.setItem('preferredLanguage', 'de');
+		});
+
+		await page.goto(getE2EDebugUrl('/?landing-guest-placeholder-locale'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await waitForLandingIntroExamples(page);
+		await skipExpandedLandingIntro(page);
+
+		await expect(page.getByTestId('message-field')).toBeVisible({ timeout: 10000 });
+		await expect.poll(() => getGuestComposerPlaceholder(page), { timeout: 6000 }).toMatch(
+			/Klicke hier, um (es kostenlos zu testen|alles zu fragen)/
+		);
+		const guestPlaceholder = await getGuestComposerPlaceholder(page);
+		expect(guestPlaceholder).not.toBe('Loading...');
+		expect(guestPlaceholder).not.toContain('[T:');
 	});
 
 	// contract-test: direct surface=gui.web assertions=landing-onboarding.guest-sequence,landing-onboarding.manual-navigation,landing-onboarding.signup-cta

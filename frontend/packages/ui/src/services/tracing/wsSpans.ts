@@ -14,7 +14,7 @@
  * Usage: call injectTraceparent(payload) before sending any WS message.
  */
 
-import { context, propagation, type Span } from '@opentelemetry/api';
+import { context, propagation, SpanStatusCode, type Span } from '@opentelemetry/api';
 import { getTracer } from './setup';
 
 // ---------------------------------------------------------------------------
@@ -25,8 +25,19 @@ import { getTracer } from './setup';
 /** Maximum number of trace IDs to retain in the ring buffer. */
 const MAX_RECENT_TRACE_IDS = 20;
 
-/** Ring buffer of the last N trace IDs created via createWsSpan(). */
+/** Ring buffer of the last N request trace IDs. */
 const _recentTraceIds: string[] = [];
+
+function recordTraceId(span: Span): void {
+	const traceId = span.spanContext()?.traceId;
+	if (!traceId) return;
+	if (_recentTraceIds.length >= MAX_RECENT_TRACE_IDS) {
+		_recentTraceIds.shift();
+	}
+	if (_recentTraceIds[_recentTraceIds.length - 1] !== traceId) {
+		_recentTraceIds.push(traceId);
+	}
+}
 
 /**
  * Return a snapshot of the most recent trace IDs (newest last).
@@ -77,19 +88,22 @@ export function createWsSpan(
 	const span = tracer.startSpan(`ws.${name}`, { attributes });
 
 	// Record trace ID in the ring buffer for issue correlation
-	const spanContext = span.spanContext();
-	if (spanContext && spanContext.traceId) {
-		if (_recentTraceIds.length >= MAX_RECENT_TRACE_IDS) {
-			_recentTraceIds.shift();
-		}
-		// Deduplicate: only push if different from the last entry
-		if (
-			_recentTraceIds.length === 0 ||
-			_recentTraceIds[_recentTraceIds.length - 1] !== spanContext.traceId
-		) {
-			_recentTraceIds.push(spanContext.traceId);
-		}
-	}
+	recordTraceId(span);
 
 	return span;
+}
+
+/** Run one WebSocket send while its span is the active propagation context. */
+export function withActiveWsSpan<T>(name: string, send: () => T | Promise<T>): Promise<T> {
+	return getTracer().startActiveSpan(`ws.${name}`, async (span) => {
+		recordTraceId(span);
+		try {
+			return await send();
+		} catch (error) {
+			span.setStatus({ code: SpanStatusCode.ERROR });
+			throw error;
+		} finally {
+			span.end();
+		}
+	});
 }

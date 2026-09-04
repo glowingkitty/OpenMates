@@ -4,11 +4,16 @@
 # These tests deliberately avoid asserting any visual/pixel watermark because
 # OpenMates provenance must not visually alter generated images.
 
-from backend.core.api.app.utils.image_processing import process_svg_for_storage
-from backend.shared.python_utils.generated_assets.service import index_generated_asset
 import pytest
 
+from backend.core.api.app.utils.image_processing import process_svg_for_storage
+from backend.shared.python_utils.generated_assets.service import (
+    index_generated_asset,
+)
+from backend.shared.python_utils.media_encryption import MEDIA_ENCRYPTION_V2
 
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,storage.privacy.ciphertext-boundary
 def test_process_svg_for_storage_keeps_original_svg_bytes_visual_safe():
     svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="red"/></svg>'
     result = process_svg_for_storage(
@@ -47,6 +52,7 @@ class _FakeTask:
         self._directus_service = _FakeDirectus()
 
 
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_index_generated_asset_stores_provenance_metadata():
     task = _FakeTask()
@@ -73,3 +79,36 @@ async def test_index_generated_asset_stores_provenance_metadata():
     assert collection == "upload_files"
     assert record["ai_detection"]["ai_generated"] == 1.0
     assert record["ai_detection"]["provenance"]["visual_watermark"] is False
+
+
+# contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,storage.privacy.ciphertext-boundary
+@pytest.mark.asyncio
+async def test_index_generated_asset_omits_raw_aes_key_for_v2_metadata():
+    task = _FakeTask()
+    stored = await index_generated_asset(
+        task,
+        user_id="user-1",
+        embed_id="embed-1",
+        media_type="application_preview",
+        files_metadata={
+            "preview": {
+                "s3_key": "x",
+                "size_bytes": 12,
+                "encryption": MEDIA_ENCRYPTION_V2,
+            }
+        },
+        s3_base_url="https://s3.example.test",
+        aes_key_b64="raw-key",
+        nonce_b64="",
+        vault_wrapped_aes_key="wrapped-key",
+        created_at=123,
+        content_hash_source=b"preview",
+        original_filename="preview.png",
+        content_type="image/png",
+        log_prefix="[test]",
+    )
+
+    assert stored is True
+    _collection, record = task._directus_service.created_record
+    assert "aes_key" not in record
+    assert record["vault_wrapped_aes_key"] == "wrapped-key"

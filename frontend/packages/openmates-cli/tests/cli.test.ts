@@ -30,7 +30,14 @@ import {
   INTEREST_TAG_IDS,
   normalizeInterestTagIds,
 } from "../dist/index.js";
-import { buildTravelConnectionsRequest, requireExactConfirmation, resolveProjectContext } from "../dist/cli.js";
+import {
+  buildTravelConnectionsRequest,
+  requireExactConfirmation,
+  resolveProjectContext,
+  shouldRequireTrustedAccountGuard,
+  assertTrustedAccountCommandAllowed,
+  assertTrustedAccountGuardEnvironment,
+} from "../dist/cli.js";
 
 const execFileAsync = promisify(execFile);
 const PACKAGE_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -71,6 +78,39 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
     rmSync(tempHome, { recursive: true, force: true });
   }
 }
+
+describe("account-guard command policy", () => {
+  it("guards authenticated commands while preserving recovery and maintenance commands", () => {
+    assert.strictEqual(shouldRequireTrustedAccountGuard("tasks"), true);
+    assert.strictEqual(shouldRequireTrustedAccountGuard(undefined), true);
+    for (const command of ["login", "logout", "whoami", "help", "version", "server", "docs", "support", "update", "upgrade"]) {
+      assert.strictEqual(shouldRequireTrustedAccountGuard(command), false, command);
+    }
+    for (const command of ["signup", "e2e"]) {
+      assert.throws(() => assertTrustedAccountCommandAllowed(command), /disabled/i);
+    }
+  });
+
+  it("pins the trusted profile and dev API", () => {
+    const environment = {
+      OPENMATES_PROFILE: "opencode-personal",
+      OPENMATES_API_URL: "https://api.dev.openmates.org",
+    };
+    assert.doesNotThrow(() => assertTrustedAccountGuardEnvironment({}, environment));
+    assert.throws(
+      () => assertTrustedAccountGuardEnvironment({}, { ...environment, OPENMATES_PROFILE: "test" }),
+      /OPENMATES_PROFILE/,
+    );
+    assert.throws(
+      () => assertTrustedAccountGuardEnvironment({ "api-url": "https://api.openmates.org" }, environment),
+      /override/i,
+    );
+    assert.throws(
+      () => assertTrustedAccountGuardEnvironment({}, { ...environment, OPENMATES_STATE_DIR: "/tmp/test-account" }),
+      /OPENMATES_STATE_DIR/,
+    );
+  });
+});
 
 async function withUpdateRequiredMock<T>(
   run: (params: { apiUrl: string; tempHome: string; frameTypes: string[]; requestPaths: string[] }) => Promise<T>,
@@ -1294,8 +1334,24 @@ function writeJsonStatus(response: ServerResponse, status: number, value: unknow
   response.end(JSON.stringify(value));
 }
 
+const CODE_RUN_MOCK_ARTIFACTS = [{
+  path: "outputs/summary.csv",
+  normalized_path: "outputs/summary.csv",
+  mime_type: "text/csv",
+  kind: "data",
+  size_bytes: 12,
+  status: "available",
+  download_url: "https://example.test/download/summary.csv",
+}];
+
+const CODE_RUN_MOCK_SKIPPED_ARTIFACTS = [{
+  path: "outputs/.env",
+  reason: "hidden_path",
+}];
+
 async function withCodeRunMockApi<T>(
   run: (params: { apiUrl: string; requests: Record<string, unknown>[]; getHeaders: () => Record<string, string | string[] | undefined> }) => T | Promise<T>,
+  finalStatusOverrides: Record<string, unknown> = {},
 ): Promise<T> {
   const requests: Record<string, unknown>[] = [];
   let lastHeaders: Record<string, string | string[] | undefined> = {};
@@ -1329,7 +1385,14 @@ async function withCodeRunMockApi<T>(
       }
       if (request.method === "GET" && request.url === "/v1/code/run/exec-1") {
         lastHeaders = request.headers;
-        writeJson(response, { status: "finished", exit_code: 0, output: "ok\n" });
+        writeJson(response, {
+          status: "finished",
+          exit_code: 0,
+          output: "ok\n",
+          artifacts: CODE_RUN_MOCK_ARTIFACTS,
+          skipped_artifacts: CODE_RUN_MOCK_SKIPPED_ARTIFACTS,
+          ...finalStatusOverrides,
+        });
         return;
       }
       response.writeHead(404);
@@ -2712,6 +2775,44 @@ describe("apps code run command variants", () => {
     });
   });
 
+  // contract-test: direct surface=cli assertions=code-run.output.direct-transient,code-run.surface-parity
+  it("prints direct-run output and artifact download metadata in human mode", async () => {
+    await withCodeRunMockApi(async ({ apiUrl }) => {
+      const output = await runCliAsync([
+        "apps", "code", "run",
+        "--api-url", apiUrl,
+        "--api-key", "test-key",
+        "--language", "python",
+        "--filename", "hello.py",
+        "--code", "print('hello')\n",
+      ]);
+
+      assert.match(output, /^ok\n/m);
+      assert.match(output, /Artifacts:/);
+      assert.match(output, /outputs\/summary\.csv \(text\/csv, 12 bytes; signed download available via --json\)/);
+      assert.doesNotMatch(output, /https:\/\/example\.test\/download\/summary\.csv/);
+      assert.match(output, /Skipped artifacts:/);
+      assert.match(output, /outputs\/\.env \(hidden_path\)/);
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=code-run.execution.stream-status-visible,code-run.surface-parity
+  it("returns a failing process status when the sandbox execution fails", async () => {
+    await withCodeRunMockApi(async ({ apiUrl }) => {
+      await assert.rejects(
+        runCliAsync([
+          "apps", "code", "run",
+          "--api-url", apiUrl,
+          "--api-key", "test-key",
+          "--language", "python",
+          "--filename", "failure.py",
+          "--code", "raise RuntimeError('expected')\n",
+        ]),
+        /Code Run failed with exit code 1/,
+      );
+    }, { status: "failed", exit_code: 1, output: "expected failure\n" });
+  });
+
   it("runs repeated --file inputs with an explicit entry", async () => {
     const dir = join(tmpdir(), `openmates-cli-file-${Date.now()}`);
     mkdirSync(dir, { recursive: true });
@@ -3191,18 +3292,10 @@ describe("MEMORY_TYPE_REGISTRY", () => {
     assert.ok(def.required.includes("name"), "should require 'name'");
   });
 
-  it("ai/communication_style has enum values for 'tone'", () => {
-    const def = MEMORY_TYPE_REGISTRY["ai/communication_style"];
-    assert.ok(def, "ai/communication_style should exist");
-    const tone = def.properties["tone"];
-    assert.ok(
-      tone?.enum && tone.enum.length > 0,
-      "tone should have enum values",
-    );
-    assert.ok(
-      tone.enum!.includes("formal"),
-      "tone enum should include 'formal'",
-    );
+  it("does not expose removed AI memory types", () => {
+    const keys = Object.keys(MEMORY_TYPE_REGISTRY);
+    assert.equal(keys.some((key) => key.startsWith("ai/")), false);
+    assert.ok(MEMORY_TYPE_REGISTRY["travel/preferred_airlines"]);
   });
 
   it("registry key format matches appId/itemType", () => {
@@ -3278,13 +3371,14 @@ describe("memory schema validation", () => {
     assert.ok(result.valid === false && result.error.includes("guru"));
   });
 
-  it("accepts valid ai/communication_style entry", () => {
+  it("rejects removed ai/communication_style entries", () => {
     const result = validateMemory("ai/communication_style", {
       title: "Work Mode",
       tone: "professional",
       verbosity: "detailed",
     });
-    assert.ok(result.valid);
+    assert.ok(!result.valid);
+    assert.ok(result.valid === false && result.error.includes("Unknown"));
   });
 
   it("rejects unknown memory type", () => {
@@ -4443,6 +4537,18 @@ describe("documented CLI command reference", () => {
       assert.ok(!readme.includes("BLOCKED_SETTINGS_POST_PATHS"));
       assert.ok(readme.includes("BLOCKED_SETTINGS_MUTATE_PATHS"));
     });
+  });
+
+  it("public server help excludes private official-cloud operator options", () => {
+    const help = runCli(["server", "--help"]);
+    for (const privateTerm of [
+      "--official-cloud",
+      "--deployment-mode",
+      "--openmatescloud-path",
+      "OpenMatesCloud",
+    ]) {
+      assert.ok(!help.includes(privateTerm), `expected server help to omit ${privateTerm}`);
+    }
   });
 
   it("benchmark docs cover benchmark help options", () => {

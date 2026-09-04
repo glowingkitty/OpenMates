@@ -1,0 +1,226 @@
+schema_version: 1
+id: feature.landing-onboarding
+version: 4
+status: draft
+title: Landing Onboarding
+summary: >
+  Logged-out OpenMates onboarding uses the real chat welcome surface and guest
+  Daily Inspiration carousel to explain the product before signup: ask naturally,
+  get actionable app results, preserve privacy controls, use specialized mates,
+  keep provider-independent access, and finish on a shared signup CTA without
+  selecting or exposing legacy public intro chats. English metadata pairs the
+  concise visible headline with a longer product-category description.
+
+scope:
+  includes:
+    - Logged-out web landing behavior in the real app shell and new-chat welcome surface.
+    - Guest product-story ordering, first-slide expanded intro, regular explainer slides, and final signup CTA.
+    - Active-app icon rail constraints, coordinated story progress, manual navigation, and reduced-motion behavior.
+    - Dependency on the Daily Inspiration guest-onboarding source and card IDs.
+    - Retirement of the legacy For everyone and For developers intro chats, routes, discovery entries, and client-visible IDs.
+    - A consistent English headline and descriptive-copy hierarchy without changing visible landing copy.
+    - Web and Apple GUI semantic parity with contract-linked e2e proof for landing assertions.
+  excludes:
+    - Authenticated Daily Inspiration recovery, persistence, public defaults, and opened-state semantics.
+    - Example-chat selection, all-examples discovery, topic tag ranking, and contextual link ranking below the header.
+    - Signup form internals after the shared signup interface opens.
+    - Exact visual pixel values, animation milliseconds, marketing copy punctuation, and Figma-only layout variants.
+    - SDK and CLI logged-out visual landing surfaces, which do not exist.
+
+models:
+  GuestLandingCarousel:
+    source:
+      type: enum
+      values: [guest-onboarding]
+      required: true
+      constraints: {provided_by: feature.daily-inspiration@1}
+    ordered_story_ids:
+      type: ordered_array
+      required: true
+      constraints:
+        value:
+          - openmates-intro
+          - openmates-actionable-events
+          - openmates-privacy-safety
+          - openmates-mates-focus
+          - openmates-provider-cross-platform
+          - openmates-signup-cta
+    terminal_story_id:
+      type: string
+      required: true
+      constraints: {value: openmates-signup-cta}
+
+  IntroOverlay:
+    host_surface:
+      type: enum
+      values: [new_chat_welcome]
+      required: true
+    headline:
+      type: localized_lines
+      required: true
+      constraints: {meaning: your_ai_team_for_getting_things_done}
+    request_sequence:
+      type: ordered_array
+      required: true
+      constraints:
+        app_ids: [health, events, code, news]
+        prompts: [find_doctor_appointments, find_events, build_a_web_app, explain_the_news]
+    app_rails:
+      type: active_app_metadata_icons
+      required: true
+      constraints: {inactive_future_or_provider_only_apps: forbidden, excluded_app_ids: [ai]}
+    collapse_target:
+      type: string
+      required: true
+      constraints: {value: openmates-actionable-events}
+
+  ProductStorySlide:
+    story_id:
+      type: enum
+      values: [openmates-actionable-events, openmates-privacy-safety, openmates-mates-focus, openmates-provider-cross-platform]
+      required: true
+    compact_heading:
+      type: localized_lines
+      required: true
+      constraints: {shown_above_animation: true}
+    animation_kind:
+      type: enum
+      values: [actionable_event, privacy_safety, mates_focus, provider_platform]
+      required: true
+    completes_once:
+      type: boolean
+      required: true
+
+  GuestNavigation:
+    manual_next:
+      type: behavior
+      required: true
+      constraints: {skips_expanded_intro_or_advances_regular_slide: true}
+    manual_previous:
+      type: behavior
+      required: true
+      constraints: {can_restore_intro_when_returning_to_first_slide: true}
+    swipe:
+      type: behavior
+      required: true
+      constraints: {horizontal_threshold_px: 56, vertical_cancel_px: 48}
+    progress:
+      type: story_progress_bar
+      required: true
+      constraints: {uses_same_duration_as_story_timeline: true, pauses_when_not_visible_or_interacting: true}
+
+  SignupCTA:
+    story_id:
+      type: string
+      required: true
+      constraints: {value: openmates-signup-cta}
+    benefits:
+      type: localized_list
+      required: true
+      constraints: {examples: [no_ads, no_subscription, privacy_focus, pay_per_use]}
+    action:
+      type: event
+      required: true
+      constraints: {dispatches: openSignupInterface, does_not_write_signup_hash: true, does_not_start_chat: true}
+
+  RetiredIntroCompatibility:
+    retired_chat_ids:
+      type: ordered_array
+      required: true
+      constraints: {value: [demo-for-everyone, demo-for-developers]}
+    retired_routes:
+      type: ordered_array
+      required: true
+      constraints: {value: [/intro/for-everyone, /intro/for-developers]}
+    path_behavior:
+      type: redirect
+      required: true
+      constraints: {destination: /, sitemap_entry: absent}
+    fragment_behavior:
+      type: client_compatibility
+      required: true
+      constraints: {clears_retired_hash: true, opens_new_chat_welcome: true, missing_chat_error: forbidden}
+
+  AppleLandingParity:
+    canonical_source:
+      type: enum
+      values: [web_contract]
+      required: true
+      constraints: {contract: feature.landing-onboarding@1}
+    required_surface:
+      type: enum
+      values: [gui.apple]
+      required: true
+    e2e_contract_metadata:
+      type: contract_test_metadata
+      required: true
+      constraints: {surface: gui.apple, classification: direct}
+
+assertions:
+  - id: landing-onboarding.uses-real-chat-shell
+    type: behavior
+    must: Logged-out landing renders inside the real new-chat welcome surface with the Daily Inspiration guest-intro variant rather than a separate static marketing page, and the first intro can cover the active-chat content while the underlying welcome/input surface remains mounted.
+    depends_on: [models.IntroOverlay, examples.real_shell]
+  - id: landing-onboarding.guest-sequence
+    type: behavior
+    must: The guest carousel presents the durable product-story order openmates-intro, actionable events, privacy and safety, mates and focus, provider and cross-platform independence, and signup; the signup story is the final non-advancing slide.
+    depends_on: [models.GuestLandingCarousel, examples.story_sequence]
+  - id: landing-onboarding.intro-active-apps-only
+    type: invariant
+    must: The expanded intro app rails are built from active web app metadata only, exclude inactive, future, non-existing, provider-only, and AI placeholder apps, and highlight Health, Events, Code, and News in the same order as the intro request sequence.
+    depends_on: [models.IntroOverlay.app_rails, examples.app_rails]
+  - id: landing-onboarding.coordinated-story-progress
+    type: behavior
+    must: Actionable, privacy, mates/focus, and provider/platform explainer slides use a single coordinated timeline per slide so heading transition, animation completion, progress-bar completion, and automatic advancement cannot drift; reduced-motion users see stable content without requiring transient animation states.
+    depends_on: [models.ProductStorySlide, models.GuestNavigation.progress, examples.story_progress]
+  - id: landing-onboarding.manual-navigation
+    type: behavior
+    must: Manual click, next arrow, previous arrow, and horizontal swipe navigation can skip or move through guest onboarding immediately, suppress accidental banner chat starts for guest explainer slides, avoid advancing beyond the terminal signup slide, and preserve a path back to the expanded first intro when navigating backward.
+    depends_on: [models.GuestNavigation, examples.navigation]
+  - id: landing-onboarding.actionable-demo-faithful
+    type: behavior
+    must: The actionable story demonstrates a real OpenMates-style request-to-result flow with localized chat bubbles, assistant response, event preview, pointer action, and external event CTA rather than a generic wall-of-text explanation.
+    depends_on: [models.ProductStorySlide, examples.actionable_story]
+  - id: landing-onboarding.privacy-mates-platform-stories
+    type: behavior
+    must: The remaining product stories explain privacy and safety controls, specialized mates and focus modes, and provider or cross-platform independence through compact headings above deterministic product-faithful animations, not abstract placeholder blocks.
+    depends_on: [models.ProductStorySlide, examples.product_stories]
+  - id: landing-onboarding.signup-cta
+    type: behavior
+    must: The final guest signup slide first shows the core signup benefits, then exposes a visible shared signup CTA button that opens the existing signup interface without starting a chat or writing a signup hash route.
+    depends_on: [models.SignupCTA, examples.signup_cta]
+  - id: landing-onboarding.legacy-intros-retired
+    type: behavior
+    must: Logged-out onboarding and real-example discovery do not register, select, recommend, or render the retired For everyone and For developers public chats; their old path URLs redirect to the root welcome surface, their old hash IDs are cleared client-side into the same welcome state without an error, and authentication recovery never persists either retired ID as last_opened.
+    depends_on: [models.RetiredIntroCompatibility, examples.legacy_intro_retirement]
+  - id: landing-onboarding.primary-slogan-consistent
+    type: invariant
+    must: The visible English landing headline, page title, and social-preview image headline remain Your AI team for getting things done. English HTML, SEO, Open Graph, and Twitter description fields plus the repository, npm package, and pip package README introductions use Your agentic operating system for everyday tasks, learning & work. With user interests & privacy first. This distinction must not add visible landing copy or replace package-specific registry descriptions.
+    depends_on: [models.IntroOverlay.headline, examples.primary_slogan]
+  - id: landing-onboarding.apple-web-parity
+    type: parity
+    must: Apple logged-out landing onboarding preserves the same semantic contract as the web version for real chat-shell hosting, story order, active-app intro rails, coordinated progress, manual navigation, actionable and product-faithful stories, and signup CTA behavior; Apple e2e proof is required and must carry contract-test metadata linking each direct proof to the landing assertion IDs it verifies.
+    depends_on: [models.GuestLandingCarousel, models.IntroOverlay, models.ProductStorySlide, models.GuestNavigation, models.SignupCTA, models.AppleLandingParity, examples.apple_parity, applies_to]
+
+applies_to:
+  rest_api:
+    required: false
+    role: This contract consumes guest Daily Inspiration records but does not define a separate landing REST endpoint.
+  cli:
+    required: false
+    role: CLI has no logged-out visual landing surface.
+  sdks:
+    required: false
+    implementations:
+      npm: {required: false}
+      pip: {required: false}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: true, role: preserves semantic logged-out landing onboarding parity with the web contract through native e2e proof}
+
+examples:
+  file: examples.yml
+  required_groups: [real_shell, story_sequence, app_rails, story_progress, navigation, actionable_story, product_stories, signup_cta, legacy_intro_retirement, primary_slogan, apple_parity]

@@ -58,6 +58,7 @@ class UserTaskQueueService:
             "completed_at": current_time,
             "updated_at": current_time,
             "blocked_reason_code": None,
+            "encrypted_blocked_reason": None,
             "ai_execution_state": "completed",
         }, team_id=team_id)
         admission = await self.admission_service.admit_available(
@@ -86,16 +87,19 @@ class UserTaskQueueService:
         *,
         version: int,
         blocked_reason_code: str | None = None,
+        encrypted_blocked_reason: str | None = None,
         team_id: str | None = None,
         now: int | None = None,
     ) -> dict[str, Any]:
         current_time = now or int(time.time())
+        reason_code = blocked_reason_code or "needs_user_input"
         existing = await self._get_existing(task_id, user_id, team_id=team_id)
         task = await self._update(task_id, user_id, {
             "version": version,
             "status": "blocked",
             "queue_state": "waiting_for_user",
-            "blocked_reason_code": blocked_reason_code or "needs_user_input",
+            "blocked_reason_code": reason_code,
+            "encrypted_blocked_reason": encrypted_blocked_reason,
             "ai_execution_state": "waiting_for_user",
             "updated_at": current_time,
         }, team_id=team_id)
@@ -115,6 +119,7 @@ class UserTaskQueueService:
             "status": "todo",
             "queue_state": "none",
             "blocked_reason_code": None,
+            "encrypted_blocked_reason": None,
             "ai_execution_state": None,
             "updated_at": current_time,
         }, team_id=team_id)
@@ -144,6 +149,7 @@ class UserTaskQueueService:
             "status": "backlog",
             "queue_state": "skipped",
             "blocked_reason_code": None,
+            "encrypted_blocked_reason": None,
             "ai_execution_state": "skipped",
             "updated_at": current_time,
         }, team_id=team_id)

@@ -12,12 +12,20 @@ from __future__ import annotations
 
 import argparse
 import base64
+import binascii
+import hashlib
+import importlib.util
 import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
+import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -27,8 +35,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_CONFIG_PATH = Path.home() / ".config" / "openmates" / "apple-remote.json"
 REMOTE_LABEL = "macos-peer"
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 10
+DEFAULT_XCODE_DEVELOPER_DIR = "/Applications/Xcode.app/Contents/Developer"
 MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
-SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-simulator.lock"
+# The registered Mac is intentionally a single native execution lane. It has
+# 8 GB RAM, so simulator, macOS, Watch, sync, and recorded proof commands must
+# never start concurrent Xcode workloads.
+SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-xcode.lock"
 DESTRUCTIVE_TOKENS = {
     "rm",
     "shutdown",
@@ -44,6 +56,27 @@ TEST_ACCOUNT_ENV_PATTERN = re.compile(
 )
 CHAT_RENDERING_PARITY_ENV_PATTERN = re.compile(r"^CHAT_RENDERING_PARITY_[A-Z0-9_]+$")
 LIVE_TEST_CREDENTIALS_PATH = "apple/.openmates-live-test-account.env"
+APPLE_RECORDING_PROFILES = {"apple-iphone-portrait", "apple-ipad-landscape"}
+APPLE_PROOF_VIDEO_DIMENSIONS = {
+    "apple-iphone-portrait": (393, 852),
+    "apple-ipad-landscape": (1366, 1024),
+}
+APPLE_PROOF_SIMULATORS = {
+    "apple-iphone-portrait": {"iPhone 15 Pro", "iPhone 16 Pro"},
+    "apple-ipad-landscape": {"iPad Pro 13-inch (M5)"},
+}
+APPLE_RECORDING_RESULTS_DIR = REPO_ROOT / "test-results" / "apple-recordings"
+APPLE_PROOF_BROKER_WORKFLOW = "playwright-spec.yml"
+APPLE_PROOF_BROKER_SPEC = "apple-proof-credential-broker.spec.ts"
+APPLE_PROOF_BROKER_CERTIFICATE = REPO_ROOT / "deployment/apple-proof-broker-recipient.pem"
+APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY = REPO_ROOT / "deployment/apple-proof-broker-relay-public.pem"
+APPLE_PROOF_BROKER_REPOSITORY = "glowingkitty/OpenMates"
+APPLE_PROOF_BROKER_LOCAL_ROOT = Path.home() / ".config/openmates/apple-proof-broker"
+APPLE_PROOF_BROKER_RELAY_KEY = APPLE_PROOF_BROKER_LOCAL_ROOT / "relay-key.pem"
+APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY = APPLE_PROOF_BROKER_LOCAL_ROOT / "relay-public.pem"
+APPLE_PROOF_BROKER_POLL_SECONDS = 5
+APPLE_PROOF_BROKER_TIMEOUT_SECONDS = 300
+APPLE_PROOF_CREDENTIAL_TTL_SECONDS = 900
 XCODE_CACHE_TARGETS = {
     "derived-data": "~/Library/Developer/Xcode/DerivedData",
     "module-cache": "~/Library/Developer/Xcode/DerivedData/ModuleCache.noindex",
@@ -65,6 +98,329 @@ with open(lock_path, "w", encoding="utf-8") as lock_file:
     print("simulator_lock=acquired", flush=True)
     result = subprocess.run(command)
 sys.exit(result.returncode)
+'''
+
+APPLE_PROOF_BROKER_RECIPIENT_SCRIPT = r'''
+import base64
+import os
+import pathlib
+import subprocess
+import sys
+
+root = pathlib.Path.home() / ".config" / "openmates" / "apple-proof-broker"
+private_key = root / "recipient-key.pem"
+certificate = root / "recipient-cert.pem"
+root.mkdir(parents=True, exist_ok=True, mode=0o700)
+if not private_key.exists():
+    result = subprocess.run([
+        "openssl", "req", "-x509", "-newkey", "rsa:3072", "-sha256", "-nodes",
+        "-days", "3650", "-subj", "/CN=OpenMates Apple Proof Broker",
+        "-keyout", str(private_key), "-out", str(certificate),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("proof_broker_recipient=openssl_failed")
+        sys.exit(result.returncode or 1)
+elif not certificate.exists():
+    result = subprocess.run([
+        "openssl", "req", "-x509", "-new", "-sha256", "-days", "3650",
+        "-subj", "/CN=OpenMates Apple Proof Broker", "-key", str(private_key),
+        "-out", str(certificate),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("proof_broker_recipient=certificate_failed")
+        sys.exit(result.returncode or 1)
+os.chmod(root, 0o700)
+os.chmod(private_key, 0o600)
+os.chmod(certificate, 0o644)
+payload = base64.b64encode(certificate.read_bytes()).decode("ascii")
+print(f"proof_broker_recipient_certificate_b64={payload}")
+'''
+
+APPLE_PROOF_BROKER_RELAY_INSTALL_SCRIPT = r'''
+import base64
+import os
+import pathlib
+import sys
+
+payload = base64.b64decode(sys.argv[1], validate=True)
+if b"BEGIN PUBLIC KEY" not in payload or b"PRIVATE KEY" in payload:
+    print("proof_broker_relay=invalid_public_key")
+    sys.exit(2)
+root = pathlib.Path.home() / ".config" / "openmates" / "apple-proof-broker"
+relay_public = root / "relay-public.pem"
+root.mkdir(parents=True, exist_ok=True, mode=0o700)
+if relay_public.exists() and relay_public.read_bytes() != payload:
+    print("proof_broker_relay=pinned_key_mismatch")
+    sys.exit(3)
+if not relay_public.exists():
+    relay_public.write_bytes(payload)
+os.chmod(root, 0o700)
+os.chmod(relay_public, 0o644)
+print("proof_broker_relay=verified")
+'''
+
+APPLE_PROOF_BROKER_DECRYPT_SCRIPT = r'''
+import os
+import pathlib
+import subprocess
+import sys
+import tempfile
+import time
+
+encrypted_path = pathlib.Path(sys.argv[1])
+signature_path = pathlib.Path(sys.argv[2])
+credential_path = pathlib.Path(sys.argv[3])
+slot = int(sys.argv[4])
+root = pathlib.Path.home() / ".config" / "openmates" / "apple-proof-broker"
+private_key = root / "recipient-key.pem"
+certificate = root / "recipient-cert.pem"
+relay_public = root / "relay-public.pem"
+if slot < 14 or slot > 20:
+    print("proof_credentials=invalid_slot")
+    sys.exit(2)
+if not encrypted_path.is_file() or not signature_path.is_file() or not private_key.is_file() or not certificate.is_file() or not relay_public.is_file():
+    print("proof_credentials=missing_input")
+    sys.exit(3)
+verification = subprocess.run([
+    "openssl", "dgst", "-sha256", "-verify", str(relay_public),
+    "-signature", str(signature_path), str(encrypted_path),
+], capture_output=True, text=True, check=False)
+if verification.returncode != 0:
+    print("proof_credentials=untrusted_relay")
+    sys.exit(4)
+credential_path.parent.mkdir(parents=True, exist_ok=True)
+temporary = pathlib.Path(tempfile.mkstemp(prefix="apple-proof-credentials-", dir=credential_path.parent)[1])
+try:
+    result = subprocess.run([
+        "openssl", "cms", "-decrypt", "-binary", "-inform", "DER",
+        "-in", str(encrypted_path), "-recip", str(certificate),
+        "-inkey", str(private_key), "-out", str(temporary),
+    ], capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print("proof_credentials=decrypt_failed")
+        sys.exit(result.returncode or 5)
+    values = {}
+    for raw_line in temporary.read_text(encoding="utf-8").splitlines():
+        key, separator, value = raw_line.partition("=")
+        if not separator or not key or not value or "\r" in value or "\n" in value:
+            print("proof_credentials=invalid_payload")
+            sys.exit(6)
+        values[key] = value
+    prefix = f"OPENMATES_TEST_ACCOUNT_{slot}"
+    expected = {f"{prefix}_EMAIL", f"{prefix}_PASSWORD", f"{prefix}_OTP_KEY"}
+    if set(values) != expected:
+        print("proof_credentials=unexpected_payload")
+        sys.exit(7)
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, credential_path)
+    expiry_script = "import pathlib,sys,time; time.sleep(int(sys.argv[2])); pathlib.Path(sys.argv[1]).unlink(missing_ok=True)"
+    try:
+        subprocess.Popen(
+            [sys.executable, "-c", expiry_script, str(credential_path), sys.argv[5]],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError:
+        credential_path.unlink(missing_ok=True)
+        print("proof_credentials=expiry_failed")
+        sys.exit(8)
+    print(f"proof_credentials=materialized:slot-{slot}")
+finally:
+    temporary.unlink(missing_ok=True)
+    encrypted_path.unlink(missing_ok=True)
+    signature_path.unlink(missing_ok=True)
+'''
+
+COMMIT_PINNED_COMMAND_SCRIPT = r'''
+import subprocess
+import sys
+
+expected_commit = sys.argv[1]
+command = sys.argv[2:]
+
+def current_commit():
+    return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+
+if current_commit() != expected_commit:
+    print("apple_remote_commit_mismatch", file=sys.stderr)
+    sys.exit(4)
+result = subprocess.run(command)
+if current_commit() != expected_commit:
+    print("apple_remote_commit_changed_during_command", file=sys.stderr)
+    sys.exit(4)
+sys.exit(result.returncode)
+'''
+
+
+RECORDED_IOS_TEST_SCRIPT = r'''
+import fcntl
+import hashlib
+import json
+import os
+import pathlib
+import signal
+import subprocess
+import sys
+import tarfile
+import time
+
+simulator, only_testing, profile, run_id, scheme, expected_commit, proof_value = sys.argv[1:8]
+proof = proof_value == "true"
+root = pathlib.Path.cwd()
+run_dir = root / "test-results" / "apple-recordings" / run_id
+run_dir.mkdir(parents=True, exist_ok=False)
+raw_video = run_dir / "raw.mov"
+result_bundle = run_dir / "result.xcresult"
+console_log = run_dir / "console.log"
+live_log = run_dir / "live-app.log"
+attachments = run_dir / "attachments"
+manifest_path = run_dir / "artifact-manifest.json"
+archive_path = pathlib.Path("/tmp") / f"openmates-apple-recording-{run_id}.tar.gz"
+recorder = None
+log_stream = None
+log_handle = None
+xcode_exit = 1
+started = time.time()
+subject_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+if expected_commit and subject_commit != expected_commit:
+    print("recording_status=commit_mismatch")
+    sys.exit(4)
+
+
+def sha256(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def simulator_udid():
+    result = subprocess.run(["xcrun", "simctl", "list", "devices", "available", "--json"], capture_output=True, text=True, check=True)
+    data = json.loads(result.stdout)
+    matches = [item for items in data.get("devices", {}).values() for item in items if item.get("name") == simulator and item.get("isAvailable", True)]
+    if not matches:
+        raise RuntimeError("requested simulator is unavailable")
+    return matches[0]["udid"]
+
+
+lock_file = open("/tmp/openmates-apple-xcode.lock", "w", encoding="utf-8")
+fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+try:
+    udid = simulator_udid()
+    subprocess.run(["xcrun", "simctl", "boot", udid], capture_output=True, text=True, check=False)
+    subprocess.run(["xcrun", "simctl", "bootstatus", udid, "-b"], capture_output=True, text=True, check=True, timeout=180)
+    if profile == "apple-ipad-landscape":
+        subprocess.run(["xcrun", "simctl", "io", udid, "rotateLeft"], capture_output=True, text=True, check=True)
+    recorder = subprocess.Popen(
+        ["xcrun", "simctl", "io", udid, "recordVideo", "--codec=h264", "--force", str(raw_video)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    log_handle = live_log.open("w", encoding="utf-8")
+    log_stream = subprocess.Popen(
+        [
+            "xcrun", "simctl", "spawn", udid, "log", "stream",
+            "--style", "compact", "--level", "info",
+            "--predicate", 'process == "OpenMates"',
+        ],
+        stdout=log_handle,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    recording_started_unix_ms = str(int(time.time() * 1000))
+    command = [
+        "xcodebuild", "test", "-project", "apple/OpenMates.xcodeproj",
+        "-scheme", scheme, "-destination", f"platform=iOS Simulator,id={udid}",
+        "-resultBundlePath", str(result_bundle),
+    ]
+    if only_testing:
+        command.extend(["-only-testing", only_testing])
+    test_env = os.environ.copy()
+    test_env["OPENMATES_RECORDING_STARTED_UNIX_MS"] = recording_started_unix_ms
+    test_env["OPENMATES_PROOF_DEVICE_PROFILE"] = profile
+    xcode_exit = subprocess.run(command, check=False, env=test_env).returncode
+    if subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip() != subject_commit:
+        xcode_exit = 4
+finally:
+    if log_stream is not None and log_stream.poll() is None:
+        log_stream.terminate()
+        try:
+            log_stream.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            log_stream.kill()
+            log_stream.wait(timeout=5)
+    if log_handle is not None:
+        log_handle.close()
+    if recorder is not None and recorder.poll() is None:
+        recorder.send_signal(signal.SIGINT)
+        try:
+            recorder.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            recorder.terminate()
+            recorder.wait(timeout=10)
+    lock_file.close()
+
+attachments.mkdir(exist_ok=True)
+if result_bundle.exists():
+    subprocess.run(
+        ["xcrun", "xcresulttool", "export", "attachments", "--path", str(result_bundle), "--output-path", str(attachments)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    with console_log.open("w", encoding="utf-8") as handle:
+        subprocess.run(
+            ["xcrun", "xcresulttool", "get", "log", "--path", str(result_bundle), "--type", "console"],
+            stdout=handle,
+            stderr=subprocess.STDOUT,
+            text=True,
+            check=False,
+        )
+
+timeline = None
+for candidate in attachments.rglob("*.json"):
+    try:
+        payload = json.loads(candidate.read_text(encoding="utf-8"))
+    except Exception:
+        continue
+    if isinstance(payload, dict) and isinstance(payload.get("contract"), dict):
+        timeline = candidate
+        break
+
+status = "passed" if (
+    xcode_exit == 0
+    and raw_video.is_file()
+    and raw_video.stat().st_size > 0
+    and (not proof or timeline is not None)
+) else "failed"
+artifacts = []
+for path in sorted(run_dir.rglob("*")):
+    if not path.is_file() or path == manifest_path:
+        continue
+    artifacts.append({"path": str(path.relative_to(run_dir)), "size": path.stat().st_size, "sha256": sha256(path)})
+manifest = {
+    "schema_version": 1,
+    "run_id": run_id,
+    "status": status,
+    "profile": profile,
+    "subject_commit": subject_commit,
+    "xcode_exit_code": xcode_exit,
+    "duration_seconds": round(time.time() - started, 3),
+    "raw_video": "raw.mov",
+    "result_bundle": "result.xcresult",
+    "proof_timeline": str(timeline.relative_to(run_dir)) if timeline else None,
+    "artifacts": artifacts,
+}
+manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+with tarfile.open(archive_path, "w:gz") as archive:
+    archive.add(run_dir, arcname=run_id)
+print(f"recording_status={status}")
+print(f"recording_run_id={run_id}")
+print(f"recording_archive={archive_path}")
+sys.exit(xcode_exit)
 '''
 
 
@@ -854,6 +1210,7 @@ if target_platform == "ios":
         "org.openmates.app.watch",
     }
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+    REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS = {"org.openmates.app"}
 elif target_platform == "macos":
     scheme_name = "OpenMates_macOS"
     archive_filename = "OpenMatesMac.xcarchive"
@@ -869,6 +1226,7 @@ elif target_platform == "macos":
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set(BUNDLE_IDS)
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+    REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS = set()
 elif target_platform == "watchos":
     scheme_name = "OpenMatesWatch"
     archive_filename = "OpenMatesWatch.xcarchive"
@@ -883,6 +1241,7 @@ elif target_platform == "watchos":
     )
     REQUIRED_APP_GROUP_BUNDLE_IDS = set()
     REQUIRED_KEYCHAIN_GROUP_BUNDLE_IDS = set()
+    REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS = set()
 else:
     print(f"unsupported_target_platform={target_platform}")
     sys.exit(2)
@@ -1317,6 +1676,9 @@ def sync_bundle_capabilities():
         if identifier == "org.openmates.app":
             enable_bundle_capability(bundle_id, "ASSOCIATED_DOMAINS")
             print(f"capability_sync=passed:{identifier}:ASSOCIATED_DOMAINS")
+        if identifier in REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS:
+            enable_bundle_capability(bundle_id, "PUSH_NOTIFICATIONS")
+            print(f"capability_sync=passed:{identifier}:PUSH_NOTIFICATIONS")
 
 
 def existing_profile(profile_name):
@@ -1366,6 +1728,11 @@ def assert_profile_supports_required_entitlements(identifier, profile_path):
             print("manual_path=Certificates, Identifiers & Profiles > Identifiers > App IDs > bundle ID > Keychain Sharing")
             sys.exit(1)
         print(f"profile_keychain_group=passed:{identifier}")
+    if identifier in REQUIRED_PUSH_NOTIFICATION_BUNDLE_IDS:
+        if entitlements.get("aps-environment") not in {"development", "production"}:
+            print(f"profile_push_notifications=missing:{identifier}")
+            sys.exit(1)
+        print(f"profile_push_notifications=passed:{identifier}")
 
 
 def create_or_download_app_store_profiles():
@@ -3064,29 +3431,41 @@ def repo_command(config: RemoteConfig, parts: Sequence[str]) -> str:
     return f"cd {shlex.quote(config.repo_path)} && {shell_join(parts)}"
 
 
-def sync_repo_command(branch: str) -> str:
+def sync_repo_command(branch: str, commit: str = "") -> str:
     if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch):
         raise AppleRemoteError(f"Invalid branch name for sync-repo: {branch}")
     quoted_branch = shlex.quote(branch)
-    return " && ".join([
+    commands = [
         f"git fetch origin {quoted_branch}",
         "git reset --hard",
         "git clean -fd",
         f"git checkout -B {quoted_branch} origin/{quoted_branch}",
         f"git reset --hard origin/{quoted_branch}",
         "git clean -fd",
-        "git status --short",
-        "git rev-parse --short HEAD",
-    ])
+    ]
+    if commit:
+        if not re.fullmatch(r"[0-9a-fA-F]{7,40}", commit):
+            raise AppleRemoteError("Invalid commit for sync-repo")
+        quoted_commit = shlex.quote(commit)
+        commands.extend([
+            f"git merge-base --is-ancestor {quoted_commit} origin/{quoted_branch}",
+            f"git checkout --detach {quoted_commit}",
+        ])
+    commands.extend(["git status --short", "git rev-parse --short HEAD"])
+    return " && ".join(commands)
 
 
 def simulator_locked_command(parts: Sequence[str]) -> str:
     return shell_join(["python3", "-c", SIMULATOR_LOCK_SCRIPT, SIMULATOR_LOCK_PATH, *parts])
 
 
+def with_xcode_developer_dir(command: str) -> str:
+    return f"DEVELOPER_DIR={shlex.quote(DEFAULT_XCODE_DEVELOPER_DIR)} {command}"
+
+
 def build_ios_command(simulator: str) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = simulator_locked_command([
+    xcodebuild = with_xcode_developer_dir(simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -3095,7 +3474,7 @@ def build_ios_command(simulator: str) -> str:
         "-destination",
         f"platform=iOS Simulator,name={simulator}",
         "build",
-    ])
+    ]))
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
@@ -3122,6 +3501,29 @@ def local_test_account_env(env: dict[str, str] | None = None) -> dict[str, str]:
         if (TEST_ACCOUNT_ENV_PATTERN.fullmatch(key) or CHAT_RENDERING_PARITY_ENV_PATTERN.fullmatch(key)) and value:
             merged[key] = value
     return merged
+
+
+def reserved_test_account_env(slot: int, env: dict[str, str] | None = None) -> dict[str, str]:
+    """Materialize only one reserved slot from direct or expanded account secrets."""
+    source = env if env is not None else dict(os.environ)
+    direct = local_test_account_env(source)
+    raw_bundle = source.get("OPENMATES_TEST_ACCOUNTS_EXPANDED_JSON") or source.get("EXPANDED_ACCOUNTS_JSON") or "{}"
+    try:
+        parsed = json.loads(raw_bundle)
+    except json.JSONDecodeError as exc:
+        raise AppleRemoteError("Expanded test-account bundle is not valid JSON") from exc
+    account = parsed.get(str(slot), {}) if isinstance(parsed, dict) else {}
+    account = account if isinstance(account, dict) else {}
+    prefix = f"OPENMATES_TEST_ACCOUNT_{slot}"
+    values = {
+        f"{prefix}_EMAIL": direct.get(f"{prefix}_EMAIL") or str(account.get("email") or ""),
+        f"{prefix}_PASSWORD": direct.get(f"{prefix}_PASSWORD") or str(account.get("password") or ""),
+        f"{prefix}_OTP_KEY": direct.get(f"{prefix}_OTP_KEY") or str(account.get("otpKey") or ""),
+    }
+    if any(not value for value in values.values()):
+        raise AppleRemoteError(f"Reserved Apple proof account slot {slot} is incomplete")
+    values["OPENMATES_APPLE_PROOF_ACCOUNT_SLOT"] = str(slot)
+    return values
 
 
 def with_env_assignments(command: str, env: dict[str, str]) -> str:
@@ -3169,6 +3571,7 @@ def test_ios_command(
     simulator: str,
     only_testing: str | None,
     test_account_env: dict[str, str] | None = None,
+    expected_commit: str = "",
 ) -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
     scheme = "OpenMates_iOS"
@@ -3188,7 +3591,10 @@ def test_ios_command(
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    xcodebuild = simulator_locked_command(parts)
+    locked_parts = parts
+    if expected_commit:
+        locked_parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts]
+    xcodebuild = with_xcode_developer_dir(simulator_locked_command(locked_parts))
     if test_account_env is not None:
         xcodebuild = with_env_assignments(xcodebuild, test_account_env)
     if test_account_env:
@@ -3196,6 +3602,557 @@ def test_ios_command(
         cleanup_credentials = cleanup_live_test_credentials_command()
         xcodebuild = f"{write_credentials} && trap {shlex.quote(cleanup_credentials)} EXIT && {xcodebuild}"
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
+
+
+def recorded_test_ios_command(
+    simulator: str,
+    only_testing: str | None,
+    profile: str,
+    run_id: str,
+    expected_commit: str = "",
+    test_account_env: dict[str, str] | None = None,
+    proof: bool = False,
+    preprovisioned_credentials: bool = False,
+) -> str:
+    """Build a remote command that records one exact-profile Apple test run."""
+    if profile not in APPLE_RECORDING_PROFILES:
+        raise AppleRemoteError(f"Unsupported Apple recording profile: {profile}")
+    scheme = "OpenMates_iOS_UI_Tests" if only_testing and only_testing.startswith("OpenMatesUITests/") else "OpenMates_iOS_Unit_Tests"
+    build_translations = shell_join(["npm", "run", "build:translations"])
+    command = shell_join([
+        "python3",
+        "-c",
+        RECORDED_IOS_TEST_SCRIPT,
+        simulator,
+        only_testing or "",
+        profile,
+        run_id,
+        scheme,
+        expected_commit,
+        "true" if proof else "false",
+    ])
+    command = with_xcode_developer_dir(command)
+    if test_account_env is not None:
+        command = with_env_assignments(command, test_account_env)
+    workflow = f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {command}"
+    if preprovisioned_credentials:
+        if not expected_commit:
+            raise AppleRemoteError("Preprovisioned Apple proof credentials require an exact commit")
+        cleanup_credentials = cleanup_live_test_credentials_command()
+        pinned_workflow = shell_join([
+            "python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT,
+            expected_commit, "bash", "-lc", workflow,
+        ])
+        return f"trap {shlex.quote(cleanup_credentials)} EXIT && {pinned_workflow}"
+    elif test_account_env:
+        write_credentials = write_live_test_credentials_command(test_account_env)
+        cleanup_credentials = cleanup_live_test_credentials_command()
+        workflow = f"{write_credentials} && trap {shlex.quote(cleanup_credentials)} EXIT && {workflow}"
+    return workflow
+
+
+def scp_command(config: RemoteConfig, remote_path: str, local_path: Path) -> list[str]:
+    return [
+        "scp",
+        "-q",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ConnectTimeout={DEFAULT_CONNECT_TIMEOUT_SECONDS}",
+        f"{config.target}:{remote_path}",
+        str(local_path),
+    ]
+
+
+def scp_upload_command(config: RemoteConfig, local_path: Path, remote_path: str) -> list[str]:
+    return [
+        "scp",
+        "-q",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        f"ConnectTimeout={DEFAULT_CONNECT_TIMEOUT_SECONDS}",
+        str(local_path),
+        f"{config.target}:{remote_path}",
+    ]
+
+
+def proof_broker_recipient_certificate(
+    config: RemoteConfig,
+    *,
+    runner: CommandRunner = default_runner,
+) -> bytes:
+    """Create or read the registered Mac recipient and return only its public certificate."""
+    command = shell_join(["python3", "-c", APPLE_PROOF_BROKER_RECIPIENT_SCRIPT])
+    result = runner(ssh_command(config, command))
+    if result.returncode != 0:
+        raise AppleRemoteError("Could not initialize the registered Mac proof-broker recipient")
+    match = re.search(r"(?m)^proof_broker_recipient_certificate_b64=([A-Za-z0-9+/=]+)$", result.stdout)
+    if match is None:
+        raise AppleRemoteError("Registered Mac did not return its public proof-broker certificate")
+    try:
+        return base64.b64decode(match.group(1), validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise AppleRemoteError("Registered Mac proof-broker certificate is invalid base64") from exc
+
+
+def proof_broker_relay_public_key(
+    config: RemoteConfig,
+    *,
+    runner: CommandRunner = default_runner,
+) -> bytes:
+    """Create the dev-server relay identity and pin only its public key on the Mac."""
+    APPLE_PROOF_BROKER_LOCAL_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if not APPLE_PROOF_BROKER_RELAY_KEY.is_file():
+        creation = runner([
+            "openssl", "genpkey", "-algorithm", "RSA",
+            "-pkeyopt", "rsa_keygen_bits:3072", "-out", str(APPLE_PROOF_BROKER_RELAY_KEY),
+        ])
+        if creation.returncode != 0:
+            raise AppleRemoteError("Could not create the dev-server Apple proof relay identity")
+    os.chmod(APPLE_PROOF_BROKER_RELAY_KEY, 0o600)
+    export = runner([
+        "openssl", "pkey", "-in", str(APPLE_PROOF_BROKER_RELAY_KEY),
+        "-pubout", "-out", str(APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY),
+    ])
+    if export.returncode != 0 or not APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY.is_file():
+        raise AppleRemoteError("Could not derive the dev-server Apple proof relay public key")
+    os.chmod(APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY, 0o644)
+    public_key = APPLE_PROOF_BROKER_RELAY_PUBLIC_KEY.read_bytes()
+    if (
+        not APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY.is_file()
+        or public_key != APPLE_PROOF_BROKER_COMMITTED_RELAY_PUBLIC_KEY.read_bytes()
+    ):
+        raise AppleRemoteError("Dev-server proof relay identity does not match the committed public key")
+    encoded = base64.b64encode(public_key).decode("ascii")
+    install = runner(ssh_command(config, shell_join([
+        "python3", "-c", APPLE_PROOF_BROKER_RELAY_INSTALL_SCRIPT, encoded,
+    ])))
+    if install.returncode != 0 or "proof_broker_relay=verified" not in install.stdout:
+        raise AppleRemoteError("Registered Mac rejected the dev-server Apple proof relay identity")
+    return public_key
+
+
+def _find_github_proof_broker_run(
+    request_id: str,
+    *,
+    runner: CommandRunner,
+) -> dict[str, Any] | None:
+    result = runner([
+        "gh", "run", "list", "--repo", APPLE_PROOF_BROKER_REPOSITORY,
+        "--workflow", APPLE_PROOF_BROKER_WORKFLOW, "--event", "workflow_dispatch",
+        "--limit", "20", "--json", "databaseId,displayTitle,status,conclusion,headSha",
+    ])
+    if result.returncode != 0:
+        raise AppleRemoteError("Could not inspect the Apple proof credential-broker run")
+    try:
+        runs = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise AppleRemoteError("Apple proof credential-broker run list is invalid JSON") from exc
+    title = f"Playwright: {APPLE_PROOF_BROKER_SPEC} account 14 {request_id}"
+    return next((item for item in runs if item.get("displayTitle") == title), None)
+
+
+def _github_proof_broker_run(
+    request_id: str,
+    *,
+    expected_commit: str,
+    runner: CommandRunner,
+) -> int:
+    deadline = time.monotonic() + APPLE_PROOF_BROKER_TIMEOUT_SECONDS
+    while time.monotonic() < deadline:
+        run = _find_github_proof_broker_run(request_id, runner=runner)
+        if run is None:
+            time.sleep(APPLE_PROOF_BROKER_POLL_SECONDS)
+            continue
+        if run.get("headSha") != expected_commit:
+            raise AppleRemoteError("Apple proof credential broker ran against the wrong commit")
+        if run.get("status") != "completed":
+            time.sleep(APPLE_PROOF_BROKER_POLL_SECONDS)
+            continue
+        if run.get("conclusion") != "success":
+            raise AppleRemoteError("Apple proof credential broker did not complete successfully")
+        return int(run["databaseId"])
+    raise AppleRemoteError("Timed out waiting for the Apple proof credential broker")
+
+
+def _delete_github_proof_broker_artifact(
+    run_id: int,
+    artifact_name: str,
+    *,
+    runner: CommandRunner,
+    allow_missing: bool = False,
+) -> None:
+    result = runner([
+        "gh", "api", f"repos/{APPLE_PROOF_BROKER_REPOSITORY}/actions/runs/{run_id}/artifacts",
+    ])
+    if result.returncode != 0:
+        raise AppleRemoteError("Could not inspect encrypted Apple proof credential artifacts for cleanup")
+    try:
+        artifacts = json.loads(result.stdout).get("artifacts", [])
+    except (AttributeError, json.JSONDecodeError) as exc:
+        raise AppleRemoteError("Encrypted Apple proof credential artifact cleanup returned invalid JSON") from exc
+    artifact = next((item for item in artifacts if item.get("name") == artifact_name), None)
+    if artifact is None and allow_missing:
+        return
+    if not artifact or not isinstance(artifact.get("id"), int):
+        raise AppleRemoteError("Encrypted Apple proof credential artifact was not found for cleanup")
+    deletion = runner([
+        "gh", "api", "--method", "DELETE",
+        f"repos/{APPLE_PROOF_BROKER_REPOSITORY}/actions/artifacts/{artifact['id']}",
+    ])
+    if deletion.returncode != 0:
+        raise AppleRemoteError("Could not delete encrypted Apple proof credential artifact")
+
+
+def provision_github_proof_credentials(
+    config: RemoteConfig,
+    *,
+    slot: int,
+    expected_commit: str,
+    runner: CommandRunner = default_runner,
+) -> str:
+    """Encrypt one repository-secret account to the Mac and materialize it only there."""
+    if config.source != "configured" or not config.repo_path:
+        raise AppleRemoteError("GitHub proof credentials may only relay through the configured dev server")
+    if not 14 <= slot <= 20:
+        raise AppleRemoteError("GitHub proof credential broker requires reserved slot 14-20")
+    if not re.fullmatch(r"[0-9a-f]{40}", expected_commit):
+        raise AppleRemoteError("GitHub proof credential broker requires one exact full commit")
+    if not APPLE_PROOF_BROKER_CERTIFICATE.is_file():
+        raise AppleRemoteError("Committed Apple proof-broker recipient certificate is missing")
+    remote_certificate = proof_broker_recipient_certificate(config, runner=runner)
+    if remote_certificate != APPLE_PROOF_BROKER_CERTIFICATE.read_bytes():
+        raise AppleRemoteError("Committed proof-broker certificate does not match the registered Mac")
+    proof_broker_relay_public_key(config, runner=runner)
+
+    request_id = uuid.uuid4().hex[:16]
+    artifact_name = f"playwright-{APPLE_PROOF_BROKER_SPEC}"
+    remote_encrypted = f"/tmp/openmates-apple-proof-credentials-{request_id}.cms"
+    remote_signature = f"/tmp/openmates-apple-proof-credentials-{request_id}.sig"
+    run_id: int | None = None
+    dispatched = False
+    artifact_downloaded = False
+    cleanup_errors: list[str] = []
+    try:
+        dispatch = runner([
+            "gh", "workflow", "run", APPLE_PROOF_BROKER_WORKFLOW,
+            "--repo", APPLE_PROOF_BROKER_REPOSITORY, "--ref", "dev",
+            "-f", f"checkout_ref={expected_commit}", "-f", f"account={slot}",
+            "-f", f"spec={APPLE_PROOF_BROKER_SPEC}", "-f", f"dispatch_token={request_id}",
+            "-f", "use_mocks=true", "-f", "use_live_mocks=true",
+        ])
+        if dispatch.returncode != 0:
+            raise AppleRemoteError("Could not dispatch the Apple proof credential broker")
+        dispatched = True
+        run_id = _github_proof_broker_run(request_id, expected_commit=expected_commit, runner=runner)
+        with tempfile.TemporaryDirectory(prefix="apple-proof-broker-") as temporary_value:
+            temporary = Path(temporary_value)
+            download = runner([
+                "gh", "run", "download", str(run_id), "--repo", APPLE_PROOF_BROKER_REPOSITORY,
+                "--name", artifact_name, "--dir", str(temporary),
+            ])
+            encrypted_matches = list(temporary.rglob("credentials.cms"))
+            encrypted = encrypted_matches[0] if len(encrypted_matches) == 1 else temporary / "missing.cms"
+            if download.returncode != 0 or len(encrypted_matches) != 1 or not 256 <= encrypted.stat().st_size <= 65_536:
+                raise AppleRemoteError("Encrypted Apple proof credential artifact is missing or invalid")
+            artifact_downloaded = True
+            signature = temporary / "credentials.sig"
+            signing = runner([
+                "openssl", "dgst", "-sha256", "-sign", str(APPLE_PROOF_BROKER_RELAY_KEY),
+                "-out", str(signature), str(encrypted),
+            ])
+            if signing.returncode != 0 or not signature.is_file() or not 256 <= signature.stat().st_size <= 1024:
+                raise AppleRemoteError("Dev server could not sign the Apple proof credential ciphertext")
+            transfer = runner(scp_upload_command(config, encrypted, remote_encrypted))
+            if transfer.returncode != 0:
+                raise AppleRemoteError("Could not transfer encrypted Apple proof credentials to the registered Mac")
+            signature_transfer = runner(scp_upload_command(config, signature, remote_signature))
+            if signature_transfer.returncode != 0:
+                raise AppleRemoteError("Could not transfer the dev-server proof relay signature")
+            decrypt = repo_command(config, [
+                "python3", "-c", APPLE_PROOF_BROKER_DECRYPT_SCRIPT,
+                remote_encrypted, remote_signature, LIVE_TEST_CREDENTIALS_PATH, str(slot),
+                str(APPLE_PROOF_CREDENTIAL_TTL_SECONDS),
+            ])
+            result = runner(ssh_command(config, decrypt))
+            if result.returncode != 0 or f"proof_credentials=materialized:slot-{slot}" not in result.stdout:
+                raise AppleRemoteError("Registered Mac could not materialize encrypted Apple proof credentials")
+    finally:
+        cleanup_script = "import pathlib,sys; [pathlib.Path(value).unlink(missing_ok=True) for value in sys.argv[1:]]"
+        cleanup = runner(ssh_command(config, shell_join([
+            "python3", "-c", cleanup_script, remote_encrypted, remote_signature,
+        ])))
+        if cleanup.returncode != 0:
+            cleanup_errors.append("registered Mac ciphertext cleanup failed")
+        if dispatched and run_id is None:
+            try:
+                run = _find_github_proof_broker_run(request_id, runner=runner)
+                run_id = int(run["databaseId"]) if run and run.get("databaseId") is not None else None
+                if run_id is not None and run.get("status") != "completed":
+                    cancellation = runner([
+                        "gh", "run", "cancel", str(run_id), "--repo", APPLE_PROOF_BROKER_REPOSITORY,
+                    ])
+                    if cancellation.returncode != 0:
+                        cleanup_errors.append("GitHub broker cancellation failed")
+            except (AppleRemoteError, TypeError, ValueError):
+                cleanup_errors.append("GitHub broker run cleanup lookup failed")
+        if run_id is not None:
+            try:
+                _delete_github_proof_broker_artifact(
+                    run_id,
+                    artifact_name,
+                    runner=runner,
+                    allow_missing=not artifact_downloaded,
+                )
+            except AppleRemoteError:
+                cleanup_errors.append("GitHub encrypted artifact cleanup failed")
+        elif dispatched:
+            cleanup_errors.append("dispatched GitHub broker run could not be located for cleanup")
+        if cleanup_errors:
+            raise AppleRemoteError("; ".join(cleanup_errors))
+    return request_id
+
+
+def extract_and_validate_recording_archive(archive_path: Path, destination: Path) -> tuple[Path, dict[str, Any]]:
+    """Extract an Apple recording archive without traversal and verify every hash."""
+    destination.mkdir(parents=True, exist_ok=True, mode=0o700)
+    destination_root = destination.resolve()
+    with tarfile.open(archive_path, "r:gz") as archive:
+        for member in archive.getmembers():
+            member_path = (destination_root / member.name).resolve()
+            if destination_root != member_path and destination_root not in member_path.parents:
+                raise AppleRemoteError(f"Recording archive contains unsafe path: {member.name}")
+        archive.extractall(destination_root, filter="data")
+    manifests = list(destination_root.glob("*/artifact-manifest.json"))
+    if len(manifests) != 1:
+        raise AppleRemoteError("Recording archive must contain exactly one artifact manifest")
+    manifest_path = manifests[0]
+    run_dir = manifest_path.parent
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    declared_artifacts: set[Path] = set()
+    for artifact in manifest.get("artifacts") or []:
+        relative_path = Path(str(artifact.get("path") or ""))
+        artifact_path = (run_dir / relative_path).resolve()
+        if run_dir.resolve() not in artifact_path.parents or not artifact_path.is_file():
+            raise AppleRemoteError(f"Recording manifest contains unsafe path: {relative_path}")
+        digest = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+        if digest != artifact.get("sha256"):
+            raise AppleRemoteError(f"Recording artifact hash mismatch: {relative_path}")
+        declared_artifacts.add(relative_path)
+
+    for key in ("raw_video", "proof_timeline"):
+        value = manifest.get(key)
+        if not value:
+            continue
+        relative_path = Path(str(value))
+        artifact_path = (run_dir / relative_path).resolve()
+        if relative_path not in declared_artifacts or run_dir.resolve() not in artifact_path.parents:
+            raise AppleRemoteError(f"Recording manifest {key} is not a declared run-local artifact")
+    if manifest.get("proof_video"):
+        raise AppleRemoteError("Remote recording manifest must not provide a derived proof video")
+    result_bundle = Path(str(manifest.get("result_bundle") or ""))
+    result_path = (run_dir / result_bundle).resolve()
+    if run_dir.resolve() not in result_path.parents or not result_path.is_dir():
+        raise AppleRemoteError("Recording manifest result_bundle is not a run-local directory")
+    result_prefix = result_bundle.as_posix().rstrip("/") + "/"
+    if not any(path.as_posix().startswith(result_prefix) for path in declared_artifacts):
+        raise AppleRemoteError("Recording result bundle has no declared hash-verified artifacts")
+    return run_dir, manifest
+
+
+def video_dimensions(video_path: Path) -> tuple[int, int]:
+    """Read video dimensions without trusting filename or container metadata."""
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height", "-of", "json", str(video_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AppleRemoteError(f"Could not inspect Apple proof video: {result.stderr.strip()[-500:]}")
+    try:
+        stream = json.loads(result.stdout)["streams"][0]
+        return int(stream["width"]), int(stream["height"])
+    except (IndexError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise AppleRemoteError("Apple proof video has incomplete dimension metadata") from exc
+
+
+def normalize_apple_proof_video(
+    run_dir: Path,
+    manifest: dict[str, Any],
+    *,
+    runner: CommandRunner = default_runner,
+    dimensions_reader: Callable[[Path], tuple[int, int]] = video_dimensions,
+) -> Path:
+    """Derive an exact logical-size proof source while retaining the raw Retina recording."""
+    profile = str(manifest.get("profile") or "")
+    dimensions = APPLE_PROOF_VIDEO_DIMENSIONS.get(profile)
+    if dimensions is None:
+        raise AppleRemoteError(f"Unsupported Apple proof profile: {profile}")
+    source = run_dir / str(manifest.get("raw_video") or "")
+    if not source.is_file():
+        raise AppleRemoteError("Apple proof normalization requires the raw recording")
+    if dimensions_reader(source) == dimensions:
+        manifest["proof_video"] = source.name
+        return source
+
+    output = run_dir / "proof-source.mp4"
+    width, height = dimensions
+    result = runner([
+        "ffmpeg", "-y", "-i", str(source),
+        "-vf", f"scale={width}:{height}:flags=lanczos,setsar=1",
+        "-c:v", "libx264", "-pix_fmt", "yuv444p", "-crf", "18",
+        "-fps_mode", "passthrough", "-movflags", "+faststart", "-an", str(output),
+    ])
+    if result.returncode != 0 or not output.is_file():
+        raise AppleRemoteError("Could not derive exact-size Apple proof video")
+    if dimensions_reader(output) != dimensions:
+        raise AppleRemoteError("Derived Apple proof video does not match its exact device profile")
+    manifest["proof_video"] = output.name
+    manifest["raw_video_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
+    return output
+
+
+def finalize_local_apple_proof(run_id: str, *, session_id: str) -> int:
+    """Retry proof derivation and review for an already transferred passing run."""
+    if not re.fullmatch(r"apple-[0-9a-f]{16}", run_id):
+        raise AppleRemoteError("Apple proof run ID has an invalid format")
+    run_dir = APPLE_RECORDING_RESULTS_DIR / run_id
+    manifest_path = run_dir / "artifact-manifest.json"
+    if not manifest_path.is_file():
+        raise AppleRemoteError(f"Apple recording manifest not found for {run_id}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("status") != "passed":
+        raise AppleRemoteError("Only a passing Apple recording can be finalized as proof")
+    normalize_apple_proof_video(run_dir, manifest)
+
+    spec = importlib.util.spec_from_file_location("apple_proof_tests_control", REPO_ROOT / "scripts/tests.py")
+    if spec is None or spec.loader is None:
+        raise AppleRemoteError("Could not load Apple proof finalizer")
+    tests_control = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = tests_control
+    spec.loader.exec_module(tests_control)
+    record_path = tests_control.record_apple_proof_source_attestation(run_dir, manifest)
+    finalizations = tests_control.auto_finalize_proof_video_sources(
+        {"git_sha": manifest.get("subject_commit"), "run_id": run_id, "environment": "apple-simulator"},
+        [record_path],
+        session_id=session_id,
+    )
+    if not finalizations or finalizations[0].get("status") != "delivered":
+        raise AppleRemoteError("Apple proof recording did not pass review and publication")
+    print(f"proof_finalization_status=delivered:{run_id}")
+    return 0
+
+
+def run_recorded_ios_test(
+    config: RemoteConfig,
+    *,
+    simulator: str,
+    only_testing: str | None,
+    profile: str,
+    proof: bool,
+    expected_commit: str | None,
+    test_account_slot: int | None,
+    github_secret_broker: bool,
+    runner: CommandRunner = default_runner,
+) -> int:
+    """Run, transfer, and validate one recorded remote Apple test."""
+    if proof and not only_testing:
+        raise AppleRemoteError("--proof requires --only-testing")
+    if proof and not expected_commit:
+        raise AppleRemoteError("--proof requires --expected-commit")
+    if proof and (test_account_slot is None or not 14 <= test_account_slot <= 20):
+        raise AppleRemoteError("--proof requires --test-account-slot in the reserved Apple range 14-20")
+    if proof and simulator not in APPLE_PROOF_SIMULATORS.get(profile, set()):
+        approved = ", ".join(sorted(APPLE_PROOF_SIMULATORS.get(profile, set())))
+        raise AppleRemoteError(f"{profile} proof requires an approved simulator: {approved}")
+    if github_secret_broker and not proof:
+        raise AppleRemoteError("--github-secret-broker is only supported with --proof")
+    test_account_env: dict[str, str]
+    preprovisioned_credentials = False
+    if proof:
+        if github_secret_broker:
+            provision_github_proof_credentials(
+                config,
+                slot=test_account_slot,
+                expected_commit=str(expected_commit),
+                runner=runner,
+            )
+            test_account_env = {"OPENMATES_APPLE_PROOF_ACCOUNT_SLOT": str(test_account_slot)}
+            preprovisioned_credentials = True
+        else:
+            test_account_env = reserved_test_account_env(test_account_slot)
+    else:
+        test_account_env = local_test_account_env()
+    run_id = f"apple-{uuid.uuid4().hex[:16]}"
+    command = repo_command(config, [
+        "bash",
+        "-lc",
+        recorded_test_ios_command(
+            simulator,
+            only_testing,
+            profile,
+            run_id,
+            expected_commit or "",
+            test_account_env,
+            proof,
+            preprovisioned_credentials,
+        ),
+    ])
+    try:
+        result = runner(ssh_command(config, command))
+    finally:
+        if preprovisioned_credentials:
+            cleanup = runner(ssh_command(config, repo_command(config, [
+                "python3", "-c",
+                "import pathlib,sys; pathlib.Path(sys.argv[1]).unlink(missing_ok=True)",
+                LIVE_TEST_CREDENTIALS_PATH,
+            ])))
+            if cleanup.returncode != 0:
+                raise AppleRemoteError("Could not confirm registered Mac proof credential cleanup")
+    stdout = redact_output(result.stdout, config)
+    stderr = redact_output(result.stderr, config)
+    if stdout:
+        print(stdout, end="" if stdout.endswith("\n") else "\n")
+    if stderr:
+        print(stderr, end="" if stderr.endswith("\n") else "\n", file=sys.stderr)
+    archive_match = re.search(r"(?m)^recording_archive=(.+)$", result.stdout)
+    if archive_match is None:
+        print(f"remote={REMOTE_LABEL} exit_code={result.returncode}")
+        return result.returncode or 1
+
+    APPLE_RECORDING_RESULTS_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with tempfile.TemporaryDirectory(prefix="apple-recording-", dir=APPLE_RECORDING_RESULTS_DIR) as staging_value:
+        staging = Path(staging_value)
+        archive_path = staging / "bundle.tar.gz"
+        transfer = runner(scp_command(config, archive_match.group(1).strip(), archive_path))
+        if transfer.returncode != 0:
+            raise AppleRemoteError("Apple recording artifact transfer failed")
+        run_dir, manifest = extract_and_validate_recording_archive(archive_path, staging / "extracted")
+        if proof:
+            manifest["test_account_provenance"] = f"reserved Apple E2E account slot {test_account_slot}"
+            (run_dir / "artifact-manifest.json").write_text(
+                json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        final_dir = APPLE_RECORDING_RESULTS_DIR / run_id
+        if final_dir.exists():
+            shutil.rmtree(final_dir)
+        shutil.move(str(run_dir), final_dir)
+    print(f"recording_artifacts={final_dir.relative_to(REPO_ROOT)}")
+    print(f"recording_manifest_status={manifest.get('status')}")
+    if proof and manifest.get("status") == "passed":
+        finalize_local_apple_proof(run_id, session_id=os.getenv("OPENMATES_SESSION_ID", "2172"))
+    cleanup_script = "import pathlib,shutil,sys; pathlib.Path(sys.argv[1]).unlink(missing_ok=True); shutil.rmtree(pathlib.Path(sys.argv[2]), ignore_errors=True)"
+    remote_run_dir = f"{config.repo_path}/test-results/apple-recordings/{run_id}"
+    runner(ssh_command(config, shell_join(["python3", "-c", cleanup_script, archive_match.group(1).strip(), remote_run_dir])))
+    exit_code = result.returncode or (0 if manifest.get("status") == "passed" else 1)
+    print(f"remote={REMOTE_LABEL} exit_code={exit_code}")
+    return exit_code
 
 
 def simulator_cleanup_command(simulator: str) -> str:
@@ -3208,7 +4165,7 @@ def simctl_remote_command(simctl_args: Sequence[str]) -> str:
 
 def build_macos_command() -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
-    xcodebuild = shell_join([
+    xcodebuild = simulator_locked_command([
         "xcodebuild",
         "-project",
         "apple/OpenMates.xcodeproj",
@@ -3221,7 +4178,7 @@ def build_macos_command() -> str:
     return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {xcodebuild}"
 
 
-def test_macos_command(only_testing: str | None) -> str:
+def test_macos_command(only_testing: str | None, expected_commit: str = "") -> str:
     build_translations = shell_join(["npm", "run", "build:translations"])
     parts = [
         "xcodebuild",
@@ -3236,7 +4193,8 @@ def test_macos_command(only_testing: str | None) -> str:
     ]
     if only_testing:
         parts.extend(["-only-testing", only_testing])
-    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {shell_join(parts)}"
+    locked_parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts] if expected_commit else parts
+    return f"cd frontend/packages/ui && {build_translations} && cd ../../.. && {simulator_locked_command(locked_parts)}"
 
 
 def build_watch_command(simulator: str) -> str:
@@ -3268,14 +4226,19 @@ def test_watch_command(simulator: str, only_testing: str | None) -> str:
     return simulator_locked_command(parts)
 
 
-def verify_watch_startup_command(simulator: str, duration: int) -> str:
+def verify_watch_startup_command(simulator: str, duration: int, expected_commit: str = "") -> str:
     if duration < 5 or duration > 300:
         raise AppleRemoteError("verify-watch-startup duration must be between 5 and 300 seconds")
-    return simulator_locked_command(["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)])
+    parts = ["python3", "-c", WATCH_STARTUP_SCRIPT, simulator, str(duration)]
+    if expected_commit:
+        parts = ["python3", "-c", COMMIT_PINNED_COMMAND_SCRIPT, expected_commit, *parts]
+    return simulator_locked_command(parts)
 
 
 def apple_remote_doctor_command(repo_path: str | None) -> str:
-    return shell_join(["python3", "-c", APPLE_REMOTE_DOCTOR_SCRIPT, repo_path or ""])
+    return with_xcode_developer_dir(
+        shell_join(["python3", "-c", APPLE_REMOTE_DOCTOR_SCRIPT, repo_path or ""])
+    )
 
 
 def verify_ios_startup_command(simulator: str, duration: int, fresh_install: bool = False) -> str:
@@ -3287,7 +4250,7 @@ def verify_ios_startup_command(simulator: str, duration: int, fresh_install: boo
 def verify_macos_startup_command(duration: int) -> str:
     if duration < 5 or duration > 300:
         raise AppleRemoteError("verify-macos-startup duration must be between 5 and 300 seconds")
-    return shell_join(["python3", "-c", MACOS_STARTUP_SCRIPT, str(duration)])
+    return simulator_locked_command(["python3", "-c", MACOS_STARTUP_SCRIPT, str(duration)])
 
 
 def device_status_command() -> str:
@@ -3340,7 +4303,7 @@ def release_archive_preflight_command(platform: str) -> str:
 
 def release_preflight_then_upload_command(preflight_command: str, upload_command: str) -> str:
     """Require the non-mutating archive check immediately before an upload."""
-    return f"{preflight_command} && {upload_command}"
+    return f"{with_xcode_developer_dir(preflight_command)} && {with_xcode_developer_dir(upload_command)}"
 
 
 def upload_testflight_ios_command(
@@ -3615,6 +4578,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sync_parser = subparsers.add_parser("sync-repo", help="Force-sync the remote repo checkout to origin/<branch>")
     sync_parser.add_argument("--branch", default="dev")
+    sync_parser.add_argument("--commit", help="Optionally detach at this commit after verifying it belongs to the branch")
 
     build_parser_ = subparsers.add_parser("build-ios", help="Build OpenMates_iOS remotely")
     build_parser_.add_argument("--simulator", default="iPhone 17")
@@ -3622,6 +4586,27 @@ def build_parser() -> argparse.ArgumentParser:
     test_parser = subparsers.add_parser("test-ios", help="Run OpenMates_iOS tests remotely")
     test_parser.add_argument("--simulator", default="iPhone 17")
     test_parser.add_argument("--only-testing")
+    test_parser.add_argument("--record-profile", choices=sorted(APPLE_RECORDING_PROFILES))
+    test_parser.add_argument("--proof", action="store_true", help="Finalize a passed recorded native test as proof")
+    test_parser.add_argument("--expected-commit", help="Require the remote checkout to match this full commit")
+    test_parser.add_argument("--test-account-slot", type=int, help="Reserved Apple proof account slot (14-20)")
+    test_parser.add_argument(
+        "--github-secret-broker",
+        action="store_true",
+        help="Encrypt the selected repository-secret account to the registered Mac before proof execution",
+    )
+
+    subparsers.add_parser(
+        "init-proof-broker-recipient",
+        help="Initialize the registered Mac proof-broker key and print only its public certificate",
+    )
+
+    finalize_parser = subparsers.add_parser(
+        "finalize-proof",
+        help="Retry exact-size rendering, review, and publication for a transferred passing Apple recording",
+    )
+    finalize_parser.add_argument("--run-id", required=True)
+    finalize_parser.add_argument("--session", default=os.getenv("OPENMATES_SESSION_ID", "2172"))
 
     verify_ios_parser = subparsers.add_parser(
         "verify-ios-startup",
@@ -3639,6 +4624,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     test_macos_parser = subparsers.add_parser("test-macos", help="Run OpenMates_macOS tests remotely")
     test_macos_parser.add_argument("--only-testing")
+    test_macos_parser.add_argument("--expected-commit", help="Require the remote checkout to remain at this commit")
 
     verify_macos_parser = subparsers.add_parser(
         "verify-macos-startup",
@@ -3659,6 +4645,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_watch_parser.add_argument("--simulator", default="Apple Watch Series 11 (46mm)")
     verify_watch_parser.add_argument("--duration", type=int, default=60)
+    verify_watch_parser.add_argument("--expected-commit", help="Require the remote checkout to remain at this commit")
 
     device_parser = subparsers.add_parser("device-status", help="Show sanitized physical iOS device readiness")
     device_parser.set_defaults(_uses_repo=True)
@@ -3815,9 +4802,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.command == "finalize-proof":
+            return finalize_local_apple_proof(args.run_id, session_id=args.session)
         local_config = load_local_config()
         config = resolve_remote_config(local_config=local_config)
         api_options = app_store_connect_api_options(args, local_config)
+        if args.command == "init-proof-broker-recipient":
+            certificate = proof_broker_recipient_certificate(config)
+            proof_broker_relay_public_key(config)
+            sys.stdout.write(certificate.decode("ascii"))
+            return 0
         if args.command == "status":
             return print_status(config)
         if args.command == "doctor":
@@ -3835,12 +4829,29 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "sync-repo":
             return run_remote(
                 config,
-                repo_command(config, ["bash", "-lc", sync_repo_command(args.branch)]),
+                repo_command(config, [
+                    "bash",
+                    "-lc",
+                    simulator_locked_command(["bash", "-lc", sync_repo_command(args.branch, args.commit or "")]),
+                ]),
                 allow_destructive=True,
             )
         if args.command == "build-ios":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_ios_command(args.simulator)]))
         if args.command == "test-ios":
+            if args.record_profile:
+                return run_recorded_ios_test(
+                    config,
+                    simulator=args.simulator,
+                    only_testing=args.only_testing,
+                    profile=args.record_profile,
+                    proof=args.proof,
+                    expected_commit=args.expected_commit,
+                    test_account_slot=args.test_account_slot,
+                    github_secret_broker=args.github_secret_broker,
+                )
+            if args.proof:
+                raise AppleRemoteError("--proof requires --record-profile")
             return run_remote(
                 config,
                 repo_command(config, [
@@ -3850,6 +4861,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                         args.simulator,
                         args.only_testing,
                         local_test_account_env(),
+                        args.expected_commit or "",
                     ),
                 ]),
             )
@@ -3858,7 +4870,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "build-macos":
             return run_remote(config, repo_command(config, ["bash", "-lc", build_macos_command()]))
         if args.command == "test-macos":
-            return run_remote(config, repo_command(config, ["bash", "-lc", test_macos_command(args.only_testing)]))
+            return run_remote(config, repo_command(config, ["bash", "-lc", test_macos_command(args.only_testing, args.expected_commit or "")]))
         if args.command == "verify-macos-startup":
             return run_remote(config, repo_command(config, ["bash", "-lc", verify_macos_startup_command(args.duration)]))
         if args.command == "build-watch":
@@ -3866,7 +4878,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "test-watch":
             return run_remote(config, repo_command(config, ["bash", "-lc", test_watch_command(args.simulator, args.only_testing)]))
         if args.command == "verify-watch-startup":
-            return run_remote(config, repo_command(config, ["bash", "-lc", verify_watch_startup_command(args.simulator, args.duration)]))
+            return run_remote(config, repo_command(config, ["bash", "-lc", verify_watch_startup_command(args.simulator, args.duration, args.expected_commit or "")]))
         if args.command == "device-status":
             return run_remote(config, repo_command(config, ["bash", "-lc", device_status_command()]))
         if args.command == "install-ios-device":

@@ -128,7 +128,8 @@ def test_worktree_patch_id_is_scoped_to_selected_files(monkeypatch, tmp_path):
     second = sessions._worktree_patch_id(metadata, ["tracked.py", "included.txt"])
 
     assert first == second
-    assert commands == [
+    diff_commands = [command for command in commands if command[:2] == ["git", "diff"]]
+    assert diff_commands == [
         ["git", "diff", "--binary", "abc123", "--", "tracked.py"],
         ["git", "diff", "--binary", "abc123", "--", "tracked.py"],
     ]
@@ -187,6 +188,84 @@ def test_session_deploy_files_accept_legacy_worktree_tracking(monkeypatch, tmp_p
     monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: ["scripts/sessions.py"])
 
     assert sessions._session_deploy_files(session, exclude=set()) == ["scripts/sessions.py"]
+
+
+def test_session_deploy_files_exclude_runtime_proof_artifacts(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-abcd"
+    session = {
+        "modified_files": [
+            "frontend/apps/web_app/tests/example.spec.ts",
+            "scripts/.tmp/query_control_plane_runtime.py",
+            "test-results/proof-videos/abcd/example.spec/approved-contract.json",
+            "test-results/proof-video-sources/source.json",
+        ],
+        "worktree": {"path": str(worktree), "base_commit": "abc123", "status": "active"},
+    }
+    monkeypatch.setattr(sessions, "_worktree_changed_files", lambda _metadata: list(session["modified_files"]))
+
+    assert sessions._session_deploy_files(session, exclude=set()) == [
+        "frontend/apps/web_app/tests/example.spec.ts"
+    ]
+
+
+def test_session_deploy_files_filters_runtime_artifact_dirs_before_snapshot(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-abcd"
+    artifact_dir = worktree / "test-results" / "proof-videos" / "abcd" / "example.spec" / "frames"
+    artifact_dir.mkdir(parents=True)
+    (worktree / "safe.py").write_text("pending\n", encoding="utf-8")
+    session = {
+        "modified_files": [
+            "safe.py",
+            "test-results/proof-videos/abcd/example.spec/frames",
+        ],
+        "worktree": {
+            "path": str(worktree),
+            "base_commit": "base",
+            "merged_commit": "merged",
+            "status": "active",
+        },
+    }
+    monkeypatch.setattr(
+        sessions,
+        "_worktree_changed_files",
+        lambda _metadata: list(session["modified_files"]),
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_snapshot_worktree_base_states",
+        lambda _metadata, files: {relative_path: {"exists": False} for relative_path in files},
+    )
+
+    assert sessions._session_deploy_files(session, exclude=set()) == ["safe.py"]
+
+
+def test_session_deploy_files_exclude_changes_already_on_target_branch(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    worktree = tmp_path / "agent-abcd"
+    worktree.mkdir()
+    (worktree / "already-merged.py").write_text("current\n", encoding="utf-8")
+    (worktree / "pending.py").write_text("pending\n", encoding="utf-8")
+    session = {
+        "modified_files": ["already-merged.py", "pending.py"],
+        "worktree": {"path": str(worktree), "base_commit": "base", "status": "active"},
+    }
+    monkeypatch.setattr(
+        sessions,
+        "_worktree_changed_files",
+        lambda _metadata: ["already-merged.py", "pending.py"],
+    )
+    monkeypatch.setattr(
+        sessions,
+        "_snapshot_worktree_base_states",
+        lambda metadata, _files: {
+            "already-merged.py": sessions._snapshot_file_states(worktree, ["already-merged.py"])["already-merged.py"],
+            "pending.py": {"exists": True, "sha256": "different", "executable": False},
+        } if metadata.get("merged_commit") == "origin/dev" else {},
+    )
+
+    assert sessions._session_deploy_files(session, exclude=set()) == ["pending.py"]
 
 
 def test_snapshot_worktree_base_states_handles_literal_bracket_paths(tmp_path):

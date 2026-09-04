@@ -1,8 +1,11 @@
+# contract-test-file: infrastructure
 # backend/tests/test_focus_mode_routing.py
 # Regression coverage for focus-mode routing state transitions.
 # Relevant focus modes are activation candidates only; active focus state alone
 # may enable focus-specific execution policy such as Deep research delegation.
 # Keep these tests dependency-free so routing regressions fail deterministically.
+
+from pathlib import Path
 
 from backend.apps.ai.processing.focus_mode_routing import (
     gate_tools_for_deep_research,
@@ -110,3 +113,18 @@ def test_deep_research_child_executes_its_angle_without_more_delegation() -> Non
         is_sub_chat_continuation=False,
         active_focus_id="web-research",
     ) is False
+
+
+def test_parent_continuation_ai_reservation_is_guarded_before_orchestration_call() -> None:
+    source = (Path(__file__).resolve().parents[1] / "apps/ai/processing/main_processor.py").read_text()
+    function_source = source[
+        source.index("async def _reserve_ai_iteration("):
+        source.index("async def _fail_reserved_operation(")
+    ]
+
+    continuation_guard = function_source.index(
+        "if is_sub_chat_continuation(request_data) and not is_anonymous:"
+    )
+    orchestration_call = function_source.index("SubChatOrchestrationService(directus_service).execute")
+
+    assert continuation_guard < orchestration_call

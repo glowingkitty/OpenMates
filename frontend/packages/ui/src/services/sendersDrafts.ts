@@ -11,7 +11,6 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
 import { webSocketService } from "./websocketService";
-import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -49,6 +48,7 @@ type DraftUpdateReceiptPayload = {
 type DraftDeleteReceiptPayload = {
 	chat_id?: string;
 	success?: boolean;
+	draft_v?: number;
 };
 
 function waitForDraftUpdateReceiptAtVersion(chatId: string, minimumDraftVersion: number): Promise<void> {
@@ -149,7 +149,7 @@ async function queueInterruptedDraftUpdate(
 	}
 }
 
-function waitForDraftDeleteReceipt(chatId: string): Promise<void> {
+function waitForDraftDeleteReceipt(chatId: string): Promise<number | undefined> {
 	return new Promise((resolve, reject) => {
 		const timeout = window.setTimeout(() => {
 			webSocketService.off("draft_delete_receipt", handleReceipt);
@@ -164,7 +164,7 @@ function waitForDraftDeleteReceipt(chatId: string): Promise<void> {
 				reject(new Error(`Draft delete receipt reported failure for chat ${chatId}`));
 				return;
 			}
-			resolve();
+			resolve(payload.draft_v);
 		};
 
 		webSocketService.on("draft_delete_receipt", handleReceipt);
@@ -241,7 +241,17 @@ export async function sendDeleteDraftImpl(
 			const receipt = waitForDraftDeleteReceipt(chat_id);
 			try {
 				await webSocketService.sendMessage("delete_draft", payload);
-				await receipt;
+				const deletedDraftV = await receipt;
+				if (deletedDraftV !== undefined) {
+					const clearedChat = await chatDB.getRawChat(chat_id);
+					if (clearedChat && !clearedChat.encrypted_draft_md && !clearedChat.encrypted_draft_preview) {
+						clearedChat.cleared_draft_v = Math.max(
+							clearedChat.cleared_draft_v ?? 0,
+							deletedDraftV
+						);
+						await chatDB.upsertRawChat(clearedChat);
+					}
+				}
 			} catch (error) {
 				receipt.catch(() => undefined);
 				throw error;
@@ -264,8 +274,7 @@ export async function sendDeleteDraftImpl(
 			}
 		}
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		notificationStore.error(`Failed to delete draft: ${errorMessage}`);
+		console.warn(`[ChatSyncService:Senders] Failed to delete draft for chat ${chat_id}:`, error);
 	}
 }
 

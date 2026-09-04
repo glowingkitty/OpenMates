@@ -29,6 +29,7 @@ final class PersistedChat {
     var messagesV: Int?
     var titleV: Int?
     var draftV: Int?
+    var metadataV: Int?
     var createdAt: String
     var updatedAt: String?
     var parentId: String?
@@ -62,6 +63,7 @@ final class PersistedChat {
         self.messagesV = chat.messagesV
         self.titleV = chat.titleV
         self.draftV = chat.draftV
+        self.metadataV = chat.metadataV
         self.createdAt = chat.createdAt
         self.updatedAt = chat.updatedAt
         self.parentId = chat.parentId
@@ -87,6 +89,7 @@ final class PersistedChat {
             messagesV: messagesV,
             titleV: titleV,
             draftV: draftV,
+            metadataV: metadataV,
             lastVisibleMessageId: lastVisibleMessageId,
             parentId: parentId,
             isSubChat: isSubChat,

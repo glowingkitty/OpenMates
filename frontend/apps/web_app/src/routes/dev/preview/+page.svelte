@@ -156,6 +156,15 @@
 		<p class="component-count" data-testid="component-count">{componentPaths.length} components</p>
 	</header>
 
+	<!-- Specialized preview tools -->
+	<div class="app-showcase-section">
+		<h2 class="app-showcase-title">Assistant Audio Review</h2>
+		<p class="app-showcase-desc">Manifest-backed review page for committed assistant acknowledgement MP3 clips.</p>
+		<div class="app-showcase-grid">
+			<a class="app-showcase-pill" href="/dev/preview/assistant-acknowledgements">acknowledgements</a>
+		</div>
+	</div>
+
 	<!-- Embed App Showcases — quick links to /dev/preview/embeds/<app> -->
 	<div class="app-showcase-section">
 		<h2 class="app-showcase-title">Embed App Showcases</h2>

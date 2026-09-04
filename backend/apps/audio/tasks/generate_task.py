@@ -23,6 +23,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
+from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,7 @@ async def _async_generate_audio(
     log_prefix = f"[audio.generate] [task:{task_id[:8]}] [embed:{str(embed_id)[:8]}]"
 
     try:
-        await task.initialize_services()
+        await task.initialize_core_services()
         if not prompt or not user_id or not embed_id:
             raise ValueError("Missing required audio.generate task context")
 
@@ -107,6 +108,9 @@ async def _async_generate_audio(
                 request_metadata={"prompt": prompt, "provider": "ElevenLabs"},
             )
             return result_payload
+
+        s3_service = await initialize_task_storage(task)
+        await require_storage_available(s3_service)
 
         estimated_credits = calculate_sound_effect_credits(duration_seconds=duration_seconds)
         await ensure_audio_credit_headroom(

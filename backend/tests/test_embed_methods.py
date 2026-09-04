@@ -21,6 +21,7 @@ def _load_embed_methods_class():
     return module.EmbedMethods
 
 
+# contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy
 @pytest.mark.asyncio
 async def test_delete_all_embeds_for_chat_keeps_project_referenced_embeds() -> None:
     EmbedMethods = _load_embed_methods_class()
@@ -50,6 +51,7 @@ async def test_delete_all_embeds_for_chat_keeps_project_referenced_embeds() -> N
     )
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.asyncio
 async def test_create_embed_rejects_vault_encrypted_content() -> None:
     EmbedMethods = _load_embed_methods_class()
@@ -59,6 +61,7 @@ async def test_create_embed_rejects_vault_encrypted_content() -> None:
         await methods.create_embed({"embed_id": "embed-vault", "encrypted_content": "vault:v1:ciphertext"})
 
 
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
 @pytest.mark.asyncio
 async def test_update_embed_rejects_vault_encrypted_content() -> None:
     EmbedMethods = _load_embed_methods_class()
@@ -68,6 +71,7 @@ async def test_update_embed_rejects_vault_encrypted_content() -> None:
         await methods.update_embed("embed-vault", {"encrypted_content": "vault:v1:ciphertext"})
 
 
+# contract-test: supporting surface=rest_api assertions=storage.files.reference-safe-single-copy
 @pytest.mark.asyncio
 async def test_get_embeds_by_hashed_embed_ids_uses_admin_read() -> None:
     EmbedMethods = _load_embed_methods_class()
@@ -84,3 +88,43 @@ async def test_get_embeds_by_hashed_embed_ids_uses_admin_read() -> None:
     assert call.kwargs["params"]["filter[hashed_embed_id][_in]"] == "hash-pdf"
     assert call.kwargs["no_cache"] is True
     assert call.kwargs["admin_required"] is True
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.asyncio
+async def test_draft_upload_keeps_prepared_tombstone_when_reference_delete_fails() -> None:
+    EmbedMethods = _load_embed_methods_class()
+    directus = SimpleNamespace()
+    upload = {
+        "id": "upload-row",
+        "file_size_bytes": 10,
+        "files_metadata": {"original": {"s3_key": "owner/draft.bin"}},
+    }
+    initial_query_done = False
+
+    async def get_items(collection: str, **_kwargs: object) -> list[dict]:
+        nonlocal initial_query_done
+        if collection == "upload_files" and not initial_query_done:
+            initial_query_done = True
+            return [upload]
+        return []
+
+    directus.get_items = AsyncMock(side_effect=get_items)
+    directus.create_item = AsyncMock(
+        return_value=(
+            True,
+            {"id": "prepared-1", "state": "prepared", "version": 1},
+        )
+    )
+    directus.delete_item = AsyncMock(return_value=False)
+    directus.update_item = AsyncMock()
+
+    methods = EmbedMethods(directus)
+    bytes_freed = await methods.delete_draft_upload_file(
+        "embed-1",
+        "user-1",
+    )
+
+    assert bytes_freed == 0
+    assert directus.create_item.await_args.args[1]["state"] == "prepared"
+    directus.update_item.assert_not_awaited()

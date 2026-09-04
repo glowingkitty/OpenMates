@@ -1,8 +1,9 @@
+// contract-test-file: tooling
 /**
  * Unit tests for CLI local session storage.
  *
- * Tests session persistence, file permissions, backward compatibility with
- * legacy sessions, and keychain-backed storage.
+ * Tests session persistence, profile isolation, file permissions, backward
+ * compatibility, account trust, and keychain-backed storage.
  *
  * Run: node --test --experimental-strip-types tests/storage.test.ts
  */
@@ -10,8 +11,8 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, statSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, statSync, readFileSync, writeFileSync, chmodSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
@@ -23,10 +24,16 @@ import {
   saveLocalTeamKey,
   saveSyncCache,
   pruneLocalTeamArtifacts,
+  resolveStateDir,
+  resolveKeyStorageId,
+  loadTrustedAccountId,
+  saveTrustedAccountId,
+  assertTrustedAccountId,
 } from "../src/storage.ts";
 
-// Storage always writes to ~/.openmates — tests use the real directory.
-const STATE_DIR = join(homedir(), ".openmates");
+const STATE_DIR = mkdtempSync(join(tmpdir(), "openmates-cli-storage-"));
+process.env.OPENMATES_STATE_DIR = STATE_DIR;
+process.once("exit", () => rmSync(STATE_DIR, { recursive: true, force: true }));
 
 function teamDigest(teamId: string): string {
   return createHash("sha256").update(teamId).digest("hex").slice(0, 32);
@@ -49,6 +56,39 @@ before(() => {
   // Clean any leftover session from previous test runs
   clearSession();
   rmSync(join(STATE_DIR, "incognito.json"), { force: true });
+});
+
+describe("profile state resolution", () => {
+  it("keeps the legacy path unless an explicit state directory or profile is selected", () => {
+    assert.strictEqual(resolveStateDir({ homeDir: "/home/dev", stateDir: "", profile: "" }), "/home/dev/.openmates");
+    assert.strictEqual(
+      resolveStateDir({ homeDir: "/home/dev", stateDir: "", profile: "opencode-personal" }),
+      "/home/dev/.openmates/profiles/opencode-personal",
+    );
+    assert.strictEqual(
+      resolveStateDir({ homeDir: "/home/dev", stateDir: "/tmp/openmates-test" }),
+      "/tmp/openmates-test",
+    );
+    assert.strictEqual(resolveKeyStorageId("account-hash", "opencode-personal"), "profile:opencode-personal:account-hash");
+  });
+
+  it("rejects unsafe profile names", () => {
+    assert.throws(() => resolveStateDir({ homeDir: "/home/dev", stateDir: "", profile: "../test" }), /profile/i);
+  });
+});
+
+describe("trusted account guard", () => {
+  it("persists the trusted account with restrictive permissions", () => {
+    saveTrustedAccountId("personal-account-id");
+    assert.strictEqual(loadTrustedAccountId(), "personal-account-id");
+    assert.strictEqual(statSync(join(STATE_DIR, "trusted_account.json")).mode & 0o777, 0o600);
+  });
+
+  it("fails closed when trusted identity is missing or mismatched", () => {
+    assert.throws(() => assertTrustedAccountId(null, "personal-account-id"), /not trusted/i);
+    assert.throws(() => assertTrustedAccountId("personal-account-id", "test-account-id"), /mismatch/i);
+    assert.doesNotThrow(() => assertTrustedAccountId("personal-account-id", "personal-account-id"));
+  });
 });
 
 after(() => {

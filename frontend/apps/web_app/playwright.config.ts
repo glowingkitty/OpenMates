@@ -32,18 +32,30 @@ if (videoMode && videoMode !== 'on' && videoMode !== 'off') {
 }
 
 const resolvedVideoMode = (videoMode || 'on') as 'on' | 'off';
+const proofVideoProfile = process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE;
+if (proofVideoProfile && !['web-phone', 'web-laptop'].includes(proofVideoProfile)) {
+	throw new Error('PLAYWRIGHT_PROOF_VIDEO_PROFILE only supports "web-phone" or "web-laptop" when set.');
+}
 const videoWidth = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const videoHeight = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_HEIGHT || '', 10);
 if ((process.env.PLAYWRIGHT_VIDEO_WIDTH || process.env.PLAYWRIGHT_VIDEO_HEIGHT) && !(videoWidth > 0 && videoHeight > 0)) {
 	throw new Error('PLAYWRIGHT_VIDEO_WIDTH and PLAYWRIGHT_VIDEO_HEIGHT must both be positive integers when set.');
 }
 const videoSize = videoWidth > 0 && videoHeight > 0 ? { width: videoWidth, height: videoHeight } : undefined;
+if (proofVideoProfile && !videoSize) {
+	throw new Error('PLAYWRIGHT_VIDEO_WIDTH and PLAYWRIGHT_VIDEO_HEIGHT are required for proof-video profiles.');
+}
+const isPhoneProofProfile = proofVideoProfile === 'web-phone';
+const proofColorScheme = isPhoneProofProfile ? 'dark' : proofVideoProfile === 'web-laptop' ? 'light' : undefined;
+const isLiveFixtureRecording = process.env.E2E_RECORD_LIVE_FIXTURES === '1';
 
 const config: PlaywrightTestConfig = {
 	use: {
 		// Allow tests to call page.goto('/') and similar relative paths.
 		baseURL,
 		...(videoSize ? { viewport: videoSize } : {}),
+		...(isPhoneProofProfile ? { hasTouch: true, isMobile: true } : {}),
+		...(proofColorScheme ? { colorScheme: proofColorScheme } : {}),
 		...(browserChannel ? { channel: browserChannel } : {}),
 		// Capture artifacts for all tests — used by MD report generator
 		// (test-results/reports/) to show inline screenshots per step.
@@ -52,7 +64,6 @@ const config: PlaywrightTestConfig = {
 		// Keep a browser recording for every spec run in GitHub artifacts.
 		// Videos stay in Actions storage; local/Obsidian processing stores links only.
 		video: videoSize ? { mode: resolvedVideoMode, size: videoSize } : resolvedVideoMode,
-		...(videoSize ? { viewport: videoSize } : {}),
 		trace: 'off',
 		launchOptions: {
 			args: [
@@ -66,9 +77,9 @@ const config: PlaywrightTestConfig = {
 	},
 	testDir: 'tests',
 	testMatch: /(.+\.)?(test|spec)\.[jt]s/,
-	// Retry flaky tests once — the dev server has variable latency which causes
-	// intermittent timeouts on login fields, message rendering, etc.
-	retries: 1
+	// Recording can spend provider budget, so it must never retry a browser send.
+	// Replay and ordinary specs retain one retry for variable dev-server latency.
+	retries: isLiveFixtureRecording ? 0 : 1
 };
 
 export default config;

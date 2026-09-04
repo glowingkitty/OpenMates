@@ -14,6 +14,17 @@ const { test, expect } = require('./console-monitor');
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
 const SETTINGS_TIMEOUT = 15_000;
+const INACTIVE_APP_IDS = ['plans', 'projects', 'tasks', 'workflows'];
+const INACTIVE_APP_FEATURE_IDS = INACTIVE_APP_IDS.flatMap((appId) => [`platform:${appId}`, `app:${appId}`]);
+
+async function mockInactiveWorkspaceApps(page: any): Promise<void> {
+	await page.route('**/v1/features/availability', async (route: any) => {
+		await route.fulfill({
+			contentType: 'application/json',
+			body: JSON.stringify({ disabled: INACTIVE_APP_FEATURE_IDS })
+		});
+	});
+}
 
 async function openSettings(page: any): Promise<any> {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
@@ -36,6 +47,8 @@ async function openTopLevelSettingsPage(settingsMenu: any, pageName: string): Pr
 		pageName.toLowerCase() === 'memories' ? 'settings_memories' : pageName.toLowerCase(),
 		{ timeout: SETTINGS_TIMEOUT }
 	);
+	await expect(settingsMenu.getByTestId('settings-page-content')).toHaveCount(1);
+	await expect(settingsMenu.getByTestId('ai-settings')).toHaveCount(pageName === 'AI' ? 1 : 0);
 }
 
 async function backToSettingsRoot(settingsMenu: any): Promise<void> {
@@ -55,14 +68,19 @@ async function expectAppsCatalogLoaded(settingsMenu: any): Promise<void> {
 	await expect(settingsMenu.getByTestId('app-store-card').first()).toBeVisible({
 		timeout: SETTINGS_TIMEOUT
 	});
+	for (const appId of INACTIVE_APP_IDS) {
+		await expect(settingsMenu.locator(`[data-testid="app-store-card"][data-app-id="${appId}"]`)).toHaveCount(0);
+	}
 }
 
-test('guest Apps catalog survives settings navigation and opens app details', async ({
+// contract-test: direct surface=gui.web assertions=settings-ui.navigation.contextual-availability,settings-ui.shell.lifecycle-and-routing,workspace-shell.nav.released-surfaces-visible
+test('guest settings routes replace AI after opening a dynamic provider page', async ({
 	page
 }: {
 	page: any;
 }) => {
 	test.setTimeout(120_000);
+	await mockInactiveWorkspaceApps(page);
 
 	const settingsMenu = await openSettings(page);
 
@@ -70,7 +88,23 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 	await expectAppsCatalogLoaded(settingsMenu);
 	await backToSettingsRoot(settingsMenu);
 
-	for (const pageName of ['AI', 'Memories', 'Interface']) {
+	await openTopLevelSettingsPage(settingsMenu, 'AI');
+	await settingsMenu.getByTestId('ai-provider-family-card').first().click();
+	await expect(settingsMenu).toHaveAttribute('data-active-view', /^ai\/provider\//, {
+		timeout: SETTINGS_TIMEOUT
+	});
+	await expect(settingsMenu.getByTestId('ai-settings')).toHaveCount(0);
+	await expect(settingsMenu.getByTestId('ai-provider-details')).toBeVisible({
+		timeout: SETTINGS_TIMEOUT
+	});
+
+	await settingsMenu.getByTestId('banner-back-button').click();
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai', {
+		timeout: SETTINGS_TIMEOUT
+	});
+	await backToSettingsRoot(settingsMenu);
+
+	for (const pageName of ['Mates', 'Memories', 'Interface']) {
 		await openTopLevelSettingsPage(settingsMenu, pageName);
 		await backToSettingsRoot(settingsMenu);
 	}
@@ -90,19 +124,20 @@ test('guest Apps catalog survives settings navigation and opens app details', as
 	});
 });
 
+// contract-test: supporting surface=gui.web assertions=settings-ui.shell.lifecycle-and-routing
 test('combined chat settings deep link hydrates chat context after reload', async ({
 	page
 }: {
 	page: any;
 }) => {
 	await page.goto(
-		getE2EDebugUrl('/#chat-id=demo-for-everyone&settings=chats/demo-for-everyone/tasks'),
+		getE2EDebugUrl('/#chat-id=example-artemis&settings=chats/example-artemis/tasks'),
 		{ waitUntil: 'domcontentloaded' }
 	);
 
 	const settingsMenu = page.getByTestId('settings-menu');
 	await expect(settingsMenu).toBeVisible({ timeout: SETTINGS_TIMEOUT });
-	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/demo-for-everyone', {
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'chats/example-artemis', {
 		timeout: SETTINGS_TIMEOUT
 	});
 

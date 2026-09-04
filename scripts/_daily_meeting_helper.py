@@ -573,7 +573,7 @@ def gather_seo_health() -> str:
     # 2. Check key pages for meta tags in SSR HTML
     check_pages = [
         ("/", "Homepage"),
-        ("/intro/for-everyone", "Intro page"),
+        ("/intro/who-develops-openmates", "Intro page"),
         ("/docs", "Docs index"),
     ]
     required_tags = ["og:title", "og:description", "og:image", "twitter:card"]

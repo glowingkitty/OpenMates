@@ -248,6 +248,7 @@ def build_remote_steps(args: argparse.Namespace) -> list[EvidenceStep]:
         command = [sys.executable, "scripts/apple_remote.py", "test-ios", "--simulator", args.simulator]
         if args.only_testing:
             command.extend(["--only-testing", args.only_testing])
+        command.extend(["--expected-commit", args.expected_commit])
         steps.append(EvidenceStep("apple-remote-test-ios", command))
     elif args.remote == "startup-ios":
         command = [
@@ -336,6 +337,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--branch", default="dev")
     parser.add_argument("--simulator", default="iPhone 17")
     parser.add_argument("--only-testing", help="Xcode only-testing selector for --remote test-ios")
+    parser.add_argument("--expected-commit", help="Exact deployed commit required for --remote test-ios")
     parser.add_argument("--duration", type=int, default=60, help="Startup verification duration in seconds")
     parser.add_argument("--fresh-install", action="store_true", help="Use a fresh simulator app container for startup checks")
     parser.add_argument("--compare-chat-rendering", action="store_true", help="Compare existing web and Apple chat-rendering manifests")
@@ -348,6 +350,8 @@ def build_parser() -> argparse.ArgumentParser:
 def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     if args.remote == "test-ios" and not args.only_testing:
         parser.error("--remote test-ios requires --only-testing")
+    if args.remote == "test-ios" and not args.expected_commit:
+        parser.error("--remote test-ios requires --expected-commit")
     if args.only_testing and args.remote != "test-ios":
         parser.error("--only-testing is only valid with --remote test-ios")
     if args.fresh_install and args.remote != "startup-ios":

@@ -20,6 +20,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask # Import from n
 # Import necessary services and utilities (ensure all needed are here)
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.core.api.app.services.s3.service import HetznerObjectStorageError
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from backend.shared.python_utils.invoice_ciphertext_versions import (
     append_verified_invoice_ciphertext_version,
@@ -38,6 +39,8 @@ BILLING_ADMIN_FIELD_LIMIT = 300
 INVOICE_RECORD_CREATE_ERROR_MESSAGE = "Failed to create Directus invoice record"
 INVOICE_RECORD_CREATE_RETRY_DELAY_SECONDS = 60
 INVOICE_RECORD_CREATE_MAX_RETRIES = 3
+INVOICE_STORAGE_RETRY_DELAY_SECONDS = 10 * 60
+INVOICE_STORAGE_MAX_RETRIES = 24 * 60 // 10
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 _BEARER_TOKEN_RE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
@@ -53,6 +56,24 @@ class InvoiceRecordCreationError(RuntimeError):
 
 def _is_retryable_invoice_record_creation_error(error: BaseException) -> bool:
     return isinstance(error, InvoiceRecordCreationError) or str(error) == INVOICE_RECORD_CREATE_ERROR_MESSAGE
+
+
+def _task_retry_count(task: BaseServiceTask) -> int:
+    request = getattr(task, "request", None)
+    retries = getattr(request, "retries", 0)
+    return retries if isinstance(retries, int) and retries >= 0 else 0
+
+
+def _retry_kwargs(task: BaseServiceTask, **updates: int) -> dict[str, Any]:
+    request = getattr(task, "request", None)
+    request_kwargs = getattr(request, "kwargs", None)
+    kwargs = dict(request_kwargs) if isinstance(request_kwargs, dict) else {}
+    kwargs.update(updates)
+    return kwargs
+
+
+def _should_notify_storage_failure(*, retryable: bool, storage_retry_count: int) -> bool:
+    return not retryable or storage_retry_count in {0, INVOICE_STORAGE_MAX_RETRIES}
 
 
 def _coerce_invoice_datetime(value: Any) -> Optional[datetime]:
@@ -95,6 +116,122 @@ def _resolve_invoice_datetime(
     return datetime.now(timezone.utc)
 
 
+_PURCHASE_CONFIRMATION_USER_FIELDS = [
+    "account_id",
+    "vault_key_id",
+    "encrypted_email_address",
+    "encrypted_email_auto_topup",
+    "encrypted_invoice_counter",
+    "encrypted_credit_balance",
+    "language",
+    "country_code",
+    "darkmode",
+]
+
+
+def _has_purchase_confirmation_profile_fields(user_profile: Any) -> bool:
+    return (
+        isinstance(user_profile, dict)
+        and bool(user_profile.get("account_id"))
+        and bool(user_profile.get("vault_key_id"))
+        and bool(user_profile.get("encrypted_email_address"))
+    )
+
+
+async def _decrypt_optional_profile_int(
+    *,
+    task: BaseServiceTask,
+    encrypted_value: Any,
+    vault_key_id: str,
+    field_name: str,
+    order_id: str,
+) -> Optional[int]:
+    if not encrypted_value:
+        return None
+    try:
+        decrypted_value = await task.encryption_service.decrypt_with_user_key(
+            encrypted_value,
+            vault_key_id,
+        )
+        if decrypted_value in (None, ""):
+            return None
+        return int(float(decrypted_value))
+    except Exception as err:
+        logger.warning(
+            "Could not decrypt %s while preparing invoice task %s: %s",
+            field_name,
+            order_id,
+            err,
+        )
+        return None
+
+
+async def _get_purchase_confirmation_user_profile(
+    *,
+    task: BaseServiceTask,
+    cache_service: CacheService,
+    user_id: str,
+    order_id: str,
+) -> dict[str, Any]:
+    user_profile = await cache_service.get_user_by_id(user_id)
+    if _has_purchase_confirmation_profile_fields(user_profile):
+        return user_profile
+
+    logger.info(
+        "User profile cache miss or partial profile for invoice task %s; fetching direct fields for user %s.",
+        order_id,
+        user_id,
+    )
+    direct_fields = await task.directus_service.get_user_fields_direct(
+        user_id,
+        _PURCHASE_CONFIRMATION_USER_FIELDS,
+    )
+    if not _has_purchase_confirmation_profile_fields(direct_fields):
+        logger.error("Failed to fetch invoice-ready user profile for invoice task %s", order_id)
+        raise Exception("Failed to fetch user profile")
+
+    vault_key_id = direct_fields["vault_key_id"]
+    refreshed_profile = dict(user_profile or {})
+    for field in (
+        "account_id",
+        "vault_key_id",
+        "encrypted_email_address",
+        "encrypted_email_auto_topup",
+        "language",
+        "country_code",
+        "darkmode",
+    ):
+        if direct_fields.get(field) is not None:
+            refreshed_profile[field] = direct_fields[field]
+
+    invoice_counter = await _decrypt_optional_profile_int(
+        task=task,
+        encrypted_value=direct_fields.get("encrypted_invoice_counter"),
+        vault_key_id=vault_key_id,
+        field_name="invoice_counter",
+        order_id=order_id,
+    )
+    refreshed_profile["invoice_counter"] = invoice_counter if invoice_counter is not None else 0
+
+    credits = await _decrypt_optional_profile_int(
+        task=task,
+        encrypted_value=direct_fields.get("encrypted_credit_balance"),
+        vault_key_id=vault_key_id,
+        field_name="credits",
+        order_id=order_id,
+    )
+    if credits is not None:
+        refreshed_profile["credits"] = credits
+
+    if direct_fields.get("encrypted_credit_balance") is not None:
+        refreshed_profile["encrypted_credit_balance"] = direct_fields["encrypted_credit_balance"]
+
+    cache_success = await cache_service.set_user(refreshed_profile, user_id=user_id)
+    if not cache_success:
+        logger.warning("Could not refresh user profile cache for invoice task %s", order_id)
+    return refreshed_profile
+
+
 def _billing_admin_recipient() -> Optional[str]:
     return os.getenv("ADMIN_NOTIFY_EMAIL") or os.getenv("SERVER_OWNER_EMAIL")
 
@@ -129,6 +266,14 @@ async def _notify_billing_processing_error(
     provider_order_id: Optional[str],
     send_email: bool,
     error: BaseException | str,
+    failure_provider: Optional[str] = None,
+    failure_classification: Optional[str] = None,
+    retryable: Optional[bool] = None,
+    retry_delay_seconds: Optional[int] = None,
+    retry_attempt: Optional[int] = None,
+    max_retries: Optional[int] = None,
+    max_attempts: Optional[int] = None,
+    retries_exhausted: Optional[bool] = None,
 ) -> bool:
     admin_email = _billing_admin_recipient()
     if not admin_email:
@@ -159,8 +304,35 @@ async def _notify_billing_processing_error(
         error_type = "BillingProcessingError"
         error_message = str(error)
 
+    alert_title = "Billing processing error"
+    alert_summary = (
+        "A billing invoice-processing task reported an error. Review the worker logs "
+        "and accounting state before running any backfill."
+    )
+    if failure_provider and failure_classification == "external_provider_degraded":
+        if retries_exhausted:
+            alert_title = f"{failure_provider} retries exhausted"
+            alert_summary = (
+                "Payment and credits remain completed, but invoice storage retries are exhausted. "
+                "Review the external provider and run the invoice recovery workflow after service restoration."
+            )
+        else:
+            alert_title = f"{failure_provider} degraded"
+            alert_summary = (
+                "Payment and credits remain completed. Invoice storage is delayed by an external provider "
+                "failure and will retry automatically."
+            )
+    elif failure_provider:
+        alert_title = "Billing storage configuration error"
+        alert_summary = (
+            "Payment and credits remain completed, but invoice storage failed because of an internal "
+            "storage configuration error. Automatic degradation retries are not scheduled."
+        )
+
     context = {
         "darkmode": True,
+        "alert_title": _sanitize_billing_admin_text(alert_title),
+        "alert_summary": _sanitize_billing_admin_text(alert_summary, BILLING_ADMIN_ERROR_MESSAGE_LIMIT),
         "environment": _sanitize_billing_admin_text(
             os.getenv("SERVER_ENVIRONMENT") or os.getenv("ENVIRONMENT") or "unknown"
         ),
@@ -175,12 +347,25 @@ async def _notify_billing_processing_error(
         "error_message": _sanitize_billing_admin_text(error_message, BILLING_ADMIN_ERROR_MESSAGE_LIMIT),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    if failure_provider:
+        context.update(
+            {
+                "failure_provider": _sanitize_billing_admin_text(failure_provider),
+                "failure_classification": _sanitize_billing_admin_text(failure_classification),
+                "retryable": _sanitize_billing_admin_text(retryable),
+                "retry_delay_seconds": _sanitize_billing_admin_text(retry_delay_seconds),
+                "retry_attempt": _sanitize_billing_admin_text(retry_attempt),
+                "max_retries": _sanitize_billing_admin_text(max_retries),
+                "max_attempts": _sanitize_billing_admin_text(max_attempts),
+                "retries_exhausted": _sanitize_billing_admin_text(retries_exhausted),
+            }
+        )
 
     try:
         sent = await email_service.send_email(
             template=BILLING_ADMIN_ERROR_TEMPLATE,
             recipient_email=admin_email,
-            subject=f"[OpenMates] Billing processing error: {context['stage']} order {context['order_id']}",
+            subject=f"[OpenMates] {context['alert_title']}: {context['stage']} order {context['order_id']}",
             context=context,
             lang="en",
         )
@@ -232,6 +417,8 @@ def process_invoice_and_send_email(
     send_email: bool = True,  # Backfills can generate records/PDFs without notifying users
     gift_card_code: Optional[str] = None,  # Generated code for gift-card purchase confirmation emails
     invoice_date: Optional[str] = None,  # Original provider payment date for historical backfills
+    storage_retry_count: int = 0,
+    invoice_record_retry_count: int = 0,
 ) -> bool:
     """
     Celery task to generate invoice/payment confirmation, upload to S3, save to Directus, and send email.
@@ -253,13 +440,48 @@ def process_invoice_and_send_email(
                 send_email,
                 gift_card_code,
                 invoice_date,
+                storage_retry_count,
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
         return result
     except Exception as e:
         logger.error(f"Failed to run invoice processing task for Order ID: {order_id}, User ID: {user_id}: {str(e)}", exc_info=True)
+        if isinstance(e, HetznerObjectStorageError) and e.retryable:
+            if storage_retry_count >= INVOICE_STORAGE_MAX_RETRIES:
+                logger.error(
+                    "Hetzner Object Storage invoice retries exhausted for order %s after %s retries",
+                    order_id,
+                    storage_retry_count,
+                )
+                raise
+            celery_retry_count = _task_retry_count(self)
+            remaining_storage_retries = INVOICE_STORAGE_MAX_RETRIES - storage_retry_count
+            logger.warning(
+                "Retrying invoice processing for order %s in %s seconds because "
+                "Hetzner Object Storage is degraded (retry %s/%s)",
+                order_id,
+                INVOICE_STORAGE_RETRY_DELAY_SECONDS,
+                storage_retry_count + 1,
+                INVOICE_STORAGE_MAX_RETRIES,
+            )
+            raise self.retry(
+                exc=e,
+                countdown=INVOICE_STORAGE_RETRY_DELAY_SECONDS,
+                max_retries=celery_retry_count + remaining_storage_retries,
+                kwargs=_retry_kwargs(
+                    self,
+                    storage_retry_count=storage_retry_count + 1,
+                    invoice_record_retry_count=invoice_record_retry_count,
+                ),
+            )
         if _is_retryable_invoice_record_creation_error(e):
+            if invoice_record_retry_count >= INVOICE_RECORD_CREATE_MAX_RETRIES:
+                raise
+            celery_retry_count = _task_retry_count(self)
+            remaining_record_retries = (
+                INVOICE_RECORD_CREATE_MAX_RETRIES - invoice_record_retry_count
+            )
             logger.warning(
                 "Retrying invoice processing for order %s after Directus invoice row creation failed",
                 order_id,
@@ -267,7 +489,12 @@ def process_invoice_and_send_email(
             raise self.retry(
                 exc=e,
                 countdown=INVOICE_RECORD_CREATE_RETRY_DELAY_SECONDS,
-                max_retries=INVOICE_RECORD_CREATE_MAX_RETRIES,
+                max_retries=celery_retry_count + remaining_record_retries,
+                kwargs=_retry_kwargs(
+                    self,
+                    storage_retry_count=storage_retry_count,
+                    invoice_record_retry_count=invoice_record_retry_count + 1,
+                ),
             )
         raise
 
@@ -290,6 +517,7 @@ async def _async_process_invoice_and_send_email(
     send_email: bool = True,
     gift_card_code: Optional[str] = None,
     invoice_date: Optional[str] = None,
+    storage_retry_count: int = 0,
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -304,15 +532,12 @@ async def _async_process_invoice_and_send_email(
         cache_service = CacheService()
 
         # 2. Fetch User Details (Email, Vault Key, Preferences) - Cache First
-        user_profile = await cache_service.get_user_by_id(user_id)
-        if not user_profile:
-            logger.info(f"User profile cache miss for invoice task {order_id}; fetching user {user_id} from Directus.")
-            profile_success, user_profile, profile_message = await task.directus_service.get_user_profile(user_id)
-            if not profile_success or not user_profile:
-                logger.error(
-                    f"Failed to fetch user profile for invoice task {order_id}: {profile_message}"
-                )
-                raise Exception("Failed to fetch user profile")
+        user_profile = await _get_purchase_confirmation_user_profile(
+            task=task,
+            cache_service=cache_service,
+            user_id=user_id,
+            order_id=order_id,
+        )
 
         # --- Extract user details from profile (same as before) ---
         encrypted_email = user_profile.get("encrypted_email_address")
@@ -1095,17 +1320,57 @@ async def _async_process_invoice_and_send_email(
 
     except Exception as e:
         logger.error(f"Error in _async_process_invoice_and_send_email task for order: {str(e)}", exc_info=True)
-        await _notify_billing_processing_error_safely(
-            task=task,
-            stage="invoice_processing",
-            order_id=order_id,
-            user_id=user_id,
-            credits_purchased=credits_purchased,
-            provider=provider,
-            provider_order_id=provider_order_id,
-            send_email=send_email,
-            error=e,
-        )
+        if isinstance(e, HetznerObjectStorageError):
+            retries_exhausted = (
+                e.retryable and storage_retry_count >= INVOICE_STORAGE_MAX_RETRIES
+            )
+            if _should_notify_storage_failure(
+                retryable=e.retryable,
+                storage_retry_count=storage_retry_count,
+            ):
+                await _notify_billing_processing_error_safely(
+                    task=task,
+                    stage="invoice_storage_upload",
+                    order_id=order_id,
+                    user_id=user_id,
+                    credits_purchased=credits_purchased,
+                    provider=provider,
+                    provider_order_id=provider_order_id,
+                    send_email=send_email,
+                    error=e,
+                    failure_provider=e.provider,
+                    failure_classification=e.classification,
+                    retryable=e.retryable,
+                    retry_delay_seconds=(
+                        INVOICE_STORAGE_RETRY_DELAY_SECONDS
+                        if e.retryable and not retries_exhausted
+                        else None
+                    ),
+                    retry_attempt=storage_retry_count + 1,
+                    max_retries=INVOICE_STORAGE_MAX_RETRIES,
+                    max_attempts=INVOICE_STORAGE_MAX_RETRIES + 1,
+                    retries_exhausted=retries_exhausted,
+                )
+            else:
+                logger.warning(
+                    "Hetzner Object Storage remains degraded for invoice order %s "
+                    "(attempt %s/%s); retry remains scheduled",
+                    order_id,
+                    storage_retry_count + 1,
+                    INVOICE_STORAGE_MAX_RETRIES + 1,
+                )
+        else:
+            await _notify_billing_processing_error_safely(
+                task=task,
+                stage="invoice_processing",
+                order_id=order_id,
+                user_id=user_id,
+                credits_purchased=credits_purchased,
+                provider=provider,
+                provider_order_id=provider_order_id,
+                send_email=send_email,
+                error=e,
+            )
         # Re-raise the exception so Celery knows the task failed
         raise e
     finally:

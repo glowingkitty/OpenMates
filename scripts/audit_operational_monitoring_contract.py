@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import re
 from pathlib import Path
 
 
@@ -33,6 +34,9 @@ PAYMENTS = ROOT / "backend/core/api/app/routes/payments.py"
 APPROVE_BANK_TRANSFER = ROOT / "backend/scripts/approve_bank_transfer.py"
 PURCHASE_SETTLEMENT_SCHEMA = ROOT / "backend/core/directus/schemas/credit_purchase_settlements.yml"
 PURCHASE_SETTLEMENT_SERVICE = ROOT / "backend/core/api/app/services/purchase_settlement_ledger.py"
+PAYMENT_READINESS = ROOT / "backend/core/api/app/services/payment_readiness.py"
+DEGRADED_REPORT = ROOT / "backend/core/api/app/services/degraded_services_report.py"
+STRIPE_AUDIT = ROOT / "scripts/stripe_audit.py"
 
 FORBIDDEN_PRIVATE_FIELDS = {
     "user",
@@ -74,6 +78,9 @@ def run_audit(*, privacy: bool) -> list[str]:
     approve_bank_transfer = _require_file(APPROVE_BANK_TRANSFER, failures)
     purchase_settlement_schema = _require_file(PURCHASE_SETTLEMENT_SCHEMA, failures)
     purchase_settlement_service = _require_file(PURCHASE_SETTLEMENT_SERVICE, failures)
+    payment_readiness = _require_file(PAYMENT_READINESS, failures)
+    degraded_report = _require_file(DEGRADED_REPORT, failures)
+    stripe_audit = _require_file(STRIPE_AUDIT, failures)
 
     required_markers = {
         "service snapshot builder": (service, "build_operational_snapshot"),
@@ -85,6 +92,9 @@ def run_audit(*, privacy: bool) -> list[str]:
         "stale report rule": (alert_rules, "OperationalReportStale"),
         "absent report metric guard": (alert_rules, "unless on(environment) operational_report_last_success_timestamp_seconds"),
         "direct urgent receiver": (alertmanager, "discord_configs:"),
+        "bounded alert drill route": (alertmanager, 'drill: "true"'),
+        "isolated alert drill grouping": (alertmanager, 'group_by: ["alertname", "severity", "drill_id"]'),
+        "development-only alert drill routing": (alertmanager, "environment: development"),
         "source node exporter": (source_compose, "node-exporter:"),
         "self-host node exporter": (selfhost_compose, "node-exporter:"),
         "published self-host node exporter": (selfhost_template, "node-exporter:"),
@@ -97,9 +107,18 @@ def run_audit(*, privacy: bool) -> list[str]:
         "digest delivery retries": (service, "deliver_with_retries"),
         "official billing readiness inventory": (server_planning, "billing.stripe_account_read"),
         "real delivery verifier": (verifier, '"monitoring", "digest"'),
+        "dev-only reversible drill verifier": (verifier, 'parser.error("controlled drills are dev-only")'),
+        "verified development drill runtime": (verifier, "controlled drills require a verified development API runtime"),
+        "retrying drill restoration": (verifier, "for attempt in range(3)"),
+        "correlated drill webhook receipt": (verifier, "_api_webhook_receipt_observed"),
         "environment-specific self-host Discord": (service, "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST"),
         "environment-specific production urgent Discord": (source_compose, "DISCORD_WEBHOOK_URGENT_PRODUCTION"),
         "environment-specific development urgent Discord": (source_compose, "DISCORD_WEBHOOK_URGENT_DEVELOPMENT"),
+        "development urgent Discord canonical destination": (source_compose, "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT"),
+        "development urgent Discord nightly fallback": (source_compose, "DISCORD_WEBHOOK_DEV_NIGHTLY"),
+        "development urgent Discord smoke fallback": (source_compose, "DISCORD_WEBHOOK_DEV_SMOKE"),
+        "production urgent Discord canonical destination": (source_compose, "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION"),
+        "production urgent Discord smoke fallback": (source_compose, "DISCORD_WEBHOOK_PROD_SMOKE"),
         "SVG conditional purchase label": (service, "purchase_window_label"),
         "Discord conditional purchase label": (service, "purchase_window_label"),
         "task uses shared Discord summary": (task, "build_operational_discord_summary"),
@@ -108,10 +127,60 @@ def run_audit(*, privacy: bool) -> list[str]:
         "durable purchase settlement source": (service, "_purchase_ledger_totals"),
         "hashed purchase settlement identity": (purchase_settlement_schema, "settlement_key_hash"),
         "deterministic purchase settlement identity hash": (purchase_settlement_service, "hashlib.sha256"),
+        "non-mutating Stripe readiness": (payment_readiness, "collect_stripe_readiness"),
+        "independent EU and Managed readiness": (payment_readiness, "managed_payments"),
+        "required Stripe event inventory": (payment_readiness, "REQUIRED_STRIPE_EVENTS"),
+        "scheduled Stripe readiness collection": (_require_file(ROOT / "backend/core/api/app/tasks/health_check_tasks.py", failures), "collect_stripe_readiness"),
+        "Stripe v2 destination inventory": (payment_readiness, "v2.core.event_destinations.list"),
+        "payment worker readiness": (_require_file(ROOT / "backend/core/api/app/tasks/health_check_tasks.py", failures), "_stripe_payment_workers_healthy"),
+        "provider inventory cadence TTL": (_require_file(ROOT / "backend/core/api/app/tasks/health_check_tasks.py", failures), "PROVIDER_HEALTH_INVENTORY_KEY, json.dumps(sorted(providers)), ex=PROVIDER_HEALTH_CHECK_CACHE_TTL"),
+        "digest payment readiness collection": (task, "collect_billing_readiness"),
+        "email payment readiness rendering": (email_template, "billing_readiness"),
+        "Discord fallback receipt visibility": (task, "fallback_used=discord_destination"),
+        "provider freshness summary": (service, "summarize_provider_health"),
+        "canonical operations Discord resolver": (service, "resolve_operations_discord_destination"),
+        "degraded report shared destination resolver": (degraded_report, "resolve_operations_discord_destination"),
+        "redacted Stripe health audit": (stripe_audit, "--health"),
     }
     for label, (content, marker) in required_markers.items():
         if marker not in content:
             failures.append(f"missing {label}: {marker}")
+    stripe_event_pattern = r'["\']((?:payment_intent|checkout\.session|charge|refund|invoice|customer\.subscription)\.[a-z_]+)["\']'
+    handled_stripe_events = set(re.findall(stripe_event_pattern, payments))
+    required_stripe_events = set(re.findall(stripe_event_pattern, payment_readiness))
+    if handled_stripe_events - required_stripe_events:
+        failures.append(
+            "Stripe readiness omits backend-handled events: "
+            + ", ".join(sorted(handled_stripe_events - required_stripe_events))
+        )
+    if required_stripe_events - handled_stripe_events:
+        failures.append(
+            "Stripe readiness requires events without backend handlers: "
+            + ", ".join(sorted(required_stripe_events - handled_stripe_events))
+        )
+    forbidden_readiness_mutations = tuple(
+        f"{resource}.{method}("
+        for resource in ("Account", "Product", "Price", "WebhookEndpoint", "PaymentIntent", "Charge", "Refund", "Session")
+        for method in ("create", "update", "delete", "cancel", "expire", "refund", "confirm")
+    )
+    if any(token in payment_readiness for token in forbidden_readiness_mutations):
+        failures.append("payment readiness service must not expose Stripe mutation calls")
+    for variable in (
+        "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_PRODUCTION",
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_PRODUCTION",
+        "DISCORD_WEBHOOK_PROD_SMOKE",
+        "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_DEVELOPMENT",
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_DEVELOPMENT",
+        "DISCORD_WEBHOOK_DEV_NIGHTLY",
+        "DISCORD_WEBHOOK_DEV_SMOKE",
+        "DISCORD_WEBHOOK_OPERATIONAL_MONITORING_SELF_HOST",
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL_SELF_HOST",
+        "OPENMATES_RUNTIME_HEALTH_DISCORD_WEBHOOK_URL",
+    ):
+        if variable not in service or variable not in server:
+            failures.append(f"Python/CLI Discord resolver parity missing variable: {variable}")
+    if "destinationSource: receipt.destination_source" not in server or "fallbackUsed: receipt.fallback_used" not in server:
+        failures.append("CLI operational receipts must preserve Discord fallback visibility")
     if "operational-monitoring-digest-daily" in celery_config:
         failures.append("operational digest must have exactly one scheduler; Celery Beat schedule is forbidden")
     for path, source in ((PAYMENTS, payments), (APPROVE_BANK_TRANSFER, approve_bank_transfer)):

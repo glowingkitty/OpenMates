@@ -11,7 +11,7 @@
 -->
 
 <script lang="ts">
-    import { appSkillsStore, initializeUserAvailableSkills, userAvailableSkillsStore } from '../../stores/appSkillsStore';
+    import { appSkillsStore, featureAvailabilityStore, initializeFeatureAvailability, initializeUserAvailableSkills, userAvailableSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
@@ -28,6 +28,7 @@
 
     // Initialize app health and user-specific skill availability on mount
     onMount(async () => {
+        await initializeFeatureAvailability();
         await initializeAppHealth();
         // Fetch user-specific skill availability to hide restricted providers (e.g. ProtonMail)
         // from users who are not authorized to use them.
@@ -41,11 +42,15 @@
     // Subscribe to user skills store to trigger reactivity when user-specific filtering is ready
     let userSkillsState = $userAvailableSkillsStore;
 
+    // Subscribe to feature availability so disabled Apps entry points disappear reactively.
+    let featureAvailabilityState = $featureAvailabilityStore;
+
     // Use $derived to make apps reactive to health and user skill availability changes
     let apps = $derived.by(() => {
         // Access both stores to trigger reactivity when either updates
         void healthState;
         void userSkillsState;
+        void featureAvailabilityState;
         // Get filtered apps from store (filtering happens in getState())
         const allApps = appSkillsStore.getState().apps;
         // Exclude the AI app — its settings live under the top-level "AI" settings menu

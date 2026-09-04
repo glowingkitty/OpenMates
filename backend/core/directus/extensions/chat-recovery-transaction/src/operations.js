@@ -332,9 +332,28 @@ async function lockedProtocolState(trx) {
   return row;
 }
 
+async function protocolStateSnapshot(database) {
+  const row = await database(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first();
+  const hasLegacyTaskMapPlaceholder = row?.active_legacy_tasks
+    && typeof row.active_legacy_tasks === 'object'
+    && !Array.isArray(row.active_legacy_tasks)
+    && Object.keys(row.active_legacy_tasks).length === 0;
+  const needsRepair = !row
+    || ((row.active_legacy_tasks == null || hasLegacyTaskMapPlaceholder)
+      && row.protocol_epoch === 0 && row.legacy_in_flight === 0)
+    || (row.legacy_task_lifecycle == null
+      && Array.isArray(row.active_legacy_tasks) && row.active_legacy_tasks.length === 0
+      && row.legacy_in_flight === 0);
+  if (needsRepair) {
+    return database.transaction(async (trx) => lockedProtocolState(trx));
+  }
+  validateLegacyState(row);
+  return row;
+}
+
 async function getCutoverState(database, raw) {
   operationBody(raw, 'get_cutover_state');
-  return database.transaction(async (trx) => cutoverResponse(await lockedProtocolState(trx)));
+  return cutoverResponse(await protocolStateSnapshot(database));
 }
 
 async function setSendsPaused(database, raw) {

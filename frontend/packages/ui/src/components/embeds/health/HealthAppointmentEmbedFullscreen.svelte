@@ -283,6 +283,7 @@
         appointment_type: 'doctor_visit',
         where: [activeAppointment?.name, activeAppointment?.speciality].filter(Boolean).join(' · '),
         date,
+        appointment_time: effectiveSlotDatetime || '',
         notes: [activeAppointment?.address, bookingUrl].filter(Boolean).join('\n'),
       },
     };

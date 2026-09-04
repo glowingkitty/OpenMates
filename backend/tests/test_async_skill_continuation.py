@@ -106,6 +106,7 @@ def _skill_config_dict():
 
 
 @pytest.mark.asyncio
+# contract-test: tooling
 async def test_cache_async_skill_continuation_context_stores_original_request(async_skill_continuation):
     cache = _FakeCache()
 
@@ -128,6 +129,7 @@ async def test_cache_async_skill_continuation_context_stores_original_request(as
 
 
 @pytest.mark.asyncio
+# contract-test: tooling
 async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypatch, async_skill_continuation):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()
@@ -166,7 +168,44 @@ async def test_dispatch_async_skill_continuation_sends_normal_ask_task(monkeypat
     assert cache.deleted == [async_skill_continuation.async_skill_continuation_key("async-task-1")]
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_async_embed_instruction_omits_results_view_for_non_visual_skill(async_skill_continuation):
+    message = async_skill_continuation._build_completed_tool_result_message(
+        context={
+            "app_id": "news",
+            "skill_id": "search",
+            "tool_name": "news-search",
+            "tool_arguments": {"requests": [{"query": "AI news"}]},
+        },
+        completed_results=[{"title": "AI news", "embed_ref": "news-ref-123"}],
+        result_status="finished",
+        request_metadata={"query": "AI news"},
+    )
+
+    assert "[human-readable title](embed:the_embed_ref)" in message
+    assert "```embeds_results_view" not in message
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+def test_async_embed_instruction_includes_results_view_for_visual_skill(async_skill_continuation):
+    message = async_skill_continuation._build_completed_tool_result_message(
+        context={
+            "app_id": "maps",
+            "skill_id": "search",
+            "tool_name": "maps-search",
+            "tool_arguments": {"requests": [{"query": "cafes near me"}]},
+        },
+        completed_results=[{"title": "Cafe", "embed_ref": "cafe-ref-123", "location_latitude": 52.5, "location_longitude": 13.4}],
+        result_status="finished",
+        request_metadata={"query": "cafes near me"},
+    )
+
+    assert "[human-readable title](embed:the_embed_ref)" in message
+    assert "```embeds_results_view" in message
+
+
 @pytest.mark.asyncio
+# contract-test: tooling
 async def test_dispatch_async_skill_continuation_caches_inline_wait_result(monkeypatch, async_skill_continuation):
     cache = _FakeCache()
     fake_celery_app = _FakeCeleryApp()

@@ -32,6 +32,19 @@ const mocks = vi.hoisted(() => {
       );
     }),
   };
+  const chatDB = {
+    getChat: vi.fn().mockResolvedValue({ chat_id: "chat-1", draft_v: 3 }),
+    clearCurrentUserChatDraft: vi.fn().mockResolvedValue({ chat_id: "chat-1" }),
+    getRawChat: vi.fn().mockResolvedValue({
+      chat_id: "chat-1",
+      encrypted_draft_md: null,
+      encrypted_draft_preview: null,
+    }),
+    upsertRawChat: vi.fn().mockResolvedValue(undefined),
+    addOfflineChange: vi.fn().mockResolvedValue(undefined),
+  };
+  const notificationStore = { error: vi.fn() };
+  const chatMetadataCache = { invalidateChat: vi.fn() };
 
   const websocketStatus = {
     subscribe: vi.fn((subscriber: (state: WebSocketState) => void) => {
@@ -45,11 +58,19 @@ const mocks = vi.hoisted(() => {
   };
 
   return {
+    chatDB,
+    notificationStore,
+    chatMetadataCache,
     state,
     webSocketService,
     websocketStatus,
     emitReceipt(payload: unknown) {
       for (const handler of state.handlers.get("draft_update_receipt") ?? []) {
+        void handler(payload);
+      }
+    },
+    emitDeleteReceipt(payload: unknown) {
+      for (const handler of state.handlers.get("draft_delete_receipt") ?? []) {
         void handler(payload);
       }
     },
@@ -71,15 +92,15 @@ vi.mock("../../stores/websocketStatusStore", () => ({
   websocketStatus: mocks.websocketStatus,
 }));
 
-vi.mock("../db", () => ({ chatDB: {} }));
+vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
 vi.mock("../../stores/notificationStore", () => ({
-  notificationStore: { error: vi.fn() },
+  notificationStore: mocks.notificationStore,
 }));
 vi.mock("../chatMetadataCache", () => ({
-  chatMetadataCache: { invalidateChat: vi.fn() },
+  chatMetadataCache: mocks.chatMetadataCache,
 }));
 
-import { sendUpdateDraftImpl } from "../sendersDrafts";
+import { sendDeleteDraftImpl, sendUpdateDraftImpl } from "../sendersDrafts";
 
 describe("sendUpdateDraftImpl", () => {
   beforeEach(() => {
@@ -88,6 +109,13 @@ describe("sendUpdateDraftImpl", () => {
     mocks.state.statusSubscribers.splice(0);
     mocks.state.currentStatus = "connected";
     mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", draft_v: 3 });
+    mocks.chatDB.clearCurrentUserChatDraft.mockResolvedValue({ chat_id: "chat-1" });
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: "chat-1",
+      encrypted_draft_md: null,
+      encrypted_draft_preview: null,
+    });
   });
 
   // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
@@ -128,5 +156,41 @@ describe("sendUpdateDraftImpl", () => {
       version_before_edit: 0,
     });
     expect(service.sendOfflineChanges).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendDeleteDraftImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.state.handlers.clear();
+    mocks.state.statusSubscribers.splice(0);
+    mocks.state.currentStatus = "connected";
+    mocks.webSocketService.sendMessage.mockResolvedValue(undefined);
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "chat-1", draft_v: 3 });
+    mocks.chatDB.clearCurrentUserChatDraft.mockResolvedValue({ chat_id: "chat-1" });
+    mocks.chatDB.getRawChat.mockResolvedValue({
+      chat_id: "chat-1",
+      encrypted_draft_md: null,
+      encrypted_draft_preview: null,
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
+  it("logs failed background draft deletion without showing a user error notification", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const deletion = sendDeleteDraftImpl({} as never, "chat-1");
+
+    await vi.waitFor(() => {
+      expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("delete_draft", { chatId: "chat-1" });
+    });
+    mocks.emitDeleteReceipt({ chat_id: "chat-1", success: false });
+
+    await expect(deletion).resolves.toBeUndefined();
+    expect(mocks.notificationStore.error).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(
+      "[ChatSyncService:Senders] Failed to delete draft for chat chat-1:",
+      expect.any(Error),
+    );
+    warnSpy.mockRestore();
   });
 });

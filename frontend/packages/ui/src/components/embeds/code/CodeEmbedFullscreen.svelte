@@ -33,6 +33,11 @@
   import { codeLineHighlightStore } from '../../../stores/messageHighlightStore';
   import { embedStore } from '../../../services/embedStore';
   import { decodeToonContent, resolveEmbed } from '../../../services/embedResolver';
+  import { hasFullscreenComponent, loadFullscreenComponent, resolveRegistryKey } from '../../../services/embedFullscreenResolver';
+  import {
+    restorePreviousFullscreenRoute,
+    setChildFullscreenRouteFromParent,
+  } from '../../../services/embedFullscreenController';
   import { fetchWithPresignedUrl } from '../../../services/presignedUrlService';
   import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
   import { sendRequestCodeRunOutputImpl, sendUpsertCodeRunOutputImpl } from '../../../services/sendersCodeRunOutputs';
@@ -41,8 +46,18 @@
   import CodePreviewPane from './CodePreviewPane.svelte';
   import EmbedVersionTimeline from '../shared/EmbedVersionTimeline.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
+  import ChildEmbedOverlay from '../ChildEmbedOverlay.svelte';
   import Toggle from '../../Toggle.svelte';
   import { SettingsSectionHeading } from '../../settings/elements';
+  import {
+    formatCodeRunArtifactSize,
+    codeRunArtifactChildId,
+    isCodeRunArtifactDownloadAvailable,
+    mergeCodeRunArtifactHistory,
+    sanitizeCodeRunArtifacts,
+    sanitizeCodeRunSkippedArtifacts,
+  } from '../../../services/codeRunArtifacts';
+  import { materializeCodeRunArtifactChildren } from '../../../services/codeRunArtifactEmbeds';
   import {
     CodeRunStartError,
     cancelCodeRun,
@@ -59,7 +74,7 @@
     type CodeRunStatus,
     type CodeRunStreamMessage,
   } from '../../../services/codeRunService';
-  import type { CodeRunOutput } from '../../../types/chat';
+  import type { CodeRunArtifact, CodeRunOutput, CodeRunSkippedArtifact } from '../../../types/chat';
 
   /**
    * Props for code embed fullscreen
@@ -150,7 +165,8 @@
     );
   let versionNumber = $derived(
       typeof dc.version_number === 'number' ? dc.version_number
-      : data.embedData?.version_number ?? 1
+      : typeof data.embedData?.version_number === 'number' ? data.embedData.version_number
+      : 1
     );
 
   // Single source of truth: piiRevealed flows down from piiVisibilityStore via
@@ -373,11 +389,25 @@
   let runExecutionId = $state<string | null>(null);
   let runEvents = $state<CodeRunEvent[]>([]);
   let runFiles = $state<string[]>([]);
+  let runArtifacts = $state<CodeRunArtifact[]>([]);
+  let runSkippedArtifacts = $state<CodeRunSkippedArtifact[]>([]);
+  let runArtifactChildIds = $state<string[]>([]);
+  let loadedRunArtifactChildren = $state<CodeRunArtifactEmbedChild[]>([]);
+  let selectedRunArtifactChildId = $state<string | null>(null);
   let runError = $state<string | null>(null);
   let runCancelRequested = $state(false);
+  let runStarting = false;
   let runPollTimer: ReturnType<typeof setTimeout> | null = null;
   let runSocket: WebSocket | null = null;
   let persistedRunExecutionId = $state<string | null>(null);
+  let runOutputPersistence: { executionId: string; promise: Promise<void> } | null = null;
+  let runStatusReconciliation: { executionId: string; promise: Promise<void> } | null = null;
+
+  interface CodeRunArtifactEmbedChild {
+    embed_id: string;
+    embed_type: string;
+    content: Record<string, unknown>;
+  }
 
   interface SavedCodeRunOutput {
     id?: string;
@@ -386,12 +416,16 @@
     files?: string[];
     savedAt?: number;
     events?: CodeRunEvent[];
+    artifacts?: CodeRunArtifact[];
+    skippedArtifacts?: CodeRunSkippedArtifact[];
   }
 
   let isRunnable = $derived.by(() => isCodeRunSupported(renderLanguage, renderFilename));
 
   const TERMINAL_RUN_STATUSES = new Set(['finished', 'failed', 'timeout', 'cancelled']);
   const CLIENT_CONTENT_REQUIRED_CODE = 'client_content_required';
+  const RUN_OUTPUT_HYDRATION_TIMEOUT_MS = 3_000;
+  const RUN_STATUS_POLL_INTERVAL_MS = 1_000;
 
   interface CodeRunAttachmentSource {
     s3Key: string;
@@ -424,12 +458,25 @@
   let runSelectionError = $state<string | null>(null);
   let runCandidates = $state<CodeRunFileCandidate[]>([]);
   let requestedRunOutputKey = $state<string | null>(null);
+  let runOutputHydrating = $state(false);
+  let runOutputActionPending = $state(false);
   let codeRunOverlayActive = $derived(runPanelOpen || runSelectionOpen);
   let outputPaneActive = $derived(previewActive);
   let splitPaneActive = $derived(outputPaneActive || codeRunOverlayActive);
   let hasCodeHeaderCta = $derived(((isRunnable && !!embedId && !codeRunOverlayActive) || isPreviewable));
   let savedRunOutput = $state<SavedCodeRunOutput | null>(null);
   let runDisplayEvents = $derived(buildCompactRunEvents(runEvents));
+  let orderedRunArtifacts = $derived(
+    [...runArtifacts].sort((left, right) => artifactTitle(left).localeCompare(artifactTitle(right)))
+  );
+  let selectedRunArtifactChild = $derived(
+    selectedRunArtifactChildId
+      ? loadedRunArtifactChildren.find((child) => child.embed_id === selectedRunArtifactChildId) ?? null
+      : null
+  );
+  let selectedRunArtifactChildIndex = $derived(
+    selectedRunArtifactChildId ? runArtifactChildIds.indexOf(selectedRunArtifactChildId) : -1
+  );
   let selectableRunCandidates = $derived(runCandidates.filter((candidate) => !candidate.required));
   let allOptionalCandidatesSelected = $derived(selectableRunCandidates.length > 0 && selectableRunCandidates.every((candidate) => candidate.selected));
   let selectedRunCandidates = $derived(runCandidates.filter((candidate) => candidate.selected || candidate.required));
@@ -460,7 +507,18 @@
       })
       : undefined;
     const savedAt = typeof content.code_run_saved_at === 'number' ? content.code_run_saved_at : undefined;
-    return { text, status, files, savedAt, events };
+    return {
+      text,
+      status,
+      files,
+      savedAt,
+      events,
+      artifacts: sanitizeCodeRunArtifacts(content.code_run_artifacts, {
+        includeDownloadUrl: true,
+        includeNativeRenderPayload: true,
+      }),
+      skippedArtifacts: sanitizeCodeRunSkippedArtifacts(content.code_run_skipped_artifacts),
+    };
   }
 
   function savedRunOutputFromRow(row: CodeRunOutput): SavedCodeRunOutput {
@@ -471,11 +529,105 @@
       files: row.files,
       savedAt: row.saved_at,
       events: row.events as CodeRunEvent[] | undefined,
+      artifacts: sanitizeCodeRunArtifacts(row.artifacts, {
+        includeDownloadUrl: true,
+        includeNativeRenderPayload: true,
+      }),
+      skippedArtifacts: sanitizeCodeRunSkippedArtifacts(row.skipped_artifacts),
     };
+  }
+
+  function artifactTitle(artifact: CodeRunArtifact): string {
+    return artifact.normalized_path || artifact.path;
+  }
+
+  function artifactMeta(artifact: CodeRunArtifact): string {
+    return [artifact.mime_type, formatCodeRunArtifactSize(artifact.size_bytes), artifact.status]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function artifactVersionMeta(version: NonNullable<CodeRunArtifact['versions']>[number]): string {
+    const captured = version.captured_at
+      ? new Date(version.captured_at * 1000).toLocaleString()
+      : '';
+    return [captured, formatCodeRunArtifactSize(version.size_bytes), version.status]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function artifactChildIds(artifacts: CodeRunArtifact[] | undefined): string[] {
+    if (!embedId) return [];
+    return [...(artifacts ?? [])]
+      .sort((left, right) => artifactTitle(left).localeCompare(artifactTitle(right)))
+      .map((artifact) => codeRunArtifactChildId(embedId, artifactTitle(artifact)));
+  }
+
+  function transformArtifactChild(embedIdValue: string, content: Record<string, unknown>): CodeRunArtifactEmbedChild {
+    return {
+      embed_id: embedIdValue,
+      embed_type: typeof content.type === 'string' ? content.type : 'file-file',
+      content,
+    };
+  }
+
+  function updateLoadedArtifactChildren(children: unknown[]): void {
+    loadedRunArtifactChildren = children.filter((child): child is CodeRunArtifactEmbedChild => (
+      !!child
+      && typeof child === 'object'
+      && typeof (child as CodeRunArtifactEmbedChild).embed_id === 'string'
+      && typeof (child as CodeRunArtifactEmbedChild).embed_type === 'string'
+    ));
+  }
+
+  async function openArtifactChild(artifact: CodeRunArtifact): Promise<void> {
+    try {
+      if (!embedId) return;
+      const childEmbedId = codeRunArtifactChildId(embedId, artifactTitle(artifact));
+      let child = loadedRunArtifactChildren.find((candidate) => candidate.embed_id === childEmbedId);
+      if (!child) {
+        const stored = await resolveEmbed(childEmbedId);
+        if (!stored) throw new Error(`Code Run artifact child ${childEmbedId} is unavailable`);
+        const content = typeof stored.content === 'string'
+          ? await decodeToonContent(stored.content)
+          : stored.content as Record<string, unknown>;
+        if (!content) throw new Error(`Code Run artifact child ${childEmbedId} could not be decoded`);
+        child = transformArtifactChild(childEmbedId, content);
+        loadedRunArtifactChildren = [...loadedRunArtifactChildren, child];
+      }
+      selectedRunArtifactChildId = childEmbedId;
+      setChildFullscreenRouteFromParent(childEmbedId, embedId, chatId ?? null);
+    } catch (error) {
+      console.error('[CodeEmbedFullscreen] Failed to open Code Run artifact child:', error);
+      notificationStore.error($text('chat.an_error_occured'));
+    }
+  }
+
+  function closeArtifactChild(): void {
+    selectedRunArtifactChildId = null;
+    restorePreviousFullscreenRoute(embedId ?? null, chatId ?? null);
+  }
+
+  function navigateArtifactChild(offset: -1 | 1): void {
+    const nextId = runArtifactChildIds[selectedRunArtifactChildIndex + offset];
+    if (!nextId || !embedId) return;
+    selectedRunArtifactChildId = nextId;
+    setChildFullscreenRouteFromParent(nextId, embedId, chatId ?? null);
+  }
+
+  function artifactChildRegistryKey(child: CodeRunArtifactEmbedChild): string | null {
+    return resolveRegistryKey(child.embed_type, child.content);
   }
 
   function codeRunOutputRef(embedIdValue: string): string {
     return `code-run-output:${embedIdValue}`;
+  }
+
+  function completeRunOutputHydration(): void {
+    runOutputHydrating = false;
+    if (!runOutputActionPending) return;
+    runOutputActionPending = false;
+    toggleRunOutput();
   }
 
   async function loadSavedRunOutput() {
@@ -483,9 +635,10 @@
     try {
       const syncedOutput = await getCodeRunOutputForEmbed(chatDB, embedId);
       if (syncedOutput) {
-        const output = savedRunOutputFromRow(syncedOutput);
+          const output = savedRunOutputFromRow(syncedOutput);
         if (savedRunOutput?.text !== output.text || savedRunOutput?.id !== output.id) {
-          savedRunOutput = output;
+            savedRunOutput = output;
+            runArtifactChildIds = artifactChildIds(output.artifacts);
         }
       }
 
@@ -494,6 +647,7 @@
       const output = readSavedRunOutput(sidecar as Record<string, unknown>);
       if (output && savedRunOutput?.text !== output.text) {
         savedRunOutput = output;
+        runArtifactChildIds = artifactChildIds(output.artifacts);
         if (chatId) {
           const now = Math.floor(Date.now() / 1000);
           await sendUpsertCodeRunOutputImpl({
@@ -504,6 +658,8 @@
             status: output.status,
             files: output.files,
             events: output.events,
+            artifacts: output.artifacts,
+            skipped_artifacts: output.skippedArtifacts,
             saved_at: output.savedAt ?? Date.now(),
             created_at: now,
             updated_at: now,
@@ -516,12 +672,19 @@
   }
 
   $effect(() => {
-    void embedId;
-    void loadSavedRunOutput();
     const requestKey = chatId && embedId ? `${chatId}:${embedId}` : null;
     if (chatId && embedId && requestedRunOutputKey !== requestKey) {
       requestedRunOutputKey = requestKey;
+      runOutputHydrating = true;
+      void loadSavedRunOutput().then(() => {
+        if (requestedRunOutputKey === requestKey && savedRunOutput) {
+          completeRunOutputHydration();
+        }
+      });
       void sendRequestCodeRunOutputImpl(chatId, embedId);
+      window.setTimeout(() => {
+        if (requestedRunOutputKey === requestKey) completeRunOutputHydration();
+      }, RUN_OUTPUT_HYDRATION_TIMEOUT_MS);
     }
   });
 
@@ -530,10 +693,14 @@
       const output = (event as CustomEvent<CodeRunOutput>).detail;
       if (!embedId || output.embed_id !== embedId) return;
       savedRunOutput = savedRunOutputFromRow(output);
+      completeRunOutputHydration();
+      runArtifactChildIds = artifactChildIds(savedRunOutput.artifacts);
       if (!runActive && !runPanelOpen) {
         runEvents = savedOutputToEvents(savedRunOutput);
         runStatus = savedRunOutput.status ?? 'finished';
         runFiles = savedRunOutput.files ?? [];
+        runArtifacts = savedRunOutput.artifacts ?? [];
+        runSkippedArtifacts = savedRunOutput.skippedArtifacts ?? [];
       }
     };
     window.addEventListener('codeRunOutputSynced', handleSyncedOutput);
@@ -654,22 +821,40 @@
     return runDisplayEvents.some((event) => event.kind === 'status' && (event.text.startsWith('Exited ') || event.text.startsWith('Cancelled ')));
   }
 
-  async function persistRunOutput() {
-    if (!embedId || !runExecutionId || persistedRunExecutionId === runExecutionId) return;
+  async function persistRunOutput(): Promise<boolean> {
+    if (!embedId || !runExecutionId) return false;
+    const executionId = runExecutionId;
+    if (persistedRunExecutionId === executionId) return true;
+    if (runOutputPersistence?.executionId === executionId) {
+      try {
+        await runOutputPersistence.promise;
+        return persistedRunExecutionId === executionId;
+      } catch {
+        return false;
+      }
+    }
     if (!chatId) {
       console.warn('[CodeEmbedFullscreen] Cannot sync Code Run output without chatId');
-      return;
+      return false;
     }
     const outputText = compactRunOutputText();
-    if (!outputText || !compactRunOutputHasFinalLine()) return;
+    if (!outputText || !compactRunOutputHasFinalLine()) return false;
 
-    persistedRunExecutionId = runExecutionId;
     const savedAt = Date.now();
     const now = Math.floor(savedAt / 1000);
     const outputId = savedRunOutput?.id ?? crypto.randomUUID();
     const plainFiles = runFiles.filter((file) => typeof file === 'string');
     const plainEvents = cloneRunEvents(runDisplayEvents);
-    try {
+    const plainArtifacts = mergeCodeRunArtifactHistory(savedRunOutput?.artifacts, runArtifacts, Math.floor(savedAt / 1000));
+    const plainSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(runSkippedArtifacts);
+    let persistedChildren: Awaited<ReturnType<typeof materializeCodeRunArtifactChildren>> = [];
+    const persistence = (async () => {
+      persistedChildren = await materializeCodeRunArtifactChildren({
+        artifacts: plainArtifacts,
+        parentEmbedId: embedId,
+        chatId,
+        sourceExecutionId: executionId,
+      });
       await sendUpsertCodeRunOutputImpl({
         id: outputId,
         chat_id: chatId,
@@ -678,10 +863,19 @@
         status: runStatus as CodeRunStatus['status'],
         files: plainFiles,
         events: plainEvents,
+        artifacts: plainArtifacts,
+        skipped_artifacts: plainSkippedArtifacts,
         saved_at: savedAt,
         created_at: now,
         updated_at: now,
       });
+    })();
+    runOutputPersistence = { executionId, promise: persistence };
+    try {
+      await persistence;
+      if (runExecutionId !== executionId) return true;
+      persistedRunExecutionId = executionId;
+      runArtifactChildIds = persistedChildren.map((child) => child.embedId);
       savedRunOutput = {
         id: outputId,
         text: outputText,
@@ -689,10 +883,17 @@
         files: plainFiles,
         savedAt,
         events: plainEvents,
+        artifacts: plainArtifacts,
+        skippedArtifacts: plainSkippedArtifacts,
       };
+      runArtifacts = plainArtifacts;
+      runSkippedArtifacts = plainSkippedArtifacts;
+      return true;
     } catch (error) {
       console.warn('[CodeEmbedFullscreen] Failed to persist code run output:', error);
-      persistedRunExecutionId = null;
+      return false;
+    } finally {
+      if (runOutputPersistence?.executionId === executionId) runOutputPersistence = null;
     }
   }
 
@@ -702,6 +903,10 @@
 
   function toggleRunOutput() {
     if (codeRunOverlayActive) return;
+    if (runOutputHydrating) {
+      runOutputActionPending = true;
+      return;
+    }
     if (runExecutionId || runEvents.length > 0) {
       previewActive = false;
       runSelectionOpen = false;
@@ -713,6 +918,8 @@
       runPanelOpen = true;
       runStatus = savedRunOutput.status || 'finished';
       runFiles = savedRunOutput.files || [];
+      runArtifacts = savedRunOutput.artifacts || [];
+      runSkippedArtifacts = savedRunOutput.skippedArtifacts || [];
       runEvents = savedOutputToEvents(savedRunOutput);
       runError = null;
       return;
@@ -1074,7 +1281,43 @@
     runCancelRequested = status.status === 'cancelling';
     runEvents = status.events || [];
     runFiles = status.files || runFiles;
+    runArtifacts = sanitizeCodeRunArtifacts(status.artifacts, {
+      includeDownloadUrl: true,
+      includeNativeRenderPayload: true,
+    });
+    runSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(status.skipped_artifacts);
     runError = status.error || null;
+  }
+
+  async function syncAuthoritativeRunStatus(status: CodeRunStatus, executionId: string) {
+    if (runExecutionId !== executionId) return;
+    syncRunStatus(status);
+    if (!TERMINAL_RUN_STATUSES.has(status.status)) return;
+    await tick();
+    if (runExecutionId !== executionId) return;
+    if (!await persistRunOutput()) await persistRunOutput();
+  }
+
+  async function reconcileTerminalRunUpdate(executionId: string, retry = true) {
+    try {
+      const status = await getCodeRunStatus(executionId);
+      await syncAuthoritativeRunStatus(status, executionId);
+    } catch (error) {
+      console.warn('[CodeEmbedFullscreen] Failed to reconcile terminal Code Run status:', error);
+      if (!retry || runExecutionId !== executionId) return;
+      await new Promise((resolve) => setTimeout(resolve, RUN_STATUS_POLL_INTERVAL_MS));
+      if (runExecutionId !== executionId) return;
+      await reconcileTerminalRunUpdate(executionId, false);
+    }
+  }
+
+  function beginTerminalRunReconciliation(executionId: string) {
+    if (runStatusReconciliation?.executionId === executionId) return;
+    const promise = reconcileTerminalRunUpdate(executionId);
+    runStatusReconciliation = { executionId, promise };
+    void promise.finally(() => {
+      if (runStatusReconciliation?.executionId === executionId) runStatusReconciliation = null;
+    });
   }
 
   function applyRunUpdate(update: Partial<CodeRunStatus>) {
@@ -1082,6 +1325,11 @@
     if (update.status === 'cancelling') runCancelRequested = true;
     if (update.status && TERMINAL_RUN_STATUSES.has(update.status)) runCancelRequested = false;
     if (update.files) runFiles = update.files;
+    if (update.artifacts) runArtifacts = sanitizeCodeRunArtifacts(update.artifacts, {
+      includeDownloadUrl: true,
+      includeNativeRenderPayload: true,
+    });
+    if (update.skipped_artifacts) runSkippedArtifacts = sanitizeCodeRunSkippedArtifacts(update.skipped_artifacts);
     if (update.error !== undefined) runError = update.error || null;
   }
 
@@ -1098,11 +1346,14 @@
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data) as CodeRunStreamMessage;
       if (message.type === 'code_run_snapshot') {
-        syncRunStatus(message.payload);
+        void syncAuthoritativeRunStatus(message.payload, executionId);
         return;
       }
       if (message.type === 'code_run_update') {
         applyRunUpdate(message.payload);
+        if (message.payload.status && TERMINAL_RUN_STATUSES.has(message.payload.status)) {
+          beginTerminalRunReconciliation(executionId);
+        }
         return;
       }
       if (message.type === 'code_run_event') {
@@ -1127,9 +1378,9 @@
   async function pollRunStatus(executionId: string) {
     try {
       const status = await getCodeRunStatus(executionId);
-      syncRunStatus(status);
+      await syncAuthoritativeRunStatus(status, executionId);
       if (!TERMINAL_RUN_STATUSES.has(status.status)) {
-        runPollTimer = setTimeout(() => pollRunStatus(executionId), 1000);
+        runPollTimer = setTimeout(() => pollRunStatus(executionId), RUN_STATUS_POLL_INTERVAL_MS);
       }
     } catch (error) {
       runStatus = 'failed';
@@ -1143,7 +1394,9 @@
       loginInterfaceOpen.set(true);
       return;
     }
-    if (!chatId || !embedId || runActive) return;
+    if (!chatId || !embedId || runActive || runStarting) return;
+    runStarting = true;
+    try {
     const candidates = candidatesOverride || selectedRunCandidates;
     const selectedEmbedIds = candidates
       .filter((candidate) => candidate.kind !== 'dependency')
@@ -1154,9 +1407,20 @@
     const selectedDependencyInstalls = candidates
       .filter((candidate): candidate is CodeRunFileCandidate & { dependencyInstall: CodeRunDependencyInstall } => candidate.kind === 'dependency' && !!candidate.dependencyInstall)
       .map((candidate) => candidate.dependencyInstall);
+    const previousReconciliation = runStatusReconciliation?.promise;
+    if (previousReconciliation) await previousReconciliation;
+    const previousPersistence = runOutputPersistence?.promise;
+    if (previousPersistence) {
+      try {
+        await previousPersistence;
+      } catch {
+        // The completed run already surfaced its persistence failure.
+      }
+    }
+    runExecutionId = null;
+    closeRunSocket();
     const selectedAttachments = await selectedClientAttachments(candidates);
     clearRunPollTimer();
-    closeRunSocket();
     previewActive = false;
     runSelectionOpen = false;
     runPanelOpen = true;
@@ -1165,7 +1429,11 @@
     runCancelRequested = false;
     runEvents = [{ kind: 'status', text: 'Queued code run...\n', timestamp: Date.now() / 1000 }];
     runFiles = [];
-    try {
+    runArtifacts = [];
+    runArtifactChildIds = [];
+    loadedRunArtifactChildren = [];
+    selectedRunArtifactChildId = null;
+    runSkippedArtifacts = [];
       let started;
       try {
         started = await startCodeRun(chatId, embedId, selectedCodeFiles, selectedAttachments, selectedEmbedIds, selectedDependencyInstalls);
@@ -1191,6 +1459,8 @@
       runStatus = 'failed';
       runError = error instanceof Error ? error.message : 'Code run failed to start';
       runEvents = [{ kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
+    } finally {
+      runStarting = false;
     }
   }
 
@@ -1210,12 +1480,6 @@
       runEvents = [...runEvents, { kind: 'stderr', text: `${runError}\n`, timestamp: Date.now() / 1000 }];
     }
   }
-
-  $effect(() => {
-    if (runExecutionId && TERMINAL_RUN_STATUSES.has(runStatus) && compactRunOutputHasFinalLine()) {
-      void persistRunOutput();
-    }
-  });
 
   $effect(() => {
     return () => {
@@ -1244,6 +1508,9 @@
   onCopy={handleCopy}
   onDownload={handleDownload}
   currentEmbedId={embedId}
+  embedIds={runArtifactChildIds}
+  childEmbedTransformer={transformArtifactChild}
+  onChildrenLoaded={updateLoadedArtifactChildren}
   {hasPreviousEmbed}
   {hasNextEmbed}
   {onNavigatePrevious}
@@ -1471,7 +1738,77 @@
                   </section>
                 {:else if runPanelOpen}
                   <section class="code-run-terminal" data-testid="code-run-terminal" aria-live="polite">
-                    <pre class="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                    <pre class="code-run-output" data-testid="code-run-output">{#each runDisplayEvents as event}<span class={`code-run-line code-run-${event.kind}`}>{event.text}</span>{/each}</pre>
+                    {#if runArtifacts.length > 0 || runSkippedArtifacts.length > 0}
+                      <div class="code-run-artifacts" data-testid="code-run-artifacts">
+                        {#if runArtifacts.length > 0}
+                          <div class="code-run-artifact-group">
+                            <h3 class="code-run-artifact-heading">{$text('app_skills.code.run.artifacts')}</h3>
+                            {#each orderedRunArtifacts as artifact}
+                              <article class="code-run-artifact-card" data-testid="code-run-artifact">
+                                <div class="code-run-artifact-main">
+                                  <span class="code-run-artifact-path">{artifactTitle(artifact)}</span>
+                                  {#if artifactMeta(artifact)}
+                                    <span class="code-run-artifact-meta">{artifactMeta(artifact)}</span>
+                                  {/if}
+                                </div>
+                                {#if embedId && runArtifactChildIds.includes(codeRunArtifactChildId(embedId, artifactTitle(artifact)))}
+                                  <button
+                                    class="code-run-artifact-open"
+                                    data-testid="code-run-artifact-child-open"
+                                    type="button"
+                                    aria-label={`Open ${artifactTitle(artifact)}`}
+                                    onclick={() => void openArtifactChild(artifact)}
+                                  >
+                                    <span class="icon fullscreen" aria-hidden="true"></span>
+                                  </button>
+                                {/if}
+                                {#if isCodeRunArtifactDownloadAvailable(artifact)}
+                                  <a
+                                    class="code-run-artifact-download"
+                                    data-testid="code-run-artifact-download"
+                                    href={artifact.download_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download
+                                  >{$text('app_skills.code.run.download_artifact')}</a>
+                                {:else}
+                                  <span class="code-run-artifact-download unavailable" data-testid="code-run-artifact-download-unavailable">
+                                    {$text('app_skills.code.run.download_unavailable')}
+                                  </span>
+                                {/if}
+                                {#if artifact.versions?.length}
+                                  <details class="code-run-artifact-history" data-testid="code-run-artifact-history">
+                                    <summary>{$text('app_skills.code.run.previous_versions')}</summary>
+                                    <div class="code-run-artifact-version-list">
+                                      {#each artifact.versions as version}
+                                        <div class="code-run-artifact-version">
+                                          <span>{version.normalized_path || version.path}</span>
+                                          {#if artifactVersionMeta(version)}
+                                            <span>{artifactVersionMeta(version)}</span>
+                                          {/if}
+                                        </div>
+                                      {/each}
+                                    </div>
+                                  </details>
+                                {/if}
+                              </article>
+                            {/each}
+                          </div>
+                        {/if}
+                        {#if runSkippedArtifacts.length > 0}
+                          <div class="code-run-artifact-group" data-testid="code-run-skipped-artifacts">
+                            <h3 class="code-run-artifact-heading">{$text('app_skills.code.run.skipped_artifacts')}</h3>
+                            {#each runSkippedArtifacts as skipped}
+                              <div class="code-run-skipped-artifact">
+                                <span>{skipped.path}</span>
+                                <span>{skipped.reason}</span>
+                              </div>
+                            {/each}
+                          </div>
+                        {/if}
+                      </div>
+                    {/if}
                     <div class="code-run-terminal-divider"></div>
                     <div class="code-run-terminal-actions" data-testid="code-run-terminal-actions">
                       {#if runActive}
@@ -1546,11 +1883,34 @@
   {/snippet}
 </UnifiedEmbedFullscreen>
 
+{#if selectedRunArtifactChild}
+  {@const registryKey = artifactChildRegistryKey(selectedRunArtifactChild)}
+  <ChildEmbedOverlay>
+    {#if registryKey && hasFullscreenComponent(registryKey)}
+      {#await loadFullscreenComponent(registryKey)}
+        <div class="code-run-child-loading" aria-busy="true"></div>
+      {:then ArtifactFullscreen}
+        {#if ArtifactFullscreen}
+          <ArtifactFullscreen
+            data={{ decodedContent: selectedRunArtifactChild.content }}
+            embedId={selectedRunArtifactChild.embed_id}
+            onClose={closeArtifactChild}
+            hasPreviousEmbed={selectedRunArtifactChildIndex > 0}
+            hasNextEmbed={selectedRunArtifactChildIndex >= 0 && selectedRunArtifactChildIndex < runArtifactChildIds.length - 1}
+            onNavigatePrevious={() => navigateArtifactChild(-1)}
+            onNavigateNext={() => navigateArtifactChild(1)}
+          />
+        {/if}
+      {/await}
+    {/if}
+  </ChildEmbedOverlay>
+{/if}
+
 <style>
   /* Code fullscreen container */
   .code-fullscreen-container {
     width: calc(100% - 10px);
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-10);
     margin-top: 15px;
     padding-bottom: var(--spacing-8);
     margin-left: var(--spacing-5);
@@ -1597,7 +1957,7 @@
   .code-panel.code-panel-split {
     min-width: 0;
     overflow: auto;
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-10);
   }
 
   .code-panel.code-panel-preview-split {
@@ -1613,7 +1973,7 @@
     width: 70%;
     flex: 0 0 70%;
     overflow: hidden;
-    background-color: var(--color-grey-15);
+    background-color: var(--color-grey-10);
     /* position: relative so child can use absolute positioning to fill the panel
        without expanding it to the iframe's content height */
     position: relative;
@@ -1893,6 +2253,142 @@
     color: var(--color-grey-100);
   }
 
+  .code-run-artifacts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-4);
+    flex: 0 0 auto;
+    max-height: 14rem;
+    margin: 0 0 var(--spacing-5);
+    padding: var(--spacing-4);
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .code-run-artifact-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .code-run-artifact-heading {
+    margin: 0;
+    color: var(--color-grey-100);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .code-run-artifact-card,
+  .code-run-skipped-artifact {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--spacing-3);
+    align-items: center;
+    padding: var(--spacing-3);
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.18);
+  }
+
+  .code-run-artifact-main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 0.15rem;
+  }
+
+  .code-run-artifact-open {
+    display: inline-grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: 0 0 auto;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: var(--color-grey-20);
+    color: var(--color-font-primary);
+  }
+
+  .code-run-artifact-open .icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .code-run-child-loading {
+    width: 100%;
+    height: 100%;
+    background: var(--color-grey-0);
+  }
+
+  .code-run-artifact-path,
+  .code-run-skipped-artifact span:first-child {
+    overflow: hidden;
+    color: var(--color-grey-100);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .code-run-artifact-meta,
+  .code-run-skipped-artifact span:last-child,
+  .code-run-artifact-version {
+    color: var(--color-grey-70);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+
+  .code-run-artifact-download {
+    color: #7dd3fc;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 900;
+    text-decoration: none;
+  }
+
+  .code-run-artifact-download:hover,
+  .code-run-artifact-download:focus-visible {
+    color: var(--color-grey-100);
+    text-decoration: underline;
+  }
+
+  .code-run-artifact-download.unavailable {
+    color: #707070;
+  }
+
+  .code-run-artifact-history {
+    grid-column: 1 / -1;
+    color: var(--color-grey-70);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.78rem;
+    font-weight: 800;
+  }
+
+  .code-run-artifact-history summary {
+    cursor: pointer;
+  }
+
+  .code-run-artifact-version-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+    margin-top: var(--spacing-2);
+  }
+
+  .code-run-artifact-version {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-3);
+  }
+
   .code-run-terminal-divider {
     height: 1px;
     margin: 0 0 var(--spacing-5);
@@ -1990,6 +2486,26 @@
       max-height: min(32rem, calc(100vh - 16rem));
       border-radius: 1.75rem;
       padding: var(--spacing-5) var(--spacing-5) var(--spacing-6);
+    }
+
+    .code-run-terminal {
+      flex: 1 1 0;
+      overflow: hidden;
+    }
+
+    .code-run-output {
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .code-run-artifact-card,
+    .code-run-skipped-artifact {
+      grid-template-columns: 1fr;
+    }
+
+    .code-run-artifact-version {
+      flex-direction: column;
+      gap: 0.15rem;
     }
 
     .code-run-continue {

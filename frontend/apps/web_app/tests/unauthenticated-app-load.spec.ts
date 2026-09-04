@@ -16,7 +16,8 @@ export {};
  *   2. The for-everyone demo chat remains directly reachable
  *   3. The new-chat button opens the new chat interface
  *   4. Daily inspiration banner appears with actual content in the new chat view
- *   5. No missing translation keys visible on the page
+ *   5. Guest model selection works ephemerally from toggles and model rows
+ *   6. No missing translation keys visible on the page
  *
  * No credentials required — this tests the non-authenticated flow.
  */
@@ -62,6 +63,24 @@ async function openForEveryoneIntroChat(page: any) {
 	});
 	await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 	await expect(newChatCta).toBeVisible({ timeout: 15000 });
+}
+
+async function openGuestNewChat(page: any) {
+	const skipInterests = page.getByTestId('guest-interest-skip');
+	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await skipInterests.click();
+	}
+
+	const newChatButton = page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
+	if (!(await newChatButton.isVisible({ timeout: 1000 }).catch(() => false))) {
+		const firstIntroCard = page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
+		await expect(firstIntroCard).toBeVisible({ timeout: 10000 });
+		await firstIntroCard.click();
+	}
+
+	await expect(newChatButton).toBeVisible({ timeout: 15000 });
+	await newChatButton.click();
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
 }
 
 async function readDailyInspirationPhrase(page: any): Promise<string> {
@@ -112,6 +131,7 @@ test.describe('Unauthenticated app load', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=daily-inspiration.public-defaults,landing-onboarding.uses-real-chat-shell
 	test('app loads, can open for-everyone chat, and daily inspirations appear in new chat', async ({
 		page
 	}: {
@@ -223,6 +243,7 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] All checks passed');
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.signup-cta
 	test('intro chat follow-up suggestion opens signup for unauthenticated users', async ({
 		page
 	}: {
@@ -250,6 +271,7 @@ test.describe('Unauthenticated app load', () => {
 		await expect(page.locator('[data-testid="tab-signup"].active')).toBeVisible({ timeout: 5000 });
 	});
 
+	// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,daily-inspiration.public-defaults
 	test('daily inspiration banner keeps a stable initial item across app visits', async ({
 		page
 	}: {
@@ -281,6 +303,7 @@ test.describe('Unauthenticated app load', () => {
 		expect(thirdPhrase).toBe(firstPhrase);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.manual-navigation
 	test('daily inspiration banner navigates with arrows and touch swipes on mobile', async ({
 		page
 	}: {
@@ -338,6 +361,7 @@ test.describe('Unauthenticated app load', () => {
 		expect(page.url(), 'Carousel navigation should not start a chat').not.toContain('chat-id=');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.coordinated-story-progress
 	test('daily inspiration banner auto-rotates for unauthenticated users', async ({
 		page
 	}: {
@@ -389,6 +413,7 @@ test.describe('Unauthenticated app load', () => {
 		expect(page.url(), 'Clicking a non-final intro slide should not start a chat').not.toContain('chat-id=');
 	});
 
+	// contract-test: direct surface=gui.web assertions=landing-onboarding.uses-real-chat-shell,public-example-chats.catalog.discoverable
 	test('desktop welcome carousel opens example chats without runtime errors', async ({
 		page
 	}: {
@@ -427,6 +452,7 @@ test.describe('Unauthenticated app load', () => {
 		expectNoWelcomeCarouselRuntimeErrors(consoleErrors);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
 	test('example chat loads and fullscreen wiki, website, and image embeds open for unauthenticated users', async ({
 		page
 	}: {
@@ -582,6 +608,7 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Example fullscreen embeds test passed');
 	});
 
+	// contract-test: direct surface=gui.web assertions=ai-model-routing.settings.hierarchy-canonical
 	test('AI model card in for-everyone chat opens settings deep link', async ({
 		page
 	}: {
@@ -633,6 +660,51 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] AI model deep link test passed');
 	});
 
+	// contract-test: direct surface=gui.web assertions=ai-model-routing.composer.responsive-actions,ai-model-routing.composer.mention-to-exact-selection
+	test('guest can select a composer model ephemerally from its toggle or model row', async ({
+		page
+	}: {
+		page: any;
+	}) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 1440, height: 900 });
+
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await openGuestNewChat(page);
+
+		const selector = page.getByTestId('composer-model-selector');
+		await expect(selector).toBeVisible({ timeout: 10000 });
+		await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
+
+		await selector.click();
+		const menu = page.getByTestId('composer-model-selector-menu');
+		await menu.getByTestId('composer-model-provider-label').first().click();
+		const firstModelRow = menu.getByTestId('composer-model-row').first();
+		const modelName = (await firstModelRow.getByTestId('composer-model-name').textContent())?.trim();
+		expect(modelName, 'The guest model picker should expose at least one model').toBeTruthy();
+		await firstModelRow.getByTestId('composer-model-toggle').click();
+		await expect(selector).toHaveAttribute('aria-label', new RegExp(modelName!, 'i'));
+
+		await selector.click();
+		await menu.getByTestId('composer-model-back').click();
+		await menu.getByTestId('composer-model-auto').click();
+		await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
+
+		await selector.click();
+		await menu.getByTestId('composer-model-provider-label').first().click();
+		await menu.getByTestId('composer-model-row').first().getByTestId('composer-model-name').click();
+		await expect(page.getByTestId('ai-model-details')).toBeVisible({ timeout: 10000 });
+		await page.getByTestId('icon-button-close').click();
+		await expect(selector).toHaveAttribute('aria-label', new RegExp(modelName!, 'i'));
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await page.waitForLoadState('networkidle');
+		await openGuestNewChat(page);
+		await expect(page.getByTestId('composer-model-selector')).toHaveAttribute('aria-label', /Auto select/i);
+	});
+
+	// contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible
 	test('settings horizontal card rows keep native touch scrolling', async ({
 		page
 	}: {
@@ -706,6 +778,7 @@ test.describe('Unauthenticated app load', () => {
 		await expect(settingsMenu).toBeVisible();
 	});
 
+	// contract-test: direct surface=gui.web assertions=app-memories.catalog.declared-types-only
 	test('guest app memories only show categories with examples', async ({
 		page
 	}: {
@@ -744,6 +817,7 @@ test.describe('Unauthenticated app load', () => {
 		await expect(settingsMenu.getByText('Examples').first()).toBeVisible({ timeout: 10000 });
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.actionable-demo-faithful,landing-onboarding.coordinated-story-progress
 	test('for-everyone chat header play button opens intro video in embed fullscreen', async ({
 		page
 	}: {
@@ -784,6 +858,7 @@ test.describe('Unauthenticated app load', () => {
 		console.log('[unauthenticated-load] Intro video fullscreen test passed');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=landing-onboarding.uses-real-chat-shell
 	test('announcement chat opens when clicked in sidebar', async ({
 		page
 	}: {

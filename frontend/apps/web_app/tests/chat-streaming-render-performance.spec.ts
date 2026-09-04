@@ -7,6 +7,67 @@
 
 import { expect, test } from './helpers/cookie-audit';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
+
+const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
+const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+
+const STREAMING_PROOF_CONTRACT = defineVideoProof({
+	id: 'bounded-streaming-render-convergence',
+	title: 'Bounded streaming render convergence',
+	surface: 'web',
+	devices: ['web-laptop', 'web-phone'],
+	domain: 'app.dev.openmates.org',
+	transcript: [
+		{
+			id: 'open-harness',
+			text: 'Open the streaming render harness to replay a long assistant response.',
+			checkpoint: 'harness-open',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'bounded-updates',
+			text: 'Frequent response chunks converge into bounded visual updates while the message remains responsive.',
+			checkpoint: 'bounded-updates',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'finished',
+			text: 'Streaming finishes with the complete response and no loading state left behind.',
+			checkpoint: 'final-state',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	assertions: [
+		{
+			id: 'harness-complete',
+			checkpoint: 'final-state',
+			visual: 'The harness reaches its complete phase.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'streaming-finished',
+			checkpoint: 'final-state',
+			visual: 'The assistant message ends with streaming set to false.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'response-readable',
+			checkpoint: 'final-state',
+			visual: 'The complete canonical response text remains visible and readable.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'clean-final-state',
+			checkpoint: 'final-state',
+			visual: 'No implementation error, clipping, or stale loading indicator is visible.',
+			devices: ['web-laptop', 'web-phone']
+		}
+	],
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+});
+
 type StreamingRenderMetrics = {
 	chunks: number;
 	flushes: number;
@@ -27,7 +88,13 @@ function percentile95(values: number[]): number {
 }
 
 test.describe('Streaming render performance metrics', () => {
-	test('exposes bounded sanitized metrics and named pipeline measures', async ({ page }) => {
+	// contract-test: supporting surface=gui.web assertions=chats.streaming.ordered-final
+	test('exposes bounded sanitized metrics and named pipeline measures', async ({ page }, testInfo) => {
+		const proof = createVideoProofRuntime(STREAMING_PROOF_CONTRACT, {
+			device: PROOF_DEVICE,
+			attach: testInfo.attach.bind(testInfo),
+			captureFrame: () => page.screenshot({ type: 'png' })
+		});
 		await page.addInitScript(() => {
 			(window as typeof window & { __streamingHarnessIdbWrites?: number }).__streamingHarnessIdbWrites = 0;
 			for (const method of ['add', 'put', 'delete', 'clear'] as const) {
@@ -52,6 +119,8 @@ test.describe('Streaming render performance metrics', () => {
 			await expect(harness).toHaveAttribute('data-phase', 'complete', { timeout: 15_000 });
 			await expect(page.getByTestId('message-assistant')).toHaveAttribute('data-streaming', 'false');
 			await expect(page.getByTestId('message-content')).toContainText('Bounded canonical rendering remains responsive.');
+			if (run === 0) await proof.checkpoint('harness-open');
+			if (run === 1) await proof.checkpoint('bounded-updates');
 			const sample = await page.evaluate(() => ({
 				metrics: (window as typeof window & {
 					__openmatesStreamingRenderMetrics: StreamingRenderMetrics;
@@ -96,5 +165,20 @@ test.describe('Streaming render performance metrics', () => {
 		expect(await page.evaluate(() => (
 			window as typeof window & { __streamingHarnessIdbWrites?: number }
 		).__streamingHarnessIdbWrites)).toBe(0);
+		await proof.assert('harness-complete', async () => {
+			await expect(page.getByTestId('streaming-render-harness')).toHaveAttribute('data-phase', 'complete');
+		});
+		await proof.assert('streaming-finished', async () => {
+			await expect(page.getByTestId('message-assistant')).toHaveAttribute('data-streaming', 'false');
+		});
+		await proof.assert('response-readable', async () => {
+			await expect(page.getByTestId('message-content')).toContainText('Bounded canonical rendering remains responsive.');
+		});
+		await proof.assert('clean-final-state', async () => {
+			await expect(page.getByText(/implementation error/i)).toHaveCount(0);
+			await expect(page.getByText('Loading preview...', { exact: true })).toHaveCount(0);
+		});
+		await proof.checkpoint('final-state');
+		await proof.attach();
 	});
 });

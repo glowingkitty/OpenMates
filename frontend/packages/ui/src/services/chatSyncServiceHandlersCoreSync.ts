@@ -192,6 +192,7 @@ export async function handleInitialSyncResponseImpl(
           encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
           encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
+          encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
           encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
           last_edited_overall_timestamp:
             serverChat.last_edited_overall_timestamp,
@@ -753,6 +754,7 @@ export async function handlePhase1bChatContentImpl(
                 embed_id: embed.embed_id,
                 status: embed.status || "finished",
                 hashed_chat_id: embed.hashed_chat_id,
+                hashed_message_id: embed.hashed_message_id,
                 hashed_user_id: embed.hashed_user_id,
                 embed_ids: embed.embed_ids,
                 parent_embed_id: embed.parent_embed_id,
@@ -1155,6 +1157,7 @@ export async function handleChatContentBatchResponseImpl(
             embed_id: embed.embed_id,
             status: embed.status || "finished",
             hashed_chat_id: embed.hashed_chat_id,
+            hashed_message_id: embed.hashed_message_id,
             hashed_user_id: embed.hashed_user_id,
             embed_ids: embed.embed_ids,
             parent_embed_id: embed.parent_embed_id,

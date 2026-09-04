@@ -1651,19 +1651,6 @@ enum InterestTagId: String, CaseIterable, Codable, Hashable {
         }
     }
 
-    var introChats: [String] {
-        switch self {
-        case .softwareDevelopment, .videoTutorials, .plotCharts, .electricalEngineering, .makerPrototyping, .buildElectronics, .diyProjects:
-            return ["demo-for-developers", "demo-for-everyone"]
-        case .runCode:
-            return ["demo-for-developers"]
-        case .privacy:
-            return ["demo-for-everyone", "demo-who-develops-openmates"]
-        default:
-            return ["demo-for-everyone"]
-        }
-    }
-
     var exampleChats: [String] {
         switch self {
         case .privacy: return ["example-pdf-search-encryption", "example-privacy-website-hero-background", "example-private-workspace-demo-video"]
@@ -1749,7 +1736,6 @@ enum InterestTagRanking {
 
     private static func sharedSurfaceCount(_ tag: InterestTagId, selectedTag: InterestTagId) -> Int {
         sharedCount(tag.suggestions, selectedTag.suggestions) +
-        sharedCount(tag.introChats, selectedTag.introChats) +
         sharedCount(tag.exampleChats, selectedTag.exampleChats)
     }
 

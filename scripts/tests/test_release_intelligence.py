@@ -13,6 +13,8 @@ newsletter automation is allowed to consume release artifacts.
 from __future__ import annotations
 
 import importlib
+import os
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -475,6 +477,7 @@ def test_weekly_rollup_groups_daily_items_and_preserves_dates(tmp_path: Path) ->
     unreleased = weekly["unreleased_progress"]["dev_only"][0]
     assert unreleased["date"] == "2026-07-07"
     assert unreleased["title"] == "feat: link package listings from settings footer"
+    assert weekly["sources"]["daily_files"] == ["docs/releases/daily/2026-07-06.yml", "docs/releases/daily/2026-07-07.yml"]
 
 
 def test_weekly_yaml_output_round_trips(tmp_path: Path) -> None:
@@ -595,16 +598,215 @@ def test_release_summary_markdown_prioritizes_llm_interpretation() -> None:
     assert "changed_paths" not in rendered
 
 
+def test_deterministic_summary_keeps_release_status_boundaries() -> None:
+    artifact = build_daily_artifact(
+        commits=[
+            CommitChange(
+                sha="1111111111111111111111111111111111111111",
+                short_sha="1111111",
+                authored_at="2026-08-21T08:00:00+00:00",
+                subject="fix: restore chat reconnects",
+                body="",
+                changed_paths=["frontend/packages/ui/src/components/ChatHistory.svelte"],
+                in_main=True,
+                in_dev=True,
+            ),
+            CommitChange(
+                sha="2222222222222222222222222222222222222222",
+                short_sha="2222222",
+                authored_at="2026-08-21T09:00:00+00:00",
+                subject="feat: prepare native chat parity",
+                body="",
+                changed_paths=["apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift"],
+                in_main=False,
+                in_dev=True,
+            ),
+        ],
+        report_date=date(2026, 8, 21),
+        since="2026-08-21T00:00:00+00:00",
+        from_ref=None,
+        to_ref="origin/dev",
+        assume_released=False,
+    )
+
+    summary = _release_intelligence.build_deterministic_summary(build_daily_llm_source(artifact))
+
+    assert summary["bug_fixes"][0]["evidence"]["commits"] == ["1111111"]
+    assert summary["unreleased_progress"][0]["evidence"]["commits"] == ["2222222"]
+    assert summary["newsletter_recommendation"]["include"]
+
+
 def test_release_intelligence_cron_wrapper_documents_all_modes() -> None:
     wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
 
-    env_source = wrapper.index('. "$PROJECT_ROOT/.env"')
+    env_source = wrapper.index('. "$SOURCE_ROOT/.env"')
     assert wrapper.rfind("set +u", 0, env_source) != -1
     assert wrapper.find("set -u", env_source) != -1
     assert "run_daily" in wrapper
     assert "run_weekly" in wrapper
-    assert "--discord" in wrapper
+    assert "notify-weekly" in wrapper
     assert "run_monthly" in wrapper
+
+
+def test_vault_key_lookup_uses_running_api_container(monkeypatch) -> None:
+    calls: list[tuple[list[str], Path]] = []
+
+    class Result:
+        stdout = "test-gemini-key"
+        returncode = 0
+
+    def fake_run(command, *, cwd, **_kwargs):
+        calls.append((command, cwd))
+        return Result()
+
+    monkeypatch.setattr(_release_intelligence.subprocess, "run", fake_run)
+
+    assert _release_intelligence.load_gemini_api_key_from_vault() == "test-gemini-key"
+    command, cwd = calls[0]
+    assert command[:4] == ["docker", "exec", "-i", "api"]
+    assert "compose" not in command
+    assert cwd == ROOT
+
+
+def test_vault_key_lookup_reports_redacted_container_failure(monkeypatch, capsys) -> None:
+    class Result:
+        stdout = ""
+        stderr = "sensitive provider detail"
+        returncode = 17
+
+    monkeypatch.setattr(_release_intelligence.subprocess, "run", lambda *_args, **_kwargs: Result())
+
+    assert _release_intelligence.load_gemini_api_key_from_vault() is None
+    error = capsys.readouterr().err
+    assert "container api with exit code 17" in error
+    assert Result.stderr not in error
+
+
+def test_release_intelligence_cron_publishes_from_isolated_checkout() -> None:
+    wrapper = (ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8")
+
+    assert "mktemp -d" in wrapper
+    assert "flock" in wrapper
+    assert "git clone" in wrapper
+    assert "refresh_daily_range" in wrapper
+    assert "sessions.py\" lock" in wrapper
+    assert 'SHARED_LOCK_OWNER="release-intelligence-cron-$(hostname)-$$"' in wrapper
+    assert 'git diff --quiet "$BASE_DEV_SHA..$current_dev_sha" -- docs/releases' in wrapper
+    assert "dev release artifacts changed during generation" in wrapper
+    assert 'git rebase "$current_dev_sha"' in wrapper
+    assert "git push --quiet origin HEAD:dev" in wrapper
+    assert "remote dev did not reach generated commit" in wrapper
+    assert "gh pr create" not in wrapper
+    assert 'WEEKLY_ARTIFACT="docs/releases/weekly/' in wrapper
+    assert wrapper.index("sessions.py\" lock") < wrapper.index('if [[ -z "$changes" ]]')
+    assert "dev changed before weekly notification; refusing stale Discord post" in wrapper
+    assert wrapper.index("publish_artifacts") < wrapper.rindex("notify-weekly")
+
+
+def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=repo, text=True, capture_output=True, check=True)
+
+
+def run_concurrent_publication(tmp_path: Path, mode: str) -> subprocess.CompletedProcess[str]:
+    origin = tmp_path / "origin.git"
+    source = tmp_path / "source"
+    subprocess.run(
+        ["git", "init", "--bare", "--initial-branch=dev", str(origin)],
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    source.mkdir()
+    run_git(source, "init", "--initial-branch=dev")
+    run_git(source, "config", "user.name", "Test")
+    run_git(source, "config", "user.email", "test@example.invalid")
+    run_git(source, "remote", "add", "origin", str(origin))
+    scripts_dir = source / "scripts"
+    scripts_dir.mkdir()
+    wrapper = scripts_dir / "release-intelligence-cron.sh"
+    wrapper.write_text((ROOT / "scripts" / "release-intelligence-cron.sh").read_text(encoding="utf-8"), encoding="utf-8")
+    wrapper.chmod(0o755)
+    (scripts_dir / "sessions.py").write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+    (scripts_dir / "release_intelligence.py").write_text(
+        """#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+args = sys.argv[1:]
+day = args[args.index("--date") + 1]
+output = Path("docs/releases/daily") / f"{day}.yml"
+output.parent.mkdir(parents=True, exist_ok=True)
+output.write_text(f"date: '{day}'\\n", encoding="utf-8")
+
+origin = os.environ["TEST_RELEASE_ORIGIN"]
+mode = os.environ["TEST_CONCURRENT_MODE"]
+peer = Path(os.environ["TEST_CONCURRENT_CLONE"])
+subprocess.run(["git", "clone", "--quiet", "--branch", "dev", origin, str(peer)], check=True)
+subprocess.run(["git", "config", "user.name", "Peer"], cwd=peer, check=True)
+subprocess.run(["git", "config", "user.email", "peer@example.invalid"], cwd=peer, check=True)
+path = peer / ("docs/releases/concurrent.yml" if mode == "release" else "concurrent.txt")
+path.parent.mkdir(parents=True, exist_ok=True)
+path.write_text(mode + "\\n", encoding="utf-8")
+subprocess.run(["git", "add", str(path.relative_to(peer))], cwd=peer, check=True)
+subprocess.run(["git", "commit", "--quiet", "-m", "concurrent update"], cwd=peer, check=True)
+subprocess.run(["git", "push", "--quiet", "origin", "dev"], cwd=peer, check=True)
+""",
+        encoding="utf-8",
+    )
+    run_git(source, "add", "scripts")
+    run_git(source, "commit", "--quiet", "-m", "initial")
+    run_git(source, "push", "--quiet", "--set-upstream", "origin", "dev")
+
+    env = os.environ.copy()
+    env.update(
+        {
+            "RELEASE_INTELLIGENCE_DATE": "2026-08-30",
+            "TEST_RELEASE_ORIGIN": str(origin),
+            "TEST_CONCURRENT_MODE": mode,
+            "TEST_CONCURRENT_CLONE": str(tmp_path / "peer"),
+        }
+    )
+    return subprocess.run(
+        [str(wrapper), "daily"],
+        cwd=source,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_cron_rebases_generated_artifacts_over_unrelated_concurrent_push(tmp_path: Path) -> None:
+    result = run_concurrent_publication(tmp_path, "unrelated")
+
+    assert result.returncode == 0, result.stderr
+    origin = tmp_path / "origin.git"
+    assert subprocess.run(
+        ["git", f"--git-dir={origin}", "cat-file", "-e", "dev:concurrent.txt"],
+        check=False,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", f"--git-dir={origin}", "cat-file", "-e", "dev:docs/releases/daily/2026-08-30.yml"],
+        check=False,
+    ).returncode == 0
+
+
+def test_cron_rejects_concurrent_release_artifact_push(tmp_path: Path) -> None:
+    result = run_concurrent_publication(tmp_path, "release")
+
+    assert result.returncode != 0
+    assert "dev release artifacts changed during generation" in result.stderr
+    origin = tmp_path / "origin.git"
+    assert subprocess.run(
+        ["git", f"--git-dir={origin}", "cat-file", "-e", "dev:docs/releases/concurrent.yml"],
+        check=False,
+    ).returncode == 0
+    assert subprocess.run(
+        ["git", f"--git-dir={origin}", "cat-file", "-e", "dev:docs/releases/daily/2026-08-30.yml"],
+        check=False,
+    ).returncode != 0
 
 
 def test_create_pr_skill_requires_feature_readiness_gate() -> None:

@@ -150,7 +150,7 @@ case "$EVENT" in
       apply_patch|Edit|Write)
         run_for_files "PostToolUse" false \
           "auto-track.sh" \
-          "contract-test-impact.sh" \
+          "specification-test-impact.sh" \
           "skill-embed-registry-guard.sh"
         ;;
     esac

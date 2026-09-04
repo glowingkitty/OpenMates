@@ -128,12 +128,39 @@ function readManifestJson(zipBuffer: Buffer, entries: Map<string, ZipEntry>): Re
 }
 
 async function waitForAccountExportDownload(page: any, timeout = 180000): Promise<any> {
-	const errorLocator = page.getByText(/export failed|not authenticated|account export request failed|missing or invalid token/i).first();
+	const errorLocator = page.getByText(/export failed|failed to fetch|not authenticated|account export request failed|missing or invalid token/i).first();
 	const downloadPromise = page.waitForEvent('download', { timeout });
 	const errorPromise = errorLocator.waitFor({ state: 'visible', timeout }).then(async () => {
 		throw new Error(`Account export UI showed an error before download: ${await errorLocator.innerText()}`);
 	});
 	return await Promise.race([downloadPromise, errorPromise]);
+}
+
+function installAccountExportDiagnostics(page: any, log: (message: string, metadata?: Record<string, unknown>) => void): void {
+	page.on('request', (request: any) => {
+		const url = request.url();
+		if (url.includes('/v1/account-exports')) {
+			log('Account export request started.', { method: request.method(), url });
+		}
+	});
+
+	page.on('response', async (response: any) => {
+		const url = response.url();
+		if (!url.includes('/v1/account-exports')) return;
+		const status = response.status();
+		let body = '';
+		if (status >= 400) {
+			body = await response.text().catch(() => '');
+		}
+		log('Account export response received.', { method: response.request().method(), status, url, body: body.slice(0, 300) });
+	});
+
+	page.on('requestfailed', (request: any) => {
+		const url = request.url();
+		if (url.includes('/v1/account-exports')) {
+			log('Account export request failed.', { method: request.method(), url, failure: request.failure()?.errorText ?? 'unknown' });
+		}
+	});
 }
 
 async function installAccountExportMock(page: any, config: AccountExportMockConfig): Promise<AccountExportMockCall[]> {
@@ -179,7 +206,7 @@ async function installAccountExportMock(page: any, config: AccountExportMockConf
 			return;
 		}
 		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}`) {
-			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'queued', selected_domains: config.selectedDomains } }) });
+			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ export: { export_id: config.exportId, status: 'ready', selected_domains: config.selectedDomains, progress: { total_parts: chunks.length } } }) });
 			return;
 		}
 		if (request.method() === 'GET' && url.pathname === `/v1/account-exports/${config.exportId}/manifest`) {
@@ -252,6 +279,7 @@ async function loginAndOpenExportSettings(page: any, log: (message: string) => v
 	await openExportSettings(page, log);
 }
 
+// contract-test: direct surface=gui.web assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary,storage.surface.semantic-parity
 test('exports account data ZIP from account settings', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(300000);
@@ -260,6 +288,7 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
 
 	const log = createSignupLogger('EXPORT_ACCOUNT');
 	const screenshot = createStepScreenshotter(log, { filenamePrefix: 'export-account' });
+	installAccountExportDiagnostics(page, log);
 	await archiveExistingScreenshots(log);
 
   await loginToTestAccount(page, log, screenshot);
@@ -364,6 +393,7 @@ test('exports account data ZIP from account settings', async ({ page }: { page: 
   log('Account export flow verified.');
 });
 
+// contract-test: supporting surface=gui.web assertions=storage.export.persisted-bounded-complete,storage.privacy.ciphertext-boundary
 test('exports selected account domains and verifies the browser ZIP with the standalone scanner', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(240000);
@@ -384,6 +414,7 @@ test('exports selected account domains and verifies the browser ZIP with the sta
 	const startCall = calls.find((call) => call.method === 'POST' && call.path === '/v1/account-exports');
 	expect(startCall?.body?.domains).toEqual(['usage']);
 	expect(startCall?.body?.filters).toEqual({});
+	expect(startCall?.body?.defer_build).toBe(true);
 
 	const zipBuffer = fs.readFileSync(exportPath);
 	const entries = parseZipEntries(zipBuffer);
@@ -394,6 +425,7 @@ test('exports selected account domains and verifies the browser ZIP with the sta
 	runStandaloneArchiveVerifier(exportPath);
 });
 
+// contract-test: supporting surface=gui.web assertions=storage.export.persisted-bounded-complete,storage.surface.semantic-parity
 test('resumes a stored account export job without starting a duplicate job', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(240000);
@@ -424,6 +456,7 @@ test('resumes a stored account export job without starting a duplicate job', asy
 	expect(await page.evaluate((storageKey) => localStorage.getItem(storageKey), ACCOUNT_EXPORT_JOB_STORAGE_KEY)).toBeNull();
 });
 
+// contract-test: supporting surface=gui.web assertions=storage.export.persisted-bounded-complete,storage.surface.semantic-parity
 test('requires explicit user acceptance before downloading a partial account export', async ({ page }: { page: any }, testInfo: any) => {
 	test.slow();
 	test.setTimeout(240000);

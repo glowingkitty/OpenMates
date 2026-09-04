@@ -1,0 +1,25 @@
+# Durable application-managed regional replication outbox.
+# Object bytes remain encrypted in S3; this collection stores only safe routing,
+# checksum, generation, regional status, and retry metadata. The idempotency key
+# is the stable logical-bucket/object-key/generation identity.
+storage_replication_jobs:
+  type: collection
+  note: "Internal regional object replication outbox"
+  fields:
+    id: {type: uuid, primary: true}
+    idempotency_key: {type: string, length: 64, required: true}
+    logical_bucket: {type: string, length: 64, required: true}
+    object_key: {type: text, required: true}
+    generation: {type: integer, required: true}
+    checksum: {type: string, length: 128, required: true}
+    active_region: {type: string, length: 16, required: true}
+    desired_regions: {type: json, required: true}
+    region_states: {type: json, required: true}
+    state: {type: string, length: 32, required: true}
+    version: {type: integer, required: true, default: 1}
+    attempts: {type: integer, required: true, default: 0}
+    last_error_code: {type: string, length: 64, nullable: true}
+    next_attempt_at: {type: datetime, nullable: true}
+    created_at: {type: datetime, required: true}
+    updated_at: {type: datetime, required: true}
+    completed_at: {type: datetime, nullable: true}

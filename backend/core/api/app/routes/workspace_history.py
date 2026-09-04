@@ -15,6 +15,7 @@ from starlette.concurrency import run_in_threadpool
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_or_api_key
 from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.services.user_work_control_service import DirectusWorkControlRepository, UserWorkControlService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, s3_workspace_history_archive_io
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 
@@ -48,6 +49,18 @@ def get_workflow_service(request: Request) -> WorkflowService:
         service = WorkflowService(repository=DirectusWorkflowRepository())
         request.app.state.workflow_service = service
     return service
+
+
+def _work_control_service(request: Request, user_id: str) -> UserWorkControlService:
+    return UserWorkControlService(
+        DirectusWorkControlRepository(
+            user_id=user_id,
+            plan_methods=request.app.state.directus_service.user_plan,
+            task_methods=request.app.state.directus_service.user_task,
+            directus_service=request.app.state.directus_service,
+            cache_service=request.app.state.cache_service,
+        )
+    )
 
 
 def _workflow_status_snapshot(workflow: Any) -> dict[str, Any]:
@@ -166,7 +179,12 @@ async def undo_workspace_history(
             )
             return {"workflow_version_before_id": entry.get("workflow_version_after_id"), "workflow_version_after_id": workflow.current_version_id}
 
-        return await service.undo_change_set(user_id=current_user.id, change_set_id=change_set_id, workflow_undo_handler=undo_workflow_entry)
+        return await service.undo_change_set(
+            user_id=current_user.id,
+            change_set_id=change_set_id,
+            workflow_undo_handler=undo_workflow_entry,
+            delete_guard=_work_control_service(request, current_user.id).delete_guard,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -183,14 +201,12 @@ async def restore_workspace_object_history(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        return await service.restore_object_to_entry(
-            user_id=current_user.id,
-            object_type=object_type,
-            object_id=object_id,
-            entry_id=body.entry_id,
-            state=body.state,
-            source="cli",
-        )
+        async with _work_control_service(request, current_user.id).restore_delete_guard(
+            service, user_id=current_user.id, object_type=object_type, object_id=object_id, entry_id=body.entry_id, state=body.state
+        ):
+            return await service.restore_object_to_entry(
+                user_id=current_user.id, object_type=object_type, object_id=object_id, entry_id=body.entry_id, state=body.state, source="cli"
+            )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

@@ -1,0 +1,45 @@
+schema_version: 1
+specification: feature.pii-protection@1
+
+composer_detection:
+  - id: active-email-phone-redacted
+    input: {message: "Email alice@example.com or call +49 170 1234567", excluded_values: []}
+    expect: {sent_contains_email_placeholder: true, sent_contains_phone_placeholder: true, sent_contains_original_email: false, sent_contains_original_phone: false}
+  - id: excluded-email-preserved
+    input: {message: "Email max@posteo.de and sarah@proton.com", excluded_values: ["max@posteo.de"]}
+    expect: {sent_contains_original_excluded_value: true, sent_contains_active_email_placeholder: true}
+
+message_reveal:
+  - id: owner-message-hidden-by-default
+    input: {viewer: owner, reveal_state: hidden, mapping_available: true}
+    expect: {message_contains_placeholder: true, message_contains_original: false}
+  - id: owner-message-revealed-locally
+    input: {viewer: owner, reveal_state: revealed, mapping_available: true}
+    expect: {message_contains_original: true, server_payload_changed: false}
+  - id: non-owner-no-mapping
+    input: {viewer: non_owner, reveal_state: revealed, mapping_available: false}
+    expect: {message_contains_placeholder: true, message_contains_original: false}
+
+embed_reveal_sync:
+  - id: mail-embed-hidden-preview-fullscreen
+    input: {embed_app_id: mail, reveal_state: hidden, owner_mapping_available: true}
+    expect: {preview_contains_placeholder: true, fullscreen_contains_placeholder: true, originals_visible: false}
+  - id: chat-header-reveals-fullscreen
+    input: {embed_app_id: mail, toggled_from: chat_header, reveal_state: revealed}
+    expect: {chat_message_contains_original: true, preview_contains_original: true, fullscreen_opens_revealed: true}
+  - id: fullscreen-hide-syncs-chat-header
+    input: {embed_app_id: mail, toggled_from: fullscreen, reveal_state: hidden}
+    expect: {chat_header_state_hidden: true, chat_message_contains_placeholder: true, fullscreen_contains_placeholder: true}
+
+followup_rewrite:
+  - id: prior-message-original-rewritten
+    input: {prior_mapping: {original: alice@example.com, placeholder: "[EMAIL_1_com]"}, followup: "Use alice@example.com for signup"}
+    expect: {outbound_contains_placeholder: true, outbound_contains_original: false}
+  - id: unknown-original-not-guessed
+    input: {prior_mapping: null, followup: "Use unknown-merchant.example for signup"}
+    expect: {placeholder_invented: false}
+
+surface_parity:
+  - id: web-cli-apple-placeholder-boundary
+    input: {surfaces: [gui.web, cli, gui.apple], contains_supported_pii: true}
+    expect: {server_receives_active_placeholders_only: true, local_owner_restoration_semantics_match: true}

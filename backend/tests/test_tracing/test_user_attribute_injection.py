@@ -1,4 +1,5 @@
 # backend/tests/test_tracing/test_user_attribute_injection.py
+# contract-test-file: tooling
 """
 Tests proving user attributes flow from cached profile to OTel span attributes.
 
@@ -99,6 +100,61 @@ class TestStartWsHandlerSpan:
             )
             assert span is None
             assert token is None
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.propagation.complete
+    def test_handler_span_is_active_for_child_work(self):
+        """Child spans inherit the WS handler span through standard OTel context."""
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace._TRACER_PROVIDER_SET_ONCE._done = False
+        trace.set_tracer_provider(provider)
+
+        span, token = ws_span_helper_mod.start_ws_handler_span(
+            handler_name="message_received",
+            user_id="user-private",
+            payload=None,
+        )
+        with trace.get_tracer("test").start_as_current_span("child-work"):
+            pass
+        ws_span_helper_mod.end_ws_handler_span(span, token)
+
+        finished = {item.name: item for item in exporter.get_finished_spans()}
+        assert finished["child-work"].parent.span_id == finished["ws.message_received"].context.span_id
+
+    # contract-test: direct surface=rest_api assertions=ai-request-observability.propagation.complete
+    def test_missing_traceparent_does_not_inherit_websocket_connection_trace(self):
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+        exporter = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+        trace._TRACER_PROVIDER_SET_ONCE._done = False
+        trace.set_tracer_provider(provider)
+        tracer = trace.get_tracer("test")
+
+        with tracer.start_as_current_span("websocket-connection"):
+            span, token = ws_span_helper_mod.start_ws_handler_span(
+                handler_name="message_received",
+                user_id="user-private",
+                payload={},
+            )
+            ws_span_helper_mod.end_ws_handler_span(span, token)
+
+        finished = {item.name: item for item in exporter.get_finished_spans()}
+        assert finished["ws.message_received"].parent is None
+        assert (
+            finished["ws.message_received"].context.trace_id
+            != finished["websocket-connection"].context.trace_id
+        )
 
     def test_span_has_admin_and_debug_attrs_when_passed(self):
         """Test 3: span created by helper has enduser.is_admin=True and

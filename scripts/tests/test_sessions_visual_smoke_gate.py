@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for deployed UI visual-smoke session gating.
 
 Purpose: prevent larger UI sessions from ending without a deployed visual review.
@@ -36,7 +37,7 @@ def test_visual_smoke_required_for_spec_backed_ui_work():
 
     assert sessions._requires_visual_smoke(
         [
-            "docs/specs/example-ui/spec.yml",
+            "docs/plans/example-ui/plan.yml",
             "frontend/packages/ui/src/components/settings/SettingsExample.svelte",
         ]
     )

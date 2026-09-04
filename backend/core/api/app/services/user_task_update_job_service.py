@@ -31,7 +31,6 @@ ALLOWED_CLIENT_PAYLOAD_SAFE_KEYS = {
     "linked_project_ids",
     "parent_task_id",
     "plan_id",
-    "plan_step_id",
     "position",
     "primary_chat_id",
     "priority",

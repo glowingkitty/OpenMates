@@ -1,8 +1,8 @@
 # backend/tests/test_workflow_action_adapter.py
 #
 # Focused contracts for real Workflows V1 platform-action dispatch. These tests
-# ensure the runner records actual push task submission without exposing stored
-# subscriptions and rejects actions that do not have a safe server-side service.
+# ensure the runner records actual push task submission, chat/report delivery,
+# and visible validation failures without exposing stored subscriptions.
 #
 # Spec: docs/specs/workflows-v1/spec.yml
 
@@ -89,6 +89,7 @@ class _DirectusService:
         self.closed = True
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_push_action_falls_back_to_directus_and_queues_existing_push_task() -> None:
     cache = _CacheService(None)
@@ -135,6 +136,7 @@ async def test_push_action_falls_back_to_directus_and_queues_existing_push_task(
     assert directus.closed is True
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_push_action_records_a_visible_skip_when_owner_has_no_subscription() -> None:
     cache = _CacheService({"push_notification_enabled": False})
@@ -161,6 +163,7 @@ async def test_push_action_records_a_visible_skip_when_owner_has_no_subscription
     assert directus.calls == []
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_notification_binding_requires_an_enabled_push_subscription() -> None:
     adapter = WorkflowActionAdapter(
@@ -185,17 +188,38 @@ async def test_notification_binding_requires_an_enabled_push_subscription() -> N
     assert exc_info.value.code == "NOTIFICATION_PREFERENCES_UNRESOLVED"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private,workflows.content.encrypted-retained,workflows.execution.lifecycle-visible
 @pytest.mark.anyio
-@pytest.mark.parametrize("method_name", ["create_chat_report"])
-async def test_chat_actions_fail_when_no_safe_server_side_contract_exists(method_name: str) -> None:
+async def test_create_chat_report_creates_pending_delivery_without_regular_chat_key() -> None:
+    delivery_service = WorkflowChatDeliveryService(cipher=_FakeDeliveryCipher(), clock=lambda: 100)
+    adapter = WorkflowActionAdapter(chat_delivery_service=delivery_service)
+
+    result = await adapter.create_chat_report(
+        {"title": "Daily report", "summary": "Rain is likely.", "expires_in_seconds": 100},
+        {},
+        "alice",
+    )
+
+    assert result["type"] == "create_chat_report"
+    assert result["status"] == "delivery_pending"
+    assert result["summary"] == "Rain is likely."
+    assert result["report_id"] == result["delivery_id"]
+    delivery = delivery_service.get_delivery(delivery_id=result["delivery_id"], owner_id="alice")
+    assert delivery.encrypted_payload.startswith("ciphertext:alice:")
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+@pytest.mark.anyio
+async def test_create_chat_report_requires_title_and_summary() -> None:
     adapter = WorkflowActionAdapter()
 
     with pytest.raises(WorkflowActionExecutionError) as exc_info:
-        await getattr(adapter, method_name)({}, {}, "alice")
+        await adapter.create_chat_report({}, {}, "alice")
 
-    assert exc_info.value.code == "WORKFLOW_ACTION_UNAVAILABLE"
+    assert exc_info.value.code == "WORKFLOW_ACTION_INVALID_CONFIG"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_start_new_chat_requires_message_and_title_or_existing_chat_id() -> None:
     adapter = WorkflowActionAdapter()
@@ -206,6 +230,7 @@ async def test_start_new_chat_requires_message_and_title_or_existing_chat_id() -
     assert exc_info.value.code == "WORKFLOW_ACTION_INVALID_CONFIG"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private,workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_start_new_chat_publishes_pending_delivery_to_connected_clients() -> None:
     cache = _PublishingCacheService()
@@ -237,6 +262,7 @@ async def test_start_new_chat_publishes_pending_delivery_to_connected_clients() 
     assert delivery["encrypted_payload"].startswith("ciphertext:alice:")
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_email_action_fails_when_no_safe_workflow_email_contract_exists() -> None:
     adapter = WorkflowActionAdapter()
@@ -247,6 +273,7 @@ async def test_email_action_fails_when_no_safe_workflow_email_contract_exists() 
     assert exc_info.value.code == "WORKFLOW_ACTION_UNAVAILABLE"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.anyio
 async def test_push_dispatch_failure_is_a_typed_visible_execution_error() -> None:
     cache = _CacheService(

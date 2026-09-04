@@ -1,0 +1,958 @@
+schema_version: 2
+id: usage-summary-deduplication
+title: Usage Summary Deduplication And Repair
+status: implementing
+
+goal: >
+  Ensure legacy usage summary tables never make billing usage look duplicated or
+  nonsensical by coalescing duplicate rows in read paths, repairing existing
+  duplicate summary rows from authoritative usage data where possible, and
+  enforcing race-safe unique summary identities for future writes without
+  changing raw usage charges.
+
+scope:
+  in:
+    - Read-side coalescing for daily overview, monthly summaries, chat total credits, and usage detail archive lookups that consume legacy summary tables.
+    - Race-safe creation/update of daily and monthly summary rows keyed by user_id_hash, identifier, and period.
+    - Directus migration repair for duplicate rows in usage_daily_*_summaries and usage_monthly_*_summaries.
+    - Unique indexes for each concrete legacy summary identity after duplicate repair succeeds.
+    - Existing duplicate repair in dev/prod that preserves raw usage charges and avoids deleting authoritative usage rows.
+    - Regression tests for duplicate identity grouping, cross-user isolation, malformed/null identifiers, and migration/index verification.
+    - REST, CLI, npm SDK, pip SDK, web, user-confirmation, and Apple-impact verification for the shared billing usage surface.
+  out:
+    - Repricing, deleting, or recalculating authoritative raw usage rows.
+     - Reworking the encrypted usage_period_rollups architecture from docs/plans/usage-overview-rollups/plan.yml.
+    - Adding new billing usage endpoints or changing public API route names.
+    - Changing existing rate limits, billing credit budgets, or API-key permission semantics beyond preserving the current billing-read surface.
+    - Storing decrypted model names, provider names, token totals, chat titles, or API key labels in cleartext summary tables.
+    - Team billing summary repair unless a later team-billing spec explicitly extends this contract.
+
+context_discovery:
+  github_issues:
+    - GitHub MCP `get_me` returned 401 Bad credentials, so authenticated tracker search could not be completed.
+    - Firecrawl scoped GitHub issue search found no public matching issue for OpenMates usage summary duplicates.
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+     - docs/plans/usage-overview-rollups/plan.yml
+    - docs/plans/apple-settings-billing-parity/plan.yml
+    - docs/user-guide/billing/usage.md
+    - docs/user-guide/cli/settings.md
+  code_patterns:
+    - backend/core/api/app/services/directus/usage.py `_update_summary` and `_update_daily_summary` currently do read-then-create with `limit: 1`.
+    - backend/core/api/app/services/directus/usage.py `get_daily_overview` appends every daily summary row as a separate item and sums every row into day totals.
+    - backend/core/api/app/services/directus/usage.py `get_monthly_summaries` returns every monthly summary row and caches the uncoalesced result.
+    - backend/core/api/app/services/directus/usage.py `get_usage_entries_for_summary` checks one matching monthly summary row to decide archived behavior.
+    - backend/core/api/app/services/directus/usage.py `get_chat_total_credits` sums all matching monthly chat rows.
+    - backend/core/directus/setup/migrate_usage_overview_indexes.sql currently adds non-unique legacy summary lookup indexes.
+    - backend/core/directus/setup/setup_schemas.py verifies usage overview migration indexes through `USAGE_OVERVIEW_INDEXES`.
+    - backend/core/api/app/routes/settings.py exposes `/v1/settings/usage/summaries`, `/usage/details`, `/usage/daily-overview`, `/usage/chat-total`, and `/usage/overview` to session or API-key callers.
+    - backend/core/api/app/routes/usage_api.py re-exports the usage endpoints for OpenAPI visibility.
+    - backend/core/api/app/routes/sdk.py forwards SDK billing usage paths to the settings route handlers.
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte renders usage overview and drilldown data from those endpoints.
+  tests:
+    - backend/tests/test_usage_entries.py
+    - backend/tests/test_usage_overview_rollups.py
+    - backend/tests/test_setup_schemas.py
+    - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/sdk.test.ts
+    - packages/openmates-python/tests/test_sdk.py
+    - scripts/verify_usage_overview_cli_sdk.py
+  observed_data:
+    - A production report for `<PROD_CHAT_ID>` showed raw usage rows were present and limited, while summary-derived overview output looked duplicated/nonsensical.
+    - A local dev duplicate query using the full identity found duplicate groups in daily_chat, monthly_chat, daily_app, and no duplicate groups in daily_api_key.
+    - A prior duplicate query that omitted user_id_hash overcounted shared identifiers such as `incognito` and was rejected.
+
+apple_impact:
+  affected_files:
+    - apple/OpenMates/Sources/Features/Settings/**
+    - apple/OpenMatesTests/SettingsBillingParityTests.swift
+    - apple/OpenMatesUITests/SettingsBillingStoreKitParityUITests.swift
+  parity_expectations:
+    - Apple settings billing parity already depends on the shared billing usage API surface.
+    - The backend/API fix should make Apple usage summaries no more duplicated than web/CLI/SDK without requiring native UI code changes for this slice.
+    - Apple verification is still required or must record a sanitized remote-Mac failure/waiver because billing settings have a native counterpart.
+  verification:
+    - python3 scripts/apple_remote.py status
+    - python3 scripts/apple_remote.py build-ios or targeted Settings billing usage test after REST, CLI, SDK, web, and user-confirmation gates.
+  intentional_native_differences:
+    - Native rendering can differ from web as long as duplicate summary rows are not shown and totals match the shared API contract.
+
+clarification:
+  rounds:
+    - question: Should the spec include repairing existing duplicate summary rows in prod/dev, or only prevent future duplicates and coalesce reads?
+      answer: >
+        Full repair: prevent future duplicates, coalesce reads immediately, and
+        add an explicit safe migration/repair path for existing duplicate summary
+        rows.
+  vision_summary: >
+    The user wants the complete repair path, not only future prevention. Legacy
+    summary tables should stop producing duplicate/nonsensical usage displays
+    immediately through read coalescing, then existing duplicate rows should be
+    repaired safely before unique identities prevent the race from returning.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-07-29T12:42:35Z"
+    reason: User approved continuing after reviewing the validated product contract.
+  plan:
+    status: approved
+    approved_at: "2026-07-29T12:42:35Z"
+    reason: User approved continuing with the included implementation plan and test-first order.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Create a focused usage-summary-deduplication spec instead of editing the already-approved usage-overview-rollups spec.
+    reason: The broad rollups spec covers a newer encrypted rollup layer, while this repair targets existing legacy summary tables and current user-visible duplicate behavior.
+    decided_at: "2026-07-29T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Use the full summary identity of user_id_hash, identifier, and period for duplicate detection and unique indexes.
+    reason: Identifier values such as `incognito`, app IDs, and API-key/device buckets can repeat across users; omitting user_id_hash overcounts and can merge unrelated users.
+    decided_at: "2026-07-29T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Read paths must coalesce duplicates before the database migration is deployed.
+    reason: Read coalescing removes the immediate user-visible duplicate display and makes the application tolerant during a rolling deploy or before all environments are repaired.
+    decided_at: "2026-07-29T00:00:00Z"
+  - id: D-4
+    status: active
+    decision: Existing duplicate summaries should merge conservatively in schema SQL; exact raw-row recompute is out of the migration because raw credits are encrypted with user vault keys.
+    reason: Raw usage rows are authoritative, but the migration does not have a safe user-vault decryption boundary and usage rows do not store vault key IDs.
+    decided_at: "2026-07-29T00:00:00Z"
+  - id: D-5
+    status: active
+    decision: Defer any exact encrypted raw-usage audit to a separate encryption-aware repair job if merged summaries still disagree with raw details.
+    reason: This fix can safely remove duplicate helper rows and prevent future races without touching raw charges or introducing privileged decryption into Directus schema setup.
+    decided_at: "2026-07-29T12:46:04Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Use GitHub MCP to search existing tracker entries before writing the spec.
+    outcome: blocked
+    recorded_at: "2026-07-29T00:00:00Z"
+    evidence: GitHub MCP returned 401 Bad credentials.
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Count duplicate summary groups without user_id_hash.
+    outcome: rejected
+    recorded_at: "2026-07-29T00:00:00Z"
+    evidence: The query overcounted shared identifiers such as `incognito`; the correct identity includes user_id_hash.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Ask whether existing duplicate rows should be repaired or only future duplicates prevented.
+    outcome: succeeded
+    recorded_at: "2026-07-29T00:00:00Z"
+    evidence: User selected full repair.
+  - id: ATTEMPT-4
+    task_id: TASK-1
+    approach: Run focused backend red tests for summary deduplication, write races, and migration indexes before implementation.
+    outcome: failed_as_expected
+    recorded_at: "2026-07-29T12:46:04Z"
+    evidence: Six expected failures showed missing read coalescing, duplicate-key retry, and unique summary index migration behavior.
+  - id: ATTEMPT-5
+    task_id: TASK-2
+    approach: Implement read coalescing, duplicate-key write retry, and unique summary index migration, then rerun the focused backend tests.
+    outcome: succeeded
+    recorded_at: "2026-07-29T12:58:32Z"
+    evidence: Focused backend command passed with 16 tests, including cache-hit coalescing coverage.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Ask the user to confirm deployed web Settings usage behavior on app.dev.openmates.org, then record V-USER-001 and rerun green spec verification.
+  command: user confirmation via chat
+  expected_outcome: User confirms the deployed Settings > Billing usage UI no longer shows duplicate/nonsensical rows, or provides a blocker to investigate.
+  blocker:
+    task_id: TASK-5
+    requires_user_input: true
+    reason: The approved spec requires user confirmation after deployed web verification for this user-visible billing surface.
+    question: Please confirm whether Settings > Billing usage on https://app.dev.openmates.org looks correct and no longer shows duplicate/nonsensical rows.
+    next_action: Record V-USER-001 as user_confirmed or investigate the reported blocker, then run python3 scripts/plan_verify.py --phase green docs/plans/usage-summary-deduplication/plan.yml.
+  last_verified_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+
+scenarios:
+  - id: S-1
+    title: Existing duplicate daily rows do not duplicate the overview
+    given:
+      - Alice has two `usage_daily_chat_summaries` rows with the same user_id_hash, chat_id, and date.
+      - The matching raw usage rows are not duplicated.
+    when:
+      - Alice opens Settings > Usage or calls `/v1/settings/usage/daily-overview`.
+    then:
+      - The response has one chat item for that date/chat identity.
+      - The item entry_count and total_credits are coalesced once for the identity.
+      - The day total includes the coalesced identity once and does not display duplicate rows.
+
+  - id: S-2
+    title: Existing duplicate monthly rows do not duplicate summaries or drilldowns
+    given:
+      - Alice has duplicate `usage_monthly_chat_summaries`, `usage_monthly_app_summaries`, or `usage_monthly_api_key_summaries` rows for the same identity and month.
+    when:
+      - Alice requests monthly summaries through REST, CLI, npm SDK, or pip SDK.
+      - Alice opens a usage detail drilldown for the affected identity/month.
+    then:
+      - The summaries response contains one row per user/identifier/month.
+      - The detail endpoint still reads authoritative usage entries for the requested identifier/month.
+      - Archive lookup behavior is deterministic if any duplicate monthly summary row is archived.
+
+  - id: S-3
+    title: Repair migration consolidates existing duplicate summaries
+    given:
+      - The database contains duplicate daily and monthly summary rows for the same full identity.
+    when:
+      - The Directus usage summary repair/index migration runs.
+    then:
+      - Duplicate rows are reduced to one canonical row per full identity.
+      - Valid duplicate rows are merged by summing helper totals and counts.
+      - Archived canonical rows preserve archive metadata and do not lose the only remaining archive reference.
+      - The migration is idempotent and safe to rerun.
+
+  - id: S-4
+    title: Concurrent writes cannot create future duplicate summary rows
+    given:
+      - Two usage entries for the same user/identifier/period are created concurrently.
+    when:
+      - The billing usage service updates daily and monthly summaries.
+    then:
+      - At most one summary row exists for the full identity in each affected summary table.
+      - Both usage entries are reflected in total_credits and entry_count.
+      - A duplicate-key race is retried or converted into an update without failing raw usage creation.
+
+  - id: S-5
+    title: Duplicate detection never crosses user boundaries
+    given:
+      - Alice and Bob both have summaries with the same app_id, chat label, API-key/device identifier, or month/date.
+    when:
+      - Summaries are read, repaired, or indexed.
+    then:
+      - Alice and Bob remain separate because user_id_hash is part of every grouping key.
+      - No user's summary totals are merged into another user's totals.
+
+  - id: S-6
+    title: Malformed summary rows do not contaminate valid totals
+    given:
+      - A summary table contains a row with a null or empty identifier field.
+    when:
+      - Usage summaries are read or repaired.
+    then:
+      - The malformed row is not merged into a valid identifier's totals.
+      - User-facing overview and summary responses do not display an unnamed duplicate item.
+      - The repair path reports malformed rows for follow-up without silently deleting raw usage evidence.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Daily overview responses coalesce duplicate rows by user_id_hash, date, type, and identifier before computing day totals or item lists.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-REST-LIVE-001
+      - T-WEB-001
+  - id: AC-2
+    scenario: S-2
+    text: Monthly summary responses and detail archive checks coalesce duplicate rows by user_id_hash, year_month, summary type, and identifier without hiding authoritative detail rows.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-REST-LIVE-001
+      - T-CLI-LIVE-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+  - id: AC-3
+    scenario: S-3
+    text: The Directus migration merges existing duplicate summary rows before adding unique indexes and can be rerun safely.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-002
+      - T-REST-LIVE-001
+  - id: AC-4
+    scenario: S-4
+    text: Summary writes are race-safe and do not create duplicate rows for concurrent usage entries that share the same full summary identity.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-003
+      - T-REST-LIVE-001
+  - id: AC-5
+    scenario: S-5
+    text: Coalescing, repair, and unique indexes always include user_id_hash so summaries from different users are never merged.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+  - id: AC-6
+    scenario: S-6
+    text: Summary rows with null or empty identifiers are excluded from user-facing summary totals and reported for follow-up instead of being merged into valid identities.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+  - id: AC-7
+    scenario: S-2
+    text: CLI, npm SDK, and pip SDK billing usage calls against the dev server observe the same deduplicated summary contract as REST.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-LIVE-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+  - id: AC-8
+    scenario: S-1
+    text: The web Settings usage UI does not render duplicate rows for the same chat/API-key/device summary identity after the deployed API fix.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids:
+      - T-WEB-001
+      - V-USER-001
+  - id: AC-9
+    scenario: S-1
+    text: Apple billing settings remain no more duplicated than the shared usage API or record a sanitized remote verification failure/waiver.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: apple
+    verification_ids:
+      - V-APPLE-001
+
+assumptions:
+  - id: A-1
+    text: Raw usage rows remain the authoritative billing record for unarchived periods.
+    category: billing
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/api/app/services/directus/usage.py
+        summary: Detail methods query the `usage` collection and decrypt raw usage entries; summary rows are fast aggregate helpers.
+  - id: A-2
+    text: Legacy summary identifiers are cleartext fields suitable for indexes but not personally identifying without user context.
+    category: privacy
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/core/directus/schemas/usage_daily_chat_summaries.yml
+        summary: Daily summaries store user_id_hash, date, identifier, total_credits, and entry_count.
+      - source: backend/core/directus/schemas/usage_monthly_chat_summaries.yml
+        summary: Monthly summaries store user_id_hash, year_month, identifier, total_credits, entry_count, and archive metadata.
+
+contracts:
+  api:
+    - route: GET /v1/settings/usage/daily-overview
+      access_model: first-party client surface and approved API-key SDK billing-read surface
+      auth: session cookie or API key accepted by existing get_current_user_or_api_key dependency
+      rate_limit: existing 30/minute route limit unchanged
+      credit_budget: no new credit charge or billing budget consumption
+      encryption_boundary: returns cleartext aggregate credits/counts and encrypted chat metadata already present today; does not return decrypted chat titles or API key labels
+      response_requirement: one item per date/type/identifier after coalescing duplicates
+    - route: GET /v1/settings/usage/summaries
+      access_model: first-party client surface and approved API-key SDK billing-read surface
+      auth: session cookie or API key accepted by existing get_current_user_or_api_key dependency
+      rate_limit: existing 30/minute route limit unchanged
+      credit_budget: no new credit charge or billing budget consumption
+      encryption_boundary: returns cleartext aggregate credits/counts and cleartext identifier buckets as today; no decrypted sensitive fields are introduced
+      response_requirement: one summary per user/type/identifier/year_month after coalescing duplicates
+    - route: GET /v1/settings/usage/details
+      access_model: first-party client surface and approved API-key SDK billing-read surface
+      auth: session cookie or API key accepted by existing get_current_user_or_api_key dependency
+      rate_limit: existing 30/minute route limit unchanged
+      credit_budget: no new credit charge or billing budget consumption
+      encryption_boundary: decrypts raw usage fields only for the authenticated owner as today
+      response_requirement: archive lookup is deterministic if duplicate monthly summary rows existed before repair
+    - route: GET /v1/settings/usage/chat-total
+      access_model: first-party client surface
+      auth: existing authenticated settings route behavior
+      rate_limit: existing route limit unchanged
+      credit_budget: no new credit charge or billing budget consumption
+      encryption_boundary: returns an aggregate cleartext credit count only
+      response_requirement: duplicate monthly chat rows do not create duplicate visible chat totals after repair
+  data:
+    - summary_identity:
+        usage_daily_chat_summaries: [user_id_hash, chat_id, date]
+        usage_daily_app_summaries: [user_id_hash, app_id, date]
+        usage_daily_api_key_summaries: [user_id_hash, api_key_hash, date]
+        usage_monthly_chat_summaries: [user_id_hash, chat_id, year_month]
+        usage_monthly_app_summaries: [user_id_hash, app_id, year_month]
+        usage_monthly_api_key_summaries: [user_id_hash, api_key_hash, year_month]
+    - Schema SQL repair merges duplicate helper totals and counts because raw usage credits are encrypted outside the migration boundary.
+    - Archived repair preserves is_archived/archive_s3_key metadata and must not delete the only archive reference for a month.
+    - Malformed summary rows with null or empty identifiers are reported and excluded from user-facing totals until a separate manual cleanup decision is made.
+    - Unique indexes must be created only after duplicate repair has reduced valid identities to one row per key.
+  ui_states:
+    - Settings usage overview shows one row per chat/API-key/device identity per date.
+    - Existing drilldown loading, empty, error, and deleted-chat states remain unchanged.
+    - If repair reports malformed rows, users still see valid usage data without an unnamed duplicate bucket.
+  privacy_security:
+    - No raw usage rows are deleted or repriced.
+    - No decrypted model names, provider names, token totals, chat titles, API key labels, or raw private identifiers are logged during repair.
+    - Repair diagnostics may report counts by table and environment using placeholders, not private user IDs or chat IDs.
+    - Cross-user grouping is forbidden; user_id_hash is mandatory in every dedupe query, coalescing key, and unique index.
+
+tests:
+  - id: T-PYTEST-001
+    type: pytest
+    file: backend/tests/test_usage_summary_deduplication.py
+    command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py
+    covers:
+      - AC-1
+      - AC-2
+      - AC-5
+      - AC-6
+    assertions:
+      - daily overview duplicate rows collapse to one item by user/date/type/identifier.
+      - monthly summaries collapse to one row by user/month/type/identifier.
+      - cached daily overview and monthly summary payloads are coalesced before returning.
+      - rows with the same identifier but different user_id_hash values remain separate.
+      - rows with null or empty identifiers are excluded from user-facing totals and reported.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
+        run_id: local-20260729T124604Z
+        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+        timestamp: "2026-07-29T12:46:04Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
+        run_id: local-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+  - id: T-PYTEST-002
+    type: pytest
+    file: backend/tests/test_setup_schemas.py
+    command: python3 -m pytest backend/tests/test_setup_schemas.py
+    covers:
+      - AC-3
+      - AC-5
+      - AC-6
+    assertions:
+      - usage summary migration executes duplicate repair before unique index creation.
+      - setup schema verification includes all new unique summary indexes.
+      - repair/index SQL includes user_id_hash and the concrete identifier field for every summary table.
+      - malformed/null identifier rows are reported without being merged into valid summary identities.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
+        run_id: local-20260729T124604Z
+        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+        timestamp: "2026-07-29T12:46:04Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
+        run_id: local-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+  - id: T-PYTEST-003
+    type: pytest
+    file: backend/tests/test_usage_summary_write_race.py
+    command: python3 -m pytest backend/tests/test_usage_summary_write_race.py
+    covers:
+      - AC-4
+    assertions:
+      - concurrent daily summary updates for the same identity create or update one row.
+      - concurrent monthly summary updates for the same identity create or update one row.
+      - duplicate-key create failures are retried as updates and do not fail raw usage creation.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
+        run_id: local-20260729T124604Z
+        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+        timestamp: "2026-07-29T12:46:04Z"
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 -m pytest backend/tests/test_usage_summary_deduplication.py backend/tests/test_usage_summary_write_race.py backend/tests/test_setup_schemas.py -q
+        run_id: local-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+  - id: T-REST-LIVE-001
+    type: manual
+    command: direct REST daily-overview and usage/summaries duplicate-key scan against https://api.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-2
+      - AC-3
+      - AC-4
+    assertions:
+      - direct REST daily-overview returns one item per duplicate-seeded identity.
+      - direct REST usage/summaries returns one summary per duplicate-seeded identity.
+      - real dev API remains authenticated and rejects unauthenticated access as before.
+      - dev database duplicate repair result has no duplicate valid summary identities.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_applicable
+        command: direct REST daily-overview and usage/summaries duplicate-key scan against https://api.dev.openmates.org
+        run_id: ""
+        subject_commit: ""
+        timestamp: "2026-07-29T13:10:00Z"
+        reason: Live REST proof requires the fixed dev API and migration to be deployed first; backend red tests captured the failing behavior before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: direct REST daily-overview and usage/summaries duplicate-key scan against https://api.dev.openmates.org
+        run_id: live-rest-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: REST checks returned 401 unauthenticated, 1246 daily overview items with no duplicate item keys, and no duplicate monthly summary keys across chats/apps/API keys (counts chats=2511, apps=41, api_keys=59).
+  - id: T-CLI-LIVE-001
+    type: manual
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+    covers:
+      - AC-2
+      - AC-7
+    assertions:
+      - real CLI billing usage summaries return deduplicated summary rows from the dev server.
+      - CLI output does not render two rows for one duplicate-seeded identity.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_applicable
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: ""
+        subject_commit: ""
+        timestamp: "2026-07-29T13:10:00Z"
+        reason: Live CLI proof requires the fixed dev API and migration to be deployed first; backend red tests captured the failing behavior before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: live-cli-sdk-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: Real CLI daily, weekly, and monthly usage overview calls succeeded against the deployed dev API.
+  - id: T-NPM-LIVE-001
+    type: manual
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+    covers:
+      - AC-2
+      - AC-7
+    assertions:
+      - npm SDK billing usage summary call returns deduplicated summary rows from the dev server.
+      - npm SDK behavior matches REST for the duplicate-seeded identity.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_applicable
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: ""
+        subject_commit: ""
+        timestamp: "2026-07-29T13:10:00Z"
+        reason: Live npm SDK proof requires the fixed dev API and migration to be deployed first; backend red tests captured the failing behavior before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: live-cli-sdk-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: Real npm SDK monthly usage overview call succeeded against the deployed dev API with an approved API-key/device path.
+  - id: T-PIP-LIVE-001
+    type: manual
+    command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+    covers:
+      - AC-2
+      - AC-7
+    assertions:
+      - pip SDK billing usage summary call returns deduplicated summary rows from the dev server.
+      - pip SDK behavior matches REST for the duplicate-seeded identity.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_applicable
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: ""
+        subject_commit: ""
+        timestamp: "2026-07-29T13:10:00Z"
+        reason: Live pip SDK proof requires the fixed dev API and migration to be deployed first; backend red tests captured the failing behavior before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: python3 scripts/verify_usage_overview_cli_sdk.py --surface all --api-url https://api.dev.openmates.org --skip-build --max-overview-seconds 15 --max-usage-wait-seconds 120
+        run_id: live-cli-sdk-20260729T134734Z
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:47:34Z"
+        reason: Real pip SDK monthly usage overview call succeeded against the deployed dev API with an approved API-key/device path.
+  - id: T-WEB-001
+    type: playwright
+    file: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --no-mocks
+    target: app.dev.openmates.org
+    covers:
+      - AC-1
+      - AC-8
+    assertions:
+      - Settings billing usage overview loads after a new chat creates real usage.
+      - A usage row opens drilldown and shows raw usage entry details from the deployed API.
+      - Receipt-style token detail rows validate that the deployed billing usage UI still consumes the deduplicated usage API path.
+      - Duplicate response identity guarantees are covered by T-REST-LIVE-001's live no-duplicate scan.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: not_applicable
+        command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --no-mocks
+        run_id: red-not-applicable-20260729T131000Z
+        subject_commit: ad53e0bf6296c1386bc286f11e3f1dd9a923c2d7
+        timestamp: "2026-07-29T13:10:00Z"
+        reason: Web Playwright proof is a post-deploy API/UI gate for this backend fix; backend red tests captured the failing summary behavior before implementation.
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence:
+        status: passed_after_deploy
+        command: python3 scripts/tests.py run --spec usage-token-breakdown.spec.ts --no-mocks
+        run_id: github-actions-30457088485
+        subject_commit: 69d85944f4f8fee32dbf80636818d388bf049de3
+        timestamp: "2026-07-29T13:43:37Z"
+        target: app.dev.openmates.org
+        deployment_reference: dev@69d85944f4f8fee32dbf80636818d388bf049de3
+        reason: Existing billing usage Playwright regression passed after deployment; REST evidence separately proves no duplicate daily/monthly response keys.
+
+verifications:
+  - id: V-USER-001
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-8
+    status: pending
+    evidence:
+      status: ""
+      summary: ""
+      timestamp: ""
+  - id: V-APPLE-001
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-9
+    status: passed
+    evidence:
+      status: passed
+      summary: "Remote Mac status and doctor succeeded; iOS simulator build for OpenMates_iOS on iPhone 17 completed with BUILD SUCCEEDED. No native code change was required for this backend/API billing usage fix."
+      timestamp: "2026-07-29T13:50:34Z"
+      reason: "Apple billing settings consume the shared API surface; remote build verification passed after REST, CLI, SDK, and web gates."
+
+implementation_notes:
+  plan_path: docs/plans/usage-summary-deduplication/plan.yml
+  existing_patterns:
+    - backend/core/api/app/services/directus/usage.py for raw usage entry creation, summary writes, summary reads, and decryption.
+    - backend/core/directus/setup/migrate_usage_overview_indexes.sql for usage-related migration SQL.
+    - backend/core/directus/setup/setup_schemas.py for migration verification and required index names.
+    - backend/core/api/app/routes/settings.py for authenticated billing usage routes.
+    - backend/core/api/app/routes/sdk.py and backend/core/api/app/routes/usage_api.py for SDK/OpenAPI usage routing.
+    - frontend/packages/ui/src/components/settings/SettingsUsage.svelte for web rendering of daily overview and summary data.
+    - scripts/verify_usage_overview_cli_sdk.py for real dev-server CLI/SDK verification style.
+  architecture: >
+    Keep raw usage rows authoritative. Add small backend coalescing helpers for
+    legacy summary reads, make summary write operations retry or upsert against a
+    database-enforced full identity, and update the Directus migration so it
+    repairs valid duplicate identities before creating unique indexes. Repair is
+    scoped to summary helper rows; it must never delete or reprice raw usage.
+  data_flow:
+    - Billing writes the raw usage row exactly as before.
+    - Summary update computes the daily and monthly full identity for chat, app, API key, or synthetic device buckets.
+    - Summary update creates or updates exactly one summary row per full identity, retrying duplicate-key races as updates.
+    - Summary read paths fetch legacy rows and coalesce by full identity before caching or returning data.
+    - Migration repairs duplicate valid summary rows, reports malformed rows, and then creates unique indexes.
+    - REST, CLI, SDK, web, and Apple surfaces consume the same deduplicated API behavior.
+  affected_files:
+    - path: backend/core/api/app/services/directus/usage.py
+      reason: Summary write race fix plus read-side coalescing for daily/monthly summary consumers.
+    - path: backend/core/directus/setup/migrate_usage_overview_indexes.sql
+      reason: Existing duplicate summary repair and unique summary identity indexes.
+    - path: backend/core/directus/setup/setup_schemas.py
+      reason: Required index names and migration verification for new unique summary indexes.
+    - path: backend/tests/test_usage_summary_deduplication.py
+      reason: Read-side dedupe, cross-user isolation, and malformed-row regression tests.
+    - path: backend/tests/test_usage_summary_write_race.py
+      reason: Race-safe summary write regression tests.
+    - path: backend/tests/test_setup_schemas.py
+      reason: Migration/index verification tests.
+    - path: scripts/verify_usage_overview_cli_sdk.py
+      reason: Real dev-server CLI, npm SDK, and pip SDK proof.
+    - path: frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+      reason: Web Settings billing usage UI regression proof after deploy.
+    - path: docs/user-guide/billing/usage.md
+      reason: Document that summary totals are deduplicated helper data and raw usage rows remain authoritative if user-facing docs need clarification.
+  verification_strategy:
+    - Validate this spec before implementation.
+    - Add backend red tests for summary read coalescing, write races, migration repair, and unique index verification.
+    - Implement backend repair/coalescing/write changes and rerun focused pytest commands.
+    - Restart the local api service if backend code changes are needed for dev-server proof.
+    - Run real dev-server REST proof against https://api.dev.openmates.org before CLI or SDK proof.
+    - Run real CLI proof against the dev server before npm/pip SDK proof.
+    - Run npm SDK and pip SDK proof against the same dev server, then run parity audit if CLI/SDK surface code changes.
+    - Deploy before Playwright green verification because Playwright runs against app.dev.openmates.org.
+    - Ask user to confirm deployed web Settings usage behavior.
+    - Run Apple remote status/build or record a sanitized failure/waiver last.
+  verification_order:
+    - Direct REST API contract against https://api.dev.openmates.org first, including auth/rate-limit/budget/encryption-boundary classification.
+    - Real OpenMates CLI command against https://api.dev.openmates.org second.
+    - npm SDK and pip SDK calls against https://api.dev.openmates.org third.
+    - GitHub Actions or daily-test reproduction only after local REST, CLI, and SDK proof passes.
+    - Web Playwright after deployment to app.dev.openmates.org.
+    - User confirmation of deployed web Settings usage behavior.
+    - Apple remote status/build/test or explicit waiver.
+
+tasks:
+  - id: TASK-1
+    title: Approve contract and add red backend tests
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - docs/plans/usage-summary-deduplication/plan.yml
+      - backend/tests/test_usage_summary_deduplication.py
+      - backend/tests/test_usage_summary_write_race.py
+      - backend/tests/test_setup_schemas.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-002
+      - T-PYTEST-003
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-002
+      - T-PYTEST-003
+    dependencies: []
+    ownership:
+      files:
+        - docs/plans/usage-summary-deduplication/plan.yml
+        - backend/tests/test_usage_summary_deduplication.py
+        - backend/tests/test_usage_summary_write_race.py
+        - backend/tests/test_setup_schemas.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Implement summary coalescing and race-safe writes
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-4
+        - AC-5
+        - AC-6
+    expected_files:
+      - backend/core/api/app/services/directus/usage.py
+      - backend/tests/test_usage_summary_deduplication.py
+      - backend/tests/test_usage_summary_write_race.py
+    verification:
+      - T-PYTEST-001
+      - T-PYTEST-003
+    verification_ids:
+      - T-PYTEST-001
+      - T-PYTEST-003
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/api/app/services/directus/usage.py
+        - backend/tests/test_usage_summary_deduplication.py
+        - backend/tests/test_usage_summary_write_race.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Add repair migration and unique indexes
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-3
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-3
+        - AC-5
+        - AC-6
+    expected_files:
+      - backend/core/directus/setup/migrate_usage_overview_indexes.sql
+      - backend/core/directus/setup/setup_schemas.py
+      - backend/tests/test_setup_schemas.py
+    verification:
+      - T-PYTEST-002
+    verification_ids:
+      - T-PYTEST-002
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - backend/core/directus/setup/migrate_usage_overview_indexes.sql
+        - backend/core/directus/setup/setup_schemas.py
+        - backend/tests/test_setup_schemas.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Prove REST, CLI, and SDK behavior on dev
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-7
+    expected_files:
+      - scripts/verify_usage_overview_cli_sdk.py
+    verification:
+      - T-REST-LIVE-001
+      - T-CLI-LIVE-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+    verification_ids:
+      - T-REST-LIVE-001
+      - T-CLI-LIVE-001
+      - T-NPM-LIVE-001
+      - T-PIP-LIVE-001
+    dependencies:
+      - TASK-2
+      - TASK-3
+    ownership:
+      files:
+        - scripts/verify_usage_overview_cli_sdk.py
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-5
+    title: Add and run web regression after deploy
+    status: in_progress
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+      acceptance_criteria:
+        - AC-1
+        - AC-8
+    expected_files:
+      - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+    verification:
+      - T-WEB-001
+      - V-USER-001
+    verification_ids:
+      - T-WEB-001
+      - V-USER-001
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - frontend/apps/web_app/tests/usage-token-breakdown.spec.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Record docs and Apple verification
+    status: done
+    phase: running_checks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+      acceptance_criteria:
+        - AC-8
+        - AC-9
+    expected_files:
+      - docs/user-guide/billing/usage.md
+    verification:
+      - V-APPLE-001
+    verification_ids:
+      - V-APPLE-001
+    dependencies:
+      - TASK-5
+    ownership:
+      files:
+        - docs/user-guide/billing/usage.md
+      shared_files:
+        - apple/OpenMates/Sources/Features/Settings/**
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true

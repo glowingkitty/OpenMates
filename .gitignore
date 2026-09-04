@@ -255,6 +255,9 @@ privacy-video.mp4
 .claude/security-audit-state.json.tmp
 .claude/security-acknowledged.json
 .claude/security-acknowledged.json.tmp
+.claude/product-runtime-state.json
+.claude/product-runtime-state.lock
+.claude/product-runtime-state.tmp
 .claude/.prefetch-cache/
 .claude/checkpoint-locks/
 # Claude Code's in-session scheduled-task infrastructure — we never use it;
@@ -343,6 +346,7 @@ backend/tests/output/
 !.opencode/agents/*.md
 !.opencode/commands/
 !.opencode/commands/*.md
+!.opencode/deploy-protocol-version
 !.opencode/plugins/
 !.opencode/plugins/openmates-claude-hooks.js
 

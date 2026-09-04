@@ -24,6 +24,7 @@
   import { hydrateWikiLinks, replaceWikiLinksInText, stripEmbedLinks } from '../../../utils/embedLinkUtils';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { requestEmbedFromServerOnce } from '../../../services/embedResolver';
   
   /**
    * Props for sheet embed preview
@@ -76,6 +77,7 @@
   // Once handleEmbedDataUpdated receives "finished"/"error", the $effect must NOT
   // revert to statusProp (which may still be "processing" from the HTML attribute).
   let storeResolved = $state(false);
+  let tableContentRecoveryRequested = $state(false);
 
   // Initialize local state from props — but only when the store hasn't resolved yet.
   $effect(() => {
@@ -96,6 +98,16 @@
   let colCount = $derived(localColCount);
   let status = $derived(localStatus);
   let taskId = $derived(localTaskId);
+
+  function hasFinishedTableMetadata(statusValue: string, rowCountValue: number, colCountValue: number): boolean {
+    return statusValue === 'finished' && rowCountValue > 0 && colCountValue > 0;
+  }
+
+  function requestTableContentRecovery(reason: string): void {
+    if (tableContentRecoveryRequested || !id) return;
+    tableContentRecoveryRequested = true;
+    void requestEmbedFromServerOnce(id, reason);
+  }
   
   // Maximum rows to show in preview
   // Large variant (400px container) shows more rows to fill the taller space
@@ -228,15 +240,27 @@
     if (data.decodedContent) {
       const c = data.decodedContent;
       // TOON content uses 'table' field; legacy/fallback uses 'code'
-      localTableContent = String(c.table || c.code || c.content || '');
+      const nextTableContent = String(c.table || c.code || c.content || '');
+      if (nextTableContent || !localTableContent) {
+        localTableContent = nextTableContent;
+      }
       if (c.title) localTitle = String(c.title);
       // TOON content uses row_count/col_count; legacy uses rows/cols
       if (typeof c.row_count === 'number') localRowCount = c.row_count;
       else if (typeof c.rows === 'number') localRowCount = c.rows;
       if (typeof c.col_count === 'number') localColCount = c.col_count;
       else if (typeof c.cols === 'number') localColCount = c.cols;
+
+      if (!nextTableContent && hasFinishedTableMetadata(localStatus, localRowCount, localColCount)) {
+        requestTableContentRecovery('sheet-preview-empty-content-recovery');
+      }
     }
   }
+
+  $effect(() => {
+    if (tableContent || !hasFinishedTableMetadata(status, rowCount, colCount)) return;
+    requestTableContentRecovery('sheet-preview-initial-content-recovery');
+  });
 
   $effect(() => {
     void previewRows;

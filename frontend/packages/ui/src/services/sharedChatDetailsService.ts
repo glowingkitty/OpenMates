@@ -7,7 +7,7 @@
 
 import { getApiEndpoint } from "../config/api";
 import { computeSHA256 } from "../message_parsing/utils";
-import type { UserPlanViewModel, EncryptedUserPlanRecord, UserPlanKeyWrapperRecord } from "./userPlanService";
+import { validateUserFlows, type UserPlanViewModel, type EncryptedUserPlanRecord, type UserPlanKeyWrapperRecord } from "./userPlanService";
 import type { UserTaskViewModel, EncryptedUserTaskRecord, UserTaskKeyWrapperRecord } from "./userTaskService";
 import { decryptWithEmbedKey, unwrapEmbedKeyWithChatKey } from "./cryptoService";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
@@ -62,14 +62,15 @@ async function decryptSharedPlan(
 
   const planKey = await unwrapEmbedKeyWithChatKey(wrapper.encrypted_plan_key, chatKey, { chatId });
   if (!planKey) return null;
+  const encryptedUserFlows = await decryptOptional(record.encrypted_user_flows, planKey, { chatId, fieldName: "shared_plan_user_flows" });
 
   return {
     plan_id: planId,
     title: await decryptOptional(record.encrypted_title, planKey, { chatId, fieldName: "shared_plan_title" }),
-    summary: await decryptOptional(record.encrypted_summary, planKey, { chatId, fieldName: "shared_plan_summary" }),
     goal: await decryptOptional(record.encrypted_goal, planKey, { chatId, fieldName: "shared_plan_goal" }),
     scopeIn: await decryptOptional(record.encrypted_scope_in, planKey, { chatId, fieldName: "shared_plan_scope_in" }),
     scopeOut: await decryptOptional(record.encrypted_scope_out, planKey, { chatId, fieldName: "shared_plan_scope_out" }),
+    userFlows: validateUserFlows(encryptedUserFlows ? JSON.parse(encryptedUserFlows) : []),
     assumptions: await decryptOptional(record.encrypted_assumptions, planKey, { chatId, fieldName: "shared_plan_assumptions" }),
     openQuestions: await decryptOptional(record.encrypted_open_questions, planKey, { chatId, fieldName: "shared_plan_open_questions" }),
     constraints: await decryptOptional(record.encrypted_constraints, planKey, { chatId, fieldName: "shared_plan_constraints" }),
@@ -78,15 +79,12 @@ async function decryptSharedPlan(
     status: record.status,
     primaryChatId: record.primary_chat_id ?? null,
     linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, planKey, chatId, "shared_plan_linked_projects"),
-    currentPhaseId: record.current_phase_id ?? null,
-    currentStepId: record.current_step_id ?? null,
-    currentTaskId: record.current_task_id ?? null,
     plannerFocusId: record.planner_focus_id ?? null,
     version: record.version ?? 1,
     createdAt: record.created_at,
     updatedAt: record.updated_at,
     completedAt: record.completed_at ?? null,
-    encrypted: { ...record, encrypted_plan_key: wrapper.encrypted_plan_key },
+    encrypted: { ...record, key_wrappers: [wrapper] },
   };
 }
 

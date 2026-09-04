@@ -1,0 +1,744 @@
+schema_version: 2
+id: prompt-budget-cli-evaluation
+title: Prompt Budget CLI Evaluation
+status: implementing
+
+goal: >
+  Reduce OpenMates AI prompt token usage only when real product-path CLI chat
+  evidence proves that latency and token budgets improve without degrading
+  response quality, routing, follow-up continuity, safety, or app-skill behavior.
+
+scope:
+  in:
+    - A fixed committed corpus of 10 exact CLI chat prompts.
+    - Exactly 3 multi-turn conversations in the corpus, each with 6 total user messages.
+    - Baseline live runs through the real OpenMates CLI chat path before prompt-budget implementation.
+    - Per-turn collection of processing time, model/routing metadata, token/usage metrics where available, prompt/debug budget metrics, and judged response quality.
+    - Prompt-budget architecture changes that are directly supported by the baseline evidence.
+    - Post-change live runs using the same exact 10 prompt definitions and the same follow-up sequences.
+    - A comparison report that decides whether the changes are kept, need adjustment, or should be reverted.
+  out:
+    - Provider-only benchmarks that bypass OpenMates preprocessing, main processing, postprocessing, WebSocket, or CLI encryption paths.
+    - Browser UI, Apple app, or SDK feature changes for the first slice.
+    - OpenCode, Codex, Claude, or agent-instruction loading changes. Those recommendations are saved only as deferred follow-up reminders.
+    - Changing model quality by switching target models as the primary optimization.
+    - Accepting token savings that reduce judged quality, break routing/tool selection, or weaken safety behavior.
+    - Using synthetic mocked model responses as proof for the before/after comparison.
+
+context_discovery:
+  github_issues:
+    - "No tracker issue was provided. Existing repo discovery found benchmark-related specs and CLI docs instead of creating a new issue."
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/contributing/guides/testing.md
+    - docs/plans/cli-model-benchmarks/plan.yml
+    - docs/plans/app-skill-processing-quality/plan.yml
+    - docs/user-guide/cli/benchmarks.md
+    - docs/architecture/apps/function-calling.md
+  code_patterns:
+    - backend/apps/ai/base_instructions.yml contains preprocessing and postprocessing tool schemas with runtime-expanded placeholders.
+    - backend/apps/ai/processing/preprocessor.py expands topic areas, app-skill hints, and focus hints for preprocessing calls.
+    - backend/apps/ai/processing/main_processor.py assembles the main system prompt and already gates some embed/diff instructions.
+    - backend/apps/ai/processing/tool_generator.py gates main LLM tool schemas by preselected skills.
+    - backend/apps/ai/processing/postprocessor.py builds suggestion and summary prompts with all available skill hints.
+    - backend/apps/ai/utils/llm_utils.py substitutes dynamic context into preprocessing tool descriptions and schema property descriptions.
+    - frontend/packages/openmates-cli/src/benchmark.ts already runs real product-path benchmark cases through OpenMatesClient.sendMessage().
+    - frontend/packages/openmates-cli/src/client.ts sends real CLI WebSocket chat turns and preserves benchmark metadata.
+    - backend/apps/ai/tasks/ask_skill_task.py and backend/scripts/debug_requests.py expose main system prompt char counts and debug metadata paths.
+  tests:
+    - frontend/packages/openmates-cli/tests/cli.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - backend/tests/test_ai_skill_request_schema.py
+    - backend/tests/test_usage_entries.py
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - This first slice changes backend AI prompt assembly and CLI benchmark/evaluation tooling. Apple has no benchmark command counterpart and no direct UI change is planned.
+  verification:
+    - Apple not affected for this first slice.
+  intentional_native_differences:
+    - none
+
+clarification:
+  rounds:
+    - question: Should the 10-message evaluation corpus be fully committed as exact prompts or selected from benchmark suites at runtime?
+      answer: Commit the same 10 input prompts so before/after runs use identical requests.
+  vision_summary: >
+    The evaluation must first establish a real baseline, then make prompt-budget
+    changes, then re-run the same exact CLI chat requests so the result can be
+    trusted. Token and latency savings are only successful if response quality,
+    routing, and follow-up behavior stay at least as good as baseline.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: ad53e0bf6+working-tree
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-07-29"
+    reason: User approved the product contract and instructed OpenCode to proceed.
+  plan:
+    status: approved
+    approved_at: "2026-07-29"
+    reason: User approval covered proceeding with the included baseline-first implementation plan.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Use a committed fixed corpus of 10 exact prompt definitions.
+    reason: The user explicitly requested the same 10 input prompts for before/after comparison.
+    decided_at: "2026-07-29"
+  - id: D-2
+    status: active
+    decision: Use the real OpenMates CLI chat path for baseline and post-change runs.
+    reason: The user asked for real chat requests via OpenMates CLI; mocked or provider-only runs would not measure product prompt assembly.
+    decided_at: "2026-07-29"
+  - id: D-3
+    status: active
+    decision: Optimize prompt architecture only after baseline evidence is captured.
+    reason: The user wants evidence-driven changes and a clear basis for undoing changes if quality degrades.
+    decided_at: "2026-07-29"
+  - id: D-4
+    status: active
+    decision: Prefer reversible prompt-budget changes guarded by quality comparison and feature flags or narrow predicates where practical.
+    reason: Prompt reductions can silently hurt routing or output quality; rollback must remain cheap.
+    decided_at: "2026-07-29"
+  - id: D-5
+    status: active
+    decision: Defer OpenCode instruction-token recommendations until after the OpenMates runtime prompt-budget experiment is complete.
+    reason: The user clarified that this benchmark and implementation scope is only OpenMates via the OpenMates CLI, not OpenCode prompt loading.
+    decided_at: "2026-07-29"
+  - id: D-6
+    status: active
+    decision: Revert the attempted runtime prompt-budget optimizations because the adjusted post-change comparison did not pass the quality gate.
+    reason: The accepted rule is to keep prompt-budget changes only when the same-corpus comparison passes without material quality regressions.
+    decided_at: "2026-07-29T11:51:45Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Draft full executable spec for the before/after CLI prompt-budget experiment.
+    outcome: planned
+    recorded_at: "2026-07-29"
+  - id: ATTEMPT-2
+    task_id: TASK-3
+    approach: Run and resume the live baseline using the shared default ~/.openmates CLI session.
+    outcome: blocked
+    recorded_at: "2026-07-29T10:15:53Z"
+    summary: The run reached 21/25 turns but concurrent CLI logins invalidated or overwrote the shared local session during the final multi-turn case.
+  - id: ATTEMPT-3
+    task_id: TASK-3
+    approach: Resume the live baseline with HOME=/tmp/opencode/prompt-budget-home so login/session state is isolated from other sessions.
+    outcome: succeeded
+    recorded_at: "2026-07-29T10:15:53Z"
+    summary: The resume completed all 10 cases and all 25 turns through the real dev CLI chat path.
+  - id: ATTEMPT-4
+    task_id: TASK-5
+    approach: Run the first post-change comparison after compacting preprocessing dynamic lists and gating a large main-prompt code-block instruction.
+    outcome: rejected
+    recorded_at: "2026-07-29T11:51:45Z"
+    summary: The comparison returned needs_fix with four quality regressions despite a small average duration improvement.
+  - id: ATTEMPT-5
+    task_id: TASK-5
+    approach: Rerun the same corpus after narrowing the runtime changes to app-settings parameter compaction and code-block instruction gating.
+    outcome: rejected
+    recorded_at: "2026-07-29T11:51:45Z"
+    summary: The adjusted comparison still returned needs_fix because multiturn-model-evaluation-plan turn 4 dropped from judge score 4 to 2.
+  - id: ATTEMPT-6
+    task_id: TASK-5
+    approach: Revert all remaining backend runtime prompt-saving changes while keeping the CLI benchmark harness and metric plumbing.
+    outcome: succeeded
+    recorded_at: "2026-07-29T11:51:45Z"
+    summary: backend/apps/ai/processing/main_processor.py and backend/apps/ai/utils/llm_utils.py returned to baseline behavior; no runtime prompt-budget optimization remains accepted.
+
+handoff:
+  current_task_id: TASK-5
+  next_action: Decide whether to spend another live benchmark cycle on a different runtime optimization or stop with the measurement harness only.
+  command: Ask the user for the next product decision.
+  expected_outcome: User chooses another optimization attempt with real-credit post-change verification, or accepts that no runtime prompt-saving change passed this gate.
+  blocker:
+    requires_user_input: true
+    reason: The adjusted same-corpus comparison failed the quality gate, and further attempts require a product/cost decision before spending more credits.
+    question: Should we try another narrower OpenMates runtime prompt-budget optimization, or keep only the CLI measurement harness and stop the runtime changes here?
+    next_action: Wait for user direction before new runtime optimization work.
+  last_verified_commit: ad53e0bf6+working-tree
+
+scenarios:
+  - id: S-1
+    title: Fixed corpus covers common, tool, and follow-up behavior
+    given:
+      - The prompt-budget evaluation corpus is committed in the repository.
+    when:
+      - The evaluation runner lists or executes the corpus.
+    then:
+      - It contains exactly 10 top-level prompt definitions.
+      - Exactly 3 prompt definitions are multi-turn conversations with 6 total user messages each.
+      - The remaining 7 prompt definitions are single-turn chats.
+      - The corpus includes simple factual help, writing, coding, current-information/tool use, structured artifact behavior, safety/privacy review, and OpenMates platform/tool-selection behavior.
+
+  - id: S-2
+    title: Baseline run captures real processing metrics before changes
+    given:
+      - The CLI test account is logged in against https://api.dev.openmates.org.
+      - No prompt-budget implementation changes have been applied beyond measurement support needed for the baseline.
+    when:
+      - The baseline evaluation command runs the fixed corpus.
+    then:
+      - Each turn is sent through the real OpenMates CLI chat path with benchmark metadata.
+      - The output records per-turn processing duration, selected model when available, mate/category when available, selected skill/tool information when available, token/usage metrics where available, and prompt/debug budget metrics where available.
+      - The output records response text and any deterministic pass/fail checks for the case.
+      - The output stores a baseline artifact with a run ID and subject commit.
+
+  - id: S-3
+    title: Quality evaluation judges every baseline response
+    given:
+      - A baseline response artifact exists for the fixed corpus.
+    when:
+      - The evaluator judges response quality.
+    then:
+      - Every single-turn response receives a quality score and rationale.
+      - Every turn in each 6-message follow-up conversation receives a quality score and rationale.
+      - Multi-turn conversations also receive a continuity score and rationale.
+      - The judge prompt checks helpfulness, instruction following, factuality, safety, routing/tool appropriateness, and concision.
+
+  - id: S-4
+    title: Prompt-budget changes reduce repeated prompt payloads safely
+    given:
+      - Baseline metrics identify concrete prompt budget drivers.
+    when:
+      - Prompt-budget implementation changes are applied.
+    then:
+      - The implementation removes or gates repeated prompt payloads without removing required capability instructions from turns that need them.
+      - The implementation preserves fallback behavior for ambiguous routing or tool-selection cases.
+      - The implementation is small, reviewable, and does not change user-facing model selection as the primary optimization.
+
+  - id: S-5
+    title: Post-change run reuses the same exact corpus
+    given:
+      - Prompt-budget implementation changes are deployed or live in the local dev API path required for CLI testing.
+    when:
+      - The post-change evaluation command runs.
+    then:
+      - It uses the same exact 10 prompt definitions and the same 3 six-message follow-up sequences as the baseline.
+      - The output records the same metric categories as baseline.
+      - The output stores a post-change artifact with a run ID and subject commit.
+
+  - id: S-6
+    title: Comparison decides keep, adjust, or revert
+    given:
+      - Baseline and post-change artifacts exist for the same corpus.
+    when:
+      - The comparison report is generated.
+    then:
+      - The report shows aggregate and per-case differences for prompt/debug budget, processing duration, token/usage metrics where available, selected model/routing, and quality scores.
+      - The report highlights any response quality, safety, routing, tool-use, or continuity regression.
+      - The changes are accepted only if quality does not regress materially and prompt budget or latency improves meaningfully.
+      - If quality regresses materially, the spec records a needs-fix or revert decision before deployment is considered complete.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: The committed corpus has exactly 10 prompt definitions, including exactly 3 conversations with 6 user messages each and 7 single-turn chats.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids:
+      - T-UNIT-001
+  - id: AC-2
+    scenario: S-2
+    text: The baseline evaluation sends all corpus turns through the real OpenMates CLI chat path against api.dev.openmates.org and records per-turn duration, routing/model metadata, usage/token metrics where available, and prompt/debug budget metrics where available.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-BASELINE
+  - id: AC-3
+    scenario: S-3
+    text: The baseline artifact includes judged response quality for every response and continuity judgment for each six-message conversation.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-BASELINE
+  - id: AC-4
+    scenario: S-4
+    text: Prompt-budget implementation reduces repeated or irrelevant prompt payloads while preserving fallback behavior for ambiguous routing and tool-selection cases.
+    required: true
+    status: failed
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-COMPARE-001
+      - V-QUALITY-GATE
+  - id: AC-5
+    scenario: S-5
+    text: The post-change evaluation uses the same exact 10 prompt definitions and records the same metric categories as the baseline artifact.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids:
+      - T-CLI-POSTCHANGE
+  - id: AC-6
+    scenario: S-6
+    text: The comparison report shows per-case and aggregate metric deltas and flags material quality, routing, tool-use, safety, or continuity regressions.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - T-COMPARE-001
+  - id: AC-7
+    scenario: S-6
+    text: The prompt-budget changes are not considered complete unless quality remains at least baseline-equivalent and prompt budget or latency improves meaningfully.
+    required: true
+    status: failed
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids:
+      - V-QUALITY-GATE
+
+assumptions:
+  - id: A-1
+    text: Existing CLI benchmark metadata can be reused to tag live target and judge turns as benchmark usage.
+    category: cli
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: frontend/packages/openmates-cli/src/benchmark.ts
+        summary: sendBenchmarkTurn and judgeCase call OpenMatesClient.sendMessage with benchmarkMetadata.
+      - source: docs/plans/cli-model-benchmarks/plan.yml
+        summary: Existing verified benchmark spec requires real product-path CLI chat inference and benchmark usage tagging.
+  - id: A-2
+    text: Main processor debug metadata currently includes system prompt char count and available tool summaries, but additional per-stage prompt/usage metrics may need to be added for this evaluation.
+    category: instrumentation
+    required_before: implementation
+    status: confirmed
+    evidence:
+      - source: backend/apps/ai/processing/main_processor.py
+        summary: Debug metadata yields system_prompt_char_count, available_tools_count, available_tools, and truncated message history.
+      - source: backend/scripts/debug_requests.py
+        summary: Debug inspection extracts system_prompt_chars and tools_count from main_processor_input.
+
+contracts:
+  corpus:
+    - id: prompt-budget-cli-corpus
+      requirement: >
+        The corpus is a committed JSON or TypeScript data file with exactly 10
+        stable case IDs. Each case stores exact user prompts, expected checks,
+        allowed app/tool expectations where applicable, and quality rubric notes.
+      required_prompts:
+        - id: single-writing-concise-email
+          turns:
+            - "Write a concise but warm email to a colleague asking to move our Tuesday 10:00 project sync to Thursday afternoon. Keep it under 120 words."
+        - id: single-code-palindrome
+          turns:
+            - "Write a TypeScript function isPalindrome(input: string): boolean that ignores spaces, punctuation, and case. Include only the function and one short usage example."
+        - id: single-current-web-ai-news
+          turns:
+            - "Search the web for the latest major AI model release from the last 30 days and summarize what changed, with sources."
+        - id: single-travel-filtered-flight
+          turns:
+            - "Find direct flights from Berlin to Barcelona on 2026-09-10 under 220 EUR if possible, and explain the best tradeoff."
+        - id: single-events-accessibility
+          turns:
+            - "Find wheelchair-accessible family events in Berlin this weekend. Separate confirmed accessibility from unknown accessibility."
+        - id: single-openmates-help
+          turns:
+            - "Explain which OpenMates app or skill I should use to compare products before buying a new laptop, and what you would do next."
+        - id: single-safety-privacy-review
+          turns:
+            - "Review this benchmark design for privacy risks: it logs prompts, outputs, model ids, usage costs, and debug metadata to a shared file. List risks and safer defaults."
+        - id: multiturn-model-evaluation-plan
+          turns:
+            - "Create a three-step plan for evaluating whether a new AI model is ready for production use."
+            - "Make step 2 more concrete with two measurable checks."
+            - "Add a risk register with severity and mitigation for the top three risks."
+            - "Turn the plan into a one-week execution schedule."
+            - "Identify which tasks could be automated with OpenMates skills."
+            - "Summarize the final plan in one sentence."
+        - id: multiturn-startup-launch
+          turns:
+            - "Help me plan the launch of a privacy-first personal AI assistant for freelancers."
+            - "Define the ideal first customer profile and their top pains."
+            - "Draft a landing page hero section for that customer."
+            - "Create a simple pricing experiment with three tiers."
+            - "Write five outbound messages for early customer interviews."
+            - "Summarize the riskiest assumption and how to test it this week."
+        - id: multiturn-debugging-workflow
+          turns:
+            - "A SvelteKit page sometimes shows stale chat messages after refresh. Give me a debugging plan."
+            - "Add likely root causes involving IndexedDB and WebSocket sync."
+            - "Suggest instrumentation I should add before fixing code."
+            - "Write a minimal regression test outline using data-testid selectors."
+            - "Explain how to tell if the bug is backend sync or frontend cache."
+            - "Condense this into a checklist I can hand to another engineer."
+  cli:
+    - command: openmates benchmark prompt-budget --phase baseline|postchange --output <path> --confirm-spend-credits [--judge-model <provider/model>] [--json]
+      behavior:
+        - Uses the committed prompt-budget corpus.
+        - Sends every user turn through OpenMatesClient.sendMessage with benchmark metadata and incognito history for deterministic follow-up context.
+        - Records response text, chat ID, message ID when available, duration, selected model/mate/category when available, selected tools when available, prompt/debug budget metrics when available, usage/token metrics where available, and judge scores.
+        - Refuses live execution without explicit spend confirmation.
+    - command: openmates benchmark prompt-budget compare --baseline <path> --postchange <path> --output <path> [--json]
+      behavior:
+        - Compares artifacts only when corpus IDs and prompt text hashes match exactly.
+        - Computes aggregate and per-case deltas.
+        - Fails or marks the run needs_fix when quality/routing/safety regressions exceed the accepted gate.
+  api:
+    access_model: first-party client surface only
+    changed_endpoints: []
+    auth: Existing CLI session authentication for WebSocket chat; benchmark metadata uses existing sanitized labels.
+    rate_limits: Existing chat, model, and skill rate limits apply; this spec does not add public API capacity.
+    credit_budget: Live baseline, judge, and post-change runs spend real credits and require explicit CLI confirmation.
+    encryption_boundary: CLI chat requests use existing client-side encryption and incognito benchmark history behavior; no decrypted private user data is committed.
+  privacy_security:
+    - Evaluation artifacts committed to git must not include raw private account identifiers, cookies, tokens, emails, or production secrets.
+    - Local live-run artifacts may include prompts and assistant outputs from the committed public corpus, model IDs, durations, usage metrics, and sanitized debug counts.
+    - Any debug metadata containing private user data must remain local and be redacted before documentation or commits.
+
+tests:
+  - id: T-UNIT-001
+    type: unit
+    file: frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+    command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:benchmark
+    covers:
+      - AC-1
+    assertions:
+      - prompt-budget corpus contains exactly 10 stable case IDs.
+      - exactly 3 cases contain 6 user turns and exactly 7 cases contain 1 user turn.
+      - corpus prompt text hashes are stable and included in output artifacts.
+    red_phase:
+      required: true
+      expected: fail
+      evidence:
+        status: failed_as_expected
+        command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:benchmark
+        run_id: npm-run-test-unit-benchmark-2026-07-29-red
+        subject_commit: f46142665
+        timestamp: "2026-07-29T01:36:43Z"
+        summary: Missing PROMPT_BUDGET_CASES export before implementation.
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && npm run build && npm run test:unit:benchmark
+        run_id: npm-run-test-unit-benchmark-2026-07-29-green
+        subject_commit: f46142665
+        timestamp: "2026-07-29T01:42:51Z"
+  - id: T-CLI-BASELINE
+    type: manual
+    command: cd frontend/packages/openmates-cli && node dist/cli.js benchmark prompt-budget --phase baseline --confirm-spend-credits --output ../../..//tmp/prompt-budget-baseline.json --json
+    covers:
+      - AC-2
+      - AC-3
+    assertions:
+      - all 10 cases complete through the real CLI chat path against api.dev.openmates.org.
+      - all 25 total user turns record duration and response text.
+      - model/routing, usage/token, and prompt/debug budget fields are present where runtime exposes them.
+      - all responses have quality scores and judge rationales.
+      - all three multi-turn conversations have continuity scores and judge rationales.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && HOME=/tmp/opencode/prompt-budget-home node dist/cli.js benchmark prompt-budget --phase baseline --confirm-spend-credits --resume-from /tmp/opencode/prompt-budget-baseline.json --output /tmp/opencode/prompt-budget-baseline.json --json --response-timeout-seconds 300
+        run_id: 57b21220-5ae5-4d7a-99c3-c67bf33d6fb5
+        subject_commit: c92d4b43c
+        timestamp: "2026-07-29T10:15:53Z"
+        artifact: /tmp/opencode/prompt-budget-baseline.json
+        summary: "Completed baseline: 10/10 cases, 25/25 turns, average turn duration 41411 ms, average judge score 3.92, average continuity score 5.00, promptTokens 682175, systemPromptTokens 318108, completionTokens 29344, totalCredits 4009. Six cases were below the harness pass threshold; those failures are baseline quality data for the later comparison gate, not a baseline-capture failure."
+  - id: T-CLI-POSTCHANGE
+    type: manual
+    command: cd frontend/packages/openmates-cli && node dist/cli.js benchmark prompt-budget --phase postchange --confirm-spend-credits --output ../../..//tmp/prompt-budget-postchange.json --json
+    covers:
+      - AC-5
+    assertions:
+      - post-change run uses prompt text hashes identical to the baseline artifact.
+      - all 10 cases and all 25 total user turns complete through the real CLI chat path.
+      - output records the same metric categories as baseline.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && HOME=/tmp/opencode/prompt-budget-slot-4-fresh node dist/cli.js benchmark prompt-budget --phase postchange --confirm-spend-credits --resume-from /tmp/opencode/prompt-budget-postchange-adjusted.json --output /tmp/opencode/prompt-budget-postchange-adjusted.json --json --response-timeout-seconds 300
+        run_id: 26560b01-4bb3-41cf-a9bd-4faf1f319fd8
+        subject_commit: ad53e0bf6+working-tree
+        timestamp: "2026-07-29T11:51:45Z"
+        artifact: /tmp/opencode/prompt-budget-postchange-adjusted.json
+        summary: "Completed adjusted post-change run: 10/10 cases, 25/25 turns, average turn duration 37108 ms, average judge score 4.04, average continuity score 5.00. The artifact uses the same corpus hash as baseline but remains subject to the comparison quality gate."
+  - id: T-COMPARE-001
+    type: manual
+    command: cd frontend/packages/openmates-cli && node dist/cli.js benchmark prompt-budget compare --baseline ../../..//tmp/prompt-budget-baseline.json --postchange ../../..//tmp/prompt-budget-postchange.json --output ../../..//tmp/prompt-budget-comparison.json --json
+    covers:
+      - AC-6
+    assertions:
+      - comparison refuses artifacts whose corpus prompt hashes differ.
+      - comparison reports per-case and aggregate deltas for budget, latency, usage, routing, and quality.
+      - comparison flags material quality, routing, safety, tool-use, or continuity regressions.
+    red_phase:
+      required: false
+      expected: not_applicable
+      evidence:
+        status: not_applicable
+        run_id: ""
+        timestamp: ""
+    green_phase:
+      required: true
+      expected: pass
+      evidence:
+        status: passed
+        command: cd frontend/packages/openmates-cli && node dist/cli.js benchmark prompt-budget compare --baseline /tmp/opencode/prompt-budget-baseline.json --postchange /tmp/opencode/prompt-budget-postchange-adjusted.json --output /tmp/opencode/prompt-budget-comparison-adjusted.json --json
+        run_id: prompt-budget-comparison-adjusted-2026-07-29
+        subject_commit: ad53e0bf6+working-tree
+        timestamp: "2026-07-29T11:51:45Z"
+        artifact: /tmp/opencode/prompt-budget-comparison-adjusted.json
+        summary: "Comparison generated successfully and returned status needs_fix: duration improved 41411 ms -> 37108 ms (-10.39%), average judge score improved 3.92 -> 4.04, continuity stayed 5.00, but multiturn-model-evaluation-plan turn 4 regressed from judge score 4 to 2."
+
+verifications:
+  - id: V-QUALITY-GATE
+    kind: ai_evaluation
+    phase: final
+    required_for_done: true
+    covers:
+      - AC-7
+    status: failed
+    evidence:
+      status: failed
+      summary: "Adjusted post-change comparison failed the accepted keep gate because one baseline-passing turn dropped below the pass threshold. Runtime prompt-budget changes were reverted; only the CLI benchmark harness and metric plumbing remain."
+      timestamp: "2026-07-29T11:51:45Z"
+
+implementation_notes:
+  plan_path: docs/plans/prompt-budget-cli-evaluation/plan.yml
+  existing_patterns:
+    - frontend/packages/openmates-cli/src/benchmark.ts real product-path benchmark runner and judge workflow.
+    - backend/apps/ai/processing/main_processor.py existing debug metadata and conditional prompt gating patterns.
+    - backend/apps/ai/processing/preprocessor.py dynamic context expansion for app skills, focus modes, and topic areas.
+    - backend/apps/ai/utils/llm_utils.py recursive dynamic context substitution into preprocessing tool schema descriptions.
+    - backend/scripts/debug_requests.py debug metadata extraction for system prompt and tool counts.
+  architecture: >
+    Extend the existing CLI benchmark architecture with a prompt-budget suite and
+    comparison mode. Surface token and prompt-budget metrics already emitted by
+    the WebSocket final frame. Targeted backend prompt-gating and de-duplication
+    changes were attempted after the baseline artifact, but the adjusted
+    same-corpus comparison failed the quality gate, so those runtime changes were
+    reverted.
+  data_flow:
+    - CLI loads the committed prompt-budget corpus and computes stable prompt hashes.
+    - CLI sends each turn through OpenMatesClient.sendMessage with benchmark metadata and incognito history for follow-ups.
+    - Backend/CLI surfaces sanitized processing metrics and debug budget counts into the run artifact where available.
+    - Judge turns score every response and multi-turn continuity using the existing benchmark judge path.
+    - The post-change run repeats the exact corpus and writes a second artifact.
+    - Compare mode validates matching prompt hashes and reports deltas plus keep/needs-fix/revert recommendation.
+    - Runtime prompt-budget changes are kept only when the comparison passes; failed attempts are reverted before completion.
+  affected_files:
+    - path: docs/plans/prompt-budget-cli-evaluation/plan.yml
+      reason: Executable product contract and evidence ledger.
+    - path: frontend/packages/openmates-cli/src/benchmark.ts
+      reason: Add prompt-budget corpus, run command, artifacts, judge rubric, and compare mode.
+    - path: frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+      reason: Verify corpus shape, command behavior, and artifact compatibility.
+    - path: frontend/packages/openmates-cli/src/client.ts
+      reason: Surface additional sanitized chat processing metrics if WebSocket frames already provide them.
+    - path: frontend/packages/openmates-cli/src/ws.ts
+      reason: Capture token usage and prompt-budget metrics from final WebSocket frames when present.
+  verification_strategy:
+    - python3 scripts/plan_validate.py docs/plans/prompt-budget-cli-evaluation/plan.yml
+    - cd frontend/packages/openmates-cli && npm run build && npm run test:unit:cli
+    - Baseline live prompt-budget CLI run before implementation.
+    - Post-change live prompt-budget CLI run with the same corpus.
+    - Prompt-budget comparison report and final quality gate review.
+  verification_order:
+    - Validate spec and approve product contract.
+    - Write corpus/unit checks first and record red evidence where applicable.
+    - Add measurement support only, build CLI, and run the baseline live CLI evaluation against https://api.dev.openmates.org.
+    - Attempt targeted backend prompt-budget changes only after baseline evidence.
+    - Run CLI unit checks.
+    - Run post-change live CLI evaluation against https://api.dev.openmates.org with identical prompt hashes.
+    - Generate comparison artifact and apply the quality gate.
+    - Revert runtime changes when the quality gate fails.
+    - Skip web and Apple verification unless implementation unexpectedly changes those surfaces.
+
+tasks:
+  - id: TASK-1
+    title: Approve prompt-budget evaluation contract
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+        - S-4
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+        - AC-4
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/plans/prompt-budget-cli-evaluation/plan.yml
+    verification:
+      - T-UNIT-001
+    verification_ids:
+      - T-UNIT-001
+    dependencies: []
+    ownership:
+      files:
+        - docs/plans/prompt-budget-cli-evaluation/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-2
+    title: Add fixed corpus and baseline measurement command
+    status: done
+    phase: working_tasks
+    covers:
+      scenarios:
+        - S-1
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-1
+        - AC-2
+        - AC-3
+    expected_files:
+      - frontend/packages/openmates-cli/src/benchmark.ts
+      - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+      - frontend/packages/openmates-cli/src/client.ts
+    verification:
+      - T-UNIT-001
+      - T-CLI-BASELINE
+    verification_ids:
+      - T-UNIT-001
+      - T-CLI-BASELINE
+    dependencies:
+      - TASK-1
+    ownership:
+      files:
+        - frontend/packages/openmates-cli/src/benchmark.ts
+        - frontend/packages/openmates-cli/src/__tests__/benchmark.test.ts
+        - frontend/packages/openmates-cli/src/client.ts
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-3
+    title: Capture baseline live CLI evaluation
+    status: done
+    phase: complete
+    covers:
+      scenarios:
+        - S-2
+        - S-3
+      acceptance_criteria:
+        - AC-2
+        - AC-3
+    expected_files:
+      - docs/plans/prompt-budget-cli-evaluation/plan.yml
+    verification:
+      - T-CLI-BASELINE
+    verification_ids:
+      - T-CLI-BASELINE
+    dependencies:
+      - TASK-2
+    ownership:
+      files:
+        - docs/plans/prompt-budget-cli-evaluation/plan.yml
+      shared_files: []
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: false
+  - id: TASK-4
+    title: Attempt targeted prompt-budget changes
+    status: needs_fix
+    phase: blocked
+    covers:
+      scenarios:
+        - S-4
+      acceptance_criteria:
+        - AC-4
+    expected_files:
+      - backend/apps/ai/processing/main_processor.py
+      - backend/apps/ai/utils/llm_utils.py
+    verification:
+      - T-COMPARE-001
+      - V-QUALITY-GATE
+    verification_ids:
+      - T-COMPARE-001
+      - V-QUALITY-GATE
+    dependencies:
+      - TASK-3
+    ownership:
+      files:
+        - backend/apps/ai/processing/main_processor.py
+        - backend/apps/ai/utils/llm_utils.py
+      shared_files: []
+    blockers:
+      - Adjusted comparison failed the quality gate; attempted runtime changes were reverted.
+    follow_up_tasks:
+      - Decide whether to spend another live benchmark cycle on a different runtime optimization.
+    independently_deployable: false
+  - id: TASK-5
+    title: Run post-change evaluation and comparison
+    status: needs_fix
+    phase: blocked
+    covers:
+      scenarios:
+        - S-5
+        - S-6
+      acceptance_criteria:
+        - AC-5
+        - AC-6
+        - AC-7
+    expected_files:
+      - docs/plans/prompt-budget-cli-evaluation/plan.yml
+      - frontend/packages/openmates-cli/src/benchmark.ts
+    verification:
+      - T-CLI-POSTCHANGE
+      - T-COMPARE-001
+      - V-QUALITY-GATE
+    verification_ids:
+      - T-CLI-POSTCHANGE
+      - T-COMPARE-001
+      - V-QUALITY-GATE
+    dependencies:
+      - TASK-4
+    ownership:
+      files:
+        - docs/plans/prompt-budget-cli-evaluation/plan.yml
+        - frontend/packages/openmates-cli/src/benchmark.ts
+      shared_files: []
+    blockers:
+      - V-QUALITY-GATE failed because one baseline-passing turn dropped below the pass threshold.
+    follow_up_tasks:
+      - Decide whether to try another narrower runtime optimization or keep only measurement infrastructure.
+    independently_deployable: false

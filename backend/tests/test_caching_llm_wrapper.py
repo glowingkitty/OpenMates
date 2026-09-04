@@ -8,12 +8,29 @@
 # See: backend/apps/ai/testing/caching_llm_wrapper.py.
 
 import asyncio
-import copy
+from decimal import Decimal
 
+import pytest
+
+from backend.apps.ai.testing import caching_llm_wrapper as llm_wrapper
 from backend.apps.ai.testing.caching_llm_wrapper import wrap_provider_with_cache
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata, ParsedOpenAIToolCall
-from backend.shared.testing.api_response_cache import ApiResponseCache
-from backend.shared.testing.mock_context import activate_mock_mode, deactivate_mock_mode
+from backend.shared.testing.api_response_cache import ApiResponseCache, MockCacheMiss
+from backend.shared.testing.mock_context import (
+    MAX_REAL_LLM_OUTPUT_TOKENS,
+    activate_mock_mode,
+    deactivate_mock_mode,
+)
+
+
+@pytest.fixture
+def budgeted_record_mode(monkeypatch):
+    monkeypatch.setenv("DAILY_AI_TEST_BUDGET_BACKEND", "memory")
+    monkeypatch.setattr(
+        llm_wrapper,
+        "conservative_llm_reservation_eur",
+        lambda *_args, **_kwargs: Decimal("0.001"),
+    )
 
 
 class FakeCache:
@@ -92,6 +109,38 @@ class FakeNonStreamCache(FakeCache):
         self.saved_response = kwargs["response_data"]
 
 
+class FakeNonStreamFallbackCache(FakeFallbackCache):
+    def __init__(self):
+        super().__init__({
+            "type": "non_stream",
+            "value": {"kind": "json", "value": {"success": True}},
+        })
+
+    def load(self, group_id, category, fingerprint):
+        assert group_id == "fork-conversation"
+        assert category == "llm_non_stream/test-model"
+        assert fingerprint == "cached-fingerprint"
+        return None
+
+    def load_compatible_llm_response(self, group_id, category, request_summary, excluded_fingerprint=None):
+        assert group_id == "fork-conversation"
+        assert category == "llm_non_stream/test-model"
+        self.fallback_summary = request_summary
+        self.excluded_fingerprint = excluded_fingerprint
+        return {"response": self.response_data}
+
+
+class FakeFailingSaveCache(FakeCache):
+    def load(self, group_id, category, fingerprint):
+        assert group_id == "fork-conversation"
+        assert category in {"llm/test-model", "llm_non_stream/test-model"}
+        assert fingerprint == "cached-fingerprint"
+        return None
+
+    def save(self, **_kwargs):
+        raise PermissionError("cache path is read-only")
+
+
 async def _replay(cache, messages):
     async def provider_fn(**_kwargs):
         raise AssertionError("mock replay should not call the real provider")
@@ -109,6 +158,7 @@ async def _replay(cache, messages):
         deactivate_mock_mode()
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls
 def test_cached_stream_provider_remains_awaitable():
     provider_calls = 0
 
@@ -167,6 +217,7 @@ def test_cached_stream_provider_accepts_model_id_alias():
     assert provider_calls == 0
 
 
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls
 def test_cached_non_stream_provider_replays_cached_response_without_real_provider():
     provider_calls = 0
     cache = FakeNonStreamCache({
@@ -203,13 +254,15 @@ def test_cached_non_stream_provider_replays_cached_response_without_real_provide
     assert response.total_tokens == 5
 
 
-def test_record_non_stream_provider_saves_response_for_replay():
+def test_record_non_stream_provider_saves_response_for_replay(budgeted_record_mode):
     provider_calls = 0
+    observed_max_tokens = None
     cache = FakeNonStreamCache()
 
-    async def provider_fn(**_kwargs):
-        nonlocal provider_calls
+    async def provider_fn(**kwargs):
+        nonlocal provider_calls, observed_max_tokens
         provider_calls += 1
+        observed_max_tokens = kwargs.get("max_tokens")
         return {"success": True, "category": "web/read"}
 
     async def exercise_wrapper():
@@ -220,6 +273,7 @@ def test_record_non_stream_provider_saves_response_for_replay():
                 model="test-model",
                 messages=[{"role": "user", "content": "Classify this request"}],
                 stream=False,
+                max_tokens=999_999,
             )
         finally:
             deactivate_mock_mode()
@@ -227,6 +281,7 @@ def test_record_non_stream_provider_saves_response_for_replay():
     response = asyncio.run(exercise_wrapper())
 
     assert provider_calls == 1
+    assert observed_max_tokens == MAX_REAL_LLM_OUTPUT_TOKENS
     assert response == {"success": True, "category": "web/read"}
     assert cache.saved_response == {
         "type": "non_stream",
@@ -234,7 +289,34 @@ def test_record_non_stream_provider_saves_response_for_replay():
     }
 
 
-def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
+def test_record_non_stream_provider_raises_when_cache_save_fails(budgeted_record_mode):
+    provider_calls = 0
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return {"success": True, "category": "events/search"}
+
+    async def exercise_wrapper():
+        activate_mock_mode("record", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, FakeFailingSaveCache())
+            with pytest.raises(PermissionError, match="cache path is read-only"):
+                await wrapped_provider(
+                    model="test-model",
+                    messages=[{"role": "user", "content": "Classify this request"}],
+                    stream=False,
+                )
+        finally:
+            deactivate_mock_mode()
+
+    asyncio.run(exercise_wrapper())
+
+    assert provider_calls == 1
+
+
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls,daily-ai-tests.replay.cache-miss-fails-closed
+def test_cached_stream_provider_raises_on_fingerprint_miss_without_real_provider():
     provider_calls = 0
     cache = FakeFallbackCache()
 
@@ -259,95 +341,44 @@ def test_cached_stream_provider_uses_compatible_fallback_on_fingerprint_miss():
                 tool_choice="auto",
                 stream=True,
             )
-            return [chunk async for chunk in chunk_stream]
+            with pytest.raises(MockCacheMiss):
+                return [chunk async for chunk in chunk_stream]
         finally:
             deactivate_mock_mode()
 
-    assert asyncio.run(exercise_wrapper()) == ["fallback"]
+    asyncio.run(exercise_wrapper())
     assert provider_calls == 0
-    assert cache.excluded_fingerprint == "cached-fingerprint"
-    assert cache.fallback_summary == {
-        "model": "test-model",
-        "messages_count": 1,
-        "tools_count": 1,
-        "temperature": 0.4,
-        "tool_choice": "auto",
-        "last_message_hash": "5a3782b74653d86b",
-        "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
-    }
+    assert cache.excluded_fingerprint is None
+    assert cache.fallback_summary is None
 
 
-def test_cached_stream_provider_strips_fetched_at_from_fallback_summary():
-    cache_a = FakeFallbackCache()
-    cache_b = FakeFallbackCache()
+# contract-test: direct surface=cli assertions=daily-ai-tests.replay.zero-paid-calls,daily-ai-tests.replay.cache-miss-fails-closed
+def test_cached_non_stream_provider_raises_on_fingerprint_miss_without_real_provider():
+    provider_calls = 0
+    cache = FakeNonStreamFallbackCache()
 
-    content_template = (
-        "[user]: Read this page and summarize it:\n"
-        "```toon\n"
-        "url: \"https://example.com\"\n"
-        "title: Example Domain\n"
-        "fetched_at: \"{timestamp}\"\n"
-        "body: Example body\n"
-        "```"
-    )
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return {"success": True}
 
-    asyncio.run(_replay(cache_a, [{"role": "user", "content": content_template.format(timestamp="2026-08-15T12:10:00Z")}]))
-    asyncio.run(_replay(cache_b, [{"role": "user", "content": content_template.format(timestamp="2026-08-15T12:50:00Z")}]))
+    async def exercise_wrapper():
+        activate_mock_mode("mock", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, cache)
+            with pytest.raises(MockCacheMiss):
+                await wrapped_provider(
+                    model="test-model",
+                    messages=[{"role": "user", "content": "Classify this request"}],
+                    stream=False,
+                )
+        finally:
+            deactivate_mock_mode()
 
-    assert cache_a.fallback_summary["last_message_hash"] == cache_b.fallback_summary["last_message_hash"]
-    preview_content = cache_a.fallback_summary["last_message_preview"]["content"]
-    assert "fetched_at" not in preview_content
-    assert "body: Example body" in preview_content
-
-
-def test_compatible_fallback_remaps_stale_embed_refs_in_body_and_mixed_text_chunks():
-    response_data = {
-        "type": "mixed_stream",
-        "body": (
-            "```embeds_results_view\nembeds: event-one-A1A, event-two-B2B\n```\n"
-            "[First](embed:event-one-A1A) [Second](embed:event-two-B2B)"
-        ),
-        "chunks": [
-            {"kind": "text", "value": "```embeds_results_view\nembeds: event-one-A"},
-            {"kind": "text", "value": "1A, event-two-B2B\n```\n[First](embed:event-one-A1A) "},
-            {"kind": "text", "value": "[Second](embed:event-two-B2B)"},
-        ],
-    }
-    original = copy.deepcopy(response_data)
-    messages = [{
-        "role": "tool",
-        "content": "results[2]:\n  - embed_ref: event-two-C3C\n  - embed_ref: event-one-D4D",
-    }]
-
-    chunks = asyncio.run(_replay(FakeFallbackCache(response_data), messages))
-    replayed = "".join(chunk for chunk in chunks if isinstance(chunk, str))
-
-    assert "embeds: event-one-D4D, event-two-C3C" in replayed
-    assert "(embed:event-one-D4D)" in replayed
-    assert "(embed:event-two-C3C)" in replayed
-    assert "-A1A" not in replayed
-    assert "-B2B" not in replayed
-    assert response_data == original
-
-
-def test_compatible_fallback_preserves_duplicate_embed_refs():
-    response_data = {
-        "type": "stream",
-        "body": (
-            "```embeds_results_view\nembeds: event-one-AAA, event-one-AAA, event-two-BBB\n```\n"
-            "[First](embed:event-one-AAA)"
-        ),
-    }
-    messages = [{
-        "role": "tool",
-        "content": "embed_ref: event-one-111\nembed_ref: event-one-111\nembed_ref: event-two-222",
-    }]
-
-    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
-
-    assert replayed.count("event-one-111") == 3
-    assert replayed.count("event-two-222") == 1
-    assert "event-one-AAA" not in replayed
+    asyncio.run(exercise_wrapper())
+    assert provider_calls == 0
+    assert cache.excluded_fingerprint is None
+    assert cache.fallback_summary is None
 
 
 def test_exact_cache_hit_does_not_remap_embed_refs():
@@ -361,81 +392,6 @@ def test_exact_cache_hit_does_not_remap_embed_refs():
 
     assert "stale-one-AAA" in replayed
     assert "fresh-one-111" not in replayed
-
-
-def test_compatible_fallback_leaves_unmatched_refs_visible_and_warns(caplog):
-    response_data = {
-        "type": "stream",
-        "body": "```embeds_results_view\nembeds: stale-one-AAA, stale-two-BBB\n```",
-    }
-    messages = [{"role": "tool", "content": "embed_ref: fresh-one-111"}]
-
-    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
-
-    assert "stale-one-AAA, stale-two-BBB" in replayed
-    assert "fresh-one-111" not in replayed
-    assert "cannot safely remap" in caplog.text
-
-
-def test_compatible_fallback_remaps_matching_subset_when_current_refs_include_extras():
-    response_data = {
-        "type": "stream",
-        "body": (
-            "```embeds_results_view\n"
-            "embeds: matching-event-one-AAA, matching-event-two-BBB\n"
-            "```"
-        ),
-    }
-    messages = [{
-        "role": "tool",
-        "content": (
-            "embed_ref: unrelated-event-CCC\n"
-            "embed_ref: matching-event-one-DDD\n"
-            "embed_ref: another-unrelated-event-EEE\n"
-            "embed_ref: matching-event-two-FFF"
-        ),
-    }]
-
-    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
-
-    assert "embeds: matching-event-one-DDD, matching-event-two-FFF" in replayed
-    assert "-AAA" not in replayed
-    assert "-BBB" not in replayed
-
-
-def test_compatible_fallback_leaves_ambiguous_prefix_matches_visible_and_warns(caplog):
-    response_data = {
-        "type": "stream",
-        "body": "```embeds_results_view\nembeds: matching-event-AAA\n```",
-    }
-    messages = [{
-        "role": "tool",
-        "content": (
-            "embed_ref: matching-event-BBB\n"
-            "embed_ref: matching-event-CCC"
-        ),
-    }]
-
-    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
-
-    assert "matching-event-AAA" in replayed
-    assert "matching-event-BBB" not in replayed
-    assert "matching-event-CCC" not in replayed
-    assert "cannot safely remap" in caplog.text
-
-
-def test_compatible_fallback_does_not_treat_a_domain_as_result_identity(caplog):
-    response_data = {
-        "type": "stream",
-        "body": "```embeds_results_view\nembeds: example.com-A1A\n```",
-    }
-    messages = [{"role": "tool", "content": "embed_ref: example.com-B2B"}]
-
-    replayed = "".join(asyncio.run(_replay(FakeFallbackCache(response_data), messages)))
-
-    assert "example.com-A1A" in replayed
-    assert "example.com-B2B" not in replayed
-    assert "cannot safely remap" in caplog.text
 
 
 def test_inactive_stream_provider_awaits_real_provider_before_iterating():
@@ -464,7 +420,7 @@ def test_inactive_stream_provider_awaits_real_provider_before_iterating():
     assert provider_calls == 1
 
 
-def test_record_stream_provider_awaits_real_provider_before_iterating_and_saving():
+def test_record_stream_provider_awaits_real_provider_before_iterating_and_saving(budgeted_record_mode):
     provider_calls = 0
     cache = FakeRecordCache()
 
@@ -496,7 +452,84 @@ def test_record_stream_provider_awaits_real_provider_before_iterating_and_saving
     assert cache.saved_response == {"type": "stream", "body": "recorded", "chunk_count": 2}
 
 
-def test_record_stream_provider_saves_mixed_chunks_for_replay():
+# contract-test: direct surface=cli assertions=daily-ai-tests.cache.manual-transactional-promotion
+def test_record_stream_provider_writes_candidate_without_reading_canonical_cache(tmp_path, budgeted_record_mode):
+    canonical_root = tmp_path / "canonical"
+    candidate_root = tmp_path / "candidate"
+    cache = ApiResponseCache(root=canonical_root)
+    group_id = "fork-conversation"
+    category = "llm/test-model"
+    messages = [{"role": "user", "content": "Reply with alpha"}]
+    fingerprint = cache.fingerprint_llm_call(model="test-model", messages=messages)
+    cache.save(
+        group_id=group_id,
+        category=category,
+        fingerprint=fingerprint,
+        request_summary={"model": "test-model"},
+        response_data={"type": "stream", "body": "canonical", "chunk_count": 1},
+    )
+    provider_calls = 0
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+
+        async def _stream():
+            yield "candidate"
+
+        return _stream()
+
+    async def exercise_wrapper():
+        activate_mock_mode("record", group_id, candidate_root)
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, cache)
+            chunk_stream = await wrapped_provider(model="test-model", messages=messages, stream=True)
+            return [chunk async for chunk in chunk_stream]
+        finally:
+            deactivate_mock_mode()
+
+    assert asyncio.run(exercise_wrapper()) == ["candidate"]
+    assert provider_calls == 1
+    canonical = cache.load(group_id, category, fingerprint)
+    candidate = ApiResponseCache(root=candidate_root).load(group_id, category, fingerprint)
+    assert canonical is not None
+    assert canonical["response"]["body"] == "canonical"
+    assert candidate is not None
+    assert candidate["response"]["body"] == "candidate"
+
+
+def test_record_stream_provider_raises_when_cache_save_fails(budgeted_record_mode):
+    provider_calls = 0
+
+    async def provider_fn(**_kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+
+        async def _stream():
+            yield "rec"
+            yield "orded"
+
+        return _stream()
+
+    async def exercise_wrapper():
+        activate_mock_mode("record", "fork-conversation")
+        try:
+            wrapped_provider = wrap_provider_with_cache(provider_fn, FakeFailingSaveCache())
+            chunk_stream = await wrapped_provider(
+                model="test-model",
+                messages=[{"role": "user", "content": "Reply with alpha"}],
+                stream=True,
+            )
+            with pytest.raises(PermissionError, match="cache path is read-only"):
+                return [chunk async for chunk in chunk_stream]
+        finally:
+            deactivate_mock_mode()
+
+    assert asyncio.run(exercise_wrapper()) is None
+    assert provider_calls == 1
+
+
+def test_record_stream_provider_saves_mixed_chunks_for_replay(budgeted_record_mode):
     cache = FakeRecordCache()
     tool_call = ParsedOpenAIToolCall(
         tool_call_id="tool-1",
@@ -676,195 +709,3 @@ def test_cached_stream_provider_replays_google_chunks_without_google_import():
     assert chunks[1].input_tokens == 7
     assert chunks[1].output_tokens == 5
     assert chunks[1].total_tokens == 12
-
-
-def test_api_response_cache_loads_compatible_llm_response(tmp_path):
-    cache = ApiResponseCache(root=tmp_path)
-    response_data = {"type": "stream", "body": "cached", "chunk_count": 1}
-    cache.save(
-        group_id="models3d_search_web",
-        category="llm/gemini-3.5-flash-lite",
-        fingerprint="old-fingerprint",
-        request_summary={
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 2,
-            "tools_count": 4,
-            "temperature": 0.0,
-            "tool_choice": "auto",
-            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
-        },
-        response_data=response_data,
-    )
-
-    cached = cache.load_compatible_llm_response(
-        "models3d_search_web",
-        "llm/gemini-3.5-flash-lite",
-        {
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 3,
-            "tools_count": 3,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
-        },
-        excluded_fingerprint="new-fingerprint",
-    )
-
-    assert cached is not None
-    assert cached["fingerprint"] == "old-fingerprint"
-    assert cached["response"] == response_data
-
-
-def test_api_response_cache_loads_compatible_llm_response_with_volatile_fetched_at_hash(tmp_path):
-    cache = ApiResponseCache(root=tmp_path)
-    response_data = {"type": "stream", "body": "cached", "chunk_count": 1}
-    old_prompt = (
-        "[user]: Read this page and summarize it:\n"
-        "```toon\n"
-        "url: \"https://example.com\"\n"
-        "title: Example Domain\n"
-        "fetched_at: \"2026-08-15T12:10:00Z\"\n"
-        "body: Example body\n"
-        "```"
-    )
-    new_prompt = old_prompt.replace("12:10:00Z", "12:50:00Z")
-    cache.save(
-        group_id="web_read_web",
-        category="llm/gemini-3.5-flash-lite",
-        fingerprint="old-fingerprint",
-        request_summary={
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 2,
-            "tools_count": 4,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_hash": "old-volatile-hash",
-            "last_message_preview": {"role": "user", "content": old_prompt[:200] + "..."},
-        },
-        response_data=response_data,
-    )
-
-    cached = cache.load_compatible_llm_response(
-        "web_read_web",
-        "llm/gemini-3.5-flash-lite",
-        {
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 2,
-            "tools_count": 4,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_hash": "new-stable-hash",
-            "last_message_preview": {"role": "user", "content": new_prompt[:200] + "..."},
-        },
-        excluded_fingerprint="new-fingerprint",
-    )
-
-    assert cached is not None
-    assert cached["fingerprint"] == "old-fingerprint"
-    assert cached["response"] == response_data
-
-
-def test_api_response_cache_rejects_compatible_llm_response_for_different_prompt(tmp_path):
-    cache = ApiResponseCache(root=tmp_path)
-    cache.save(
-        group_id="embed_diff_code_web",
-        category="llm/gemini-3.5-flash-lite",
-        fingerprint="old-fingerprint",
-        request_summary={
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 2,
-            "tools_count": 5,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_preview": {"role": "user", "content": "Create average.py"},
-        },
-        response_data={"type": "stream", "body": "cached", "chunk_count": 1},
-    )
-
-    cached = cache.load_compatible_llm_response(
-        "embed_diff_code_web",
-        "llm/gemini-3.5-flash-lite",
-        {
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 2,
-            "tools_count": 4,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_preview": {"role": "user", "content": "Create totals.py"},
-        },
-        excluded_fingerprint="new-fingerprint",
-    )
-
-    assert cached is None
-
-
-def test_api_response_cache_rejects_matching_previews_with_different_full_message_hashes(tmp_path):
-    cache = ApiResponseCache(root=tmp_path)
-    preview = {"role": "user", "content": "x" * 200 + "..."}
-    cache.save(
-        group_id="long_prompt",
-        category="llm/gemini-3.5-flash-lite",
-        fingerprint="old-fingerprint",
-        request_summary={
-            "model": "gemini-3.5-flash-lite",
-            "tools_count": 5,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_hash": "first-hash",
-            "last_message_preview": preview,
-        },
-        response_data={"type": "stream", "body": "cached", "chunk_count": 1},
-    )
-
-    cached = cache.load_compatible_llm_response(
-        "long_prompt",
-        "llm/gemini-3.5-flash-lite",
-        {
-            "model": "gemini-3.5-flash-lite",
-            "tools_count": 4,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_hash": "second-hash",
-            "last_message_preview": preview,
-        },
-        excluded_fingerprint="new-fingerprint",
-    )
-
-    assert cached is None
-
-
-def test_api_response_cache_loads_compatible_llm_response_with_provider_prefix(tmp_path):
-    cache = ApiResponseCache(root=tmp_path)
-    response_data = {"type": "stream", "body": "cached", "chunk_count": 1}
-    cache.save(
-        group_id="models3d_search_web",
-        category="llm/gemini-3.5-flash-lite",
-        fingerprint="old-fingerprint",
-        request_summary={
-            "model": "gemini-3.5-flash-lite",
-            "messages_count": 2,
-            "tools_count": 3,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
-        },
-        response_data=response_data,
-    )
-
-    cached = cache.load_compatible_llm_response(
-        "models3d_search_web",
-        "llm/google/gemini-3.5-flash-lite",
-        {
-            "model": "google/gemini-3.5-flash-lite",
-            "messages_count": 3,
-            "tools_count": 3,
-            "temperature": 0.4,
-            "tool_choice": "auto",
-            "last_message_preview": {"role": "user", "content": "Find 3D printable benchy models"},
-        },
-        excluded_fingerprint="new-fingerprint",
-    )
-
-    assert cached is not None
-    assert cached["fingerprint"] == "old-fingerprint"
-    assert cached["response"] == response_data

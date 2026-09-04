@@ -218,6 +218,7 @@ async def handle_initial_sync(
                             updated_at=db_list_item_data.get("updated_at", 0),
                             encrypted_chat_key=db_list_item_data.get("encrypted_chat_key"),
                             encrypted_chat_summary=db_list_item_data.get("encrypted_chat_summary"),
+                            encrypted_auto_speak_response=db_list_item_data.get("encrypted_auto_speak_response"),
                         )
                     else:
                         logger.error(f"DB fallback failed for chat {server_chat_id}. Cannot get list item data.")
@@ -250,6 +251,9 @@ async def handle_initial_sync(
                 current_chat_payload_dict["encrypted_title"] = encrypted_title
                 current_chat_payload_dict["encrypted_chat_summary"] = (
                     cached_list_item_data.encrypted_chat_summary if cached_list_item_data else None
+                )
+                current_chat_payload_dict["encrypted_auto_speak_response"] = (
+                    cached_list_item_data.encrypted_auto_speak_response if cached_list_item_data else None
                 )
                 current_chat_payload_dict["encrypted_draft_md"] = encrypted_draft_md
                 current_chat_payload_dict["encrypted_draft_preview"] = encrypted_draft_preview

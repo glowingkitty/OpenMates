@@ -21,6 +21,7 @@ const GMAIL_API_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 const GMAIL_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GMAIL_RECEIVED_AFTER_TOLERANCE_MS = 10000;
 const STEP_SCREENSHOT_TIMEOUT_MS = 10000;
+const E2E_LOG_FORWARDING_SESSION_KEY = 'openmates_e2e_log_forwarding';
 
 // ─── Step log — shared state for checkpoint + screenshot interleaving ────────
 // Both createSignupLogger and createStepScreenshotter write to this log so the
@@ -1141,6 +1142,19 @@ function getE2EDebugUrl(path: string = '/'): string {
 	return `${basePath}#${existingParams}${e2eParams}`;
 }
 
+async function installE2EServerContentOverrideGate(page: any, scope: string = 'local-e2e'): Promise<void> {
+	const gateArgs = { key: E2E_LOG_FORWARDING_SESSION_KEY, runId: scope };
+	const installGate = ({ key, runId }: { key: string; runId: string }) => {
+		if (sessionStorage.getItem(key)) return;
+		sessionStorage.setItem(key, JSON.stringify({ runId, token: 'local-e2e' }));
+	};
+	await page.addInitScript(installGate, gateArgs);
+	await page.evaluate(installGate, gateArgs).catch((error: Error) => {
+		if (String(error).includes('sessionStorage') || String(error).includes('SecurityError')) return;
+		throw error;
+	});
+}
+
 /**
  * Append a <<<TEST_MOCK:fixture_id>>> marker to a chat message when E2E_USE_MOCKS is set.
  *
@@ -1223,13 +1237,15 @@ function withRecordMarker(message: string, fixtureId: string): string {
  *   await page.keyboard.type(withLiveMockMarker('Search for flights to Paris', 'travel_search'));
  */
 function withLiveMockMarker(message: string, groupId: string): string {
+	const candidateRunId = process.env.E2E_DAILY_AI_RUN_ID;
+	const candidateSuffix = candidateRunId ? `:${candidateRunId}` : '';
 	if (process.env.E2E_RECORD_LIVE_FIXTURES) {
 		// Record mode: run real APIs and cache responses for future replay
-		return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+		return `${message} <<<TEST_LIVE_RECORD:${groupId}${candidateSuffix}>>>`;
 	}
 	if (process.env.E2E_USE_LIVE_MOCKS) {
 		// Replay mode: use cached API responses (zero cost)
-		return `${message} <<<TEST_LIVE_MOCK:${groupId}>>>`;
+		return `${message} <<<TEST_LIVE_MOCK:${groupId}${candidateSuffix}>>>`;
 	}
 	// No env var set: send message without marker (real APIs, real costs)
 	return message;
@@ -1250,6 +1266,11 @@ function withLiveMockMarker(message: string, groupId: string): string {
  */
 function withLiveRecordMarker(message: string, groupId: string): string {
 	return `${message} <<<TEST_LIVE_RECORD:${groupId}>>>`;
+}
+
+/** Append a bounded real-provider marker for the two daily canary specs. */
+function withLiveRealMarker(message: string, groupId: string): string {
+	return `${message} <<<TEST_LIVE_REAL:${groupId}>>>`;
 }
 
 /**
@@ -1291,8 +1312,10 @@ module.exports = {
 	getTestAccount,
 	getIsolatedTestAccount,
 	getE2EDebugUrl,
+	installE2EServerContentOverrideGate,
 	withMockMarker,
 	withRecordMarker,
 	withLiveMockMarker,
-	withLiveRecordMarker
+	withLiveRecordMarker,
+	withLiveRealMarker
 };

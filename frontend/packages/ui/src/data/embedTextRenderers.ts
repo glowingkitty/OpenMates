@@ -77,6 +77,7 @@ import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from 
 import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
+import { renderFile } from '../components/embeds/file/fileEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -265,6 +266,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'code-notebook': renderNotebook,
 	'code-application': renderApplication,
 	'code-repo': renderCodeRepo,
+	'file-file': renderFile,
 	'docs-doc': renderDoc,
 	'sheets-sheet': renderSheet,
 	'pdf': renderPdf,

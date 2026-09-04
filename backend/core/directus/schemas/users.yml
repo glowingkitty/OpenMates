@@ -241,7 +241,7 @@ directus_users:
 
     encrypted_hidden_demo_chats:
       type: textfield
-      note: "Encrypted JSON array of demo chat IDs that user has dismissed/deleted (e.g., ['demo-for-everyone', 'demo-power-of-apps']). Syncs across devices."
+      note: "Encrypted JSON array of public chat IDs that user has dismissed/deleted (e.g., ['demo-who-develops-openmates', 'demo-power-of-apps']). Syncs across devices."
 
     encrypted_top_recommended_apps:
       type: text
@@ -425,6 +425,12 @@ directus_users:
       length: 256
       nullable: true
       note: "User's preferred default model for complex AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'anthropic/claude-fable-5'). Settable via POST /v1/settings/ai-model-defaults."
+
+    default_ai_model_most_demanding:
+      type: string
+      length: 256
+      nullable: true
+      note: "User's preferred default model for most-demanding AI requests. Null = auto-select. Format: 'provider/model_id' (e.g., 'google/gemini-3.7-flash-high'). Settable via POST /v1/settings/ai-model-defaults."
 
     follow_up_suggestions_enabled:
       type: boolean

@@ -698,7 +698,7 @@
 		if (publicChat) {
 			// CRITICAL: For non-authenticated users during initial page load, check if they have
 			// existing sessionStorage drafts BEFORE loading the default public chat.
-			// Without this, a page reload with #chat-id=demo-for-everyone would discard the user's draft
+			// Without this, a stale public-chat hash would discard the user's draft on reload.
 			// because loadDemoWelcomeChat (which handles draft restoration) is only called from onNoHash.
 			if (!$authStore.isAuthenticated && isProcessingInitialHash) {
 				const draftChatIds = getAllDraftChatIdsWithDrafts();
@@ -1352,7 +1352,7 @@
 			console.debug('[+page.svelte] Using CURRENT hash chat ID (fallback):', hashChatIdToLoad);
 		}
 
-		// OPE-215: Skip public/demo chats (like demo-for-everyone) as hash overrides for
+		// OPE-215: Skip public chats as hash overrides for
 		// authenticated users. These get into the hash when: (a) forced logout sets it during
 		// missing-master-key cleanup, or (b) non-auth welcome chat sets it before the user logs in.
 		// After login, the user should land on their last-opened chat, not the demo.
@@ -1741,7 +1741,7 @@
 		// --- Media mode (?media=1) / OG image mode (?og=1) ---
 		// When loaded inside /dev/media iframes, add body classes so CSS can hide
 		// non-essential UI (notifications, cookie banner, login overlay, footer, etc.).
-		// ?media=1 is a superset of ?og=1 — both skip demo-for-everyone and hide dev UI.
+		// ?media=1 is a superset of ?og=1; both preserve welcome and hide dev UI.
 		const searchParams = new URLSearchParams(window.location.search);
 		const isMediaMode = searchParams.get('media') === '1';
 		if (browser && (isMediaMode || searchParams.get('og') === '1')) {
@@ -1906,7 +1906,7 @@
 			: null;
 		if (sharedChatRedirectId && browser) {
 			// NOTE: Do NOT remove the flag here — checkAuth() in authSessionActions.ts also
-			// needs to read it to avoid overriding the shared chat with demo-for-everyone.
+			// needs to read it to avoid overriding the shared chat with welcome state.
 			// The flag is removed after initialize() / checkAuth() has completed (see below).
 			console.debug(
 				'[+page.svelte] [INIT] Shared chat redirect detected for:',
@@ -2032,7 +2032,7 @@
 			// In this case, we must:
 			// - Set forcedLogoutInProgress to prevent any encrypted chat loading attempts
 			// - Clear the URL hash if it points to an encrypted chat
-			// - Ensure demo-for-everyone loads instead of the previous chat
+			// - Ensure the neutral welcome state loads instead of the previous chat
 			if (localProfile && localProfile.username) {
 				console.warn(
 					'[+page.svelte] ⚠️ User profile exists but master key is missing (stayLoggedIn=false reload)'
@@ -2716,104 +2716,6 @@
 			console.error('[+page.svelte] Error initializing app health:', error);
 		});
 
-		// Load welcome chat for non-authenticated users (instant load)
-		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
-		// CRITICAL: Wait for activeChat component to be ready before loading chat
-		// FIXED: Improved retry mechanism - loads welcome chat regardless of Chats.svelte mount state
-		// This ensures welcome chat loads on both large screens (when Chats mounts) and small screens (when Chats doesn't mount)
-		// On mobile, Chats.svelte doesn't mount when sidebar is closed, so this is the primary loading path
-		// CRITICAL: Only load welcome chat if:
-		// 1. No hash in URL (hash chat will be loaded after sync)
-		// 2. User is not authenticated (auth users get new chat window as default)
-		// 3. No last opened chat will be loaded (for tab reloads)
-		// 4. No deep link was processed (settings, embed, signup, etc.)
-		// Use originalHashChatId and deepLinkProcessed flags (read before anything could modify hash)
-		const shouldLoadWelcomeChat = false; // DISABLED: All chat loading now handled by deep link system
-
-		if (shouldLoadWelcomeChat) {
-			console.debug('[+page.svelte] [NON-AUTH] Starting welcome chat loading logic...');
-			// Retry mechanism to wait for activeChat component to bind
-			const loadWelcomeChat = async (retries = 20): Promise<void> => {
-				// CRITICAL: Check original hash (not current hash which might have been modified)
-				// If original hash exists or any deep link was processed, don't load welcome chat
-				if (originalHashChatId || deepLinkProcessed) {
-					console.debug(
-						'[+page.svelte] [NON-AUTH] Hash/deep link detected, aborting welcome chat loading',
-						{
-							originalHashChatId,
-							deepLinkProcessed
-						}
-					);
-					return;
-				}
-
-				const sidebarOpen = $panelState.isActivityHistoryOpen;
-				const storeChatId = $activeChatStore;
-
-				console.debug('[+page.svelte] [NON-AUTH] loadWelcomeChat attempt:', {
-					retriesLeft: retries,
-					sidebarOpen,
-					storeChatId,
-					activeChatReady: !!activeChat
-				});
-
-				// Only skip loading if:
-				// 1. Sidebar is open (Chats.svelte is mounted and might have already loaded it)
-				// 2. Store indicates welcome chat is selected
-				// 3. ActiveChat component is ready
-				// Otherwise, always load to ensure it works on mobile where Chats.svelte doesn't mount
-				if (sidebarOpen && storeChatId === 'demo-for-everyone' && activeChat) {
-					console.debug(
-						'[+page.svelte] [NON-AUTH] Welcome chat already selected by Chats.svelte (sidebar open), skipping duplicate load'
-					);
-					return;
-				}
-
-				if (activeChat) {
-					console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
-					const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-					const welcomeDemo = DEMO_CHATS.find((chat) => chat.chat_id === 'demo-for-everyone');
-					if (welcomeDemo) {
-						// Translate the demo chat to the user's locale
-						const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-						const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-						activeChatStore.setActiveChat('demo-for-everyone');
-						activeChat.loadChat(welcomeChat);
-						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
-					} else {
-						console.error('[+page.svelte] [NON-AUTH] ⚠️ Welcome demo chat not found in DEMO_CHATS');
-					}
-				} else if (retries > 0) {
-					// Wait a bit longer on first few retries, then shorter waits
-					const delay = retries > 10 ? 50 : 100;
-					console.debug(
-						`[+page.svelte] [NON-AUTH] activeChat not ready, retrying in ${delay}ms (${retries} retries left)`
-					);
-					await new Promise((resolve) => setTimeout(resolve, delay));
-					return loadWelcomeChat(retries - 1);
-				} else {
-					console.warn(
-						'[+page.svelte] [NON-AUTH] ⚠️ Failed to load welcome chat - activeChat not available after retries'
-					);
-				}
-			};
-
-			// Start loading immediately, will retry if needed (non-blocking)
-			// This ensures welcome chat loads on small screens where Chats.svelte doesn't mount
-			// On large screens, this will load it if Chats.svelte hasn't already done so
-			loadWelcomeChat().catch((error) => {
-				console.error('[+page.svelte] [NON-AUTH] Error loading welcome chat:', error);
-			});
-		} else if (!isAuth && (originalHashChatId || deepLinkProcessed)) {
-			console.debug(
-				'[+page.svelte] [NON-AUTH] Skipping welcome chat load - hash/deep link has priority',
-				{
-					originalHashChatId,
-					deepLinkProcessed
-				}
-			);
-		}
-
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
 		// CRITICAL: On tab reload, load from IndexedDB (not server state) to prevent sudden chat switches
@@ -3138,7 +3040,7 @@
 		console.debug('[+page.svelte] loadDemoWelcomeChat called for non-authenticated user');
 
 		// CRITICAL: Check if user has any sessionStorage drafts (new chat drafts)
-		// If so, load the most recent one instead of demo-for-everyone
+		// If so, load the most recent one instead of the neutral welcome state.
 		const draftChatIds = getAllDraftChatIdsWithDrafts();
 		if (draftChatIds.length > 0) {
 			// User has unsaved drafts - load the most recent one
@@ -3712,6 +3614,7 @@
 	}
 
 	.main-content {
+		container: main-content / inline-size;
 		/* Change from fixed to absolute positioning when in scrollable mode */
 		position: fixed;
 		/* Logical property: offset from the sidebar on the inline-start side.
@@ -3722,7 +3625,7 @@
 		top: 0;
 		bottom: 0;
 		background-color: var(--color-grey-0);
-		z-index: 10;
+		z-index: 11;
 		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
 		transition:
 			inset-inline-start 0.3s ease,
@@ -3768,6 +3671,8 @@
 	.chat-container {
 		display: flex;
 		flex-direction: row;
+		container-name: chat-settings-layout;
+		container-type: inline-size;
 		box-sizing: border-box;
 		/* Fallback for browsers that don't support dvh */
 		height: calc(100vh - 55px - var(--dev-console-height, 0px));

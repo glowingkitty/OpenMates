@@ -34,6 +34,9 @@ private final class NotificationCompletionBox: @unchecked Sendable {
 final class PushNotificationManager: NSObject, ObservableObject {
     static let shared = PushNotificationManager()
 
+    private static let installationIDKey = "openmates.push.installationId"
+    private static let deviceTokenKey = "openmates.push.deviceToken"
+
     private enum NotificationAction {
         static let chatMessageCategory = "OPENMATES_CHAT_MESSAGE"
         static let reply = "OPENMATES_REPLY"
@@ -59,10 +62,10 @@ final class PushNotificationManager: NSObject, ObservableObject {
             if granted {
                 await registerForRemoteNotifications()
             }
-            isRegistered = granted
+            isRegistered = false
             return granted
         } catch {
-            print("[Push] Permission error: \(error)")
+            NativeDiagnostics.warning("Notification permission request failed: \(type(of: error))", category: "push_notifications")
             return false
         }
     }
@@ -79,34 +82,104 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     func handleDeviceToken(_ token: Data) {
         let tokenString = token.map { String(format: "%02x", $0) }.joined()
-        print("[Push] Device token: \(tokenString)")
+        NativeDiagnostics.info("APNs device token received", category: "push_notifications")
 
         Task {
             let publicKey = NotificationPreviewCrypto.loadOrCreatePublicKey()
             var body: [String: Any] = [
                 "token": tokenString,
                 "platform": "apns",
-                "encryption_version": NotificationPreviewCrypto.encryptionVersion
+                "environment": Self.apnsEnvironment,
+                "encryption_version": NotificationPreviewCrypto.encryptionVersion,
+                "device_id": Self.installationID
             ]
             if let publicKey {
                 body["notification_public_key"] = publicKey
+            } else {
+                NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications")
             }
-            try? await APIClient.shared.request(
-                .post,
-                path: "/v1/notifications/register-device",
-                body: body
-            ) as Data
+            do {
+                let _: Data = try await APIClient.shared.request(
+                    .post,
+                    path: "/v1/notifications/register-device",
+                    body: body
+                )
+                try KeychainHelper.save(key: Self.deviceTokenKey, data: Data(tokenString.utf8))
+                isRegistered = true
+            } catch {
+                isRegistered = false
+                NativeDiagnostics.warning(
+                    "APNs device registration acknowledgement failed: \(type(of: error))",
+                    category: "push_notifications"
+                )
+            }
         }
     }
 
+    func unregisterCurrentDevice() async {
+        guard let stored = try? KeychainHelper.load(key: Self.deviceTokenKey),
+              let token = String(data: stored, encoding: .utf8),
+              !token.isEmpty else {
+            isRegistered = false
+            return
+        }
+        do {
+            let _: Data = try await APIClient.shared.request(
+                .delete,
+                path: "/v1/notifications/unregister-device",
+                body: ["token": token, "device_id": Self.installationID]
+            )
+            try KeychainHelper.delete(key: Self.deviceTokenKey)
+            isRegistered = false
+            #if os(iOS)
+            UIApplication.shared.unregisterForRemoteNotifications()
+            #elseif os(macOS)
+            NSApplication.shared.unregisterForRemoteNotifications()
+            #endif
+        } catch {
+            NativeDiagnostics.warning(
+                "APNs device unregister acknowledgement failed: \(type(of: error))",
+                category: "push_notifications"
+            )
+        }
+    }
+
+    private static var installationID: String {
+        if let stored = try? KeychainHelper.load(key: installationIDKey),
+           let existing = String(data: stored, encoding: .utf8),
+           !existing.isEmpty {
+            return existing
+        }
+        let created = UUID().uuidString.lowercased()
+        do {
+            try KeychainHelper.save(key: installationIDKey, data: Data(created.utf8))
+        } catch {
+            NativeDiagnostics.warning(
+                "APNs installation identity persistence failed: \(type(of: error))",
+                category: "push_notifications"
+            )
+        }
+        return created
+    }
+
+    private static var apnsEnvironment: String {
+        #if DEBUG
+        "sandbox"
+        #else
+        "production"
+        #endif
+    }
+
     func handleRegistrationError(_ error: Error) {
-        print("[Push] Registration failed: \(error.localizedDescription)")
+        NativeDiagnostics.warning("APNs registration failed: \(type(of: error))", category: "push_notifications")
     }
 
     func setBadgeCount(_ count: Int) {
         #if os(iOS)
         UNUserNotificationCenter.current().setBadgeCount(count) { error in
-            if let error { print("[Push] Badge error: \(error)") }
+            if let error {
+                NativeDiagnostics.warning("Notification badge update failed: \(type(of: error))", category: "push_notifications")
+            }
         }
         #endif
     }
@@ -137,7 +210,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         do {
             try await center.add(request)
         } catch {
-            print("[Push] Failed to show chat notification: \(error)")
+            NativeDiagnostics.warning("Chat notification scheduling failed: \(type(of: error))", category: "push_notifications")
         }
     }
 

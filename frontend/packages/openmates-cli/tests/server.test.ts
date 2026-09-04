@@ -10,7 +10,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -81,14 +81,27 @@ import {
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
+  buildBrevoRequestOptions,
+  buildUpdateCompletionEmail,
+  buildUpdateCompletionOutcome,
   buildOperationalDeliveryReceipt,
+  deliverUpdateCompletionEmail,
   evaluateOperationalReportFreshness,
+  isBrevoIdempotencyDuplicate,
+  isBrevoAcceptedResponse,
   planOperationalMonitoring,
-  probeRuntimeEmailService,
+  planUpdateCompletionDelivery,
   signRuntimeWebhookPayload,
+  selectUpdateSourceLink,
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
+import {
+  acquireServerUpdateLock,
+  readServerUpdateStatus,
+  serverUpdateStatusFile,
+  writeServerUpdateStatus,
+} from "../src/serverUpdateState.ts";
 
 const ORIGINAL_STATE_DIR = process.env.OPENMATES_STATE_DIR;
 const TEST_STATE_DIR = join(tmpdir(), `openmates-cli-state-${process.pid}-${Date.now()}`);
@@ -97,6 +110,20 @@ after(() => {
   rmSync(TEST_STATE_DIR, { recursive: true, force: true });
   if (ORIGINAL_STATE_DIR === undefined) delete process.env.OPENMATES_STATE_DIR;
   else process.env.OPENMATES_STATE_DIR = ORIGINAL_STATE_DIR;
+});
+
+it("routes source server restarts through the engineering runtime-operation guard", () => {
+  const source = readFileSync(join(import.meta.dirname, "..", "src", "server.ts"), "utf-8");
+  assert.match(source, /withEngineeringRuntimeOperation\(/);
+  assert.match(source, /product_server_rebuild/);
+  assert.match(source, /product_server_restart/);
+  assert.match(source, /engineering_control_plane\.py/);
+  const guardSource = source.slice(
+    source.indexOf("function beginEngineeringRuntimeOperation"),
+    source.indexOf("function finishEngineeringRuntimeOperation"),
+  );
+  assert.match(guardSource, /if \(!existsSync\(manager\) \|\| !existsSync\(sharedConfig\)\) return null/);
+  assert.match(guardSource, /\.config["', ]+openmates["', ]+engineering-control-plane\.env/);
 });
 
 // server.ts imports serverConfig.js which breaks with --experimental-strip-types.
@@ -1110,6 +1137,97 @@ describe("post-update runtime health", () => {
     assert.equal(recovered.events[0]?.type, "recovered");
   });
 
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts,storage-resilience.content.privacy-boundary
+  it("warns once, escalates storage after one hour, and resolves once", () => {
+    const failure = [{ id: "core.object_storage", status: "failed" as const, failureClass: "storage_unavailable" }];
+    const first = applyRuntimeCheckResults(undefined, failure, "2026-08-25T10:00:00Z");
+    const warning = applyRuntimeCheckResults(first.state, failure, "2026-08-25T10:05:00Z");
+    const beforeCritical = applyRuntimeCheckResults(warning.state, failure, "2026-08-25T11:04:59Z");
+    const critical = applyRuntimeCheckResults(beforeCritical.state, failure, "2026-08-25T11:05:00Z");
+    const repeated = applyRuntimeCheckResults(critical.state, failure, "2026-08-25T12:05:00Z");
+    const recovered = applyRuntimeCheckResults(
+      repeated.state,
+      [{ id: "core.object_storage", status: "passed" }],
+      "2026-08-25T12:10:00Z",
+    );
+    const healthy = applyRuntimeCheckResults(
+      recovered.state,
+      [{ id: "core.object_storage", status: "passed" }],
+      "2026-08-25T12:15:00Z",
+    );
+
+    assert.deepEqual(first.events, []);
+    assert.equal(warning.events[0]?.type, "service_unhealthy");
+    assert.deepEqual(beforeCritical.events, []);
+    assert.equal(critical.events[0]?.type, "service_critical");
+    assert.deepEqual(repeated.events, []);
+    assert.equal(recovered.events[0]?.type, "recovered");
+    assert.deepEqual(healthy.events, []);
+  });
+
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.not-configured
+  it("does not open a storage incident when storage is intentionally unconfigured", () => {
+    const skipped = [{ id: "core.object_storage", status: "skipped" as const, failureClass: "not_configured" }];
+    const first = applyRuntimeCheckResults(undefined, skipped, "2026-08-25T10:00:00Z");
+    const second = applyRuntimeCheckResults(first.state, skipped, "2026-08-25T10:05:00Z");
+
+    assert.deepEqual(first.events, []);
+    assert.deepEqual(second.events, []);
+    assert.equal(second.state.checks?.["core.object_storage"]?.incidentOpen, false);
+  });
+
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts
+  it("preserves every simultaneous warning critical and recovery event", () => {
+    const state = {
+      consecutiveFailures: 2,
+      incidentOpen: true,
+      checks: {
+        "core.object_storage": {
+          consecutiveFailures: 2,
+          incidentOpen: true,
+          incidentOpenedAt: "2026-08-25T10:00:00Z",
+        },
+        "core.cache": {
+          consecutiveFailures: 1,
+          incidentOpen: false,
+        },
+      },
+    };
+    const failed = applyRuntimeCheckResults(state, [
+      { id: "core.object_storage", status: "failed", failureClass: "storage_unavailable", required: false },
+      { id: "core.cache", status: "failed", failureClass: "connection", required: true },
+    ], "2026-08-25T11:00:00Z");
+    const recovered = applyRuntimeCheckResults(failed.state, [
+      { id: "core.object_storage", status: "passed", required: false },
+      { id: "core.cache", status: "passed", required: true },
+    ], "2026-08-25T11:05:00Z");
+
+    assert.deepEqual(failed.events.map((event) => event.type), ["service_critical", "service_unhealthy"]);
+    assert.deepEqual(recovered.events.map((event) => event.type), ["recovered", "recovered"]);
+    const serverSource = readFileSync(new URL("../src/server.ts", import.meta.url), "utf8");
+    assert.doesNotMatch(serverSource, /applied\.events\[0\]/);
+  });
+
+  // contract-test: direct surface=cli assertions=storage-resilience.monitoring.transition-alerts
+  it("does not infer a storage outage when a required baseline prevents the optional probe", () => {
+    const first = applyRuntimeCheckResults(undefined, [{
+      id: "core.object_storage",
+      status: "skipped",
+      failureClass: "dependency_failed",
+      required: false,
+    }], "2026-08-25T10:00:00Z");
+    const second = applyRuntimeCheckResults(first.state, [{
+      id: "core.object_storage",
+      status: "skipped",
+      failureClass: "dependency_failed",
+      required: false,
+    }], "2026-08-25T10:05:00Z");
+
+    assert.deepEqual(first.events, []);
+    assert.deepEqual(second.events, []);
+    assert.equal(second.state.incidentOpen, false);
+  });
+
   it("alerts immediately when the runtime verifier container is unavailable", () => {
     const result = applyRuntimeCheckResults(
       undefined,
@@ -1145,22 +1263,17 @@ describe("post-update runtime health", () => {
 });
 
 describe("operational monitoring digest", () => {
-  it("enables email only after a bounded provider availability probe", async () => {
-    const originalFetch = globalThis.fetch;
-    try {
-      let requestedUrl = "";
-      globalThis.fetch = (async (input: string | URL | Request) => {
-        requestedUrl = String(input);
-        return new Response(null, { status: 200 });
-      }) as typeof fetch;
-      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), true);
-      assert.equal(requestedUrl, "https://api.brevo.com/v3/account");
-
-      globalThis.fetch = (async () => { throw new Error("network_unavailable"); }) as typeof fetch;
-      assert.equal(await probeRuntimeEmailService({ apiKey: "test-key", from: "sender@example.test", to: "admin@example.test" }), false);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+  it("pins Brevo email probes to bounded IPv4 requests", () => {
+    const options = buildBrevoRequestOptions("/v3/account", "GET", "test-key");
+    assert.equal(options.protocol, "https:");
+    assert.equal(options.hostname, "api.brevo.com");
+    assert.equal(options.servername, "api.brevo.com");
+    assert.equal(options.port, 443);
+    assert.equal(options.path, "/v3/account");
+    assert.equal(options.method, "GET");
+    assert.equal(options.family, 4);
+    assert.equal(options.timeout, 10_000);
+    assert.equal((options.headers as Record<string, string>)["api-key"], "test-key");
   });
 
   // contract-test: direct surface=cli assertions=operational-monitoring.self-host.auto-email,operational-monitoring.self-host.no-billing,operational-monitoring.environments.isolated-labeled
@@ -1271,12 +1384,251 @@ describe("operational monitoring digest", () => {
       attemptCount: 3,
       occurredAt: "2026-08-14T12:00:00Z",
       sanitizedFailureClass: "delivery_timeout",
+      destinationSource: "dev_fallback",
+      fallbackUsed: true,
     });
 
     assert.equal(email.state, "accepted");
     assert.equal(discord.state, "failed");
     assert.equal("destination" in email, false);
     assert.equal("webhookUrl" in discord, false);
+    assert.equal(discord.destinationSource, "dev_fallback");
+    assert.equal(discord.fallbackUsed, true);
+  });
+});
+
+describe("server update completion email", () => {
+  // contract-test: direct surface=cli assertions=server-management.update.completion-email-required,server-management.status.privacy-boundary
+  it("renders released update metadata and prefers release provenance", () => {
+    const source = selectUpdateSourceLink({
+      releaseUrl: "https://github.com/glowingkitty/OpenMates/releases/tag/v0.17.0",
+      pullRequestUrl: "https://github.com/glowingkitty/OpenMates/pull/123",
+      commitUrl: "https://github.com/glowingkitty/OpenMates/commit/abc123",
+      sourceUrl: "https://github.com/glowingkitty/OpenMates/tree/v0.17.0",
+    });
+    const email = buildUpdateCompletionEmail({
+      deliveryId: "11111111-1111-4111-8111-111111111111",
+      updateMode: "image",
+      installedVersion: "v0.17.0",
+      role: "core",
+      completedAt: "2026-08-25T12:00:00Z",
+      source,
+    });
+
+    assert.deepEqual(source, {
+      kind: "release",
+      url: "https://github.com/glowingkitty/OpenMates/releases/tag/v0.17.0",
+    });
+    assert.equal(email.subject, "Server update complete");
+    assert.deepEqual(email.headers, { idempotencyKey: "11111111-1111-4111-8111-111111111111" });
+    assert.equal(isBrevoIdempotencyDuplicate(400, '{"code":"duplicate_parameter"}', { headers: email.headers }), true);
+    assert.equal(isBrevoIdempotencyDuplicate(400, '{"message":"duplicate_parameter"}', { headers: email.headers }), false);
+    assert.equal(isBrevoIdempotencyDuplicate(400, '{"code":"duplicate_parameter"}', {}), false);
+    assert.equal(isBrevoAcceptedResponse("/v3/smtp/email", "POST", 201, '{"messageId":"<accepted@example.test>"}'), true);
+    assert.equal(isBrevoAcceptedResponse("/v3/smtp/email", "POST", 201, "{}"), false);
+    assert.equal(isBrevoAcceptedResponse("/v3/smtp/email", "POST", 204, ""), false);
+    assert.equal(isBrevoAcceptedResponse("/v3/account", "GET", 200, "{}"), true);
+    for (const expected of ["v0.17.0", "core", "2026-08-25T12:00:00Z", source.url]) {
+      assert.match(email.textContent, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=server-management.update.completion-email-required
+  it("falls back from pull request to commit and source provenance", () => {
+    assert.equal(selectUpdateSourceLink({ pullRequestUrl: "https://github.com/glowingkitty/OpenMates/pull/123" })?.kind, "pull_request");
+    assert.equal(selectUpdateSourceLink({ commitUrl: "https://github.com/glowingkitty/OpenMates/commit/abc123" })?.kind, "commit");
+    assert.equal(selectUpdateSourceLink({ sourceUrl: "https://github.com/glowingkitty/OpenMates/tree/dev" })?.kind, "source");
+    assert.equal(selectUpdateSourceLink({ sourceUrl: "https://github.com/private/server/tree/dev" }), null);
+    assert.equal(selectUpdateSourceLink({ sourceUrl: "http://github.com/glowingkitty/OpenMates/tree/dev" }), null);
+  });
+
+  // contract-test: direct surface=cli assertions=server-management.update.completion-email-required,server-management.status.privacy-boundary
+  it("degrades missing and exhausted email delivery without persisting destinations", () => {
+    const unavailable = buildUpdateCompletionOutcome({ status: "unavailable", attempts: 0, sanitizedReason: "email_not_configured" });
+    const failed = buildUpdateCompletionOutcome({ status: "failed", attempts: 3, sanitizedReason: "delivery_failed" });
+    const accepted = buildUpdateCompletionOutcome({ status: "accepted", attempts: 1 });
+
+    assert.deepEqual(unavailable, { updateStatus: "degraded", exitCode: 1, delivery: { status: "unavailable", attempts: 0, sanitizedReason: "email_not_configured" } });
+    assert.deepEqual(failed, { updateStatus: "degraded", exitCode: 1, delivery: { status: "failed", attempts: 3, sanitizedReason: "delivery_failed" } });
+    assert.deepEqual(accepted, { updateStatus: "success", exitCode: 0, delivery: { status: "accepted", attempts: 1 } });
+    assert.equal(JSON.stringify([unavailable, failed, accepted]).includes("admin@example.test"), false);
+  });
+
+  // contract-test: direct surface=cli assertions=server-management.update.durable-idempotency
+  it("reuses one idempotency identity across bounded delivery retries", async () => {
+    const payload = {
+      deliveryId: "22222222-2222-4222-8222-222222222222",
+      updateMode: "source" as const,
+      installedVersion: "abc123",
+      role: "core" as const,
+      completedAt: "2026-08-25T12:00:00Z",
+      source: { kind: "commit" as const, url: "https://github.com/glowingkitty/OpenMates/commit/abc123" },
+    };
+    const observedIds: string[] = [];
+    const delivery = await deliverUpdateCompletionEmail(
+      { apiKey: "redacted", from: "sender@example.test", to: "admin@example.test" },
+      payload,
+      async (_config, attemptPayload) => {
+        observedIds.push(attemptPayload.deliveryId);
+        if (observedIds.length < 3) throw new Error("ambiguous_timeout");
+      },
+    );
+
+    assert.deepEqual(delivery, { status: "accepted", attempts: 3 });
+    assert.deepEqual(observedIds, [payload.deliveryId, payload.deliveryId, payload.deliveryId]);
+  });
+
+  // contract-test: direct surface=cli assertions=server-management.update.durable-idempotency,server-management.update.installation-lock
+  it("writes update receipts atomically, fails closed on corruption, and excludes concurrent updates", () => {
+    const installPath = join(TEST_STATE_DIR, "update-state");
+    writeServerUpdateStatus(installPath, "core", {
+      status: "in_progress",
+      step: "completion-email",
+      completionEmailDeliveryId: "33333333-3333-4333-8333-333333333333",
+      completionEmailDelivery: { status: "pending", attempts: 0 },
+    });
+    const persisted = readServerUpdateStatus(installPath, "core");
+    assert.equal(persisted.completionEmailDeliveryId, "33333333-3333-4333-8333-333333333333");
+    assert.equal(readdirSync(join(installPath, ".openmates")).some((name) => name.endsWith(".tmp")), false);
+
+    const release = acquireServerUpdateLock(installPath);
+    assert.throws(() => acquireServerUpdateLock(installPath), /already running/);
+    release();
+    assert.doesNotThrow(() => acquireServerUpdateLock(installPath)());
+    const lockPath = join(installPath, ".openmates", "server-update.lock");
+    writeFileSync(lockPath, "999999999:stale-owner", "utf8");
+    assert.throws(() => acquireServerUpdateLock(installPath), /stale.*remove.*explicitly/i);
+    assert.equal(readFileSync(lockPath, "utf8"), "999999999:stale-owner");
+    rmSync(lockPath);
+
+    writeFileSync(serverUpdateStatusFile(installPath, "core"), "{invalid", "utf8");
+    assert.deepEqual(readServerUpdateStatus(installPath, "core"), { statusReadError: "invalid_update_status" });
+    for (const invalidShape of ["null", "[]", '"status"', "42"]) {
+      writeFileSync(serverUpdateStatusFile(installPath, "core"), invalidShape, "utf8");
+      assert.deepEqual(readServerUpdateStatus(installPath, "core"), { statusReadError: "invalid_update_status" });
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=server-management.update.durable-idempotency
+  it("reuses fresh pending receipts and blocks expired or corrupt recovery", () => {
+    const base = {
+      updateMode: "image" as const,
+      installedVersion: "v0.17.0",
+      continuousUpdate: false,
+      now: new Date("2026-08-25T12:30:00Z"),
+    };
+    const pending = {
+      updateMode: "image",
+      installedVersion: "v0.17.0",
+      completionEmailDeliveryId: "44444444-4444-4444-8444-444444444444",
+      completionEmailPendingAt: "2026-08-25T12:15:00Z",
+      completionEmailDelivery: { status: "pending", attempts: 0 },
+    };
+
+    assert.deepEqual(planUpdateCompletionDelivery({ ...base, previousStatus: pending }), {
+      action: "send",
+      deliveryId: pending.completionEmailDeliveryId,
+      pendingAt: pending.completionEmailPendingAt,
+      previousAttempts: 0,
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({ ...base, previousStatus: { ...pending, completionEmailPendingAt: "2026-08-25T11:59:59Z" } }), {
+      action: "blocked",
+      deliveryId: pending.completionEmailDeliveryId,
+      pendingAt: "2026-08-25T11:59:59Z",
+      reason: "idempotency_window_expired",
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({ ...base, previousStatus: { statusReadError: "invalid_update_status" } }), {
+      action: "blocked",
+      reason: "update_status_unreadable",
+    });
+    const acceptedStatus = {
+      ...pending,
+      sourceLink: "https://github.com/glowingkitty/OpenMates/releases/tag/v0.17.0",
+      completedAt: "2026-08-25T12:20:00Z",
+      completionEmailDelivery: { status: "accepted", attempts: 1 },
+    };
+    assert.deepEqual(planUpdateCompletionDelivery({
+      ...base,
+      continuousUpdate: true,
+      previousStatus: acceptedStatus,
+    }), {
+      action: "reuse_accepted",
+      deliveryId: pending.completionEmailDeliveryId,
+      attempts: 1,
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({
+      ...base,
+      previousStatus: { ...pending, completionEmailDelivery: { status: "pending", attempts: 1 } },
+    }), {
+      action: "send",
+      deliveryId: pending.completionEmailDeliveryId,
+      pendingAt: pending.completionEmailPendingAt,
+      previousAttempts: 1,
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({
+      ...base,
+      previousStatus: { ...pending, completionEmailDelivery: { status: "failed", attempts: 3 } },
+    }), {
+      action: "blocked",
+      deliveryId: pending.completionEmailDeliveryId,
+      pendingAt: pending.completionEmailPendingAt,
+      reason: "retry_budget_exhausted",
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({
+      ...base,
+      previousStatus: { ...pending, completionEmailDelivery: { status: "unavailable", attempts: 1 } },
+    }), {
+      action: "send",
+      deliveryId: pending.completionEmailDeliveryId,
+      pendingAt: pending.completionEmailPendingAt,
+      previousAttempts: 1,
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({
+      ...base,
+      continuousUpdate: true,
+      previousStatus: {
+        ...acceptedStatus,
+        completionEmailDeliveryId: "not-a-delivery-id",
+      },
+    }), {
+      action: "blocked",
+      reason: "delivery_identity_invalid",
+    });
+    assert.deepEqual(planUpdateCompletionDelivery({
+      ...base,
+      continuousUpdate: true,
+      previousStatus: { ...acceptedStatus, completionEmailDelivery: { status: "accepted", attempts: 0 } },
+    }), {
+      action: "blocked",
+      reason: "delivery_identity_invalid",
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=server-management.update.durable-idempotency
+  it("enforces one durable three-attempt budget across process recovery", async () => {
+    const attemptNumbers: number[] = [];
+    let sends = 0;
+    const delivery = await deliverUpdateCompletionEmail(
+      { apiKey: "redacted", from: "sender@example.test", to: "admin@example.test" },
+      {
+        deliveryId: "55555555-5555-4555-8555-555555555555",
+        updateMode: "image",
+        installedVersion: "v0.17.0",
+        role: "core",
+        completedAt: "2026-08-25T12:00:00Z",
+        source: { kind: "release", url: "https://github.com/glowingkitty/OpenMates/releases/tag/v0.17.0" },
+      },
+      async () => {
+        sends += 1;
+        if (sends === 1) throw new Error("ambiguous_timeout");
+      },
+      1,
+      (attempts) => attemptNumbers.push(attempts),
+    );
+
+    assert.deepEqual(delivery, { status: "accepted", attempts: 3 });
+    assert.deepEqual(attemptNumbers, [2, 3]);
+    assert.equal(sends, 2);
   });
 });
 
