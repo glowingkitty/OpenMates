@@ -16219,7 +16219,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     .scroll-to-top-button {
-        top: 18px;
+        top: calc(18px + var(--assistant-speech-overlay-reserve, 0px));
     }
 
     .scroll-to-bottom-button {
