@@ -526,7 +526,7 @@ implementation_notes:
     - {path: scripts/verify_sdk_tasks_live_smoke.mjs, reason: Real npm/pip Activity phase gate.}
     - {path: docs/user-guide/developers/sdk-reference.md, reason: Regenerated public SDK method reference.}
     - {path: docs/user-guide/developers/sdk-test-coverage.md, reason: Regenerated SDK contract coverage.}
-    - {path: .github/workflows/task-activity-smoke.yml, reason: Daily/manual real Task Activity contract verification.}
+    - {path: .github/workflows/app-skill-cli-smoke.yml, reason: Registered daily/manual real Task Activity contract verification.}
     - {path: frontend/packages/ui/src/services/userTaskService.ts, reason: Browser Activity models, crypto, and API calls.}
     - {path: frontend/packages/ui/src/components/tasks/TaskActivity.svelte, reason: Unified Activity stream and composer adapter.}
     - {path: frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, reason: Deterministic component states.}
@@ -604,13 +604,13 @@ tasks:
     status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-7]}
-    expected_files: [.github/workflows/task-activity-smoke.yml, backend/tests/test_setup_schemas.py, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]
+    expected_files: [.github/workflows/app-skill-cli-smoke.yml, backend/tests/test_setup_schemas.py, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]
     verification: [T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
     verification_ids: [T-API-ACTIVITY-LIVE, T-CLI-ACTIVITY-LIVE, T-SDK-ACTIVITY-LIVE, T-SDK-CLI-PARITY-AUDIT]
     specification_assertions: [tasks.activity.client-encrypted, tasks.activity.context-attribution, tasks.activity.deletion-tombstone, tasks.activity.task-scoped-authorization, tasks.surface.semantic-parity]
     surfaces: [rest_api, cli, sdk_npm, sdk_pip]
     dependencies: [TASK-3]
-    ownership: {files: [.github/workflows/task-activity-smoke.yml, backend/tests/test_setup_schemas.py], shared_files: [scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]}
+    ownership: {files: [backend/tests/test_setup_schemas.py], shared_files: [.github/workflows/app-skill-cli-smoke.yml, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]}
     blockers: []
     follow_up_tasks: []
     independently_deployable: true
