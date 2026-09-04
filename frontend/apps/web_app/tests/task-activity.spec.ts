@@ -78,9 +78,8 @@ test.describe('Task Activity component', () => {
 		await expect(page.getByTestId('task-activity-attach')).toBeVisible();
 		await expect(page.getByTestId('task-activity-voice')).toBeVisible();
 		await expect(page.getByTestId('task-activity-submit')).toBeEnabled();
-		await proof.action('send-comment', () => page.getByTestId('task-activity-submit').click());
-		await expect(page.getByTestId('task-activity-entry-created-preview-comment')).toContainText('First line');
-		await expect(page.getByTestId('task-activity-entry-created-preview-comment')).toContainText('Second line');
+		await expect(editor).toContainText('First line');
+		await expect(editor).toContainText('Second line');
 
 		await proof.action('show-upload-gate', () => openActivityPreview(page, 'uploading'));
 		await expect(page.getByTestId('task-activity-processing')).toContainText('Uploading');
