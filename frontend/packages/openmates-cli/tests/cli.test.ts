@@ -1463,6 +1463,8 @@ async function withAnonymousMockApi<T>(
   }
 }
 
+const SDK_CHAT_TEST_ID = "11111111-2222-4333-8444-555555555555";
+
 async function withSdkChatMockApi<T>(
   run: (params: {
     apiUrl: string;
@@ -1500,21 +1502,21 @@ async function withSdkChatMockApi<T>(
         return;
       }
 
-      if (request.method === "GET" && request.url?.startsWith("/v1/sdk/chats/chat-1/messages")) {
+      if (request.method === "GET" && request.url?.startsWith(`/v1/sdk/chats/${SDK_CHAT_TEST_ID}/messages`)) {
         requests.push({ method: request.method, url: request.url });
         writeJson(response, {
-          chat: { id: "chat-1", title: "Windowed chat" },
-          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "latest window", created_at: 1 }],
+          chat: { id: SDK_CHAT_TEST_ID, title: "Windowed chat" },
+          messages: [{ id: "message-1", chat_id: SDK_CHAT_TEST_ID, role: "assistant", content: "latest window", created_at: 1 }],
           has_more_before: true,
         });
         return;
       }
 
-      if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
+      if (request.method === "GET" && request.url === `/v1/sdk/chats/${SDK_CHAT_TEST_ID}`) {
         requests.push({ method: request.method, url: request.url });
         writeJson(response, {
-          chat: { id: "chat-1", title: "Full chat" },
-          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "full history", created_at: 1 }],
+          chat: { id: SDK_CHAT_TEST_ID, title: "Full chat" },
+          messages: [{ id: "message-1", chat_id: SDK_CHAT_TEST_ID, role: "assistant", content: "full history", created_at: 1 }],
         });
         return;
       }
@@ -4299,14 +4301,14 @@ describe("unauthenticated example chats", () => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "--api-key", apiKey,
-        "chats", "show", "chat-1", "--json",
+        "chats", "show", SDK_CHAT_TEST_ID, "--json",
       ]);
       const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
 
       assert.equal(parsed.messages?.[0]?.content, "latest window");
       assert.equal(parsed.has_more_before, true);
       assert.deepEqual(requests.map((request) => request.url), [
-        "/v1/sdk/chats/chat-1/messages?direction=latest&limit=30",
+        `/v1/sdk/chats/${SDK_CHAT_TEST_ID}/messages?direction=latest&limit=30`,
       ]);
     });
   });
@@ -4316,14 +4318,14 @@ describe("unauthenticated example chats", () => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "--api-key", apiKey,
-        "chats", "show", "chat-1", "--json", "--all",
+        "chats", "show", SDK_CHAT_TEST_ID, "--json", "--all",
       ]);
       const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
 
       assert.equal(parsed.messages?.[0]?.content, "full history");
       assert.equal(parsed.has_more_before, undefined);
       assert.deepEqual(requests.map((request) => request.url), [
-        "/v1/sdk/chats/chat-1",
+        `/v1/sdk/chats/${SDK_CHAT_TEST_ID}`,
       ]);
     });
   });

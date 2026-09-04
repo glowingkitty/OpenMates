@@ -1827,38 +1827,6 @@ export interface MemoryTypeDef {
  * Auto-generated fields (added_date etc.) are excluded from user-visible fields.
  */
 export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
-  "ai/communication_style": {
-    appId: "ai",
-    itemType: "communication_style",
-    entryType: "single",
-    required: ["title", "tone", "verbosity"],
-    properties: {
-      title: { type: "string" },
-      tone: {
-        type: "string",
-        enum: ["formal", "casual", "friendly", "professional", "conversational"],
-      },
-      verbosity: { type: "string", enum: ["concise", "balanced", "detailed", "very_detailed"] },
-    },
-  },
-  "ai/learning_preferences": {
-    appId: "ai",
-    itemType: "learning_preferences",
-    entryType: "list",
-    required: ["title", "learning_type", "preference_strength"],
-    properties: {
-      title: { type: "string" },
-      learning_type: {
-        type: "string",
-        enum: ["visual", "auditory", "reading", "hands-on", "video", "interactive", "written", "discussion"],
-      },
-      preference_strength: {
-        type: "string",
-        enum: ["strongly_prefer", "prefer", "neutral", "avoid"],
-      },
-      notes: { type: "string" },
-    },
-  },
   "books/favorite_books": {
     appId: "books",
     itemType: "favorite_books",

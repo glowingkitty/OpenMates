@@ -7708,6 +7708,11 @@ async function handleCodeRun(
     const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
     if (finalOutput) process.stdout.write(finalOutput);
   }
+  const finalExitCode = typeof finalStatus.exit_code === "number" ? finalStatus.exit_code : null;
+  const finalState = typeof finalStatus.status === "string" ? finalStatus.status : "unknown";
+  if (finalState !== "finished" || finalExitCode !== 0) {
+    throw new Error(`Code Run ${finalState} with exit code ${finalExitCode ?? "unknown"}.`);
+  }
 }
 
 async function streamCodeRunToTerminal(url: string, jsonMode: boolean): Promise<Record<string, unknown>> {
