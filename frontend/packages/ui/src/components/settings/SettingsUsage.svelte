@@ -1625,7 +1625,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     onMount(() => {
-        let reconciliationRefresh: ReturnType<typeof setTimeout> | undefined;
+        const reconciliationRefreshes: Array<ReturnType<typeof setTimeout>> = [];
         // Load draft audio chat IDs from localStorage so we can display "Unsent draft" instead of
         // "Deleted chat" for usage entries linked to recordings that were never sent.
         draftAudioChatIds = getAllDraftAudioChatIds();
@@ -1651,11 +1651,13 @@ Usage Settings - View usage statistics and export usage data
             if (shouldAutoOpenUsage) {
                 await autoSelectLatestUsageEntry();
             }
-            reconciliationRefresh = setTimeout(() => {
-                if (activeTab === 'overview' && !overviewSelectedChatId) {
-                    void fetchDailyOverview(loadedDays, false);
-                }
-            }, 2000);
+            for (const delay of [2000, 5000, 10000]) {
+                reconciliationRefreshes.push(setTimeout(() => {
+                    if (activeTab === 'overview' && !overviewSelectedChatId) {
+                        void fetchDailyOverview(loadedDays, false);
+                    }
+                }, delay));
+            }
         });
         
         // Check hidden chats unlock status on mount
@@ -1666,7 +1668,7 @@ Usage Settings - View usage statistics and export usage data
         window.addEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
         
         return () => {
-            if (reconciliationRefresh) clearTimeout(reconciliationRefresh);
+            reconciliationRefreshes.forEach(clearTimeout);
             window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
             window.removeEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
         };

@@ -132,9 +132,25 @@ test.describe('Usage Token Breakdown', () => {
 		});
 		const overviewResponse = await overviewResponsePromise;
 		await overviewResponse.json();
-		const refreshedOverviewResponse = await page.waitForResponse(
+		await expect.poll(async () => {
+			return page.evaluate(async (chatId) => {
+				const response = await fetch(`/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId)}&limit=100`, {
+					credentials: 'include'
+				});
+				if (!response.ok) return false;
+				const data = await response.json();
+				return Array.isArray(data.entries) && data.entries.some((entry: { input_tokens?: number }) =>
+					typeof entry.input_tokens === 'number' && entry.input_tokens > 0
+				);
+			}, createdChatId);
+		}, { timeout: 15000 }).toBe(true);
+
+		await settingsMenu.getByTestId('settings-tab-chats').click();
+		const refreshedOverviewResponsePromise = page.waitForResponse(
 			(response) => response.url().includes('/v1/settings/usage/daily-overview') && response.request().method() === 'GET'
 		);
+		await settingsMenu.getByTestId('settings-tab-overview').click();
+		const refreshedOverviewResponse = await refreshedOverviewResponsePromise;
 		const overviewData = await refreshedOverviewResponse.json();
 		const chatItems = overviewData.days.flatMap((day: { items?: Array<{ type?: string; chat_id?: string; total_credits?: number }> }) =>
 			(day.items || []).filter((item) => item.type === 'chat')
