@@ -6694,7 +6694,7 @@ assertions:
       surface: gui.web
     - &id765
       path: frontend/apps/web_app/tests/composer-model-routing.spec.ts
-      line: 136
+      line: 124
       name: composer picker, mentions, and grouped actions remain reachable without
         clipping
       surface: gui.web
@@ -6793,7 +6793,7 @@ assertions:
       surface: gui.web
     - &id775
       path: frontend/apps/web_app/tests/composer-model-routing.spec.ts
-      line: 136
+      line: 124
       name: composer picker, mentions, and grouped actions remain reachable without
         clipping
       surface: gui.web
@@ -6840,7 +6840,7 @@ assertions:
       surface: gui.web
     - &id780
       path: frontend/apps/web_app/tests/composer-model-routing.spec.ts
-      line: 136
+      line: 124
       name: composer picker, mentions, and grouped actions remain reachable without
         clipping
       surface: gui.web

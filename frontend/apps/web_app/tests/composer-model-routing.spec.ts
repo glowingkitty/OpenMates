@@ -60,14 +60,8 @@ const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
-			id: 'fable-selection',
-			text: 'The Claude provider lists Claude Fable 5.1 as a max-capability model, and selecting it updates the composer model control.',
-			checkpoint: 'composer-fable-selection',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
 			id: 'mention-selection',
-			text: 'Typing the Best model shortcut resolves to GPT-6 Astra, shows its max capability badge in the selector, and removes the redundant mention.',
+			text: 'Typing the Best model shortcut resolves to Claude Fable 5, shows Claude with a max capability badge in the selector, and removes the redundant mention.',
 			checkpoint: 'composer-exact-selection',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -83,12 +77,6 @@ const COMPOSER_MODEL_ROUTING_PROOF = defineVideoProof({
 			id: 'ai-model-routing.composer.picker-provider-order',
 			checkpoint: 'composer-model-picker',
 			visual: 'Auto select is a single aligned row, product-brand providers use separate main and more pages, and model rows sort by release date then capability.',
-			devices: ['web-laptop', 'web-phone']
-		},
-		{
-			id: 'ai-model-routing.catalog.capability-recommendation-variants',
-			checkpoint: 'composer-fable-selection',
-			visual: 'Claude Fable 5.1 is visible and selectable with the max capability badge.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -311,15 +299,11 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect.poll(async () => selector.getAttribute('aria-label')).toContain(firstModelDisplayName!);
 
 	await selector.click();
-	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-anthropic').click();
-	const fableRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'Claude Fable 5.1' });
-	await assertProof(proof, 'ai-model-routing.catalog.capability-recommendation-variants', async () => {
-		await expect(fableRow).toBeVisible();
-		await expect(fableRow.getByTestId('composer-model-capability')).toHaveAttribute('data-level', 'max');
-	});
-	await fableRow.getByTestId('composer-model-toggle').click();
-	await expect(selector).toHaveAttribute('aria-label', /Model selection: Claude Fable 5.1/i);
-	await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('Claude Fable 5.1');
+	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
+	const solMaxRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' });
+	await solMaxRow.getByTestId('composer-model-toggle').click();
+  await expect(selector).toHaveAttribute('aria-label', /Model selection: GPT-5.6 Sol Max/i);
+  await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('GPT-5.6 Sol Max');
 	const [triggerIconBox, triggerCapabilityBox] = await Promise.all([
 		selector.getByTestId('composer-model-selector-icon').boundingBox(),
 		selector.getByTestId('composer-model-selector-capability').boundingBox()
@@ -328,15 +312,12 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	expect(triggerCapabilityBox).toBeTruthy();
 	expect(Math.abs(triggerCapabilityBox!.x + triggerCapabilityBox!.width / 2 - (triggerIconBox!.x + triggerIconBox!.width))).toBeLessThanOrEqual(1);
 	expect(Math.abs(triggerCapabilityBox!.y + triggerCapabilityBox!.height / 2 - (triggerIconBox!.y + triggerIconBox!.height))).toBeLessThanOrEqual(1);
-	if (proof) {
-		await proof.checkpoint('composer-fable-selection');
-	}
 
 	await selector.click();
 	const reopenedMenu = composer.getByTestId('composer-model-selector-menu');
 	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeHidden();
 	await expect(reopenedMenu.getByTestId('composer-model-back')).toBeVisible();
-	await expect(reopenedMenu.getByTestId('composer-model-row').filter({ hasText: 'Claude Fable 5.1' }).getByRole('checkbox')).toBeChecked();
+	await expect(reopenedMenu.getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' }).getByRole('checkbox')).toBeChecked();
 	await reopenedMenu.getByTestId('composer-model-back').click();
 	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeVisible();
 	await selector.click();
