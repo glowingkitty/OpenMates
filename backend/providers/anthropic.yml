@@ -66,6 +66,11 @@ models:
       cache_read_per_million_token:
         price: 0.25
         currency: USD
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
 
   - id: "claude-fable-5" # Official Claude API model ID
     name: "Claude Fable 5"

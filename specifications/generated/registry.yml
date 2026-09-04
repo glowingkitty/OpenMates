@@ -100,7 +100,7 @@ specifications:
     version: 1
     status: draft
     path: features/ai-model-routing
-    fingerprint: 7100edcfa11355803db4f32b54fe3e68c71c3839964eefc81dcd402d2f5ab9a3
+    fingerprint: 5da48ac731935d9c776e5bf5c2b203116a3bd3a67d40c57f48c05278b6ffda77
     required_applies_to:
     - rest_api
     - cli
@@ -1315,7 +1315,19 @@ assertions:
     specification: feature.ai-model-routing@1
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: bf4abc3e6ca29206760657f47e8d748b481cee71f671eafac5e57abb21ebe291
+    fingerprint: 83cfb678a24c64ec958867e37dbae9d1d5e82309d885159f0a97aa4f29e9db69
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  ai-model-routing.catalog.public-read-only:
+    specification: feature.ai-model-routing@1
+    specification_id: feature.ai-model-routing
+    type: security
+    fingerprint: 196aa0e7005e9623d6cd9f62c079119564add93d5654a06040dd9ac96dc39bcd
     required_applies_to:
     - rest_api
     - cli
@@ -1327,7 +1339,7 @@ assertions:
     specification: feature.ai-model-routing@1
     specification_id: feature.ai-model-routing
     type: behavior
-    fingerprint: da11e75ba975dec468971b768e613af14c2de1857067b6929534ee3de754790b
+    fingerprint: 65ef63f113d1ecda6ec3bf2571b20347a5b76e23d1b6ba4dfd1fa5b2971c6124
     required_applies_to:
     - rest_api
     - cli
@@ -1411,7 +1423,7 @@ assertions:
     specification: feature.ai-model-routing@1
     specification_id: feature.ai-model-routing
     type: parity
-    fingerprint: b336c11be15df286407363a668ef213f77b8a6befeb344fa013ece8aab1491db
+    fingerprint: 551cf90c7ce3fea1d11b365b340d05038d050bf7d8c2d68f7be430b184319cae
     required_applies_to:
     - rest_api
     - cli

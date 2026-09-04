@@ -12,8 +12,8 @@ goal: >
 scope:
   in:
     - Canonical authenticated `POST /v1/chat/completions` endpoint.
-    - Canonical authenticated `GET /v1/models` endpoint.
-    - Canonical authenticated `GET /v1/models/{model}` endpoint.
+    - Canonical public read-only `GET /v1/models` endpoint.
+    - Canonical public read-only `GET /v1/models/{model}` endpoint.
     - Non-streaming OpenAI-style chat completion responses.
     - "Streaming OpenAI-style Server-Sent Events with `data: {...}` chunks and final `data: [DONE]`."
     - "Standard client-supplied OpenAI function tools using `tools: [{ type: \"function\", function: ... }]`."
@@ -249,7 +249,7 @@ scenarios:
 acceptance_criteria:
   - id: AC-1
     scenario: S-1
-    text: "`GET /v1/models` returns an OpenAI-compatible model list for authenticated API-key requests."
+    text: "`GET /v1/models` returns an OpenAI-compatible public model list with namespaced OpenMates capability and credit metadata."
     required: true
     status: satisfied
     coverage_status: covered
@@ -398,17 +398,14 @@ assumptions:
 contracts:
   api:
     - route: GET /v1/models
-      auth: Bearer OpenMates API key
+      auth: none
       request: none
-      response: "{ object: 'list', data: [{ id: string, object: 'model', created: integer, owned_by: string }] }"
-      errors:
-        - 401 OpenAI-style error when the API key is missing or invalid.
+      response: "{ object: 'list', data: [{ id: string, object: 'model', created: integer, owned_by: string, openmates: { capability_level, input_types, output_types, context_window_tokens, max_output_tokens, features, pricing: { unit: 'tokens_per_credit', input, output } } }] }"
     - route: GET /v1/models/{model}
-      auth: Bearer OpenMates API key
+      auth: none
       request: model path parameter
-      response: "{ id: string, object: 'model', created: integer, owned_by: string }"
+      response: "{ id: string, object: 'model', created: integer, owned_by: string, openmates: object }"
       errors:
-        - 401 OpenAI-style error when unauthenticated.
         - 404 OpenAI-style error when the model ID is not available.
     - route: POST /v1/chat/completions
       auth: Bearer OpenMates API key

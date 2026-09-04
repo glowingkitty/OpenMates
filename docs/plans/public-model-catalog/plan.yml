@@ -1,0 +1,168 @@
+# Executable plan for unauthenticated read-only model discovery.
+# The approved AI model routing Specification defines the public catalog boundary.
+# Model inference and every user-scoped surface remain authenticated.
+# Verification covers focused REST behavior and anonymous live requests.
+# This plan contains no data migration or compatibility fallback.
+
+schema_version: 1
+id: public-model-catalog
+title: Public Read-Only Model Catalog
+status: implementing
+
+goal: Make GET /v1/models and GET /v1/models/{model} publicly readable so clients can discover available models without credentials.
+
+specifications:
+  - bundle: specifications/features/ai-model-routing
+    fingerprint: 5da48ac731935d9c776e5bf5c2b203116a3bd3a67d40c57f48c05278b6ffda77
+    assertions:
+      - ai-model-routing.catalog.public-read-only
+      - ai-model-routing.catalog.capability-recommendation-variants
+
+scope:
+  in:
+    - Remove authentication dependencies from the two read-only model catalog routes.
+    - Preserve model availability filtering and OpenAI-compatible response shapes.
+    - Add namespaced OpenMates metadata including modalities, limits, capabilities, and token-per-credit rates.
+    - Verify Claude Fable 5.1 appears with max capability in the deployed web selector and catalog.
+  out:
+    - Public model inference or chat completions.
+    - User, billing, provider-secret, or encrypted-data exposure.
+    - Changes to provider availability rules or rate limits.
+
+access_model:
+  classification: unauthenticated_public_rest_api
+  routes:
+    - GET /v1/models
+    - GET /v1/models/{model}
+  auth: none
+  rate_limits: existing route and edge limits remain unchanged
+  credits: none
+  encrypted_data: none
+  plaintext: provider and model metadata only
+
+scenarios:
+  - id: S-1
+    title: Anonymous client lists available chat models
+    given:
+      - The client has no session or API key.
+    when:
+      - The client requests GET /v1/models.
+    then:
+      - The API returns available model metadata without user or secret data.
+  - id: S-2
+    title: Anonymous client retrieves model metadata
+    given:
+      - The client has no session or API key.
+    when:
+      - The client requests a known or unknown model ID.
+    then:
+      - A known model returns metadata and an unknown model returns an OpenAI-style 404.
+  - id: S-3
+    title: Anonymous inference remains forbidden
+    given:
+      - The client has no session or API key.
+    when:
+      - The client requests POST /v1/chat/completions.
+    then:
+      - The API rejects the request as unauthenticated.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: GET /v1/models returns 200 without a session or API key and includes anthropic/claude-fable-5-1.
+  - id: AC-2
+    scenario: S-2
+    text: Public model lookup preserves known-model and OpenAI-style unknown-model responses.
+  - id: AC-3
+    scenario: S-3
+    text: POST /v1/chat/completions still returns an authentication error without credentials.
+  - id: AC-4
+    scenario: S-1
+    text: The deployed composer selector lists Claude Fable 5.1 as max capability.
+  - id: AC-5
+    scenario: S-1
+    text: Public model metadata reports OpenMates input and output tokens per credit without exposing provider USD costs.
+
+tasks:
+  - id: T-1
+    title: Add public catalog contract coverage
+    status: in_progress
+  - id: T-2
+    title: Remove auth from model-read routes only
+    status: pending
+    dependencies: [T-1]
+  - id: T-3
+    title: Deploy and verify anonymous catalog plus web selector
+    status: pending
+    dependencies: [T-2]
+
+checks:
+  - id: C-1
+    command: python3 -m pytest -q backend/tests/test_openai_compatible_api_contract.py
+    required: true
+  - id: C-2
+    command: python3 scripts/tests.py run --spec composer-model-routing.spec.ts --gate-deploy --expected-commit <sha>
+    required: true
+  - id: C-3
+    command: anonymous GET https://api.dev.openmates.org/v1/models
+    required: true
+  - id: C-4
+    command: python3 scripts/plan_verify.py docs/plans/public-model-catalog/plan.yml --phase complete --json
+    required: true
+
+tests:
+  - id: T-REST
+    type: unit
+    file: backend/tests/test_openai_compatible_api_contract.py
+    command: python3 -m pytest -q backend/tests/test_openai_compatible_api_contract.py
+    covers: [AC-1, AC-2, AC-3, AC-5]
+    assertions:
+      - Anonymous model list and lookup include OpenMates credit rates while anonymous chat completion remains rejected.
+    red_phase:
+      required: true
+      expected: anonymous model list returns 401 before the route change
+      evidence:
+        status: failed
+        run_id: live-anonymous-get-7100da3
+        timestamp: "2026-09-04"
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-WEB
+    type: playwright
+    file: frontend/apps/web_app/tests/composer-model-routing.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec composer-model-routing.spec.ts --gate-deploy --expected-commit <sha>
+    covers: [AC-4]
+    assertions:
+      - The deployed selector exposes Claude Fable 5.1 with max capability.
+    red_phase:
+      required: false
+      expected: not_required
+      evidence: {status: not_required, run_id: existing selector coverage}
+    green_phase:
+      required: true
+      expected: pass_after_deploy
+      evidence: {status: pending}
+
+evidence:
+  red:
+    command: anonymous GET https://api.dev.openmates.org/v1/models
+    result: HTTP 401 Unauthorized on deployed commit 7100da3bdc2413e99aac1d5d4265d047d54028bb
+  local_test_environment:
+    result: Collection blocked because the dependency-light worktree lacks slowapi; authoritative test runs use the API test environment.
+
+risks:
+  - risk: Authentication could accidentally be removed from inference.
+    mitigation: Change only the two GET signatures and assert anonymous chat completion remains rejected.
+  - risk: Catalog metadata could expose secrets or user data.
+    mitigation: Preserve the existing static provider/model projection and approved public-catalog Specification constraints.
+
+rollout:
+  deploy: scoped dev deployment and API rebuild
+  rollback: revert the route dependency change to restore API-key authentication
+  apple: not applicable; no native contract changes
+
+documentation:
+  - Update the prior OpenAI-compatible API contract description from authenticated model reads to public model reads.

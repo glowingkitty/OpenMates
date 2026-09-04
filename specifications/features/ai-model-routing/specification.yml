@@ -14,6 +14,7 @@ scope:
     - Three-tier request classification and user defaults for simple, complex, and most-demanding requests.
     - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
     - Provider recommendations per tier and provider-independent model capability indicators.
+    - Unauthenticated read-only discovery of available model metadata through the public model catalog.
     - Provider-specific user-facing model variants such as Gemini 3.7 Flash and Gemini 3.7 Flash (High).
     - Per-user, per-chat exact-model selection, encrypted persistence, cross-device convergence, and restore on chat load.
     - Composer Auto/model selection, exact-model and alias mention synchronization, and unavailable-model recovery.
@@ -104,6 +105,16 @@ models:
       type: model_variant_reference
       required: true
       constraints: {one_recommended_model_for_context_tier: true, visibly_identified: true}
+
+  PublicModelCatalog:
+    access:
+      type: unauthenticated_public_read
+      required: true
+      constraints: {methods: [GET], mutation_forbidden: true, inference_forbidden: true}
+    entries:
+      type: available_model_metadata
+      required: true
+      constraints: {provider_secrets_forbidden: true, user_data_forbidden: true, encrypted_data_forbidden: true}
 
   ChatModelPreference:
     subject:
@@ -217,6 +228,10 @@ assertions:
     type: behavior
     must: Every selectable model variant exposes one provider-independent low, medium, high, or max capability indicator; every visible provider identifies one recommended eligible model for each request tier; and provider-specific reasoning variants appear as distinct models only when the provider supports a meaningful stable configuration.
     depends_on: [models.ModelCatalogEntry, models.ProviderTierCatalog, examples.catalog]
+  - id: ai-model-routing.catalog.public-read-only
+    type: security
+    must: Anyone may list or retrieve currently available model metadata without a session or API key, while model inference, account state, provider secrets, user data, and encrypted data remain unavailable through the public catalog.
+    depends_on: [models.PublicModelCatalog, examples.catalog]
   - id: ai-model-routing.defaults.google-tier-profiles
     type: behavior
     must: The initial automatic defaults use Gemini 3.5 Flash-Lite with Google LOW thinking for simple, Gemini 3.7 Flash with Google MEDIUM thinking for complex, and the distinct Gemini 3.7 Flash (High) variant with Google HIGH thinking for most-demanding requests, without exposing those thinking levels as a universal user control.
@@ -253,7 +268,7 @@ assertions:
 applies_to:
   rest_api:
     required: true
-    role: Authenticated first-party settings and chat/WebSocket contracts persist owner-scoped tier preferences and transient decrypted routing choices while durable chat selection metadata remains client-encrypted.
+    role: Public read-only model discovery exposes only available model metadata; authenticated first-party settings and chat/WebSocket contracts persist owner-scoped tier preferences and transient decrypted routing choices while durable chat selection metadata remains client-encrypted.
   cli:
     required: true
     parity: semantic

@@ -32,6 +32,10 @@ tier_preferences:
     expect: {simple_preference: openai/gpt-5.6-luna}
 
 catalog:
+  - id: public-read-only-model-discovery
+    given: {session: absent, api_key: absent}
+    when: {get: [/v1/models, /v1/models/anthropic/claude-fable-5-1]}
+    expect: {status: 200, model_metadata_visible: true, inference_available: false, user_or_secret_data_visible: false}
   - id: provider-recommendations-by-tier
     given: {provider: Google, visible_tiers: [simple, complex, most_demanding]}
     expect:
