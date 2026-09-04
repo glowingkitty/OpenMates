@@ -69,54 +69,54 @@ test.describe('Task Activity component', () => {
 		await proof.checkpoint('final-activity');
 
 		const editor = page.getByTestId('task-activity-editor').locator('.ProseMirror');
-		await proof.action('write-multiline-comment', async () => {
+		await proof.action('demonstrate-rich-composer', async () => {
 			await editor.click();
 			await page.keyboard.type('First line');
 			await page.keyboard.press('Shift+Enter');
 			await page.keyboard.type('Second line');
-		});
-		await expect(page.getByTestId('task-activity-attach')).toBeVisible();
-		await expect(page.getByTestId('task-activity-voice')).toBeVisible();
-		await expect(page.getByTestId('task-activity-submit')).toBeEnabled();
-		await expect(editor).toContainText('First line');
-		await expect(editor).toContainText('Second line');
-
-		await proof.action('show-upload-gate', () => openActivityPreview(page, 'uploading'));
-		await expect(page.getByTestId('task-activity-processing')).toContainText('Uploading');
-		await expect(page.getByTestId('task-activity-submit')).toBeDisabled();
-		await proof.action('show-transcription-gate', () => openActivityPreview(page, 'transcribing'));
-		await expect(page.getByTestId('task-activity-processing')).toContainText('Transcribing');
-		await expect(page.getByTestId('task-activity-submit')).toBeDisabled();
-		await proof.action('show-processing-error', () => openActivityPreview(page, 'error'));
-		await expect(page.getByTestId('task-activity-embed-error')).toBeVisible();
-		await proof.assert('composer-parity', async () => {
 			await expect(page.getByTestId('task-activity-attach')).toBeVisible();
 			await expect(page.getByTestId('task-activity-voice')).toBeVisible();
+			await expect(page.getByTestId('task-activity-submit')).toBeEnabled();
+			await expect(editor).toContainText('First line');
+			await expect(editor).toContainText('Second line');
+
+			await openActivityPreview(page, 'uploading');
+			await expect(page.getByTestId('task-activity-processing')).toContainText('Uploading');
 			await expect(page.getByTestId('task-activity-submit')).toBeDisabled();
+			await openActivityPreview(page, 'transcribing');
+			await expect(page.getByTestId('task-activity-processing')).toContainText('Transcribing');
+			await expect(page.getByTestId('task-activity-submit')).toBeDisabled();
+			await openActivityPreview(page, 'error');
+			await expect(page.getByTestId('task-activity-embed-error')).toBeVisible();
+			await proof.assert('composer-parity', async () => {
+				await expect(page.getByTestId('task-activity-attach')).toBeVisible();
+				await expect(page.getByTestId('task-activity-voice')).toBeVisible();
+				await expect(page.getByTestId('task-activity-submit')).toBeDisabled();
+			});
 		});
 		await proof.checkpoint('rich-composer');
 
-		await proof.action('return-to-activity-stream', () => openActivityPreview(page));
-		await expect(page.getByTestId('task-activity-entry-web')).toContainText('Alice Weber');
-		expect(await page.locator('[data-testid^="task-activity-entry-"]').evaluateAll((nodes) => nodes.slice(0, 2).map((node) => node.getAttribute('data-testid')))).toEqual(['task-activity-entry-web', 'task-activity-entry-cli']);
-		await expect(page.getByTestId('task-activity-entry-web').getByTestId('user-message-content')).toBeVisible();
-		await expect(page.getByTestId('task-activity-entry-web')).not.toContainText('via OpenMates');
-		await expect(page.getByTestId('task-activity-entry-web').locator('img')).toBeVisible();
-		await expect(page.getByTestId('task-activity-entry-cli')).toContainText('via OpenMates CLI');
-		await expect(page.getByTestId('task-activity-entry-sdk')).toContainText('via OpenMates SDK');
-		await expect(page.getByTestId('task-activity-entry-mate')).toContainText('OpenMates');
-		await expect(page.getByTestId('task-activity-entry-mate').getByTestId('mate-message-content')).toBeVisible();
-		await expect(page.getByTestId('task-activity-entry-deleted-user')).toContainText('Comment by Alice Weber deleted by Sam Rivera');
-		await expect(page.getByTestId('task-activity-entry-deleted-mate')).toContainText('Comment by OpenMates deleted by Alice Weber');
-		await proof.action('delete-cli-comment', async () => {
+		await proof.action('demonstrate-attribution-and-tombstones', async () => {
+			await openActivityPreview(page);
+			await expect(page.getByTestId('task-activity-entry-web')).toContainText('Alice Weber');
+			expect(await page.locator('[data-testid^="task-activity-entry-"]').evaluateAll((nodes) => nodes.slice(0, 2).map((node) => node.getAttribute('data-testid')))).toEqual(['task-activity-entry-web', 'task-activity-entry-cli']);
+			await expect(page.getByTestId('task-activity-entry-web').getByTestId('user-message-content')).toBeVisible();
+			await expect(page.getByTestId('task-activity-entry-web')).not.toContainText('via OpenMates');
+			await expect(page.getByTestId('task-activity-entry-web').locator('img')).toBeVisible();
+			await expect(page.getByTestId('task-activity-entry-cli')).toContainText('via OpenMates CLI');
+			await expect(page.getByTestId('task-activity-entry-sdk')).toContainText('via OpenMates SDK');
+			await expect(page.getByTestId('task-activity-entry-mate')).toContainText('OpenMates');
+			await expect(page.getByTestId('task-activity-entry-mate').getByTestId('mate-message-content')).toBeVisible();
+			await expect(page.getByTestId('task-activity-entry-deleted-user')).toContainText('Comment by Alice Weber deleted by Sam Rivera');
+			await expect(page.getByTestId('task-activity-entry-deleted-mate')).toContainText('Comment by OpenMates deleted by Alice Weber');
 			await page.getByTestId('task-activity-entry-cli').getByTestId('task-activity-delete').click();
 			await page.getByTestId('task-activity-entry-cli').getByRole('button', { name: 'Delete' }).click();
-		});
-		await expect(page.getByTestId('task-activity-entry-cli')).toContainText('Comment by Sam Rivera deleted by Alice Weber');
-		await expect(page.getByTestId('task-activity-entry-cli').getByTestId('system-message-text')).toBeVisible();
-		await proof.assert('safe-attribution', async () => {
-			await expect(page.getByTestId('task-activity-entry-deleted-user')).not.toContainText('launch milestones');
-			await expect(page.getByTestId('task-activity-entry-deleted-user').locator('[data-testid^="embed-"]')).toHaveCount(0);
+			await expect(page.getByTestId('task-activity-entry-cli')).toContainText('Comment by Sam Rivera deleted by Alice Weber');
+			await expect(page.getByTestId('task-activity-entry-cli').getByTestId('system-message-text')).toBeVisible();
+			await proof.assert('safe-attribution', async () => {
+				await expect(page.getByTestId('task-activity-entry-deleted-user')).not.toContainText('launch milestones');
+				await expect(page.getByTestId('task-activity-entry-deleted-user').locator('[data-testid^="embed-"]')).toHaveCount(0);
+			});
 		});
 		await proof.checkpoint('attribution-tombstones');
 		await proof.attach();
