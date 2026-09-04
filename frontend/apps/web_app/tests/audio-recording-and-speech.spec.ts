@@ -188,13 +188,15 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(pendingMessage).toBeVisible({ timeout: 10_000 });
 		const pendingMessageId = await pendingMessage.getAttribute('data-message-id');
 		expect(pendingMessageId).toBeTruthy();
+		const finalizedMessage = page.locator(`[data-message-id="${pendingMessageId}"]`);
+		await page.waitForTimeout(500);
+		await expect(finalizedMessage).toHaveAttribute('data-status', 'waiting_for_upload');
 		releaseTranscriptionResponse();
-		await expect(pendingMessage).not.toHaveAttribute('data-status', 'waiting_for_upload', { timeout: 120_000 });
+		await expect(finalizedMessage).not.toHaveAttribute('data-status', 'waiting_for_upload', { timeout: 120_000 });
 		const sendAcceptedAt = Date.now();
 		const player = page.getByTestId('assistant-speech-player');
 		await expect(player).toBeVisible({ timeout: FIRST_USEFUL_SPEECH_TIMEOUT_MS });
 		expect(Date.now() - sendAcceptedAt).toBeLessThanOrEqual(FIRST_USEFUL_SPEECH_TIMEOUT_MS);
-		const finalizedMessage = page.locator(`[data-message-id="${pendingMessageId}"]`);
 		await expect(finalizedMessage).toHaveCount(1);
 		await expect(finalizedMessage.getByTestId('recording-preview')).toBeVisible({ timeout: 60_000 });
 		await expect(finalizedMessage.getByTestId('recording-preview-waveform')).toBeVisible();
