@@ -19,6 +19,7 @@ on:
         default: "free-hourly"
         options:
           - "free-hourly"
+          - "signup-giftcard-chat"
           - "paid-chat"
           - "app-skill-web-search"
       dispatch_token:
@@ -53,13 +54,13 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        if: ${{ inputs.suite == 'free-hourly' }}
+        if: ${{ inputs.suite == 'free-hourly' || inputs.suite == 'signup-giftcard-chat' }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Ensure Playwright browser and system dependencies
-        if: ${{ inputs.suite == 'free-hourly' }}
+        if: ${{ inputs.suite == 'free-hourly' || inputs.suite == 'signup-giftcard-chat' }}
         run: npx playwright install --with-deps chromium
         working-directory: frontend/apps/web_app
 
@@ -84,6 +85,30 @@ jobs:
           echo "status=passed" >> "$GITHUB_OUTPUT"
         env:
           PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+
+      - name: Run production signup, gift-card, and chat journey
+        if: ${{ inputs.suite == 'signup-giftcard-chat' }}
+        id: signup_giftcard_chat
+        continue-on-error: true
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/test-results"
+          cd frontend/apps/web_app
+          npx playwright test "tests/prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts" \
+            --reporter=list,json \
+            > "$GITHUB_WORKSPACE/test-results/signup-giftcard-chat.json" || exit_code=$?
+          if [ "${exit_code:-0}" != "0" ]; then
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "status=passed" >> "$GITHUB_OUTPUT"
+        env:
+          PLAYWRIGHT_TEST_BASE_URL: ${{ secrets.PROD_BASE_URL }}
+          SIGNUP_TEST_EMAIL_DOMAINS: ${{ secrets.SIGNUP_TEST_EMAIL_DOMAINS }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_TEST_ADDRESS: ${{ secrets.GMAIL_TEST_ADDRESS }}
+          PROD_SMOKE_GIFT_CARD_CODE: ${{ secrets.PROD_SMOKE_GIFT_CARD_CODE }}
 
       - name: Run paid CLI chat smoke
         if: ${{ inputs.suite == 'paid-chat' }}
@@ -134,6 +159,7 @@ jobs:
       - name: Fail workflow on selected suite failure
         if: |
           (inputs.suite == 'free-hourly' && steps.reachability.outputs.status == 'failed') ||
+          (inputs.suite == 'signup-giftcard-chat' && steps.signup_giftcard_chat.outputs.status == 'failed') ||
           (inputs.suite == 'paid-chat' && steps.paid_chat.outputs.status == 'failed') ||
           (inputs.suite == 'app-skill-web-search' && steps.app_skill_web_search.outputs.status == 'failed')
         run: exit 1
