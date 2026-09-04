@@ -98,7 +98,7 @@ jobs:
           - surface: cli
             account: "20"
           - surface: sdk
-            account: "21"
+            account: "18"
     env:
       OPENMATES_API_URL: https://api.dev.openmates.org
       OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
