@@ -150,16 +150,16 @@
         {#if selectedModel}
             <span class="selector-icon" data-testid="composer-model-selector-icon" aria-hidden="true">
                 <img src={getProviderIconUrl(selectedModel.logo_svg)} alt="" />
+                <span class="selector-capability">
+                    <SettingsCapabilityScale
+                        level={getModelCapabilityLevel(selectedModel)}
+                        label={capabilityLabel(selectedModel)}
+                        compact={true}
+                        data-testid="composer-model-selector-capability"
+                    />
+                </span>
             </span>
             <span class="model-selector-label" data-testid="composer-model-selector-label">{selectedLabel}</span>
-            <span class="selector-capability">
-                <SettingsCapabilityScale
-                    level={getModelCapabilityLevel(selectedModel)}
-                    label={capabilityLabel(selectedModel)}
-                    compact={true}
-                    data-testid="composer-model-selector-capability"
-                />
-            </span>
         {:else}
             <span class="selector-icon" aria-hidden="true"><span class="clickable-icon icon_ai"></span></span>
             <span class="model-selector-label" data-testid="composer-model-selector-label">{selectedLabel}</span>
@@ -190,17 +190,17 @@
                         >
                             <span class="model-icon" data-testid="composer-model-icon" aria-hidden="true">
                                 <img src={getProviderIconUrl(model.logo_svg)} alt="" />
+                                <span class="model-capability">
+                                    <SettingsCapabilityScale
+                                        level={getModelCapabilityLevel(model)}
+                                        label={capabilityLabel(model)}
+                                        compact={true}
+                                        data-testid="composer-model-capability"
+                                    />
+                                </span>
                             </span>
                             <strong>{model.name}</strong>
                         </button>
-                        <span class="model-capability">
-                            <SettingsCapabilityScale
-                                level={getModelCapabilityLevel(model)}
-                                label={capabilityLabel(model)}
-                                compact={true}
-                                data-testid="composer-model-capability"
-                            />
-                        </span>
                         <Toggle
                             checked={isSelected}
                             ariaLabel={model.name}
@@ -270,7 +270,7 @@
     .menu-item small { color: var(--color-font-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .model-menu-row { display: flex; align-items: center; gap: var(--spacing-2); width: 100%; min-width: 0; }
     .model-menu-row .menu-item { flex: 1; min-width: 0; }
-    .model-capability, .selector-capability { display: inline-flex; flex: 0 0 auto; pointer-events: none; }
+    .model-capability, .selector-capability { position: absolute; right: -0.5rem; bottom: -0.5rem; z-index: 1; display: inline-flex; pointer-events: none; }
     .selector-capability :global(.capability-scale) { line-height: 1; }
     .selector-capability :global(.capability-scale.compact .bars) { width: 1rem; height: 1rem; padding: 0.1875rem; }
     .model-capability :global(.capability-scale), .selector-capability :global(.capability-scale) { line-height: 1; }

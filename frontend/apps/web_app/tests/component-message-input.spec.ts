@@ -190,6 +190,16 @@ test.describe('MessageInput component preview', () => {
 		const modelMenu = page.getByTestId('composer-model-selector-menu');
 		await modelMenu.getByTestId('composer-model-provider-label').first().click();
 		const firstModelName = modelMenu.getByTestId('composer-model-name').first();
+		const firstModelIcon = modelMenu.getByTestId('composer-model-icon').first();
+		const firstModelCapability = modelMenu.getByTestId('composer-model-capability').first();
+		const [iconBox, capabilityBox] = await Promise.all([
+			firstModelIcon.boundingBox(),
+			firstModelCapability.boundingBox()
+		]);
+		expect(iconBox).not.toBeNull();
+		expect(capabilityBox).not.toBeNull();
+		expect(Math.abs(capabilityBox!.x + capabilityBox!.width / 2 - (iconBox!.x + iconBox!.width))).toBeLessThanOrEqual(1);
+		expect(Math.abs(capabilityBox!.y + capabilityBox!.height / 2 - (iconBox!.y + iconBox!.height))).toBeLessThanOrEqual(1);
 		const selectedModelName = (await firstModelName.textContent())?.trim();
 		expect(selectedModelName).toBeTruthy();
 		await proof.action('select-model-row', async () => firstModelName.click());

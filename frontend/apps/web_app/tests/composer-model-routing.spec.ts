@@ -286,8 +286,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	const toggleRightInset = rowBox!.x + rowBox!.width - (toggleBox!.x + toggleBox!.width);
 	expect(toggleRightInset).toBeGreaterThanOrEqual(0);
 	expect(toggleRightInset).toBeLessThanOrEqual(8);
-	expect(capabilityBox!.x + capabilityBox!.width / 2).toBeGreaterThan(iconBox!.x + iconBox!.width / 2);
-	expect(capabilityBox!.y + capabilityBox!.height / 2).toBeCloseTo(iconBox!.y + iconBox!.height / 2, 0);
+	expect(Math.abs(capabilityBox!.x + capabilityBox!.width / 2 - (iconBox!.x + iconBox!.width))).toBeLessThanOrEqual(1);
+	expect(Math.abs(capabilityBox!.y + capabilityBox!.height / 2 - (iconBox!.y + iconBox!.height))).toBeLessThanOrEqual(1);
 	await expect.poll(async () => selectorMenu.evaluate((element: HTMLElement) => element.scrollWidth <= element.clientWidth)).toBe(true);
 	await takeStepScreenshot(page, '03-model-list');
 	await firstModelName.click();
@@ -310,8 +310,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	]);
 	expect(triggerIconBox).toBeTruthy();
 	expect(triggerCapabilityBox).toBeTruthy();
-  expect(triggerCapabilityBox!.x + triggerCapabilityBox!.width / 2).toBeGreaterThan(triggerIconBox!.x + triggerIconBox!.width / 2);
-  expect(triggerCapabilityBox!.y + triggerCapabilityBox!.height / 2).toBeCloseTo(triggerIconBox!.y + triggerIconBox!.height / 2, 0);
+	expect(Math.abs(triggerCapabilityBox!.x + triggerCapabilityBox!.width / 2 - (triggerIconBox!.x + triggerIconBox!.width))).toBeLessThanOrEqual(1);
+	expect(Math.abs(triggerCapabilityBox!.y + triggerCapabilityBox!.height / 2 - (triggerIconBox!.y + triggerIconBox!.height))).toBeLessThanOrEqual(1);
 
 	await selector.click();
 	const reopenedMenu = composer.getByTestId('composer-model-selector-menu');
