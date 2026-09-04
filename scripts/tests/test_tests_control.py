@@ -1292,6 +1292,81 @@ def test_downloaded_recording_paths_do_not_collide_on_spec_basename(tmp_path, mo
     assert matches == []
 
 
+def test_response_media_selects_the_failed_test_clip_from_a_multi_test_spec(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "task-activity"
+    fullscreen_video = recording_dir / "videos" / "aaa-fullscreen-task-detail.webm"
+    activity_video = recording_dir / "videos" / "zzz-activity-surface.webm"
+    fullscreen_video.parent.mkdir(parents=True)
+    fullscreen_video.write_bytes(b"fullscreen-task-detail")
+    activity_video.write_bytes(b"activity-surface")
+    manifests = (
+        ("fullscreen", "is the final Task detail section", "passed", fullscreen_video),
+        ("activity", "renders and operates the complete Activity surface", "failed", activity_video),
+    )
+    for slug, title, status, video in manifests:
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"task-activity--{slug}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "task-activity.spec.ts",
+            "title": title,
+            "status": status,
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "assets": {"video_key": f"latest/task-activity/videos/{video.name}"},
+        }), encoding="utf-8")
+
+    candidate = tests_control.latest_playwright_response_media_video({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "suites": {"playwright": {"status": "failed", "tests": [{
+            "file": "task-activity.spec.ts",
+            "status": "failed",
+            "artifact_paths": [str(fullscreen_video), str(activity_video)],
+        }]}},
+    })
+
+    assert candidate == (
+        "task-activity.spec.ts",
+        activity_video.resolve(),
+        None,
+        "renders and operates the complete Activity surface",
+    )
+
+
+def test_response_media_rejects_ambiguous_multi_test_spec_clips(tmp_path, monkeypatch):
+    tests_control = load_tests_control(tmp_path, monkeypatch)
+    commit = "a" * 40
+    recording_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / "example"
+    videos = [recording_dir / "videos" / f"flow-{index}.webm" for index in (1, 2)]
+    for index, video in enumerate(videos, start=1):
+        video.parent.mkdir(parents=True, exist_ok=True)
+        video.write_bytes(f"flow-{index}".encode())
+        manifest_dir = tests_control.RESULTS_DIR / "recordings" / "latest" / f"example--flow-{index}"
+        manifest_dir.mkdir(parents=True)
+        (manifest_dir / "manifest.json").write_text(json.dumps({
+            "spec": "example.spec.ts",
+            "title": f"flow {index}",
+            "status": "passed",
+            "run_id": "parent-run",
+            "git_sha": commit[:9],
+            "assets": {"video_key": f"latest/example/videos/{video.name}"},
+        }), encoding="utf-8")
+
+    candidate = tests_control.latest_playwright_response_media_video({
+        "run_id": "parent-run",
+        "git_sha": commit[:9],
+        "suites": {"playwright": {"status": "passed", "tests": [{
+            "file": "example.spec.ts",
+            "status": "passed",
+            "artifact_paths": [str(video) for video in videos],
+        }]}},
+    })
+
+    assert candidate is None
+
+
 def test_skipped_deploy_gate_is_not_verified(tmp_path, monkeypatch):
     tests_control = load_tests_control(tmp_path, monkeypatch)
     options = tests_control.ControlRunOptions(

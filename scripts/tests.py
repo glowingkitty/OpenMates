@@ -1835,8 +1835,27 @@ def _downloaded_recording_paths(
     *,
     preferred_video_file: str = "",
 ) -> list[Path]:
+    return [
+        candidate["path"]
+        for candidate in _downloaded_recording_candidates(
+            spec_path,
+            run_ids,
+            git_sha,
+            preferred_video_file=preferred_video_file,
+        )
+    ]
+
+
+def _downloaded_recording_candidates(
+    spec_path: str,
+    run_ids: set[str],
+    git_sha: str,
+    *,
+    preferred_video_file: str = "",
+) -> list[dict[str, Any]]:
     recordings_root = RESULTS_DIR / "recordings"
-    matches: list[Path] = []
+    matches: list[dict[str, Any]] = []
+    seen_paths: set[Path] = set()
     for manifest_path in (recordings_root / "latest").glob("*/manifest.json"):
         manifest = read_json(manifest_path, {})
         if _normalized_spec_path(str(manifest.get("spec") or "")) != _normalized_spec_path(spec_path):
@@ -1851,9 +1870,19 @@ def _downloaded_recording_paths(
         if preferred_video_file and not video_key.endswith(preferred_video_file):
             continue
         video_path = (recordings_root / video_key).resolve()
-        if video_key and video_path.is_relative_to(recordings_root.resolve()) and video_path.is_file():
-            matches.append(video_path)
-    return sorted(matches, key=lambda path: path.as_posix())
+        if (
+            video_key
+            and video_path.is_relative_to(recordings_root.resolve())
+            and video_path.is_file()
+            and video_path not in seen_paths
+        ):
+            seen_paths.add(video_path)
+            matches.append({
+                "path": video_path,
+                "title": str(manifest.get("title") or ""),
+                "status": str(manifest.get("status") or ""),
+            })
+    return sorted(matches, key=lambda candidate: candidate["path"].as_posix())
 
 
 def playwright_response_media_run_type(options: ControlRunOptions) -> str:
@@ -1863,7 +1892,27 @@ def playwright_response_media_run_type(options: ControlRunOptions) -> str:
     return f"spec-ts-{profile}" if profile else "spec-ts"
 
 
-def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[str, Path, Path | None] | None:
+def _select_playwright_response_media_candidate(
+    candidates: list[dict[str, Any]],
+    *,
+    test_status: str,
+) -> dict[str, Any] | None:
+    if len(candidates) == 1:
+        return candidates[0]
+    if test_status in PROBLEM_STATUSES:
+        problem_candidates = [
+            candidate
+            for candidate in candidates
+            if _map_playwright_status(str(candidate.get("status") or "")) in PROBLEM_STATUSES
+        ]
+        if len(problem_candidates) == 1:
+            return problem_candidates[0]
+    return None
+
+
+def latest_playwright_response_media_video(
+    run_data: dict[str, Any],
+) -> tuple[str, Path, Path | None, str] | None:
     git_sha = str(run_data.get("git_sha") or "")
     for suite, test in iter_tests(run_data):
         if suite != "playwright":
@@ -1872,12 +1921,27 @@ def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[st
         if not spec_path.endswith(".spec.ts"):
             continue
         run_id = str(test.get("run_id") or run_data.get("run_id") or "")
+        candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
+        preferred_video_file = _proof_video_file_for_spec(spec_path) if test.get("proof_timeline_path") else ""
+        manifest_candidates = _downloaded_recording_candidates(
+            spec_path,
+            candidate_run_ids,
+            git_sha,
+            preferred_video_file=preferred_video_file,
+        )
+        selected = _select_playwright_response_media_candidate(
+            manifest_candidates,
+            test_status=str(test.get("status") or ""),
+        )
+        if selected is not None:
+            return Path(spec_path).name, selected["path"], None, str(selected.get("title") or "")
+        if len(manifest_candidates) > 1:
+            continue
+
         artifact_paths = [str(path) for path in test.get("artifact_paths") or []]
         if test.get("artifact_path"):
             artifact_paths.append(str(test["artifact_path"]))
         if not artifact_paths:
-            candidate_run_ids = {run_id, str(run_data.get("run_id") or "")}
-            preferred_video_file = _proof_video_file_for_spec(spec_path) if test.get("proof_timeline_path") else ""
             artifact_paths = [
                 str(path)
                 for path in _downloaded_recording_paths(
@@ -1887,10 +1951,14 @@ def latest_playwright_response_media_video(run_data: dict[str, Any]) -> tuple[st
                     preferred_video_file=preferred_video_file,
                 )
             ]
+        video_paths = []
         for artifact_path_text in artifact_paths:
             artifact_path = Path(artifact_path_text).resolve()
             if artifact_path.is_file() and artifact_path.suffix.lower() in {".webm", ".mp4", ".mov"}:
-                return Path(spec_path).name, artifact_path, None
+                video_paths.append(artifact_path)
+        unique_video_paths = list(dict.fromkeys(video_paths))
+        if len(unique_video_paths) == 1:
+            return Path(spec_path).name, unique_video_paths[0], None, ""
     return None
 
 
@@ -1940,14 +2008,19 @@ def publish_latest_playwright_response_media(
         return {"status": "skipped", "reason": "run does not target Playwright specs"}
     candidate = latest_playwright_response_media_video(run_data)
     if candidate is None:
-        return {"status": "missing", "run_type": run_type, "reason": "no downloaded Playwright video artifact was found"}
-    spec_name, video_path, poster_path = candidate
+        return {
+            "status": "missing",
+            "run_type": run_type,
+            "reason": "no unambiguous downloaded Playwright video artifact was found",
+        }
+    spec_name, video_path, poster_path, test_title = candidate
+    subject = f"{spec_name} — {test_title}" if test_title else spec_name
     active_uploader = uploader or upload_response_media_video
     upload = active_uploader(
         path=video_path,
         poster_path=poster_path,
         run_type=run_type,
-        alt=f"Playwright {spec_name} latest run video",
+        alt=f"Playwright {subject} latest run video",
     )
     snippets = upload.get("snippets") if isinstance(upload.get("snippets"), dict) else {}
     record = {
@@ -1955,6 +2028,7 @@ def publish_latest_playwright_response_media(
         "kind": "playwright_spec_video",
         "run_type": run_type,
         "spec": spec_name,
+        "test_title": test_title or None,
         "run_id": str(run_data.get("run_id") or ""),
         "git_sha": str(run_data.get("git_sha") or ""),
         "artifact_path": str(video_path),
