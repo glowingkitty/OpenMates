@@ -61,6 +61,60 @@ models:
         price: 30.00
         currency: USD
 
+  - id: "gpt-6-astra"
+    name: "GPT-6 Astra"
+    description: "OpenAI's most capable model for complex reasoning, coding, computer use, research, and document creation."
+    country_origin: "US"
+    for_app_skill: "ai.ask"
+    release_date: "2026-09-04"
+    capability_level: "max"
+    allow_auto_select: true
+    reasoning: true
+    reasoning_effort: "max"
+    search_aliases:
+      - "astra"
+      - "gpt-6 astra"
+      - "gpt-6-astra"
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "openai"
+    servers:
+      - id: "openai"
+        name: "OpenAI API"
+        model_id: "gpt-6-astra"
+        region: "US"
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 33 # 333.33 / 10.00 = 33.33 (conservative round-down)
+        output:
+          per_credit_unit: 6 # 333.33 / 50.00 = 6.67 (conservative round-down)
+    costs:
+      input_per_million_token:
+        price: 10.00
+        currency: USD
+        max_context: 1050000
+      cached_input_per_million_token:
+        price: 1.00
+        currency: USD
+        max_context: 1050000
+      cache_write_per_million_token:
+        price: 12.50
+        currency: USD
+        max_context: 1050000
+      output_per_million_token:
+        price: 50.00
+        currency: USD
+        max_context: 1050000
+    features:
+      max_output_tokens: 128000
+      reasoning_token_support: true
+      tool_use: true
+      streaming: true
+
   - id: "gpt-5.6-luna"
     name: "GPT-5.6 Luna"
     description: "OpenAI's efficient GPT-5.6 model for fast everyday assistance, coding, and multimodal chat."

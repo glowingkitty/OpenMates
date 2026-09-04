@@ -600,7 +600,7 @@ const MODEL_ALIASES: {
   modelId: string;
   icon: string;
 }[] = [
-  { id: "best", modelId: "claude-fable-5", icon: "crown" },
+  { id: "best", modelId: "gpt-6-astra", icon: "crown" },
   { id: "fast", modelId: "qwen3-235b-a22b-2507", icon: "lightning" },
 ];
 

@@ -147,7 +147,7 @@ export class WikipediaMentionResolutionError extends Error {
  * Backend resolution: preprocessor.py lines 1664-1686
  */
 export const MODEL_ALIASES: Record<string, string> = {
-  best: "claude-fable-5",
+  best: "gpt-6-astra",
   fast: "qwen3-235b-a22b-2507",
 };
 
@@ -167,6 +167,7 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-opus-5", name: "Claude Opus 5" },
   { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
   { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+  { id: "gpt-6-astra", name: "GPT-6 Astra" },
   { id: "gpt-5.4", name: "GPT-5.4" },
   { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
   { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },

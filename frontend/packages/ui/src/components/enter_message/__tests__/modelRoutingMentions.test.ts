@@ -35,7 +35,7 @@ describe('composer model mention routing', () => {
 
     // contract-test: direct surface=gui.web assertions=ai-model-routing.composer.mention-to-exact-selection
     it('resolves best and fast aliases to concrete provider/model selections', () => {
-        expect(resolveModelAliasSelection('best')).toBe('anthropic/claude-fable-5');
+        expect(resolveModelAliasSelection('best')).toBe('openai/gpt-6-astra');
         expect(resolveModelAliasSelection('fast')).toBe('alibaba/qwen3-235b-a22b-2507');
     });
 

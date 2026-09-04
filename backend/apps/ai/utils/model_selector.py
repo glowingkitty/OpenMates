@@ -77,6 +77,7 @@ ECONOMICAL_MODELS = {
 # Models considered premium (for complex tasks or when user is unhappy)
 # These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
+    "gpt-6-astra",                    # Most capable GPT
     "claude-fable-5",                 # Most capable Claude
     "claude-opus-5",                  # Latest Opus
     "claude-sonnet-5",                # Latest Sonnet
