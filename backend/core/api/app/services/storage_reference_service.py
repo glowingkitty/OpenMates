@@ -362,17 +362,17 @@ async def persist_account_storage_tombstones(
         inventory.references.add(("profile_images_legacy", legacy_key))
 
     archive_collections = (
-        ("usage_monthly_chat_summaries", "usage_archives"),
-        ("usage_monthly_app_summaries", "usage_archives"),
-        ("usage_monthly_api_key_summaries", "usage_archives"),
-        ("user_task_archives", "task_archives"),
+        ("usage_monthly_chat_summaries", "usage_archives", "user_id_hash"),
+        ("usage_monthly_app_summaries", "usage_archives", "user_id_hash"),
+        ("usage_monthly_api_key_summaries", "usage_archives", "user_id_hash"),
+        ("user_task_archives", "task_archives", "hashed_user_id"),
     )
-    for collection, logical_bucket in archive_collections:
+    for collection, logical_bucket, owner_field in archive_collections:
         rows = await _get_items_bounded(
             directus_service=directus_service,
             collection=collection,
             fields="id,archive_s3_key",
-            item_filter={"hashed_user_id": {"_eq": user_id_hash}},
+            item_filter={owner_field: {"_eq": user_id_hash}},
         )
         excluded_ids[collection] = {
             str(row["id"]) for row in rows if row.get("id")

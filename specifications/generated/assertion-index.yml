@@ -3771,7 +3771,7 @@ assertions:
     direct_tests:
     - &id417
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 103
+      line: 105
       name: test_account_inventory_persists_every_non_regulated_object_before_owner_removal
       surface: rest_api
     - &id418
@@ -3901,27 +3901,27 @@ assertions:
     direct_tests:
     - &id434
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 103
+      line: 105
       name: test_account_inventory_persists_every_non_regulated_object_before_owner_removal
       surface: rest_api
     - &id435
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 131
+      line: 157
       name: test_account_deletion_fences_chats_before_inventory
       surface: rest_api
     - &id436
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 146
+      line: 172
       name: test_account_inventory_decrypts_and_tombstones_legacy_profile_object
       surface: rest_api
     - &id438
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 198
+      line: 224
       name: test_failed_storage_reference_row_delete_stops_account_finalization
       surface: rest_api
     - &id439
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 218
+      line: 244
       name: test_account_deletion_removes_persisted_export_jobs_and_parts
       surface: rest_api
     - &id440
@@ -4007,7 +4007,7 @@ assertions:
     supporting_tests:
     - &id437
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 178
+      line: 204
       name: test_account_task_persists_storage_authority_before_bulk_content_deletion
       surface: rest_api
     - &id441
@@ -4341,17 +4341,17 @@ assertions:
     direct_tests:
     - &id491
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 103
+      line: 105
       name: test_account_inventory_persists_every_non_regulated_object_before_owner_removal
       surface: rest_api
     - &id492
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 146
+      line: 172
       name: test_account_inventory_decrypts_and_tombstones_legacy_profile_object
       surface: rest_api
     - &id493
       path: backend/tests/test_account_deletion_storage_lifecycle.py
-      line: 218
+      line: 244
       name: test_account_deletion_removes_persisted_export_jobs_and_parts
       surface: rest_api
     - &id494

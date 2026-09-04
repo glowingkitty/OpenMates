@@ -53,9 +53,10 @@ documentation_impact:
 
 goal: >
   Stabilize production without rollback by fixing the confirmed encrypted chat
-  summary and late-metadata header regressions before a narrowly approved
-  production rollout. Regional bucket provisioning is complete; historical S3
-  backfill and failover-readiness work is explicitly deferred.
+  summary, late-metadata header, image-processing, and account-deletion
+  regressions through verified forward hotfixes. Regional bucket provisioning is
+  complete; historical S3 backfill and failover-readiness work is explicitly
+  deferred.
 
 scope:
   in:
@@ -67,6 +68,7 @@ scope:
     - Repair the active chat title/icon/category when authoritative encrypted metadata arrives after cold boot.
     - Investigate and fix any shared cause of missing chat keys or ciphertext fingerprint mismatches required for safe production rollout.
     - Include the already implemented runtime locale and Alertmanager packaging repair.
+    - Restore account deletion inventory against the deployed usage-summary and task-archive schemas.
     - Verify the exact production mutation set before creating buckets or deploying code.
   out:
     - Historical S3 object backfill, source-of-truth selection, or failover-readiness claims; these require a separate non-mutating inventory and migration Plan later.
@@ -74,7 +76,7 @@ scope:
     - Signup and live-card billing changes except post-stabilization verification.
     - New storage regions, renamed buckets, product-media replication, or temporary-media replication.
     - Rollback without a new explicit user approval.
-    - Unrelated dev commits.
+    - Unrelated product redesign while stabilizing production.
 
 context_discovery:
   production_findings:
@@ -85,6 +87,8 @@ context_discovery:
     - Two production chats discarded summaries when speech preference advanced metadata_v from 1 to 2.
     - Cold reload resumed the reported chat as Untitled chat and did not repair its active header after phase-one metadata arrived.
     - Production logs also contain missing-key and ciphertext-fingerprint mismatch evidence that must be bounded before rollout.
+    - Hotfix PR 513 is deployed at main revision 152babc3e4cc63af2386d319821aaeb9c8062e29; core runtime verification, the exact reported share, a fresh free chat, and the EMH2K regression test pass.
+    - The production signup journey completes account creation, then the dormant smoke blocks on a stale gift-card code; its cleanup exposed account deletion querying usage summary collections with the wrong owner field.
   source_patterns:
     - backend/core/api/app/services/s3/service.py owns active and regional bucket reconciliation.
     - backend/core/api/main.py runs reconciliation in a retrying background task so provider failure does not block startup.
@@ -181,6 +185,14 @@ scenarios:
     then:
       - The active title, icon, and category update without reopening the chat.
       - The update does not enter a repeated resume loop.
+  - id: S-6
+    title: Account deletion inventories archives with schema-correct ownership filters
+    given: [An account deletion inventories monthly usage archives and task archives before owner removal.]
+    when: [The storage tombstone phase queries Directus.]
+    then:
+      - Monthly usage summaries are filtered by user_id_hash.
+      - Task archives remain filtered by hashed_user_id.
+      - Directus accepts every inventory query and deletion can continue.
 
 acceptance_criteria:
   - id: AC-1
@@ -228,6 +240,15 @@ acceptance_criteria:
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-CHAT-LATE-METADATA, V-DEV-COLD-CHAT]
+  - id: AC-6
+    scenario: S-6
+    specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
+    text: Account deletion uses each archive collection's deployed ownership field while building durable storage tombstones.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS]
 
 rollout:
   production_approval: approved_for_bucket_creation_only
@@ -283,6 +304,18 @@ demonstration:
     publication: Upload approved media through scripts/opencode_response_media.py.
 
 tests:
+  - id: T-ACCOUNT-DELETION-ARCHIVE-FILTERS
+    type: pytest
+    file: backend/tests/test_account_deletion_storage_lifecycle.py
+    command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+    target: local
+    covers: [AC-6]
+    specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
+    assertions:
+      - Monthly usage summary queries use user_id_hash.
+      - Task archive queries use hashed_user_id.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "production account-deletion smoke cleanup", run_id: "prod-signup-cleanup-20260904", subject_commit: "152babc3e4cc63af2386d319821aaeb9c8062e29", target: production, timestamp: "2026-09-04T22:35:00Z", summary: "Account deletion stopped in storage inventory because Directus rejected hashed_user_id on usage_monthly_chat_summaries; the two exact throwaway accounts were subsequently finalized and production returned to its baseline user count."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q", run_id: "local-3d18-account-deletion-20260904", subject_commit: "working-tree-3d18", target: local, timestamp: "2026-09-04T22:50:00Z", summary: "6/6 tests passed, including exact owner-field assertions for all four archive collections."}}
   - id: T-S3-REGIONAL-UNIT
     type: pytest
     file: backend/tests/test_s3_multi_region_service.py
@@ -318,6 +351,25 @@ tests:
     green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --force", run_id: "33900829731", subject_commit: "d73d82a3d78ebfc7c31002d760f57cdecf8294ae", target: github_actions, timestamp: "2026-09-04T17:32:46Z", summary: "The active Phase-1 metadata notification and untracked resume-loader state regression assertions passed. The full suite retained seven unrelated baseline failures."}}
 
 tasks:
+  - id: T-6
+    title: Restore schema-correct account deletion archive inventory
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
+    specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
+    surface: internal
+    expected_files:
+      - backend/core/api/app/services/storage_reference_service.py
+      - backend/tests/test_account_deletion_storage_lifecycle.py
+    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS]
+    verification: [focused pytest followed by read-only production Directus field probes]
+    command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+    dependencies: []
+    follow_up_tasks: []
+    ownership: {session: 3d18, files: [backend/core/api/app/services/storage_reference_service.py, backend/tests/test_account_deletion_storage_lifecycle.py], shared_files: []}
+    independently_deployable: true
+    blockers: []
+    deployable: true
   - id: T-1
     title: Add regional bucket self-provisioning tests and implementation
     status: done
@@ -421,6 +473,10 @@ tasks:
     deployable: false
 
 checks:
+  - id: T-ACCOUNT-DELETION-ARCHIVE-FILTERS
+    type: test
+    required: true
+    command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
   - id: T-S3-REGIONAL-UNIT
     type: test
     required: true
@@ -493,19 +549,27 @@ attempts:
     evidence: Active-region reconciliation creates missing managed buckets; replica-region reconciliation logs and skips them.
 
 handoff:
-  current_task_id: T-5
-  next_action: After explicit approval, create a minimal production hotfix PR based on current main rather than promoting the 30-commit dev delta.
-  command: scoped hotfix PR from origin/main containing only the verified chat fixes and required runtime packaging assets
-  expected_outcome: The production candidate excludes unrelated dev features and can run release gates before any production server mutation.
+  current_task_id: T-6
+  next_action: Integrate the two-file account-deletion fix, promote it as a narrow main hotfix, deploy API and user-init-worker, then run schema-accurate production read probes.
+  command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+  expected_outcome: Usage summary inventories use user_id_hash, task archives use hashed_user_id, and Directus accepts every query.
   blocker:
-    task_id: T-5
-    requires_user_input: true
-    reason: Production application deployment is not yet approved, no production PR exists, and promoting dev directly would include 30 commits across 180 files.
-    question: Approve creating a minimal hotfix PR based on current main for the verified chat fixes and required locale/Alertmanager runtime packaging only?
-    next_action: Build the isolated patch, run its gates, present the exact PR and release artifacts, then request separate approval before updating the production backend.
-  last_verified_commit: 29241f9b6401d01cf3d18bf7767159ac595c3c03
+    task_id: T-6
+    requires_user_input: false
+    reason: No current blocker; the user approved the ongoing hotfix-first stabilization path.
+    question: ""
+    next_action: Continue the scoped forward hotfix; never roll back without approval.
+  last_verified_commit: b5f2ad96409233099c48b5dd0075b10a3b167d35
+  recent_evidence:
+    - Main revision 152babc3e4cc63af2386d319821aaeb9c8062e29 is running on all nine scoped services with zero restarts. Core verifier sections pass; only Stripe health freshness remains degraded.
+    - The reported production share resolves and its encrypted metadata endpoints pass. The chat has no stored encrypted summary, while title, description, and icon metadata are present.
+    - Fresh free smoke run 33924920857 passed. Paid smoke is blocked before chat by a stale GitHub API-key secret; the dormant signup smoke proves signup through account creation and then blocks on a stale gift-card secret.
+    - Production API passed all 6 EMH2K parallel Bedrock image tests. No new chat, metadata, signup, S3, or image-processing errors appeared after the rollout.
+    - Signup smoke cleanup exposed a schema mismatch in account-deletion storage inventory. The two exact throwaway accounts were fully cleaned up and production returned to its baseline account count.
 
 deferred_follow_up:
+  - id: SPEC-FIVE-MINUTE-LIMIT
+    reason: User requested every spec.ts run be capped at five minutes, with explicit review of exceptional cases; implement after production stabilization.
   - id: S3-HISTORICAL-BACKFILL
     reason: Current uploads work; migration must not be improvised during core-chat stabilization.
     required_before_execution:

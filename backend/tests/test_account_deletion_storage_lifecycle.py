@@ -22,12 +22,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 class FakeDirectus:
     def __init__(self) -> None:
         self.created: list[dict] = []
+        self.get_items_calls: list[tuple[str, dict[str, object]]] = []
         self.chats = [{"id": "chat-1", "storage_state": "hot", "archive_version": 1}]
 
     async def get_user_fields_direct(self, _user_id: str, _fields: list[str]) -> dict:
         return {"id": "user-1", "profile_image_s3_key": "profiles/user-1.enc"}
 
-    async def get_items(self, collection: str, **_kwargs: object) -> list[dict]:
+    async def get_items(self, collection: str, **kwargs: object) -> list[dict]:
+        self.get_items_calls.append((collection, kwargs))
         if collection == "chats":
             return self.chats
         rows = {
@@ -124,6 +126,30 @@ async def test_account_inventory_persists_every_non_regulated_object_before_owne
         ("cold_archives", "cold/chat-1/part-1.json.gz"),
     }
     assert all("user_id" not in row for row in directus.created)
+    archive_filters = {
+        collection: kwargs["params"]["filter"]
+        for collection, kwargs in directus.get_items_calls
+        if collection
+        in {
+            "usage_monthly_chat_summaries",
+            "usage_monthly_app_summaries",
+            "usage_monthly_api_key_summaries",
+            "user_task_archives",
+        }
+        and "filter" in kwargs["params"]
+    }
+    assert archive_filters == {
+        "usage_monthly_chat_summaries": {
+            "user_id_hash": {"_eq": "hashed-user-1"}
+        },
+        "usage_monthly_app_summaries": {
+            "user_id_hash": {"_eq": "hashed-user-1"}
+        },
+        "usage_monthly_api_key_summaries": {
+            "user_id_hash": {"_eq": "hashed-user-1"}
+        },
+        "user_task_archives": {"hashed_user_id": {"_eq": "hashed-user-1"}},
+    }
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
