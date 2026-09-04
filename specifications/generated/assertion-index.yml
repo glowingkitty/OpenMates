@@ -18474,7 +18474,7 @@ assertions:
     supporting_tests:
     - &id2124
       path: frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
-      line: 170
+      line: 182
       name: sorts reminder priorities before saved-date priorities
       surface: gui.web
     tests:
@@ -18504,7 +18504,7 @@ assertions:
       surface: gui.web
     - &id2127
       path: frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
-      line: 170
+      line: 182
       name: sorts reminder priorities before saved-date priorities
       surface: gui.web
     tests:
