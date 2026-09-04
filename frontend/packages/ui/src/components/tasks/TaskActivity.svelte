@@ -321,7 +321,7 @@
 </section>
 
 <style>
-  .task-activity { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--color-grey-25); }
+  .task-activity { width: 100%; min-width: 0; margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--color-grey-25); box-sizing: border-box; }
   header, header > div, .composer-actions, .delete-confirmation { display: flex; align-items: center; }
   header { justify-content: space-between; margin-bottom: 18px; }
   header > div { gap: 10px; }
@@ -349,7 +349,7 @@
   .stream { display: grid; gap: 0; }
   article { padding: 14px 4px; }
   article:last-child { border-bottom: 0; }
-  .message-wrapper { display: flex; width: 100%; flex-direction: column; }
+  .message-wrapper { display: flex; width: 100%; min-width: 0; flex-direction: column; }
   .message-wrapper.user { align-items: flex-end; }
   .message-wrapper.assistant { align-items: flex-start; }
   .message-wrapper.system { align-items: center; gap: 5px; }
