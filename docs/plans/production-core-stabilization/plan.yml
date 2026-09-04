@@ -245,10 +245,10 @@ acceptance_criteria:
     specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
     text: Account deletion uses each archive collection's deployed ownership field while building durable storage tombstones.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: related_backend
-    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS]
+    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS, V-PROD-ACCOUNT-DELETION-FILTERS]
 
 rollout:
   production_approval: approved_for_bucket_creation_only
@@ -353,15 +353,15 @@ tests:
 tasks:
   - id: T-6
     title: Restore schema-correct account deletion archive inventory
-    status: in_progress
-    phase: working_tasks
+    status: done
+    phase: complete
     covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
     specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
     surface: internal
     expected_files:
       - backend/core/api/app/services/storage_reference_service.py
       - backend/tests/test_account_deletion_storage_lifecycle.py
-    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS]
+    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS, V-PROD-ACCOUNT-DELETION-FILTERS]
     verification: [focused pytest followed by read-only production Directus field probes]
     command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
     dependencies: []
@@ -477,6 +477,10 @@ checks:
     type: test
     required: true
     command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+  - id: V-PROD-ACCOUNT-DELETION-FILTERS
+    type: production_read_only
+    required: true
+    command: read-only Directus probes for each archive collection using a guaranteed-nonexistent owner hash
   - id: T-S3-REGIONAL-UNIT
     type: test
     required: true
@@ -507,6 +511,14 @@ checks:
     command: python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <FULL_SHA>
 
 verifications:
+  - id: V-PROD-ACCOUNT-DELETION-FILTERS
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-6]
+    status: passed
+    command: read-only Directus probes for each archive collection using a guaranteed-nonexistent owner hash
+    evidence: {status: passed, command: "production API container read-only Directus probes", run_id: "prod-account-deletion-filters-20260904", subject_commit: "117654de0ec23b382c7ba66a8cd336476fdb90f1", summary: "Production accepted user_id_hash filters for all three monthly usage summary collections and hashed_user_id for user_task_archives. The exact regression test also passed inside the production API container; both deployed containers run the expected revision with zero restarts.", timestamp: "2026-09-04T23:25:00Z"}
   - id: V-PROD-S3-PLAN
     kind: manual_check
     phase: final
@@ -550,17 +562,20 @@ attempts:
 
 handoff:
   current_task_id: T-6
-  next_action: Integrate the two-file account-deletion fix, promote it as a narrow main hotfix, deploy API and user-init-worker, then run schema-accurate production read probes.
-  command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
-  expected_outcome: Usage summary inventories use user_id_hash, task archives use hashed_user_id, and Directus accepts every query.
+  next_action: Keep production stable and inspect the least-privilege repair path for the stale paid-smoke API key and consumed gift-card fixture before any credential mutation.
+  command: read-only inspection of production smoke-account and GitHub Actions fixture state
+  expected_outcome: A bounded proposal identifies exactly which test credentials need rotation and how cleanup remains reliable without changing product behavior.
   blocker:
     task_id: T-6
     requires_user_input: false
-    reason: No current blocker; the user approved the ongoing hotfix-first stabilization path.
+    reason: The account-deletion hotfix is complete; credential repair has not started and no production mutation is currently required.
     question: ""
     next_action: Continue the scoped forward hotfix; never roll back without approval.
   last_verified_commit: b5f2ad96409233099c48b5dd0075b10a3b167d35
   recent_evidence:
+    - Account-deletion hotfix PR 515 merged as main revision 117654de0ec23b382c7ba66a8cd336476fdb90f1 and is deployed only to API and user-init-worker. Both containers are running with zero restarts; the managed runtime verifier passes every core check and retains only the pre-existing Stripe freshness warning.
+    - The live Directus collections accept the schema-correct owner filters, and the exact archive-filter regression passes in the production API container. No access-denied or account-deletion error appeared after deployment.
+    - One unrelated legacy-profile test is environment-dependent because its fixed example URL does not match production bucket names; this does not affect the archive-filter hotfix and is deferred as test hermeticity work.
     - Main revision 152babc3e4cc63af2386d319821aaeb9c8062e29 is running on all nine scoped services with zero restarts. Core verifier sections pass; only Stripe health freshness remains degraded.
     - The reported production share resolves and its encrypted metadata endpoints pass. The chat has no stored encrypted summary, while title, description, and icon metadata are present.
     - Fresh free smoke run 33924920857 passed. Paid smoke is blocked before chat by a stale GitHub API-key secret; the dormant signup smoke proves signup through account creation and then blocks on a stale gift-card secret.
