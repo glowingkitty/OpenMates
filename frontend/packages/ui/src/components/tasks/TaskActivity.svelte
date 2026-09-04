@@ -149,7 +149,9 @@
         embedKeyMaterial: await buildEmbedKeyMaterial(refs),
         teamId,
       };
-      const created = onCreate ? await onCreate(input) : await createUserTaskActivity(task, input);
+      const created = onCreate
+        ? { ...await onCreate(input), message: editor.getText() }
+        : await createUserTaskActivity(task, input);
       entries = sortEntries([...entries, created]);
       restoreEntryEmbedKeys([created]);
       editor.commands.clearContent();
