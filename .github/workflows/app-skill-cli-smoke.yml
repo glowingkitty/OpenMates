@@ -83,14 +83,51 @@ jobs:
             --skip-build \
             | tee test-results/app-skill-cli-smoke.json
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-skill-cli-smoke-${{ github.run_id }}
+          path: test-results/app-skill-cli-smoke.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  activity-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      OPENMATES_API_URL: https://api.dev.openmates.org
+      OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.activity_account || '19')] }}
+      OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.activity_account || '19')] }}
+      OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.activity_account || '19')] }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          python -m pip install -e packages/openmates-python
+
+      - name: Build CLI and SDK
+        run: pnpm --filter openmates build
+
+      - name: Audit CLI and SDK parity
+        run: python3 scripts/audit_sdk_cli_parity.py
+
       - name: Run real-dev Task Activity contract smoke
         shell: bash
-        env:
-          OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.activity_account || '19')] }}
-          OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.activity_account || '19')] }}
-          OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.activity_account || '19')] }}
         run: |
           set -o pipefail
+          mkdir -p test-results
           python3 scripts/verify_task_activity_api_live.py \
             --api-url "$OPENMATES_API_URL" \
             | tee test-results/task-activity-api.json
@@ -106,9 +143,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: app-skill-cli-smoke-${{ github.run_id }}
-          path: |
-            test-results/app-skill-cli-smoke.json
-            test-results/task-activity-*.json
+          name: task-activity-smoke-${{ github.run_id }}
+          path: test-results/task-activity-*.json
           if-no-files-found: ignore
           retention-days: 14
