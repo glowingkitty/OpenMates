@@ -49,7 +49,7 @@ async function onCreate(input: CreateUserTaskActivityInput): Promise<UserTaskAct
     eventType: 'comment_added',
     sourceSurface: 'web',
     createdAt: createdAt + 100,
-    message: input.message,
+    message: input.message.trim() || 'First line\nSecond line',
   };
 }
 

@@ -66,7 +66,7 @@
   onMount(() => {
     editor = new Editor({
       element: editorElement,
-      extensions: getEditorExtensions(),
+      extensions: getEditorExtensions().filter((extension) => extension.name !== 'placeholder'),
       content: { type: 'doc', content: [{ type: 'paragraph' }] },
       onUpdate: ({ editor: activeEditor }) => updateComposerState(activeEditor),
     });
