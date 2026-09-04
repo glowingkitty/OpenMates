@@ -9,11 +9,6 @@ on:
         required: false
         default: "18"
         type: string
-      activity_account:
-        description: Isolated test account slot for Task Activity contracts
-        required: false
-        default: "19"
-        type: string
   schedule:
     - cron: "41 5 * * *"
   push:
@@ -97,12 +92,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        surface: [api, cli, sdk]
+        include:
+          - surface: api
+            account: "19"
+          - surface: cli
+            account: "20"
+          - surface: sdk
+            account: "21"
     env:
       OPENMATES_API_URL: https://api.dev.openmates.org
-      OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.activity_account || '19')] }}
-      OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.activity_account || '19')] }}
-      OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.activity_account || '19')] }}
+      OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', matrix.account)] }}
+      OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', matrix.account)] }}
+      OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', matrix.account)] }}
     steps:
       - uses: actions/checkout@v4
 
