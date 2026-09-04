@@ -391,28 +391,28 @@ class UserTaskMethods:
         cursor: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        activity_filter = self._activity_filter(user_id, task_id, team_id)
+        params: dict[str, Any] = {
+            "fields": USER_TASK_ACTIVITY_FIELDS,
+            "filter[hashed_task_id][_eq]": hash_id(task_id),
+            "sort": "created_at,entry_id",
+            "limit": max(1, min(limit, 201)),
+        }
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
+        else:
+            params["filter[hashed_user_id][_eq]"] = hash_id(user_id)
+            params["filter[hashed_team_id][_null]"] = True
         if cursor:
             created_at_text, separator, entry_id = cursor.partition(":")
             if not separator or not created_at_text.isdigit() or not entry_id:
                 raise ValueError("Invalid Task Activity cursor")
             created_at = int(created_at_text)
-            activity_filter["_and"].append(
-                {
-                    "_or": [
-                        {"created_at": {"_gt": created_at}},
-                        {"_and": [{"created_at": {"_eq": created_at}}, {"entry_id": {"_gt": entry_id}}]},
-                    ]
-                }
-            )
+            params["filter[_or][0][created_at][_gt]"] = created_at
+            params["filter[_or][1][_and][0][created_at][_eq]"] = created_at
+            params["filter[_or][1][_and][1][entry_id][_gt]"] = entry_id
         response = await self.directus_service.get_items(
             "user_task_activity",
-            params={
-                "fields": USER_TASK_ACTIVITY_FIELDS,
-                "filter": activity_filter,
-                "sort": "created_at,entry_id",
-                "limit": max(1, min(limit, 201)),
-            },
+            params=params,
             no_cache=True,
         )
         return response if isinstance(response, list) else []

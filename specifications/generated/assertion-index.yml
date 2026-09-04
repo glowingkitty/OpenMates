@@ -24494,7 +24494,7 @@ assertions:
       surface: rest_api
     - &id2767
       path: backend/tests/test_user_task_activity_api.py
-      line: 308
+      line: 312
       name: test_activity_response_hides_storage_scope_and_derives_tombstone_author
       surface: rest_api
     - &id2768
@@ -24515,7 +24515,7 @@ assertions:
     supporting_tests:
     - &id2766
       path: backend/tests/test_user_task_activity_api.py
-      line: 176
+      line: 180
       name: test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill
       surface: rest_api
     tests:
@@ -24560,7 +24560,7 @@ assertions:
       surface: rest_api
     - &id2772
       path: backend/tests/test_user_task_activity_api.py
-      line: 281
+      line: 285
       name: test_create_activity_route_derives_source_and_never_accepts_body_attribution
       surface: rest_api
     - &id2773
@@ -24610,22 +24610,22 @@ assertions:
     direct_tests:
     - &id2776
       path: backend/tests/test_user_task_activity_api.py
-      line: 199
+      line: 203
       name: test_activity_delete_allows_author_or_mutation_role_and_tombstones_ciphertext
       surface: rest_api
     - &id2777
       path: backend/tests/test_user_task_activity_api.py
-      line: 232
+      line: 236
       name: test_repeated_activity_delete_is_an_immutable_conflict
       surface: rest_api
     - &id2778
       path: backend/tests/test_user_task_activity_api.py
-      line: 308
+      line: 312
       name: test_activity_response_hides_storage_scope_and_derives_tombstone_author
       surface: rest_api
     - &id2779
       path: backend/tests/test_user_task_activity_api.py
-      line: 334
+      line: 338
       name: test_delete_activity_route_allows_author_or_team_mutation_role_and_denies_cross_scope
       surface: rest_api
     - &id2780
@@ -24689,28 +24689,28 @@ assertions:
       surface: rest_api
     - &id2786
       path: backend/tests/test_user_task_activity_api.py
-      line: 199
+      line: 203
       name: test_activity_delete_allows_author_or_mutation_role_and_tombstones_ciphertext
       surface: rest_api
     - &id2787
       path: backend/tests/test_user_task_activity_api.py
-      line: 254
+      line: 258
       name: test_create_activity_route_rejects_team_viewer_before_persistence
       surface: rest_api
     - &id2788
       path: backend/tests/test_user_task_activity_api.py
-      line: 281
+      line: 285
       name: test_create_activity_route_derives_source_and_never_accepts_body_attribution
       surface: rest_api
     - &id2789
       path: backend/tests/test_user_task_activity_api.py
-      line: 334
+      line: 338
       name: test_delete_activity_route_allows_author_or_team_mutation_role_and_denies_cross_scope
       surface: rest_api
     supporting_tests:
     - &id2785
       path: backend/tests/test_user_task_activity_api.py
-      line: 176
+      line: 180
       name: test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill
       surface: rest_api
     tests:

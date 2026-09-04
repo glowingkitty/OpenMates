@@ -225,14 +225,25 @@ def run(api_url: str, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
         seen_entry_ids: set[str] = set()
         seen_cursors: set[str] = set()
         found_second_entry = False
+        previous_entry_role = "none"
         for page_number in range(ACTIVITY_PAGINATION_MAX_PAGES):
             page_entries = page.payload.get("entries", [])
             if len(page_entries) != 1 or not isinstance(page_entries[0], dict):
-                raise VerificationFailure("activity_cursor_pagination", "single_entry_page_expected")
+                raise VerificationFailure(
+                    "activity_cursor_pagination",
+                    f"single_entry_page_expected_at_{page_number + 1}_after_{previous_entry_role}_got_{len(page_entries)}",
+                )
             page_entry_id = page_entries[0].get("entry_id")
             if not isinstance(page_entry_id, str) or page_entry_id in seen_entry_ids:
                 raise VerificationFailure("activity_cursor_pagination", "cursor_did_not_advance")
             seen_entry_ids.add(page_entry_id)
+            previous_entry_role = (
+                "first_comment"
+                if page_entry_id == entry_id
+                else "second_comment"
+                if page_entry_id == second_entry_id
+                else "lifecycle"
+            )
             if page_entry_id == second_entry_id:
                 found_second_entry = True
                 break
