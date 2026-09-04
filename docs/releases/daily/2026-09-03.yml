@@ -1,0 +1,1874 @@
+schema_version: 1
+cadence: daily
+date: '2026-09-03'
+generated_at: '2026-09-04T00:20:19+00:00'
+range:
+  since: '2026-09-03T00:00:00+00:00'
+  until: '2026-09-04T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 40
+  section_counts:
+    features: 2
+    bug_fixes: 11
+    improvements: 0
+    docs: 7
+    tests: 8
+    infrastructure: 1
+    internal: 6
+    other: 5
+  newsletter_ready_items: 0
+  user_facing_items: 7
+  dev_only_items: 40
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: app:workflows
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/workflows/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: add Task Activity clients and CI'
+    section: features
+    commits:
+    - 32d6f87f9
+    authored_at: '2026-09-03T23:53:14+00:00'
+    changed_paths:
+    - .github/workflows/task-activity-smoke.yml
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_user_task_activity_api.py
+    - docs/plans/task-activity-comments/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    - scripts/verify_task_activity_api_live.py
+    - scripts/verify_tasks_cli_smoke.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add encrypted Task Activity API'
+    section: features
+    commits:
+    - 75cd79c18
+    authored_at: '2026-09-03T22:42:37+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/tests/test_user_task_activity_api.py
+    - docs/plans/task-activity-comments/plan.yml
+    - scripts/verify_task_activity_api_live.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: synchronize local dev after managed deploy'
+    section: bug_fixes
+    commits:
+    - b757479ee
+    authored_at: '2026-09-03T17:19:50+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_deploy_manifest.py
+    - scripts/tests/test_sessions_integration_concurrency.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve shared OpenCode zellij host'
+    section: bug_fixes
+    commits:
+    - b5f480efc
+    authored_at: '2026-09-03T16:36:52+00:00'
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate OpenCode storage compatibility'
+    section: bug_fixes
+    commits:
+    - 35ea39d74
+    authored_at: '2026-09-03T16:27:59+00:00'
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    - scripts/opencode_runtime_release.py
+    - scripts/tests/test_opencode_runtime_release.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: harden OpenCode session integrity'
+    section: bug_fixes
+    commits:
+    - 68a63f563
+    authored_at: '2026-09-03T16:14:27+00:00'
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/plans/opencode-session-integrity/plan.yml
+    - scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch
+    - scripts/sync_opencode_runtime_hook.py
+    - scripts/tests/test_opencode_control_plane_guard.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_runtime_config.py
+    - scripts/tests/test_sync_opencode_runtime_hook.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: restore chat E2E content gate'
+    section: bug_fixes
+    commits:
+    - c25b6b7db
+    authored_at: '2026-09-03T12:18:03+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: distinguish account provisioning dispatches'
+    section: bug_fixes
+    commits:
+    - b31d85a5d
+    authored_at: '2026-09-03T11:40:16+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep daily Playwright coverage running'
+    section: bug_fixes
+    commits:
+    - 25b54cb22
+    authored_at: '2026-09-03T11:26:05+00:00'
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/contributing/guides/testing.md
+    - scripts/run_tests.py
+    - scripts/tests/test_daily_test_recovery.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: tolerate stale worktree records in status'
+    section: bug_fixes
+    commits:
+    - d9b35d9aa
+    authored_at: '2026-09-03T10:53:33+00:00'
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_presence_status.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: recover orphaned agent worktrees safely'
+    section: bug_fixes
+    commits:
+    - fe9a972c9
+    authored_at: '2026-09-03T10:51:07+00:00'
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/worktree-reconciliation-setup.sh
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: split mobile landing heading'
+    section: bug_fixes
+    commits:
+    - 6deaa1a77
+    authored_at: '2026-09-03T10:47:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: allow forced proof recapture'
+    section: bug_fixes
+    commits:
+    - 4ebd06810
+    authored_at: '2026-09-03T09:49:22+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements: []
+  docs:
+  - title: Evaluate Cerebras Qwen 3.8 27B for fast alias
+    section: docs
+    commits:
+    - ac415dc8e
+    authored_at: '2026-09-03T23:37:13+00:00'
+    changed_paths:
+    - docs/architecture/ai/qwen38-fast-evaluation.md
+    - docs/plans/cerebras-qwen38-27b/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: define task activity behavior'
+    section: docs
+    commits:
+    - 070c8f69b
+    authored_at: '2026-09-03T22:16:16+00:00'
+    changed_paths:
+    - docs/plans/task-activity-comments/plan.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: verify OpenCode session integrity repair'
+    section: docs
+    commits:
+    - 63c07140c
+    authored_at: '2026-09-03T16:41:28+00:00'
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record staged OpenCode runtime'
+    section: docs
+    commits:
+    - aa6ed53eb
+    authored_at: '2026-09-03T16:17:23+00:00'
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: require deployment before task completion'
+    section: docs
+    commits:
+    - aea4df484
+    authored_at: '2026-09-03T10:38:41+00:00'
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: guide OpenCode app-skill research'
+    section: docs
+    commits:
+    - 5296dc790
+    authored_at: '2026-09-03T00:04:24+00:00'
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: record session isolation verification'
+    section: docs
+    commits:
+    - 3e5cc7359
+    authored_at: '2026-09-03T00:00:18+00:00'
+    changed_paths:
+    - docs/plans/session-security-isolation/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: reproduce deferred voice finalization'
+    section: tests
+    commits:
+    - a45dd8a45
+    authored_at: '2026-09-03T13:22:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: frame API key warning'
+    section: tests
+    commits:
+    - 79b8446ae
+    authored_at: '2026-09-03T10:40:58+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: frame API key task scopes'
+    section: tests
+    commits:
+    - 7862bdb31
+    authored_at: '2026-09-03T10:26:51+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: clarify API key proof transition'
+    section: tests
+    commits:
+    - 6b0fcfce8
+    authored_at: '2026-09-03T10:14:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: pace API key scope proof'
+    section: tests
+    commits:
+    - 851ea1d15
+    authored_at: '2026-09-03T10:03:50+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: target full access warning'
+    section: tests
+    commits:
+    - da4021cd7
+    authored_at: '2026-09-03T09:20:27+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align API key scope proof'
+    section: tests
+    commits:
+    - 124a593f4
+    authored_at: '2026-09-03T09:08:43+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: fix API key proof input selector'
+    section: tests
+    commits:
+    - 7e5bc37a4
+    authored_at: '2026-09-03T00:02:14+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure:
+  - title: 'chore: remove legacy OpenCode research MCPs'
+    section: infrastructure
+    commits:
+    - c0b9c64ce
+    authored_at: '2026-09-03T00:35:05+00:00'
+    changed_paths:
+    - AGENTS.md
+    - opencode.json
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as infrastructure from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  internal:
+  - title: Add Cerebras Qwen 3.8 27B support
+    section: internal
+    commits:
+    - ca7647db3
+    authored_at: '2026-09-03T23:26:16+00:00'
+    changed_paths:
+    - backend/providers/alibaba.yml
+    - backend/providers/google.yml
+    - backend/tests/test_ai_ask_model_metadata.py
+    - docs/plans/cerebras-qwen38-27b/plan.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Reply to preflight on originating socket
+    section: internal
+    commits:
+    - 5dc662ece
+    authored_at: '2026-09-03T11:55:27+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Shorten and trace speech preflight failures
+    section: internal
+    commits:
+    - b28ad2587
+    authored_at: '2026-09-03T11:04:10+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Keep active chat selection non-blocking
+    section: internal
+    commits:
+    - 031bb6aca
+    authored_at: '2026-09-03T10:16:19+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/tests/test_websocket_set_active_chat.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Reject failed sends in speech E2E
+    section: internal
+    commits:
+    - 3b3cd5d75
+    authored_at: '2026-09-03T09:11:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Trace speech send preflight boundary
+    section: internal
+    commits:
+    - bce144d09
+    authored_at: '2026-09-03T00:22:54+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as internal work from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  other:
+  - title: Bound draft embed cleanup on WebSocket
+    section: other
+    commits:
+    - a0c29da3c
+    authored_at: '2026-09-03T12:29:16+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_draft_embed_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Bound metadata broadcasts after durability ack
+    section: other
+    commits:
+    - cb8811d45
+    authored_at: '2026-09-03T12:13:33+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Reject silently dropped WebSocket sends
+    section: other
+    commits:
+    - 1c2df761c
+    authored_at: '2026-09-03T11:36:32+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Expose test preflight server phases
+    section: other
+    commits:
+    - 8e5f22e0b
+    authored_at: '2026-09-03T11:20:39+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: Avoid blocking chat recovery cutover reads
+    section: other
+    commits:
+    - 226756a79
+    authored_at: '2026-09-03T10:35:47+00:00'
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+unreleased_progress:
+  dev_only:
+  - title: 'feat: add Task Activity clients and CI'
+    commits:
+    - 32d6f87f9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: Evaluate Cerebras Qwen 3.8 27B for fast alias
+    commits:
+    - ac415dc8e
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Add Cerebras Qwen 3.8 27B support
+    commits:
+    - ca7647db3
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add encrypted Task Activity API'
+    commits:
+    - 75cd79c18
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'docs: define task activity behavior'
+    commits:
+    - 070c8f69b
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: synchronize local dev after managed deploy'
+    commits:
+    - b757479ee
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: verify OpenCode session integrity repair'
+    commits:
+    - 63c07140c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve shared OpenCode zellij host'
+    commits:
+    - b5f480efc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: gate OpenCode storage compatibility'
+    commits:
+    - 35ea39d74
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record staged OpenCode runtime'
+    commits:
+    - aa6ed53eb
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: harden OpenCode session integrity'
+    commits:
+    - 68a63f563
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: reproduce deferred voice finalization'
+    commits:
+    - a45dd8a45
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Bound draft embed cleanup on WebSocket
+    commits:
+    - a0c29da3c
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: restore chat E2E content gate'
+    commits:
+    - c25b6b7db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Bound metadata broadcasts after durability ack
+    commits:
+    - cb8811d45
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Reply to preflight on originating socket
+    commits:
+    - 5dc662ece
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: distinguish account provisioning dispatches'
+    commits:
+    - b31d85a5d
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Reject silently dropped WebSocket sends
+    commits:
+    - 1c2df761c
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep daily Playwright coverage running'
+    commits:
+    - 25b54cb22
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Expose test preflight server phases
+    commits:
+    - 8e5f22e0b
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: Shorten and trace speech preflight failures
+    commits:
+    - b28ad2587
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: tolerate stale worktree records in status'
+    commits:
+    - d9b35d9aa
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: recover orphaned agent worktrees safely'
+    commits:
+    - fe9a972c9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: split mobile landing heading'
+    commits:
+    - 6deaa1a77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: frame API key warning'
+    commits:
+    - 79b8446ae
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: require deployment before task completion'
+    commits:
+    - aea4df484
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Avoid blocking chat recovery cutover reads
+    commits:
+    - 226756a79
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: frame API key task scopes'
+    commits:
+    - 7862bdb31
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Keep active chat selection non-blocking
+    commits:
+    - 031bb6aca
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: clarify API key proof transition'
+    commits:
+    - 6b0fcfce8
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: pace API key scope proof'
+    commits:
+    - 851ea1d15
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: allow forced proof recapture'
+    commits:
+    - 4ebd06810
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: target full access warning'
+    commits:
+    - da4021cd7
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Reject failed sends in speech E2E
+    commits:
+    - 3b3cd5d75
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align API key scope proof'
+    commits:
+    - 124a593f4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'chore: remove legacy OpenCode research MCPs'
+    commits:
+    - c0b9c64ce
+    section: infrastructure
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Trace speech send preflight boundary
+    commits:
+    - bce144d09
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: guide OpenCode app-skill research'
+    commits:
+    - 5296dc790
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: fix API key proof input selector'
+    commits:
+    - 7e5bc37a4
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: record session isolation verification'
+    commits:
+    - 3e5cc7359
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: Add Cerebras Qwen 3.8 27B support
+    commits:
+    - ca7647db3
+    section: internal
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Bound metadata broadcasts after durability ack
+    commits:
+    - cb8811d45
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'feat: add Task Activity clients and CI'
+    commits:
+    - 32d6f87f9
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add encrypted Task Activity API'
+    commits:
+    - 75cd79c18
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: Bound draft embed cleanup on WebSocket
+    commits:
+    - a0c29da3c
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: restore chat E2E content gate'
+    commits:
+    - c25b6b7db
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Bound metadata broadcasts after durability ack
+    commits:
+    - cb8811d45
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: Expose test preflight server phases
+    commits:
+    - 8e5f22e0b
+    section: other
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: split mobile landing heading'
+    commits:
+    - 6deaa1a77
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: 32d6f87f9b863465ffacbd0620a7cf11d9867fec
+    short_sha: 32d6f87f9
+    authored_at: '2026-09-03T23:53:14+00:00'
+    subject: 'feat: add Task Activity clients and CI'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/task-activity-smoke.yml
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/core/directus/setup/setup_schemas.py
+    - backend/tests/test_setup_schemas.py
+    - backend/tests/test_user_task_activity_api.py
+    - docs/plans/task-activity-comments/plan.yml
+    - docs/user-guide/developers/sdk-reference.md
+    - docs/user-guide/developers/sdk-test-coverage.md
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/sdk.ts
+    - frontend/packages/openmates-cli/src/tasksCli.ts
+    - frontend/packages/openmates-cli/tests/sdk-tasks.test.ts
+    - frontend/packages/openmates-cli/tests/tasks.test.ts
+    - packages/openmates-python/openmates/sdk.py
+    - packages/openmates-python/tests/test_tasks.py
+    - scripts/verify_sdk_tasks_live_smoke.mjs
+    - scripts/verify_task_activity_api_live.py
+    - scripts/verify_tasks_cli_smoke.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:tasks
+  - sha: ac415dc8e40ac780c33693075ded538cf1863ba4
+    short_sha: ac415dc8e
+    authored_at: '2026-09-03T23:37:13+00:00'
+    subject: Evaluate Cerebras Qwen 3.8 27B for fast alias
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/ai/qwen38-fast-evaluation.md
+    - docs/plans/cerebras-qwen38-27b/plan.yml
+    related_feature_ids: []
+  - sha: ca7647db311bd25e9c83c4592c68ead704eb298e
+    short_sha: ca7647db3
+    authored_at: '2026-09-03T23:26:16+00:00'
+    subject: Add Cerebras Qwen 3.8 27B support
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/providers/alibaba.yml
+    - backend/providers/google.yml
+    - backend/tests/test_ai_ask_model_metadata.py
+    - docs/plans/cerebras-qwen38-27b/plan.yml
+    - frontend/packages/openmates-cli/src/mentions.ts
+    related_feature_ids: []
+  - sha: 75cd79c1888e6785009905fc58730edb01bcaaaa
+    short_sha: 75cd79c18
+    authored_at: '2026-09-03T22:42:37+00:00'
+    subject: 'feat: add encrypted Task Activity API'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/directus/schemas/user_tasks.yml
+    - backend/core/directus/setup/migrate_user_task_indexes.sql
+    - backend/tests/test_user_task_activity_api.py
+    - docs/plans/task-activity-comments/plan.yml
+    - scripts/verify_task_activity_api_live.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - platform:tasks
+  - sha: 070c8f69b16c605194e0e5eca583911c699e9bef
+    short_sha: 070c8f69b
+    authored_at: '2026-09-03T22:16:16+00:00'
+    subject: 'docs: define task activity behavior'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/task-activity-comments/plan.yml
+    - specifications/features/tasks/examples.yml
+    - specifications/features/tasks/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids: []
+  - sha: b757479eed719ce2157588c7747fae2f32249bb1
+    short_sha: b757479ee
+    authored_at: '2026-09-03T17:19:50+00:00'
+    subject: 'fix: synchronize local dev after managed deploy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_deploy_manifest.py
+    - scripts/tests/test_sessions_integration_concurrency.py
+    - scripts/tests/test_sessions_integration_worktree.py
+    related_feature_ids: []
+  - sha: 63c07140c372ec201d53c7f66fdc6fab871abc3e
+    short_sha: 63c07140c
+    authored_at: '2026-09-03T16:41:28+00:00'
+    subject: 'docs: verify OpenCode session integrity repair'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    related_feature_ids: []
+  - sha: b5f480efc00a40f72892fd7c8288afcbffb676dd
+    short_sha: b5f480efc
+    authored_at: '2026-09-03T16:36:52+00:00'
+    subject: 'fix: preserve shared OpenCode zellij host'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_lifecycle.py
+    related_feature_ids: []
+  - sha: 35ea39d74a88faff7b69268380e95a9093cd99a4
+    short_sha: 35ea39d74
+    authored_at: '2026-09-03T16:27:59+00:00'
+    subject: 'fix: gate OpenCode storage compatibility'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    - scripts/opencode_runtime_release.py
+    - scripts/tests/test_opencode_runtime_release.py
+    related_feature_ids: []
+  - sha: aa6ed53eb16a3019b33c663466753fe87c1649ba
+    short_sha: aa6ed53eb
+    authored_at: '2026-09-03T16:17:23+00:00'
+    subject: 'docs: record staged OpenCode runtime'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/opencode-session-integrity/plan.yml
+    related_feature_ids: []
+  - sha: 68a63f563a58307d20281be6cd9c79a8a3b267cc
+    short_sha: 68a63f563
+    authored_at: '2026-09-03T16:14:27+00:00'
+    subject: 'fix: harden OpenCode session integrity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .opencode/plugins/openmates-hooks.js
+    - docs/plans/opencode-session-integrity/plan.yml
+    - scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch
+    - scripts/sync_opencode_runtime_hook.py
+    - scripts/tests/test_opencode_control_plane_guard.py
+    - scripts/tests/test_opencode_hooks_contract.mjs
+    - scripts/tests/test_opencode_runtime_config.py
+    - scripts/tests/test_sync_opencode_runtime_hook.py
+    related_feature_ids: []
+  - sha: a45dd8a45754c78c4e431cb0856f2fcb03190215
+    short_sha: a45dd8a45
+    authored_at: '2026-09-03T13:22:07+00:00'
+    subject: 'test: reproduce deferred voice finalization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/audio-recording-deferred-send.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a0c29da3c40756acb936ebf69c68b50c509911d6
+    short_sha: a0c29da3c
+    authored_at: '2026-09-03T12:29:16+00:00'
+    subject: Bound draft embed cleanup on WebSocket
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/delete_draft_embed_handler.py
+    related_feature_ids: []
+  - sha: c25b6b7db73702264faf5c72c11e99b229893d6c
+    short_sha: c25b6b7db
+    authored_at: '2026-09-03T12:18:03+00:00'
+    subject: 'fix: restore chat E2E content gate'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/signup-flow-helpers.ts
+    related_feature_ids: []
+  - sha: cb8811d4523065d110f51e39c0d2f16fd6c12ba2
+    short_sha: cb8811d45
+    authored_at: '2026-09-03T12:13:33+00:00'
+    subject: Bound metadata broadcasts after durability ack
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py
+    related_feature_ids: []
+  - sha: 5dc662ece4c177e53973ac812a6acde80ed05783
+    short_sha: 5dc662ece
+    authored_at: '2026-09-03T11:55:27+00:00'
+    subject: Reply to preflight on originating socket
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: b31d85a5dd0ae5d722292459eafb44cdc2822e23
+    short_sha: b31d85a5d
+    authored_at: '2026-09-03T11:40:16+00:00'
+    subject: 'fix: distinguish account provisioning dispatches'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 1c2df761c0b4814b810a529aa2424cc1b7ce31de
+    short_sha: 1c2df761c
+    authored_at: '2026-09-03T11:36:32+00:00'
+    subject: Reject silently dropped WebSocket sends
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
+    - frontend/packages/ui/src/services/websocketService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 25b54cb229792857e003a4fdaf912933904ded5c
+    short_sha: 25b54cb22
+    authored_at: '2026-09-03T11:26:05+00:00'
+    subject: 'fix: keep daily Playwright coverage running'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .github/workflows/playwright-spec.yml
+    - docs/contributing/guides/testing.md
+    - scripts/run_tests.py
+    - scripts/tests/test_daily_test_recovery.py
+    - scripts/tests/test_playwright_workflow_timeout.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 8e5f22e0b6f91978d50161610746f619a16a1799
+    short_sha: 8e5f22e0b
+    authored_at: '2026-09-03T11:20:39+00:00'
+    subject: Expose test preflight server phases
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    related_feature_ids: []
+  - sha: b28ad2587cb91d9e75bed7588665ef4685679d16
+    short_sha: b28ad2587
+    authored_at: '2026-09-03T11:04:10+00:00'
+    subject: Shorten and trace speech preflight failures
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - frontend/apps/web_app/tests/assistant-response-speech.spec.ts
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: d9b35d9aa31d0d72cd6a75fdddcca20cb4726064
+    short_sha: d9b35d9aa
+    authored_at: '2026-09-03T10:53:33+00:00'
+    subject: 'fix: tolerate stale worktree records in status'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_presence_status.py
+    related_feature_ids: []
+  - sha: fe9a972c93e71acdc667e5d3f2df486212e7c218
+    short_sha: fe9a972c9
+    authored_at: '2026-09-03T10:51:07+00:00'
+    subject: 'fix: recover orphaned agent worktrees safely'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/infrastructure/cronjobs.md
+    - scripts/audit_worktree_deploy_contract.py
+    - scripts/sessions.py
+    - scripts/tests/test_sessions_worktree_cleanup.py
+    - scripts/tests/test_sessions_worktree_reconciliation.py
+    - scripts/worktree-reconciliation-setup.sh
+    related_feature_ids: []
+  - sha: 6deaa1a77be057696344b046074af7bf6cbfaae6
+    short_sha: 6deaa1a77
+    authored_at: '2026-09-03T10:47:17+00:00'
+    subject: 'fix: split mobile landing heading'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/landing-page-header-stories.spec.ts
+    - frontend/packages/ui/src/components/DailyInspirationBanner.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 79b8446ae9422c3509cf5808dd41fa52caf89db2
+    short_sha: 79b8446ae
+    authored_at: '2026-09-03T10:40:58+00:00'
+    subject: 'test: frame API key warning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: aea4df484c82494028390e6c7d41a6bbfaf3210e
+    short_sha: aea4df484
+    authored_at: '2026-09-03T10:38:41+00:00'
+    subject: 'docs: require deployment before task completion'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    related_feature_ids: []
+  - sha: 226756a7968f47ce584f0543b85e944a05af1d35
+    short_sha: 226756a79
+    authored_at: '2026-09-03T10:35:47+00:00'
+    subject: Avoid blocking chat recovery cutover reads
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7862bdb31f44b89fa6168ce3591077dd2307dd50
+    short_sha: 7862bdb31
+    authored_at: '2026-09-03T10:26:51+00:00'
+    subject: 'test: frame API key task scopes'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 031bb6aca35956439220be279f4c532f62bc3423
+    short_sha: 031bb6aca
+    authored_at: '2026-09-03T10:16:19+00:00'
+    subject: Keep active chat selection non-blocking
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/active_chat_handler.py
+    - backend/tests/test_websocket_set_active_chat.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 6b0fcfce8c6df5b83414f29f3a07546d779ed755
+    short_sha: 6b0fcfce8
+    authored_at: '2026-09-03T10:14:33+00:00'
+    subject: 'test: clarify API key proof transition'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    related_feature_ids: []
+  - sha: 851ea1d1524f00a295faada3b8367f22e37ce872
+    short_sha: 851ea1d15
+    authored_at: '2026-09-03T10:03:50+00:00'
+    subject: 'test: pace API key scope proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    related_feature_ids: []
+  - sha: 4ebd068106c69820857b084d61555ab259945e0c
+    short_sha: 4ebd06810
+    authored_at: '2026-09-03T09:49:22+00:00'
+    subject: 'fix: allow forced proof recapture'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: da4021cd766ab0ac2716ec17cec50a83d3522a58
+    short_sha: da4021cd7
+    authored_at: '2026-09-03T09:20:27+00:00'
+    subject: 'test: target full access warning'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    related_feature_ids: []
+  - sha: 3b3cd5d752dc2aaa053419492ccc5aab7714592a
+    short_sha: 3b3cd5d75
+    authored_at: '2026-09-03T09:11:07+00:00'
+    subject: Reject failed sends in speech E2E
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    related_feature_ids: []
+  - sha: 124a593f4eae409e64b48e8833fe4788969cf600
+    short_sha: 124a593f4
+    authored_at: '2026-09-03T09:08:43+00:00'
+    subject: 'test: align API key scope proof'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    related_feature_ids: []
+  - sha: c0b9c64ce5631366740d2d56ef7d9d0cd4a45341
+    short_sha: c0b9c64ce
+    authored_at: '2026-09-03T00:35:05+00:00'
+    subject: 'chore: remove legacy OpenCode research MCPs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - AGENTS.md
+    - opencode.json
+    related_feature_ids: []
+  - sha: bce144d0966598f769dd662d5b0e452263aed2fa
+    short_sha: bce144d09
+    authored_at: '2026-09-03T00:22:54+00:00'
+    subject: Trace speech send preflight boundary
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/helpers/chat-test-helpers.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    related_feature_ids: []
+  - sha: 5296dc790edc68d1f9f64128975c7182eee1d9f0
+    short_sha: 5296dc790
+    authored_at: '2026-09-03T00:04:24+00:00'
+    subject: 'docs: guide OpenCode app-skill research'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/contributing/guides/agent-workflow-core.md
+    related_feature_ids: []
+  - sha: 7e5bc37a459e3e738d922130d4c8e1b51387e9f0
+    short_sha: 7e5bc37a4
+    authored_at: '2026-09-03T00:02:14+00:00'
+    subject: 'test: fix API key proof input selector'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/api-key-scopes-settings.spec.ts
+    related_feature_ids: []
+  - sha: 3e5cc73597691d4c87e092b58cc98c4cb36f32fc
+    short_sha: 3e5cc7359
+    authored_at: '2026-09-03T00:00:18+00:00'
+    subject: 'docs: record session isolation verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/session-security-isolation/plan.yml
+    related_feature_ids: []
+llm_summary:
+  overview: OpenMates focused on internal infrastructure, the development of the Task Activity system, and chat stability.
+    Significant work was done on WebSocket reliability and the integration of new AI model providers.
+  released_changes: []
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates added an encrypted Task Activity API and corresponding client SDKs for Python and the CLI, though the
+      feature remains disabled in production.
+    evidence:
+      commits:
+      - 32d6f87f9
+      - 75cd79c18
+      - 070c8f69b
+    release_status: dev_only
+  - text: Support for the Cerebras Qwen 3.8 27B model was added to the backend and CLI for evaluation as a fast model alias.
+    evidence:
+      commits:
+      - ca7647db3
+      - ac415dc8e
+    release_status: dev_only
+  - text: The project improved OpenCode session integrity, including better worktree recovery, storage compatibility gating,
+      and local development synchronization after managed deploys.
+    evidence:
+      commits:
+      - 68a63f563
+      - 35ea39d74
+      - fe9a972c9
+      - b757479ee
+      - b5f480efc
+    release_status: dev_only
+  - text: WebSocket communication was hardened with bounded metadata broadcasts, improved preflight handling for chat turns,
+      and non-blocking chat recovery reads.
+    evidence:
+      commits:
+      - cb8811d45
+      - 5dc662ece
+      - b28ad2587
+      - a0c29da3c
+      - 1c2df761c
+      - 031bb6aca
+    release_status: dev_only
+  - text: The mobile landing page heading was adjusted to improve layout on smaller screens.
+    evidence:
+      commits:
+      - 6deaa1a77
+    release_status: dev_only
+  internal_progress:
+  - text: CI workflows were updated to ensure daily Playwright coverage remains active and to improve account provisioning
+      dispatch logic.
+    evidence:
+      commits:
+      - 25b54cb22
+      - b31d85a5d
+      - 4ebd06810
+    release_status: dev_only
+  - text: Extensive test framing was implemented for API key scopes, specifically targeting task permissions and full access
+      warnings.
+    evidence:
+      commits:
+      - 7862bdb31
+      - 79b8446ae
+      - 6b0fcfce8
+      - 851ea1d15
+      - da4021cd7
+      - 124a593f4
+      - 7e5bc37a4
+    release_status: dev_only
+  - text: Internal tracing and error handling for speech preflight boundaries and deferred voice finalization were added to
+      the chat system.
+    evidence:
+      commits:
+      - bce144d09
+      - 3b3cd5d75
+      - a45dd8a45
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Task Activity API and SDKs
+      evidence:
+        commits:
+        - 32d6f87f9
+        - 75cd79c18
+      reason: The Task Activity feature is currently disabled via platform:tasks and is not yet released to main.
+    - text: Cerebras Qwen 3.8 27B Support
+      evidence:
+        commits:
+        - ca7647db3
+        - ac415dc8e
+      reason: Support for the Cerebras Qwen model is currently internal and not ready for public communication.
+    rationale: No user-facing features reached the main branch or were marked ready for public communication during this period.
+      Work focused on internal infrastructure and unreleased feature development.
+  social_video_recommendations:
+  - idea: A technical preview of the upcoming Task Activity API and Python SDK.
+    priority: low
+    reason: The feature is in active development and provides a concrete story about platform extensibility.
+    evidence:
+      commits:
+      - 32d6f87f9
+      - 75cd79c18
+  quality_notes:
+  - All user-facing changes are currently restricted to development branches.
+  - Task-related features are gated by the platform:tasks feature flag.
+  validation_warnings: []
