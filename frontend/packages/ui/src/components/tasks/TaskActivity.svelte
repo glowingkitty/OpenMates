@@ -149,8 +149,9 @@
         embedKeyMaterial: await buildEmbedKeyMaterial(refs),
         teamId,
       };
+      const previewMessage = editor.getText();
       const created = onCreate
-        ? { ...await onCreate(input), message: editor.getText() }
+        ? { ...await onCreate(input), message: previewMessage }
         : await createUserTaskActivity(task, input);
       entries = sortEntries([...entries, created]);
       restoreEntryEmbedKeys([created]);
@@ -295,9 +296,9 @@
                   <strong>{actorLabel(entry)}</strong>
                   {#if sourceLabel(entry)}<span class="source">{sourceLabel(entry)}</span>{/if}
                 </div>
-                <ChatMessage role="user" content={entry.message ?? ''} canAnnotate={false} />
+                {#key entry.message}<ChatMessage role="user" content={entry.message ?? ''} canAnnotate={false} />{/key}
               {:else}
-                <ChatMessage role="assistant" category="openmates_official" sender_name="OpenMates" content={entry.message ?? ''} canAnnotate={false} />
+                {#key entry.message}<ChatMessage role="assistant" category="openmates_official" sender_name="OpenMates" content={entry.message ?? ''} canAnnotate={false} />{/key}
               {/if}
               <div class="message-footer">
                 <time datetime={new Date(entry.createdAt * 1000).toISOString()}>{formatTime(entry.createdAt)}</time>
