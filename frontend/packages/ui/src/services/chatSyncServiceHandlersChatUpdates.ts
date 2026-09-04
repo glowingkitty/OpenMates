@@ -27,6 +27,9 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./drafts/draftConstants";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
+import {
+  persistAssistantSpeechPreferenceIntent,
+} from "./assistantSpeechPreference";
 
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 // Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
@@ -1470,6 +1473,14 @@ export async function handleChatMessageConfirmedImpl(
             chat,
           },
         }),
+      );
+      void persistAssistantSpeechPreferenceIntent(payload.chat_id).catch(
+        (error) => {
+          console.error(
+            `[ChatSyncService:ChatUpdates] Failed to persist assistant speech preference after first message confirmation for ${payload.chat_id}:`,
+            error,
+          );
+        },
       );
     } else {
       console.warn(

@@ -10,6 +10,7 @@ import { decryptWithChatKey, encryptWithChatKey } from "./encryption/MessageEncr
 import { webSocketService } from "./websocketService";
 
 const localPreferenceIntents = new Map<string, boolean>();
+const intentPersistenceByChatId = new Map<string, Promise<void>>();
 const METADATA_ACK_TIMEOUT_MS = 15_000;
 
 type MetadataStoredPayload = {
@@ -97,4 +98,25 @@ export async function setAssistantSpeechPreference(
     stored.cancel();
     throw error;
   }
+}
+
+export function persistAssistantSpeechPreferenceIntent(chatId: string): Promise<void> {
+  const existing = intentPersistenceByChatId.get(chatId);
+  if (existing) return existing;
+
+  const persistence = (async () => {
+    const enabled = localPreferenceIntents.get(chatId);
+    if (enabled === undefined) return;
+
+    const chat = await chatDB.getChat(chatId);
+    if (!chat || (chat.messages_v ?? 0) === 0 || chat.encrypted_auto_speak_response) return;
+    await setAssistantSpeechPreference(chatId, enabled);
+  })();
+  const trackedPersistence = persistence.finally(() => {
+    if (intentPersistenceByChatId.get(chatId) === trackedPersistence) {
+      intentPersistenceByChatId.delete(chatId);
+    }
+  });
+  intentPersistenceByChatId.set(chatId, trackedPersistence);
+  return trackedPersistence;
 }
