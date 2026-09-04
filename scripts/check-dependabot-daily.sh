@@ -31,8 +31,10 @@
 #   - GITHUB_REPO env var set to "owner/repo" (e.g. "glowingkitty/OpenMates"), OR
 #     auto-detected from git remote
 #
-# Env vars (sourced from .env):
+# Optional inherited env vars:
 #   GITHUB_REPO   — GitHub repo in "owner/repo" format (optional, auto-detected if not set)
+# The script intentionally does not source .env because repository-wide secrets
+# are unnecessary for GitHub alert scanning and may contain shell metacharacters.
 # =============================================================================
 set -euo pipefail
 
@@ -46,14 +48,6 @@ REDISPATCH_AFTER_DAYS=7
 
 # Minimum severity to process (critical, high, medium — skip low)
 PROCESS_SEVERITIES=("critical" "high" "medium")
-
-# Source .env if present
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$PROJECT_ROOT/.env"
-  set +a
-fi
 
 # --- Parse CLI args ---
 DRY_RUN=false

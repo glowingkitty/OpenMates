@@ -1,15 +1,20 @@
 # .github/workflows/dependency-security.yml
 #
 # Scans resolved npm and Python dependency graphs plus container configuration.
-# This deterministic scheduled gate complements immediate Dependabot security
-# PRs and fails visibly when a known high or critical vulnerability is present.
+# This deterministic dev-branch gate fails visibly when a known high or critical
+# vulnerability is introduced or discovered during normal dev integration.
 
 name: Dependency Security
 
 on:
-  schedule:
-    - cron: "17 5 * * *"
-  workflow_dispatch: {}
+  push:
+    branches: [dev]
+    paths:
+      - "**/package.json"
+      - "**/requirements*.txt"
+      - "**/Dockerfile*"
+      - "**/docker-compose*.yml"
+      - "pnpm-lock.yaml"
   pull_request:
     branches: [dev]
     paths:

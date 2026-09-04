@@ -37,6 +37,8 @@
 #
 # Env vars (optional):
 #   NVD_API_KEY — free NVD API key for higher rate limits (50 vs 5 req/30s)
+# The script intentionally does not source .env; callers may export only the
+# optional NVD key when enrichment is required.
 # =============================================================================
 set -euo pipefail
 
@@ -48,14 +50,6 @@ PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/eu-vuln-analysis.md"
 
 # Re-dispatch threshold: re-dispatch if still unresolved after this many days
 REDISPATCH_AFTER_DAYS=7
-
-# Source .env if present
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$PROJECT_ROOT/.env"
-  set +a
-fi
 
 # --- Parse CLI args ---
 DRY_RUN=false

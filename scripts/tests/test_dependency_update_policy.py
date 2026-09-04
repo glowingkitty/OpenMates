@@ -12,6 +12,11 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 DEPENDABOT_CONFIG = ROOT / ".github" / "dependabot.yml"
+DEPENDENCY_SECURITY_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-security.yml"
+DEPENDENCY_SECURITY_SCRIPTS = (
+    ROOT / "scripts" / "check-dependabot-daily.sh",
+    ROOT / "scripts" / "check-eu-vulns-daily.sh",
+)
 REQUIRED_ECOSYSTEMS = {"npm", "pip", "docker", "github-actions"}
 MINIMUM_ROUTINE_COOLDOWN_DAYS = 14
 MINIMUM_MAJOR_COOLDOWN_DAYS = 30
@@ -68,3 +73,17 @@ def test_no_update_group_can_automerge_major_releases() -> None:
             if group.get("applies-to", "version-updates") != "version-updates":
                 continue
             assert "major" not in group.get("update-types", [])
+
+
+# contract-test: infrastructure
+def test_security_workflow_runs_for_dev_pushes() -> None:
+    workflow = DEPENDENCY_SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "  push:\n    branches: [dev]" in workflow
+
+
+# contract-test: infrastructure
+def test_host_scanners_do_not_import_the_complete_secret_environment() -> None:
+    for script in DEPENDENCY_SECURITY_SCRIPTS:
+        contents = script.read_text(encoding="utf-8")
+        assert 'source "$PROJECT_ROOT/.env"' not in contents

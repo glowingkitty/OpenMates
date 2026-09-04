@@ -39,10 +39,17 @@ Tracking file format (scripts/dependabot-processed.json):
 
 import json
 import os
+import re
 import subprocess
 
-from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
-from _nightly_report import write_nightly_report
+try:
+    from .audit_frontend_dependency_pins import collect_package_versions
+    from ._nightly_report import write_nightly_report
+    from ._opencode_utils import end_sessions_py, run_opencode_session, start_sessions_py
+except ImportError:
+    from audit_frontend_dependency_pins import collect_package_versions
+    from _nightly_report import write_nightly_report
+    from _opencode_utils import end_sessions_py, run_opencode_session, start_sessions_py
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -52,6 +59,7 @@ PROCESS_SEVERITIES = {"critical", "high", "medium"}
 
 # Severity sort order for prompt grouping
 SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "unknown": 4}
+SEMVER_PREFIX_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)")
 
 
 def _now_iso() -> str:
@@ -127,9 +135,42 @@ def _check_ghsa_in_git(ghsa_id: str, project_root: str) -> str | None:
         if output:
             return output.splitlines()[0].split()[0]
         return None
-    except Exception as e:
-        print(f"[dependabot] WARNING: git log search failed for {ghsa_id}: {e}", file=sys.stderr)
+    except Exception as error:
+        print(
+            f"[dependabot] WARNING: git log search failed for {ghsa_id}: {error}",
+            file=sys.stderr,
+        )
         return None
+
+
+def _semver_prefix(version: str) -> tuple[int, int, int] | None:
+    match = SEMVER_PREFIX_RE.match(version.split("(", 1)[0])
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def _alert_is_fixed_in_project(alert: dict, project_root: str) -> bool:
+    """Return whether every resolved dev npm version meets the advisory floor."""
+    if alert.get("ecosystem", "").lower() != "npm":
+        return False
+    package = alert.get("package", "")
+    fixed_version = _semver_prefix(alert.get("fixed_version", ""))
+    lockfile = os.path.join(project_root, "pnpm-lock.yaml")
+    if not package or fixed_version is None or not os.path.isfile(lockfile):
+        return False
+
+    try:
+        with open(lockfile, encoding="utf-8") as file:
+            versions = collect_package_versions(file.read()).get(package, set())
+    except OSError as error:
+        print(f"[dependabot] WARNING: could not inspect dev lockfile: {error}", file=sys.stderr)
+        return False
+
+    parsed_versions = [_semver_prefix(version) for version in versions]
+    return bool(parsed_versions) and all(
+        version is not None and version >= fixed_version for version in parsed_versions
+    )
 
 
 def _deduplicate_by_ghsa(alerts: list[dict]) -> dict[str, dict]:
@@ -263,11 +304,12 @@ def process_alerts() -> None:
 
     if not deduplicated:
         print("[dependabot] No processable alerts after filtering — done.")
-        write_nightly_report(
-            job="dependabot",
-            status="ok",
-            summary="No processable alerts after severity filtering.",
-        )
+        if not dry_run:
+            write_nightly_report(
+                job="dependabot",
+                status="ok",
+                summary="No processable alerts after severity filtering.",
+            )
         return
 
     # Step 2: Load tracking state
@@ -285,8 +327,10 @@ def process_alerts() -> None:
     for ghsa_id, alert in deduplicated.items():
         # Check if resolved in git
         commit_sha = _check_ghsa_in_git(ghsa_id, project_root)
+        if not commit_sha and _alert_is_fixed_in_project(alert, project_root):
+            commit_sha = f"dev-version>={alert['fixed_version']}"
         if commit_sha:
-            print(f"[dependabot] {ghsa_id} resolved via commit {commit_sha} — marking resolved.")
+            print(f"[dependabot] {ghsa_id} resolved in dev via {commit_sha} — marking resolved.")
             # Update or create tracking entry
             if ghsa_id in processed_map:
                 processed_map[ghsa_id]["resolved_via_commit"] = commit_sha
@@ -363,14 +407,17 @@ def process_alerts() -> None:
         f"{skip_count} skipped (grace period), {resolve_count} resolved in git."
     )
 
-    # Update tracking before dispatch (so state is saved even if claude fails)
+    # Update tracking before dispatch so state survives an agent failure. Dry
+    # runs intentionally leave both tracking and nightly reports untouched.
     tracking["last_run"] = now_iso
     tracking["processed"] = list(processed_map.values())
-    _save_tracking(tracking_file, tracking)
+    if not dry_run:
+        _save_tracking(tracking_file, tracking)
 
     if not to_dispatch:
         print("[dependabot] Nothing to dispatch — done.")
-        _write_dependabot_report(tracking, "ok", "All alerts resolved or within grace period.")
+        if not dry_run:
+            _write_dependabot_report(tracking, "ok", "All alerts resolved or within grace period.")
         return
 
     # Sort by severity for the prompt
