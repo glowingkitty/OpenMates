@@ -270,17 +270,33 @@ def test_backend_attestation_uses_lock_services_health_and_exact_status(
         "app-ai-worker",
     )
     assert prepare.RELEASE_STATUS_CONTEXT == "Dev Release Candidate / Prepared"
-    assert prepare.lock_command("f563", acquire=True)[-4:] == ["--session", "f563", "--type", "docker"]
-    assert prepare.managed_prepare_command() == [
-        "openmates",
-        "server",
-        "restart",
-        "--rebuild",
-        "--services",
-        ",".join(prepare.CORE_SERVICES),
+    assert prepare.managed_setup_command("f563") == [
+        sys.executable,
+        "scripts/sessions.py",
+        "docker",
+        "run-setup",
+        "--session",
+        "f563",
+        "--service",
+        "cms-setup",
+        "--build",
     ]
-    assert "docker" not in prepare.managed_prepare_command()
-    assert "compose" not in prepare.managed_prepare_command()
+    restart = prepare.managed_prepare_command("f563")
+    assert restart[:7] == [
+        sys.executable,
+        "scripts/sessions.py",
+        "docker",
+        "restart",
+        "--session",
+        "f563",
+        "--build",
+    ]
+    assert restart[7:] == [
+        part
+        for service in prepare.CORE_SERVICES
+        for part in ("--service", service)
+    ]
+    assert "compose" not in restart
     commands: list[list[str]] = []
     monkeypatch.setattr(
         prepare,

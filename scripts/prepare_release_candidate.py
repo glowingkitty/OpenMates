@@ -40,6 +40,7 @@ def resolve_control_plane_root(checkout_root: Path) -> Path:
 
 
 PROJECT_ROOT = resolve_control_plane_root(Path(__file__).resolve().parent.parent)
+PRODUCT_RUNTIME_CHECKOUT = PROJECT_ROOT.parent / ".openmates-runtime" / "product-stack"
 CORE_SERVICES = (
     "api",
     "task-worker",
@@ -107,28 +108,45 @@ def preflight_release_candidate(expected_commit: str = "") -> str:
     return head
 
 
-def lock_command(session: str, *, acquire: bool) -> list[str]:
-    action = "lock" if acquire else "unlock"
+def managed_setup_command(session: str) -> list[str]:
     return [
         sys.executable,
         "scripts/sessions.py",
-        action,
+        "docker",
+        "run-setup",
         "--session",
         session,
-        "--type",
+        "--service",
+        "cms-setup",
+        "--build",
+    ]
+
+
+def managed_prepare_command(session: str) -> list[str]:
+    command = [
+        sys.executable,
+        "scripts/sessions.py",
         "docker",
-    ]
-
-
-def managed_prepare_command() -> list[str]:
-    return [
-        "openmates",
-        "server",
         "restart",
-        "--rebuild",
-        "--services",
-        ",".join(CORE_SERVICES),
+        "--session",
+        session,
+        "--build",
     ]
+    for service in CORE_SERVICES:
+        command.extend(["--service", service])
+    return command
+
+
+def verify_product_runtime_commit(commit: str) -> None:
+    """Require coordinated Docker operations to use the attested dev commit."""
+    result = run_command(
+        ["git", "-C", str(PRODUCT_RUNTIME_CHECKOUT), "rev-parse", "HEAD"]
+    )
+    runtime_commit = result.stdout.strip()
+    if runtime_commit != commit:
+        raise PreparationError(
+            f"product runtime {runtime_commit[:9]} does not match release commit {commit[:9]}"
+        )
 
 
 def github_status_command(
@@ -231,13 +249,14 @@ def verify_cloud_overlay() -> None:
 def prepare_release_candidate(session: str, expected_commit: str = "") -> str:
     run_command(["git", "fetch", "origin", "dev"])
     commit = preflight_release_candidate(expected_commit)
-    lock_acquired = False
     try:
         publish_status(commit, "pending", "Preparing exact frontend and core dev services")
         wait_for_exact_vercel(commit)
-        run_command(lock_command(session, acquire=True))
-        lock_acquired = True
-        run_command(managed_prepare_command())
+        preflight_release_candidate(commit)
+        run_command(managed_setup_command(session))
+        run_command(managed_prepare_command(session))
+        verify_product_runtime_commit(commit)
+        preflight_release_candidate(commit)
         wait_for_health()
         verify_cloud_overlay()
         publish_status(commit, "success", "Exact frontend and core dev services are healthy")
@@ -248,9 +267,6 @@ def prepare_release_candidate(session: str, expected_commit: str = "") -> str:
         except Exception as status_exc:
             raise PreparationError(f"{exc}; failure status could not be published: {status_exc}") from exc
         raise
-    finally:
-        if lock_acquired:
-            run_command(lock_command(session, acquire=False), check=False)
 
 
 def main() -> int:
