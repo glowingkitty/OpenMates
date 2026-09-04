@@ -24,43 +24,43 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'minimized-state',
-			text: 'The minimized message field shows its grey AI affordance and microphone without expanded controls.',
+			text: 'The minimized composer shows only its AI affordance and microphone.',
 			checkpoint: 'minimized',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'expanded-state',
-			text: 'Focusing the message field expands the composer and reveals its action controls.',
+			text: 'Focusing expands the composer and reveals its controls.',
 			checkpoint: 'expanded',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'speech-toggle-off',
-			text: 'The speech control starts with a visible mute glyph and no square background.',
+			text: 'Speech starts muted on a transparent control.',
 			checkpoint: 'speech-toggle-off',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'speech-toggle-on',
-			text: 'Clicking the speech control immediately replaces the mute glyph with the audio glyph.',
+			text: 'Clicking speech displays the audio glyph.',
 			checkpoint: 'speech-toggle-on',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'hover-state',
-			text: 'Hovering the model selector adds only the intended gentle interaction shadow.',
+			text: 'Hovering adds a gentle selector shadow.',
 			checkpoint: 'model-selector-hovered',
 			devices: ['web-laptop']
 		},
 		{
 			id: 'model-menu-state',
-			text: 'Clicking the model selector opens the model selection menu inside the isolated component.',
+			text: 'The selector opens the model menu.',
 			checkpoint: 'model-menu-open',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'model-row-selection',
-			text: 'Clicking a model row selects that exact model while opening its details.',
+			text: 'Clicking a model row selects it while opening details.',
 			checkpoint: 'model-row-selected',
 			devices: ['web-laptop', 'web-phone']
 		}
