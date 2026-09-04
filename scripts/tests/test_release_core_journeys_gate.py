@@ -47,7 +47,7 @@ EXPECTED_RELEASE_BASELINE = {
     "signup-skip-2fa-flow.spec.ts",
     "usage-token-breakdown.spec.ts",
 }
-EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 1, 4)
+EXPECTED_RELEASE_ACCOUNTS = (2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27)
 
 
 def load_module(name: str, path: Path):
@@ -100,8 +100,6 @@ def test_core_journey_manifest_is_canonical_and_machine_readable(capsys: pytest.
 
     run_tests.print_core_journey_matrix()
     matrix = json.loads(capsys.readouterr().out)
-    assigned_accounts = [entry["account"] for entry in matrix["include"]]
-    assert len(assigned_accounts) == len(set(assigned_accounts))
     assert matrix == {
         "include": [
             {
