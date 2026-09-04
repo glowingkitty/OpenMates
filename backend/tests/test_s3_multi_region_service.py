@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from botocore.exceptions import ClientError
 
 from backend.tests.s3_service_test_support import load_s3_service_module
 
@@ -150,6 +151,23 @@ class ExistingBucketClient:
         self.acls.append((Bucket, ACL))
 
 
+class MissingRegionalBucketClient(ExistingBucketClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.created_buckets = []
+
+    def head_bucket(self, *, Bucket):
+        self.head_buckets.append(Bucket)
+        if Bucket not in self.created_buckets:
+            raise ClientError(
+                {"Error": {"Code": "NoSuchBucket", "Message": "missing"}},
+                "HeadBucket",
+            )
+
+    def create_bucket(self, *, Bucket):
+        self.created_buckets.append(Bucket)
+
+
 class ExternalUploadClient:
     def head_object(self, *, Bucket, Key):
         return {"Metadata": {"openmates-sha256": "a" * 64}}
@@ -228,6 +246,7 @@ async def test_existing_regional_buckets_receive_acl_lifecycle_and_cors(monkeypa
     }
     monkeypatch.setattr(service_module, "BUCKETS", {"chatfiles": bucket_config})
     monkeypatch.setattr(service_module, "CORS_ENABLED_BUCKETS", ["dev-openmates-chatfiles"])
+    monkeypatch.setattr(service_module, "BUCKET_CREATION_SETTLE_SECONDS", 0)
     lifecycle_calls = []
     cors_calls = []
     monkeypatch.setattr(
@@ -259,3 +278,84 @@ async def test_existing_regional_buckets_receive_acl_lifecycle_and_cors(monkeypa
         ["dev-openmates-chatfiles"],
         ["dev-openmates-chatfiles-fsn1"],
     ]
+
+
+# contract-test: direct surface=rest_api assertions=storage.regions.configurable-redundancy,storage.integrity.observable-reconcilable
+@pytest.mark.asyncio
+async def test_missing_managed_replica_is_created_once_and_exclusions_are_preserved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service_module = load_s3_service_module()
+    bucket_config = {
+        "name": "openmates-chatfiles",
+        "dev_name": "dev-openmates-chatfiles",
+        "access": "private",
+        "lifecycle_policy": 30,
+    }
+    excluded_config = {
+        "name": "openmates-buffer-media",
+        "dev_name": "dev-openmates-buffer-media",
+        "access": "private",
+        "lifecycle_policy": 2,
+    }
+    unmanaged_config = {
+        "name": "openmates-retired",
+        "dev_name": "dev-openmates-retired",
+        "access": "private",
+        "managed": False,
+    }
+    monkeypatch.setattr(
+        service_module,
+        "BUCKETS",
+        {
+            "chatfiles": bucket_config,
+            "buffer_media": excluded_config,
+            "retired": unmanaged_config,
+        },
+    )
+    monkeypatch.setattr(service_module, "CORS_ENABLED_BUCKETS", ["dev-openmates-chatfiles"])
+    monkeypatch.setattr(service_module, "apply_lifecycle_policies", lambda *_args: None)
+    monkeypatch.setattr(service_module, "apply_cors_settings", lambda *_args: None)
+    client = MissingRegionalBucketClient()
+    service = service_module.S3UploadService(FakeSecretsManager())
+    service.environment = "development"
+    service.region_clients = {"fsn1": client}
+
+    await service._reconcile_regional_bucket_policies()
+    await service._reconcile_regional_bucket_policies()
+
+    assert client.created_buckets == ["dev-openmates-chatfiles-fsn1"]
+    assert client.head_buckets == [
+        "dev-openmates-chatfiles-fsn1",
+        "dev-openmates-chatfiles-fsn1",
+    ]
+    assert client.acls == [
+        ("dev-openmates-chatfiles-fsn1", "private"),
+        ("dev-openmates-chatfiles-fsn1", "private"),
+    ]
+
+
+# contract-test: direct surface=rest_api assertions=storage.integrity.observable-reconcilable,storage-resilience.core.s3-is-noncritical
+@pytest.mark.asyncio
+async def test_active_region_failure_does_not_skip_replica_reconciliation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service_module = load_s3_service_module()
+    service = service_module.S3UploadService(FakeSecretsManager())
+    service.configured = True
+    service.client = object()
+    regional_calls = []
+
+    async def fail_active_region() -> None:
+        raise service_module.ReadTimeoutError(endpoint_url="https://storage.invalid")
+
+    async def reconcile_replicas() -> None:
+        regional_calls.append(True)
+
+    monkeypatch.setattr(service, "_initialize_buckets", fail_active_region)
+    monkeypatch.setattr(service, "_reconcile_regional_bucket_policies", reconcile_replicas)
+
+    with pytest.raises(RuntimeError, match="object_storage_reconciliation_failed"):
+        await service.reconcile_configuration()
+
+    assert regional_calls == [True]

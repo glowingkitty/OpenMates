@@ -118,7 +118,7 @@ def convert_messages_to_converse_format(
         if role == "tool":
             tool_call_id = msg.get("tool_call_id", "")
             tool_content = _convert_tool_result_content(content)
-            converse_messages.append({
+            tool_result_message = {
                 "role": "user",
                 "content": [{
                     "toolResult": {
@@ -126,7 +126,15 @@ def convert_messages_to_converse_format(
                         "content": tool_content,
                     }
                 }]
-            })
+            }
+            # Converse requires every result for an assistant's parallel tool
+            # calls in the immediately following user turn (including images).
+            if converse_messages and converse_messages[-1]["role"] == "user" and any(
+                "toolResult" in block for block in converse_messages[-1]["content"]
+            ):
+                converse_messages[-1]["content"].extend(tool_result_message["content"])
+            else:
+                converse_messages.append(tool_result_message)
             continue
 
         # Handle assistant messages with tool calls

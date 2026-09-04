@@ -542,6 +542,27 @@ export async function handlePhase1LastChatImpl(
     // Store in phasedSyncStateStore for immediate rendering
     phasedSyncState.setRecentChats(recentChatsDecrypted);
 
+    // Phase 1a may finish after a deep-linked chat has already rendered from a
+    // partial local shell. Reuse the normal metadata event for that one active
+    // chat so its header re-reads the authoritative record just stored in IDB.
+    // Do not broadcast updates for every recent chat: sidebar consumers already
+    // receive phasedSyncState, and doing so would create needless render churn.
+    const activeChatId = activeChatStore.get();
+    const activeSyncedChat = activeChatId
+      ? allPhase1Chats.find((chat) => chat.chat_id === activeChatId)
+      : undefined;
+    if (activeSyncedChat) {
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id: activeSyncedChat.chat_id,
+            type: "metadata_updated",
+            chat: activeSyncedChat,
+          },
+        }),
+      );
+    }
+
     // Populate resume card only when the last-opened chat survived validation.
     const lastChat = acceptedLastChatId
       ? recentChatsDecrypted.find(({ chat }) => chat.chat_id === acceptedLastChatId)
@@ -907,6 +928,8 @@ export function handleCacheStatusResponseImpl(
       serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY,
   });
 
+  serviceInstance.cacheStatusServerChatCount_FOR_HANDLERS_ONLY = payload.chat_count;
+
   if (payload.is_primed && !serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
     console.log(
       "[ChatSyncService:CoreSync] ✅ Cache is primed! Setting flag and attempting initial sync...",
@@ -931,6 +954,9 @@ export function handleCacheStatusResponseImpl(
     // Schedule a retry to poll for completion. The cache_primed push event should also
     // arrive when warming completes, but polling provides a reliable fallback in case
     // the push event is missed (e.g., brief WebSocket reconnection window).
+    if (payload.chat_count > 0) {
+      phasedSyncState.markSyncPending();
+    }
     console.warn(
       "[ChatSyncService:CoreSync] Cache not primed yet. Backend is re-warming. Scheduling status retry...",
     );
