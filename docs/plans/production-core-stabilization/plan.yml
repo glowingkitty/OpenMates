@@ -365,6 +365,7 @@ tasks:
       - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
       - frontend/packages/ui/src/services/assistantSpeechPreference.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
     verification_ids: [T-CHAT-SUMMARY-RACE, V-DEV-VOICE-CHAT]
     verification: [focused Vitest followed by deployed voice-chat Playwright]
     command: focused Vitest through the repository test runner
@@ -386,6 +387,7 @@ tasks:
       - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
       - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
       - frontend/packages/ui/src/components/__tests__/activeChatResumeEffect.test.ts
+      - frontend/apps/web_app/tests/chat-flow.spec.ts
     verification_ids: [T-CHAT-LATE-METADATA, V-DEV-COLD-CHAT]
     verification: [focused Vitest followed by deployed cold-chat Playwright]
     command: focused Vitest through the repository test runner
@@ -442,7 +444,7 @@ checks:
   - id: V-DEV-VOICE-CHAT
     type: deployed_playwright
     required: true
-    command: python3 scripts/tests.py run --spec assistant-response-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
+    command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
   - id: V-DEV-COLD-CHAT
     type: deployed_playwright
     required: true
@@ -471,7 +473,7 @@ verifications:
     required_for_done: true
     covers: [AC-4]
     status: pending
-    command: python3 scripts/tests.py run --spec assistant-response-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
+    command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
     evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
   - id: V-DEV-COLD-CHAT
     kind: automated_test

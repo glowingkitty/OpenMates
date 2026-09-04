@@ -1121,6 +1121,11 @@ test('logs in and sends a chat message', async ({ page }: { page: any }, testInf
 	// Wait for the chat messages to render (key derivation + sync after reload)
 	const userMsgAfterReload = page.getByTestId('message-user').first();
 	await expect(userMsgAfterReload).toBeVisible({ timeout: 30000 });
+	const reloadedHeaderTitle = page.getByTestId('chat-header-title');
+	await expect(reloadedHeaderTitle).toBeVisible({ timeout: 30000 });
+	await expect(reloadedHeaderTitle).not.toContainText(/untitled|creating new chat/i);
+	await expect(page.getByTestId('chat-header-icon')).toBeVisible({ timeout: 30000 });
+	await expect(page.getByTestId('chat-header-summary')).not.toHaveText('', { timeout: 30000 });
 
 	logChatCheckpoint('Verifying chat after tab reload...');
 	// Re-assert full decryption health

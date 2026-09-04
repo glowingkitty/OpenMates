@@ -256,9 +256,19 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		expect(speakBox!.x + speakBox!.width).toBeLessThanOrEqual(messageBox!.x + messageBox!.width);
 		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 		expect(chatId, 'voice-first chat should become durable after its first message').toBeTruthy();
+		const initialHeaderTitle = page.getByTestId('chat-header-title');
+		await expect(initialHeaderTitle).toBeVisible({ timeout: 30_000 });
+		await expect(initialHeaderTitle).not.toContainText(/untitled|creating new chat/i);
+		await expect(page.getByTestId('chat-header-icon')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('chat-header-summary')).not.toHaveText('', { timeout: 30_000 });
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
+		const reloadedHeaderTitle = page.getByTestId('chat-header-title');
+		await expect(reloadedHeaderTitle).toBeVisible({ timeout: 30_000 });
+		await expect(reloadedHeaderTitle).not.toContainText(/untitled|creating new chat/i);
+		await expect(page.getByTestId('chat-header-icon')).toBeVisible({ timeout: 30_000 });
+		await expect(page.getByTestId('chat-header-summary')).not.toHaveText('', { timeout: 30_000 });
 		const reloadedRecording = page.locator(`[data-message-id="${pendingMessageId}"]`).getByTestId('recording-preview');
 		await expect(reloadedRecording).toHaveAttribute('data-transcript', 'available');
 		await expect(reloadedRecording).toHaveAttribute('data-recording-title', TRANSCRIPTION_TITLE);
