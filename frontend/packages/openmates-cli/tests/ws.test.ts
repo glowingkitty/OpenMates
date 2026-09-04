@@ -1,3 +1,4 @@
+// contract-test-file: infrastructure
 /**
  * Unit tests for CLI WebSocket response collection.
  *
@@ -161,7 +162,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
                   title: "Book flights",
                   description: "Compare morning flights first.",
                   status: "todo",
-                  assignee_type: "ai",
+                  assignee_type: "openmates",
                 },
               ],
               task_update_proposals: [
@@ -217,7 +218,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           title: "Book flights",
           description: "Compare morning flights first.",
           status: "todo",
-          assignee_type: "ai",
+          assignee_type: "openmates",
         },
       ]);
       assert.deepEqual(response.taskUpdateProposals, [

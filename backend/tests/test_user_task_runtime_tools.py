@@ -29,7 +29,7 @@ async def test_skip_marks_backlog_skipped_and_starts_next_ai_task() -> None:
         "primary_chat_id": "chat-1",
         "version": 2,
     }
-    next_task = {"id": "row-2", "task_id": "task-2", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 1, "started_at": None, "hashed_user_id": "owner"}
+    next_task = {"id": "row-2", "task_id": "task-2", "primary_chat_id": "chat-1", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 1, "started_at": None, "hashed_user_id": "owner"}
     methods.list_tasks.return_value = [next_task]
     methods.update_task_if_version.return_value = {"task_id": "task-1", "status": "backlog", "queue_state": "skipped"}
     _configure_admission(methods, [next_task], {**next_task, "status": "in_progress", "queue_state": "active", "ai_execution_state": "queued"})
@@ -89,7 +89,7 @@ async def test_block_pauses_queue_with_safe_code_and_encrypted_reason() -> None:
 async def test_complete_starts_next_eligible_ai_task() -> None:
     methods = AsyncMock()
     methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 3}
-    next_task = {"id": "row-ai", "task_id": "task-ai", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 1, "hashed_user_id": "owner"}
+    next_task = {"id": "row-ai", "task_id": "task-ai", "primary_chat_id": "chat-1", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 1, "hashed_user_id": "owner"}
     methods.list_tasks.return_value = [next_task]
     methods.update_task_if_version.return_value = {"task_id": "task-1", "status": "done", "queue_state": "none"}
     _configure_admission(methods, [next_task], {**next_task, "status": "in_progress", "queue_state": "active"})
@@ -111,9 +111,9 @@ async def test_complete_uses_ordered_chat_queue_for_next_ai_task() -> None:
     methods = AsyncMock()
     methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 5}
     queued = [
-        {"id": "row-late", "task_id": "task-late", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 1, "position": 30, "created_at": 100, "hashed_user_id": "owner"},
-        {"id": "row-early", "task_id": "task-early", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 2, "position": 20, "created_at": 200, "hashed_user_id": "owner"},
-        {"id": "row-first", "task_id": "task-same-position", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 3, "position": 20, "created_at": 100, "hashed_user_id": "owner"},
+        {"id": "row-late", "task_id": "task-late", "primary_chat_id": "chat-1", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 1, "position": 30, "created_at": 100, "hashed_user_id": "owner"},
+        {"id": "row-early", "task_id": "task-early", "primary_chat_id": "chat-1", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 2, "position": 20, "created_at": 200, "hashed_user_id": "owner"},
+        {"id": "row-first", "task_id": "task-same-position", "primary_chat_id": "chat-1", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 3, "position": 20, "created_at": 100, "hashed_user_id": "owner"},
     ]
     methods.list_tasks.return_value = queued
     methods.update_task_if_version.return_value = {"task_id": "task-1", "status": "done", "queue_state": "none"}
@@ -146,7 +146,7 @@ async def test_complete_pauses_on_blocking_human_task_before_later_ai_task() -> 
             "position": 20,
             "created_at": 100,
         },
-        {"task_id": "task-ai", "assignee_type": "ai", "status": "todo", "version": 2, "position": 30, "created_at": 100},
+        {"task_id": "task-ai", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 2, "position": 30, "created_at": 100},
     ]
     methods.update_task_if_version.return_value = {"task_id": "task-1", "status": "done", "queue_state": "none"}
 
@@ -169,7 +169,7 @@ async def test_complete_waits_for_user_ordered_human_task_before_later_ai_task()
     methods.get_task.return_value = {"task_id": "task-1", "primary_chat_id": "chat-1", "version": 5}
     methods.list_tasks.return_value = [
         {"task_id": "task-human", "assignee_type": "user", "status": "todo", "queue_state": "none", "position": 20, "created_at": 100},
-        {"task_id": "task-ai", "assignee_type": "ai", "status": "todo", "version": 2, "position": 30, "created_at": 100},
+        {"task_id": "task-ai", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 2, "position": 30, "created_at": 100},
     ]
     methods.update_task_if_version.return_value = {"task_id": "task-1", "status": "done", "queue_state": "none"}
 

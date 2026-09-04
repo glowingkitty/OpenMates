@@ -1,3 +1,4 @@
+// contract-test-file: infrastructure
 /**
  * CLI TUI unit contracts.
  *
@@ -259,7 +260,8 @@ describe("CLI TUI renderer", () => {
         tags: [],
         latestInstruction: "",
         status: "in_progress",
-        assigneeType: "ai",
+        assigneeType: "openmates",
+        assigneeIdentity: "openmates",
         assigneeHash: null,
         primaryChatId: "chat-1",
         linkedProjectIds: [],

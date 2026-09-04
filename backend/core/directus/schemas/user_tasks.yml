@@ -31,12 +31,17 @@ user_tasks:
 
     assignee_type:
       type: string
-      note: "Task assignee kind: ai or user."
+      note: "Task assignee kind: user, openmates, external_ai, or unassigned."
+
+    assignee_identity:
+      type: string
+      nullable: true
+      note: "Allowlisted safe identity key for OpenMates or an external AI, such as openmates or opencode."
 
     assignee_hash:
       type: string
       nullable: true
-      note: "Hashed user id for user assignees; null or stable ai marker for AI assignee."
+      note: "Hashed user id for user assignees; null for OpenMates, external-AI, or unassigned work."
 
     primary_chat_id:
       type: uuid
@@ -344,7 +349,7 @@ user_task_activity:
 
     actor_type:
       type: string
-      note: "Actor kind: user, ai, or system."
+      note: "Actor kind: user, openmates, external_ai, or system."
 
     actor_hash:
       type: string
@@ -361,13 +366,28 @@ user_task_activity:
       nullable: true
       note: "Authorized profile-image proxy URL snapshot for Activity attribution."
 
+    actor_identity:
+      type: string
+      nullable: true
+      note: "Allowlisted safe identity key for OpenMates or external-AI attribution."
+
     event_type:
       type: string
-      note: "Safe event type, e.g. created, updated, started, blocked, completed."
+      note: "Safe event type: created, status, comment_added, or comment_deleted."
 
     source_surface:
       type: string
       note: "Authenticated client source: web, apple, cli, sdk_npm, sdk_pip, or system."
+
+    previous_status:
+      type: string
+      nullable: true
+      note: "Safe prior Task status for a system-generated status lifecycle entry."
+
+    next_status:
+      type: string
+      nullable: true
+      note: "Safe resulting Task status for a system-generated status lifecycle entry."
 
     created_at:
       type: integer
@@ -378,15 +398,10 @@ user_task_activity:
       nullable: true
       note: "[Client-encrypted durable storage] User-visible activity text."
 
-    encrypted_entry_key:
-      type: text
-      nullable: true
-      note: "[Client-encrypted durable storage] Per-entry key wrapped by the Task key."
-
     encrypted_embed_key_material:
       type: text
       nullable: true
-      note: "[Client-encrypted durable storage] Embed key material decryptable through the Task key boundary."
+      note: "[Client-encrypted durable storage] Embed key material encrypted directly with the Task key."
 
     embed_refs:
       type: json

@@ -415,7 +415,7 @@ postprocess_response_tool:
           - These are NOT saved by the backend. The client asks the user to review, encrypts accepted task content locally, then commits through /v1/user-tasks.
           - Keep plaintext concise because it is transient metadata delivered to the current client session.
           - Allowed status values: backlog, todo, in_progress, blocked, done.
-          - Allowed assignee_type values: user, ai.
+          - Allowed assignee_type values: user, openmates.
     parameters:
       type: "object"
       properties:

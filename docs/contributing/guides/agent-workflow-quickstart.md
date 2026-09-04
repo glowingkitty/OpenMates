@@ -25,6 +25,8 @@ before mutating work, use relative paths, and follow a rejected hook call's
 `sessions.py edit-lease` records. Raw Docker Compose mutations require the
 current session to hold the Docker lock.
 
+For non-trivial OpenCode work, use the injected `openmates_task` tool. It creates one atomic `external_ai/opencode` Task before the first product mutation; use `assignee=user` only for work the user must perform personally or in the physical world. Post `activity_add` comments for meaningful completed milestones, durable learnings or decisions, important blockers, and completion. Do not post commands, routine test runs, retries, heartbeats, or internal subagent chatter. Task creation and status changes already produce backend-owned lifecycle events.
+
 Deeper references:
 
 - `AGENTS.md`

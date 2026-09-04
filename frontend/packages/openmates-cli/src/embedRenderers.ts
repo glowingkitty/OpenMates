@@ -231,7 +231,7 @@ function formatTaskEmbedPreviewLines(c: Record<string, unknown>, fallbackShortId
   const taskId = str(c.short_id) ?? str(c.task_id) ?? fallbackShortId;
   const title = str(c.title) ?? str(c.name) ?? "Untitled task";
   const status = str(c.status) ?? "todo";
-  const assignee = str(c.assignee) ?? (str(c.assignee_type) === "ai" ? "openmates" : str(c.assignee_type) ?? "user");
+  const assignee = str(c.assignee) ?? str(c.assignee_identity) ?? str(c.assignee_type) ?? "user";
   return [
     `┌─ ✓ task · ${taskId} · ${trunc(title, 56)}`,
     `│  Status: ${status}`,

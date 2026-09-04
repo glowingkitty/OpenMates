@@ -2282,14 +2282,14 @@ export async function handlePostProcessingCompletedImpl(
       title: string;
       description?: string | null;
       status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
-      assignee_type?: "user" | "ai";
+      assignee_type?: "user" | "openmates";
     }>;
     task_update_proposals?: Array<{
       task_id: string;
       title?: string | null;
       description?: string | null;
       status?: "backlog" | "todo" | "in_progress" | "blocked" | "done" | null;
-      assignee_type?: "user" | "ai" | null;
+      assignee_type?: "user" | "openmates" | null;
     }>;
   },
 ): Promise<void> {

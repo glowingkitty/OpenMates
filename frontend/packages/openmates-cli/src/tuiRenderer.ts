@@ -11,7 +11,7 @@
 import type { ExampleChatConversation, ExampleChatListItem } from "./exampleChats.js";
 import type { WorkflowDetail, WorkflowNode, WorkflowNodeRun, WorkflowRunDetail, WorkflowSummary } from "./client.js";
 import { openMatesAsciiLogo } from "./branding.js";
-import type { DecryptedUserTask } from "./tasksCli.js";
+import { taskIdentityDisplayName, type DecryptedUserTask } from "./tasksCli.js";
 
 export type TuiScreen = "start" | "help" | "interests" | "examples" | "example" | "chat" | "embed" | "workflows" | "workflow" | "tasks" | "task" | "status";
 
@@ -260,7 +260,7 @@ function renderTasks(state: TuiState, width: number): string[] {
     const absoluteIndex = start + i;
     const task = state.tasks[absoluteIndex];
     const cursor = absoluteIndex === state.selectedIndex ? ">" : " ";
-    const assignee = task.assigneeType === "ai" ? "OpenMates" : (task.assigneeHash ?? "user");
+    const assignee = taskIdentityDisplayName(task.assigneeIdentity) ?? (task.assigneeHash ?? task.assigneeType);
     lines.push(`${cursor} ${task.shortId}  ${task.status}  ${assignee}  ${task.title}`);
     if (task.queueState !== "none") lines.push(`    queue: ${task.queueState}`);
     if (task.description) lines.push(`    ${task.description}`);
@@ -272,7 +272,7 @@ function renderTasks(state: TuiState, width: number): string[] {
 function renderTaskDetail(state: TuiState, width: number): string[] {
   const task = state.activeTask;
   if (!task) return renderTasks(state, width);
-  const assignee = task.assigneeType === "ai" ? "OpenMates" : (task.assigneeHash ?? "user");
+  const assignee = taskIdentityDisplayName(task.assigneeIdentity) ?? (task.assigneeHash ?? task.assigneeType);
   const lines = [
     `Task: ${task.shortId}`,
     `Title: ${task.title}`,

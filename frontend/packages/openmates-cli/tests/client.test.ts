@@ -383,6 +383,30 @@ describe("OpenMatesClient session API URL", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity
+  it("reports gateway restarts as temporary instead of invalidating login", async () => {
+    const server = createServer((_request: IncomingMessage, response: ServerResponse) => {
+      response.writeHead(502, { "content-type": "application/json" });
+      response.end(JSON.stringify({ message: "invalid session" }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      await assert.rejects(
+        client.whoAmI(),
+        /temporarily unavailable \(HTTP 502\).*retry shortly/i,
+      );
+      assert.ok(loadStoredSession(), "transient gateway failure must preserve the login session");
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("purges local private data when session refresh is explicitly invalid", async () => {
     const emptyCache = {

@@ -11,7 +11,6 @@ import {
   encryptChatKeyWithMasterKey,
   encryptWithEmbedKey,
   generateEmbedKey,
-  unwrapEmbedKeyWithChatKey,
   wrapEmbedKeyWithChatKey,
 } from "./cryptoService";
 import { getMasterKey } from "./cryptoKeyStorage";
@@ -19,7 +18,14 @@ import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
-export type UserTaskAssigneeType = "ai" | "user";
+export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
+export type UserTaskAssigneeIdentity = "openmates" | "opencode";
+
+export function taskAssigneeDisplayName(identity: UserTaskAssigneeIdentity | null | undefined): string | null {
+  if (identity === "openmates") return "OpenMates";
+  if (identity === "opencode") return "OpenCode";
+  return null;
+}
 export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan";
 export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
 export type ExternalChatProvider = "opencode";
@@ -45,7 +51,7 @@ export interface UserTaskProposal {
   title: string;
   description?: string | null;
   status?: UserTaskStatus;
-  assignee_type?: UserTaskAssigneeType;
+  assignee_type?: "user" | "openmates";
 }
 
 export interface UserTaskUpdateProposal {
@@ -53,7 +59,7 @@ export interface UserTaskUpdateProposal {
   title?: string | null;
   description?: string | null;
   status?: UserTaskStatus | null;
-  assignee_type?: UserTaskAssigneeType | null;
+  assignee_type?: "user" | "openmates" | null;
 }
 
 export interface EncryptedUserTaskRecord {
@@ -67,6 +73,7 @@ export interface EncryptedUserTaskRecord {
   encrypted_latest_instruction?: string | null;
   status: UserTaskStatus;
   assignee_type: UserTaskAssigneeType;
+  assignee_identity?: UserTaskAssigneeIdentity | null;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
   external_chat_provider?: ExternalChatProvider | null;
@@ -122,6 +129,7 @@ export interface UserTaskViewModel {
   latestInstruction: string;
   status: UserTaskStatus;
   assigneeType: UserTaskAssigneeType;
+  assigneeIdentity: UserTaskAssigneeIdentity | null;
   primaryChatId: string | null;
   externalChat: ExternalChatContext | null;
   linkedProjectIds: string[];
@@ -154,18 +162,20 @@ export interface UserTaskActivityRecord {
   entry_id: string;
   task_id: string;
   kind: UserTaskActivityKind;
-  actor_type: "user" | "ai" | "system";
+  actor_type: "user" | "openmates" | "external_ai" | "system";
+  actor_identity?: UserTaskAssigneeIdentity | null;
   actor_hash?: string | null;
   actor_display_name?: string | null;
   actor_profile_image_url?: string | null;
   author_hash?: string | null;
   event_type: string;
   source_surface: UserTaskActivitySourceSurface;
+  previous_status?: UserTaskStatus | null;
+  next_status?: UserTaskStatus | null;
   created_at: number;
   deleted_at?: number | null;
   deleted_by_hash?: string | null;
   deleted_by_display_name?: string | null;
-  encrypted_entry_key?: string | null;
   encrypted_message?: string | null;
   encrypted_embed_key_material?: string | null;
   embed_refs: string[];
@@ -175,13 +185,16 @@ export interface UserTaskActivityEntry {
   entryId: string;
   taskId: string;
   kind: UserTaskActivityKind;
-  actorType: "user" | "ai" | "system";
+  actorType: "user" | "openmates" | "external_ai" | "system";
+  actorIdentity: UserTaskAssigneeIdentity | null;
   actorHash: string | null;
   actorDisplayName: string | null;
   actorProfileImageUrl: string | null;
   authorHash: string | null;
   eventType: string;
   sourceSurface: UserTaskActivitySourceSurface;
+  previousStatus: UserTaskStatus | null;
+  nextStatus: UserTaskStatus | null;
   createdAt: number;
   deletedAt: number | null;
   deletedByHash: string | null;
@@ -218,6 +231,7 @@ export interface WorkflowRunTaskProjectionViewModel {
   latestInstruction: string;
   status: UserTaskStatus;
   assigneeType: UserTaskAssigneeType;
+  assigneeIdentity: UserTaskAssigneeIdentity | null;
   primaryChatId: null;
   linkedProjectIds: string[];
   dueAt: number | null;
@@ -237,6 +251,7 @@ export interface CreateUserTaskInput {
   tags?: string[];
   status?: UserTaskStatus;
   assigneeType?: UserTaskAssigneeType;
+  assigneeIdentity?: UserTaskAssigneeIdentity | null;
   assigneeHash?: string | null;
   primaryChatId?: string | null;
   externalChat?: ExternalChatContext;
@@ -367,6 +382,7 @@ async function decryptTask(record: EncryptedUserTaskRecord): Promise<UserTaskVie
     tags,
     status: record.status,
     assigneeType: record.assignee_type,
+    assigneeIdentity: record.assignee_identity ?? null,
     primaryChatId: record.primary_chat_id ?? null,
     externalChat: record.external_chat_provider && record.encrypted_external_chat_id ? {
       provider: record.external_chat_provider,
@@ -405,7 +421,8 @@ function workflowRunTaskProjection(record: WorkflowRunTaskProjectionRecord): Wor
     tags: [],
     latestInstruction: "",
     status: record.status,
-    assigneeType: "ai",
+    assigneeType: "user",
+    assigneeIdentity: null,
     primaryChatId: null,
     linkedProjectIds: [],
     dueAt: record.due_at ?? null,
@@ -490,12 +507,15 @@ async function decryptTaskActivityEntry(task: UserTaskViewModel, record: UserTas
     taskId: record.task_id,
     kind: record.kind,
     actorType: record.actor_type,
+    actorIdentity: record.actor_identity ?? null,
     actorHash: record.actor_hash ?? null,
     actorDisplayName: record.actor_display_name ?? null,
     actorProfileImageUrl: record.actor_profile_image_url ?? null,
     authorHash: record.author_hash ?? record.actor_hash ?? null,
     eventType: record.event_type,
     sourceSurface: record.source_surface,
+    previousStatus: record.previous_status ?? null,
+    nextStatus: record.next_status ?? null,
     createdAt: record.created_at,
     deletedAt: record.deleted_at ?? null,
     deletedByHash: record.deleted_by_hash ?? null,
@@ -503,16 +523,14 @@ async function decryptTaskActivityEntry(task: UserTaskViewModel, record: UserTas
     embedRefs: record.kind === "tombstone" ? [] : record.embed_refs,
   };
   if (record.kind === "tombstone" || record.kind !== "comment") return entry;
-  if (!record.encrypted_entry_key || !record.encrypted_message) {
+  if (!record.encrypted_message) {
     throw new Error(`Task Activity entry ${record.entry_id} is missing encrypted content`);
   }
   const taskKey = await taskKeyForActivity(task);
-  const entryKey = await unwrapEmbedKeyWithChatKey(record.encrypted_entry_key, taskKey);
-  if (!entryKey) throw new Error(`Could not decrypt Task Activity entry key ${record.entry_id}`);
-  const message = await decryptWithEmbedKey(record.encrypted_message, entryKey);
+  const message = await decryptWithEmbedKey(record.encrypted_message, taskKey, { associatedData: `task_activity_comment:${task.task_id}:${record.entry_id}:v1` });
   if (message === null) throw new Error(`Could not decrypt Task Activity entry ${record.entry_id}`);
   const embedKeyMaterial = record.encrypted_embed_key_material
-    ? await decryptWithEmbedKey(record.encrypted_embed_key_material, taskKey)
+    ? await decryptWithEmbedKey(record.encrypted_embed_key_material, taskKey, { associatedData: `task_activity_embed_keys:${task.task_id}:${record.entry_id}:v1` })
     : null;
   if (record.encrypted_embed_key_material && embedKeyMaterial === null) {
     throw new Error(`Could not decrypt Task Activity embed keys ${record.entry_id}`);
@@ -533,12 +551,11 @@ export async function listUserTaskActivity(task: UserTaskViewModel, teamId?: str
 
 export async function createUserTaskActivity(task: UserTaskViewModel, input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {
   const taskKey = await taskKeyForActivity(task);
-  const entryKey = generateEmbedKey();
+  const entryId = input.entryId ?? crypto.randomUUID();
   const body = {
-    entry_id: input.entryId ?? crypto.randomUUID(),
-    encrypted_entry_key: await wrapEmbedKeyWithChatKey(entryKey, taskKey),
-    encrypted_message: await encryptWithEmbedKey(input.message, entryKey),
-    ...(input.embedKeyMaterial ? { encrypted_embed_key_material: await encryptWithEmbedKey(input.embedKeyMaterial, taskKey) } : {}),
+    entry_id: entryId,
+    encrypted_message: await encryptWithEmbedKey(input.message, taskKey, `task_activity_comment:${task.task_id}:${entryId}:v1`),
+    ...(input.embedKeyMaterial ? { encrypted_embed_key_material: await encryptWithEmbedKey(input.embedKeyMaterial, taskKey, `task_activity_embed_keys:${task.task_id}:${entryId}:v1`) } : {}),
     embed_refs: input.embedRefs ?? [],
     created_at: input.createdAt ?? nowSeconds(),
   };
@@ -588,8 +605,9 @@ export async function createUserTask(input: CreateUserTaskInput): Promise<UserTa
     encrypted_description: await encryptWithEmbedKey(input.description ?? "", taskKey),
     encrypted_tags: await encryptWithEmbedKey(JSON.stringify(input.tags ?? []), taskKey),
     encrypted_linked_project_ids: await encryptWithEmbedKey(JSON.stringify(linkedProjectIds), taskKey),
-    status: input.status ?? (input.assigneeType === "ai" && !input.dueAt ? "in_progress" : "todo"),
+    status: input.status ?? (input.assigneeType === "openmates" && !input.dueAt ? "in_progress" : "todo"),
     assignee_type: input.assigneeType ?? "user",
+    assignee_identity: input.assigneeIdentity ?? (input.assigneeType === "openmates" ? "openmates" : null),
     assignee_hash: input.assigneeHash ?? null,
     primary_chat_id: primaryChatId,
     ...(input.externalChat ? {
@@ -676,7 +694,10 @@ export async function updateUserTask(task: UserTaskViewModel, patch: Partial<Cre
   if (patch.tags !== undefined) body.encrypted_tags = await encryptWithEmbedKey(JSON.stringify(patch.tags), taskKey);
   if (patch.linkedProjectIds !== undefined) body.encrypted_linked_project_ids = await encryptWithEmbedKey(JSON.stringify(patch.linkedProjectIds), taskKey);
   if (patch.status !== undefined) body.status = patch.status;
-  if (patch.assigneeType !== undefined) body.assignee_type = patch.assigneeType;
+  if (patch.assigneeType !== undefined) {
+    body.assignee_type = patch.assigneeType;
+    body.assignee_identity = patch.assigneeIdentity ?? (patch.assigneeType === "openmates" ? "openmates" : null);
+  }
   if (patch.assigneeHash !== undefined) body.assignee_hash = patch.assigneeHash;
   if (patch.primaryChatId !== undefined) {
     body.primary_chat_id = patch.primaryChatId;

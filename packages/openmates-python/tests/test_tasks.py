@@ -52,7 +52,7 @@ def test_pip_sdk_manages_decrypted_task_activity(monkeypatch):
 
     def fake_delete(url, *, json, headers, timeout):
         assert "/activity/" in url
-        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_entry_key": None, "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
+        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)

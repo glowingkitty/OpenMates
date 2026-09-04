@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 # backend/tests/test_postprocessor.py
 #
 # Unit tests for postprocessor pure functions: skill extraction from app
@@ -211,7 +212,7 @@ class TestTaskProposalSanitization:
                     "title": "  Draft launch checklist  ",
                     "description": "  Include docs and owner review  ",
                     "status": "blocked",
-                    "assignee_type": "ai",
+                    "assignee_type": "openmates", "assignee_identity": "openmates",
                 },
                 {"title": "Second task", "status": "not-a-status", "assignee_type": "unknown"},
                 {"title": "Third task"},
@@ -227,7 +228,7 @@ class TestTaskProposalSanitization:
         ]
         assert result[0].description == "Include docs and owner review"
         assert result[0].status == "blocked"
-        assert result[0].assignee_type == "ai"
+        assert result[0].assignee_type == "openmates"
         assert result[1].status == "todo"
         assert result[1].assignee_type == "user"
 

@@ -77,8 +77,15 @@ class UserTaskService:
         payload: dict[str, Any],
         **options: Any,
     ) -> dict[str, Any]:
-        if not await self.task_methods.get_task(task_id, user_id, options.get("team_id")):
+        task = await self.task_methods.get_task(task_id, user_id, options.get("team_id"))
+        if not task:
             raise UserTaskNotFoundError("Task not found")
+        actor_mode = options.pop("actor_mode", "user")
+        if actor_mode == "assignee":
+            if task.get("assignee_type") != "external_ai" or task.get("assignee_identity") != "opencode":
+                raise PermissionError("Task does not have an external-AI assignee")
+            payload = {**payload, "actor_identity": "opencode"}
+            options.update(actor_type="external_ai", actor_hash=None, actor_display_name=None, actor_profile_image_url=None)
         try:
             created = await self.task_methods.create_task_activity(user_id, task_id, payload, **options)
         except ValueError as exc:
@@ -110,14 +117,14 @@ class UserTaskService:
         transient = {key: payload.pop(key) for key in TRANSIENT_AI_FIELDS if key in payload}
         payload.setdefault("status", "todo")
         payload.setdefault("assignee_type", "user")
-        if payload.get("assignee_type") == "ai":
+        if payload.get("assignee_type") == "openmates":
             payload["status"] = "todo"
             payload.setdefault("queue_state", "waiting")
             payload.setdefault("ai_execution_state", "waiting_for_capacity")
         created = await self.task_methods.create_task(user_id, payload)
         if not created:
             raise ValueError("Failed to create task")
-        if payload.get("assignee_type") == "ai" and transient:
+        if payload.get("assignee_type") == "openmates" and transient:
             now = int(payload.get("updated_at") or payload.get("created_at") or time.time())
             due_at = payload.get("due_at")
             start_patch = {
@@ -199,7 +206,8 @@ class UserTaskService:
         update.update(
             {
                 "status": "todo",
-                "assignee_type": "ai",
+                "assignee_type": "openmates",
+                "assignee_identity": "openmates",
                 "queue_state": "staging" if requires_staging else "waiting",
                 "ai_execution_state": "preparing_execution_context" if requires_staging else "waiting_for_capacity",
                 "updated_at": now,
@@ -234,7 +242,8 @@ class UserTaskService:
                     user_id,
                     {
                         "status": "todo",
-                        "assignee_type": "ai",
+                        "assignee_type": "openmates",
+                        "assignee_identity": "openmates",
                         "queue_state": "waiting",
                         "ai_execution_state": "waiting_for_capacity",
                         "updated_at": now,

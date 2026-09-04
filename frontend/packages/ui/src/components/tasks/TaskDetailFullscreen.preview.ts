@@ -17,7 +17,8 @@ const task = {
   tags: ['software', 'marketing'],
   latestInstruction: '',
   status: 'blocked',
-  assigneeType: 'ai',
+  assigneeType: 'external_ai',
+  assigneeIdentity: 'opencode',
   primaryChatId: null,
   externalChat: { provider: 'opencode', id: 'ses_preview_task_bridge', title: 'OpenCode task bridge' },
   linkedProjectIds: ['preview-project'],
@@ -35,7 +36,8 @@ const task = {
     task_id: 'preview-task-detail',
     encrypted_title: 'preview-ciphertext',
     status: 'blocked',
-    assignee_type: 'ai',
+    assignee_type: 'external_ai',
+    assignee_identity: 'opencode',
     primary_chat_id: null,
     external_chat_provider: 'opencode',
     external_chat_lookup_hash: 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
@@ -68,8 +70,8 @@ const related = {
 };
 
 const activityEntries: UserTaskActivityEntry[] = [{
-  entryId: 'preview-activity', taskId: task.task_id, kind: 'lifecycle_update', actorType: 'ai', actorHash: null,
-  actorDisplayName: null, actorProfileImageUrl: null, authorHash: null, eventType: 'task_blocked', sourceSurface: 'system',
+  entryId: 'preview-activity', taskId: task.task_id, kind: 'lifecycle_update', actorType: 'system', actorHash: null, actorIdentity: null,
+  actorDisplayName: null, actorProfileImageUrl: null, authorHash: null, eventType: 'status', previousStatus: 'in_progress', nextStatus: 'blocked', sourceSurface: 'system',
   createdAt: createdAt + 60, deletedAt: null, deletedByHash: null, deletedByDisplayName: null, embedRefs: [],
 }];
 

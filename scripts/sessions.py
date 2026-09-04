@@ -172,6 +172,7 @@ OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
 OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
 OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
 OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
+OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS = (2, 4, 8, 12, 16)
 OPENMATES_TASK_OPEN_STATUSES = {"backlog", "todo", "in_progress", "blocked"}
 OPENMATES_TASK_WAIT_QUEUE_STATES = {"waiting", "waiting_for_user", "blocked"}
 OPENMATES_TASK_STOP_EXECUTION_STATES = {"failed", "aborted", "stopped", "waiting_for_user"}
@@ -10628,6 +10629,41 @@ def _openmates_task_opencode_session_id(data: dict, session_reference: str) -> s
     return session_reference if OPENCODE_SESSION_ID_RE.fullmatch(session_reference) else ""
 
 
+def _openmates_task_cli_failure_message(result: subprocess.CompletedProcess) -> str:
+    """Extract one bounded, terminal-safe error message from CLI output."""
+    for candidate in (result.stdout, result.stderr):
+        if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+            continue
+        try:
+            failure_payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            failure_payload = None
+        if isinstance(failure_payload, dict):
+            failure = failure_payload.get("error")
+            if isinstance(failure, dict) and isinstance(failure.get("message"), str):
+                return re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
+    return ""
+
+
+def _openmates_task_cli_failure_is_transient(result: subprocess.CompletedProcess, message: str) -> bool:
+    """Recognize API restart failures without retrying caller or authentication errors."""
+    combined = " ".join((message, result.stdout or "", result.stderr or "")).lower()
+    transient_signatures = (
+        "http 502",
+        "http 503",
+        "http 504",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+        "econnrefused",
+        "connection refused",
+        "connection reset",
+        "socket hang up",
+        "fetch failed",
+    )
+    return any(signature in combined for signature in transient_signatures)
+
+
 def _run_openmates_task_cli(arguments: list[str]) -> dict:
     """Execute one trusted personal-profile Task CLI command and parse bounded JSON."""
     if not arguments or arguments[0] != "tasks":
@@ -10639,39 +10675,41 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
         "OPENMATES_API_URL": OPENMATES_TASK_BRIDGE_API_URL,
         "OPENMATES_STATE_DIR": "",
     })
-    try:
-        result = subprocess.run(
-            ["openmates", *arguments],
-            cwd=str(CONTROL_PLANE_ROOT),
-            env=environment,
-            text=True,
-            capture_output=True,
-            timeout=OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
-    if result.returncode != 0:
-        failure_message = ""
-        for candidate in (result.stdout, result.stderr):
-            if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
-                continue
-            try:
-                failure_payload = json.loads(candidate)
-            except json.JSONDecodeError:
-                failure_payload = None
-            if isinstance(failure_payload, dict):
-                failure = failure_payload.get("error")
-                if isinstance(failure, dict) and isinstance(failure.get("message"), str):
-                    failure_message = re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
-                    break
+    attempt_count = len(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS) + 1
+    for attempt in range(attempt_count):
+        try:
+            result = subprocess.run(
+                ["openmates", *arguments],
+                cwd=str(CONTROL_PLANE_ROOT),
+                env=environment,
+                text=True,
+                capture_output=True,
+                timeout=OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
+        failure_message = _openmates_task_cli_failure_message(result)
+        if result.returncode == 0:
+            break
+        if (
+            attempt < len(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS)
+            and _openmates_task_cli_failure_is_transient(result, failure_message)
+        ):
+            time.sleep(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS[attempt])
+            continue
         if "Passkey verification required" in failure_message:
             raise RuntimeError(
                 f"OpenMates Task authentication required: {failure_message} "
                 "Do not retry Task operations until `openmates login` completes."
             )
         if failure_message:
-            raise RuntimeError(f"OpenMates Task CLI failed: {failure_message[:500]}")
+            suffix = (
+                f" after {attempt_count} attempts"
+                if _openmates_task_cli_failure_is_transient(result, failure_message)
+                else ""
+            )
+            raise RuntimeError(f"OpenMates Task CLI failed{suffix}: {failure_message[:500]}")
         raise RuntimeError(f"OpenMates Task CLI failed with exit status {result.returncode}")
     if len(result.stdout.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
         raise RuntimeError("OpenMates Task CLI returned an oversized JSON response")
@@ -10735,7 +10773,10 @@ def _openmates_task_is_waiting(record: dict) -> bool:
 def _classify_openmates_task_snapshot(records: list[dict]) -> dict:
     """Return one deterministic fail-closed scheduling decision."""
     ordered = sorted(records, key=_openmates_task_order)
-    ai_tasks = [record for record in ordered if record.get("assignee_type") == "ai"]
+    ai_tasks = [
+        record for record in ordered
+        if record.get("assignee_type") == "external_ai" and record.get("assignee_identity") == "opencode"
+    ]
     active = [record for record in ai_tasks if record.get("status") == "in_progress"]
     if len(active) > 1:
         raise RuntimeError("OpenMates Task bridge found multiple active Tasks")
@@ -10780,7 +10821,7 @@ def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str
             key: active.get(key)
             for key in (
                 "task_id", "short_id", "title", "description", "latest_instruction",
-                "status", "assignee_type", "queue_state", "blocked_reason_code",
+                "status", "assignee_type", "assignee_identity", "queue_state", "blocked_reason_code",
                 "blocked_reason", "ai_execution_state", "priority", "version",
             )
         }
@@ -10819,7 +10860,7 @@ def _openmates_task_tool(
     if not isinstance(input_payload, dict):
         raise RuntimeError("Task tool input must be a JSON object")
     action = input_payload.get("action")
-    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done"}
+    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done", "activity_add"}
     if action not in allowed_actions:
         raise RuntimeError(f"unsupported Task tool action: {action}")
 
@@ -10849,24 +10890,27 @@ def _openmates_task_tool(
         description = text_field("description")
         if description:
             command.extend(["--description", description])
-        # The Task API currently accepts external-context AI assignment as an
-        # update but rejects it on create. Keep both allowlisted operations
-        # explicit and return only the final AI-owned record.
-        command.extend(["--assign", "user", *scope, "--json"])
-        created = cli_runner(command).get("task")
-        if not isinstance(created, dict) or not created.get("task_id"):
-            raise RuntimeError("Task create returned an invalid record")
-        assignment = ["tasks", "edit", str(created["task_id"]), "--assign", "ai"]
+        assignee = input_payload.get("assignee", "external_ai")
+        if assignee not in {"external_ai", "user"}:
+            raise RuntimeError("Task tool assignee must be external_ai or user")
+        command.extend(["--assign", "external-ai" if assignee == "external_ai" else "user"])
         status = input_payload.get("status")
         if status is not None:
             if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
                 raise RuntimeError("Task tool received an invalid status")
-            assignment.extend(["--status", str(status)])
-        return cli_runner([*assignment, *scope, "--json"])
+            command.extend(["--status", str(status)])
+        command.extend([*scope, "--json"])
+        return cli_runner(command)
 
     task_id = text_field("task_id", required=True, maximum=200)
     if action == "show":
         return cli_runner(["tasks", "show", task_id, *scope, "--json"])
+    if action == "activity_add":
+        message = text_field("message", required=True, maximum=10000)
+        return cli_runner([
+            "tasks", "activity", "add", task_id, "--message", message,
+            "--as-assignee", *scope, "--json",
+        ])
     if action == "start":
         # The generic status mutation is supported for AI-owned external-chat
         # Tasks, while the specialized CLI `start` transition can reject that

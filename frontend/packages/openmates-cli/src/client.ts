@@ -699,7 +699,8 @@ export interface WorkflowNodeRun {
 }
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
-export type UserTaskAssigneeType = "ai" | "user";
+export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
+export type UserTaskAssigneeIdentity = "openmates" | "opencode";
 
 export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
@@ -842,6 +843,7 @@ export interface UserTaskRecord {
   encrypted_latest_instruction?: string | null;
   status: UserTaskStatus;
   assignee_type: UserTaskAssigneeType;
+  assignee_identity?: UserTaskAssigneeIdentity | null;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
   external_chat_provider?: "opencode" | null;
@@ -876,16 +878,18 @@ export interface UserTaskActivityRecord {
   kind: "comment" | "lifecycle_update" | "tombstone";
   actor_type: string;
   actor_hash: string;
+  actor_identity?: UserTaskAssigneeIdentity | null;
   actor_display_name?: string | null;
   actor_profile_image_url?: string | null;
   author_hash?: string | null;
   event_type: string;
   source_surface: string;
+  previous_status?: UserTaskStatus | null;
+  next_status?: UserTaskStatus | null;
   created_at: number;
   deleted_at?: number | null;
   deleted_by_hash?: string | null;
   deleted_by_display_name?: string | null;
-  encrypted_entry_key: string | null;
   encrypted_message: string | null;
   encrypted_embed_key_material: string | null;
   embed_refs: string[];
@@ -893,7 +897,6 @@ export interface UserTaskActivityRecord {
 
 export interface UserTaskActivityCreateInput {
   entry_id: string;
-  encrypted_entry_key: string;
   encrypted_message: string;
   encrypted_embed_key_material?: string | null;
   embed_refs?: string[];
@@ -916,7 +919,7 @@ export interface UserTaskProposalRecord {
   title: string;
   description?: string | null;
   status?: UserTaskStatus;
-  assignee_type?: UserTaskAssigneeType;
+  assignee_type?: "user" | "openmates";
 }
 
 export type UserTaskCreateInput = Omit<UserTaskRecord, "version" | "started_at" | "completed_at" | "blocked_reason_code" | "ai_execution_state"> & {
@@ -4337,6 +4340,11 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.success) {
+      if (response.status === 502 || response.status === 503 || response.status === 504) {
+        throw new Error(
+          `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`,
+        );
+      }
       throw new Error(
         `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`openmates login\`.`,
       );
@@ -9628,14 +9636,21 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async createUserTaskActivity(taskId: string, input: UserTaskActivityCreateInput, context: TeamContextOptions = {}): Promise<UserTaskActivityRecord> {
+  async createUserTaskActivity(
+    taskId: string,
+    input: UserTaskActivityCreateInput,
+    context: TeamContextOptions & { actorMode?: "user" | "assignee" } = {},
+  ): Promise<UserTaskActivityRecord> {
     this.requireSession();
     const teamId = this.resolveTeamContext(context);
     const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
     const response = await this.http.post<{ entry?: UserTaskActivityRecord }>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query}`,
       input,
-      this.getCliRequestHeaders(),
+      {
+        ...this.getCliRequestHeaders(),
+        ...(context.actorMode ? { "X-OpenMates-Task-Actor": context.actorMode } : {}),
+      },
     );
     if (!response.ok || !response.data.entry) {
       throw new Error(`User task activity create failed with HTTP ${response.status}`);

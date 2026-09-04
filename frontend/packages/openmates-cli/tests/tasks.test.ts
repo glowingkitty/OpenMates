@@ -110,7 +110,7 @@ describe("OpenMatesClient user tasks", () => {
       createdAt: 100,
     });
     assert.doesNotMatch(JSON.stringify(activityInput), /First line|Second line/);
-    assert.ok(activityInput.encrypted_entry_key);
+    assert.equal("encrypted_entry_key" in activityInput, false);
     assert.ok(activityInput.encrypted_message);
 
     const stored: UserTaskActivityRecord = {
@@ -124,6 +124,10 @@ describe("OpenMatesClient user tasks", () => {
     };
     const decrypted = await decryptTaskActivityEntry(task, masterKey, stored);
     assert.equal(decrypted.message, "First line\nSecond line");
+    await assert.rejects(
+      decryptTaskActivityEntry(task, masterKey, { ...stored, entry_id: "activity-moved" }),
+      /Failed to decrypt Task Activity entry/,
+    );
 
     const tombstone: UserTaskActivityRecord = {
       entry_id: "activity-1",
@@ -137,7 +141,6 @@ describe("OpenMatesClient user tasks", () => {
       created_at: 100,
       deleted_at: 101,
       deleted_by_hash: "deleter-hash",
-      encrypted_entry_key: null,
       encrypted_message: null,
       encrypted_embed_key_material: null,
       embed_refs: [],
@@ -164,6 +167,18 @@ describe("OpenMatesClient user tasks", () => {
         assert.deepEqual(seen[1]?.body, activityInput);
       },
     );
+  });
+
+  // contract-test: direct surface=cli assertions=tasks.assignment.identity-separated,tasks.surface.semantic-parity
+  it("separates assignment type from allowlisted identity", async () => {
+    const masterKey = Buffer.alloc(32, 3);
+    const external = await buildCreateUserTaskInput(masterKey, { title: "External work", assign: "external-ai" });
+    const native = await buildCreateUserTaskInput(masterKey, { title: "Native work", assign: "openmates" });
+    const human = await buildCreateUserTaskInput(masterKey, { title: "Human work", assign: "user" });
+
+    assert.deepEqual([external.assignee_type, external.assignee_identity], ["external_ai", "opencode"]);
+    assert.deepEqual([native.assignee_type, native.assignee_identity], ["openmates", "openmates"]);
+    assert.deepEqual([human.assignee_type, human.assignee_identity], ["user", null]);
   });
 
   // contract-test: direct surface=cli assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.surface.semantic-parity

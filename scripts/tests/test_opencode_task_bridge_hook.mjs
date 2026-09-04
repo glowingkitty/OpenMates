@@ -49,6 +49,10 @@ test("empty chats instruct the model to create tracking for implicit non-trivial
   assert.match(text, /non-trivial multi-step/i);
   assert.match(text, /create.*openmates_task/i);
   assert.match(text, /before the first product mutation/i);
+  assert.match(text, /external_ai\/opencode/i);
+  assert.match(text, /activity_add/i);
+  assert.match(text, /meaningful milestone/i);
+  assert.match(text, /do not post commands.*routine tests.*retries/i);
   assert.match(text, /simple informational.*do not create/i);
 });
 

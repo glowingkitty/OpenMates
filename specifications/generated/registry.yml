@@ -395,10 +395,10 @@ specifications:
     - sdks.pip
     - gui.web
   feature.tasks:
-    version: 3
-    status: approved
+    version: 4
+    status: draft
     path: features/tasks
-    fingerprint: 0cdcc592769386b514545d3e10314a26e59358d007ec2866aa12811aa5757a4b
+    fingerprint: 5e7167beae96b903de9c67b65dc93bde4567846ea12cada88aa4333b44dac312
     required_applies_to:
     - rest_api
     - cli
@@ -4259,10 +4259,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.content.client-encrypted:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: privacy
-    fingerprint: 46429757fa4dc31a131eba2a683574fcd6c022410f37d730d3ecbf6604406f96
+    fingerprint: a8b32d7331949f3bde47eeeb5d473fa3914bf0497397b055001c5e373ce3b10c
     required_applies_to:
     - rest_api
     - cli
@@ -4270,10 +4270,21 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.lifecycle.visible:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
-    fingerprint: 25518b5154164f7cda63af271ab192007e0d4fa8e22dba9b3f344e374b08e0c6
+    fingerprint: 95f2faecb5ab2e18b41b635cf5c468c37f3a9250841ab6e5fb89c54b67b2f1a4
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.assignment.identity-separated:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: invariant
+    fingerprint: 6a523ab263978fca3bfdb3718211aa6a04753d16b24ccba8759f4c8387013df0
     required_applies_to:
     - rest_api
     - cli
@@ -4281,7 +4292,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.blocking.encrypted-reason:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: privacy
     fingerprint: c1c81f407fe830b00ce61014b0776a65cc9c0da67e6f8bab24577a51e98ce0f7
@@ -4292,10 +4303,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.external-chat.encrypted-context:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: security
-    fingerprint: f808f2214927606194654ef679b06664e7c1d1c0b30c65e1602acfcaacda6a80
+    fingerprint: 9fe6c84c94fc5b23446082dba45e94154b33912548f358200429ac008cf5aeda
     required_applies_to:
     - rest_api
     - cli
@@ -4303,7 +4314,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.structure.flat-dependencies:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: invariant
     fingerprint: 4efc4edf6af6334f85373e6dbe877670a4a80488aef9e114ea3771a181b5ac41
@@ -4314,7 +4325,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.plan.execution-unit:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: invariant
     fingerprint: 65563e4ea16d34132bbcb63f8794786816868d92d6a2083ada561ce55cb9c2fd
@@ -4325,7 +4336,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.check-work.not-proof:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
     fingerprint: dd619551a240fef49d0c393c8379c727572e538bc4fa83bbf133a282bf4ad237
@@ -4336,7 +4347,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.project-links.encrypted:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: invariant
     fingerprint: 526937b41189f9a789794d62356c8cec7d3c9b028d516af1f1987299adc6224f
@@ -4347,7 +4358,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.key-wrappers.context-scoped:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: security
     fingerprint: 9968a6cb3bfbcf0ab01c79a6bd37ac36fb0777b5c683703238a9c9b8641293f8
@@ -4358,7 +4369,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.workflow-projections.read-only:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: invariant
     fingerprint: c4f30e243326459c83e282f876182aef7812c2eb1b8cd4448313a43c1e925a1c
@@ -4369,7 +4380,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.detail.embed-responsive:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
     fingerprint: b93eb0a8f9ad913f82aff3294aa536cacf5a6ae41cc791a8d0afa02b017ddd34
@@ -4380,10 +4391,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.activity.single-final-section:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
-    fingerprint: b2eaa1d68be9221b4d3b15f9ed68cc2b7c37a964cc33a9008351ae4f1eb701c0
+    fingerprint: 0c0ee9a4855acfd9030a456576894692c5ef8fd91becd26709e2b2e988897128
     required_applies_to:
     - rest_api
     - cli
@@ -4391,7 +4402,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.activity.composer-message-parity:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
     fingerprint: 23f44c0f1baa43435f7c4f5ffca50e306d785c126cc657d2a464a093d0a148eb
@@ -4402,10 +4413,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.activity.client-encrypted:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: privacy
-    fingerprint: 20f95a8ec2a570c4519f55c5d87e87b7a36ddbc5d6b2ee080f386b836683123c
+    fingerprint: 80436637825ba2998c8d9b27515551275ffa22dc899ca3b70c21ff6faad3c27a
     required_applies_to:
     - rest_api
     - cli
@@ -4413,10 +4424,21 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.activity.context-attribution:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
-    fingerprint: 9155ae38a7193e630efc01ad588eefbcc675f7f3b6a01b99f34fa921057590fa
+    fingerprint: e280fecd9eccfadcf1246bd378e86678129f6ea00cc7d06d40250cb0b3f13dfe
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.activity.lifecycle-system-generated:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: 6596812b1bd81e229b455417999088d3c3286c639412fcc27dc5a66d6f2eabf7
     required_applies_to:
     - rest_api
     - cli
@@ -4424,7 +4446,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.activity.deletion-tombstone:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
     fingerprint: bdfbe90b8f227076e11efc0e55c3119b0364f0fd06f991c987e58c7604959857
@@ -4435,7 +4457,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.activity.task-scoped-authorization:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: security
     fingerprint: 108e27d1a0a9e4f2fa103e438dcaa6885da5a355ed4286b7662f520b8a84d1f9
@@ -4446,10 +4468,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.execution.capacity-scoped:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: behavior
-    fingerprint: 05668f99f873b85a322247d41a33c19fdb0c59746fd65675ce68b5d614cacb25
+    fingerprint: f79a10bbb8c6d865b15009939308bd6deac07071bc3e8ff7a89730ab3d0ba4f5
     required_applies_to:
     - rest_api
     - cli
@@ -4457,10 +4479,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.execution.order-preserved:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: invariant
-    fingerprint: 51ae027189cefa71565451ed85631d398f20ffbcd16d853732d8c0dc65edd8eb
+    fingerprint: 5fd07fc6b88e29acfe3209604d29ab2a77a2c394608bc1a3250eb6f3474d5c5f
     required_applies_to:
     - rest_api
     - cli
@@ -4468,7 +4490,7 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.dependencies.done-only:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: invariant
     fingerprint: 670c91a42575a55fd9ecc20978a5eeb3c4d0f5415758805c1efa052e1721435d
@@ -4479,10 +4501,10 @@ assertions:
     - sdks.pip
     - gui.web
   tasks.surface.semantic-parity:
-    specification: feature.tasks@3
+    specification: feature.tasks@4
     specification_id: feature.tasks
     type: parity
-    fingerprint: 3ecbc7b29342e76827f7c7ba8c84601fadc625230cad106095ada8743c9cfe56
+    fingerprint: 155f5118f7cc7d80678a14b733a7647ff64682761baab55a6097561fb5c5e19d
     required_applies_to:
     - rest_api
     - cli

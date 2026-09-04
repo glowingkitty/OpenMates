@@ -10,7 +10,7 @@ import time
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
@@ -41,7 +41,8 @@ from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectS
 router = APIRouter(prefix="/v1/user-tasks", tags=["User Tasks"], dependencies=[Depends(ensure_tasks_enabled)])
 
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
-AssigneeType = Literal["ai", "user"]
+AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
+AssigneeIdentity = Literal["openmates", "opencode"]
 KeyWrapperType = Literal["master", "chat", "project", "plan"]
 ExternalChatProvider = Literal["opencode"]
 BlockedReasonCode = Literal[
@@ -81,6 +82,7 @@ class UserTaskCreateRequest(BaseModel):
     encrypted_latest_instruction: str | None = None
     status: TaskStatus = "todo"
     assignee_type: AssigneeType = "user"
+    assignee_identity: AssigneeIdentity | None = None
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
     external_chat_provider: ExternalChatProvider | None = None
@@ -107,6 +109,11 @@ class UserTaskCreateRequest(BaseModel):
     plaintext_project_context: str | None = None
     key_wrappers: list[UserTaskKeyWrapperRequest] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def validate_assignment(self) -> "UserTaskCreateRequest":
+        _validate_assignment_fields(self.assignee_type, self.assignee_identity, self.assignee_hash)
+        return self
+
 
 class UserTaskUpdateRequest(BaseModel):
     encrypted_title: str | None = None
@@ -122,6 +129,7 @@ class UserTaskUpdateRequest(BaseModel):
     encrypted_latest_instruction: str | None = None
     status: TaskStatus | None = None
     assignee_type: AssigneeType | None = None
+    assignee_identity: AssigneeIdentity | None = None
     assignee_hash: str | None = None
     primary_chat_id: str | None = None
     external_chat_provider: ExternalChatProvider | None = None
@@ -142,6 +150,14 @@ class UserTaskUpdateRequest(BaseModel):
     updated_at: int | None = None
     version: int
     key_wrappers: list[UserTaskKeyWrapperRequest] | None = None
+
+    @model_validator(mode="after")
+    def validate_assignment(self) -> "UserTaskUpdateRequest":
+        if self.assignee_type is not None:
+            _validate_assignment_fields(self.assignee_type, self.assignee_identity, self.assignee_hash)
+        elif self.assignee_identity is not None:
+            raise ValueError("Task assignee identity requires assignee type")
+        return self
 
 
 class UserTaskMoveRequest(BaseModel):
@@ -210,11 +226,24 @@ class UserTaskActivityCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     entry_id: str = Field(min_length=1)
-    encrypted_entry_key: str = Field(min_length=1)
     encrypted_message: str = Field(min_length=1)
     encrypted_embed_key_material: str | None = None
     embed_refs: list[str] = Field(default_factory=list)
     created_at: int
+
+
+def _validate_assignment_fields(
+    assignee_type: AssigneeType,
+    assignee_identity: AssigneeIdentity | None,
+    assignee_hash: str | None,
+) -> None:
+    expected_identity = {"openmates": "openmates", "external_ai": "opencode"}.get(assignee_type)
+    if expected_identity is not None and assignee_identity != expected_identity:
+        raise ValueError(f"Task {assignee_type} assignment requires identity {expected_identity}")
+    if assignee_type in {"user", "unassigned"} and assignee_identity is not None:
+        raise ValueError(f"Task {assignee_type} assignment cannot have an AI identity")
+    if assignee_type != "user" and assignee_hash is not None:
+        raise ValueError(f"Task {assignee_type} assignment cannot have a user hash")
 
 
 class WorkDependencyRequest(BaseModel):
@@ -368,6 +397,17 @@ def derive_task_activity_source_surface(request: Request) -> str:
     return mapped
 
 
+def derive_task_activity_actor_mode(request: Request, source_surface: str) -> str:
+    """Allow the trusted CLI bridge to act as the Task's named assignee."""
+
+    mode = _request_header(request, "X-OpenMates-Task-Actor") or "user"
+    if mode not in {"user", "assignee"}:
+        raise HTTPException(status_code=400, detail="TASK_ACTIVITY_ACTOR_INVALID")
+    if mode == "assignee" and source_surface != "cli":
+        raise HTTPException(status_code=403, detail="TASK_ACTIVITY_ASSIGNEE_CLIENT_REQUIRED")
+    return mode
+
+
 def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
     allowed = {
         "entry_id",
@@ -377,13 +417,15 @@ def _task_activity_response(entry: dict[str, Any]) -> dict[str, Any]:
         "actor_hash",
         "actor_display_name",
         "actor_profile_image_url",
+        "actor_identity",
         "event_type",
         "source_surface",
+        "previous_status",
+        "next_status",
         "created_at",
         "deleted_at",
         "deleted_by_hash",
         "deleted_by_display_name",
-        "encrypted_entry_key",
         "encrypted_message",
         "encrypted_embed_key_material",
         "embed_refs",
@@ -536,7 +578,7 @@ async def create_user_task(
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        if body.plan_id and body.assignee_type == "ai":
+        if body.plan_id and body.assignee_type == "openmates":
             await _ensure_linked_plan_execution(request, current_user.id, body.model_dump())
         task = await service.create_task(current_user.id, body.model_dump())
         if task.get("plan_id"):
@@ -616,7 +658,7 @@ async def ask_user_tasks(
         action_type = "ask_create"
         summary = ""
         for encrypted_create in encrypted_creates:
-            if encrypted_create.plan_id and encrypted_create.assignee_type == "ai":
+            if encrypted_create.plan_id and encrypted_create.assignee_type == "openmates":
                 await _ensure_linked_plan_execution(request, current_user.id, encrypted_create.model_dump())
             task = await service.create_task(current_user.id, encrypted_create.model_dump())
             if task.get("plan_id"):
@@ -760,12 +802,14 @@ async def create_user_task_activity(
             await request.app.state.directus_service.team.require_team_role(
                 team_id, current_user.id, {"owner", "admin", "member"}
             )
+        source_surface = derive_task_activity_source_surface(request)
         entry = await service.create_task_activity(
             task_id,
             current_user.id,
             payload=body.model_dump(),
             team_id=team_id,
-            source_surface=derive_task_activity_source_surface(request),
+            source_surface=source_surface,
+            actor_mode=derive_task_activity_actor_mode(request, source_surface),
             actor_display_name=getattr(current_user, "username", None),
             actor_profile_image_url=getattr(current_user, "profile_image_url", None),
         )

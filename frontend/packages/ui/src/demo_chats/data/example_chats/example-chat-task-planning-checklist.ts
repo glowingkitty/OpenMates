@@ -61,7 +61,7 @@ export const exampleChatTaskPlanningChecklistChat: ExampleChat = {
     {
         "embed_id": "02ee58f3-9ec7-4900-83b5-62b2792c5a8a",
         "type": "task",
-        "content": "type: task\nparent_app_skill_type: app_skill_use\ntitle: Write public release note\ndescription: Draft a short release note for developers explaining that the examples come from real CLI-created app-skill chats.\nstatus: todo\nassignee: openmates\nassignee_type: ai\nembed_ref: write-public-release-GV9\napp_id: tasks\nskill_id: create",
+        "content": "type: task\nparent_app_skill_type: app_skill_use\ntitle: Write public release note\ndescription: Draft a short release note for developers explaining that the examples come from real CLI-created app-skill chats.\nstatus: todo\nassignee: openmates\nassignee_type: openmates\nembed_ref: write-public-release-GV9\napp_id: tasks\nskill_id: create",
         "parent_embed_id": "7996e3b5-8d25-46bd-b527-8da6f9c65ecf",
         "embed_ids": null
     }

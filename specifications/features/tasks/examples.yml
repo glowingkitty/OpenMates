@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.tasks@3
+specification: feature.tasks@4
 
 task_private_content:
   - id: encrypted-task
@@ -13,6 +13,17 @@ task_lifecycle:
   - id: prose-does-not-complete
     input: {assistant_message: The task is done, task_status: in_progress}
     expect: {task_status_after_message: in_progress}
+
+task_assignment_identity:
+  - id: opencode-created-task
+    input: {creator: opencode, work_kind: software, assignee_type: external_ai, assignee_identity: opencode}
+    expect: {created_atomically: true, assignee_display_name: OpenCode, native_openmates_queue_admitted: false}
+  - id: native-openmates-task
+    input: {assignee_type: openmates, assignee_identity: openmates}
+    expect: {assignee_display_name: OpenMates, native_openmates_queue_eligible: true}
+  - id: requested-real-world-task
+    input: {creator: opencode, user_request: Remind me to connect the physical device, assignee_type: user}
+    expect: {assignee_identity: null, human_assignee_hash_present: true, native_openmates_queue_admitted: false}
 
 task_blocked_reason:
   - id: encrypted-user-input-blocker
@@ -93,11 +104,11 @@ task_activity_composer:
 
 task_activity_encryption:
   - id: encrypted-comment-entry
-    input: {comment: Waiting for approval, task_key: available, entry_key: generated_client_side}
-    expect: {entry_key_wrapped_by_task_key: true, durable_plaintext_comment: false, raw_entry_key_backend_storage: false}
+    input: {comment: Waiting for approval, task_key: available, entry_id: activity-1}
+    expect: {encrypted_directly_with_task_key: true, unique_nonce: true, aad_binds: [task_id, entry_id, content_type, schema_version], durable_plaintext_comment: false, encrypted_entry_key_present: false}
   - id: uploaded-embed-key-through-task-key
-    input: {embed: private_upload, task_key: available}
-    expect: {task_key_can_decrypt_embed_key: true, raw_embed_key_backend_storage: false, durable_plaintext_file: false}
+    input: {embed: private_upload, task_key: available, entry_id: activity-1}
+    expect: {embed_key_encrypted_directly_with_task_key: true, unique_nonce: true, aad_binds: [task_id, entry_id, embed_ref, schema_version], raw_embed_key_backend_storage: false, durable_plaintext_file: false}
 
 task_activity_attribution:
   - id: personal-mate-is-openmates
@@ -112,6 +123,20 @@ task_activity_attribution:
   - id: team-sdk-user
     given: {context: team, surfaces: [sdk_npm, sdk_pip], user: Sam, profile_image: present}
     expect: {display_name: Sam, profile_image_visible: true, via_suffix: via OpenMates SDK}
+  - id: opencode-comment
+    given: {actor_kind: external_ai, actor_identity: opencode, source_surface: cli, event_type: comment_added}
+    expect: {display_name: OpenCode, arbitrary_display_name_accepted: false, comment_category_added: false}
+
+task_activity_lifecycle:
+  - id: automatic-start-status-entry
+    given: {task_status: todo, mutation_surface: cli, requested_status: in_progress}
+    expect: {task_status: in_progress, activity_kind: lifecycle_update, activity_actor: system, event_type: status, previous_status: todo, next_status: in_progress, opencode_hook_required: false, committed_atomically: true}
+  - id: automatic-blocked-status-entry
+    given: {task_status: in_progress, mutation_surface: web, requested_status: blocked}
+    expect: {task_status: blocked, activity_kind: lifecycle_update, activity_actor: system, event_type: status, previous_status: in_progress, next_status: blocked, committed_atomically: true}
+  - id: ordinary-opencode-milestone-comment
+    given: {actor_kind: external_ai, actor_identity: opencode, summary: Backend contract verified}
+    expect: {activity_kind: comment, event_type: comment_added, custom_milestone_event_type: false}
 
 task_activity_tombstones:
   - id: openmates-deleted-by-sam

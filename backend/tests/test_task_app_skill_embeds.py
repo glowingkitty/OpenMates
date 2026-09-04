@@ -64,6 +64,7 @@ def _skill() -> CreateSkill:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=tasks.assignment.identity-separated,tasks.surface.semantic-parity
 async def test_task_create_returns_embed_ready_children_without_system_events() -> None:
     stage_service = FakeTaskStageService()
 
@@ -92,7 +93,7 @@ async def test_task_create_returns_embed_ready_children_without_system_events() 
     assert payload["results"][1]["assignee"] == "openmates"
 
     assert stage_service.calls[0]["assignee_type"] == "user"
-    assert stage_service.calls[1]["assignee_type"] == "ai"
+    assert stage_service.calls[1]["assignee_type"] == "openmates"
     assert [call["position"] for call in stage_service.calls] == [
         stage_service.calls[0]["position"],
         stage_service.calls[0]["position"] + 1,
@@ -100,6 +101,7 @@ async def test_task_create_returns_embed_ready_children_without_system_events() 
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 async def test_task_create_accepts_flat_single_task_arguments() -> None:
     stage_service = FakeTaskStageService()
 
@@ -130,6 +132,7 @@ async def test_task_create_accepts_flat_single_task_arguments() -> None:
     ]
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.surface.semantic-parity
 def test_task_create_multiple_tasks_stay_in_single_skill_payload() -> None:
     assert should_keep_tasks_create_payload_as_single_request(
         "tasks",

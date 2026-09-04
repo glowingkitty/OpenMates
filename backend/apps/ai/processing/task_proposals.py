@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 MAX_TASK_PROPOSALS = 3
 TASK_PROPOSAL_STATUSES = {"backlog", "todo", "in_progress", "blocked", "done"}
-TASK_PROPOSAL_ASSIGNEES = {"user", "ai"}
+TASK_PROPOSAL_ASSIGNEES = {"user", "openmates"}
 TASK_LINE_PREFIXES = ("-", "*", "•")
 
 

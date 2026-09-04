@@ -21,6 +21,8 @@ logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
 EXTERNAL_CHAT_PROVIDERS = {"opencode"}
+TASK_ASSIGNEE_IDENTITIES = {"openmates": "openmates", "external_ai": "opencode"}
+TASK_ASSIGNEE_TYPES = {"user", "openmates", "external_ai", "unassigned"}
 
 
 class TaskLockBusyError(RuntimeError):
@@ -28,7 +30,7 @@ class TaskLockBusyError(RuntimeError):
 
 
 USER_TASK_FIELDS = (
-    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_hash,"
+    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_identity,assignee_hash,"
     "primary_chat_id,hashed_primary_chat_id,external_chat_provider,external_chat_lookup_hash,linked_project_hashes,label_hashes,parent_task_id,"
     "plan_id,task_type,verification_id,source_plan_id,source_learning_id,"
     "due_at,priority,position,version,created_at,updated_at,started_at,"
@@ -39,7 +41,7 @@ USER_TASK_FIELDS = (
 
 USER_TASK_METADATA_FIELDS = "task_id,status,updated_at,version"
 USER_TASK_ADMISSION_FIELDS = (
-    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,primary_chat_id,"
+    "id,task_id,hashed_user_id,hashed_team_id,status,assignee_type,assignee_identity,primary_chat_id,"
     "plan_id,due_at,priority,position,version,created_at,updated_at,"
     "started_at,blocked_reason_code,queue_state,ai_execution_state"
 )
@@ -52,17 +54,33 @@ USER_TASK_KEY_WRAPPER_FIELDS = (
 USER_TASK_EXECUTION_CONTEXT_FIELDS = "id,hashed_user_id,hashed_task_id,hashed_chat_id,encrypted_context,created_at,expires_at"
 USER_TASK_ACTIVITY_FIELDS = (
     "id,entry_id,task_id,hashed_task_id,hashed_user_id,hashed_team_id,kind,actor_type,actor_hash,"
-    "actor_display_name,actor_profile_image_url,"
-    "event_type,source_surface,created_at,encrypted_entry_key,encrypted_message,"
+    "actor_display_name,actor_profile_image_url,actor_identity,"
+    "event_type,source_surface,previous_status,next_status,created_at,encrypted_message,"
     "encrypted_embed_key_material,embed_refs,encrypted_snapshot,deleted_at,deleted_by_hash,deleted_by_display_name"
 )
 TASK_ACTIVITY_IDEMPOTENT_FIELDS = {
-    "encrypted_entry_key",
     "encrypted_message",
     "encrypted_embed_key_material",
     "embed_refs",
     "created_at",
 }
+
+
+def _validate_task_assignment(record: dict[str, Any], *, user_id: str | None = None) -> None:
+    assignee_type = record.get("assignee_type") or "user"
+    if assignee_type not in TASK_ASSIGNEE_TYPES:
+        raise ValueError("Task assignee type is not allowed")
+    expected_identity = TASK_ASSIGNEE_IDENTITIES.get(assignee_type)
+    identity = record.get("assignee_identity")
+    if expected_identity is not None and identity != expected_identity:
+        raise ValueError(f"Task {assignee_type} assignment requires identity {expected_identity}")
+    if expected_identity is None and identity is not None:
+        raise ValueError(f"Task {assignee_type} assignment cannot have an AI identity")
+    if assignee_type == "user":
+        if not record.get("assignee_hash") and user_id:
+            record["assignee_hash"] = hash_id(user_id)
+    else:
+        record["assignee_hash"] = None
 
 
 def hash_id(value: str) -> str:
@@ -448,6 +466,8 @@ class UserTaskMethods:
         *,
         team_id: str | None = None,
         source_surface: str,
+        actor_type: str = "user",
+        actor_hash: str | None = None,
         actor_display_name: str | None = None,
         actor_profile_image_url: str | None = None,
     ) -> dict[str, Any] | None:
@@ -474,14 +494,14 @@ class UserTaskMethods:
             "hashed_user_id": hash_id(user_id),
             "hashed_team_id": hash_id(team_id) if team_id else None,
             "kind": "comment",
-            "actor_type": "user",
-            "actor_hash": hash_id(user_id),
+            "actor_type": actor_type,
+            "actor_hash": hash_id(user_id) if actor_hash is None and actor_type == "user" else actor_hash,
             "actor_display_name": actor_display_name,
             "actor_profile_image_url": actor_profile_image_url,
+            "actor_identity": payload.get("actor_identity"),
             "event_type": "comment_added",
             "source_surface": source_surface,
             "created_at": payload["created_at"],
-            "encrypted_entry_key": payload["encrypted_entry_key"],
             "encrypted_message": payload["encrypted_message"],
             "encrypted_embed_key_material": payload.get("encrypted_embed_key_material"),
             "embed_refs": payload.get("embed_refs") or [],
@@ -542,7 +562,6 @@ class UserTaskMethods:
             "deleted_at": deleted_at,
             "deleted_by_hash": hash_id(user_id),
             "deleted_by_display_name": deleted_by_display_name,
-            "encrypted_entry_key": None,
             "encrypted_message": None,
             "encrypted_embed_key_material": None,
             "embed_refs": [],
@@ -586,7 +605,7 @@ class UserTaskMethods:
 
     async def list_due_ai_tasks(self, due_before: int, *, limit: int = 100) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
-            "filter[assignee_type][_eq]": "ai",
+            "filter[assignee_type][_eq]": "openmates",
             "filter[due_at][_lte]": due_before,
             "filter[status][_eq]": "todo",
             "fields": USER_TASK_FIELDS,
@@ -598,7 +617,7 @@ class UserTaskMethods:
 
     async def list_waiting_ai_task_scopes_for_reconciliation(self, *, limit: int = 100) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
-            "filter[assignee_type][_eq]": "ai",
+            "filter[assignee_type][_eq]": "openmates",
             "filter[status][_eq]": "todo",
             "fields": ["hashed_user_id", "hashed_team_id"],
             "groupBy": ["hashed_user_id", "hashed_team_id"],
@@ -608,7 +627,7 @@ class UserTaskMethods:
 
     async def list_stale_queued_ai_tasks(self, started_before: int, *, limit: int = 100) -> list[dict[str, Any]]:
         params: dict[str, Any] = {
-            "filter[assignee_type][_eq]": "ai",
+            "filter[assignee_type][_eq]": "openmates",
             "filter[status][_eq]": "in_progress",
             "filter[queue_state][_eq]": "active",
             "filter[ai_execution_state][_eq]": "queued",
@@ -631,7 +650,7 @@ class UserTaskMethods:
         params: dict[str, Any] = {
             "filter[hashed_user_id][_eq]": hash_id(user_id),
             "filter[hashed_primary_chat_id][_eq]": hash_id(chat_id),
-            "filter[assignee_type][_eq]": "ai",
+            "filter[assignee_type][_eq]": "openmates",
             "filter[status][_eq]": "in_progress",
             "fields": USER_TASK_FIELDS,
             "sort": "started_at,position,created_at",
@@ -724,6 +743,7 @@ class UserTaskMethods:
             "created_at": now,
             "updated_at": payload.get("updated_at", now),
         }
+        _validate_task_assignment(record, user_id=user_id)
         _validate_external_chat_context(record)
         if key_wrappers and not _validate_wrapper_set(
             key_wrappers,
@@ -1029,6 +1049,13 @@ class UserTaskMethods:
             )
         }
         _validate_external_chat_context(effective_context)
+        effective_assignment = {
+            field: update[field] if field in update else existing.get(field)
+            for field in ("assignee_type", "assignee_identity", "assignee_hash")
+        }
+        _validate_task_assignment(effective_assignment, user_id=user_id)
+        if any(field in update for field in ("assignee_type", "assignee_identity", "assignee_hash")):
+            update.update(effective_assignment)
 
         relinks_context = next_chat_hash != existing_chat_hash or next_project_hashes != existing_project_hashes
         if relinks_context and not key_wrappers:

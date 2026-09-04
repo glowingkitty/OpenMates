@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 
 class _FakeLimiter:
@@ -114,6 +115,63 @@ async def test_create_task_hashes_owner_and_projects_without_plaintext_content()
     assert record["encrypted_task_key"] == "cipher-task-key"
     assert "title" not in record
     assert "description" not in record
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+def test_assignment_type_and_identity_combinations_are_validated() -> None:
+    openmates = user_tasks.UserTaskCreateRequest(**task_payload(
+        assignee_type="openmates",
+        assignee_identity="openmates",
+        assignee_hash=None,
+    ))
+    opencode = user_tasks.UserTaskCreateRequest(**task_payload(
+        primary_chat_id=None,
+        assignee_type="external_ai",
+        assignee_identity="opencode",
+        assignee_hash=None,
+        external_chat_provider="opencode",
+        external_chat_lookup_hash="c" * 64,
+        encrypted_external_chat_id="cipher-session-id",
+    ))
+
+    assert openmates.assignee_identity == "openmates"
+    assert opencode.assignee_identity == "opencode"
+
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            assignee_type="external_ai",
+            assignee_identity="openmates",
+            assignee_hash=None,
+        ))
+
+    with pytest.raises(ValidationError):
+        user_tasks.UserTaskCreateRequest(**task_payload(
+            assignee_type="user",
+            assignee_identity="opencode",
+        ))
+
+
+# contract-test: direct surface=rest_api assertions=tasks.assignment.identity-separated
+@pytest.mark.asyncio
+async def test_create_task_persists_named_external_ai_identity() -> None:
+    directus = SimpleNamespace()
+    directus.create_item = AsyncMock(return_value=(True, {"id": "row-1"}))
+    methods = UserTaskMethods(with_lock_cache(directus))
+
+    await methods.create_task("user-1", task_payload(
+        primary_chat_id=None,
+        assignee_type="external_ai",
+        assignee_identity="opencode",
+        assignee_hash=None,
+        external_chat_provider="opencode",
+        external_chat_lookup_hash="c" * 64,
+        encrypted_external_chat_id="cipher-session-id",
+    ))
+
+    _collection, record = directus.create_item.await_args_list[0].args
+    assert record["assignee_type"] == "external_ai"
+    assert record["assignee_identity"] == "opencode"
+    assert record["assignee_hash"] is None
 
 
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted
@@ -886,7 +944,7 @@ async def test_ai_task_without_execution_context_waits_without_consuming_capacit
 
     admission = AsyncMock()
     service = UserTaskService(UserTaskMethods(directus), admission_service=admission)
-    created = await service.create_task("user-1", task_payload(assignee_type="ai", due_at=None))
+    created = await service.create_task("user-1", task_payload(assignee_type="openmates", assignee_identity="openmates", due_at=None))
 
     assert created["status"] == "todo"
     assert created["ai_execution_state"] == "waiting_for_capacity"
@@ -896,7 +954,7 @@ async def test_ai_task_without_execution_context_waits_without_consuming_capacit
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.lifecycle.visible,tasks.execution.capacity-scoped
 @pytest.mark.asyncio
 async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> None:
-    created = {**task_payload(assignee_type="ai"), "id": "row-1", "version": 1}
+    created = {**task_payload(assignee_type="openmates", assignee_identity="openmates"), "id": "row-1", "version": 1}
     queued = {**created, "status": "todo", "queue_state": "waiting", "ai_execution_state": "waiting_for_capacity", "version": 2}
     admitted = {**queued, "status": "in_progress", "queue_state": "active", "ai_execution_state": "queued", "version": 3}
     methods = AsyncMock()
@@ -911,7 +969,7 @@ async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> 
 
     result = await service.create_task(
         "user-1",
-        task_payload(assignee_type="ai", plaintext_title="Draft launch plan"),
+        task_payload(assignee_type="openmates", assignee_identity="openmates", plaintext_title="Draft launch plan"),
     )
 
     assert result["status"] == "in_progress"
@@ -923,7 +981,7 @@ async def test_ai_task_create_with_transient_context_claims_and_dispatches() -> 
 # contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.execution.capacity-scoped,tasks.execution.order-preserved
 @pytest.mark.asyncio
 async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> None:
-    active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="ai")}
+    active_other = {"id": "row-2", "version": 1, **task_payload(task_id="task-2", status="in_progress", assignee_type="openmates", assignee_identity="openmates")}
     directus = SimpleNamespace()
     directus.get_items = AsyncMock(return_value=[active_other])
     directus.create_item = AsyncMock(side_effect=lambda _collection, record: (True, record))
@@ -931,7 +989,7 @@ async def test_second_ai_task_without_due_date_waits_for_active_chat_task() -> N
     admission = AsyncMock()
     admission.admit_available.return_value = {"admitted_tasks": []}
     service = UserTaskService(UserTaskMethods(directus), admission_service=admission)
-    created = await service.create_task("user-1", task_payload(assignee_type="ai", due_at=None))
+    created = await service.create_task("user-1", task_payload(assignee_type="openmates", assignee_identity="openmates", due_at=None))
 
     assert created["status"] == "todo"
     assert created["ai_execution_state"] == "waiting_for_capacity"

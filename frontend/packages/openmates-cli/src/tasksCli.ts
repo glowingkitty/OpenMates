@@ -13,6 +13,7 @@ import { createHash, createHmac, hkdfSync, randomBytes, randomUUID } from "node:
 
 import type {
   UserTaskAssigneeType,
+  UserTaskAssigneeIdentity,
   UserTaskActivityCreateInput,
   UserTaskActivityRecord,
   UserTaskCreateInput,
@@ -90,6 +91,7 @@ export interface DecryptedUserTask {
   latestInstruction: string;
   status: UserTaskStatus;
   assigneeType: UserTaskAssigneeType;
+  assigneeIdentity: UserTaskAssigneeIdentity | null;
   assigneeHash: string | null;
   primaryChatId: string | null;
   externalChat: ExternalChatContext | null;
@@ -122,11 +124,14 @@ export interface DecryptedTaskActivityEntry {
   kind: UserTaskActivityRecord["kind"];
   actorType: string;
   actorHash: string;
+  actorIdentity: UserTaskAssigneeIdentity | null;
   actorDisplayName: string | null;
   actorProfileImageUrl: string | null;
   authorHash: string | null;
   eventType: string;
   sourceSurface: string;
+  previousStatus: UserTaskStatus | null;
+  nextStatus: UserTaskStatus | null;
   createdAt: number;
   deletedAt: number | null;
   deletedByHash: string | null;
@@ -224,10 +229,13 @@ export function normalizeTaskStatus(value: string | undefined): UserTaskStatus |
   throw new Error(`Unknown task status '${value}'. Expected one of: ${TASK_STATUSES.join(", ")}`);
 }
 
-export function parseAssignee(value: string | undefined): { assigneeType: UserTaskAssigneeType; assigneeHash: string | null } {
-  if (!value || value === "user") return { assigneeType: "user", assigneeHash: null };
-  if (["ai", "openmates", "OpenMates"].includes(value)) return { assigneeType: "ai", assigneeHash: null };
-  return { assigneeType: "user", assigneeHash: value };
+export function parseAssignee(value: string | undefined): { assigneeType: UserTaskAssigneeType; assigneeIdentity: UserTaskAssigneeIdentity | null; assigneeHash: string | null } {
+  const normalized = value?.trim().toLowerCase().replace(/-/g, "_");
+  if (!normalized || normalized === "user") return { assigneeType: "user", assigneeIdentity: null, assigneeHash: null };
+  if (normalized === "openmates") return { assigneeType: "openmates", assigneeIdentity: "openmates", assigneeHash: null };
+  if (normalized === "external_ai" || normalized === "opencode") return { assigneeType: "external_ai", assigneeIdentity: "opencode", assigneeHash: null };
+  if (normalized === "unassigned") return { assigneeType: "unassigned", assigneeIdentity: null, assigneeHash: null };
+  return { assigneeType: "user", assigneeIdentity: null, assigneeHash: value! };
 }
 
 export function splitCsvFlag(value: string | boolean | undefined): string[] {
@@ -311,6 +319,7 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     encrypted_linked_project_ids: await encryptWithAesGcmCombined(JSON.stringify(linkedProjectIds), taskKey),
     status,
     assignee_type: assignee.assigneeType,
+    assignee_identity: assignee.assigneeIdentity,
     assignee_hash: assignee.assigneeHash,
     primary_chat_id: input.chatId ?? null,
     ...(input.externalChat ? {
@@ -326,8 +335,8 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
     position: timestamp,
     created_at: timestamp,
     updated_at: timestamp,
-    plaintext_title: assignee.assigneeType === "ai" ? input.title : undefined,
-    plaintext_description: assignee.assigneeType === "ai" ? input.description : undefined,
+    plaintext_title: assignee.assigneeType === "openmates" ? input.title : undefined,
+    plaintext_description: assignee.assigneeType === "openmates" ? input.description : undefined,
   } as UserTaskCreateInput;
 }
 
@@ -350,6 +359,7 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
   if (input.assign !== undefined) {
     const assignee = parseAssignee(input.assign);
     patch.assignee_type = assignee.assigneeType;
+    patch.assignee_identity = assignee.assigneeIdentity;
     patch.assignee_hash = assignee.assigneeHash;
   }
   if (input.chatId !== undefined) {
@@ -391,13 +401,12 @@ export async function buildCreateTaskActivityInput(
   input: TaskActivityCreateOptions,
 ): Promise<UserTaskActivityCreateInput> {
   const taskKey = await taskKeyFromRecord(task.encrypted, masterKey);
-  const entryKey = randomBytes(32);
+  const entryId = input.entryId ?? randomUUIDCompat();
   return {
-    entry_id: input.entryId ?? randomUUIDCompat(),
-    encrypted_entry_key: await encryptBytesWithAesGcm(entryKey, taskKey),
-    encrypted_message: await encryptWithAesGcmCombined(input.message, entryKey),
+    entry_id: entryId,
+    encrypted_message: await encryptWithAesGcmCombined(input.message, taskKey, `task_activity_comment:${task.taskId}:${entryId}:v1`),
     ...(input.embedKeyMaterial
-      ? { encrypted_embed_key_material: await encryptWithAesGcmCombined(input.embedKeyMaterial, taskKey) }
+      ? { encrypted_embed_key_material: await encryptWithAesGcmCombined(input.embedKeyMaterial, taskKey, `task_activity_embed_keys:${task.taskId}:${entryId}:v1`) }
       : {}),
     embed_refs: input.embedRefs ?? [],
     created_at: input.createdAt ?? nowSeconds(),
@@ -415,11 +424,14 @@ export async function decryptTaskActivityEntry(
     kind: record.kind,
     actorType: record.actor_type,
     actorHash: record.actor_hash,
+    actorIdentity: record.actor_identity ?? null,
     actorDisplayName: record.actor_display_name ?? null,
     actorProfileImageUrl: record.actor_profile_image_url ?? null,
     authorHash: record.author_hash ?? record.actor_hash ?? null,
     eventType: record.event_type,
     sourceSurface: record.source_surface,
+    previousStatus: record.previous_status ?? null,
+    nextStatus: record.next_status ?? null,
     createdAt: record.created_at,
     deletedAt: record.deleted_at ?? null,
     deletedByHash: record.deleted_by_hash ?? null,
@@ -428,16 +440,14 @@ export async function decryptTaskActivityEntry(
   };
   if (record.kind === "tombstone") return base;
   if (record.kind !== "comment") return base;
-  if (!record.encrypted_entry_key || !record.encrypted_message) {
+  if (!record.encrypted_message) {
     throw new Error(`Task Activity entry ${record.entry_id} is missing encrypted content.`);
   }
   const taskKey = await taskKeyFromRecord(task.encrypted, masterKey);
-  const entryKey = await decryptBytesWithAesGcm(record.encrypted_entry_key, taskKey);
-  if (!entryKey) throw new Error(`Failed to decrypt Task Activity entry key ${record.entry_id}.`);
-  const message = await decryptWithAesGcmCombined(record.encrypted_message, entryKey);
+  const message = await decryptWithAesGcmCombined(record.encrypted_message, taskKey, `task_activity_comment:${task.taskId}:${record.entry_id}:v1`);
   if (message === null) throw new Error(`Failed to decrypt Task Activity entry ${record.entry_id}.`);
   const embedKeyMaterial = record.encrypted_embed_key_material
-    ? await decryptWithAesGcmCombined(record.encrypted_embed_key_material, taskKey)
+    ? await decryptWithAesGcmCombined(record.encrypted_embed_key_material, taskKey, `task_activity_embed_keys:${task.taskId}:${record.entry_id}:v1`)
     : null;
   if (record.encrypted_embed_key_material && embedKeyMaterial === null) {
     throw new Error(`Failed to decrypt Task Activity embed key material ${record.entry_id}.`);
@@ -479,6 +489,7 @@ export async function decryptUserTask(record: UserTaskRecord, masterKey: Uint8Ar
     latestInstruction: await decryptOptional(record.encrypted_latest_instruction, taskKey),
     status: record.status,
     assigneeType: record.assignee_type,
+    assigneeIdentity: record.assignee_identity ?? null,
     assigneeHash: record.assignee_hash ?? null,
     primaryChatId: record.primary_chat_id ?? null,
     externalChat,
@@ -517,6 +528,7 @@ function workflowProjectionToTask(record: UserTaskRecord): DecryptedUserTask {
     latestInstruction: "",
     status: record.status,
     assigneeType: "user",
+    assigneeIdentity: null,
     assigneeHash: null,
     primaryChatId: null,
     externalChat: null,
@@ -629,7 +641,9 @@ export function renderTaskActivityList(entries: DecryptedTaskActivityEntry[]): s
   if (entries.length === 0) return "No Activity yet.";
   const lines = ["Activity"];
   for (const entry of entries) {
-    const actor = entry.actorType === "user" ? (entry.actorDisplayName ?? "User") : "OpenMates";
+    const actor = entry.actorType === "user"
+      ? (entry.actorDisplayName ?? "User")
+      : taskIdentityDisplayName(entry.actorIdentity) ?? (entry.actorType === "system" ? "System" : "External AI");
     const source = entry.sourceSurface === "cli"
       ? " via OpenMates CLI"
       : entry.sourceSurface === "sdk_npm" || entry.sourceSurface === "sdk_pip"
@@ -642,10 +656,19 @@ export function renderTaskActivityList(entries: DecryptedTaskActivityEntry[]): s
       lines.push(`[${formatActivityTime(entry.createdAt)}] ${actor}${source}`);
       lines.push(entry.message ?? "");
     } else {
-      lines.push(`[${formatActivityTime(entry.createdAt)}] ${actor} ${entry.eventType.replaceAll("_", " ")}`);
+      const transition = entry.eventType === "status" && entry.nextStatus
+        ? `changed status${entry.previousStatus ? ` from ${entry.previousStatus}` : ""} to ${entry.nextStatus}`
+        : entry.eventType.replaceAll("_", " ");
+      lines.push(`[${formatActivityTime(entry.createdAt)}] ${actor} ${transition}`);
     }
   }
   return lines.join("\n");
+}
+
+export function taskIdentityDisplayName(identity: UserTaskAssigneeIdentity | null | undefined): string | null {
+  if (identity === "openmates") return "OpenMates";
+  if (identity === "opencode") return "OpenCode";
+  return null;
 }
 
 export function renderTaskBoard(tasks: DecryptedUserTask[], width = process.stdout.columns || 100): string {
@@ -695,7 +718,8 @@ function columnTitle(status: UserTaskStatus): string {
 }
 
 function assigneeLabel(task: DecryptedUserTask): string {
-  return task.assigneeType === "ai" ? "OpenMates" : (task.assigneeHash ?? "user");
+  return taskIdentityDisplayName(task.assigneeIdentity)
+    ?? (task.assigneeType === "unassigned" ? "unassigned" : task.assigneeHash ?? "user");
 }
 
 export async function taskKeyFromRecord(record: UserTaskRecord, masterKey: Uint8Array): Promise<Uint8Array> {

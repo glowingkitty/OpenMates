@@ -470,7 +470,7 @@ def _task_main_tool() -> dict[str, Any]:
                         "title": {"type": "string"},
                         "description": {"type": "string"},
                         "status": {"type": "string", "enum": ["backlog", "todo", "in_progress", "blocked", "done"]},
-                        "assignee_type": {"type": "string", "enum": ["user", "ai"]},
+                        "assignee_type": {"type": "string", "enum": ["user", "openmates"]},
                     },
                     "required": ["title"],
                 },

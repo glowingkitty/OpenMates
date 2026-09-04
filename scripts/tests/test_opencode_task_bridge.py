@@ -37,7 +37,8 @@ def task(
     status: str = "todo",
     position: int = 1,
     version: int = 1,
-    assignee_type: str = "ai",
+    assignee_type: str = "external_ai",
+    assignee_identity: str | None = "opencode",
     queue_state: str = "none",
     ai_execution_state: str | None = None,
 ) -> dict:
@@ -51,6 +52,7 @@ def task(
         "position": position,
         "version": version,
         "assignee_type": assignee_type,
+        "assignee_identity": assignee_identity,
         "queue_state": queue_state,
         "ai_execution_state": ai_execution_state,
         "blocked_reason_code": "external_dependency" if status == "blocked" else None,
@@ -100,6 +102,97 @@ def test_task_cli_auth_failure_preserves_actionable_reason(monkeypatch) -> None:
         assert "do not retry" in message.lower()
     else:
         raise AssertionError("Task CLI authentication failures must fail with actionable context")
+
+
+def test_task_cli_retries_api_restart_failures_with_bounded_backoff(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    attempts = 0
+    delays: list[int] = []
+
+    def run(*_args, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            return subprocess.CompletedProcess(
+                args=["openmates", "tasks", "list"],
+                returncode=1,
+                stdout="",
+                stderr=json.dumps({
+                    "error": {
+                        "code": "command_failed",
+                        "message": "Session validation temporarily unavailable (HTTP 502). The API may be restarting; retry shortly.",
+                    }
+                }),
+            )
+        return subprocess.CompletedProcess(
+            args=["openmates", "tasks", "list"],
+            returncode=0,
+            stdout=json.dumps({"tasks": []}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(sessions.subprocess, "run", run)
+    monkeypatch.setattr(sessions.time, "sleep", delays.append)
+
+    assert sessions._run_openmates_task_cli(["tasks", "list", "--json"]) == {"tasks": []}
+    assert attempts == 3
+    assert delays == [2, 4]
+
+
+def test_task_cli_does_not_retry_permanent_failures(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    attempts = 0
+
+    def run(*_args, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        return subprocess.CompletedProcess(
+            args=["openmates", "tasks", "edit"],
+            returncode=1,
+            stdout="",
+            stderr=json.dumps({
+                "error": {"code": "command_failed", "message": "Task update failed (HTTP 409): version conflict"}
+            }),
+        )
+
+    monkeypatch.setattr(sessions.subprocess, "run", run)
+    monkeypatch.setattr(sessions.time, "sleep", lambda _delay: None)
+
+    try:
+        sessions._run_openmates_task_cli(["tasks", "edit", "TASK-1", "--json"])
+    except RuntimeError as error:
+        assert "version conflict" in str(error)
+    else:
+        raise AssertionError("Permanent Task failures must fail closed")
+    assert attempts == 1
+
+
+def test_task_cli_reports_exhausted_transient_retry_attempts(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    attempts = 0
+
+    def run(*_args, **_kwargs):
+        nonlocal attempts
+        attempts += 1
+        return subprocess.CompletedProcess(
+            args=["openmates", "tasks", "create"],
+            returncode=1,
+            stdout="",
+            stderr=json.dumps({
+                "error": {"code": "command_failed", "message": "Task create failed (HTTP 503): Service unavailable"}
+            }),
+        )
+
+    monkeypatch.setattr(sessions.subprocess, "run", run)
+    monkeypatch.setattr(sessions.time, "sleep", lambda _delay: None)
+
+    try:
+        sessions._run_openmates_task_cli(["tasks", "create", "--title", "Test", "--json"])
+    except RuntimeError as error:
+        assert "after 6 attempts" in str(error)
+    else:
+        raise AssertionError("Exhausted transient failures must remain visible")
+    assert attempts == 6
 
 
 def test_snapshot_classification_is_deterministic_and_fail_closed() -> None:
@@ -288,10 +381,7 @@ def test_typed_tool_scopes_creates_and_mutations_to_the_bound_chat(monkeypatch) 
     assert calls == [
         [
             "tasks", "create", "--title", "Private new title", "--description", "Private body",
-            "--assign", "user", "--external-chat", "opencode:ses_parent", "--json",
-        ],
-        [
-            "tasks", "edit", "uuid-TASK-9", "--assign", "ai", "--status", "in_progress",
+            "--assign", "external-ai", "--status", "in_progress",
             "--external-chat", "opencode:ses_parent", "--json",
         ],
         [
@@ -322,6 +412,38 @@ def test_typed_tool_rejects_unknown_actions_and_unbound_sessions(monkeypatch) ->
             raise AssertionError(f"{payload} must fail closed")
 
 
+def test_typed_tool_posts_activity_as_opencode_and_can_create_human_work(monkeypatch) -> None:
+    sessions = load_sessions_module()
+    monkeypatch.setattr(sessions, "_load_sessions", state)
+    calls: list[list[str]] = []
+
+    def cli(args: list[str]) -> dict:
+        calls.append(args)
+        return {"task": task("TASK-USER", assignee_type="user", assignee_identity=None)}
+
+    sessions._openmates_task_tool(
+        "ses_parent",
+        {"action": "create", "title": "Buy the physical adapter", "assignee": "user"},
+        cli_runner=cli,
+    )
+    sessions._openmates_task_tool(
+        "ses_parent",
+        {"action": "activity_add", "task_id": "TASK-9", "message": "Milestone: API contract is green."},
+        cli_runner=cli,
+    )
+
+    assert calls == [
+        [
+            "tasks", "create", "--title", "Buy the physical adapter", "--assign", "user",
+            "--external-chat", "opencode:ses_parent", "--json",
+        ],
+        [
+            "tasks", "activity", "add", "TASK-9", "--message", "Milestone: API contract is green.",
+            "--as-assignee", "--external-chat", "opencode:ses_parent", "--json",
+        ],
+    ]
+
+
 def test_new_top_level_chat_can_read_and_create_before_worktree_binding(monkeypatch) -> None:
     sessions = load_sessions_module()
     monkeypatch.setattr(sessions, "_load_sessions", lambda: {"sessions": {}})
@@ -332,9 +454,7 @@ def test_new_top_level_chat_can_read_and_create_before_worktree_binding(monkeypa
         if args[:2] == ["tasks", "list"]:
             return {"tasks": []}
         if args[:2] == ["tasks", "create"]:
-            return {"task": task("TASK-NEW", assignee_type="user")}
-        if args[:2] == ["tasks", "edit"]:
-            return {"task": task("TASK-NEW", assignee_type="ai", version=2)}
+            return {"task": task("TASK-NEW")}
         raise AssertionError(args)
 
     context = sessions._openmates_task_context("ses_newchat", cli_runner=cli)
@@ -345,7 +465,7 @@ def test_new_top_level_chat_can_read_and_create_before_worktree_binding(monkeypa
     )
 
     assert context == {"decision": "no_work", "active": None, "remaining": []}
-    assert created["task"]["assignee_type"] == "ai"
+    assert created["task"]["assignee_type"] == "external_ai"
     assert all("opencode:ses_newchat" in command for command in calls)
 
 

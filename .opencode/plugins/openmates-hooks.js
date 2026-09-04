@@ -2363,7 +2363,7 @@ function taskContextSystemTextForTest(snapshot) {
     const loginRequired = snapshot.recovery === "login_required" || /openmates login|passkey verification/i.test(String(snapshot.error || ""));
     return [
       TASK_CONTEXT_MARKER,
-      "The OpenMates Task bridge is temporarily unavailable. Do not retry openmates_task in this response and do not create another Task.",
+      "The OpenMates Task bridge is temporarily unavailable after its bounded automatic retries. Do not retry openmates_task again in this response and do not create another Task.",
       loginRequired
         ? "Preserve the completed work and report that `openmates login` must complete before Task state can be reconciled."
         : "Preserve the completed work and report the bridge failure once so it can be reconciled later.",
@@ -2392,6 +2392,7 @@ function taskContextSystemTextForTest(snapshot) {
     lines.push(
       "Active Task: none",
       "For non-trivial multi-step implementation, debugging, or investigation work, create an AI-assigned record with openmates_task action=create before the first product mutation, even when the user did not explicitly mention Tasks or todos.",
+      "OpenCode work is assigned to external_ai/opencode by default. Use assignee=user only when the Task is explicitly for the user to perform personally or in the physical world.",
       "After creating it, carry out the work and explicitly mark it done or block it with an allowlisted reason before ending the response.",
       "For simple informational requests or trivial single-action work, do not create a record.",
     );
@@ -2404,6 +2405,7 @@ function taskContextSystemTextForTest(snapshot) {
     }
   }
   lines.push(
+    "Use openmates_task action=activity_add for concise user-relevant summaries when a meaningful milestone completes, a durable learning or decision is made, a blocker becomes important, or the Task completes. Reuse ordinary comments; do not post commands, routine tests, retries, heartbeats, or internal subagent chatter.",
     "Before ending work, explicitly mark the active Task done or block it with an allowlisted reason. Do not infer Task state from prose.",
   );
   return lines.join("\n");
@@ -3313,12 +3315,14 @@ export const OpenMatesHooks = async ({
     }
   };
   const openMatesTaskTool = openCodeTool ? openCodeTool({
-    description: "Read or mutate encrypted OpenMates Tasks associated with this top-level OpenCode chat.",
+    description: "Read or mutate encrypted OpenMates Tasks and post meaningful Activity summaries for this top-level OpenCode chat.",
     args: {
-      action: openCodeTool.schema.enum(["context", "show", "create", "start", "edit", "block", "unblock", "done"]),
+      action: openCodeTool.schema.enum(["context", "show", "create", "start", "edit", "block", "unblock", "done", "activity_add"]),
       task_id: openCodeTool.schema.string().optional(),
       title: openCodeTool.schema.string().optional(),
       description: openCodeTool.schema.string().optional(),
+      assignee: openCodeTool.schema.enum(["external_ai", "user"]).optional(),
+      message: openCodeTool.schema.string().optional(),
       status: openCodeTool.schema.enum(["backlog", "todo", "in_progress", "blocked", "done"]).optional(),
       reason_code: openCodeTool.schema.enum([
         "needs_user_input", "waiting_for_approval", "missing_credentials", "ambiguous_requirement",

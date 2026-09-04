@@ -410,7 +410,7 @@ async def test_repeated_task_create_calls_get_monotonic_positions_in_same_turn()
     for title in ["First", "Second", "Third"]:
         result = await execute_task_tool_call(
             tool_name=TASK_TOOL_CREATE,
-            args={"title": title, "assignee_type": "ai", "status": "todo"},
+            args={"title": title, "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo"},
             context=context,
             cache_service=FakeCache(),
             directus_service=AsyncMock(),
@@ -422,7 +422,7 @@ async def test_repeated_task_create_calls_get_monotonic_positions_in_same_turn()
 
     duplicate_result = await execute_task_tool_call(
         tool_name=TASK_TOOL_CREATE,
-        args={"title": " first ", "assignee_type": "ai", "status": "todo"},
+        args={"title": " first ", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo"},
         context=context,
         cache_service=FakeCache(),
         directus_service=AsyncMock(),
@@ -656,12 +656,13 @@ async def test_direct_task_complete_marks_next_task_active_in_turn_context() -> 
     )
     directus_service.user_task.list_tasks = AsyncMock(
         return_value=[
-            {"task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "assignee_type": "ai", "status": "todo", "version": 1},
+            {"task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 1},
         ]
     )
-    next_task = {"id": "row-2", "task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "hashed_user_id": "owner", "assignee_type": "ai", "status": "todo", "version": 1}
+    next_task = {"id": "row-2", "task_id": "task-2", "short_id": "TASK-2", "primary_chat_id": "chat-1", "hashed_user_id": "owner", "assignee_type": "openmates", "assignee_identity": "openmates", "status": "todo", "version": 1}
     directus_service.user_task.list_open_tasks_for_admission = AsyncMock(return_value=[next_task])
     directus_service.user_task.acquire_admission_lock = AsyncMock(return_value="scope-lock")
+    directus_service.user_task.admission_blockers = AsyncMock(return_value=[])
     directus_service.user_task.claim_ai_task = AsyncMock(return_value={**next_task, "status": "in_progress", "queue_state": "active", "version": 2})
     directus_service.user_task.update_task_if_version = AsyncMock(
         return_value={"task_id": "task-1", "short_id": "TASK-1", "primary_chat_id": "chat-1", "status": "done", "version": 2}

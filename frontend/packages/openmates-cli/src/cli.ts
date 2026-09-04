@@ -841,7 +841,10 @@ async function handleTasks(
       const entry = await decryptTaskActivityEntry(
         task,
         masterKey,
-        await client.createUserTaskActivity(task.taskId, input, context),
+        await client.createUserTaskActivity(task.taskId, input, {
+          ...context,
+          ...(flags["as-assignee"] === true ? { actorMode: "assignee" as const } : {}),
+        }),
       );
       if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
       else console.log(renderTaskActivityList([entry]));
@@ -4057,6 +4060,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     latest_instruction: task.latestInstruction,
     status: task.status,
     assignee_type: task.assigneeType,
+    assignee_identity: task.assigneeIdentity,
     assignee_hash: task.assigneeHash,
     primary_chat_id: task.primaryChatId,
     external_chat: task.externalChat ? {
@@ -4085,11 +4089,14 @@ function taskActivityToJson(entry: DecryptedTaskActivityEntry): Record<string, u
     kind: entry.kind,
     actor_type: entry.actorType,
     actor_hash: entry.actorHash,
+    actor_identity: entry.actorIdentity,
     actor_display_name: entry.actorDisplayName,
     actor_profile_image_url: entry.actorProfileImageUrl,
     author_hash: entry.authorHash,
     event_type: entry.eventType,
     source_surface: entry.sourceSurface,
+    previous_status: entry.previousStatus,
+    next_status: entry.nextStatus,
     created_at: entry.createdAt,
     deleted_at: entry.deletedAt,
     deleted_by_hash: entry.deletedByHash,
@@ -11418,7 +11425,7 @@ async function acceptChatTaskProposals(
     title: string;
     description?: string | null;
     status?: UserTaskStatus;
-    assignee_type?: "ai" | "user";
+    assignee_type?: "openmates" | "user";
   }>,
   fallbackText: string,
 ): Promise<Array<Record<string, unknown>>> {
@@ -13675,8 +13682,8 @@ function printTasksHelp(): void {
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
@@ -13688,7 +13695,7 @@ function printTasksHelp(): void {
   openmates tasks dependencies list <task-id|short-id> [--json]
   openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
   openmates tasks activity list <task-id|short-id> [--limit <n>] [--json]
-  openmates tasks activity add <task-id|short-id> --message <text> [--json]
+  openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--json]
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Chat-scoped aliases:
