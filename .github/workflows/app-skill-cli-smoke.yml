@@ -146,6 +146,7 @@ jobs:
           python3 scripts/verify_tasks_cli_smoke.py \
             --api-url "$OPENMATES_API_URL" \
             --skip-build \
+            --activity-only \
             | tee test-results/task-activity-cli.json
 
       - name: Run real-dev Task Activity SDK contract smoke

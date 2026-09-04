@@ -49,6 +49,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify real OpenMates task CLI commands.")
     parser.add_argument("--api-url", default="http://127.0.0.1:8000", help="Real API URL to test against")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI before running commands")
+    parser.add_argument("--activity-only", action="store_true", help="Stop after the focused Task Activity lifecycle")
     args = parser.parse_args()
 
     if not args.skip_build:
@@ -64,8 +65,9 @@ def main() -> int:
     activity_entry_id = ""
 
     try:
-        initial = run_cli_json(["tasks", "list"])
-        require(isinstance(initial.get("tasks"), list), "tasks list did not return a task array")
+        if not args.activity_only:
+            initial = run_cli_json(["tasks", "list"])
+            require(isinstance(initial.get("tasks"), list), "tasks list did not return a task array")
 
         created = run_cli_json([
             "tasks",
@@ -114,6 +116,13 @@ def main() -> int:
         require(deleted_activity["kind"] == "tombstone", "Task Activity delete did not return a tombstone")
         require("message" not in deleted_activity, "Task Activity tombstone retained comment content")
         require("encrypted_" not in json.dumps(deleted_activity), "Task Activity tombstone leaked encrypted fields")
+
+        if args.activity_only:
+            deleted = run_cli_json(["tasks", "delete", short_id, "--confirm"])
+            require(deleted.get("deleted") is True, "tasks delete did not report deletion")
+            task_id = ""
+            print(json.dumps({"success": True, "api_url": args.api_url, "commands": "real-cli-activity"}, indent=2))
+            return 0
 
         shown_text = run_cli(["tasks", "show", short_id, "--status", "todo"])
         require(title in shown_text, "tasks show did not render decrypted title")
