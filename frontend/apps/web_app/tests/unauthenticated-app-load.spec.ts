@@ -65,6 +65,24 @@ async function openForEveryoneIntroChat(page: any) {
 	await expect(newChatCta).toBeVisible({ timeout: 15000 });
 }
 
+async function openGuestNewChat(page: any) {
+	const skipInterests = page.getByTestId('guest-interest-skip');
+	if (await skipInterests.isVisible({ timeout: 5000 }).catch(() => false)) {
+		await skipInterests.click();
+	}
+
+	const newChatButton = page.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]').first();
+	if (!(await newChatButton.isVisible({ timeout: 1000 }).catch(() => false))) {
+		const firstIntroCard = page.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]').first();
+		await expect(firstIntroCard).toBeVisible({ timeout: 10000 });
+		await firstIntroCard.click();
+	}
+
+	await expect(newChatButton).toBeVisible({ timeout: 15000 });
+	await newChatButton.click();
+	await expect(page.getByTestId('message-editor')).toBeVisible({ timeout: 10000 });
+}
+
 async function readDailyInspirationPhrase(page: any): Promise<string> {
 	const phrase = page.getByTestId('daily-inspiration-phrase');
 	for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -653,8 +671,7 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await openForEveryoneIntroChat(page);
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await openGuestNewChat(page);
 
 		const selector = page.getByTestId('composer-model-selector');
 		await expect(selector).toBeVisible({ timeout: 10000 });
@@ -683,8 +700,7 @@ test.describe('Unauthenticated app load', () => {
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
-		await openForEveryoneIntroChat(page);
-		await page.getByTestId('new-chat-cta-fullwidth').click();
+		await openGuestNewChat(page);
 		await expect(page.getByTestId('composer-model-selector')).toHaveAttribute('aria-label', /Auto select/i);
 	});
 

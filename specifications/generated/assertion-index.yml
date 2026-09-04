@@ -6625,7 +6625,7 @@ assertions:
       surface: gui.web
     - &id757
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 646
+      line: 664
       name: guest can select a composer model ephemerally from its toggle or model
         row
       surface: gui.web
@@ -6722,7 +6722,7 @@ assertions:
       surface: gui.web
     - &id767
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 594
+      line: 612
       name: AI model card in for-everyone chat opens settings deep link
       surface: gui.web
     - &id768
@@ -6764,7 +6764,7 @@ assertions:
       surface: gui.web
     - &id771
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 646
+      line: 664
       name: guest can select a composer model ephemerally from its toggle or model
         row
       surface: gui.web
@@ -6804,7 +6804,7 @@ assertions:
       surface: cli
     - &id774
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 766
+      line: 782
       name: guest app memories only show categories with examples
       surface: gui.web
     - &id775
@@ -18645,18 +18645,18 @@ assertions:
       surface: gui.web
     - &id2142
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 257
+      line: 275
       name: daily inspiration banner keeps a stable initial item across app visits
       surface: gui.web
     supporting_tests:
     - &id2143
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 289
+      line: 307
       name: daily inspiration banner navigates with arrows and touch swipes on mobile
       surface: gui.web
     - &id2144
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 347
+      line: 365
       name: daily inspiration banner auto-rotates for unauthenticated users
       surface: gui.web
     - &id2145
@@ -18728,13 +18728,13 @@ assertions:
     direct_tests:
     - &id2150
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 117
+      line: 135
       name: app loads, can open for-everyone chat, and daily inspirations appear in
         new chat
       surface: gui.web
     - &id2151
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 257
+      line: 275
       name: daily inspiration banner keeps a stable initial item across app visits
       surface: gui.web
     supporting_tests: []
@@ -18824,13 +18824,13 @@ assertions:
       surface: gui.web
     - &id2170
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 117
+      line: 135
       name: app loads, can open for-everyone chat, and daily inspirations appear in
         new chat
       surface: gui.web
     - &id2171
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 399
+      line: 417
       name: desktop welcome carousel opens example chats without runtime errors
       surface: gui.web
     supporting_tests:
@@ -18884,7 +18884,7 @@ assertions:
       surface: gui.web
     - &id2172
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 846
+      line: 862
       name: announcement chat opens when clicked in sidebar
       surface: gui.web
     - &id2173
@@ -19134,12 +19134,12 @@ assertions:
       surface: gui.web
     - &id2199
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 347
+      line: 365
       name: daily inspiration banner auto-rotates for unauthenticated users
       surface: gui.web
     - &id2200
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 805
+      line: 821
       name: for-everyone chat header play button opens intro video in embed fullscreen
       surface: gui.web
     tests:
@@ -19239,7 +19239,7 @@ assertions:
       surface: gui.web
     - &id2210
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 289
+      line: 307
       name: daily inspiration banner navigates with arrows and touch swipes on mobile
       surface: gui.web
     tests:
@@ -19300,7 +19300,7 @@ assertions:
       surface: gui.web
     - &id2215
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 805
+      line: 821
       name: for-everyone chat header play button opens intro video in embed fullscreen
       surface: gui.web
     tests:
@@ -19409,7 +19409,7 @@ assertions:
       surface: gui.web
     - &id2226
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 229
+      line: 247
       name: intro chat follow-up suggestion opens signup for unauthenticated users
       surface: gui.web
     supporting_tests: []
@@ -21905,7 +21905,7 @@ assertions:
       surface: gui.web
     - &id2470
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 399
+      line: 417
       name: desktop welcome carousel opens example chats without runtime errors
       surface: gui.web
     supporting_tests: []
@@ -22161,7 +22161,7 @@ assertions:
       surface: gui.web
     - &id2509
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 438
+      line: 456
       name: example chat loads and fullscreen wiki, website, and image embeds open
         for unauthenticated users
       surface: gui.web
@@ -22594,7 +22594,7 @@ assertions:
       surface: gui.web
     - &id2561
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 438
+      line: 456
       name: example chat loads and fullscreen wiki, website, and image embeds open
         for unauthenticated users
       surface: gui.web
@@ -22930,7 +22930,7 @@ assertions:
     supporting_tests:
     - &id2594
       path: frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
-      line: 692
+      line: 708
       name: settings horizontal card rows keep native touch scrolling
       surface: gui.web
     tests:
