@@ -58,6 +58,7 @@ ACTIVITY_SAFE_FIELDS = {
     *ACTIVITY_CIPHERTEXT_FIELDS,
 }
 TOMBSTONE_FORBIDDEN_FIELDS = ACTIVITY_CIPHERTEXT_FIELDS | {"embed_refs", "encrypted_snapshot"}
+ACTIVITY_PAGINATION_MAX_PAGES = 20
 
 
 def opaque_ciphertext() -> str:
@@ -220,22 +221,35 @@ def run(api_url: str, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
             scenario="activity_first_page",
         )
         require(first_page, 200, "activity_first_page")
-        next_cursor = first_page.payload.get("next_cursor")
-        if not isinstance(next_cursor, str) or len(first_page.payload.get("entries", [])) != 1:
-            raise VerificationFailure("activity_first_page", "stable_cursor_missing")
-        second_page = client.request(
-            "GET",
-            f"/v1/user-tasks/{task_id}/activity",
-            query={"limit": 1, "cursor": next_cursor},
-            scenario="activity_second_page",
-        )
-        require(second_page, 200, "activity_second_page")
-        if not any(
-            entry.get("entry_id") == second_entry_id
-            for entry in second_page.payload.get("entries", [])
-            if isinstance(entry, dict)
-        ):
-            raise VerificationFailure("activity_second_page", "cursor_did_not_advance")
+        page = first_page
+        seen_entry_ids: set[str] = set()
+        seen_cursors: set[str] = set()
+        found_second_entry = False
+        for page_number in range(ACTIVITY_PAGINATION_MAX_PAGES):
+            page_entries = page.payload.get("entries", [])
+            if len(page_entries) != 1 or not isinstance(page_entries[0], dict):
+                raise VerificationFailure("activity_cursor_pagination", "single_entry_page_expected")
+            page_entry_id = page_entries[0].get("entry_id")
+            if not isinstance(page_entry_id, str) or page_entry_id in seen_entry_ids:
+                raise VerificationFailure("activity_cursor_pagination", "cursor_did_not_advance")
+            seen_entry_ids.add(page_entry_id)
+            if page_entry_id == second_entry_id:
+                found_second_entry = True
+                break
+
+            next_cursor = page.payload.get("next_cursor")
+            if not isinstance(next_cursor, str) or next_cursor in seen_cursors:
+                raise VerificationFailure("activity_cursor_pagination", "stable_cursor_missing")
+            seen_cursors.add(next_cursor)
+            page = client.request(
+                "GET",
+                f"/v1/user-tasks/{task_id}/activity",
+                query={"limit": 1, "cursor": next_cursor},
+                scenario=f"activity_page_{page_number + 2}",
+            )
+            require(page, 200, "activity_cursor_pagination")
+        if not found_second_entry:
+            raise VerificationFailure("activity_cursor_pagination", "target_entry_not_reached")
         scenarios["activity_cursor_pagination"] = {"status": "passed"}
 
         plaintext_rejected = client.request(

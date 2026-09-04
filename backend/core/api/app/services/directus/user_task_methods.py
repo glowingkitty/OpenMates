@@ -370,12 +370,17 @@ class UserTaskMethods:
         return None
 
     def _activity_filter(self, user_id: str, task_id: str, team_id: str | None = None) -> dict[str, Any]:
-        scope = (
-            {"hashed_team_id": {"_eq": hash_id(team_id)}}
-            if team_id
-            else {"_and": [{"hashed_user_id": {"_eq": hash_id(user_id)}}, {"hashed_team_id": {"_null": True}}]}
-        )
-        return {"_and": [{"hashed_task_id": {"_eq": hash_id(task_id)}}, scope]}
+        terms: list[dict[str, Any]] = [{"hashed_task_id": {"_eq": hash_id(task_id)}}]
+        if team_id:
+            terms.append({"hashed_team_id": {"_eq": hash_id(team_id)}})
+        else:
+            terms.extend(
+                [
+                    {"hashed_user_id": {"_eq": hash_id(user_id)}},
+                    {"hashed_team_id": {"_null": True}},
+                ]
+            )
+        return {"_and": terms}
 
     async def list_task_activity(
         self,
@@ -392,17 +397,14 @@ class UserTaskMethods:
             if not separator or not created_at_text.isdigit() or not entry_id:
                 raise ValueError("Invalid Task Activity cursor")
             created_at = int(created_at_text)
-            activity_filter = {
-                "_and": [
-                    activity_filter,
-                    {
-                        "_or": [
-                            {"created_at": {"_gt": created_at}},
-                            {"_and": [{"created_at": {"_eq": created_at}}, {"entry_id": {"_gt": entry_id}}]},
-                        ]
-                    },
-                ]
-            }
+            activity_filter["_and"].append(
+                {
+                    "_or": [
+                        {"created_at": {"_gt": created_at}},
+                        {"_and": [{"created_at": {"_eq": created_at}}, {"entry_id": {"_gt": entry_id}}]},
+                    ]
+                }
+            )
         response = await self.directus_service.get_items(
             "user_task_activity",
             params={

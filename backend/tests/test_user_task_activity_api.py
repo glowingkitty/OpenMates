@@ -168,7 +168,8 @@ async def test_activity_cursor_uses_stable_created_at_and_entry_id_order() -> No
     params = directus.get_items.await_args.kwargs["params"]
     assert params["limit"] == 2
     assert params["sort"] == "created_at,entry_id"
-    assert {"created_at": {"_gt": 100}} in params["filter"]["_and"][1]["_or"]
+    cursor_filter = next(term for term in params["filter"]["_and"] if "_or" in term)
+    assert {"created_at": {"_gt": 100}} in cursor_filter["_or"]
 
 
 # contract-test: supporting surface=rest_api assertions=tasks.activity.client-encrypted,tasks.activity.task-scoped-authorization
