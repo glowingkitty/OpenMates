@@ -4056,7 +4056,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return;
         }
 
-        if (resumeChatData && !isChatInActiveTeamContext(resumeChatData, contextTeamId)) {
+        // The loader below writes resumeChatData. Reading it as a tracked value
+        // here would make that write retrigger this effect indefinitely.
+        const currentResumeChat = untrack(() => resumeChatData);
+        if (currentResumeChat && !isChatInActiveTeamContext(currentResumeChat, contextTeamId)) {
             clearResumeChatCard();
         }
 

@@ -739,6 +739,69 @@ describe("handlePostProcessingCompletedImpl", () => {
       "encrypted-chat-key",
     );
   });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.local-state.precedence,assistant-speech.preference.chat-scoped-default-off
+  it("keeps a generated summary when only the speech preference advanced metadata", async () => {
+    const existingChat = {
+      chat_id: "chat-1",
+      encrypted_title: "encrypted-title",
+      encrypted_chat_summary: null,
+      encrypted_auto_speak_response: "encrypted:true",
+      encrypted_chat_key: "encrypted-chat-key",
+      messages_v: 2,
+      title_v: 3,
+      metadata_v: 4,
+      last_edited_overall_timestamp: 100,
+      unread_count: 0,
+      created_at: 100,
+      updated_at: 200,
+    };
+    mockChatDB.getChat.mockResolvedValue(existingChat);
+    const service = {
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handlePostProcessingCompletedImpl(service, {
+      chat_id: "chat-1",
+      task_id: "task-1",
+      follow_up_request_suggestions: [],
+      new_chat_request_suggestions: [],
+      chat_summary: "Generated summary from the completed response",
+      share_cta_text: "",
+      chat_tags: [],
+      harmful_response: 0,
+      top_recommended_apps_for_user: [],
+      quick_tip_slugs: [],
+      source_title_v: 3,
+      source_metadata_v: 3,
+    });
+
+    expect(mockEncryptWithChatKey).toHaveBeenCalledWith(
+      "Generated summary from the completed response",
+      expect.any(Uint8Array),
+    );
+    expect(mockChatDB.updateChat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        chat_id: "chat-1",
+        encrypted_chat_summary:
+          "encrypted:Generated summary from the completed response",
+        encrypted_auto_speak_response: "encrypted:true",
+      }),
+    );
+    expect(mockSendPostProcessingMetadata).toHaveBeenCalledWith(
+      service,
+      "chat-1",
+      "",
+      [],
+      "encrypted:Generated summary from the completed response",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "encrypted-chat-key",
+    );
+  });
 });
 
 describe("handleEmbedUpdateImpl", () => {

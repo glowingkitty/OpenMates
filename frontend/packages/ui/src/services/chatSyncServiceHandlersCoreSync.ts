@@ -542,6 +542,27 @@ export async function handlePhase1LastChatImpl(
     // Store in phasedSyncStateStore for immediate rendering
     phasedSyncState.setRecentChats(recentChatsDecrypted);
 
+    // Phase 1a may finish after a deep-linked chat has already rendered from a
+    // partial local shell. Reuse the normal metadata event for that one active
+    // chat so its header re-reads the authoritative record just stored in IDB.
+    // Do not broadcast updates for every recent chat: sidebar consumers already
+    // receive phasedSyncState, and doing so would create needless render churn.
+    const activeChatId = activeChatStore.get();
+    const activeSyncedChat = activeChatId
+      ? allPhase1Chats.find((chat) => chat.chat_id === activeChatId)
+      : undefined;
+    if (activeSyncedChat) {
+      serviceInstance.dispatchEvent(
+        new CustomEvent("chatUpdated", {
+          detail: {
+            chat_id: activeSyncedChat.chat_id,
+            type: "metadata_updated",
+            chat: activeSyncedChat,
+          },
+        }),
+      );
+    }
+
     // Populate resume card only when the last-opened chat survived validation.
     const lastChat = acceptedLastChatId
       ? recentChatsDecrypted.find(({ chat }) => chat.chat_id === acceptedLastChatId)

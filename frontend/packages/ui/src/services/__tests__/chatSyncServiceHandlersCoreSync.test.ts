@@ -58,6 +58,9 @@ const mocks = vi.hoisted(() => ({
     markPhase1Empty: vi.fn(),
     setInspirations: vi.fn(),
   },
+  activeChatStore: {
+    get: vi.fn((): string | null => null),
+  },
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
@@ -79,7 +82,7 @@ vi.mock("../../stores/notificationStore", () => ({
   notificationStore: { chatMessage: vi.fn(), error: vi.fn() },
 }));
 vi.mock("../../stores/activeChatStore", () => ({
-  activeChatStore: { get: vi.fn(() => null) },
+  activeChatStore: mocks.activeChatStore,
 }));
 vi.mock("../chatSyncMessageKeyGuard", () => ({
   filterPersistableSyncedMessages: vi.fn(async (messages) => messages),
@@ -97,6 +100,7 @@ afterEach(() => {
 describe("handleCacheStatusResponseImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.activeChatStore.get.mockReturnValue(null);
     vi.stubGlobal(
       "CustomEvent",
       class TestCustomEvent {
@@ -186,6 +190,44 @@ describe("handlePhase1LastChatImpl", () => {
       "software",
       "code",
       true,
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.local-state.precedence,sync.startup.bounded-phases
+  it("notifies the active chat when Phase 1a stores authoritative header metadata", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.activeChatStore.get.mockReturnValue("chat-1");
+
+    await handlePhase1LastChatImpl(service, {
+      chat_id: "chat-1",
+      chat_details: {
+        encrypted_title: "server-encrypted-title",
+        encrypted_icon: "server-encrypted-icon",
+        encrypted_category: "server-encrypted-category",
+        encrypted_chat_key: "same-key",
+        messages_v: 4,
+        title_v: 2,
+        metadata_v: 2,
+      },
+      messages: null,
+      recent_chat_metadata: [],
+      phase: "phase1",
+    });
+
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "chatUpdated",
+        detail: expect.objectContaining({
+          chat_id: "chat-1",
+          type: "metadata_updated",
+          chat: expect.objectContaining({
+            chat_id: "chat-1",
+            encrypted_title: "server-encrypted-title",
+            encrypted_icon: "server-encrypted-icon",
+            encrypted_category: "server-encrypted-category",
+          }),
+        }),
+      }),
     );
   });
 

@@ -59,6 +59,7 @@ logger = logging.getLogger(__name__)
 HETZNER_OBJECT_STORAGE_PROVIDER = "Hetzner Object Storage"
 EXTERNAL_PROVIDER_DEGRADED = "external_provider_degraded"
 INTERNAL_STORAGE_CONFIGURATION = "internal_storage_configuration"
+BUCKET_CREATION_SETTLE_SECONDS = 2
 def _stream_sha256(body: Any) -> str:
     digest = hashlib.sha256()
     try:
@@ -378,8 +379,22 @@ class S3UploadService:
         """Reconcile remote bucket policy without making service startup depend on it."""
         if not self.configured or self.client is None:
             return
-        await self._initialize_buckets()
-        await self._reconcile_regional_bucket_policies()
+        reconciliation_failed = False
+        for label, reconcile in (
+            ("active-region buckets", self._initialize_buckets),
+            ("regional bucket policies", self._reconcile_regional_bucket_policies),
+        ):
+            try:
+                await reconcile()
+            except Exception as exc:
+                logger.warning(
+                    "Object storage reconciliation step failed: step=%s error=%s",
+                    label,
+                    type(exc).__name__,
+                )
+                reconciliation_failed = True
+        if reconciliation_failed:
+            raise RuntimeError("object_storage_reconciliation_failed")
 
     async def check_availability(self) -> str:
         """Run one bounded, non-mutating provider probe and return a sanitized state."""
@@ -433,7 +448,7 @@ class S3UploadService:
                         logger.info("Created active-region bucket: logical_bucket=%s", bucket_key)
                         # Hetzner Object Storage can be briefly eventually consistent after bucket creation.
                         # Wait before applying ACL/lifecycle so first-start initialization does not fail noisily.
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(BUCKET_CREATION_SETTLE_SECONDS)
                         bucket_exists = True
                     except ClientError as create_e:
                         logger.error("Failed to create active-region bucket: logical_bucket=%s error=%s", bucket_key, type(create_e).__name__)
@@ -461,7 +476,7 @@ class S3UploadService:
                         ACL=desired_acl,
                     )
                     logger.info("Reconciled active-region bucket ACL: logical_bucket=%s acl=%s", bucket_key, desired_acl)
-                except ClientError as acl_e:
+                except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as acl_e:
                     logger.warning(
                         "Failed to reconcile active-region bucket ACL: logical_bucket=%s acl=%s error=%s",
                         bucket_key,
@@ -489,7 +504,10 @@ class S3UploadService:
             regional_configs = {}
             cors_buckets = []
             for bucket_key, bucket_config in BUCKETS.items():
-                if not bucket_config.get('managed', True):
+                if (
+                    not bucket_config.get('managed', True)
+                    or not should_replicate_bucket(bucket_key)
+                ):
                     continue
                 legacy_name = bucket_config[environment_name]
                 bucket_name = resolve_regional_bucket_name(legacy_name, region)
@@ -498,16 +516,37 @@ class S3UploadService:
                 except ClientError as exc:
                     error_code = str(exc.response.get('Error', {}).get('Code', ''))
                     if error_code in {'404', 'NoSuchBucket'}:
-                        logger.warning("Regional bucket is not provisioned: region=%s logical_bucket=%s", region, bucket_key)
+                        logger.info(
+                            "Regional bucket is missing; creating: region=%s logical_bucket=%s",
+                            region,
+                            bucket_key,
+                        )
+                        try:
+                            await asyncio.to_thread(client.create_bucket, Bucket=bucket_name)
+                            await asyncio.sleep(BUCKET_CREATION_SETTLE_SECONDS)
+                            logger.info(
+                                "Created regional bucket: region=%s logical_bucket=%s",
+                                region,
+                                bucket_key,
+                            )
+                        except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as create_exc:
+                            logger.error(
+                                "Cannot create regional bucket: region=%s logical_bucket=%s error=%s",
+                                region,
+                                bucket_key,
+                                type(create_exc).__name__,
+                            )
+                            reconciliation_failed = True
+                            continue
+                    else:
+                        logger.error(
+                            "Cannot inspect regional bucket policy: region=%s logical_bucket=%s error=%s",
+                            region,
+                            bucket_key,
+                            error_code,
+                        )
+                        reconciliation_failed = True
                         continue
-                    logger.error(
-                        "Cannot inspect regional bucket policy: region=%s logical_bucket=%s error=%s",
-                        region,
-                        bucket_key,
-                        error_code,
-                    )
-                    reconciliation_failed = True
-                    continue
                 except _TRANSIENT_NETWORK_ERRORS as exc:
                     logger.warning(
                         "Regional bucket inspection is degraded: region=%s logical_bucket=%s error=%s",
@@ -521,12 +560,16 @@ class S3UploadService:
                 desired_acl = 'public-read' if bucket_config.get('access') == 'public-read' else 'private'
                 try:
                     await asyncio.to_thread(client.put_bucket_acl, Bucket=bucket_name, ACL=desired_acl)
-                except ClientError as exc:
+                except (ClientError, *_TRANSIENT_NETWORK_ERRORS) as exc:
                     logger.error(
                         "Cannot reconcile regional bucket ACL: region=%s logical_bucket=%s error=%s",
                         region,
                         bucket_key,
-                        str(exc.response.get('Error', {}).get('Code', 'unknown')),
+                        (
+                            str(exc.response.get('Error', {}).get('Code', 'unknown'))
+                            if isinstance(exc, ClientError)
+                            else type(exc).__name__
+                        ),
                     )
                     reconciliation_failed = True
                     continue

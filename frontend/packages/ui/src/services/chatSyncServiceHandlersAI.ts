@@ -2404,11 +2404,17 @@ export async function handlePostProcessingCompletedImpl(
       const latestChatForSummary = await chatDB.getChat(payload.chat_id);
       const latestMetadataV = Math.max(
         latestChatForSummary?.metadata_v ?? 0,
-        latestChatForSummary?.title_v ?? 0,
         chat.metadata_v ?? 0,
-        chat.title_v ?? 0,
       );
-      if (sourceMetadataV !== null && latestMetadataV > sourceMetadataV) {
+      const summaryWasAlreadyChanged = Boolean(
+        latestChatForSummary?.encrypted_chat_summary ??
+          chat.encrypted_chat_summary,
+      );
+      if (
+        sourceMetadataV !== null &&
+        latestMetadataV > sourceMetadataV &&
+        summaryWasAlreadyChanged
+      ) {
         console.info(
           `[ChatSyncService:AI] Skipping stale post-processing summary update for chat ${payload.chat_id} ` +
             `(source_metadata_v=${sourceMetadataV}, current_metadata_v=${latestMetadataV})`,
