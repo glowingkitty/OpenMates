@@ -67,6 +67,8 @@ test.describe('Task Activity component', () => {
 			await expect(page.getByText('I added the launch milestones')).toBeVisible();
 		});
 		await proof.checkpoint('final-activity');
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
 		const editor = page.getByTestId('task-activity-editor').locator('.ProseMirror');
 		await proof.action('demonstrate-rich-composer', async () => {
@@ -95,6 +97,8 @@ test.describe('Task Activity component', () => {
 			});
 		});
 		await proof.checkpoint('rich-composer');
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
 		await proof.action('demonstrate-attribution-and-tombstones', async () => {
 			await openActivityPreview(page);

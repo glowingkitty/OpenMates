@@ -24656,7 +24656,7 @@ assertions:
     supporting_tests:
     - &id2788
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 129
+      line: 133
       name: is the final Task detail section
       surface: gui.web
     tests:
