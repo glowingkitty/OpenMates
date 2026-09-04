@@ -13572,14 +13572,7 @@ def _fast_forward_control_plane(commit_hash: str) -> None:
 
 
 def _enforce_control_plane_sync_ready(expected_base: str) -> None:
-    """Require canonical dev to be a clean tracked mirror of the deploy base."""
-    current = _current_git_sha(CONTROL_PLANE_ROOT)
-    if current != expected_base:
-        raise RuntimeError(
-            "Local dev is not synchronized with origin/dev before deploy: "
-            f"local={current or '<unknown>'} origin={expected_base}. "
-            "Fast-forward the canonical checkout safely before retrying."
-        )
+    """Make canonical dev a clean tracked mirror of the locked deploy base."""
     rc, branch, stderr = _run_cmd(
         ["git", "branch", "--show-current"],
         cwd=str(CONTROL_PLANE_ROOT),
@@ -13599,6 +13592,30 @@ def _enforce_control_plane_sync_ready(expected_base: str) -> None:
         raise RuntimeError(
             "Canonical checkout has tracked changes, so local dev cannot be kept synchronized safely. "
             "Recover or import those root changes before retrying the deploy."
+        )
+    current = _current_git_sha(CONTROL_PLANE_ROOT)
+    if current == expected_base:
+        return
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", current, expected_base],
+        cwd=str(CONTROL_PLANE_ROOT),
+    )
+    if rc != 0:
+        raise RuntimeError(
+            "Canonical dev cannot be fast-forwarded to origin/dev safely: "
+            f"local={current or '<unknown>'} origin={expected_base}. "
+            f"{stderr or 'local dev is not an ancestor of origin/dev'}"
+        )
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge", "--ff-only", expected_base],
+        cwd=str(CONTROL_PLANE_ROOT),
+        timeout=300,
+    )
+    if rc != 0 or _current_git_sha(CONTROL_PLANE_ROOT) != expected_base:
+        raise RuntimeError(
+            "Canonical dev could not be fast-forwarded to origin/dev safely: "
+            f"local={current or '<unknown>'} origin={expected_base}. "
+            f"{stderr or 'HEAD did not reach origin/dev'}"
         )
 
 

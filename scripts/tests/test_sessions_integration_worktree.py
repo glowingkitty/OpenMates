@@ -212,13 +212,72 @@ def test_successful_integration_fast_forwards_dirty_control_plane_without_losing
     assert unrelated.read_text(encoding="utf-8") == "keep me\n"
 
 
-def test_control_plane_sync_preflight_rejects_lag(monkeypatch, tmp_path):
+def test_control_plane_sync_preflight_fast_forwards_clean_dev_and_preserves_untracked(monkeypatch, tmp_path):
     sessions = load_sessions_module()
     root, _source, base = create_fixture(tmp_path)
     monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    next_checkout = tmp_path / "external"
+    git(root, "worktree", "add", "--detach", str(next_checkout), base)
+    (next_checkout / "external.txt").write_text("from automation\n", encoding="utf-8")
+    git(next_checkout, "add", "external.txt")
+    git(next_checkout, "commit", "-m", "external automation")
+    expected = git(next_checkout, "rev-parse", "HEAD")
+    untracked = root / "untracked.local"
+    untracked.write_text("preserved\n", encoding="utf-8")
 
-    with pytest.raises(RuntimeError, match="not synchronized"):
-        sessions._enforce_control_plane_sync_ready("different-origin-head")
+    sessions._enforce_control_plane_sync_ready(expected)
+
+    assert git(root, "rev-parse", "HEAD") == expected
+    assert (root / "external.txt").read_text(encoding="utf-8") == "from automation\n"
+    assert untracked.read_text(encoding="utf-8") == "preserved\n"
+
+
+def test_control_plane_sync_preflight_rejects_divergence(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source, base = create_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    next_checkout = tmp_path / "external"
+    git(root, "worktree", "add", "--detach", str(next_checkout), base)
+    (next_checkout / "external.txt").write_text("from automation\n", encoding="utf-8")
+    git(next_checkout, "add", "external.txt")
+    git(next_checkout, "commit", "-m", "external automation")
+    expected = git(next_checkout, "rev-parse", "HEAD")
+    (root / "changed.txt").write_text("local commit\n", encoding="utf-8")
+    git(root, "add", "changed.txt")
+    git(root, "commit", "-m", "divergent local commit")
+
+    with pytest.raises(RuntimeError, match="fast-forward"):
+        sessions._enforce_control_plane_sync_ready(expected)
+
+
+def test_control_plane_sync_preflight_preserves_conflicting_untracked_file(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source, base = create_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    next_checkout = tmp_path / "external"
+    git(root, "worktree", "add", "--detach", str(next_checkout), base)
+    (next_checkout / "external.txt").write_text("from automation\n", encoding="utf-8")
+    git(next_checkout, "add", "external.txt")
+    git(next_checkout, "commit", "-m", "external automation")
+    expected = git(next_checkout, "rev-parse", "HEAD")
+    conflicting = root / "external.txt"
+    conflicting.write_text("local untracked data\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="could not be fast-forwarded"):
+        sessions._enforce_control_plane_sync_ready(expected)
+
+    assert git(root, "rev-parse", "HEAD") == base
+    assert conflicting.read_text(encoding="utf-8") == "local untracked data\n"
+
+
+def test_control_plane_sync_preflight_rejects_non_dev_branch(monkeypatch, tmp_path):
+    sessions = load_sessions_module()
+    root, _source, base = create_fixture(tmp_path)
+    monkeypatch.setattr(sessions, "CONTROL_PLANE_ROOT", root)
+    git(root, "checkout", "-b", "other")
+
+    with pytest.raises(RuntimeError, match="must have local dev checked out"):
+        sessions._enforce_control_plane_sync_ready(base)
 
 
 def test_control_plane_sync_preflight_allows_untracked_but_rejects_tracked_changes(monkeypatch, tmp_path):
