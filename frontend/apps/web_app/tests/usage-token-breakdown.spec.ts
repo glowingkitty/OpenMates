@@ -97,6 +97,8 @@ test.describe('Usage Token Breakdown', () => {
 		await page.waitForTimeout(5000);
 		logStep('AI response received');
 		await takeScreenshot(page, 'ai-response-received');
+		const createdChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		expect(createdChatId, 'Expected the generated chat ID in the current URL').toBeTruthy();
 
 		// Step 3: Navigate to billing settings via UI
 		const settingsToggle = page.locator('#settings-menu-toggle');
@@ -117,6 +119,9 @@ test.describe('Usage Token Breakdown', () => {
 			.locator('[data-testid="menu-item"][role="menuitem"]')
 			.filter({ hasText: /billing/i });
 		await expect(billingItem).toBeVisible({ timeout: 10000 });
+		const overviewResponsePromise = page.waitForResponse(
+			(response) => response.url().includes('/v1/settings/usage/daily-overview') && response.request().method() === 'GET'
+		);
 		await billingItem.click();
 		logStep('Navigated to Billing');
 		await takeScreenshot(page, 'billing-page');
@@ -125,13 +130,20 @@ test.describe('Usage Token Breakdown', () => {
 		await expect(settingsMenu.getByTestId('usage-overview-day-heading').first()).toBeVisible({
 			timeout: 15000,
 		});
+		const overviewResponse = await overviewResponsePromise;
+		const overviewData = await overviewResponse.json();
+		const chatItems = overviewData.days.flatMap((day: { items?: Array<{ type?: string; chat_id?: string }> }) =>
+			(day.items || []).filter((item) => item.type === 'chat')
+		);
+		const createdChatIndex = chatItems.findIndex((item: { chat_id?: string }) => item.chat_id === createdChatId);
+		expect(createdChatIndex, 'Expected the newly created chat in the reconciled Usage overview').toBeGreaterThanOrEqual(0);
 
-		// Click the first usage item in the overview (most recent chat)
+		// Click the usage item for the chat created by this test.
 		// These are SettingsItem components rendered as usage overview chat rows.
-		const firstUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').first();
-		await expect(firstUsageEntry).toBeVisible({ timeout: 15000 });
-		const overviewCredits = trailingCredits(await firstUsageEntry.textContent());
-		await firstUsageEntry.click();
+		const createdChatUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').nth(createdChatIndex);
+		await expect(createdChatUsageEntry).toBeVisible({ timeout: 15000 });
+		const overviewCredits = trailingCredits(await createdChatUsageEntry.textContent());
+		await createdChatUsageEntry.click();
 		logStep('Clicked first usage entry (drill into chat entries)');
 		await takeScreenshot(page, 'chat-entries-list');
 
