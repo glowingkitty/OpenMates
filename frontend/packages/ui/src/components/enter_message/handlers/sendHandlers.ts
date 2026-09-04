@@ -782,6 +782,15 @@ export async function handleSend(
           filename: (node.attrs.filename as string) || "Attachment",
           uploadEmbedId: (node.attrs.uploadEmbedId as string) || null,
           contentRef: (node.attrs.contentRef as string) || null,
+          title: (node.attrs.title as string) || null,
+          transcript: (node.attrs.transcript as string) || null,
+          transcriptOriginal: (node.attrs.transcriptOriginal as string) || null,
+          transcriptCorrected: (node.attrs.transcriptCorrected as string) || null,
+          useCorrected: (node.attrs.useCorrected as boolean) ?? null,
+          correctionModel: (node.attrs.correctionModel as string) || null,
+          duration: (node.attrs.duration as string) || null,
+          waveform: node.attrs.waveform ?? null,
+          model: (node.attrs.model as string) || null,
         });
       }
       return true;
@@ -2259,6 +2268,17 @@ export async function executeDeferredSend(
 
           if (contentRef) {
             node.attrs.contentRef = contentRef;
+          }
+          if (snap.embedType === "recording") {
+            node.attrs.title = snap.title;
+            node.attrs.transcript = snap.transcript;
+            node.attrs.transcriptOriginal = snap.transcriptOriginal;
+            node.attrs.transcriptCorrected = snap.transcriptCorrected;
+            node.attrs.useCorrected = snap.useCorrected;
+            node.attrs.correctionModel = snap.correctionModel;
+            node.attrs.duration = snap.duration;
+            node.attrs.waveform = snap.waveform;
+            node.attrs.model = snap.model;
           }
         }
       }

@@ -2052,6 +2052,15 @@ async function _performRecordingUpload(
         if (snapRec) {
           snapRec.uploadEmbedId = uploadEmbedIdForStore;
           snapRec.contentRef = `embed:${uploadEmbedIdForStore}`;
+          snapRec.title = titleFromResponse ?? null;
+          snapRec.transcript = transcriptText ?? null;
+          snapRec.transcriptOriginal = transcriptOriginal ?? null;
+          snapRec.transcriptCorrected = transcriptCorrected ?? null;
+          snapRec.useCorrected = useCorrected ?? null;
+          snapRec.correctionModel = correctionModel ?? null;
+          snapRec.duration = duration || null;
+          snapRec.waveform = waveform ?? responseWaveform ?? null;
+          snapRec.model = modelFromResponse ?? null;
         }
       }
     } catch {

@@ -57,6 +57,14 @@ export interface EmbedNodeAttributes {
   rows?: number;
   cols?: number;
   title?: string;
+  transcript?: string;
+  transcriptOriginal?: string;
+  transcriptCorrected?: string;
+  useCorrected?: boolean;
+  correctionModel?: string;
+  duration?: string;
+  waveform?: unknown;
+  model?: string;
   receiver?: string;
   subject?: string;
   content?: string;

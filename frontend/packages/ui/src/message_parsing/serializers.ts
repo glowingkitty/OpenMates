@@ -691,7 +691,17 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       // future audio skill processing.
       if (attrs.contentRef?.startsWith("embed:")) {
         const embed_id = attrs.contentRef.replace("embed:", "");
-        const embedRef = JSON.stringify(createEmbedReference("audio-recording", embed_id), null, 2);
+        const ref: Record<string, unknown> = createEmbedReference("audio-recording", embed_id);
+        if (attrs.title) ref.title = attrs.title;
+        if (attrs.transcript) ref.transcript = attrs.transcript;
+        if (attrs.transcriptOriginal) ref.transcript_original = attrs.transcriptOriginal;
+        if (attrs.transcriptCorrected) ref.transcript_corrected = attrs.transcriptCorrected;
+        if (attrs.useCorrected != null) ref.use_corrected = attrs.useCorrected;
+        if (attrs.correctionModel) ref.correction_model = attrs.correctionModel;
+        if (attrs.duration) ref.duration = attrs.duration;
+        if (attrs.waveform) ref.waveform = attrs.waveform;
+        if (attrs.model) ref.model = attrs.model;
+        const embedRef = JSON.stringify(ref, null, 2);
         return `\`\`\`json\n${embedRef}\n\`\`\``;
       }
       // No contentRef — either still uploading/transcribing (should not happen at
