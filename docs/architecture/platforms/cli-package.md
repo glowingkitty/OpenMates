@@ -52,7 +52,7 @@ claims:
 
 # CLI Package
 
-> npm package openmates, 0.17.x artifact line for product line v0.17, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
+> npm package openmates, 0.18.x artifact line for product line v0.18, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
 
 ## Why This Exists
 

@@ -32,7 +32,7 @@ Analyze the user's input and determine:
    - `UI`, `Backend`, `DevOps`, `testing`, `docs`, `marketing`, `payment`
    - `cronjob`, `user-feedback`, `SEO`
 6. **Project**: Suggest Web App or CLI based on content
-7. **Milestone**: Suggest the current product line for ongoing work (for example `v0.17`) or the next minor product line for larger features (for example `v0.17`). Alpha artifact numbers such as `0.17.0-alpha.1` are package revisions, not user-facing milestones.
+7. **Milestone**: Suggest the current product line for ongoing work (for example `v0.18`) or the next minor product line for larger features (for example `v0.18`). Alpha artifact numbers such as `0.18.0-alpha.1` are package revisions, not user-facing milestones.
 8. **Spec size**: Decide `none`, `inline`, or `full` using `docs/contributing/guides/spec-driven-development.md`
 
 ### Step 2: Present the Suggested Task
@@ -47,7 +47,7 @@ Show the user what will be created:
 **Priority:** High (2)
 **Labels:** Bug, UI
 **Project:** Web App
-**Milestone:** v0.17
+**Milestone:** v0.18
 
 ### Description
 The create reminder UI is broken — [expanded description based on user input].

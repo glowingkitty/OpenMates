@@ -1,11 +1,11 @@
 {
-  "userFacing": "v0.17",
+  "userFacing": "v0.18",
   "cli": {
-    "stableBase": "0.17.0",
+    "stableBase": "0.18.0",
     "prereleaseLabel": "alpha"
   },
   "python": {
-    "stableBase": "0.17.0",
+    "stableBase": "0.18.0",
     "prereleaseLabel": "a"
   }
 }
