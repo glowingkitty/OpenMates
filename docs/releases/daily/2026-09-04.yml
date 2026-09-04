@@ -1,7 +1,7 @@
 schema_version: 1
 cadence: daily
 date: '2026-09-04'
-generated_at: '2026-09-04T11:35:50+00:00'
+generated_at: '2026-09-04T11:50:58+00:00'
 range:
   since: 24 hours ago
   until: null
@@ -9,19 +9,19 @@ range:
   to_ref: HEAD
   assume_released: false
 summary:
-  total_commits: 39
+  total_commits: 54
   section_counts:
     features: 3
-    bug_fixes: 19
+    bug_fixes: 25
     improvements: 0
-    docs: 4
-    tests: 7
+    docs: 5
+    tests: 15
     infrastructure: 1
     internal: 2
     other: 3
   newsletter_ready_items: 0
-  user_facing_items: 7
-  dev_only_items: 39
+  user_facing_items: 11
+  dev_only_items: 54
   unknown_release_items: 0
 feature_availability:
   disabled_features:
@@ -281,6 +281,163 @@ sections:
     - 'matches feature availability gates: platform:tasks'
     - commit is not reachable from main, so it is not newsletter-ready
   bug_fixes:
+  - title: 'fix: persist voice speech preference after first send'
+    section: bug_fixes
+    commits:
+    - 021ae1c34
+    authored_at: '2026-09-04T11:24:42+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/assistantSpeechPreference.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve voice transcript after reload'
+    section: bug_fixes
+    commits:
+    - c57ca5a79
+    authored_at: '2026-09-04T11:00:24+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: bind response videos to exact Playwright tests'
+    section: bug_fixes
+    commits:
+    - 62586ff29
+    authored_at: '2026-09-04T10:46:17+00:00'
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve date-only appointment precision'
+    section: bug_fixes
+    commits:
+    - dda20d19b
+    authored_at: '2026-09-04T10:19:53+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
+    - frontend/packages/ui/src/services/continueCarouselService.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve task activity preview text'
+    section: bug_fixes
+    commits:
+    - 91648119e
+    authored_at: '2026-09-04T10:04:41+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: finalize sent voice recordings in place'
+    section: bug_fixes
+    commits:
+    - 7f1a74d9c
+    authored_at: '2026-09-04T09:44:31+00:00'
+    changed_paths:
+    - docs/plans/assistant-response-speech/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - scripts/verify_assistant_speech_live_smoke.mjs
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:audio:recording'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reuse chat history messages in task activity'
+    section: bug_fixes
+    commits:
+    - a4fe2a62c
+    authored_at: '2026-09-04T09:37:33+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'fix: separate task activity placeholder'
     section: bug_fixes
     commits:
@@ -606,14 +763,16 @@ sections:
     - classified as bug fixes from commit subject/path rules
     - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: 'fix: distinguish account provisioning dispatches'
-    section: bug_fixes
+  improvements: []
+  docs:
+  - title: 'docs: refresh September 4 release intelligence'
+    section: docs
     commits:
-    - b31d85a5d
-    authored_at: '2026-09-03T11:40:16+00:00'
+    - 62b8d51f7
+    authored_at: '2026-09-04T11:37:45+00:00'
     changed_paths:
-    - scripts/tests.py
-    - scripts/tests/test_tests_control.py
+    - docs/releases/daily/2026-09-04.md
+    - docs/releases/daily/2026-09-04.yml
     release_status: dev_only
     communication_status: not_user_facing
     newsletter_ready: false
@@ -621,10 +780,8 @@ sections:
     related_features: []
     feature_metadata_changed: false
     rationale:
-    - classified as bug fixes from commit subject/path rules
+    - classified as documentation from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
-  improvements: []
-  docs:
   - title: Evaluate Cerebras Qwen 3.8 27B for fast alias
     section: docs
     commits:
@@ -696,6 +853,150 @@ sections:
     - classified as documentation from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
   tests:
+  - title: 'test: stabilize task activity proof frames'
+    section: tests
+    commits:
+    - e4c3eaeea
+    authored_at: '2026-09-04T11:27:41+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: stabilize guest model selection coverage'
+    section: tests
+    commits:
+    - d102ada16
+    authored_at: '2026-09-04T11:19:59+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: align task activity proof transitions'
+    section: tests
+    commits:
+    - c230818ce
+    authored_at: '2026-09-04T11:11:17+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: cover guest model selection'
+    section: tests
+    commits:
+    - e98e049e6
+    authored_at: '2026-09-04T10:58:55+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: make voice transcription fixture deterministic'
+    section: tests
+    commits:
+    - 7c5d3c955
+    authored_at: '2026-09-04T10:26:03+00:00'
+    changed_paths:
+    - docs/plans/assistant-response-speech/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: focus task activity proof on shared messages'
+    section: tests
+    commits:
+    - 6cae176ae
+    authored_at: '2026-09-04T10:16:53+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: render submitted activity preview text'
+    section: tests
+    commits:
+    - 2013758ca
+    authored_at: '2026-09-04T09:51:12+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - 'matches feature availability gates: platform:tasks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'test: reproduce date-only appointment timing'
+    section: tests
+    commits:
+    - 681c0e91c
+    authored_at: '2026-09-04T09:41:45+00:00'
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: 'test: stabilize task activity preview content'
     section: tests
     commits:
@@ -886,6 +1187,21 @@ sections:
     - classified as internal work from commit subject/path rules
     - commit is not reachable from main, so it is not newsletter-ready
   other:
+  - title: Merge production hotfix history into dev (#510)
+    section: other
+    commits:
+    - 4c9b060de
+    authored_at: '2026-09-04T13:34:40+02:00'
+    changed_paths: []
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as other changes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
   - title: Bound draft embed cleanup on WebSocket
     section: other
     commits:
@@ -920,26 +1236,155 @@ sections:
     - classified as other changes from commit subject/path rules
     - contains user-facing product paths
     - commit is not reachable from main, so it is not newsletter-ready
-  - title: Reject silently dropped WebSocket sends
-    section: other
-    commits:
-    - 1c2df761c
-    authored_at: '2026-09-03T11:36:32+00:00'
-    changed_paths:
-    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-    - frontend/packages/ui/src/services/websocketService.ts
-    - specifications/generated/assertion-index.yml
-    release_status: dev_only
-    communication_status: not_user_facing
-    newsletter_ready: false
-    user_facing: false
-    related_features: []
-    feature_metadata_changed: false
-    rationale:
-    - classified as other changes from commit subject/path rules
-    - commit is not reachable from main, so it is not newsletter-ready
 unreleased_progress:
   dev_only:
+  - title: 'docs: refresh September 4 release intelligence'
+    commits:
+    - 62b8d51f7
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: Merge production hotfix history into dev (#510)
+    commits:
+    - 4c9b060de
+    section: other
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize task activity proof frames'
+    commits:
+    - e4c3eaeea
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: persist voice speech preference after first send'
+    commits:
+    - 021ae1c34
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: stabilize guest model selection coverage'
+    commits:
+    - d102ada16
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: align task activity proof transitions'
+    commits:
+    - c230818ce
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve voice transcript after reload'
+    commits:
+    - c57ca5a79
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'test: cover guest model selection'
+    commits:
+    - e98e049e6
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: bind response videos to exact Playwright tests'
+    commits:
+    - 62586ff29
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: make voice transcription fixture deterministic'
+    commits:
+    - 7c5d3c955
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve date-only appointment precision'
+    commits:
+    - dda20d19b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: focus task activity proof on shared messages'
+    commits:
+    - 6cae176ae
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: preserve task activity preview text'
+    commits:
+    - 91648119e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'test: render submitted activity preview text'
+    commits:
+    - 2013758ca
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: finalize sent voice recordings in place'
+    commits:
+    - 7f1a74d9c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+  - title: 'test: reproduce date-only appointment timing'
+    commits:
+    - 681c0e91c
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: reuse chat history messages in task activity'
+    commits:
+    - a4fe2a62c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
   - title: 'test: stabilize task activity preview content'
     commits:
     - af467aa03
@@ -1234,20 +1679,6 @@ unreleased_progress:
     release_status: dev_only
     communication_status: not_user_facing
     related_features: []
-  - title: 'fix: distinguish account provisioning dispatches'
-    commits:
-    - b31d85a5d
-    section: bug_fixes
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
-  - title: Reject silently dropped WebSocket sends
-    commits:
-    - 1c2df761c
-    section: other
-    release_status: dev_only
-    communication_status: not_user_facing
-    related_features: []
   unknown_release_status: []
   feature_metadata_changed:
   - title: Add Cerebras Qwen 3.8 27B support
@@ -1267,6 +1698,59 @@ unreleased_progress:
 marketing_candidates:
   newsletter: []
   social_or_video:
+  - title: 'fix: preserve voice transcript after reload'
+    commits:
+    - c57ca5a79
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: preserve task activity preview text'
+    commits:
+    - 91648119e
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: finalize sent voice recordings in place'
+    commits:
+    - 7f1a74d9c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:audio:recording
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:audio
+      source: backend/apps/audio/app.yml
+    newsletter_ready: false
+  - title: 'fix: reuse chat history messages in task activity'
+    commits:
+    - a4fe2a62c
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
   - title: 'fix: separate task activity placeholder'
     commits:
     - c1010f39c
@@ -1358,6 +1842,188 @@ risks:
   - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
 sources:
   commits:
+  - sha: 62b8d51f7cb8219ab526a8eb5ceb65f8317acbec
+    short_sha: 62b8d51f7
+    authored_at: '2026-09-04T11:37:45+00:00'
+    subject: 'docs: refresh September 4 release intelligence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/releases/daily/2026-09-04.md
+    - docs/releases/daily/2026-09-04.yml
+    related_feature_ids: []
+  - sha: 4c9b060dec7b090c5f111d05cebb5c28f580eb5d
+    short_sha: 4c9b060de
+    authored_at: '2026-09-04T13:34:40+02:00'
+    subject: Merge production hotfix history into dev (#510)
+    in_main: false
+    in_dev: true
+    changed_paths: []
+    related_feature_ids: []
+  - sha: e4c3eaeea2b5c4d2c190d41836ef492dc9bda856
+    short_sha: e4c3eaeea
+    authored_at: '2026-09-04T11:27:41+00:00'
+    subject: 'test: stabilize task activity proof frames'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 021ae1c34d3d38f2d9e4f30826a241d769363d5e
+    short_sha: 021ae1c34
+    authored_at: '2026-09-04T11:24:42+00:00'
+    subject: 'fix: persist voice speech preference after first send'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/assistantSpeechPreference.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    related_feature_ids: []
+  - sha: d102ada16c454a2e057f79cdd8d52b80aca35832
+    short_sha: d102ada16
+    authored_at: '2026-09-04T11:19:59+00:00'
+    subject: 'test: stabilize guest model selection coverage'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: c230818cee665a5e4a04eb7c51b0e2be795d5d3a
+    short_sha: c230818ce
+    authored_at: '2026-09-04T11:11:17+00:00'
+    subject: 'test: align task activity proof transitions'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    related_feature_ids: []
+  - sha: c57ca5a79823b8ca318840daae74153ae1c5f384
+    short_sha: c57ca5a79
+    authored_at: '2026-09-04T11:00:24+00:00'
+    subject: 'fix: preserve voice transcript after reload'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/enter_message/embedHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/message_parsing/embedParsing.ts
+    - frontend/packages/ui/src/message_parsing/serializers.ts
+    - frontend/packages/ui/src/message_parsing/types.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    related_feature_ids: []
+  - sha: e98e049e64306b052e6da9ca3b19bc25dd6b0942
+    short_sha: e98e049e6
+    authored_at: '2026-09-04T10:58:55+00:00'
+    subject: 'test: cover guest model selection'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/unauthenticated-app-load.spec.ts
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids: []
+  - sha: 62586ff293c514d0bf0f389fe6933357aff8ecd6
+    short_sha: 62586ff29
+    authored_at: '2026-09-04T10:46:17+00:00'
+    subject: 'fix: bind response videos to exact Playwright tests'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/tests.py
+    - scripts/tests/test_tests_control.py
+    related_feature_ids: []
+  - sha: 7c5d3c9550fab045b8dc30739dfdf13a76372220
+    short_sha: 7c5d3c955
+    authored_at: '2026-09-04T10:26:03+00:00'
+    subject: 'test: make voice transcription fixture deterministic'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/assistant-response-speech/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: dda20d19bdfeed270b049c502349c48ce693c486
+    short_sha: dda20d19b
+    authored_at: '2026-09-04T10:19:53+00:00'
+    subject: 'fix: preserve date-only appointment precision'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
+    - frontend/packages/ui/src/services/continueCarouselService.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 6cae176ae64c3a8e0839466a0dbd456c74b51e1f
+    short_sha: 6cae176ae
+    authored_at: '2026-09-04T10:16:53+00:00'
+    subject: 'test: focus task activity proof on shared messages'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 91648119e489bdbca7fe977141bb5380d6b73925
+    short_sha: 91648119e
+    authored_at: '2026-09-04T10:04:41+00:00'
+    subject: 'fix: preserve task activity preview text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 2013758cacfcc3f2ba8aeaeb0c128feed18c308f
+    short_sha: 2013758ca
+    authored_at: '2026-09-04T09:51:12+00:00'
+    subject: 'test: render submitted activity preview text'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    related_feature_ids:
+    - platform:tasks
+  - sha: 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4
+    short_sha: 7f1a74d9c
+    authored_at: '2026-09-04T09:44:31+00:00'
+    subject: 'fix: finalize sent voice recordings in place'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/assistant-response-speech/plan.yml
+    - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - scripts/verify_assistant_speech_live_smoke.mjs
+    related_feature_ids:
+    - embed:audio:recording
+  - sha: 681c0e91cf419d340bedc3c5eaf973a754170900
+    short_sha: 681c0e91c
+    authored_at: '2026-09-04T09:41:45+00:00'
+    subject: 'test: reproduce date-only appointment timing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/ui/src/services/__tests__/continueCarouselService.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a4fe2a62c1765c3a26431afac825f9ee1b19560c
+    short_sha: a4fe2a62c
+    authored_at: '2026-09-04T09:37:33+00:00'
+    subject: 'fix: reuse chat history messages in task activity'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/task-activity.spec.ts
+    - frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:tasks
   - sha: af467aa03f9fae9e59016d7db07c2a11380d9033
     short_sha: af467aa03
     authored_at: '2026-09-04T09:17:50+00:00'
@@ -1791,119 +2457,113 @@ sources:
     - backend/tests/test_chat_turn_preflight_handler.py
     - specifications/generated/assertion-index.yml
     related_feature_ids: []
-  - sha: b31d85a5dd0ae5d722292459eafb44cdc2822e23
-    short_sha: b31d85a5d
-    authored_at: '2026-09-03T11:40:16+00:00'
-    subject: 'fix: distinguish account provisioning dispatches'
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - scripts/tests.py
-    - scripts/tests/test_tests_control.py
-    related_feature_ids: []
-  - sha: 1c2df761c0b4814b810a529aa2424cc1b7ce31de
-    short_sha: 1c2df761c
-    authored_at: '2026-09-03T11:36:32+00:00'
-    subject: Reject silently dropped WebSocket sends
-    in_main: false
-    in_dev: true
-    changed_paths:
-    - frontend/packages/ui/src/services/__tests__/websocketService.test.ts
-    - frontend/packages/ui/src/services/websocketService.ts
-    - specifications/generated/assertion-index.yml
-    related_feature_ids: []
 llm_summary:
-  overview: Development focused on the upcoming Task Activity feature, including encrypted API endpoints and web interface
-    components. Significant maintenance was performed on the OpenCode development environment to ensure session integrity
-    and runtime stability.
+  overview: OpenMates focused heavily on the development of an encrypted Task Activity system, spanning the API, web interface,
+    and SDK. Significant progress was also made on voice interaction reliability and OpenCode session integrity, supported
+    by a large suite of new automated tests and CI sharding.
   released_changes: []
-  bug_fixes:
-  - text: OpenCode session integrity was hardened with bounded provider retries, storage compatibility gates, and zellij host
-      preservation.
+  bug_fixes: []
+  unreleased_progress:
+  - text: OpenMates added an encrypted Task Activity surface to the web app, supported by a new API and SDK clients for Python
+      and TypeScript.
+    evidence:
+      commits:
+      - fdf22ca66
+      - 32d6f87f9
+      - 75cd79c18
+      - 91648119e
+      - a4fe2a62c
+      - c1010f39c
+    release_status: dev_only
+  - text: Voice interaction reliability was improved by preserving transcripts across reloads and persisting speech preferences
+      after the first message.
+    evidence:
+      commits:
+      - c57ca5a79
+      - 7f1a74d9c
+      - 021ae1c34
+    release_status: dev_only
+  - text: OpenCode session integrity was hardened with new runtime hooks, storage compatibility gates, and zellij host preservation.
     evidence:
       commits:
       - 68a63f563
-      - 35ea39d74
       - b5f480efc
+      - 35ea39d74
+      - 63c07140c
+      - aa6ed53eb
     release_status: dev_only
-  - text: WebSocket handlers were refined to ensure draft embed cleanup and metadata broadcasts occur only after durability
-      acknowledgments, with preflight replies now routed to originating sockets.
+  internal_progress:
+  - text: The project established a comprehensive CI pipeline for Task Activity, including sharded smoke tests, isolated keyspaces,
+      and rate-limited budget tracking.
     evidence:
       commits:
-      - a0c29da3c
-      - cb8811d45
-      - 5dc662ece
+      - e808444ca
+      - 65338559d
+      - 486ec6e87
+      - 47ed0609b
+      - b571b548d
+      - d88a5151a
+      - 9d4624311
+      - 4249290ac
+      - 56d81646e
     release_status: dev_only
-  - text: The chat E2E testing suite was stabilized by restoring content gates within the signup flow.
-    evidence:
-      commits:
-      - c25b6b7db
-    release_status: dev_only
-  unreleased_progress:
-  - text: The Task Activity feature received an encrypted API, Python/CLI clients, and a web surface for viewing activity
-      comments.
-    evidence:
-      commits:
-      - 75cd79c18
-      - 32d6f87f9
-      - fdf22ca66
-      - c1010f39c
-    release_status: dev_only
-  - text: Support for the Cerebras Qwen 3.8 27B model was added to the backend and CLI for evaluation as a fast model alias.
+  - text: Support for Cerebras Qwen 3.8 27B was added to the backend and CLI for evaluation as a fast model alias.
     evidence:
       commits:
       - ca7647db3
       - ac415dc8e
     release_status: dev_only
-  - text: Canonical voice journeys and deferred audio recording finalization were defined and tested for the web application.
+  - text: WebSocket handling was refined to ensure preflight replies return on originating sockets and metadata broadcasts
+      are bound to durability acknowledgments.
     evidence:
       commits:
-      - e0f7334ac
-      - a45dd8a45
-      - 35e631130
-    release_status: dev_only
-  internal_progress:
-  - text: CI workflows for Task Activity were sharded and isolated into dedicated smoke runners to manage rate budgets and
-      improve reliability.
-    evidence:
-      commits:
-      - 9d4624311
-      - 4249290ac
-      - e808444ca
-      - 56d81646e
-    release_status: dev_only
-  - text: Local development synchronization was improved to safely handle worktree lifecycles after managed deployments.
-    evidence:
-      commits:
-      - ded1d344d
-      - b757479ee
+      - 5dc662ece
+      - cb8811d45
+      - a0c29da3c
     release_status: dev_only
   newsletter_recommendation:
     include: []
     exclude:
-    - text: Task Activity encrypted API and web surface.
+    - text: Encrypted Task Activity surface and API.
       evidence:
         commits:
         - fdf22ca66
-        - 75cd79c18
         - 32d6f87f9
-      reason: The Tasks platform and associated apps are currently disabled in the feature configuration.
-    - text: Cerebras Qwen 3.8 27B model support.
+        - 75cd79c18
+      reason: The Task Activity feature is currently gated behind the disabled platform:tasks feature flag.
+    - text: Voice transcript preservation and speech preference persistence.
       evidence:
         commits:
-        - ca7647db3
-        - ac415dc8e
-      reason: Model evaluation and support are currently in dev-only status.
-    rationale: No user-facing changes were released to the main branch during this period. All significant feature work is
-      currently gated by disabled feature flags or remains in development.
+        - c57ca5a79
+        - 7f1a74d9c
+        - 021ae1c34
+      reason: Voice and audio improvements are currently in dev_only status and not yet released to the main branch.
+    - text: OpenCode session integrity hardening.
+      evidence:
+        commits:
+        - 68a63f563
+        - b5f480efc
+        - 35ea39d74
+      reason: OpenCode session integrity work is internal infrastructure and dev-only.
+    rationale: No items in this update were released to the main branch with a status ready for public communication. Major
+      feature work on Task Activity remains disabled at the platform level.
   social_video_recommendations:
-  - idea: A walkthrough of the new encrypted Task Activity web surface once the Tasks platform is enabled.
-    priority: low
-    reason: The UI components for task comments and activity are now functional in development environments.
+  - idea: A preview of the new Task Activity web surface, showing the encrypted comment and activity history.
+    priority: medium
+    reason: This is a major new UI component that provides a clear visual story for task-based collaboration.
     evidence:
       commits:
       - fdf22ca66
+  - idea: A demonstration of voice transcript preservation, showing how a recording remains intact even after a page reload.
+    priority: low
+    reason: This highlights a specific quality-of-life improvement in the voice experience.
+    evidence:
+      commits:
+      - c57ca5a79
+      - 7f1a74d9c
   quality_notes:
-  - Heavy emphasis on CI stability for new Task Activity endpoints.
-  - Expanded E2E test coverage for voice recording and deferred message finalization.
+  - The update includes 15 dedicated test commits, demonstrating a high priority on stabilizing the new Task Activity and
+    Voice journeys.
+  - Development is highly cross-functional, with synchronized changes across the Python backend, Svelte frontend, and the
+    OpenMates CLI.
   validation_warnings: []
