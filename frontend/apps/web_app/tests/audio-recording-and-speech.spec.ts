@@ -288,44 +288,46 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		}
 
 		await expect(player).toBeVisible({ timeout: SPEECH_TIMEOUT_MS });
-		const regions = player.getByTestId('assistant-speech-region');
-		await expect.poll(async () => regions.count(), { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+		await expect(player).toHaveAttribute('data-presentation', 'replayable_track_queue', { timeout: SPEECH_TIMEOUT_MS });
+		const waveform = player.getByTestId('assistant-speech-waveform');
+		const regions = player.getByTestId('assistant-speech-waveform-region');
+		await expect.poll(async () => regions.count(), { timeout: SPEECH_TIMEOUT_MS }).toBeGreaterThanOrEqual(2);
 		await expect(async () => {
-			const ready = await regions.evaluateAll((elements: Element[]) => elements.filter((element) => element.getAttribute('data-status') === 'ready').length);
-			const status = await player.getByTestId('assistant-speech-status').textContent();
-			expect(ready > 0 || /playing|tap play/i.test(status || '')).toBeTruthy();
+			const placeholder = await waveform.getAttribute('data-placeholder');
+			const status = await player.getAttribute('data-status');
+			expect(placeholder === 'false' || status === 'autoplay_blocked').toBeTruthy();
 		}).toPass({ timeout: SPEECH_TIMEOUT_MS });
 
-		const continueButton = player.getByTestId('assistant-speech-continue');
-		if (await continueButton.isVisible().catch(() => false)) await continueButton.click();
 		await expect(player.getByRole('button', { name: /pause voice response|play voice response/i })).toBeVisible({ timeout: 30_000 });
-		await expect(player.getByRole('button', { name: 'Previous paragraph' })).toBeVisible();
-		await expect(player.getByRole('button', { name: 'Next paragraph' })).toBeVisible();
+		await expect(player.getByTestId('assistant-speech-next-chapter')).toBeVisible();
 
 		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
 		await expect(page.locator('[data-testid="embed-preview"][data-app-id="weather"][data-status="finished"]')).toBeVisible({ timeout: 120_000 });
 
-		const selectNextParagraph = () => player.getByRole('button', { name: 'Next paragraph' }).click();
+		const firstSegmentId = await waveform.getAttribute('data-segment-id');
+		const selectNextParagraph = () => player.getByTestId('assistant-speech-next-chapter').click();
 		if (proof) {
 			await proof.action('select-next-paragraph', selectNextParagraph);
 		} else {
 			await selectNextParagraph();
 		}
-		await expect(regions.nth(1)).toHaveAttribute('data-active', 'true');
+		await expect(waveform).not.toHaveAttribute('data-segment-id', firstSegmentId || '');
+		await expect(player.locator('[data-testid="assistant-speech-waveform-region"][data-position="current"]')).toHaveCount(1);
+		await expect(player.getByTestId('assistant-speech-previous-chapter')).toBeVisible();
 		await expectNoPlayerOverlap(page, player);
 		await expect(page.locator('body')).not.toContainText(/encrypted_auto_speak_response|generated_asset_id|speakable_text/);
 
 		if (proof) {
 			await proof.assert('paragraph-navigation-visible', async () => {
-				await expect(regions.nth(1)).toHaveAttribute('data-active', 'true');
+				await expect(waveform).not.toHaveAttribute('data-segment-id', firstSegmentId || '');
 				await expectNoPlayerOverlap(page, player);
 			});
 			await proof.checkpoint('paragraph-navigation-visible');
 			await page.waitForTimeout(PROOF_FINAL_STATE_HOLD_MS);
 			await proof.attach();
 		}
-		await player.getByRole('button', { name: 'Previous paragraph' }).click();
-		await expect(regions.nth(0)).toHaveAttribute('data-active', 'true');
+		await player.getByTestId('assistant-speech-previous-chapter').click();
+		await expect(waveform).toHaveAttribute('data-segment-id', firstSegmentId || '');
 		const playPause = player.getByRole('button', { name: /pause voice response|play voice response/i });
 		if ((await playPause.getAttribute('aria-label')) === 'Pause voice response') await playPause.click();
 		await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
@@ -336,7 +338,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(reopenSpeakAction).toBeFocused();
 		await reopenSpeakAction.press('Enter');
 		await expect(player).toBeVisible({ timeout: 30_000 });
-		await expect(player.getByTestId('assistant-speech-region').nth(0)).toHaveAttribute('data-status', 'ready');
+		await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false');
 		await deleteActiveChat(page, log);
 	});
 });
