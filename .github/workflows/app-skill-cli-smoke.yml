@@ -87,6 +87,7 @@ jobs:
           retention-days: 14
 
   activity-smoke:
+    needs: smoke
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
