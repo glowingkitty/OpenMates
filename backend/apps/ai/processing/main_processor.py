@@ -15,6 +15,7 @@ import os
 import copy
 import hashlib
 import time
+import uuid
 from functools import lru_cache
 from pathlib import Path
 from toon_format import encode
@@ -7075,6 +7076,84 @@ async def handle_main_processing(
                                     for result in request_results
                                 ]
 
+                anonymous_embed_payloads: List[Dict[str, Any]] = []
+                anonymous_embed_reference: Optional[str] = None
+                if (
+                    getattr(request_data, "is_anonymous", False)
+                    and not is_async_skill
+                    and not is_multimodal_result
+                ):
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService as _AnonymousEmbedSvc
+
+                        child_type = await _AnonymousEmbedSvc.get_child_embed_type(
+                            app_id,
+                            skill_id,
+                            cache_service=cache_service,
+                        )
+                        parent_embed_id = str(uuid.uuid4())
+                        child_embed_ids = [str(uuid.uuid4()) for _ in results_with_refs]
+                        now = int(time.time())
+                        parent_content = {
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                            "result_count": len(results_with_refs),
+                            "embed_ids": child_embed_ids,
+                            "status": "finished",
+                            **{key: value for key, value in preview_data.items() if key != "results_toon"},
+                            **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
+                        }
+                        parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
+                            app_id,
+                            skill_id,
+                            parent_content,
+                        )
+                        anonymous_embed_payloads.append({
+                            "embed_id": parent_embed_id,
+                            "type": "app_skill_use",
+                            "content": encode(_flatten_for_toon_tabular(parent_content)),
+                            "status": "finished",
+                            "embed_ids": child_embed_ids,
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                            "created_at": now,
+                            "updated_at": now,
+                        })
+                        for child_embed_id, result in zip(child_embed_ids, results_with_refs):
+                            child_content = {
+                                **_flatten_for_toon_tabular(result),
+                                "type": child_type,
+                                "app_id": app_id,
+                                "skill_id": child_type,
+                                "status": "finished",
+                            }
+                            anonymous_embed_payloads.append({
+                                "embed_id": child_embed_id,
+                                "type": child_type,
+                                "content": encode(child_content),
+                                "status": "finished",
+                                "parent_embed_id": parent_embed_id,
+                                "app_id": app_id,
+                                "skill_id": child_type,
+                                "created_at": now,
+                                "updated_at": now,
+                            })
+                        anonymous_embed_reference = json.dumps({
+                            "type": "app_skill_use",
+                            "embed_id": parent_embed_id,
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                        })
+                        yield f"```json\n{anonymous_embed_reference}\n```\n\n"
+                    except Exception as anonymous_embed_error:
+                        logger.error(
+                            "%s Failed to build transient anonymous embeds for '%s': %s",
+                            log_prefix,
+                            tool_name,
+                            anonymous_embed_error,
+                            exc_info=True,
+                        )
+
                 # Filter results WITH embed_refs for current LLM inference
                 # Removes non-essential fields (URLs, thumbnails, etc.) to reduce noise
                 # and make embed_ref more prominent. Full results are already stored in
@@ -7912,10 +7991,11 @@ async def handle_main_processing(
                     "input": _sanitize_tool_call_input_for_storage(parsed_args),
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
                     "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
-                    "embed_reference": embed_references[0] if embed_references else None,  # First embed reference (for backward compatibility)
+                    "embed_reference": anonymous_embed_reference or (embed_references[0] if embed_references else None),  # First embed reference (for backward compatibility)
                     "embed_references": embed_references if len(embed_references) > 1 else None,  # All embed references (for multiple requests)
-                    "embed_id": embed_ids[0] if embed_ids else None,  # First embed ID (for backward compatibility)
-                    "embed_ids": embed_ids if len(embed_ids) > 1 else None  # All embed IDs (for multiple requests)
+                    "embed_id": anonymous_embed_payloads[0]["embed_id"] if anonymous_embed_payloads else (embed_ids[0] if embed_ids else None),  # First embed ID (for backward compatibility)
+                    "embed_ids": [embed["embed_id"] for embed in anonymous_embed_payloads] if anonymous_embed_payloads else (embed_ids if len(embed_ids) > 1 else None),  # All embed IDs (for multiple requests)
+                    "anonymous_embeds": anonymous_embed_payloads or None,
                 }
                 tool_calls_info.append(tool_call_info)
                 logger.debug(

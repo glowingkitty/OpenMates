@@ -6571,7 +6571,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (finalMessageInArray) {
                 // CRITICAL FIX: Ensure model_name is preserved in final message
                 const fallbackModelName = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.modelName : undefined;
-                const finalModelName = finalMessageInArray.model_name || chunk.model_name || fallbackModelName;
+                const finalModelName = chunk.model_name || finalMessageInArray.model_name || fallbackModelName;
 
                 // Attach thinking metadata to the final message so it persists across devices.
                 const thinkingEntry = thinkingContentByTask.get(chunk.message_id);

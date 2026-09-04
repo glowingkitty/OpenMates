@@ -3479,6 +3479,7 @@ export async function handleSendEmbedDataImpl(
     hashed_message_id: string;
     hashed_user_id: string;
   },
+  options?: { localOnly?: boolean },
 ): Promise<void> {
   // FIX: The WebSocket service extracts rawMessage.payload and passes it to handlers,
   // so 'payload' here is already the inner embed data object, NOT the full message structure.
@@ -4168,6 +4169,7 @@ export async function handleSendEmbedDataImpl(
       const hashedUserId = persistenceIndexes?.hashed_user_id
         ?? await computeSHA256(embedData.user_id);
       const hashedEmbedId = await computeSHA256(embedData.embed_id);
+      const isLocalOnlyEmbed = options?.localOnly === true;
 
       let hashedTaskId: string | undefined;
       if (embedData.task_id) {
@@ -4356,9 +4358,11 @@ export async function handleSendEmbedDataImpl(
 
       if (!isChildEmbed) {
         // Only create key wrappers for parent embeds
-        wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
-        if (!wrappedMasterKey) {
-          throw new Error("Failed to wrap embed_key with master key");
+        if (!isLocalOnlyEmbed) {
+          wrappedMasterKey = await wrapEmbedKeyWithMasterKey(embedKey);
+          if (!wrappedMasterKey) {
+            throw new Error("Failed to wrap embed_key with master key");
+          }
         }
 
         // CRITICAL: Use getChatKey (NOT getOrGenerateChatKey) to prevent silently
@@ -4521,17 +4525,17 @@ export async function handleSendEmbedDataImpl(
 
       // 8. Store embed keys locally in IndexedDB (ONLY for parent embeds)
       // Child embeds don't have their own key wrappers - they use the parent's key
-      if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
+      if (!isChildEmbed && wrappedChatKey) {
         const now = Math.floor(Date.now() / 1000);
         const embedKeysForStorage = [
-          {
+          ...(wrappedMasterKey ? [{
             hashed_embed_id: hashedEmbedId,
             key_type: "master" as const,
             hashed_chat_id: null,
             encrypted_embed_key: wrappedMasterKey,
             hashed_user_id: hashedUserId,
             created_at: now,
-          },
+          }] : []),
           {
             hashed_embed_id: hashedEmbedId,
             key_type: "chat" as const,
@@ -4577,80 +4581,86 @@ export async function handleSendEmbedDataImpl(
         updated_at: normalizeToUnixSeconds(embedData.updatedAt, nowSeconds),
       };
 
-      const sendersModule = await import("./chatSyncServiceSenders");
-      const sendStoreFunction =
-        sendersModule.sendStoreEmbedImpl ||
-        (
-          sendersModule as {
-            default?: {
-              sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl;
-            };
-          }
-        ).default?.sendStoreEmbedImpl;
-
-      if (typeof sendStoreFunction !== "function") {
-        throw new Error("sendStoreEmbedImpl function not found");
-      }
-
-      await sendStoreFunction(serviceInstance, storePayload);
-      console.info(
-        `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
-      );
-
-      await persistClientEncryptedEmbedDiffRows(
-        serviceInstance,
-        embedData,
-        embedKey,
-        hashedUserId,
-      );
-
-      // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
-      // Child embeds don't have their own key wrappers - they use the parent's key
-      if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
-        const now = Math.floor(Date.now() / 1000);
-        const embedKeysForStorage = [
-          {
-            hashed_embed_id: hashedEmbedId,
-            key_type: "master" as const,
-            hashed_chat_id: null,
-            encrypted_embed_key: wrappedMasterKey,
-            hashed_user_id: hashedUserId,
-            created_at: now,
-          },
-          {
-            hashed_embed_id: hashedEmbedId,
-            key_type: "chat" as const,
-            hashed_chat_id: hashedChatId,
-            encrypted_embed_key: wrappedChatKey,
-            hashed_user_id: hashedUserId,
-            created_at: now,
-          },
-        ];
-
-        const embedKeysPayload = { keys: embedKeysForStorage };
-
-        const sendStoreEmbedKeysFunction =
-          sendersModule.sendStoreEmbedKeysImpl ||
+      if (!isLocalOnlyEmbed) {
+        const sendersModule = await import("./chatSyncServiceSenders");
+        const sendStoreFunction =
+          sendersModule.sendStoreEmbedImpl ||
           (
             sendersModule as {
               default?: {
-                sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl;
+                sendStoreEmbedImpl?: typeof sendersModule.sendStoreEmbedImpl;
               };
             }
-          ).default?.sendStoreEmbedKeysImpl;
+          ).default?.sendStoreEmbedImpl;
 
-        if (typeof sendStoreEmbedKeysFunction !== "function") {
-          throw new Error("sendStoreEmbedKeysImpl function not found");
+        if (typeof sendStoreFunction !== "function") {
+          throw new Error("sendStoreEmbedImpl function not found");
         }
 
-        await sendStoreEmbedKeysFunction(serviceInstance, embedKeysPayload);
+        await sendStoreFunction(serviceInstance, storePayload);
         console.info(
-          `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for parent embed ${embedData.embed_id} to Directus ` +
-            `(master + chat). This should only happen ONCE per finalized embed!`,
+          `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
         );
-      } else if (isChildEmbed) {
-        console.debug(
-          `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
+
+        await persistClientEncryptedEmbedDiffRows(
+          serviceInstance,
+          embedData,
+          embedKey,
+          hashedUserId,
+        );
+
+        // 10. Send key wrappers to server for embed_keys collection (ONLY for parent embeds)
+        // Child embeds don't have their own key wrappers - they use the parent's key
+        if (!isChildEmbed && wrappedMasterKey && wrappedChatKey) {
+          const now = Math.floor(Date.now() / 1000);
+          const embedKeysForStorage = [
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "master" as const,
+              hashed_chat_id: null,
+              encrypted_embed_key: wrappedMasterKey,
+              hashed_user_id: hashedUserId,
+              created_at: now,
+            },
+            {
+              hashed_embed_id: hashedEmbedId,
+              key_type: "chat" as const,
+              hashed_chat_id: hashedChatId,
+              encrypted_embed_key: wrappedChatKey,
+              hashed_user_id: hashedUserId,
+              created_at: now,
+            },
+          ];
+
+          const embedKeysPayload = { keys: embedKeysForStorage };
+
+          const sendStoreEmbedKeysFunction =
+            sendersModule.sendStoreEmbedKeysImpl ||
+            (
+              sendersModule as {
+                default?: {
+                  sendStoreEmbedKeysImpl?: typeof sendersModule.sendStoreEmbedKeysImpl;
+                };
+              }
+            ).default?.sendStoreEmbedKeysImpl;
+
+          if (typeof sendStoreEmbedKeysFunction !== "function") {
+            throw new Error("sendStoreEmbedKeysImpl function not found");
+          }
+
+          await sendStoreEmbedKeysFunction(serviceInstance, embedKeysPayload);
+          console.info(
+            `[ChatSyncService:AI] [EMBED_EVENT] ✅ Sent key wrappers for parent embed ${embedData.embed_id} to Directus ` +
+              `(master + chat). This should only happen ONCE per finalized embed!`,
+          );
+        } else if (isChildEmbed) {
+          console.debug(
+            `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
+          );
+        }
+      } else {
+        console.info(
+          `[ChatSyncService:AI] Kept embed ${embedData.embed_id} encrypted in local storage only`,
         );
       }
 

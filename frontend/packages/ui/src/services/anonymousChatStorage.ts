@@ -645,6 +645,22 @@ class AnonymousChatStorage {
           chatSyncService.dispatchEvent(new CustomEvent("aiMessageChunk", { detail: chunkPayload }));
           break;
         }
+        case "send_embed_data": {
+          const { handleSendEmbedDataImpl } = await import("./chatSyncServiceHandlersAI");
+          const embedPayload = payload.payload && typeof payload.payload === "object"
+            ? payload.payload as Record<string, unknown>
+            : {};
+          await handleSendEmbedDataImpl(chatSyncService, {
+            type: "send_embed_data",
+            payload: {
+              ...embedPayload,
+              chat_id: activeChat.chat_id,
+              message_id: messageId,
+              user_id: this.getAnonymousId(),
+            },
+          } as never, undefined, { localOnly: true });
+          break;
+        }
         case "ai_task_ended":
         case "aiTaskEnded":
           taskEndedStatus = typeof payload.status === "string" ? payload.status : "completed";

@@ -806,6 +806,46 @@ describe("handleSendEmbedDataImpl", () => {
     });
   });
 
+  // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted
+  it("stores anonymous embeds locally without invoking remote persistence", async () => {
+    const chatKey = new Uint8Array([1, 2, 3]);
+    const embedKey = new Uint8Array([4, 5, 6]);
+    mockChatDB.getChat.mockResolvedValue({ chat_id: "client-controlled-chat-id" });
+    mockChatKeyManager.getKeySync.mockReturnValue(chatKey);
+    mockChatKeyManager.getKey.mockResolvedValue(chatKey);
+    mockDeriveEmbedKeyFromChatKey.mockResolvedValue(embedKey);
+    mockEncryptWithEmbedKey.mockImplementation(async (value: string) => `encrypted:${value}`);
+    mockWrapEmbedKeyWithChatKey.mockResolvedValue("wrapped-chat-key");
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleSendEmbedDataImpl(service, {
+      type: "send_embed_data",
+      event_for_client: "send_embed_data",
+      payload: {
+        embed_id: "embed-1",
+        type: "app_skill_use",
+        content: "app_id: news\nskill_id: search\nstatus: finished",
+        status: "finished",
+        chat_id: "client-controlled-chat-id",
+        message_id: "message-1",
+        user_id: "anonymous-user-1",
+      },
+    } as unknown as Parameters<typeof handleSendEmbedDataImpl>[1], undefined, { localOnly: true });
+
+    expect(mockEmbedStore.putEncrypted).toHaveBeenCalledWith(
+      "embed:embed-1",
+      expect.objectContaining({ encrypted_content: expect.any(String) }),
+      "app_skill_use",
+      expect.any(String),
+      expect.objectContaining({ app_id: "news", skill_id: "search" }),
+      expect.any(Object),
+    );
+    expect(mockWrapEmbedKeyWithMasterKey).not.toHaveBeenCalled();
+    expect(mockSendStoreEmbed).not.toHaveBeenCalled();
+    expect(mockSendStoreEmbedKeys).not.toHaveBeenCalled();
+    expect(mockSendStoreEmbedDiff).not.toHaveBeenCalled();
+  });
+
   // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
   it("stores already-encrypted Directus fallback embeds without waiting for raw chat keys", async () => {
     const hashedChatId = "a".repeat(64);

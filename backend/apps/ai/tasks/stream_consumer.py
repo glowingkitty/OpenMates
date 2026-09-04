@@ -9648,6 +9648,16 @@ async def _consume_main_processing_stream(
         total_credits=billing_info.get("total_credits"),
         category=preprocessing_result.category or "general_knowledge"
     )
+    if getattr(request_data, "is_anonymous", False):
+        anonymous_embeds = [
+            embed
+            for tool_call in tool_calls_info or []
+            if isinstance(tool_call, dict)
+            for embed in tool_call.get("anonymous_embeds") or []
+            if isinstance(embed, dict)
+        ]
+        if anonymous_embeds:
+            final_payload["anonymous_embeds"] = anonymous_embeds
     if recovery_job:
         final_payload["recovery_job_id"] = recovery_job["job_id"]
         final_payload["recovery_protocol_version"] = 1
