@@ -5,7 +5,7 @@
  * Product contract: contracts/features/tasks/contract.yml.
  */
 
-import type { UserTaskViewModel } from '../../services/userTaskService';
+import type { UserTaskActivityEntry, UserTaskViewModel } from '../../services/userTaskService';
 
 const createdAt = 1_788_883_200;
 const dueAt = 1_792_627_200;
@@ -67,7 +67,13 @@ const related = {
   }],
 };
 
-export default { task, related, onClose: () => {} };
+const activityEntries: UserTaskActivityEntry[] = [{
+  entryId: 'preview-activity', taskId: task.task_id, kind: 'lifecycle_update', actorType: 'ai', actorHash: null,
+  actorDisplayName: null, actorProfileImageUrl: null, authorHash: null, eventType: 'task_blocked', sourceSurface: 'system',
+  createdAt: createdAt + 60, deletedAt: null, deletedByHash: null, deletedByDisplayName: null, embedRefs: [],
+}];
+
+export default { task, related, activityEntries, onClose: () => {} };
 
 export const variants = {
   codeFallback: {

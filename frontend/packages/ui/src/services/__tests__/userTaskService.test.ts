@@ -28,20 +28,17 @@ vi.mock('../encryption/ChatKeyManager', () => ({ chatKeyManager: { getKey: vi.fn
 
 import {
   blockUserTask,
+  canSubmitUserTaskActivity,
+  createUserTaskActivity,
   createUserTask,
+  deleteUserTaskActivity,
   externalChatLookupHash,
+  listUserTaskActivity,
   listUserTasks,
   updateUserTask,
   type EncryptedUserTaskRecord,
   type UserTaskViewModel,
 } from '../userTaskService';
-import * as userTaskServiceModule from '../userTaskService';
-
-const activityService = userTaskServiceModule as typeof userTaskServiceModule & {
-  createUserTaskActivity: (task: UserTaskViewModel, input: { message: string; embedRefs?: string[]; embedKeyMaterial?: string; createdAt?: number }) => Promise<Record<string, unknown>>;
-  deleteUserTaskActivity: (task: UserTaskViewModel, entryId: string) => Promise<Record<string, unknown>>;
-  listUserTaskActivity: (task: UserTaskViewModel) => Promise<Array<Record<string, unknown>>>;
-};
 
 const externalChat = { provider: 'opencode' as const, id: 'ses-private-session', title: 'Private external title' };
 
@@ -196,11 +193,12 @@ describe('userTaskService external chat privacy', () => {
     };
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({ entry: activityRecord }), { status: 200 }));
 
-    const entry = await activityService.createUserTaskActivity(taskViewModel(), {
+    const entry = await createUserTaskActivity(taskViewModel(), {
       message: 'Private activity comment',
       embedRefs: ['embed-1'],
       embedKeyMaterial: 'embed-key-material',
       createdAt: 123,
+      teamId: 'team-1',
     });
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
@@ -214,6 +212,7 @@ describe('userTaskService external chat privacy', () => {
     });
     expect(JSON.stringify(body)).not.toContain('Private activity comment');
     expect(JSON.stringify(body)).not.toContain('embed-key-material');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('team_id=team-1');
     expect(entry).toMatchObject({
       entryId: activityRecord.entry_id,
       message: 'Private activity comment',
@@ -241,15 +240,27 @@ describe('userTaskService external chat privacy', () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ entries: [tombstone], next_cursor: null }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ entry: tombstone }), { status: 200 }));
 
-    const entries = await activityService.listUserTaskActivity(taskViewModel());
-    const deleted = await activityService.deleteUserTaskActivity(taskViewModel(), 'entry-deleted');
+    const entries = await listUserTaskActivity(taskViewModel(), 'team-1');
+    const deleted = await deleteUserTaskActivity(taskViewModel(), 'entry-deleted', 'team-1');
 
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain('cursor=100%3Aentry-comment');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('team_id=team-1');
     expect(entries[0]).toMatchObject({ entryId: 'entry-comment', message: 'Hello', sourceSurface: 'cli' });
     expect(entries[1]).toMatchObject({ entryId: 'entry-deleted', kind: 'tombstone', deletedByDisplayName: 'Grace', embedRefs: [] });
     expect(entries[1]).not.toHaveProperty('message');
     expect(cryptoMocks.unwrapEmbedKeyWithChatKey).toHaveBeenCalledTimes(1);
     expect(deleted).not.toHaveProperty('message');
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/activity/entry-deleted');
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain('team_id=team-1');
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.activity.composer-message-parity
+  it('blocks Activity submission while uploads or transcription are unresolved and keeps failures visible', () => {
+    expect(canSubmitUserTaskActivity('Ready comment', [])).toBe(true);
+    expect(canSubmitUserTaskActivity('Ready comment', ['finished'])).toBe(true);
+    expect(canSubmitUserTaskActivity('Ready comment', ['uploading'])).toBe(false);
+    expect(canSubmitUserTaskActivity('Ready comment', ['transcribing'])).toBe(false);
+    expect(canSubmitUserTaskActivity('Ready comment', ['error'])).toBe(false);
+    expect(canSubmitUserTaskActivity('  ', [])).toBe(false);
   });
 });

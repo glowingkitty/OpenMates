@@ -10,7 +10,7 @@
   import { onMount, tick } from 'svelte';
   import { focusTrap } from '../../actions/focusTrap';
   import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
-  import type { UserTaskDependencyViewModel, UserTaskViewModel } from '../../services/userTaskService';
+  import type { UserTaskActivityEntry, UserTaskDependencyViewModel, UserTaskViewModel } from '../../services/userTaskService';
   import { userProfile } from '../../stores/userProfile';
   import TaskDetailContent from './TaskDetailContent.svelte';
 
@@ -24,10 +24,14 @@
   let {
     task,
     related,
+    activityEntries,
+    teamId,
     onClose,
   }: {
     task: UserTaskViewModel;
     related?: TaskDetailRelatedData;
+    activityEntries?: UserTaskActivityEntry[];
+    teamId?: string;
     onClose: () => void;
   } = $props();
 
@@ -82,7 +86,7 @@
       </div>
     {/snippet}
     {#snippet content()}
-      <TaskDetailContent {task} {related} showTitle={false} />
+      <TaskDetailContent {task} {related} {activityEntries} {teamId} showTitle={false} />
     {/snippet}
   </UnifiedEmbedFullscreen>
 </div>

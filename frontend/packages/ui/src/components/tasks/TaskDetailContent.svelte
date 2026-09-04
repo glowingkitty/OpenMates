@@ -10,12 +10,14 @@
   import { onMount } from 'svelte';
   import { SettingsSectionHeading } from '../settings/elements';
   import WorkspaceContinueCard from '../workspace/WorkspaceContinueCard.svelte';
+  import TaskActivity from './TaskActivity.svelte';
   import { chatDB } from '../../services/db';
   import { listProjects } from '../../services/projectService';
   import {
     listUserTaskDependencies,
     listUserTasks,
     type UserTaskDependencyViewModel,
+    type UserTaskActivityEntry,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
   import { listUserPlans } from '../../services/userPlanService';
@@ -33,10 +35,14 @@
     task,
     related,
     showTitle = true,
+    activityEntries,
+    teamId,
   }: {
     task: UserTaskViewModel;
     related?: TaskDetailRelatedData;
     showTitle?: boolean;
+    activityEntries?: UserTaskActivityEntry[];
+    teamId?: string;
   } = $props();
 
   let resolvedRelated = $state<TaskDetailRelatedData>({ projects: [], plan: null, chat: null, dependencies: [] });
@@ -218,6 +224,7 @@
   </div>
 
   {#if relationLoadFailed}<p class="relation-error" role="alert">Some connected task details could not be loaded.</p>{/if}
+  <TaskActivity {task} {teamId} initialEntries={activityEntries} />
 </article>
 
 <style>

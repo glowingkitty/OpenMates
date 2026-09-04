@@ -390,12 +390,12 @@ tests:
   - id: T-UI-ACTIVITY-UNIT
     type: unit
     file: frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
-    command: python3 scripts/run_frontend_tests.py --unit frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
+    command: python3 scripts/tests.py run --suite vitest
     covers: [AC-2, AC-3]
     assertions:
       - Activity entry text and entry/embed key material encrypt and decrypt through the Task key locally.
       - Upload/transcription pending and failure states gate send without invoking chat persistence.
-    red_phase: {required: true, expected: fail_or_missing, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "github-33852020198-missing-web-activity-service", timestamp: "2026-09-04T08:11:30Z"}}
     green_phase: {required: true, expected: pass, evidence: {status: pending, command: "", run_id: "", subject_commit: "", timestamp: ""}}
   - id: T-PLAYWRIGHT-ACTIVITY
     type: playwright
@@ -407,7 +407,7 @@ tests:
       - Bare TaskActivity preview uses chrome=0 and proves final-section placement, composer-first order, multiline, voice, upload/embed pending/error states, and stable stream order.
       - Team web attribution shows name/profile without via text, mate attribution shows OpenMates, and deletion shows each approved tombstone variant.
       - Laptop 1440x900 and phone 390x844 profiles have no clipping, hidden controls, horizontal overflow, or composer obstruction.
-    red_phase: {required: true, expected: fail_or_missing, evidence: {status: pending, run_id: "", timestamp: ""}}
+    red_phase: {required: true, expected: fail_or_missing, evidence: {status: missing_as_expected, run_id: "missing-task-activity-preview-before-cfe3c2a", timestamp: "2026-09-04T08:12:00Z"}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending, command: "", run_id: "", subject_commit: "", deployment_reference: "", target: app.dev.openmates.org, timestamp: ""}}
   - id: T-SDK-CLI-PARITY-AUDIT
     type: unit

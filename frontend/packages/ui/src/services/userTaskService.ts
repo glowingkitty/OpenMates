@@ -11,6 +11,7 @@ import {
   encryptChatKeyWithMasterKey,
   encryptWithEmbedKey,
   generateEmbedKey,
+  unwrapEmbedKeyWithChatKey,
   wrapEmbedKeyWithChatKey,
 } from "./cryptoService";
 import { getMasterKey } from "./cryptoKeyStorage";
@@ -144,6 +145,64 @@ export interface UserTaskDependencyViewModel {
   targetId: string;
   targetStatus: string;
   satisfied: boolean;
+}
+
+export type UserTaskActivityKind = "comment" | "lifecycle_update" | "tombstone";
+export type UserTaskActivitySourceSurface = "web" | "apple" | "cli" | "sdk_npm" | "sdk_pip" | "system";
+
+export interface UserTaskActivityRecord {
+  entry_id: string;
+  task_id: string;
+  kind: UserTaskActivityKind;
+  actor_type: "user" | "ai" | "system";
+  actor_hash?: string | null;
+  actor_display_name?: string | null;
+  actor_profile_image_url?: string | null;
+  author_hash?: string | null;
+  event_type: string;
+  source_surface: UserTaskActivitySourceSurface;
+  created_at: number;
+  deleted_at?: number | null;
+  deleted_by_hash?: string | null;
+  deleted_by_display_name?: string | null;
+  encrypted_entry_key?: string | null;
+  encrypted_message?: string | null;
+  encrypted_embed_key_material?: string | null;
+  embed_refs: string[];
+}
+
+export interface UserTaskActivityEntry {
+  entryId: string;
+  taskId: string;
+  kind: UserTaskActivityKind;
+  actorType: "user" | "ai" | "system";
+  actorHash: string | null;
+  actorDisplayName: string | null;
+  actorProfileImageUrl: string | null;
+  authorHash: string | null;
+  eventType: string;
+  sourceSurface: UserTaskActivitySourceSurface;
+  createdAt: number;
+  deletedAt: number | null;
+  deletedByHash: string | null;
+  deletedByDisplayName: string | null;
+  message?: string;
+  embedKeyMaterial?: string;
+  embedRefs: string[];
+}
+
+export interface CreateUserTaskActivityInput {
+  message: string;
+  embedRefs?: string[];
+  embedKeyMaterial?: string;
+  entryId?: string;
+  createdAt?: number;
+  teamId?: string;
+}
+
+export function canSubmitUserTaskActivity(message: string, embedStatuses: string[]): boolean {
+  return message.trim().length > 0
+    && !embedStatuses.some((status) => status === "uploading" || status === "transcribing" || status === "error");
 }
 
 export interface WorkflowRunTaskProjectionViewModel {
@@ -410,6 +469,96 @@ export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Pr
 
 export async function listUserTasks(filters: ListUserTasksFilters = {}): Promise<UserTaskViewModel[]> {
   return (await listTaskBoardItems(filters)).filter((task): task is UserTaskViewModel => !isWorkflowRunTaskProjectionViewModel(task));
+}
+
+function taskActivityPath(taskId: string, teamId?: string, cursor?: string): string {
+  const params = new URLSearchParams({ limit: "200" });
+  if (teamId) params.set("team_id", teamId);
+  if (cursor) params.set("cursor", cursor);
+  return `/v1/user-tasks/${encodeURIComponent(taskId)}/activity?${params.toString()}`;
+}
+
+async function taskKeyForActivity(task: UserTaskViewModel): Promise<Uint8Array> {
+  const taskKey = await decryptChatKeyWithMasterKey(task.encrypted.encrypted_task_key ?? "");
+  if (!taskKey) throw new Error(`Could not decrypt Task Activity key for ${task.task_id}`);
+  return taskKey;
+}
+
+async function decryptTaskActivityEntry(task: UserTaskViewModel, record: UserTaskActivityRecord): Promise<UserTaskActivityEntry> {
+  const entry: UserTaskActivityEntry = {
+    entryId: record.entry_id,
+    taskId: record.task_id,
+    kind: record.kind,
+    actorType: record.actor_type,
+    actorHash: record.actor_hash ?? null,
+    actorDisplayName: record.actor_display_name ?? null,
+    actorProfileImageUrl: record.actor_profile_image_url ?? null,
+    authorHash: record.author_hash ?? record.actor_hash ?? null,
+    eventType: record.event_type,
+    sourceSurface: record.source_surface,
+    createdAt: record.created_at,
+    deletedAt: record.deleted_at ?? null,
+    deletedByHash: record.deleted_by_hash ?? null,
+    deletedByDisplayName: record.deleted_by_display_name ?? null,
+    embedRefs: record.kind === "tombstone" ? [] : record.embed_refs,
+  };
+  if (record.kind === "tombstone" || record.kind !== "comment") return entry;
+  if (!record.encrypted_entry_key || !record.encrypted_message) {
+    throw new Error(`Task Activity entry ${record.entry_id} is missing encrypted content`);
+  }
+  const taskKey = await taskKeyForActivity(task);
+  const entryKey = await unwrapEmbedKeyWithChatKey(record.encrypted_entry_key, taskKey);
+  if (!entryKey) throw new Error(`Could not decrypt Task Activity entry key ${record.entry_id}`);
+  const message = await decryptWithEmbedKey(record.encrypted_message, entryKey);
+  if (message === null) throw new Error(`Could not decrypt Task Activity entry ${record.entry_id}`);
+  const embedKeyMaterial = record.encrypted_embed_key_material
+    ? await decryptWithEmbedKey(record.encrypted_embed_key_material, taskKey)
+    : null;
+  if (record.encrypted_embed_key_material && embedKeyMaterial === null) {
+    throw new Error(`Could not decrypt Task Activity embed keys ${record.entry_id}`);
+  }
+  return { ...entry, message, ...(embedKeyMaterial !== null ? { embedKeyMaterial } : {}) };
+}
+
+export async function listUserTaskActivity(task: UserTaskViewModel, teamId?: string): Promise<UserTaskActivityEntry[]> {
+  const entries: UserTaskActivityEntry[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await requestJson<{ entries: UserTaskActivityRecord[]; next_cursor: string | null }>(taskActivityPath(task.task_id, teamId, cursor));
+    entries.push(...await Promise.all(page.entries.map((record) => decryptTaskActivityEntry(task, record))));
+    cursor = page.next_cursor ?? undefined;
+  } while (cursor);
+  return entries;
+}
+
+export async function createUserTaskActivity(task: UserTaskViewModel, input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {
+  const taskKey = await taskKeyForActivity(task);
+  const entryKey = generateEmbedKey();
+  const body = {
+    entry_id: input.entryId ?? crypto.randomUUID(),
+    encrypted_entry_key: await wrapEmbedKeyWithChatKey(entryKey, taskKey),
+    encrypted_message: await encryptWithEmbedKey(input.message, entryKey),
+    ...(input.embedKeyMaterial ? { encrypted_embed_key_material: await encryptWithEmbedKey(input.embedKeyMaterial, taskKey) } : {}),
+    embed_refs: input.embedRefs ?? [],
+    created_at: input.createdAt ?? nowSeconds(),
+  };
+  const data = await requestJson<{ entry: UserTaskActivityRecord }>(taskActivityPath(task.task_id, input.teamId), {
+    method: "POST",
+    headers: { "X-OpenMates-Client": "web" },
+    body: JSON.stringify(body),
+  });
+  return decryptTaskActivityEntry(task, data.entry);
+}
+
+export async function deleteUserTaskActivity(task: UserTaskViewModel, entryId: string, teamId?: string): Promise<UserTaskActivityEntry> {
+  const params = new URLSearchParams();
+  if (teamId) params.set("team_id", teamId);
+  const query = params.toString();
+  const data = await requestJson<{ entry: UserTaskActivityRecord }>(
+    `/v1/user-tasks/${encodeURIComponent(task.task_id)}/activity/${encodeURIComponent(entryId)}${query ? `?${query}` : ""}`,
+    { method: "DELETE", headers: { "X-OpenMates-Client": "web" } },
+  );
+  return decryptTaskActivityEntry(task, data.entry);
 }
 
 export function isWorkflowRunTaskProjectionViewModel(task: TasksBoardItem): task is WorkflowRunTaskProjectionViewModel {
