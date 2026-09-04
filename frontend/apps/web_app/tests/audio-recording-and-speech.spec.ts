@@ -180,8 +180,9 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		const recordedAudio = messageField
 			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
 			.last();
-		await expect(recordedAudio).toHaveAttribute('data-status', /uploading|processing|transcribing/);
-		await editor.fill(withRequiredLiveMock('Reply in exactly two short plain-text paragraphs confirming this encrypted chat is ready for a voice playback test.'));
+		await expect(recordedAudio).toHaveAttribute('data-status', /uploading|transcribing/);
+		await editor.click();
+		await page.keyboard.type(withRequiredLiveMock('Reply in exactly two short plain-text paragraphs confirming this encrypted chat is ready for a voice playback test.'));
 		await page.locator('[data-action="send-message"]').click();
 		const pendingMessage = page.locator('[data-message-id][data-status="waiting_for_upload"]').last();
 		await expect(pendingMessage).toBeVisible({ timeout: 10_000 });
