@@ -5,6 +5,7 @@ updates and keeps pull requests small enough to review and diagnose. It covers
 every package ecosystem that can change executable OpenMates build inputs.
 """
 
+from datetime import date, timedelta
 from pathlib import Path
 
 import yaml
@@ -13,6 +14,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[2]
 DEPENDABOT_CONFIG = ROOT / ".github" / "dependabot.yml"
 DEPENDENCY_SECURITY_WORKFLOW = ROOT / ".github" / "workflows" / "dependency-security.yml"
+TRIVY_IGNORE = ROOT / ".trivyignore.yaml"
 DEPENDENCY_SECURITY_SCRIPTS = (
     ROOT / "scripts" / "check-dependabot-daily.sh",
     ROOT / "scripts" / "check-eu-vulns-daily.sh",
@@ -87,3 +89,27 @@ def test_host_scanners_do_not_import_the_complete_secret_environment() -> None:
     for script in DEPENDENCY_SECURITY_SCRIPTS:
         contents = script.read_text(encoding="utf-8")
         assert 'source "$PROJECT_ROOT/.env"' not in contents
+
+
+# contract-test: infrastructure
+def test_dependabot_runtime_state_does_not_dirty_the_source_tree() -> None:
+    scanner = (ROOT / "scripts" / "check-dependabot-daily.sh").read_text(encoding="utf-8")
+
+    assert 'TRACKING_SEED="$SCRIPT_DIR/dependabot-processed.json"' in scanner
+    assert 'TRACKING_FILE="$PROJECT_ROOT/logs/dependabot-processed.json"' in scanner
+    assert 'TRACKING_FILE="$TRACKING_SEED"' in scanner
+
+
+# contract-test: infrastructure
+def test_container_policy_enforces_findings_with_bounded_path_exceptions() -> None:
+    workflow = DEPENDENCY_SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    config = yaml.safe_load(TRIVY_IGNORE.read_text(encoding="utf-8"))
+    exceptions = config["misconfigurations"]
+
+    assert 'exit-code: "1"' in workflow
+    assert "trivyignores: .trivyignore.yaml" in workflow
+    assert len(exceptions) == 1
+    assert exceptions[0]["id"] == "AVD-DS-0002"
+    assert exceptions[0]["statement"]
+    assert date.today() <= exceptions[0]["expired_at"] <= date.today() + timedelta(days=31)
+    assert all((ROOT / path).is_file() for path in exceptions[0]["paths"])

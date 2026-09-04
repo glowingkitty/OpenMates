@@ -9,7 +9,7 @@
 # Processing logic:
 #   1. Fetch all open Dependabot alerts via gh API (severity: critical, high, medium)
 #   2. Deduplicate by GHSA ID (same vuln across multiple manifests = one entry)
-#   3. Load scripts/dependabot-processed.json for state tracking
+#   3. Load runtime tracking state, seeded from scripts/dependabot-processed.json
 #   4. For each unique GHSA:
 #      a. If commit referencing the GHSA ID exists in git → mark resolved, skip
 #      b. If never processed → dispatch now
@@ -17,10 +17,9 @@
 #         (increment re_dispatch_count); skip if within 7-day grace period
 #   5. Build consolidated prompt for all new/re-dispatched alerts
 #   6. Run OpenCode to fix the alerts
-#   7. Update dependabot-processed.json
+#   7. Update logs/dependabot-processed.json without dirtying the source tree
 #
-# Triggered by system crontab:
-#   0 4 * * * bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/check-dependabot-daily.sh' >> /path/to/logs/dependabot-alerts.log 2>&1
+# Triggered by the managed schedule in scripts/dependency_security_schedule.py.
 #
 # Can also be invoked manually:
 #   ./scripts/check-dependabot-daily.sh
@@ -40,7 +39,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TRACKING_FILE="$SCRIPT_DIR/dependabot-processed.json"
+TRACKING_SEED="$SCRIPT_DIR/dependabot-processed.json"
+TRACKING_FILE="$PROJECT_ROOT/logs/dependabot-processed.json"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/dependabot-analysis.md"
 
 # Re-dispatch threshold: re-open an OpenCode chat if still unresolved after this many days
@@ -61,6 +61,15 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+if [[ "$DRY_RUN" == "true" ]]; then
+  TRACKING_FILE="$TRACKING_SEED"
+else
+  mkdir -p "$(dirname "$TRACKING_FILE")"
+  if [[ ! -f "$TRACKING_FILE" ]]; then
+    cp "$TRACKING_SEED" "$TRACKING_FILE"
+  fi
+fi
 
 echo "[dependabot] Starting Dependabot alert check at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
