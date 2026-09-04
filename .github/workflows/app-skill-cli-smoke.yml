@@ -94,6 +94,10 @@ jobs:
   activity-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        surface: [api, cli, sdk]
     env:
       OPENMATES_API_URL: https://api.dev.openmates.org
       OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.activity_account || '19')] }}
@@ -123,7 +127,8 @@ jobs:
       - name: Audit CLI and SDK parity
         run: python3 scripts/audit_sdk_cli_parity.py
 
-      - name: Run real-dev Task Activity contract smoke
+      - name: Run real-dev Task Activity API contract smoke
+        if: matrix.surface == 'api'
         shell: bash
         run: |
           set -o pipefail
@@ -131,10 +136,24 @@ jobs:
           python3 scripts/verify_task_activity_api_live.py \
             --api-url "$OPENMATES_API_URL" \
             | tee test-results/task-activity-api.json
+
+      - name: Run real-dev Task Activity CLI contract smoke
+        if: matrix.surface == 'cli'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results
           python3 scripts/verify_tasks_cli_smoke.py \
             --api-url "$OPENMATES_API_URL" \
             --skip-build \
             | tee test-results/task-activity-cli.json
+
+      - name: Run real-dev Task Activity SDK contract smoke
+        if: matrix.surface == 'sdk'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p test-results
           node --experimental-strip-types \
             --loader ./frontend/packages/openmates-cli/tests/loader.mjs \
             scripts/verify_sdk_tasks_live_smoke.mjs \
@@ -143,7 +162,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: task-activity-smoke-${{ github.run_id }}
+          name: task-activity-${{ matrix.surface }}-${{ github.run_id }}
           path: test-results/task-activity-*.json
           if-no-files-found: ignore
           retention-days: 14
