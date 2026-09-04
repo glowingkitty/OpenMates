@@ -364,7 +364,7 @@ tests:
       - Unauthorized or insufficient-role access is rejected, duplicate entry identity is idempotent/conflict-safe, and response payloads contain no plaintext comment.
       - Rate-limit classification and zero-credit behavior are asserted without mocked OpenMates API calls.
     red_phase: {required: true, expected: fail_or_missing, evidence: {status: failed_as_expected, run_id: "dev-api-activity-red-20260903T223347Z", timestamp: "2026-09-03T22:33:47Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_task_activity_api_live.py --api-url https://api.dev.openmates.org", run_id: "dev-api-activity-green-20260903T224925Z", subject_commit: "75cd79c1888e6785009905fc58730edb01bcaaaa", timestamp: "2026-09-03T22:49:25Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_task_activity_api_live.py --api-url https://api.dev.openmates.org", run_id: "github-33850463507-api", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
   - id: T-CLI-ACTIVITY-LIVE
     type: unit
     file: scripts/verify_tasks_cli_smoke.py
@@ -375,7 +375,7 @@ tests:
       - Real openmates tasks activity list/add/delete commands encrypt locally, render decrypted output locally, and clean up created data.
       - Team CLI comments render via OpenMates CLI and tombstones retain approved author/deleter wording.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "cli-activity-missing-surface-20260903T225544Z", timestamp: "2026-09-03T22:55:44Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build", run_id: "dev-cli-activity-green-20260903T230930Z", subject_commit: "working-tree-after-75cd79c", timestamp: "2026-09-03T23:09:30Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/verify_tasks_cli_smoke.py --api-url https://api.dev.openmates.org --skip-build --activity-only", run_id: "github-33850463507-cli", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
   - id: T-SDK-ACTIVITY-LIVE
     type: unit
     file: scripts/verify_sdk_tasks_live_smoke.mjs
@@ -386,7 +386,7 @@ tests:
       - npm and pip list/add/delete Activity methods pass against the real dev API with local encryption/decryption.
       - Team SDK comments use via OpenMates SDK and public results do not expose encrypted storage fields.
     red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, run_id: "sdk-activity-missing-methods-20260903T231130Z", timestamp: "2026-09-03T23:11:30Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs", run_id: "dev-sdk-activity-green-20260903T231728Z", subject_commit: "working-tree-after-75cd79c", timestamp: "2026-09-03T23:17:28Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "node --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs scripts/verify_sdk_tasks_live_smoke.mjs --activity-only", run_id: "github-33850463507-sdk", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
   - id: T-UI-ACTIVITY-UNIT
     type: unit
     file: frontend/packages/ui/src/services/__tests__/userTaskService.test.ts
@@ -417,7 +417,7 @@ tests:
     assertions:
       - CLI, npm, and pip Activity operations remain registered with matching semantics.
     red_phase: {required: false, expected: not_applicable_static_audit, evidence: {status: not_applicable, run_id: static-audit, timestamp: "2026-09-03T17:46:03Z"}}
-    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "sdk-cli-parity-89-commands-20260903T231728Z", subject_commit: "working-tree-after-75cd79c", timestamp: "2026-09-03T23:17:28Z"}}
+    green_phase: {required: true, expected: pass, evidence: {status: passed, command: "python3 scripts/audit_sdk_cli_parity.py", run_id: "github-33850463507-parity", subject_commit: "65338559d0d59d9e62f185fae3f037c6684ca1d9", timestamp: "2026-09-04T07:54:41Z"}}
 
 verifications:
   - id: V-UI-VISUAL-SMOKE
@@ -601,7 +601,7 @@ tasks:
     independently_deployable: true
   - id: TASK-4
     title: Wire real Activity contract checks into CI and daily coverage
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6, AC-7]}
     expected_files: [.github/workflows/app-skill-cli-smoke.yml, backend/tests/test_setup_schemas.py, scripts/verify_task_activity_api_live.py, scripts/verify_tasks_cli_smoke.py, scripts/verify_sdk_tasks_live_smoke.mjs]
@@ -616,7 +616,7 @@ tasks:
     independently_deployable: true
   - id: TASK-5
     title: Build and verify the web Task Activity surface
-    status: pending
+    status: in_progress
     phase: working_tasks
     covers: {scenarios: [S-1, S-2, S-3, S-4, S-5], acceptance_criteria: [AC-1, AC-2, AC-3, AC-4, AC-5, AC-6, AC-7]}
     expected_files: [frontend/packages/ui/src/services/userTaskService.ts, frontend/packages/ui/src/services/__tests__/userTaskService.test.ts, frontend/packages/ui/src/components/tasks/TaskActivity.svelte, frontend/packages/ui/src/components/tasks/TaskActivity.preview.ts, frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte, frontend/apps/web_app/tests/task-activity.spec.ts]
@@ -646,7 +646,7 @@ tasks:
     independently_deployable: false
 
 handoff:
-  current_task_id: TASK-4
+  current_task_id: TASK-5
   next_action: Write and run backend red-phase Activity persistence and route contract tests before product code.
   command: python3 -m pytest backend/tests/test_user_task_activity_api.py
   expected_outcome: Tests fail because Activity persistence methods and routes do not exist yet.
