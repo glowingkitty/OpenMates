@@ -385,12 +385,12 @@ attempts:
     recorded_at: "2026-08-31T00:00:00Z"
 
 handoff:
-  current_task_id: TASK-10
-  next_action: Deploy the featured public example and logged-out playback spec, then record Playwright, visual-smoke, and proof-video evidence.
-  command: python3 scripts/specifications.py validate specifications/features/assistant-response-speech specifications/features/public-example-chats
-  expected_outcome: Both amended Specifications validate before red tests and implementation.
+  current_task_id: TASK-5
+  next_action: Deploy the deterministic transcription fixture and rerun the canonical web voice journey against that exact commit.
+  command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <COMMIT_SHA>
+  expected_outcome: The same sent recording message finalizes with the exact fixture title and transcript before and after reload, then completes assistant speech controls.
   blocker: null
-  last_verified_commit: 0b14d8145239f0b04452f53d5567f8b011109424
+  last_verified_commit: 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4
 
 scenarios:
   - id: S-1
@@ -886,7 +886,7 @@ tests:
       - The daily flow replays a recorded realistic AI and weather app-skill exchange and committed binary audio through the normal encrypted asset path with no paid external calls.
       - The muted Speak responses control fades to the speaking icon with Speech turned on, fades back through Turn off speaking with Speech turned off, and recording completion performs the same on transition.
     specification_assertions: [assistant-speech.preference.chat-scoped-default-off, assistant-speech.preference.voice-recording-visible-activation, assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds, assistant-speech.execution.app-skill-progressive, assistant-speech.on-demand.generate-missing-only, assistant-speech.playback.single-queue-segment-control, assistant-speech.playback.deterministic-chapter-labels, assistant-speech.playback.pinned-full-response-waveform, assistant-speech.playback.two-second-idle-grace, assistant-speech.playback.autoplay-recovery-visible]
-    red_phase: {required: true, expected: fail, evidence: {}}
+    red_phase: {required: true, expected: fail, evidence: {status: failed_as_expected, command: "python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4", run_id: "33860487023", subject_commit: 7f1a74d9c59cbd7c0c7c8ffcd088c6e8b12a2be4, timestamp: "2026-09-04T00:00:00Z", reason: "Chromium's silent fake microphone produced no transcript, exposing the placeholder title and unavailable transcript instead of finalized metadata."}}
     green_phase: {required: true, expected: pass_after_deploy, evidence: {}}
   - id: T-PLAYWRIGHT-SPEECH-COMPONENT
     type: playwright

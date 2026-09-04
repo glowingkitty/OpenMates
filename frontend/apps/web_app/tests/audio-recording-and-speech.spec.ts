@@ -23,6 +23,8 @@ const SERVER_RESPONSE_TIMEOUT_MS = 20_000;
 const FIRST_USEFUL_SPEECH_TIMEOUT_MS = 5_000;
 const PROOF_FINAL_STATE_HOLD_MS = 5_000;
 const LIVE_MOCK_GROUP = 'assistant_response_speech_web';
+const TRANSCRIPTION_TITLE = 'Voice playback check';
+const TRANSCRIPTION_TEXT = 'Please confirm this voice playback check.';
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_WIDTH === 390 ? 'web-phone' : 'web-laptop';
@@ -112,10 +114,37 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			releaseTranscriptionResponse = resolve;
 		});
 		await page.route('**/v1/apps/audio/skills/transcribe', async (route: any) => {
-			const response = await route.fetch();
+			const request = route.request().postDataJSON();
+			const recordingId = request.requests[0].id;
 			markTranscriptionReady();
 			await transcriptionRelease;
-			await route.fulfill({ response });
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					success: true,
+					data: {
+						results: [
+							{
+								id: recordingId,
+								results: [
+									{
+										type: 'transcription_result',
+										title: TRANSCRIPTION_TITLE,
+										transcript: TRANSCRIPTION_TEXT,
+										transcript_original: TRANSCRIPTION_TEXT,
+										transcript_corrected: null,
+										use_corrected: false,
+										language: 'en',
+										model: 'voxtral-mini-2602',
+										correction_model: null
+									}
+								]
+							}
+						]
+					}
+				})
+			});
 		});
 
 		await loginToTestAccount(page, log, screenshot);
@@ -201,7 +230,8 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		const finalizedRecording = finalizedMessage.getByTestId('recording-preview');
 		await expect(finalizedRecording).toBeVisible({ timeout: 60_000 });
 		await expect(finalizedRecording).toHaveAttribute('data-transcript', 'available');
-		await expect(finalizedRecording).not.toHaveAttribute('data-recording-title', '');
+		await expect(finalizedRecording).toHaveAttribute('data-recording-title', TRANSCRIPTION_TITLE);
+		await expect(finalizedRecording.getByText(TRANSCRIPTION_TEXT, { exact: true })).toBeVisible();
 		await expect(finalizedMessage.getByTestId('recording-preview-waveform')).toBeVisible();
 		await expect(finalizedMessage.getByText('No transcript available')).not.toBeVisible();
 		if (proof) {
@@ -231,7 +261,8 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
 		const reloadedRecording = page.locator(`[data-message-id="${pendingMessageId}"]`).getByTestId('recording-preview');
 		await expect(reloadedRecording).toHaveAttribute('data-transcript', 'available');
-		await expect(reloadedRecording).not.toHaveAttribute('data-recording-title', '');
+		await expect(reloadedRecording).toHaveAttribute('data-recording-title', TRANSCRIPTION_TITLE);
+		await expect(reloadedRecording.getByText(TRANSCRIPTION_TEXT, { exact: true })).toBeVisible();
 		await expect(reloadedRecording.getByTestId('recording-preview-waveform')).toBeVisible();
 		await page.getByTestId('message-field').last().click();
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');

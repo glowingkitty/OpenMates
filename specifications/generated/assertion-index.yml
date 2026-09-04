@@ -10597,7 +10597,7 @@ assertions:
       surface: rest_api
     - &id1167
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1168
@@ -10676,7 +10676,7 @@ assertions:
     direct_tests:
     - &id1174
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     supporting_tests: []
@@ -10779,7 +10779,7 @@ assertions:
     direct_tests:
     - &id1185
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     supporting_tests: []
@@ -11093,7 +11093,7 @@ assertions:
       surface: rest_api
     - &id1219
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     supporting_tests: []
@@ -11185,7 +11185,7 @@ assertions:
       surface: gui.web
     - &id1228
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1229
@@ -11270,7 +11270,7 @@ assertions:
       surface: gui.web
     - &id1237
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1238
@@ -11333,7 +11333,7 @@ assertions:
       surface: gui.web
     - &id1244
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1245
@@ -11392,7 +11392,7 @@ assertions:
     direct_tests:
     - &id1249
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1250
@@ -11443,7 +11443,7 @@ assertions:
       surface: rest_api
     - &id1256
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     supporting_tests: []
@@ -16238,7 +16238,7 @@ assertions:
       surface: gui.web
     - &id1874
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1875
@@ -16894,7 +16894,7 @@ assertions:
       surface: gui.apple
     - &id1938
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id1939
@@ -19509,7 +19509,7 @@ assertions:
       surface: gui.apple
     - &id2227
       path: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
-      line: 94
+      line: 96
       name: sends one recording and controls the spoken response
       surface: gui.web
     - &id2228
