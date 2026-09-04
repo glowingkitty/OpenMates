@@ -9,7 +9,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Editor, type JSONContent } from '@tiptap/core';
-  import ReadOnlyMessage from '../ReadOnlyMessage.svelte';
+  import ChatMessage from '../ChatMessage.svelte';
   import RecordAudio from '../enter_message/RecordAudio.svelte';
   import { getEditorExtensions } from '../enter_message/editorConfig';
   import { insertRecording } from '../enter_message/embedHandlers';
@@ -275,28 +275,42 @@
     {:else}
       {#each entries as entry (entry.entryId)}
         <article class:tombstone={entry.kind === 'tombstone'} data-testid={`task-activity-entry-${entry.entryId}`}>
-          <div class="avatar" aria-hidden="true">
-            {#if entry.actorType === 'user' && entry.actorProfileImageUrl}<img src={entry.actorProfileImageUrl} alt="" />{:else}{initials(actorLabel(entry))}{/if}
-          </div>
-          <div class="entry-body">
-            <div class="entry-meta"><strong>{actorLabel(entry)}</strong>{#if sourceLabel(entry)}<span>{sourceLabel(entry)}</span>{/if}<time datetime={new Date((entry.deletedAt ?? entry.createdAt) * 1000).toISOString()}>{formatTime(entry.deletedAt ?? entry.createdAt)}</time></div>
-            {#if entry.kind === 'tombstone'}
-              <p class="tombstone-text">{tombstoneText(entry)}</p>
-            {:else if entry.kind === 'comment'}
-              <ReadOnlyMessage content={entry.message ?? ''} role="user" />
-              {#if pendingDeleteId === entry.entryId}
-                <div class="delete-confirmation" data-testid="task-activity-delete-confirmation">
-                  <span>{$text('tasks.activity.delete_confirm')}</span>
-                  <button type="button" disabled={deletingId === entry.entryId} onclick={() => void removeEntry(entry)}>{$text('common.delete')}</button>
-                  <button type="button" onclick={() => pendingDeleteId = null}>{$text('common.cancel')}</button>
+          {#if entry.kind === 'tombstone'}
+            <div class="message-wrapper system">
+              <ChatMessage role="system" content={tombstoneText(entry)} canAnnotate={false} />
+              <time datetime={new Date((entry.deletedAt ?? entry.createdAt) * 1000).toISOString()}>{formatTime(entry.deletedAt ?? entry.createdAt)}</time>
+            </div>
+          {:else if entry.kind === 'lifecycle_update'}
+            <div class="message-wrapper system">
+              <ChatMessage role="system" content={entry.eventType.replaceAll('_', ' ')} canAnnotate={false} />
+              <time datetime={new Date(entry.createdAt * 1000).toISOString()}>{formatTime(entry.createdAt)}</time>
+            </div>
+          {:else}
+            <div class="message-wrapper" class:user={entry.actorType === 'user'} class:assistant={entry.actorType !== 'user'}>
+              {#if entry.actorType === 'user'}
+                <div class="user-attribution">
+                  <span class="avatar" aria-hidden="true">{#if entry.actorProfileImageUrl}<img src={entry.actorProfileImageUrl} alt="" />{:else}{initials(actorLabel(entry))}{/if}</span>
+                  <strong>{actorLabel(entry)}</strong>
+                  {#if sourceLabel(entry)}<span class="source">{sourceLabel(entry)}</span>{/if}
                 </div>
+                <ChatMessage role="user" content={entry.message ?? ''} canAnnotate={false} />
               {:else}
-                <button class="delete" type="button" aria-label={$text('tasks.activity.delete')} data-testid="task-activity-delete" onclick={() => pendingDeleteId = entry.entryId}></button>
+                <ChatMessage role="assistant" category="openmates_official" sender_name="OpenMates" content={entry.message ?? ''} canAnnotate={false} />
               {/if}
-            {:else}
-              <p class="lifecycle">{entry.eventType.replaceAll('_', ' ')}</p>
-            {/if}
-          </div>
+              <div class="message-footer">
+                <time datetime={new Date(entry.createdAt * 1000).toISOString()}>{formatTime(entry.createdAt)}</time>
+                {#if pendingDeleteId === entry.entryId}
+                  <div class="delete-confirmation" data-testid="task-activity-delete-confirmation">
+                    <span>{$text('tasks.activity.delete_confirm')}</span>
+                    <button type="button" disabled={deletingId === entry.entryId} onclick={() => void removeEntry(entry)}>{$text('common.delete')}</button>
+                    <button type="button" onclick={() => pendingDeleteId = null}>{$text('common.cancel')}</button>
+                  </div>
+                {:else}
+                  <button class="delete" type="button" aria-label={$text('tasks.activity.delete')} data-testid="task-activity-delete" onclick={() => pendingDeleteId = entry.entryId}></button>
+                {/if}
+              </div>
+            </div>
+          {/if}
         </article>
       {/each}
     {/if}
@@ -305,7 +319,7 @@
 
 <style>
   .task-activity { margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--color-grey-25); }
-  header, header > div, .composer-actions, .entry-meta, .delete-confirmation { display: flex; align-items: center; }
+  header, header > div, .composer-actions, .delete-confirmation { display: flex; align-items: center; }
   header { justify-content: space-between; margin-bottom: 18px; }
   header > div { gap: 10px; }
   h2 { margin: 0; font-size: var(--font-size-h3); }
@@ -330,19 +344,24 @@
   .embed-error, .error { color: var(--color-error); }
   .error { margin: 0 0 18px; padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--color-error) 10%, transparent); }
   .stream { display: grid; gap: 0; }
-  article { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 18px 4px; border-bottom: 1px solid var(--color-grey-20); }
+  article { padding: 14px 4px; }
   article:last-child { border-bottom: 0; }
-  .avatar { display: grid; width: 30px; height: 30px; place-items: center; overflow: hidden; border-radius: 50%; background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end))); color: var(--color-grey-0); font-size: 10px; font-weight: 900; }
+  .message-wrapper { display: flex; width: 100%; flex-direction: column; }
+  .message-wrapper.user { align-items: flex-end; }
+  .message-wrapper.assistant { align-items: flex-start; }
+  .message-wrapper.system { align-items: center; gap: 5px; }
+  .message-wrapper :global(.chat-message) { width: 100%; }
+  .user-attribution { display: flex; align-items: center; gap: 7px; margin: 0 12px 5px; color: var(--color-font-secondary); font-size: var(--font-size-xs); }
+  .user-attribution strong { color: var(--color-font-primary); }
+  .avatar { display: grid; width: 24px; height: 24px; place-items: center; overflow: hidden; border-radius: 50%; background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end))); color: var(--color-grey-0); font-size: 9px; font-weight: 900; }
   .avatar img { width: 100%; height: 100%; object-fit: cover; }
-  .entry-body { min-width: 0; position: relative; padding-right: 36px; }
-  .entry-meta { min-width: 0; flex-wrap: wrap; gap: 5px 8px; margin-bottom: 8px; }
-  .entry-meta span { color: var(--color-primary); font-size: var(--font-size-xs); font-weight: 700; }
-  time { margin-left: auto; color: var(--color-font-secondary); font-size: var(--font-size-xs); }
-  .delete { position: absolute; top: -5px; right: 0; }
+  .source { color: var(--color-primary); font-weight: 700; }
+  .message-footer { display: flex; align-items: center; min-height: 30px; gap: 6px; margin: 2px 10px 0; }
+  .message-wrapper.user .message-footer { justify-content: flex-end; }
+  time { color: var(--color-font-secondary); font-size: var(--font-size-xs); }
+  .delete { width: 30px; height: 30px; }
   .tombstone { color: var(--color-font-secondary); }
-  .tombstone-text, .lifecycle, .state { margin: 0; line-height: 1.5; }
-  .tombstone-text { font-style: italic; }
-  .lifecycle { text-transform: capitalize; }
+  .state { margin: 0; line-height: 1.5; }
   .state { padding: 24px 0; color: var(--color-font-secondary); text-align: center; }
   .delete-confirmation { flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--color-grey-10); font-size: var(--font-size-xs); }
   .delete-confirmation span { margin-right: auto; }
@@ -350,7 +369,6 @@
   @media (max-width: 700px) {
     .task-activity { margin-top: 36px; padding-top: 26px; }
     .editor { min-height: 104px; padding-inline: 16px; }
-    article { grid-template-columns: 30px minmax(0, 1fr); gap: 10px; }
-    .entry-meta time { width: 100%; margin-left: 0; }
+    .user-attribution { margin-inline: 8px; }
   }
 </style>

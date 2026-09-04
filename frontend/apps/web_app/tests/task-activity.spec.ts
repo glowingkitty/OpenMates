@@ -100,13 +100,21 @@ test.describe('Task Activity component', () => {
 		await proof.action('return-to-activity-stream', () => openActivityPreview(page));
 		await expect(page.getByTestId('task-activity-entry-web')).toContainText('Alice Weber');
 		expect(await page.locator('[data-testid^="task-activity-entry-"]').evaluateAll((nodes) => nodes.slice(0, 2).map((node) => node.getAttribute('data-testid')))).toEqual(['task-activity-entry-web', 'task-activity-entry-cli']);
+		await expect(page.getByTestId('task-activity-entry-web').getByTestId('user-message-content')).toBeVisible();
 		await expect(page.getByTestId('task-activity-entry-web')).not.toContainText('via OpenMates');
 		await expect(page.getByTestId('task-activity-entry-web').locator('img')).toBeVisible();
 		await expect(page.getByTestId('task-activity-entry-cli')).toContainText('via OpenMates CLI');
 		await expect(page.getByTestId('task-activity-entry-sdk')).toContainText('via OpenMates SDK');
 		await expect(page.getByTestId('task-activity-entry-mate')).toContainText('OpenMates');
+		await expect(page.getByTestId('task-activity-entry-mate').getByTestId('mate-message-content')).toBeVisible();
 		await expect(page.getByTestId('task-activity-entry-deleted-user')).toContainText('Comment by Alice Weber deleted by Sam Rivera');
 		await expect(page.getByTestId('task-activity-entry-deleted-mate')).toContainText('Comment by OpenMates deleted by Alice Weber');
+		await proof.action('delete-cli-comment', async () => {
+			await page.getByTestId('task-activity-entry-cli').getByTestId('task-activity-delete').click();
+			await page.getByTestId('task-activity-entry-cli').getByRole('button', { name: 'Delete' }).click();
+		});
+		await expect(page.getByTestId('task-activity-entry-cli')).toContainText('Comment by Sam Rivera deleted by Alice Weber');
+		await expect(page.getByTestId('task-activity-entry-cli').getByTestId('system-message-text')).toBeVisible();
 		await proof.assert('safe-attribution', async () => {
 			await expect(page.getByTestId('task-activity-entry-deleted-user')).not.toContainText('launch milestones');
 			await expect(page.getByTestId('task-activity-entry-deleted-user').locator('[data-testid^="embed-"]')).toHaveCount(0);
