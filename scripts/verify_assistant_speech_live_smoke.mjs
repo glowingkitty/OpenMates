@@ -269,6 +269,7 @@ async function main() {
         },
       ],
     };
+    const requestStartedAt = performance.now();
     send(ws, "assistant_speech", requestPayload);
     const accepted = await waitFor(
       ws,
@@ -279,6 +280,7 @@ async function main() {
     if (accepted.payload?.status !== "accepted") {
       throw new Error(`Assistant speech request was rejected: ${JSON.stringify(accepted.payload)}`);
     }
+    const acceptedLatencyMs = Math.round(performance.now() - requestStartedAt);
     const acceptedSegments = Array.isArray(accepted.payload?.segments) ? accepted.payload.segments : [];
     if (acceptedSegments.length !== 1 || acceptedSegments[0].status !== "queued") {
       throw new Error(`Assistant speech request was not queued: ${JSON.stringify(accepted.payload)}`);
@@ -300,6 +302,7 @@ async function main() {
       throw new Error(`Assistant speech worker returned error: ${JSON.stringify(ready.payload)}`);
     }
     readyFields = assertSafeReadyPayload(ready.payload, args.assistantText);
+    const readyLatencyMs = Math.round(performance.now() - requestStartedAt);
 
     send(ws, "assistant_speech", {
       action: "delete",
@@ -334,7 +337,9 @@ async function main() {
         assistant_message_id: chat.messageId,
         assistant_text_sha256: createHash("sha256").update(args.assistantText).digest("hex"),
         accepted_status: "queued",
+        accepted_latency_ms: acceptedLatencyMs,
         ready_status: "ready",
+        real_elevenlabs_path_ready_latency_ms: readyLatencyMs,
         safe_ready_fields: readyFields,
         delete_acknowledged: true,
         chat_deleted: chatDeleted,

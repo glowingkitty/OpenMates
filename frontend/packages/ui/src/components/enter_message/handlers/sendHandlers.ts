@@ -792,7 +792,7 @@ export async function handleSend(
     const stillBlockingEmbedIds = new Set(blockingEmbeds.map((e) => e.id));
     for (const { id } of blockingEmbeds) {
       const snapshot = embedSnapshots.get(id);
-      if (snapshot?.contentRef || snapshot?.uploadEmbedId) {
+      if (snapshot?.contentRef) {
         stillBlockingEmbedIds.delete(id);
       }
     }

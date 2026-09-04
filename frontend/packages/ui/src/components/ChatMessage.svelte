@@ -3169,16 +3169,30 @@
       {/if}
 
       {#if role === 'assistant'}
-        {#if isMateClickable}
-          <button
-            type="button"
-            class="chat-mate-name chat-mate-name-link"
-            data-testid="chat-mate-name"
-            onclick={openMateSettings}
-          >{assistantDisplayName}</button>
-        {:else}
-          <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
-        {/if}
+        <div class="assistant-identity-row" data-testid="assistant-identity-row">
+          {#if isMateClickable}
+            <button
+              type="button"
+              class="chat-mate-name chat-mate-name-link"
+              data-testid="chat-mate-name"
+              onclick={openMateSettings}
+            >{assistantDisplayName}</button>
+          {:else}
+            <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
+          {/if}
+          {#if onSpeak && status !== 'streaming' && status !== 'processing'}
+            <button
+              type="button"
+              class="assistant-speech-action"
+              data-testid="assistant-message-speak"
+              onclick={onSpeak}
+              aria-label={$text('chat.assistant_speech.speak_response')}
+            >
+              <Icon name="audio" size="16px" noMargin={true} />
+              <span data-testid="assistant-message-speak-label">{$text('chat.assistant_speech.speak_response')}</span>
+            </button>
+          {/if}
+        </div>
       {/if}
 
       <div class="chat-message-text">
@@ -3548,25 +3562,13 @@
        {/if}
     </div>
     {#if role === 'assistant' && (model_name || onSpeak)}
-      <div class="generated-by-container">
+      <div class="generated-by-container" data-testid="generated-by-container">
         {#if model_name}
           <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
         {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
             {$text('chat.generated_by_cost', { values: { credits: formatCredits(exampleResponseCredits) } })}
-          </button>
-        {/if}
-        {#if onSpeak && status !== 'streaming' && status !== 'processing'}
-          <button
-            type="button"
-            class="assistant-speech-action"
-            data-testid="assistant-message-speak"
-            onclick={onSpeak}
-            aria-label={$text('chat.assistant_speech.speak_response')}
-          >
-            <Icon name="audio" size="16px" noMargin={true} />
-            <span data-testid="assistant-message-speak-label">{$text('chat.assistant_speech.speak_response')}</span>
           </button>
         {/if}
         <button 
@@ -4307,6 +4309,23 @@
     border-radius: var(--radius-4);
     white-space: nowrap;
     transition: max-width var(--duration-normal) var(--easing-default), color var(--duration-fast) var(--easing-default);
+  }
+
+  .assistant-identity-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+  }
+
+  .assistant-identity-row :global(.chat-mate-name) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .assistant-identity-row .assistant-speech-action {
+    flex: 0 0 auto;
   }
 
   .assistant-speech-action:hover,

@@ -954,7 +954,9 @@ verifications:
     required_for_done: true
     covers: [AC-17]
     status: pending
-    evidence: {}
+    evidence:
+      command: OPENMATES_LIVE_ASSISTANT_SPEECH_SMOKE=1 node scripts/verify_assistant_speech_live_smoke.mjs --api-url https://api.dev.openmates.org
+      expected: The manifest records accepted_latency_ms and real_elevenlabs_path_ready_latency_ms for the complete unmocked ElevenLabs-backed path without misrepresenting it as provider-only timing or exposing plaintext.
   - id: V-CLI-DEV
     kind: deterministic_check
     phase: final

@@ -198,7 +198,10 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(player).toBeVisible({ timeout: FIRST_USEFUL_SPEECH_TIMEOUT_MS });
 		expect(Date.now() - sendAcceptedAt).toBeLessThanOrEqual(FIRST_USEFUL_SPEECH_TIMEOUT_MS);
 		await expect(finalizedMessage).toHaveCount(1);
-		await expect(finalizedMessage.getByTestId('recording-preview')).toBeVisible({ timeout: 60_000 });
+		const finalizedRecording = finalizedMessage.getByTestId('recording-preview');
+		await expect(finalizedRecording).toBeVisible({ timeout: 60_000 });
+		await expect(finalizedRecording).toHaveAttribute('data-transcript', 'available');
+		await expect(finalizedRecording).not.toHaveAttribute('data-recording-title', '');
 		await expect(finalizedMessage.getByTestId('recording-preview-waveform')).toBeVisible();
 		await expect(finalizedMessage.getByText('No transcript available')).not.toBeVisible();
 		if (proof) {
@@ -213,13 +216,23 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		const firstAssistantMessage = page.getByTestId('message-assistant').last();
 		const identityRow = firstAssistantMessage.getByTestId('assistant-identity-row');
 		await expect(identityRow.getByTestId('chat-mate-name')).toBeVisible();
-		await expect(identityRow.getByTestId('assistant-message-speak')).toBeVisible();
+		const firstSpeakAction = identityRow.getByTestId('assistant-message-speak');
+		await expect(firstSpeakAction).toBeVisible();
+		await expect(firstSpeakAction).toHaveAccessibleName('Speak response');
 		await expect(firstAssistantMessage.getByTestId('generated-by-container').getByTestId('assistant-message-speak')).toHaveCount(0);
+		const [messageBox, speakBox] = await Promise.all([firstAssistantMessage.boundingBox(), firstSpeakAction.boundingBox()]);
+		expect(messageBox).toBeTruthy();
+		expect(speakBox).toBeTruthy();
+		expect(speakBox!.x + speakBox!.width).toBeLessThanOrEqual(messageBox!.x + messageBox!.width);
 		const chatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? '';
 		expect(chatId, 'voice-first chat should become durable after its first message').toBeTruthy();
 
 		await page.reload({ waitUntil: 'domcontentloaded' });
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: 60_000 });
+		const reloadedRecording = page.locator(`[data-message-id="${pendingMessageId}"]`).getByTestId('recording-preview');
+		await expect(reloadedRecording).toHaveAttribute('data-transcript', 'available');
+		await expect(reloadedRecording).not.toHaveAttribute('data-recording-title', '');
+		await expect(reloadedRecording.getByTestId('recording-preview-waveform')).toBeVisible();
 		await page.getByTestId('message-field').last().click();
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
@@ -287,7 +300,10 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
 		await player.getByTestId('assistant-speech-close').click();
 		await expect(player).not.toBeVisible();
-		await streamingAssistant.getByTestId('assistant-message-speak').click();
+		const reopenSpeakAction = streamingAssistant.getByTestId('assistant-message-speak');
+		await reopenSpeakAction.focus();
+		await expect(reopenSpeakAction).toBeFocused();
+		await reopenSpeakAction.press('Enter');
 		await expect(player).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-region').nth(0)).toHaveAttribute('data-status', 'ready');
 		await deleteActiveChat(page, log);
