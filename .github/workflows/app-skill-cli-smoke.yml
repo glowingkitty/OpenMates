@@ -9,6 +9,11 @@ on:
         required: false
         default: "18"
         type: string
+      activity_account:
+        description: Isolated test account slot for Task Activity contracts
+        required: false
+        default: "19"
+        type: string
   schedule:
     - cron: "41 5 * * *"
   push:
@@ -80,6 +85,10 @@ jobs:
 
       - name: Run real-dev Task Activity contract smoke
         shell: bash
+        env:
+          OPENMATES_TEST_ACCOUNT_EMAIL: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_EMAIL', inputs.activity_account || '19')] }}
+          OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.activity_account || '19')] }}
+          OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.activity_account || '19')] }}
         run: |
           set -o pipefail
           python3 scripts/verify_task_activity_api_live.py \
