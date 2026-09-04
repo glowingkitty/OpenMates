@@ -66,11 +66,12 @@
         showAllProviders = false;
     }
 
-    function openDetails(modelId: string): void {
+    function openDetails(model: AIModelMetadata): void {
+        onSelect(aiModelSelectionValue(model));
         isOpen = false;
         activeProvider = null;
         showAllProviders = false;
-        onOpenDetails(modelId);
+        onOpenDetails(model.id);
     }
 
     function toggleModel(model: AIModelMetadata): void {
@@ -184,7 +185,7 @@
                             class="menu-item"
                             data-testid="composer-model-name"
                             aria-label={`${$text('enter_message.model_selector.model_details')}: ${model.name}`}
-                            onclick={() => openDetails(model.id)}
+                            onclick={() => openDetails(model)}
                         >
                             <span class="model-icon" data-testid="composer-model-icon" aria-hidden="true">
                                 <img src={getProviderIconUrl(model.logo_svg)} alt="" />

@@ -57,6 +57,12 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 			text: 'Clicking the model selector opens the model selection menu inside the isolated component.',
 			checkpoint: 'model-menu-open',
 			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'model-row-selection',
+			text: 'Clicking a model row selects that exact model while opening its details.',
+			checkpoint: 'model-row-selected',
+			devices: ['web-laptop', 'web-phone']
 		}
 	],
 	assertions: [
@@ -95,13 +101,19 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 			checkpoint: 'model-menu-open',
 			visual: 'The model selection menu is open, readable, and contained within the component viewport.',
 			devices: ['web-laptop', 'web-phone']
+		},
+		{
+			id: 'message-input.model-row-selection',
+			checkpoint: 'model-row-selected',
+			visual: 'The composer visibly identifies the exact model selected by clicking its model row.',
+			devices: ['web-laptop', 'web-phone']
 		}
 	],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
 });
 
 test.describe('MessageInput component preview', () => {
-	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,assistant-speech.preference.chat-scoped-default-off
+	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
 	test('moves from minimized to expanded interactive states', async ({ page }, testInfo) => {
 		const proof = createVideoProofRuntime(MESSAGE_INPUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -174,6 +186,17 @@ test.describe('MessageInput component preview', () => {
 			await expect(page.getByTestId('composer-model-selector-menu')).toBeVisible();
 		});
 		await proof.checkpoint('model-menu-open');
+
+		const modelMenu = page.getByTestId('composer-model-selector-menu');
+		await modelMenu.getByTestId('composer-model-provider-label').first().click();
+		const firstModelName = modelMenu.getByTestId('composer-model-name').first();
+		const selectedModelName = (await firstModelName.textContent())?.trim();
+		expect(selectedModelName).toBeTruthy();
+		await proof.action('select-model-row', async () => firstModelName.click());
+		await proof.assert('message-input.model-row-selection', async () => {
+			await expect.poll(async () => selector.getAttribute('aria-label')).toContain(selectedModelName!);
+		});
+		await proof.checkpoint('model-row-selected');
 		await proof.attach();
 	});
 });

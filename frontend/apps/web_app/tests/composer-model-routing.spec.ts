@@ -260,6 +260,8 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	const firstModelIcon = firstModelRow.getByTestId('composer-model-icon');
 	const firstModelCapability = firstModelRow.getByTestId('composer-model-capability');
 	await expect(firstModelName).toBeVisible();
+	const firstModelDisplayName = (await firstModelName.textContent())?.trim();
+	expect(firstModelDisplayName).toBeTruthy();
 	await expect(firstModelToggle.getByRole('checkbox')).not.toBeChecked();
 	await expect(firstModelRow).not.toContainText('?');
 	await expect.poll(async () => firstModelName.evaluate((element: HTMLElement) => getComputedStyle(element).justifyContent)).toBe('flex-start');
@@ -293,7 +295,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await page.getByTestId('icon-button-close').click();
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
 	await focusComposer(page, composer);
-	await expect(selector).toHaveAttribute('aria-label', /Auto select/i);
+	await expect.poll(async () => selector.getAttribute('aria-label')).toContain(firstModelDisplayName!);
 
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();

@@ -5177,10 +5177,7 @@
     async function persistModelSelection(selection: ChatModelSelection): Promise<void> {
         modelSelection = selection;
         if (isIncognitoMode) return;
-        if (!$authStore.isAuthenticated) {
-            modelSelection = 'auto';
-            return;
-        }
+        if (!$authStore.isAuthenticated) return;
         const userId = $userProfile.user_id;
         if (!userId || !currentChatId) {
             pendingNewChatModelSelection = currentChatId
