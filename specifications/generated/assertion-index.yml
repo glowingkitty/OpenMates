@@ -11226,12 +11226,12 @@ assertions:
     direct_tests:
     - &id1233
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 41
+      line: 42
       name: matches responsive playing, loading, ready, and paused states
       surface: gui.web
     - &id1234
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 106
+      line: 112
       name: moves exactly one chapter and preserves white content in dark mode
       surface: gui.web
     - &id1235
@@ -11293,7 +11293,7 @@ assertions:
     direct_tests:
     - &id1241
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 41
+      line: 42
       name: matches responsive playing, loading, ready, and paused states
       surface: gui.web
     supporting_tests: []
@@ -11311,12 +11311,12 @@ assertions:
     direct_tests:
     - &id1242
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 41
+      line: 42
       name: matches responsive playing, loading, ready, and paused states
       surface: gui.web
     - &id1243
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 106
+      line: 112
       name: moves exactly one chapter and preserves white content in dark mode
       surface: gui.web
     - &id1244
@@ -11379,7 +11379,7 @@ assertions:
     direct_tests:
     - &id1250
       path: frontend/apps/web_app/tests/assistant-speech-player.spec.ts
-      line: 41
+      line: 42
       name: matches responsive playing, loading, ready, and paused states
       surface: gui.web
     - &id1251

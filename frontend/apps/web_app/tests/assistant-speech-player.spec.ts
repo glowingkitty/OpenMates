@@ -11,6 +11,7 @@ import { expect, test } from './helpers/cookie-audit';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
+const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 const PROOF_STATE_SETTLE_MS = 100;
@@ -39,16 +40,20 @@ const PLAYER_PROOF = defineVideoProof({
 test.describe('AssistantSpeechPlayer component preview', () => {
 	// contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.deterministic-chapter-labels,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace
 	test('matches responsive playing, loading, ready, and paused states', async ({ page }, testInfo) => {
-		const proof = createVideoProofRuntime(PLAYER_PROOF, {
-			device: PROOF_DEVICE,
-			attach: testInfo.attach.bind(testInfo)
-		});
+		const proof = IS_PROOF_CAPTURE
+			? createVideoProofRuntime(PLAYER_PROOF, {
+				device: PROOF_DEVICE,
+				attach: testInfo.attach.bind(testInfo)
+			})
+			: null;
+		const verify = (id: string, assertion: () => Promise<void>) => proof ? proof.assert(id, assertion) : assertion();
+		const act = (id: string, action: () => Promise<void>) => proof ? proof.action(id, action) : action();
 		const width = PROOF_DEVICE === 'web-phone' ? '381' : '1155';
 		await page.goto(`/dev/preview/AssistantSpeechPlayer?theme=light&chrome=0&width=${width}`, { waitUntil: 'networkidle' });
 		await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true');
 
 		const player = page.getByTestId('assistant-speech-player');
-		await proof.assert('assistant-speech.playback.pinned-full-response-waveform', async () => {
+		await verify('assistant-speech.playback.pinned-full-response-waveform', async () => {
 			await expect(player).toBeVisible();
 			await expect(player).toHaveAttribute('data-presentation', 'replayable_track_queue');
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Key considerations');
@@ -66,11 +71,11 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 				await expect.poll(() => player.getByTestId('assistant-speech-mate').evaluate((element) => getComputedStyle(element).backgroundImage)).not.toBe('none');
 			}
 		});
-		await proof.checkpoint('playing');
+		await proof?.checkpoint('playing');
 		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
-		await proof.action('select-pending-chapter', async () => player.getByTestId('assistant-speech-next-chapter').click());
-		await proof.assert('assistant-speech.playback.two-second-idle-grace', async () => {
+		await act('select-pending-chapter', async () => player.getByTestId('assistant-speech-next-chapter').click());
+		await verify('assistant-speech.playback.two-second-idle-grace', async () => {
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
@@ -78,28 +83,29 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-1,segment-2,segment-3');
 			await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(3);
 		});
-		await proof.checkpoint('pending');
+		await proof?.checkpoint('pending');
 		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
-		await proof.action('wait-for-ready-audio', async () => {
+		const waitForReadyAudio = async () => {
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'false', { timeout: 5_000 });
-		});
-		await proof.assert('assistant-speech.playback.deterministic-chapter-labels', async () => {
+		};
+		await act('wait-for-ready-audio', waitForReadyAudio);
+		await verify('assistant-speech.playback.deterministic-chapter-labels', async () => {
 			await expect(player.getByRole('button', { name: 'Pause voice response' })).toBeVisible();
 		});
-		await proof.checkpoint('ready');
+		await proof?.checkpoint('ready');
 		await page.waitForTimeout(PROOF_STATE_SETTLE_MS);
 
-		await proof.action('pause-playback', async () => player.getByRole('button', { name: 'Pause voice response' }).click());
-		await proof.assert('assistant-speech.playback.single-queue-segment-control', async () => {
+		await act('pause-playback', async () => player.getByRole('button', { name: 'Pause voice response' }).click());
+		await verify('assistant-speech.playback.single-queue-segment-control', async () => {
 			const playControl = player.getByRole('button', { name: 'Play voice response' });
 			await expect(playControl).toBeVisible();
 			await expect(playControl.getByTestId('assistant-speech-primary-icon')).toHaveAttribute('data-icon', 'play');
 			await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
 			await expect(player.getByTestId('assistant-speech-close-icon')).toBeVisible();
 		});
-		await proof.checkpoint('paused');
-		await proof.attach();
+		await proof?.checkpoint('paused');
+		await proof?.attach();
 	});
 
 	// contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform
