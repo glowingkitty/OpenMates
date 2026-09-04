@@ -530,8 +530,8 @@ Usage Settings - View usage statistics and export usage data
     }
     
     // Fetch daily overview data (all types combined, grouped by day)
-    async function fetchDailyOverview(days: number = loadedDays) {
-        isLoadingDailyOverview = true;
+    async function fetchDailyOverview(days: number = loadedDays, showLoading: boolean = true) {
+        if (showLoading) isLoadingDailyOverview = true;
         errorMessage = null;
 
         try {
@@ -613,7 +613,7 @@ Usage Settings - View usage statistics and export usage data
             dailyOverview = [];
             hasMoreDays = false;
         } finally {
-            isLoadingDailyOverview = false;
+            if (showLoading) isLoadingDailyOverview = false;
         }
     }
 
@@ -1625,6 +1625,7 @@ Usage Settings - View usage statistics and export usage data
     }
 
     onMount(() => {
+        let reconciliationRefresh: ReturnType<typeof setTimeout> | undefined;
         // Load draft audio chat IDs from localStorage so we can display "Unsent draft" instead of
         // "Deleted chat" for usage entries linked to recordings that were never sent.
         draftAudioChatIds = getAllDraftAudioChatIds();
@@ -1650,6 +1651,11 @@ Usage Settings - View usage statistics and export usage data
             if (shouldAutoOpenUsage) {
                 await autoSelectLatestUsageEntry();
             }
+            reconciliationRefresh = setTimeout(() => {
+                if (activeTab === 'overview' && !overviewSelectedChatId) {
+                    void fetchDailyOverview(loadedDays, false);
+                }
+            }, 2000);
         });
         
         // Check hidden chats unlock status on mount
@@ -1660,6 +1666,7 @@ Usage Settings - View usage statistics and export usage data
         window.addEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
         
         return () => {
+            if (reconciliationRefresh) clearTimeout(reconciliationRefresh);
             window.removeEventListener('hiddenChatsLocked', handleHiddenChatsLocked);
             window.removeEventListener('hiddenChatsUnlocked', handleHiddenChatsUnlocked);
         };

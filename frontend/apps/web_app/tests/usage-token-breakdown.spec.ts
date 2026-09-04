@@ -131,17 +131,24 @@ test.describe('Usage Token Breakdown', () => {
 			timeout: 15000,
 		});
 		const overviewResponse = await overviewResponsePromise;
-		const overviewData = await overviewResponse.json();
-		const chatItems = overviewData.days.flatMap((day: { items?: Array<{ type?: string; chat_id?: string }> }) =>
+		await overviewResponse.json();
+		const refreshedOverviewResponse = await page.waitForResponse(
+			(response) => response.url().includes('/v1/settings/usage/daily-overview') && response.request().method() === 'GET'
+		);
+		const overviewData = await refreshedOverviewResponse.json();
+		const chatItems = overviewData.days.flatMap((day: { items?: Array<{ type?: string; chat_id?: string; total_credits?: number }> }) =>
 			(day.items || []).filter((item) => item.type === 'chat')
 		);
 		const createdChatIndex = chatItems.findIndex((item: { chat_id?: string }) => item.chat_id === createdChatId);
 		expect(createdChatIndex, 'Expected the newly created chat in the reconciled Usage overview').toBeGreaterThanOrEqual(0);
+		const expectedOverviewCredits = chatItems[createdChatIndex].total_credits;
+		expect(expectedOverviewCredits).toBeGreaterThan(0);
 
 		// Click the usage item for the chat created by this test.
 		// These are SettingsItem components rendered as usage overview chat rows.
 		const createdChatUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').nth(createdChatIndex);
 		await expect(createdChatUsageEntry).toBeVisible({ timeout: 15000 });
+		await expect(createdChatUsageEntry).toContainText(new RegExp(`${expectedOverviewCredits}\\s*credits`, 'i'));
 		const overviewCredits = trailingCredits(await createdChatUsageEntry.textContent());
 		await createdChatUsageEntry.click();
 		logStep('Clicked first usage entry (drill into chat entries)');
