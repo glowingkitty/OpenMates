@@ -209,11 +209,26 @@ def run(api_url: str, headers: dict[str, str]) -> tuple[dict[str, Any], int]:
         second_entry_id = str(uuid.uuid4())
         second_payload = activity_payload(second_entry_id)
         second_payload["created_at"] = payload["created_at"] + 1
-        require(
-            client.request("POST", f"/v1/user-tasks/{task_id}/activity", body=second_payload, scenario="activity_second_create"),
-            200,
-            "activity_second_create",
+        second_created = client.request(
+            "POST",
+            f"/v1/user-tasks/{task_id}/activity",
+            body=second_payload,
+            scenario="activity_second_create",
         )
+        require(second_created, 200, "activity_second_create")
+        assert_ciphertext_projection(record(second_created, "entry", "activity_second_create"), second_entry_id, "activity_second_create")
+        all_after_second_create = client.request(
+            "GET",
+            f"/v1/user-tasks/{task_id}/activity",
+            scenario="activity_second_list",
+        )
+        require(all_after_second_create, 200, "activity_second_list")
+        if not any(
+            entry.get("entry_id") == second_entry_id
+            for entry in all_after_second_create.payload.get("entries", [])
+            if isinstance(entry, dict)
+        ):
+            raise VerificationFailure("activity_second_list", "second_entry_not_persisted")
         first_page = client.request(
             "GET",
             f"/v1/user-tasks/{task_id}/activity",

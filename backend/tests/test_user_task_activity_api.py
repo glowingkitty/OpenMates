@@ -165,15 +165,18 @@ async def test_activity_cursor_uses_stable_created_at_and_entry_id_order() -> No
 
     await methods.list_task_activity("user-1", "task-1", cursor="100:activity-1", limit=2)
 
-    params = directus.get_items.await_args.kwargs["params"]
-    assert params["limit"] == 2
-    assert params["sort"] == "created_at,entry_id"
-    assert params["filter[hashed_task_id][_eq]"] == hash_id("task-1")
-    assert params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
-    assert params["filter[hashed_team_id][_null]"] is True
-    assert params["filter[_or][0][created_at][_gt]"] == 100
-    assert params["filter[_or][1][_and][0][created_at][_eq]"] == 100
-    assert params["filter[_or][1][_and][1][entry_id][_gt]"] == "activity-1"
+    same_timestamp_params = directus.get_items.await_args_list[0].kwargs["params"]
+    later_params = directus.get_items.await_args_list[1].kwargs["params"]
+    assert same_timestamp_params["limit"] == 2
+    assert same_timestamp_params["sort"] == "entry_id"
+    assert same_timestamp_params["filter[hashed_task_id][_eq]"] == hash_id("task-1")
+    assert same_timestamp_params["filter[hashed_user_id][_eq]"] == hash_id("user-1")
+    assert same_timestamp_params["filter[hashed_team_id][_null]"] is True
+    assert same_timestamp_params["filter[created_at][_eq]"] == 100
+    assert same_timestamp_params["filter[entry_id][_gt]"] == "activity-1"
+    assert later_params["limit"] == 2
+    assert later_params["sort"] == "created_at,entry_id"
+    assert later_params["filter[created_at][_gt]"] == 100
 
 
 # contract-test: supporting surface=rest_api assertions=tasks.activity.client-encrypted,tasks.activity.task-scoped-authorization

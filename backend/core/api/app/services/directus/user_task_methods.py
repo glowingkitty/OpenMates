@@ -391,11 +391,12 @@ class UserTaskMethods:
         cursor: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
+        bounded_limit = max(1, min(limit, 201))
         params: dict[str, Any] = {
             "fields": USER_TASK_ACTIVITY_FIELDS,
             "filter[hashed_task_id][_eq]": hash_id(task_id),
             "sort": "created_at,entry_id",
-            "limit": max(1, min(limit, 201)),
+            "limit": bounded_limit,
         }
         if team_id:
             params["filter[hashed_team_id][_eq]"] = hash_id(team_id)
@@ -407,9 +408,31 @@ class UserTaskMethods:
             if not separator or not created_at_text.isdigit() or not entry_id:
                 raise ValueError("Invalid Task Activity cursor")
             created_at = int(created_at_text)
-            params["filter[_or][0][created_at][_gt]"] = created_at
-            params["filter[_or][1][_and][0][created_at][_eq]"] = created_at
-            params["filter[_or][1][_and][1][entry_id][_gt]"] = entry_id
+            same_timestamp_params = {
+                **params,
+                "filter[created_at][_eq]": created_at,
+                "filter[entry_id][_gt]": entry_id,
+                "sort": "entry_id",
+            }
+            same_timestamp = await self.directus_service.get_items(
+                "user_task_activity",
+                params=same_timestamp_params,
+                no_cache=True,
+            )
+            entries = same_timestamp if isinstance(same_timestamp, list) else []
+            if len(entries) >= bounded_limit:
+                return entries
+            later_params = {
+                **params,
+                "filter[created_at][_gt]": created_at,
+                "limit": bounded_limit - len(entries),
+            }
+            later = await self.directus_service.get_items(
+                "user_task_activity",
+                params=later_params,
+                no_cache=True,
+            )
+            return entries + (later if isinstance(later, list) else [])
         response = await self.directus_service.get_items(
             "user_task_activity",
             params=params,
