@@ -293,10 +293,9 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
 	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
-	await expect(composer).toHaveAttribute('data-focused', 'false');
+	await expect(composer).toHaveAttribute('data-focused', 'true');
 	await page.getByTestId('icon-button-close').click();
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
-	await focusComposer(page, composer);
 	await expect.poll(async () => selector.getAttribute('aria-label')).toContain(firstModelDisplayName!);
 
 	await selector.click();

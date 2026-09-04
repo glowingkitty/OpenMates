@@ -5226,8 +5226,6 @@
     }
 
     function handleModelDetails(event: CustomEvent<{ modelId: string }>): void {
-        isMessageFieldFocused = false;
-        isFocused = false;
         settingsDeepLink.set(`ai/model/${event.detail.modelId}`);
         panelState.openSettings();
     }
