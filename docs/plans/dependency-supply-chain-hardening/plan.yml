@@ -1,0 +1,501 @@
+schema_version: 2
+id: dependency-supply-chain-hardening
+title: Dependency And Container Supply-Chain Hardening
+status: implementing
+
+goal: >
+  Implement the approved phased dependency and container security-update system,
+  prioritizing urgent open vulnerability fixes and scoped dev deployment while
+  preventing routine automation from continuously adopting newly published or
+  insufficiently reviewed releases.
+
+specifications:
+  - id: architecture.server-management
+    version: 1
+    status: approved
+    assertions:
+      - server-management.update.safety-sequence
+      - server-management.host.preflight-caddy-continuous
+  - id: architecture.operational-monitoring
+    version: 2
+    status: approved
+    assertions:
+      - operational-monitoring.alerts.independent-urgent-path
+      - operational-monitoring.alerts.actionable-low-noise
+      - operational-monitoring.delivery.observable
+
+scope:
+  in:
+    - Remediate currently open critical and high dependency alerts to the minimum fixed versions.
+    - Cover pnpm, Python, Docker and GitHub Actions dependency updates.
+    - Separate urgent vulnerability remediation from delayed routine version updates.
+    - Make dependency inputs and published container artifacts reproducible and attributable.
+    - Add deterministic vulnerability, provenance and policy gates before merge and deployment.
+    - Stage eligible automated updates through protected dev checks before stable promotion.
+    - Alert when security scans, remediation queues or rollout checks become stale or fail.
+  out:
+    - Automatically merging major dependency upgrades.
+    - Automatically accepting new third-party dependencies.
+    - Pulling mutable latest tags directly into production.
+    - Automatic rollback of database migrations.
+    - Changes to public APIs, encrypted-data handling, web UI, SDK contracts or Apple clients.
+
+context_discovery:
+  github_issues:
+    - none found for dependency updates, Dependabot, container vulnerabilities or supply-chain hardening
+  live_findings:
+    - Sixteen open Dependabot alerts were observed on 2026-09-04, including high-severity npm alerts.
+    - Dependabot automatic security updates and GitHub secret scanning were disabled.
+    - The dev branch had no GitHub branch protection.
+    - The last ten observed scheduled npm-audit runs failed.
+    - The host Dependabot remediation cron was disabled while the partial OSV/NVD cron remained active.
+    - No OpenMates continuous-update systemd timer was active on the development host.
+  docs:
+    - docs/architecture/infrastructure/cronjobs.md
+    - docs/architecture/github-actions-ci.md
+    - docs/architecture/audit_frontend_dependency_pins.md
+    - docs/user-guide/cli/server-management.md
+  code_patterns:
+    - .github/dependabot.yml
+    - .github/workflows/dependency-review.yml
+    - .github/workflows/npm-audit.yml
+    - .github/workflows/publish-selfhost-images.yml
+    - .github/workflows/supply-chain-guard.yml
+    - pnpm-workspace.yaml
+    - scripts/check-dependabot-daily.sh
+    - scripts/check-eu-vulns-daily.sh
+    - scripts/_dependabot_helper.py
+    - scripts/_eu_vuln_helper.py
+    - frontend/packages/openmates-cli/src/serverPlanning.ts
+  tests:
+    - scripts/tests/test_audit_frontend_dependency_pins.py
+    - frontend/packages/openmates-cli/tests/server.test.ts
+    - .github/workflows/selfhost-smoke.yml
+
+clarification:
+  rounds:
+    - question: Which update and rollout policy should be implemented?
+      answer: >
+        The user approved the proposed phased system: urgent minimum-fixed-version
+        security remediation first, delayed routine updates, deterministic gates,
+        immutable container promotion and staged deployment.
+  vision_summary: >
+    Known exploitable vulnerabilities move quickly through narrow deterministic
+    fixes, while ordinary patch, minor and major releases wait behind increasing
+    quarantine and review periods. Automation promotes only the exact artifact
+    tested on dev; it never treats latest stable as sufficient evidence of trust.
+  approved_by_user: true
+  approved_at: "2026-09-04T13:47:16Z"
+
+apple_impact:
+  affected_files:
+    - none
+  parity_expectations:
+    - No Apple product surface changes; dependency and image policy remains infrastructure-only.
+  verification:
+    - Apple not affected.
+  intentional_native_differences:
+    - none
+
+endpoint_access:
+  classification: not_applicable
+  auth: not_applicable
+  rate_limits: not_applicable
+  credit_budget_limits: not_applicable
+  encrypted_data: none
+  reason: No REST or WebSocket endpoint is added or changed.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Keep GitHub Dependabot as the update bot for the first implementation.
+    reason: It is already authorized and avoids adding a second privileged dependency service.
+    decided_at: "2026-09-04T13:47:16Z"
+  - id: D-2
+    status: active
+    decision: Security updates target the minimum fixed version and remain separate from routine updates.
+    reason: This minimizes change while closing known exposure without adopting unrelated latest releases.
+    decided_at: "2026-09-04T13:47:16Z"
+  - id: D-3
+    status: active
+    decision: Routine patch and minor updates wait at least fourteen days; major updates wait thirty days and require review.
+    reason: A quarantine window reduces exposure to newly published malicious or withdrawn releases.
+    decided_at: "2026-09-04T13:47:16Z"
+  - id: D-4
+    status: active
+    decision: Only tightly coupled package families may be grouped.
+    reason: Small PRs preserve attribution, make failures diagnosable and avoid one package blocking unrelated fixes.
+    decided_at: "2026-09-04T13:47:16Z"
+  - id: D-5
+    status: active
+    decision: Production and self-host promotion uses signed immutable digests that already passed dev checks.
+    reason: Mutable channel tags cannot prove that production runs the artifact tested on dev.
+    decided_at: "2026-09-04T13:47:16Z"
+  - id: D-6
+    status: active
+    decision: Deterministic tools enforce trust and vulnerability policy; OpenCode only investigates blocked remediation.
+    reason: Merge and deployment safety must not depend on nondeterministic model judgment.
+    decided_at: "2026-09-04T13:47:16Z"
+
+scenarios:
+  - id: S-1
+    title: Urgent known vulnerability receives a narrow fix
+    given:
+      - A critical or high advisory applies to a resolved OpenMates dependency.
+      - A fixed release exists.
+    when:
+      - The security lane creates a remediation change.
+    then:
+      - The change selects the minimum fixed version.
+      - Unrelated dependencies are not upgraded.
+      - Required deterministic tests and scans pass before scoped dev deployment.
+  - id: S-2
+    title: Routine releases remain quarantined
+    given:
+      - A dependency publishes a new release without an applicable advisory.
+    when:
+      - Routine update automation evaluates the release.
+    then:
+      - Patch and minor releases wait at least fourteen days.
+      - Major releases wait at least thirty days and cannot auto-merge.
+      - New dependencies cannot auto-merge.
+  - id: S-3
+    title: Candidate container is attributable and no less secure
+    given:
+      - An OpenMates or third-party container dependency changes.
+    when:
+      - CI builds or evaluates the candidate image.
+    then:
+      - The input image is pinned by digest.
+      - The output has SBOM and provenance attestations and an OpenMates signature.
+      - Policy rejects new applicable critical or high vulnerabilities.
+  - id: S-4
+    title: Stable rollout promotes the tested artifact
+    given:
+      - A candidate digest passed dev deployment and health checks.
+    when:
+      - It is promoted to stable or consumed by a continuous updater.
+    then:
+      - The exact signed candidate digest is selected.
+      - Mutable latest-style tags are not trusted as deployment identity.
+      - Failure pauses rollout and preserves an explicit previous-digest recovery path.
+  - id: S-5
+    title: Broken automation becomes an incident
+    given:
+      - A required security scan fails or has no successful run within twenty-four hours.
+    when:
+      - Operational monitoring evaluates security automation freshness.
+    then:
+      - A deduplicated actionable alert identifies the failed or stale control.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Every currently applicable critical and high alert with a fix is remediated using the minimum fixed version and deployed to dev after focused checks.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-URGENT-AUDIT, T-SCOPED-TESTS, T-DEV-DEPLOY]
+  - id: AC-2
+    scenario: S-2
+    text: Update configuration covers npm, pip, Docker and GitHub Actions with fourteen-day routine and thirty-day major quarantine and no major auto-merge.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-POLICY-AUDIT]
+  - id: AC-3
+    scenario: S-1
+    text: Vulnerability checks use resolved inventories across all deployable manifests rather than a fixed subset of direct dependency declarations.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-INVENTORY-AUDIT]
+  - id: AC-4
+    scenario: S-3
+    text: Third-party container inputs are version-and-digest pinned and published OpenMates images receive vulnerability, SBOM, provenance and signature gates.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-CONTAINER-POLICY]
+  - id: AC-5
+    scenario: S-4
+    text: Automated stable updates consume the exact signed digest tested on dev and retain an explicit previous-digest recovery path.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-ROLLOUT-POLICY]
+  - id: AC-6
+    scenario: S-5
+    text: Required security jobs alert when failed or stale for more than twenty-four hours.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-MONITORING-POLICY]
+
+tests:
+  - id: T-URGENT-AUDIT
+    type: manual
+    file: pnpm-lock.yaml
+    command: pnpm audit --audit-level high
+    covers: [AC-1]
+    assertions:
+      - No unresolved applicable critical or high npm advisory remains.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-SCOPED-TESTS
+    type: manual
+    file: scripts/tests.py
+    command: python3 scripts/tests.py affected --help
+    covers: [AC-1]
+    assertions:
+      - Each urgent dependency change passes the smallest affected repository checks.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-POLICY-AUDIT
+    type: pytest
+    file: scripts/tests/test_dependency_update_policy.py
+    command: python3 -m pytest scripts/tests/test_dependency_update_policy.py
+    covers: [AC-2]
+    assertions:
+      - Every required ecosystem is configured with the approved quarantine and grouping policy.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-INVENTORY-AUDIT
+    type: pytest
+    file: scripts/tests/test_dependency_vulnerability_inventory.py
+    command: python3 -m pytest scripts/tests/test_dependency_vulnerability_inventory.py
+    covers: [AC-3]
+    assertions:
+      - The scanner inventories every deployable resolved npm and Python dependency source.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-CONTAINER-POLICY
+    type: pytest
+    file: scripts/tests/test_container_supply_chain_policy.py
+    command: python3 -m pytest scripts/tests/test_container_supply_chain_policy.py
+    covers: [AC-4]
+    assertions:
+      - Container inputs are digest pinned and image publication requests scans and attestations.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-ROLLOUT-POLICY
+    type: vitest
+    file: frontend/packages/openmates-cli/tests/server.test.ts
+    command: pnpm --filter openmates test -- server.test.ts
+    covers: [AC-5]
+    assertions:
+      - Continuous stable updates require the signed tested digest and preserve recovery identity.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-MONITORING-POLICY
+    type: pytest
+    file: scripts/tests/test_dependency_security_monitoring.py
+    command: python3 -m pytest scripts/tests/test_dependency_security_monitoring.py
+    covers: [AC-6]
+    assertions:
+      - Failed or stale security automation produces a deduplicated actionable alert.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+  - id: T-DEV-DEPLOY
+    type: manual
+    file: scripts/sessions.py
+    command: 'python3 scripts/sessions.py deploy --session ec6d --title "fix: remediate urgent dependency vulnerabilities"'
+    covers: [AC-1]
+    assertions:
+      - The urgent fix is committed and pushed to dev through the scoped session deploy path.
+    red_phase: {required: false, expected: fail, evidence: {status: not_applicable}}
+    green_phase:
+      required: true
+      expected: pass
+      evidence: {status: pending}
+
+implementation_notes:
+  plan_path: docs/plans/dependency-supply-chain-hardening/plan.yml
+  architecture: >
+    Dependabot proposes narrowly scoped version changes. Repository-owned policy
+    checks validate release age, update class, lock completeness, image identity,
+    vulnerability deltas and attestations. GitHub branch controls gate merges;
+    dev validates the immutable candidate before stable promotion.
+  data_flow:
+    - Registry or advisory event is classified as urgent security or routine maintenance.
+    - The updater selects a minimum fixed or quarantined eligible version and opens a narrow PR.
+    - CI resolves immutable inputs, scans the dependency graph and candidate images, and runs affected tests.
+    - Eligible security changes deploy to dev and produce an exact candidate digest.
+    - Stable promotion references the tested signed digest; monitoring records freshness and rollout state.
+  verification_order:
+    - Deterministic repository policy and unit tests.
+    - GitHub-hosted dependency and image scans.
+    - Scoped dev deployment and runtime health verification.
+    - Stable promotion contract tests without a production deployment.
+  existing_patterns:
+    - Dependabot opens update PRs against dev and pnpm enforces a minimum release age.
+    - sessions.py deploy provides scoped dev integration and deployment.
+  affected_files:
+    - path: .github/dependabot.yml
+      reason: Ecosystem coverage, grouping and quarantine policy.
+    - path: .github/workflows/publish-selfhost-images.yml
+      reason: Candidate image scanning, SBOM, provenance and signing.
+    - path: scripts/_eu_vuln_helper.py
+      reason: Complete resolved vulnerability inventory.
+  verification_strategy:
+    - Run focused deterministic policy tests before each phase deploy.
+    - Require live GitHub Actions evidence for hosted security and image gates.
+    - Verify scoped dev deployment and runtime health before recording containment complete.
+  demonstration:
+    eligibility: not_applicable
+    surface: non_visual
+    reason: Infrastructure policy and CI automation have no user-visible product surface.
+
+tasks:
+  - id: TASK-1
+    title: Contain urgent open vulnerabilities
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files:
+      - package.json
+      - pnpm-lock.yaml
+      - frontend/packages/ui/package.json
+      - frontend/packages/openmates-cli/package.json
+    verification: [T-URGENT-AUDIT, T-SCOPED-TESTS, T-DEV-DEPLOY]
+    verification_ids: [T-URGENT-AUDIT, T-SCOPED-TESTS, T-DEV-DEPLOY]
+    dependencies: []
+    ownership: {files: [pnpm-lock.yaml], shared_files: [package.json]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-2
+    title: Enforce protected update policy and full ecosystem coverage
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-2], acceptance_criteria: [AC-2]}
+    expected_files:
+      - .github/dependabot.yml
+      - .github/workflows/dependency-review.yml
+      - .github/workflows/supply-chain-guard.yml
+      - scripts/tests/test_dependency_update_policy.py
+    verification: [T-POLICY-AUDIT]
+    verification_ids: [T-POLICY-AUDIT]
+    dependencies: [TASK-1]
+    ownership: {files: [.github/dependabot.yml], shared_files: [.github/workflows/dependency-review.yml]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-3
+    title: Replace partial vulnerability parsing with resolved inventories
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-5], acceptance_criteria: [AC-3]}
+    expected_files:
+      - scripts/check-eu-vulns-daily.sh
+      - scripts/_eu_vuln_helper.py
+      - scripts/tests/test_dependency_vulnerability_inventory.py
+    verification: [T-INVENTORY-AUDIT]
+    verification_ids: [T-INVENTORY-AUDIT]
+    dependencies: [TASK-2]
+    ownership: {files: [scripts/_eu_vuln_helper.py], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-4
+    title: Add immutable container inputs and signed build evidence
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-3], acceptance_criteria: [AC-4]}
+    expected_files:
+      - .github/workflows/publish-selfhost-images.yml
+      - backend/core/docker-compose.selfhost.yml
+      - scripts/tests/test_container_supply_chain_policy.py
+    verification: [T-CONTAINER-POLICY]
+    verification_ids: [T-CONTAINER-POLICY]
+    dependencies: [TASK-3]
+    ownership: {files: [.github/workflows/publish-selfhost-images.yml], shared_files: []}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-5
+    title: Promote tested immutable digests through staged rollout
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-5]}
+    expected_files:
+      - frontend/packages/openmates-cli/src/serverPlanning.ts
+      - frontend/packages/openmates-cli/src/server.ts
+      - frontend/packages/openmates-cli/tests/server.test.ts
+    verification: [T-ROLLOUT-POLICY]
+    verification_ids: [T-ROLLOUT-POLICY]
+    dependencies: [TASK-4]
+    ownership: {files: [frontend/packages/openmates-cli/src/serverPlanning.ts], shared_files: [frontend/packages/openmates-cli/src/server.ts]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+  - id: TASK-6
+    title: Monitor security automation freshness and remediation SLAs
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-6]}
+    expected_files:
+      - docs/architecture/infrastructure/cronjobs.md
+      - scripts/tests/test_dependency_security_monitoring.py
+    verification: [T-MONITORING-POLICY]
+    verification_ids: [T-MONITORING-POLICY]
+    dependencies: [TASK-5]
+    ownership: {files: [scripts/tests/test_dependency_security_monitoring.py], shared_files: [docs/architecture/infrastructure/cronjobs.md]}
+    blockers: []
+    follow_up_tasks: []
+    independently_deployable: true
+
+implementation_state:
+  subject_commit: 3bcaa057f
+
+approvals:
+  specification:
+    status: not_required
+    reason: Existing approved server-management and operational-monitoring Specifications govern the affected behavior; no product contract changes.
+  plan:
+    status: approved
+    approved_at: "2026-09-04T13:47:16Z"
+    reason: The user explicitly approved the proposed phases and requested urgent remediation first.
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Audit repository configuration, host schedules and live GitHub security state before implementation.
+    outcome: succeeded
+    recorded_at: "2026-09-04T13:47:16Z"
+    evidence: Live GitHub and host audit summarized in context_discovery.live_findings.
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Resolve current high-severity advisory metadata and apply minimum-fixed-version updates.
+  command: gh api repos/glowingkitty/OpenMates/dependabot/alerts?state=open
+  expected_outcome: Each applicable high-severity alert is mapped to its fixed version and affected manifest.
+  blocker: null
+  last_verified_commit: 3bcaa057f
