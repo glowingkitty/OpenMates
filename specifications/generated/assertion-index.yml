@@ -6392,17 +6392,17 @@ assertions:
     supporting_tests:
     - &id728
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 46
+      line: 47
       name: test_every_ai_ask_model_has_explicit_capability_and_release_date
       surface: gui.web
     - &id729
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 56
+      line: 57
       name: test_named_model_capabilities_match_the_approved_scale
       surface: gui.web
     - &id730
       path: backend/tests/test_ai_ask_model_metadata.py
-      line: 67
+      line: 68
       name: test_gpt6_astra_uses_max_reasoning_on_openai
       surface: gui.web
     - &id734
