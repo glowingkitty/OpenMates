@@ -336,6 +336,7 @@
   .composer-actions { justify-content: flex-end; gap: 8px; padding: 8px 12px 12px; }
   .icon-button, .delete { width: 38px; height: 38px; border: 0; border-radius: 50%; background-color: transparent; cursor: pointer; }
   .icon-button::before, .delete::before { display: block; width: 20px; height: 20px; margin: auto; content: ''; background: var(--color-font-secondary); mask-position: center; mask-repeat: no-repeat; mask-size: contain; }
+  .attach { margin-inline-start: auto; }
   .attach::before { mask-image: var(--icon-url-files); }
   .mic::before { mask-image: var(--icon-url-recordaudio); }
   .delete::before { mask-image: var(--icon-url-delete); }

@@ -146,7 +146,15 @@ function createVideoProofRuntime(definition: VideoProofDefinition, options: Runt
 			const capturedAtEpochMs = now();
 			const atMs = capturedAtEpochMs - startedAt;
 			if (contract.surface === 'web') {
-				checkpointFrames.push({checkpoint: id, at_ms: atMs, captured_at_epoch_ms: capturedAtEpochMs});
+				const frame: Record<string, unknown> = {checkpoint: id, at_ms: atMs, captured_at_epoch_ms: capturedAtEpochMs};
+				if (options.captureFrame) {
+					const body = await options.captureFrame();
+					const attachmentName = `openmates-proof-frame-${id}`;
+					await options.attach(attachmentName, {body, contentType: 'image/png'});
+					frame.attachment_name = attachmentName;
+					frame.sha256 = `sha256:${createHash('sha256').update(body).digest('hex')}`;
+				}
+				checkpointFrames.push(frame);
 			} else if (options.captureFrame) {
 				const body = await options.captureFrame();
 				const attachmentName = `openmates-proof-frame-${id}`;

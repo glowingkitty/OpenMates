@@ -59,11 +59,12 @@ test('rejects assertions without visual review text', () => {
 test('records fast actions assertions and checkpoints without presentation waits', async () => {
 	let now = 1000;
 	const attached: Array<{name: string; body: Buffer; contentType: string}> = [];
+	const checkpointFrame = Buffer.from('synthetic png');
 	const runtime = createVideoProofRuntime(definition(), {
 		now: () => now,
 		device: 'web-laptop',
 		attach: async (name, options) => attached.push({name, ...options}),
-		captureFrame: async () => { throw new Error('checkpoint capture must be deferred'); }
+		captureFrame: async () => checkpointFrame
 	});
 
 	await runtime.action('open-welcome', async () => {
@@ -75,9 +76,11 @@ test('records fast actions assertions and checkpoints without presentation waits
 	await runtime.checkpoint('welcome-visible');
 	await runtime.attach();
 
-	assert.equal(attached.length, 1);
-	assert.equal(attached[0].name, 'openmates-proof-timeline');
-	const payload = JSON.parse(attached[0].body.toString('utf8'));
+	assert.equal(attached.length, 2);
+	assert.equal(attached[0].name, 'openmates-proof-frame-welcome-visible');
+	assert.equal(attached[0].body, checkpointFrame);
+	assert.equal(attached[1].name, 'openmates-proof-timeline');
+	const payload = JSON.parse(attached[1].body.toString('utf8'));
 	assert.equal(payload.schema_version, 2);
 	assert.equal(payload.contract.id, 'welcome-proof');
 	assert.deepEqual(payload.events.map((event: any) => event.kind), ['action', 'assertion', 'checkpoint']);
@@ -87,7 +90,8 @@ test('records fast actions assertions and checkpoints without presentation waits
 	assert.equal(payload.checkpoint_frames[0].checkpoint, 'welcome-visible');
 	assert.equal(payload.checkpoint_frames[0].at_ms, 140);
 	assert.equal(payload.checkpoint_frames[0].captured_at_epoch_ms, 1140);
-	assert.equal('sha256' in payload.checkpoint_frames[0], false);
+	assert.equal(payload.checkpoint_frames[0].attachment_name, 'openmates-proof-frame-welcome-visible');
+	assert.match(payload.checkpoint_frames[0].sha256, /^sha256:[a-f0-9]{64}$/);
 	assert.equal('presentation_wait_ms' in payload, false);
 });
 

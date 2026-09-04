@@ -91,9 +91,15 @@ test.describe('Task Activity component', () => {
 			await openActivityPreview(page, 'error');
 			await expect(page.getByTestId('task-activity-embed-error')).toBeVisible();
 			await proof.assert('composer-parity', async () => {
-				await expect(page.getByTestId('task-activity-attach')).toBeVisible();
+				const attach = page.getByTestId('task-activity-attach');
+				await expect(attach).toBeVisible();
 				await expect(page.getByTestId('task-activity-voice')).toBeVisible();
 				await expect(page.getByTestId('task-activity-submit')).toBeDisabled();
+				const [composerBox, attachBox] = await Promise.all([composer.boundingBox(), attach.boundingBox()]);
+				expect(composerBox).not.toBeNull();
+				expect(attachBox).not.toBeNull();
+				expect(attachBox!.x).toBeGreaterThanOrEqual(composerBox!.x);
+				expect(attachBox!.x + attachBox!.width).toBeLessThanOrEqual(composerBox!.x + composerBox!.width);
 			});
 		});
 		await proof.checkpoint('rich-composer');
@@ -117,6 +123,7 @@ test.describe('Task Activity component', () => {
 			await page.getByTestId('task-activity-entry-cli').getByRole('button', { name: 'Delete' }).click();
 			await expect(page.getByTestId('task-activity-entry-cli')).toContainText('Comment by Sam Rivera deleted by Alice Weber');
 			await expect(page.getByTestId('task-activity-entry-cli').getByTestId('system-message-text')).toBeVisible();
+			await page.getByTestId('task-activity-entry-deleted-user').scrollIntoViewIfNeeded();
 			await proof.assert('safe-attribution', async () => {
 				await expect(page.getByTestId('task-activity-entry-deleted-user')).not.toContainText('launch milestones');
 				await expect(page.getByTestId('task-activity-entry-deleted-user').locator('[data-testid^="embed-"]')).toHaveCount(0);
