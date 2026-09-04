@@ -128,7 +128,9 @@ describe("EmbedReferencePreview", () => {
     await flush();
     expect(rendererMocks.render).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    // The update retries immediately after the initial miss. Its next miss
+    // uses the second (2-second) bounded backoff interval.
+    await vi.advanceTimersByTimeAsync(2_000);
     await flush();
 
     expect(embedResolverMocks.resolveEmbed).toHaveBeenCalledTimes(3);

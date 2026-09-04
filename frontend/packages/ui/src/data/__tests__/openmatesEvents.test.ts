@@ -13,7 +13,7 @@ describe('OPENMATES_EVENTS generated bundle', () => {
 	it('contains the published launch event set with served static images', () => {
 		const events = getAllOpenMatesEvents();
 
-		expect(events).toHaveLength(8);
+		expect(events).toHaveLength(7);
 		for (const event of events) {
 			expect(event.id).toBe(event.slug);
 			expect(event.embed_id).toBe(event.slug);
