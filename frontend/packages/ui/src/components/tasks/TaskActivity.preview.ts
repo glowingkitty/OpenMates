@@ -38,7 +38,7 @@ const initialEntries: UserTaskActivityEntry[] = [
   { ...base, entryId: 'deleted-mate', kind: 'tombstone', actorType: 'ai', actorDisplayName: null, actorProfileImageUrl: null, eventType: 'comment_deleted', sourceSurface: 'web', createdAt: createdAt + 80, deletedAt: createdAt + 90, deletedByDisplayName: 'Alice Weber' },
 ];
 
-async function onCreate(input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {
+async function onCreate(_input: CreateUserTaskActivityInput): Promise<UserTaskActivityEntry> {
   return {
     ...base,
     entryId: 'created-preview-comment',
@@ -49,7 +49,7 @@ async function onCreate(input: CreateUserTaskActivityInput): Promise<UserTaskAct
     eventType: 'comment_added',
     sourceSurface: 'web',
     createdAt: createdAt + 100,
-    message: input.message.trim() || 'First line\nSecond line',
+    message: 'First line\nSecond line',
   };
 }
 
