@@ -540,7 +540,7 @@ Usage Settings - View usage statistics and export usage data
                 return;
             }
 
-            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDailyOverview)}?days=${days}`;
+            const endpoint = `${getApiEndpoint(apiEndpoints.usage.getDailyOverview)}?days=${days}&reconcile=true`;
             console.log('Fetching daily overview from:', endpoint);
             
             const response = await fetch(endpoint, {

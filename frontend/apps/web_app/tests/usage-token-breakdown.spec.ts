@@ -51,6 +51,11 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { skipWithoutCredentials } = require('./helpers/env-guard');
 
+function trailingCredits(text: string | null): number {
+	const match = (text || '').match(/([\d.,]+)\s*credits/i);
+	return match ? parseInt(match[1].replace(/[.,]/g, ''), 10) : 0;
+}
+
 // Default test account — needs credits for AI inference.
 const {
 	email: TEST_EMAIL,
@@ -65,7 +70,7 @@ test.describe('Usage Token Breakdown', () => {
 		attachNetworkListeners(page, testInfo);
 	});
 
-	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown
+	// contract-test: direct surface=gui.web assertions=billing.usage.receipt-token-breakdown,billing.surface.semantic-parity
 	test('receipt-style breakdown: sub-items sum to total input', async ({ page }) => {
 		test.setTimeout(120000); // 2 minutes — AI inference + usage fetch
 		const logStep = createSignupLogger('USAGE_TOKENS');
@@ -82,7 +87,7 @@ test.describe('Usage Token Breakdown', () => {
 		logStep('Started new chat');
 
 		// Send a simple message that triggers AI inference with tool definitions
-		await sendMessage(page, 'What is the capital of France?', logStep, takeScreenshot);
+		await sendMessage(page, 'Find the latest OpenAI Astra news and related images.', logStep, takeScreenshot);
 		logStep('Message sent, waiting for AI response');
 
 		// Wait for AI response to complete (final message appears)
@@ -125,6 +130,7 @@ test.describe('Usage Token Breakdown', () => {
 		// These are SettingsItem components rendered as usage overview chat rows.
 		const firstUsageEntry = settingsMenu.getByTestId('usage-overview-chat-row').first();
 		await expect(firstUsageEntry).toBeVisible({ timeout: 15000 });
+		const overviewCredits = trailingCredits(await firstUsageEntry.textContent());
 		await firstUsageEntry.click();
 		logStep('Clicked first usage entry (drill into chat entries)');
 		await takeScreenshot(page, 'chat-entries-list');
@@ -137,6 +143,12 @@ test.describe('Usage Token Breakdown', () => {
 		const chatEntryButtons = usageDetailView.getByTestId('usage-chat-entry');
 		await expect(chatEntryButtons.first()).toBeVisible({ timeout: 10000 });
 		const buttonCount = await chatEntryButtons.count();
+		expect(buttonCount, 'Expected multiple usage entries for the app-assisted chat').toBeGreaterThan(1);
+		let detailCredits = 0;
+		for (let index = 0; index < buttonCount; index += 1) {
+			detailCredits += trailingCredits(await chatEntryButtons.nth(index).textContent());
+		}
+		expect(overviewCredits, 'Overview chat credits must equal the sum of its detail entries').toBe(detailCredits);
 		let openedTokenEntry = false;
 		for (let index = 0; index < buttonCount; index += 1) {
 			const button = chatEntryButtons.nth(index);
