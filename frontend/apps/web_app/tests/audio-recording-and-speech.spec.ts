@@ -298,7 +298,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			expect(placeholder === 'false' || status === 'autoplay_blocked').toBeTruthy();
 		}).toPass({ timeout: SPEECH_TIMEOUT_MS });
 
-		await expect(player.getByRole('button', { name: /pause voice response|play voice response/i })).toBeVisible({ timeout: 30_000 });
+		await expect(player.getByTestId('assistant-speech-primary-control').last()).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-next-chapter')).toBeVisible();
 
 		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
