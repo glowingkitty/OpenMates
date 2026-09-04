@@ -132,17 +132,20 @@ test.describe('Usage Token Breakdown', () => {
 		});
 		const overviewResponse = await overviewResponsePromise;
 		await overviewResponse.json();
+		const usageApiOrigin = new URL(overviewResponse.url()).origin;
 		await expect.poll(async () => {
-			return page.evaluate(async (chatId) => {
-				const response = await fetch(`/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId)}&limit=100`, {
+			return page.evaluate(async ({ chatId, apiOrigin }) => {
+				const response = await fetch(`${apiOrigin}/v1/settings/usage/chat-entries?chat_id=${encodeURIComponent(chatId)}&limit=100`, {
 					credentials: 'include'
 				});
 				if (!response.ok) return false;
-				const data = await response.json();
+				if (!response.headers.get('content-type')?.includes('application/json')) return false;
+				const data = await response.json().catch(() => null);
+				if (!data) return false;
 				return Array.isArray(data.entries) && data.entries.some((entry: { input_tokens?: number }) =>
 					typeof entry.input_tokens === 'number' && entry.input_tokens > 0
 				);
-			}, createdChatId);
+			}, { chatId: createdChatId, apiOrigin: usageApiOrigin });
 		}, { timeout: 15000 }).toBe(true);
 
 		await settingsMenu.getByTestId('settings-tab-chats').click();
