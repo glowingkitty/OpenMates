@@ -53,6 +53,7 @@ interface AppSettingsMemoriesStateLike {
 }
 
 const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * HOUR_MS;
 const UPCOMING_WINDOW_MS = 24 * HOUR_MS;
 const RECENT_WINDOW_MS = 12 * HOUR_MS;
 
@@ -93,6 +94,21 @@ function formatRelativeLabel(prefix: string, timestamp: number, nowMs: number): 
   return diffMs >= 0 ? `${prefix} in ${days}d` : `${prefix} ${days}d ago`;
 }
 
+function formatDateOnlyLabel(prefix: string, timestamp: number, nowMs: number): string {
+  const targetDate = new Date(timestamp);
+  const currentDate = new Date(nowMs);
+  targetDate.setHours(0, 0, 0, 0);
+  currentDate.setHours(0, 0, 0, 0);
+  const dayDifference = Math.round((targetDate.getTime() - currentDate.getTime()) / DAY_MS);
+
+  if (dayDifference === 0) return `${prefix} today`;
+  if (dayDifference === 1) return `${prefix} tomorrow`;
+  if (dayDifference === -1) return `${prefix} yesterday`;
+  return dayDifference > 0
+    ? `${prefix} in ${dayDifference}d`
+    : `${prefix} ${Math.abs(dayDifference)}d ago`;
+}
+
 export function buildReminderPriority(
   reminder: ActiveReminderForContinue,
   nowMs: number = Date.now(),
@@ -117,16 +133,20 @@ export function buildReminderPriority(
   };
 }
 
-function getSavedItemTimeWindow(itemValue: Record<string, unknown>): { startMs: number | null; endMs: number | null } {
-  const startMs =
+function getSavedItemTimeWindow(itemValue: Record<string, unknown>): {
+  startMs: number | null;
+  endMs: number | null;
+  startIsDateOnly: boolean;
+} {
+  const exactStartMs =
     parseTime(itemValue.date_start) ??
     parseTime(itemValue.departure) ??
     parseTime(itemValue.start_time) ??
     parseTime(itemValue.starts_at) ??
     parseTime(itemValue.datetime) ??
-    parseTime(itemValue.appointment_time) ??
-    parseDateOnlyEnd(itemValue.date) ??
-    parseTime(itemValue.available_from);
+    parseTime(itemValue.appointment_time);
+  const dateOnlyStartMs = exactStartMs === null ? parseDateOnlyEnd(itemValue.date) : null;
+  const startMs = exactStartMs ?? dateOnlyStartMs ?? parseTime(itemValue.available_from);
 
   const endMs =
     parseTime(itemValue.date_end) ??
@@ -136,7 +156,7 @@ function getSavedItemTimeWindow(itemValue: Record<string, unknown>): { startMs: 
     parseTime(itemValue.checkout) ??
     parseTime(itemValue.available_until);
 
-  return { startMs, endMs };
+  return { startMs, endMs, startIsDateOnly: dateOnlyStartMs !== null };
 }
 
 function getSavedItemPriority(
@@ -144,7 +164,7 @@ function getSavedItemPriority(
   nowMs: number,
   itemLabel: string,
 ): ContinuePriority | null {
-  const { startMs, endMs } = getSavedItemTimeWindow(itemValue);
+  const { startMs, endMs, startIsDateOnly } = getSavedItemTimeWindow(itemValue);
 
   if (endMs && endMs >= nowMs && (!startMs || startMs <= nowMs)) {
     return {
@@ -162,7 +182,9 @@ function getSavedItemPriority(
 
   return {
     reason: 'upcoming_saved_item',
-    label: formatRelativeLabel(itemLabel, startMs, nowMs),
+    label: startIsDateOnly
+      ? formatDateOnlyLabel(itemLabel, startMs, nowMs)
+      : formatRelativeLabel(itemLabel, startMs, nowMs),
     timestamp: startMs,
   };
 }

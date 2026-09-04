@@ -16,7 +16,7 @@ import {
   type ActiveReminderForContinue,
 } from '../continueCarouselService';
 
-const NOW_MS = Date.UTC(2026, 4, 13, 9, 0, 0);
+const NOW_MS = new Date(2026, 4, 13, 9, 0, 0).getTime();
 const NOW_SECONDS = Math.floor(NOW_MS / 1000);
 
 function reminder(overrides: Partial<ActiveReminderForContinue>): ActiveReminderForContinue {
@@ -121,16 +121,6 @@ describe('continueCarouselService', () => {
               date: '2026-05-14',
             },
           },
-          {
-            id: 'legacy-today-appointment-entry',
-            item_key: 'legacy-today-appointment',
-            settings_group: 'appointments',
-            item_value: {
-              embed_id: 'legacy-today-appointment-embed',
-              title: 'Legacy Wednesday appointment',
-              date: '2026-05-13',
-            },
-          },
         ],
       }],
       ['home', {
@@ -168,14 +158,37 @@ describe('continueCarouselService', () => {
       'ongoing-embed',
       'future-embed',
       'near-appointment-embed',
-      'legacy-today-appointment-embed',
     ]);
     expect(candidates.find((candidate) => candidate.embedId === 'far-appointment-embed')).toBeUndefined();
     expect(candidates.find((candidate) => candidate.embedId === 'legacy-far-appointment-embed')).toBeUndefined();
     expect(candidates.find((candidate) => candidate.embedId === 'undated-listing-embed')?.priority.reason).toBe('reminder_soon');
     expect(candidates.find((candidate) => candidate.embedId === 'future-embed')?.priority.label).toBe('Event in 3h');
     expect(candidates.find((candidate) => candidate.embedId === 'near-appointment-embed')?.priority.label).toBe('Appointment in 23h');
-    expect(candidates.find((candidate) => candidate.embedId === 'legacy-today-appointment-embed')?.priority.label).toBe('Appointment today');
+  });
+
+  // contract-test: direct surface=gui.web assertions=continue-carousel.saved-item.start-time-gated
+  it('keeps date-only appointment labels at calendar-day precision', () => {
+    const entriesByApp = new Map([
+      ['health', {
+        appointments: [
+          {
+            id: 'legacy-today-appointment-entry',
+            item_key: 'legacy-today-appointment',
+            settings_group: 'appointments',
+            item_value: {
+              embed_id: 'legacy-today-appointment-embed',
+              title: 'Legacy Wednesday appointment',
+              date: '2026-05-13',
+            },
+          },
+        ],
+      }],
+    ]);
+
+    const candidates = getSavedEmbedContinueCandidates({ entriesByApp }, new Map(), NOW_MS);
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0].priority.label).toBe('Appointment today');
   });
 
   // contract-test: supporting surface=gui.web assertions=continue-carousel.saved-item.start-time-gated,continue-carousel.chat.reminder-gated
