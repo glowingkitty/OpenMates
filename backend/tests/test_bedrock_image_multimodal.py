@@ -150,6 +150,35 @@ def test_bedrock_image_conversion_decodes_data_url_to_raw_bytes() -> None:
     assert image["source"]["bytes"] == image_bytes
 
 
+def test_bedrock_groups_parallel_image_results_in_the_next_user_turn() -> None:
+    if convert_messages_to_converse_format is None:
+        pytest.skip("Bedrock dependencies not installed locally (botocore)")
+
+    image_bytes = b"\x89PNG\r\n\x1a\nimage"
+    data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
+    calls = [
+        {"id": tool_id, "function": {"name": "images_view", "arguments": "{}"}}
+        for tool_id in ("image-1", "image-2")
+    ]
+    history = [{"role": "user", "content": "Compare these images"},
+               {"role": "assistant", "tool_calls": calls}]
+    history.extend({"role": "tool", "tool_call_id": call["id"], "content": [
+        {"type": "text", "text": call["id"]},
+        {"type": "image_url", "image_url": {"url": data_url}},
+    ]} for call in calls)
+    history.extend([{"role": "assistant", "content": "Comparison"},
+                    {"role": "user", "content": "Thanks"}])
+
+    _, messages = convert_messages_to_converse_format(history)
+
+    assert [message["role"] for message in messages] == [
+        "user", "assistant", "user", "assistant", "user"
+    ]
+    results = [block["toolResult"] for block in messages[2]["content"]]
+    assert [result["toolUseId"] for result in results] == ["image-1", "image-2"]
+    assert all(result["content"][1]["image"]["source"]["bytes"] == image_bytes for result in results)
+
+
 def test_bedrock_named_openai_tool_choice_uses_converse_tool_name() -> None:
     if convert_tool_choice_to_converse_format is None:
         pytest.skip("Bedrock dependencies not installed locally (botocore)")
