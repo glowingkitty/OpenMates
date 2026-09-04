@@ -215,7 +215,7 @@ acceptance_criteria:
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, assistant-speech.preference.chat-scoped-default-off]
     text: A preference-only metadata update cannot cause a generated summary for the same AI turn to be discarded.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-CHAT-SUMMARY-RACE, V-DEV-VOICE-CHAT]
@@ -224,7 +224,7 @@ acceptance_criteria:
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
     text: Late authoritative encrypted metadata repairs the currently displayed header exactly once without navigation or a resume loop.
     required: true
-    status: pending
+    status: satisfied
     coverage_status: covered
     verification_scope: playwright
     verification_ids: [T-CHAT-LATE-METADATA, V-DEV-COLD-CHAT]
@@ -305,7 +305,7 @@ tests:
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, assistant-speech.preference.chat-scoped-default-off]
     assertions: [Preference-only metadata changes do not suppress the same-turn generated summary.]
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --force", run_id: "33900829731", subject_commit: "d73d82a3d78ebfc7c31002d760f57cdecf8294ae", target: github_actions, timestamp: "2026-09-04T17:32:46Z", summary: "Both summary-race assertions passed: preference-only metadata permits the generated summary and an existing newer manual summary remains protected. The full suite retained seven unrelated baseline failures."}}
   - id: T-CHAT-LATE-METADATA
     type: vitest
     file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts and frontend/packages/ui/src/components/__tests__/activeChatResumeEffect.test.ts
@@ -315,7 +315,7 @@ tests:
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
     assertions: [Late authoritative metadata repairs the active header once without a resume loop.]
     red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
-    green_phase: {required: true, expected: pass_after_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --force", run_id: "33900829731", subject_commit: "d73d82a3d78ebfc7c31002d760f57cdecf8294ae", target: github_actions, timestamp: "2026-09-04T17:32:46Z", summary: "The active Phase-1 metadata notification and untracked resume-loader state regression assertions passed. The full suite retained seven unrelated baseline failures."}}
 
 tasks:
   - id: T-1
@@ -356,7 +356,7 @@ tasks:
     deployable: false
   - id: T-3
     title: Preserve generated summary across preference-only metadata updates
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, assistant-speech.preference.chat-scoped-default-off]
@@ -377,7 +377,7 @@ tasks:
     deployable: true
   - id: T-4
     title: Repair active header after late encrypted metadata
-    status: in_progress
+    status: done
     phase: working_tasks
     covers: {scenarios: [S-5], acceptance_criteria: [AC-5]}
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
@@ -399,7 +399,7 @@ tasks:
     deployable: true
   - id: T-5
     title: Bound chat-key mismatch risk and assemble emergency candidate
-    status: pending
+    status: blocked
     phase: running_checks
     covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5]}
     specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
@@ -417,8 +417,8 @@ tasks:
     follow_up_tasks: []
     ownership: {session: 2d76, files: [frontend/packages/ui/src/services/encryption, frontend/packages/ui/src/services/db, backend/core/api/app/services, backend/core/api/Dockerfile.selfhost, .github/workflows/publish-selfhost-images.yml], shared_files: []}
     independently_deployable: false
-    blockers: []
-    deployable: true
+    blockers: [B-PROD-SCOPED-PR]
+    deployable: false
 
 checks:
   - id: T-S3-REGIONAL-UNIT
@@ -472,17 +472,17 @@ verifications:
     phase: green
     required_for_done: true
     covers: [AC-4]
-    status: pending
+    status: passed
     command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: passed, command: "python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit 29241f9b6401d01cf3d18bf7767159ac595c3c03", run_id: "33902468569", subject_commit: "29241f9b6401d01cf3d18bf7767159ac595c3c03", summary: "Voice-first chat retained generated title, icon, summary, and encrypted assistant-speech preference across reload.", timestamp: "2026-09-04T17:50:51Z"}
   - id: V-DEV-COLD-CHAT
     kind: automated_test
     phase: green
     required_for_done: true
     covers: [AC-5]
-    status: pending
+    status: passed
     command: python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <FULL_SHA>
-    evidence: {status: pending, command: "", run_id: "", subject_commit: "", summary: "", timestamp: ""}
+    evidence: {status: passed, command: "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit 29241f9b6401d01cf3d18bf7767159ac595c3c03", run_id: "33902054590", subject_commit: "29241f9b6401d01cf3d18bf7767159ac595c3c03", summary: "Core chat passed end-to-end; cold reload restored title, icon, summary, messages, and the same chat-key fingerprint.", timestamp: "2026-09-04T17:47:26Z"}
 
 attempts:
   - id: ATTEMPT-1
@@ -493,12 +493,17 @@ attempts:
     evidence: Active-region reconciliation creates missing managed buckets; replica-region reconciliation logs and skips them.
 
 handoff:
-  current_task_id: T-3
-  next_action: Add the summary-race regression test, prove it fails on the current implementation, then implement the field-aware stale-update guard.
-  command: python3 scripts/tests.py run --suite vitest
-  expected_outcome: A preference-only metadata version advance no longer suppresses the generated summary, while a newer manual summary still wins.
-  blocker: null
-  last_verified_commit: 316aa6fc4
+  current_task_id: T-5
+  next_action: After explicit approval, create a minimal production hotfix PR based on current main rather than promoting the 30-commit dev delta.
+  command: scoped hotfix PR from origin/main containing only the verified chat fixes and required runtime packaging assets
+  expected_outcome: The production candidate excludes unrelated dev features and can run release gates before any production server mutation.
+  blocker:
+    task_id: T-5
+    requires_user_input: true
+    reason: Production application deployment is not yet approved, no production PR exists, and promoting dev directly would include 30 commits across 180 files.
+    question: Approve creating a minimal hotfix PR based on current main for the verified chat fixes and required locale/Alertmanager runtime packaging only?
+    next_action: Build the isolated patch, run its gates, present the exact PR and release artifacts, then request separate approval before updating the production backend.
+  last_verified_commit: 29241f9b6401d01cf3d18bf7767159ac595c3c03
 
 deferred_follow_up:
   - id: S3-HISTORICAL-BACKFILL
