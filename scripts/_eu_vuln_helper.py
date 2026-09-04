@@ -105,16 +105,12 @@ USER_DISCLOSURE_PACKAGES = {
     "httpx", "aiohttp", "redis", "boto3",
 }
 
-# Dependency file locations relative to project root
-DEPENDENCY_FILES = {
-    "npm": [
-        "frontend/packages/ui/package.json",
-        "frontend/apps/web_app/package.json",
-    ],
-    "PyPI": [
-        "backend/core/api/requirements.txt",
-        "backend/apps/pdf/requirements.txt",
-    ],
+IGNORED_DEPENDENCY_DIRECTORIES = {
+    ".git",
+    ".openmates-agent-worktrees",
+    ".pnpm-store",
+    "node_modules",
+    "test-results",
 }
 
 
@@ -282,11 +278,31 @@ def _parse_requirements_txt(filepath: str) -> List[Dict[str, str]]:
     return deps
 
 
+def _discover_dependency_files(project_root: str) -> Dict[str, List[str]]:
+    """Discover every checked-out npm and requirements manifest."""
+    discovered: Dict[str, List[str]] = {"npm": [], "PyPI": []}
+    for directory, child_directories, filenames in os.walk(project_root):
+        child_directories[:] = [
+            name for name in child_directories if name not in IGNORED_DEPENDENCY_DIRECTORIES
+        ]
+        relative_directory = os.path.relpath(directory, project_root)
+        for filename in filenames:
+            relative_path = os.path.normpath(os.path.join(relative_directory, filename))
+            if filename == "package.json":
+                discovered["npm"].append(relative_path)
+            elif filename.startswith("requirements") and filename.endswith(".txt"):
+                discovered["PyPI"].append(relative_path)
+
+    for files in discovered.values():
+        files.sort()
+    return discovered
+
+
 def _collect_all_dependencies(project_root: str) -> List[Dict[str, str]]:
-    """Collect all dependencies from all known dependency files."""
+    """Collect declared versions from every discovered dependency manifest."""
     all_deps = []
 
-    for ecosystem, files in DEPENDENCY_FILES.items():
+    for ecosystem, files in _discover_dependency_files(project_root).items():
         for rel_path in files:
             filepath = os.path.join(project_root, rel_path)
             if not os.path.isfile(filepath):
@@ -303,11 +319,11 @@ def _collect_all_dependencies(project_root: str) -> List[Dict[str, str]]:
             all_deps.extend(deps)
             print(f"[eu-vulns] Parsed {len(deps)} deps from {rel_path}")
 
-    # Deduplicate by (name, ecosystem) — keep the first occurrence
+    # The same package may resolve to different versions in separate runtimes.
     seen = set()
     unique_deps = []
     for dep in all_deps:
-        key = (dep["name"].lower(), dep["ecosystem"])
+        key = (dep["name"].lower(), dep["ecosystem"], dep["version"])
         if key not in seen:
             seen.add(key)
             unique_deps.append(dep)
