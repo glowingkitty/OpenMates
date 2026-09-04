@@ -66,6 +66,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from audit_frontend_dependency_pins import collect_package_versions
 from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
 
 
@@ -278,6 +279,27 @@ def _parse_requirements_txt(filepath: str) -> List[Dict[str, str]]:
     return deps
 
 
+def _parse_pnpm_lock(filepath: str) -> List[Dict[str, str]]:
+    """Parse every resolved npm package version from the pnpm lockfile."""
+    try:
+        with open(filepath, encoding="utf-8") as file:
+            package_versions = collect_package_versions(file.read())
+    except OSError as error:
+        print(f"[eu-vulns] WARNING: could not parse {filepath}: {error}", file=sys.stderr)
+        return []
+
+    return [
+        {
+            "name": name,
+            "version": version.split("(", 1)[0],
+            "ecosystem": "npm",
+            "source_file": "pnpm-lock.yaml",
+        }
+        for name, versions in sorted(package_versions.items())
+        for version in sorted(versions)
+    ]
+
+
 def _discover_dependency_files(project_root: str) -> Dict[str, List[str]]:
     """Discover every checked-out npm and requirements manifest."""
     discovered: Dict[str, List[str]] = {"npm": [], "PyPI": []}
@@ -318,6 +340,12 @@ def _collect_all_dependencies(project_root: str) -> List[Dict[str, str]]:
 
             all_deps.extend(deps)
             print(f"[eu-vulns] Parsed {len(deps)} deps from {rel_path}")
+
+    lockfile_path = os.path.join(project_root, "pnpm-lock.yaml")
+    if os.path.isfile(lockfile_path):
+        lockfile_dependencies = _parse_pnpm_lock(lockfile_path)
+        all_deps.extend(lockfile_dependencies)
+        print(f"[eu-vulns] Parsed {len(lockfile_dependencies)} deps from pnpm-lock.yaml")
 
     # The same package may resolve to different versions in separate runtimes.
     seen = set()

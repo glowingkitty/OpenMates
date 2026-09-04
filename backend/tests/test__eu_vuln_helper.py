@@ -60,6 +60,21 @@ def test_preserves_distinct_versions_of_the_same_package(tmp_path: Path) -> None
 
 
 # contract-test: infrastructure
+def test_collects_transitive_versions_from_pnpm_lockfile(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text('{"dependencies":{"direct":"1.0.0"}}')
+    (tmp_path / "pnpm-lock.yaml").write_text(
+        "lockfileVersion: '9.0'\n\npackages:\n\n  transitive@4.2.0:\n    resolution: {}\n\nsnapshots:\n",
+        encoding="utf-8",
+    )
+
+    dependencies = inventory._collect_all_dependencies(str(tmp_path))
+
+    assert {
+        (item["name"], item["version"], item["source_file"]) for item in dependencies
+    } >= {("transitive", "4.2.0", "pnpm-lock.yaml")}
+
+
+# contract-test: infrastructure
 def test_hosted_scan_resolves_every_requirements_graph() -> None:
     workflow = (ROOT / ".github" / "workflows" / "dependency-security.yml").read_text()
 
