@@ -772,6 +772,217 @@ def test_restart_command_records_keyboard_interrupt(monkeypatch, tmp_path):
     assert operation["error"] == "KeyboardInterrupt"
 
 
+def test_recovery_backup_is_fail_closed_when_coverage_is_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: tmp_path)
+    monkeypatch.setattr(sessions, "_recovery_backup_run", lambda *_args, **_kwargs: SimpleNamespace(stdout="cms\ncache\n"))
+    args = argparse.Namespace(session="a111", output_dir=str(tmp_path / "backups"), timeout=1, poll=1, health_timeout=1)
+
+    with pytest.raises(RuntimeError, match="coverage is unavailable"):
+        sessions.cmd_docker_backup(args)
+
+
+def test_recovery_backup_quiesces_and_restores_only_prior_services(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+    checkout_root = tmp_path / "runtime"
+    checkout_root.mkdir()
+    (checkout_root / "backend" / "core" / "vault" / "config").mkdir(parents=True)
+    (checkout_root / "backend" / "core" / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
+    env_file = tmp_path / ".env"
+    env_file.write_text("DRAGONFLY_PASSWORD=not-printed\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "ENV_FILE", env_file)
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: checkout_root)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _root: set(sessions.RECOVERY_BACKUP_REQUIRED_SERVICES) | {"api"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    released = []
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **kwargs: released.append(kwargs["released_by"]))
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    operation_events = []
+    original_update = sessions.update_docker_operation
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **kwargs: operation_events.append(status) or original_update(operation_id, status, **kwargs))
+    monkeypatch.setattr(sessions, "wait_for_docker_services_healthy", lambda *_args, **_kwargs: operation_events.append("health") or {})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: ["compose", *args])
+    commands = []
+
+    class Result:
+        def __init__(self, stdout="", returncode=0):
+            self.stdout, self.returncode, self.stderr = stdout, returncode, ""
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        if command == ["compose", "config", "--services"]:
+            return Result("api\ncms\ncms-database\ncache\nvault\nvault-setup\n")
+        if command == ["compose", "config", "--format", "json"]:
+            return Result(json.dumps({"services": {"cms": {"volumes": [{"type": "volume", "source": "safe", "target": "/directus/uploads"}]}, "cache": {"volumes": [{"type": "volume", "source": "safe", "target": "/data"}]}, "vault": {"volumes": [{"type": "volume", "source": "safe", "target": "/vault/file"}]}, "vault-setup": {"volumes": [{"type": "volume", "source": "safe", "target": "/app/data"}]}}}))
+        if command[:3] == ["compose", "ps", "-aq"]:
+            return Result(f"{command[-1]}-id\n")
+        if command[:3] == ["compose", "ps", "--services"]:
+            return Result("api\ncms\ncms-database\ncache\nvault\n")
+        if command[:3] == ["docker", "inspect", "--format"]:
+            if command[3] == "{{.Image}}":
+                return Result("sha256:image")
+            destinations = {"cms-id": "/directus/uploads", "cache-id": "/data", "vault-id": "/vault/file", "vault-setup-id": "/app/data"}
+            return Result(json.dumps([{"Destination": destinations[command[-1]], "Type": "volume", "Name": "safe"}]))
+        if command[:2] == ["docker", "cp"]:
+            Path(command[-1]).mkdir(parents=True, exist_ok=True)
+            return Result()
+        if command[:3] == ["docker", "exec", "cms-database-id"]:
+            kwargs["stdout"].write("-- dump\n")
+            return Result()
+        if command[:2] == ["docker", "exec"] and command[-1] == "BGSAVE":
+            return Result("Background saving started")
+        if command[:2] == ["docker", "exec"] and command[-1] == "LASTSAVE":
+            return Result("100" if sum(item[-1] == "LASTSAVE" for item in commands) == 1 else "101")
+        if command[:3] == ["openmates", "server", "env"]:
+            return Result("providers: redacted")
+        return Result()
+
+    monkeypatch.setattr(sessions.subprocess, "run", fake_run)
+    args = argparse.Namespace(session="a111", output_dir=str(tmp_path / "backups"), timeout=1, poll=1, health_timeout=1)
+
+    sessions.cmd_docker_backup(args)
+
+    lifecycle = [command for command in commands if command[0] == "compose" and command[1] in {"stop", "restart"}]
+    assert ["compose", "stop", "api", "cms"] in lifecycle
+    assert ["compose", "stop", "cache", "vault"] in lifecycle
+    assert ["compose", "restart", "cache", "vault"] in lifecycle
+    assert ["compose", "restart", "cms"] in lifecycle
+    assert ["compose", "restart", "api"] in lifecycle
+    assert commands.index(["compose", "stop", "api", "cms"]) < commands.index(
+        ["docker", "exec", "--env", "REDISCLI_AUTH", "cache-id", "redis-cli", "BGSAVE"]
+    ) < commands.index(["compose", "stop", "cache", "vault"])
+    assert not any("not-printed" in " ".join(command) for command in commands)
+    assert released == ["a111"]
+    assert operation_events.index("completed") > max(index for index, event in enumerate(operation_events) if event == "health")
+
+
+def test_recovery_backup_refuses_active_setup_writer_before_any_stop(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+    checkout_root = tmp_path / "runtime"
+    checkout_root.mkdir()
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: checkout_root)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _root: set(sessions.RECOVERY_BACKUP_REQUIRED_SERVICES))
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: ["compose", *args])
+    commands = []
+
+    class Result:
+        returncode = 0
+        stderr = ""
+        def __init__(self, stdout=""):
+            self.stdout = stdout
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        if command == ["compose", "config", "--services"]:
+            return Result("cms\ncms-database\ncache\nvault\nvault-setup\n")
+        if command == ["compose", "config", "--format", "json"]:
+            return Result(json.dumps({"services": {"cms": {"volumes": [{"type": "volume", "source": "safe", "target": "/directus/uploads"}]}, "cache": {"volumes": [{"type": "volume", "source": "safe", "target": "/data"}]}, "vault": {"volumes": [{"type": "volume", "source": "safe", "target": "/vault/file"}]}, "vault-setup": {"volumes": [{"type": "volume", "source": "safe", "target": "/app/data"}]}}}))
+        if command[:3] == ["compose", "ps", "-aq"]:
+            return Result(f"{command[-1]}-id")
+        if command[:3] == ["docker", "inspect", "--format"]:
+            if command[3] == "{{.Image}}":
+                return Result("sha256:image")
+            destinations = {"cms-id": "/directus/uploads", "cache-id": "/data", "vault-id": "/vault/file", "vault-setup-id": "/app/data"}
+            return Result(json.dumps([{"Destination": destinations[command[-1]], "Type": "volume", "Name": "safe"}]))
+        if command[:3] == ["compose", "ps", "--services"]:
+            return Result("cache\ncms\ncms-database\nvault\nvault-setup\n")
+        return Result()
+
+    monkeypatch.setattr(sessions.subprocess, "run", fake_run)
+    args = argparse.Namespace(session="a111", output_dir=str(tmp_path / "backups"), timeout=1, poll=1, health_timeout=1)
+
+    with pytest.raises(RuntimeError, match="active setup writer"):
+        sessions.cmd_docker_backup(args)
+
+    assert not any(command[:2] == ["compose", "stop"] for command in commands)
+
+
+def test_recovery_backup_restarts_writer_after_partial_stop_failure(monkeypatch, tmp_path):
+    configure_state(monkeypatch, tmp_path)
+    checkout_root = tmp_path / "runtime"
+    checkout_root.mkdir()
+    env_file = tmp_path / ".env"
+    env_file.write_text("DRAGONFLY_PASSWORD=not-printed\n", encoding="utf-8")
+    monkeypatch.setattr(sessions, "ENV_FILE", env_file)
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: checkout_root)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _root: set(sessions.RECOVERY_BACKUP_REQUIRED_SERVICES) | {"api"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "wait_for_docker_services_healthy", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: ["compose", *args])
+    commands = []
+
+    class Result:
+        def __init__(self, stdout="", returncode=0):
+            self.stdout, self.returncode, self.stderr = stdout, returncode, ""
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        if command == ["compose", "config", "--services"]:
+            return Result("api\ncms\ncms-database\ncache\nvault\nvault-setup\n")
+        if command == ["compose", "config", "--format", "json"]:
+            return Result(json.dumps({"services": {"cms": {"volumes": [{"type": "volume", "source": "safe", "target": "/directus/uploads"}]}, "cache": {"volumes": [{"type": "volume", "source": "safe", "target": "/data"}]}, "vault": {"volumes": [{"type": "volume", "source": "safe", "target": "/vault/file"}]}, "vault-setup": {"volumes": [{"type": "volume", "source": "safe", "target": "/app/data"}]}}}))
+        if command[:3] == ["compose", "ps", "-aq"]:
+            return Result(f"{command[-1]}-id")
+        if command[:3] == ["docker", "inspect", "--format"]:
+            if command[3] == "{{.Image}}":
+                return Result("sha256:image")
+            destinations = {"cms-id": "/directus/uploads", "cache-id": "/data", "vault-id": "/vault/file", "vault-setup-id": "/app/data"}
+            return Result(json.dumps([{"Destination": destinations[command[-1]], "Type": "volume", "Name": "safe"}]))
+        if command[:3] == ["compose", "ps", "--services"]:
+            return Result("api\ncms\ncms-database\ncache\nvault\n")
+        if command == ["compose", "stop", "api", "cms"]:
+            return Result(returncode=1)
+        return Result()
+
+    monkeypatch.setattr(sessions.subprocess, "run", fake_run)
+    args = argparse.Namespace(session="a111", output_dir=str(tmp_path / "backups"), timeout=1, poll=1, health_timeout=1)
+
+    with pytest.raises(RuntimeError, match="recovery backup command failed"):
+        sessions.cmd_docker_backup(args)
+
+    assert ["compose", "restart", "cms"] in commands
+    assert ["compose", "restart", "api"] in commands
+    assert ["compose", "restart", "cache", "vault"] not in commands
+
+
+def test_recovery_backup_rejects_symlink_archive_input(tmp_path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "link").symlink_to("/tmp")
+
+    with pytest.raises(RuntimeError, match="symlink"):
+        sessions._recovery_backup_validate_archive_input(tmp_path)
+
+
+def test_recovery_backup_rejects_mount_source_mismatch(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        sessions,
+        "_recovery_backup_run",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=json.dumps([{"Destination": "/data", "Type": "volume", "Name": "unexpected"}])),
+    )
+
+    with pytest.raises(RuntimeError, match="resolved Compose source"):
+        sessions._recovery_backup_mount("cache-id", "/data", {"type": "volume", "source": "expected"}, tmp_path)
+
+
+def test_recovery_backup_retries_terminal_state_recording(monkeypatch):
+    attempts = []
+
+    def update(*_args, **_kwargs):
+        attempts.append(True)
+        if len(attempts) < 3:
+            raise RuntimeError("unavailable")
+
+    monkeypatch.setattr(sessions, "update_docker_operation", update)
+    monkeypatch.setattr(sessions.time, "sleep", lambda *_args: None)
+
+    sessions._record_recovery_backup_terminal("op", "failed", error="RuntimeError")
+
+    assert len(attempts) == 3
+
+
 def test_long_docker_command_heartbeats_lock(monkeypatch):
     beats = []
     monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (time.sleep(0.04) or (0, "ok", "")))
@@ -870,3 +1081,39 @@ def test_wait_health_elects_investigator_when_no_runtime_owner(monkeypatch, tmp_
     output = capsys.readouterr().out
     assert "OPENMATES_HEALTH_INVESTIGATE" in output
     assert "single API-health investigator" in output
+
+
+def test_recovery_image_inventory_accepts_local_build_without_registry_digest(monkeypatch, tmp_path):
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(stdout="sha256:local-build" if command[1] == "inspect" else "")
+    monkeypatch.setattr(sessions, "_recovery_backup_run", run)
+    assert sessions._recovery_backup_image("container", tmp_path) == {
+        "image_id": "sha256:local-build", "image_digest": "",
+    }
+    assert calls[1][-1] == "sha256:local-build"
+    assert "{{if .RepoDigests}}" in calls[1][4]
+
+
+def test_recovery_mount_resolves_explicit_compose_volume_name(monkeypatch, tmp_path):
+    config = {"services": {}, "volumes": {"data": {"name": "openmates-data"}}}
+    for service, target in sessions.RECOVERY_BACKUP_SOURCES.values():
+        config["services"][service] = {"volumes": [{"type": "volume", "source": "data", "target": target}]}
+    monkeypatch.setattr(sessions, "_recovery_backup_run", lambda *a, **kw: SimpleNamespace(stdout=json.dumps(config)))
+    assert all(mount["source"] == "openmates-data" for mount in sessions._recovery_backup_compose_mounts(tmp_path).values())
+
+
+def test_recovery_unseal_uses_only_readonly_keys_and_existing_image(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setattr(sessions, "_recovery_backup_run", lambda command, **kw: calls.append(command))
+    mount = {"type": "volume", "source": "recovery-keys"}
+    sessions._recovery_backup_vault_unseal("sha256:existing", mount, "vault-id", tmp_path, preflight=True)
+    sessions._recovery_backup_vault_unseal("sha256:existing", mount, "vault-id", tmp_path)
+    for command in calls:
+        assert "--pull=never" in command
+        assert "type=volume,source=recovery-keys,target=/app/data,readonly" in command
+        assert command[-3] == "sha256:existing"
+        assert "setup_vault" not in command[-1]
+    assert calls[0][calls[0].index("--network") + 1] == "none"
+    assert calls[1][calls[1].index("--network") + 1] == "container:vault-id"

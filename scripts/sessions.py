@@ -63,8 +63,10 @@ import secrets
 import shutil
 import socket
 import sqlite3
+import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 import textwrap
 import threading
@@ -155,6 +157,16 @@ DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+RECOVERY_BACKUP_REQUIRED_SERVICES = {"cache", "cms", "cms-database", "vault", "vault-setup"}
+RECOVERY_BACKUP_DATABASE_SERVICE = "cms-database"
+RECOVERY_BACKUP_SETUP_SERVICES = {"cms-setup", "vault-setup"}
+RECOVERY_BACKUP_STORAGE_SERVICES = {"cache", "vault"}
+RECOVERY_BACKUP_SOURCES = {
+    "cms-uploads": ("cms", "/directus/uploads"),
+    "vault-file": ("vault", "/vault/file"),
+    "cache-data": ("cache", "/data"),
+    "vault-setup-data": ("vault-setup", "/app/data"),
+}
 PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
 PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
 PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
@@ -2288,6 +2300,12 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
         return dict(operation)
 
     return _mutate_sessions(mutate)
+
+
+def request_docker_backup(session_id: str, services: list[str]) -> dict:
+    """Queue a recovery backup through the same exclusive dev-stack admission path."""
+    operation = request_docker_restart(session_id, services)
+    return update_docker_operation(operation["id"], operation["status"], action="recovery-backup")
 
 
 def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
@@ -12252,6 +12270,354 @@ def _run_cmd_with_heartbeat(
     return result
 
 
+@contextmanager
+def _recovery_backup_heartbeats(heartbeat):
+    stop = threading.Event()
+    errors = []
+
+    def renew() -> None:
+        while not stop.wait(60):
+            try:
+                heartbeat()
+            except Exception as exc:
+                errors.append(exc)
+                stop.set()
+
+    thread = threading.Thread(target=renew, name="recovery-backup-heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=2)
+    if errors:
+        raise RuntimeError("Recovery backup operation heartbeat failed.")
+
+
+def _recovery_backup_run(command: list[str], *, cwd: Path, timeout: int = 120, env: dict[str, str] | None = None, heartbeat=None, stdout=None) -> subprocess.CompletedProcess:
+    """Run a recovery command without relaying stdout, stderr, or secret-bearing arguments."""
+    run_kwargs = {"cwd": str(cwd), "text": True, "timeout": timeout, "env": env}
+    if stdout is None:
+        run_kwargs["capture_output"] = True
+    else:
+        run_kwargs.update({"stdout": stdout, "stderr": subprocess.PIPE})
+    if heartbeat:
+        with _recovery_backup_heartbeats(heartbeat):
+            result = subprocess.run(command, **run_kwargs)
+    else:
+        result = subprocess.run(command, **run_kwargs)
+    if result.returncode:
+        raise RuntimeError("A recovery backup command failed; inspect local Docker and CLI logs directly.")
+    return result
+
+
+def _recovery_backup_container(service: str, checkout_root: Path) -> str:
+    result = _recovery_backup_run(
+        _docker_compose_command("ps", "-aq", service, checkout_root=checkout_root), cwd=checkout_root
+    )
+    container_id = result.stdout.strip()
+    if not container_id:
+        raise RuntimeError(f"Recovery backup coverage is incomplete: no container exists for {service}.")
+    return container_id
+
+
+def _recovery_backup_compose_mounts(checkout_root: Path) -> dict[tuple[str, str], dict[str, str]]:
+    result = _recovery_backup_run(_docker_compose_command("config", "--format", "json", checkout_root=checkout_root), cwd=checkout_root)
+    try:
+        resolved = json.loads(result.stdout)
+        services = resolved.get("services") or {}
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Recovery backup coverage is incomplete: resolved Compose configuration was invalid.") from exc
+    mounts: dict[tuple[str, str], dict[str, str]] = {}
+    for name, (service, destination) in RECOVERY_BACKUP_SOURCES.items():
+        volume = next((item for item in services.get(service, {}).get("volumes", []) if item.get("target") == destination), None)
+        if not isinstance(volume, dict) or volume.get("type") not in {"bind", "volume"} or not volume.get("source"):
+            raise RuntimeError(f"Recovery backup coverage is incomplete: {service}:{destination} has no supported Compose mount.")
+        source = str(volume["source"])
+        if volume["type"] == "volume":
+            source = str((resolved.get("volumes", {}).get(source) or {}).get("name") or source)
+        mounts[(service, destination)] = {"type": volume["type"], "source": source}
+    return mounts
+
+
+def _recovery_backup_mount(container_id: str, destination: str, expected: dict[str, str], checkout_root: Path) -> dict:
+    result = _recovery_backup_run(
+        ["docker", "inspect", "--format", "{{json .Mounts}}", container_id], cwd=checkout_root
+    )
+    try:
+        mounts = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Recovery backup coverage is incomplete: Docker mount inspection was invalid.") from exc
+    mount = next((item for item in mounts if item.get("Destination") == destination), None)
+    if not isinstance(mount, dict):
+        raise RuntimeError(f"Recovery backup coverage is incomplete: {destination} is not mounted.")
+    mount_type = str(mount.get("Type") or "")
+    actual_source = str(mount.get("Name") if mount_type == "volume" else mount.get("Source") or "")
+    if mount_type not in {"bind", "volume"} or not actual_source or mount_type != expected["type"]:
+        raise RuntimeError(f"Recovery backup coverage is incomplete: {destination} mount type or source is invalid.")
+    expected_source = expected["source"]
+    if mount_type == "bind":
+        expected_source = str((checkout_root / "backend" / "core" / expected_source).resolve()) if not Path(expected_source).is_absolute() else str(Path(expected_source).resolve())
+        actual_source = str(Path(actual_source).resolve())
+    if actual_source != expected_source:
+        raise RuntimeError(f"Recovery backup coverage is incomplete: {destination} does not match resolved Compose source.")
+    return {"destination": destination, "type": mount_type, "source": actual_source}
+
+
+def _recovery_backup_copy(container_id: str, source: str, destination: Path, checkout_root: Path, *, heartbeat=None) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _recovery_backup_run(["docker", "cp", f"{container_id}:{source}", str(destination)], cwd=checkout_root, timeout=600, heartbeat=heartbeat)
+
+
+def _recovery_backup_image(container_id: str, checkout_root: Path) -> dict[str, str]:
+    image_id = _recovery_backup_run(["docker", "inspect", "--format", "{{.Image}}", container_id], cwd=checkout_root).stdout.strip()
+    if not image_id:
+        raise RuntimeError("Recovery backup image inventory is missing an immutable image ID.")
+    digest = _recovery_backup_run(["docker", "image", "inspect", "--format", "{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}", image_id], cwd=checkout_root).stdout.strip()
+    return {"image_id": image_id, "image_digest": digest}
+
+
+def _recovery_backup_vault_unseal(image_id: str, setup_mount: dict, vault_container: str, checkout_root: Path, *, preflight: bool = False, heartbeat=None) -> None:
+    """Unseal with the existing key through a read-only mount; never rerun secret setup."""
+    script = """import http.client, json, pathlib, time
+key = pathlib.Path('/app/data/unseal.key').read_text().strip()
+if not key:
+    raise SystemExit('Recovery key unavailable')
+"""
+    if not preflight:
+        script += """for attempt in range(60):
+    try:
+        connection = http.client.HTTPConnection('127.0.0.1', 8200, timeout=5)
+        connection.request('GET', '/v1/sys/seal-status')
+        status = json.loads(connection.getresponse().read())
+        if not status.get('initialized'):
+            raise SystemExit('Refusing to initialize Vault during recovery')
+        if not status.get('sealed', True):
+            break
+        connection.request('POST', '/v1/sys/unseal', json.dumps({'key': key}), {'Content-Type': 'application/json'})
+        status = json.loads(connection.getresponse().read())
+        if not status.get('sealed', True):
+            break
+    except (OSError, http.client.HTTPException):
+        pass
+    time.sleep(1)
+else:
+    raise SystemExit('Vault recovery unseal failed')
+"""
+    _recovery_backup_run([
+        "docker", "run", "--rm", "--pull=never", "--network", "none" if preflight else f"container:{vault_container}",
+        "--mount", f"type={setup_mount['type']},source={setup_mount['source']},target=/app/data,readonly",
+        "--entrypoint", "python", image_id, "-c", script,
+    ], cwd=checkout_root, timeout=150, heartbeat=heartbeat)
+
+
+def _recovery_backup_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _recovery_backup_snapshot_cache(container_id: str, checkout_root: Path, redis_env: dict[str, str], *, timeout: int, poll: int, heartbeat=None) -> None:
+    """Wait for the asynchronous Dragonfly snapshot to complete before stopping cache."""
+    _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "--version"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+    before = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "LASTSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+    if not before.stdout.strip().isdigit():
+        raise RuntimeError("Dragonfly snapshot verification failed: LASTSAVE is invalid.")
+    started = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "BGSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+    if "background saving started" not in started.stdout.lower():
+        raise RuntimeError("Dragonfly snapshot did not acknowledge BGSAVE.")
+    baseline = int(before.stdout.strip())
+    deadline = time.time() + max(1, timeout)
+    while time.time() < deadline:
+        saved = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "LASTSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+        if saved.stdout.strip().isdigit() and int(saved.stdout.strip()) > baseline:
+            return
+        time.sleep(max(1, poll))
+    raise RuntimeError("Dragonfly snapshot did not complete before the backup timeout.")
+
+
+def _recovery_backup_validate_archive_input(root: Path) -> None:
+    """Refuse archive inputs that could escape or change meaning during restore."""
+    for path in root.rglob("*"):
+        mode = path.lstat().st_mode
+        if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+            raise RuntimeError("Recovery backup refused symlink or special-file archive input.")
+
+
+def _record_recovery_backup_terminal(operation_id: str, status: str, **fields) -> None:
+    for attempt in range(3):
+        try:
+            update_docker_operation(operation_id, status, **fields)
+            return
+        except Exception:
+            if attempt < 2:
+                time.sleep(1)
+    raise RuntimeError("Recovery backup could not record its terminal operation state.")
+
+
+def cmd_docker_backup(args: argparse.Namespace) -> None:
+    """Create an owner-only, coordinated recovery archive without deleting restore targets."""
+    checkout_root = _docker_checkout_root(args.session)
+    configured = set(_recovery_backup_run(
+        _docker_compose_command("config", "--services", checkout_root=checkout_root), cwd=checkout_root
+    ).stdout.splitlines())
+    missing = sorted(RECOVERY_BACKUP_REQUIRED_SERVICES - configured)
+    if missing:
+        raise RuntimeError("Recovery backup coverage is unavailable for: " + ", ".join(missing))
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    output_dir.chmod(0o700)
+    operation = request_docker_backup(args.session, sorted(RECOVERY_BACKUP_REQUIRED_SERVICES))
+    lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
+    prior_running: list[str] = []
+    writer_services: list[str] = []
+    storage_services: list[str] = []
+    writer_stop_attempted: list[str] = []
+    storage_stop_attempted: list[str] = []
+    restore_error: RuntimeError | None = None
+    failure: BaseException | None = None
+    completed: dict[str, str] = {}
+    recovery_heartbeat = None
+    try:
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock("docker_rebuild", args.session, phase="draining_tests", timeout=args.timeout, poll=args.poll,
+                                           heartbeat=lambda: update_docker_operation(operation["id"], "admitted"))
+            lock_acquired = True
+
+        def heartbeat(phase: str = "draining_tests") -> None:
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase=phase)
+            update_docker_operation(operation["id"], phase)
+
+        wait_for_docker_test_leases(operation["id"], timeout=args.timeout, poll=args.poll, heartbeat=heartbeat)
+        containers = {service: _recovery_backup_container(service, checkout_root) for service in RECOVERY_BACKUP_REQUIRED_SERVICES}
+        images = {service: _recovery_backup_image(container_id, checkout_root) for service, container_id in containers.items()}
+        compose_mounts = _recovery_backup_compose_mounts(checkout_root)
+        mounts = {
+            name: _recovery_backup_mount(containers[service], source, compose_mounts[(service, source)], checkout_root)
+            for name, (service, source) in RECOVERY_BACKUP_SOURCES.items()
+        }
+        _recovery_backup_vault_unseal(images["vault-setup"]["image_id"], mounts["vault-setup-data"], containers["vault"], checkout_root, preflight=True)
+        running_result = _recovery_backup_run(
+            _docker_compose_command("ps", "--services", "--status", "running", checkout_root=checkout_root), cwd=checkout_root
+        )
+        prior_running = sorted(set(running_result.stdout.splitlines()))
+        active_setup = sorted(set(prior_running) & RECOVERY_BACKUP_SETUP_SERVICES)
+        if active_setup:
+            raise RuntimeError("Recovery backup refused active setup writer services: " + ", ".join(active_setup))
+        writer_services = sorted(
+            set(prior_running) - {RECOVERY_BACKUP_DATABASE_SERVICE, *RECOVERY_BACKUP_STORAGE_SERVICES}
+        )
+        storage_services = sorted(set(prior_running) & RECOVERY_BACKUP_STORAGE_SERVICES)
+        redis_env = dict(os.environ)
+        password = _read_env_values(ENV_FILE).get("DRAGONFLY_PASSWORD")
+        if not password:
+            raise RuntimeError("Recovery backup coverage is incomplete: Dragonfly authentication is unavailable.")
+        redis_env["REDISCLI_AUTH"] = password
+        # Record recovery targets before each command: a failed stop may have stopped only part of its list.
+        staging = output_dir / f".recovery-backup-{operation['id']}"
+        if staging.exists():
+            raise RuntimeError("Recovery backup staging path already exists.")
+        old_umask = os.umask(0o077)
+        try:
+            staging.mkdir(mode=0o700)
+        finally:
+            os.umask(old_umask)
+        try:
+            heartbeat("restarting")
+            recovery_heartbeat = _recovery_backup_heartbeats(lambda: heartbeat("restarting"))
+            recovery_heartbeat.__enter__()
+            if writer_services:
+                writer_stop_attempted = writer_services
+                _recovery_backup_run(_docker_compose_command("stop", *writer_services, checkout_root=checkout_root), cwd=checkout_root, timeout=args.timeout, heartbeat=lambda: heartbeat("restarting"))
+            _recovery_backup_snapshot_cache(containers["cache"], checkout_root, redis_env, timeout=args.timeout, poll=args.poll, heartbeat=lambda: heartbeat("restarting"))
+            if storage_services:
+                storage_stop_attempted = storage_services
+                _recovery_backup_run(_docker_compose_command("stop", *storage_services, checkout_root=checkout_root), cwd=checkout_root, timeout=args.timeout, heartbeat=lambda: heartbeat("restarting"))
+            dump_path = staging / "postgres.sql"
+            with dump_path.open("w", encoding="utf-8") as dump:
+                result = _recovery_backup_run(
+                    ["docker", "exec", containers[RECOVERY_BACKUP_DATABASE_SERVICE], "sh", "-c", 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"'],
+                    cwd=checkout_root, stdout=dump, timeout=600, heartbeat=lambda: heartbeat("restarting"),
+                )
+            if result.returncode:
+                raise RuntimeError("PostgreSQL recovery dump failed; no archive was published.")
+            for name, (service, source) in RECOVERY_BACKUP_SOURCES.items():
+                _recovery_backup_copy(containers[service], source, staging / name, checkout_root, heartbeat=lambda: heartbeat("restarting"))
+            shutil.copy2(ENV_FILE, staging / "runtime.env")
+            _recovery_backup_copy(containers["vault"], "/vault/config", staging / "vault-config", checkout_root, heartbeat=lambda: heartbeat("restarting"))
+            shutil.copy2(checkout_root / "backend" / "core" / "docker-compose.yml", staging / "docker-compose.yml")
+            override = checkout_root / "backend" / "core" / "docker-compose.override.yml"
+            if override.is_file():
+                shutil.copy2(override, staging / "docker-compose.override.yml")
+            resolved_config = _recovery_backup_run(_docker_compose_command("config", "--format", "json", checkout_root=checkout_root), cwd=checkout_root)
+            (staging / "compose-resolved.json").write_text(resolved_config.stdout, encoding="utf-8")
+            _recovery_backup_validate_archive_input(staging)
+            inventory = {"version": 1, "operation": operation["id"], "services_running_before_backup": prior_running, "mounts": mounts, "images": images,
+                         "files": {path.relative_to(staging).as_posix(): _recovery_backup_sha256(path) for path in staging.rglob("*") if path.is_file()}}
+            (staging / "inventory.json").write_text(json.dumps(inventory, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            archive = output_dir / f"recovery-backup-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{operation['id']}.tar.gz"
+            temporary_archive = archive.with_suffix(".tar.gz.tmp")
+            archive_fd = os.open(temporary_archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(archive_fd, "wb") as archive_handle:
+                with tarfile.open(fileobj=archive_handle, mode="w:gz") as tar:
+                    tar.add(staging, arcname="recovery")
+            checksum = _recovery_backup_sha256(temporary_archive)
+            temporary_archive.replace(archive)
+            checksum_path = archive.with_suffix(archive.suffix + ".sha256")
+            temporary_checksum = checksum_path.with_suffix(checksum_path.suffix + ".tmp")
+            temporary_checksum.write_text(f"{checksum}  {archive.name}\n", encoding="utf-8")
+            temporary_checksum.chmod(0o600)
+            temporary_checksum.replace(checksum_path)
+            completed = {"archive": archive.name, "checksum": checksum}
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging)
+    except BaseException as exc:
+        failure = exc
+    finally:
+        if storage_stop_attempted or writer_stop_attempted:
+            try:
+                if storage_stop_attempted:
+                    _recovery_backup_run(_docker_compose_command("restart", *storage_stop_attempted, checkout_root=checkout_root), cwd=checkout_root, timeout=args.health_timeout, heartbeat=lambda: heartbeat("verifying"))
+                    if "vault" in storage_stop_attempted:
+                        _recovery_backup_vault_unseal(images["vault-setup"]["image_id"], mounts["vault-setup-data"], containers["vault"], checkout_root, heartbeat=lambda: heartbeat("verifying"))
+                    wait_for_docker_services_healthy(storage_stop_attempted, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root, heartbeat=lambda: heartbeat("verifying"))
+                cms = ["cms"] if "cms" in writer_stop_attempted else []
+                if cms:
+                    _recovery_backup_run(_docker_compose_command("restart", "cms", checkout_root=checkout_root), cwd=checkout_root, timeout=args.health_timeout, heartbeat=lambda: heartbeat("verifying"))
+                    wait_for_docker_services_healthy(cms, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root, heartbeat=lambda: heartbeat("verifying"))
+                other_writers = sorted(set(writer_stop_attempted) - {"cms"})
+                if other_writers:
+                    _recovery_backup_run(_docker_compose_command("restart", *other_writers, checkout_root=checkout_root), cwd=checkout_root, timeout=args.health_timeout, heartbeat=lambda: heartbeat("verifying"))
+                    wait_for_docker_services_healthy(other_writers, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root, heartbeat=lambda: heartbeat("verifying"))
+            except Exception:
+                restore_error = RuntimeError("Recovery backup could not restore prior services; inspect local Docker and CLI logs directly.")
+        if restore_error:
+            failure = restore_error
+        if recovery_heartbeat:
+            try:
+                recovery_heartbeat.__exit__(None, None, None)
+            except Exception:
+                failure = RuntimeError("Recovery backup operation heartbeat failed.")
+        try:
+            if failure:
+                _record_recovery_backup_terminal(operation["id"], "failed", error=type(failure).__name__)
+            else:
+                _record_recovery_backup_terminal(operation["id"], "completed", **completed)
+                print(f"Recovery backup completed: {completed['archive']}")
+        except Exception:
+            failure = RuntimeError("Recovery backup could not record its terminal operation state.")
+        if lock_acquired:
+            _release_session_lock("docker_rebuild", released_by=args.session)
+    if failure:
+        raise failure
+
+
 def cmd_docker_restart(args: argparse.Namespace) -> None:
     """Drain dependent tests, restart allowlisted services, and verify health."""
     services = sorted(set(args.service))
@@ -12470,6 +12836,9 @@ def cmd_docker(args: argparse.Namespace) -> None:
             return
         if args.docker_action == "run-setup":
             cmd_docker_run_setup(args)
+            return
+        if args.docker_action == "backup":
+            cmd_docker_backup(args)
             return
     except RuntimeError as exc:
         print(f"Docker operation failed: {exc}", file=sys.stderr)
@@ -18595,6 +18964,12 @@ def main() -> None:
         help="Seconds to wait for the Docker lock and dependent tests",
     )
     p_docker_setup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
+    p_docker_backup = p_docker_sub.add_parser("backup", help="Create a coordinated, owner-only recovery backup archive")
+    p_docker_backup.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_backup.add_argument("--output-dir", required=True, help="Existing or new owner-controlled archive directory")
+    p_docker_backup.add_argument("--timeout", type=int, default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS)
+    p_docker_backup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
+    p_docker_backup.add_argument("--health-timeout", type=int, default=DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS)
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
