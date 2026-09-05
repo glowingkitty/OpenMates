@@ -11,14 +11,14 @@ Dependabot security alerts. Called by the shell script via:
 
 Environment variables (set by the shell script):
     ALERTS_JSON_FILE        — path to temp file containing JSON array of GitHub Dependabot alerts
-    TRACKING_FILE_PATH      — absolute path to scripts/dependabot-processed.json
+    TRACKING_FILE_PATH      — absolute path to logs/dependabot-processed.json
     PROJECT_ROOT            — absolute path to the repo root
     REDISPATCH_AFTER_DAYS   — number of days before re-dispatching an unresolved alert
     DRY_RUN                 — "true" to skip actual OpenCode invocation
     PROMPT_TEMPLATE_PATH    — absolute path to scripts/prompts/dependabot-analysis.md
     TODAY_DATE              — current date as YYYY-MM-DD
 
-Tracking file format (scripts/dependabot-processed.json):
+Tracking file format (logs/dependabot-processed.json):
 {
   "last_run": "2026-03-17T04:00:00Z",
   "processed": [

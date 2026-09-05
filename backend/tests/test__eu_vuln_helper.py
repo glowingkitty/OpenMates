@@ -75,6 +75,66 @@ def test_collects_transitive_versions_from_pnpm_lockfile(tmp_path: Path) -> None
 
 
 # contract-test: infrastructure
+def test_dry_run_does_not_persist_eu_vulnerability_tracking(
+    tmp_path: Path, monkeypatch
+) -> None:
+    tracking = tmp_path / "eu-vuln-processed.json"
+    tracking.write_text('{"last_run":"before","processed":[]}\n', encoding="utf-8")
+    prompt = tmp_path / "prompt.md"
+    prompt.write_text("{{DATE}}\n{{ALERT_SUMMARY}}", encoding="utf-8")
+    dependency = {
+        "name": "example",
+        "version": "1.0.0",
+        "ecosystem": "npm",
+        "source_file": "package.json",
+    }
+    vulnerability = {
+        "id": "GHSA-test-test-test",
+        "database_specific": {"severity": "high"},
+        "summary": "Test vulnerability",
+    }
+    monkeypatch.setenv("TRACKING_FILE_PATH", str(tracking))
+    monkeypatch.setenv("DEPENDABOT_TRACKING_PATH", str(tmp_path / "dependabot.json"))
+    monkeypatch.setenv("PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("DRY_RUN", "true")
+    monkeypatch.setenv("SUMMARY_ONLY", "false")
+    monkeypatch.setenv("PROMPT_TEMPLATE_PATH", str(prompt))
+    monkeypatch.setattr(inventory, "_collect_all_dependencies", lambda _: [dependency])
+    monkeypatch.setattr(inventory, "_query_osv_batch", lambda _: [(dependency, [vulnerability])])
+    monkeypatch.setattr(inventory, "_check_vuln_in_git", lambda *_: None)
+    tracking_before = tracking.read_bytes()
+
+    inventory.check_vulns()
+
+    assert tracking.read_bytes() == tracking_before
+
+
+# contract-test: infrastructure
+def test_summary_clean_scan_does_not_persist_eu_vulnerability_tracking(
+    tmp_path: Path, monkeypatch
+) -> None:
+    tracking = tmp_path / "eu-vuln-processed.json"
+    tracking.write_text('{"last_run":"before","processed":[]}\n', encoding="utf-8")
+    dependency = {
+        "name": "example",
+        "version": "1.0.0",
+        "ecosystem": "npm",
+        "source_file": "package.json",
+    }
+    monkeypatch.setenv("TRACKING_FILE_PATH", str(tracking))
+    monkeypatch.setenv("PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("DRY_RUN", "false")
+    monkeypatch.setenv("SUMMARY_ONLY", "true")
+    monkeypatch.setattr(inventory, "_collect_all_dependencies", lambda _: [dependency])
+    monkeypatch.setattr(inventory, "_query_osv_batch", lambda _: [])
+    tracking_before = tracking.read_bytes()
+
+    inventory.check_vulns()
+
+    assert tracking.read_bytes() == tracking_before
+
+
+# contract-test: infrastructure
 def test_hosted_scan_resolves_every_requirements_graph() -> None:
     workflow = (ROOT / ".github" / "workflows" / "dependency-security.yml").read_text()
 

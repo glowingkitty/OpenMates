@@ -493,9 +493,44 @@ attempts:
     evidence: Live GitHub and host audit summarized in context_discovery.live_findings.
 
 handoff:
-  current_task_id: TASK-1
-  next_action: Resolve current high-severity advisory metadata and apply minimum-fixed-version updates.
-  command: gh api repos/glowingkitty/OpenMates/dependabot/alerts?state=open
-  expected_outcome: Each applicable high-severity alert is mapped to its fixed version and affected manifest.
-  blocker: null
-  last_verified_commit: 3bcaa057f
+  current_task_id: TASK-3
+  next_action: Deploy the scoped scanner-state isolation fix, then resolve container upgrade preflight before changing running images.
+  command: python3 scripts/sessions.py prepare-deploy --session aeab
+  expected_outcome: Scanner bookkeeping stays outside tracked source and dry-run modes leave no persistent state.
+  blocker:
+    task_id: TASK-3
+    requires_user_input: true
+    reason: Container continuation has missing imported Vault entries in managed preflight, no listed pre-update backup, and a failed billing freshness baseline; scanner deployment remains independently actionable.
+    question: Resolve or explicitly classify the missing imported runtime secrets before a data-bearing container upgrade.
+    next_action: Re-run managed core preflight and verification, establish a protected backup and migration rehearsal, then update compatible images through the coordinator.
+  last_verified_commit: 215024d84f67004dd730d55558e90b6b36d7a44b
+
+continuation_findings:
+  observed_at: "2026-09-05"
+  security_gate:
+    commit: 215024d84f67004dd730d55558e90b6b36d7a44b
+    run_id: "33892948762"
+    result: npm, Python and container-config passed; this is not a current built-image vulnerability scan.
+  scanner_fix: Runtime state isolation, atomic zero-alert persistence, per-scanner locking and nonpersistent dry-run/summary coverage.
+  runtime_baseline: Core database, cache, Vault, worker queue, scheduler and chat plumbing passed; required billing freshness and optional object storage failed before changes.
+  container_candidates:
+    - service: Directus
+      running: "11.5.1"
+      candidate: "11.14.1"
+      source: https://github.com/directus/directus/releases/tag/v11.14.1
+      status: Requires migration rehearsal, protected database backup and extension compatibility verification.
+    - service: Dragonfly
+      running: "1.36.0"
+      candidate: "1.40.2"
+      source: https://github.com/dragonflydb/dragonfly/releases/tag/v1.40.2
+      status: Published September 3 with upstream journaling and protocol fixes; assess security-lane eligibility rather than silently bypassing fourteen-day routine quarantine.
+    - service: PostgreSQL
+      running: "13"
+      candidate: Supported major selected through a separate dump/restore or pg_upgrade migration.
+      source: https://www.postgresql.org/support/versioning/
+      status: End of life; never point a newer major at the existing data volume.
+    - service: Vault
+      running: "1.19.5"
+      candidate: "1.21.3"
+      source: https://github.com/hashicorp/vault/releases/tag/v1.21.3
+      status: Requires storage backup and supported upgrade-path review; no version change made.

@@ -21,8 +21,8 @@ Commands:
     check-vulns     Main workflow: scan deps, query sources, dispatch if needed
 
 Environment variables (set by the shell script):
-    TRACKING_FILE_PATH          — path to eu-vuln-processed.json
-    DEPENDABOT_TRACKING_PATH    — path to dependabot-processed.json (for dedup)
+    TRACKING_FILE_PATH          — path to logs/eu-vuln-processed.json
+    DEPENDABOT_TRACKING_PATH    — runtime Dependabot path, or checked-in seed fallback
     PROJECT_ROOT                — absolute path to the repo root
     REDISPATCH_AFTER_DAYS       — days before re-dispatching unresolved vuln
     DRY_RUN                     — "true" to skip OpenCode invocation
@@ -31,7 +31,7 @@ Environment variables (set by the shell script):
     TODAY_DATE                  — current date as YYYY-MM-DD
     NVD_API_KEY                 — optional free NVD API key for higher rate limits
 
-Tracking file format (scripts/eu-vuln-processed.json):
+Tracking file format (logs/eu-vuln-processed.json):
 {
   "last_run": "2026-03-31T05:00:00Z",
   "processed": [
@@ -758,10 +758,10 @@ def check_vulns() -> None:
 
     if not findings:
         print("[eu-vulns] No new vulnerabilities found beyond Dependabot coverage — done.")
-        # Update tracking last_run
-        tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
-        tracking["last_run"] = _now_iso()
-        _save_json_file(tracking_file, tracking)
+        if not dry_run and not summary_only:
+            tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
+            tracking["last_run"] = _now_iso()
+            _save_json_file(tracking_file, tracking)
         if not summary_only and not dry_run:
             prompt = f"""# EU/OSV/NVD Vulnerability Check Summary — {today_date}
 
@@ -880,11 +880,12 @@ code changes are needed, and do not edit files, commit, or deploy.
     print(f"[eu-vulns] Dispatch summary: {len(to_dispatch)} to dispatch, "
           f"{skip_count} skipped (grace period), {resolve_count} resolved in git.")
 
-    # Update tracking
+    # Persist only real scans; dry runs and summaries must remain read-only.
     tracking["last_run"] = now_iso
     tracking["processed"] = list(processed_map.values())
-    _save_json_file(tracking_file, tracking)
-    print(f"[eu-vulns] Tracking file updated: {tracking_file}")
+    if not dry_run:
+        _save_json_file(tracking_file, tracking)
+        print(f"[eu-vulns] Tracking file updated: {tracking_file}")
 
     if not to_dispatch:
         print("[eu-vulns] Nothing to dispatch — done.")
