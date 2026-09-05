@@ -9218,7 +9218,7 @@ assertions:
       surface: gui.web
     - &id1039
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2879
+      line: 2911
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     supporting_tests:
@@ -9514,7 +9514,7 @@ assertions:
       surface: rest_api
     - &id1064
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2858
+      line: 2890
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1065
@@ -9968,12 +9968,12 @@ assertions:
       surface: gui.web
     - &id1116
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2858
+      line: 2890
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1117
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2879
+      line: 2911
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     - &id1121
@@ -10518,7 +10518,7 @@ assertions:
       surface: rest_api
     - &id1169
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2998
+      line: 3030
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -10662,7 +10662,7 @@ assertions:
     supporting_tests:
     - &id1178
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2998
+      line: 3030
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:

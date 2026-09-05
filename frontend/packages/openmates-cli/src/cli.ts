@@ -153,7 +153,7 @@ import {
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
-import { buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, runSelfUpdate } from "./selfUpdate.js";
+import { buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, pinSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
@@ -731,10 +731,13 @@ function handleSupport(flags: Record<string, string | boolean>): void {
 }
 
 function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
-  const plan = buildSelfUpdatePlan(flags);
+  let plan = buildSelfUpdatePlan(flags);
   const status = checkSelfUpdateStatus(plan);
   if (status.checkError) throw new Error(`Update check failed: ${status.checkError}`);
   const shouldInstall = status.updateAvailable === true;
+  if (!plan.dryRun && shouldInstall && status.latestVersion) {
+    plan = pinSelfUpdatePlan(plan, status.latestVersion);
+  }
   if (flags.json === true) {
     if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
     persistSelfUpdateChannel(plan);

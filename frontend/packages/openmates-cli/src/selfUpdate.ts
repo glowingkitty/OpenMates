@@ -141,6 +141,13 @@ export function checkSelfUpdateStatus(plan: SelfUpdatePlan): SelfUpdateStatus {
   };
 }
 
+/** Install the version we checked, even when npm's dist-tag cache is older. */
+export function pinSelfUpdatePlan(plan: SelfUpdatePlan, version: string): SelfUpdatePlan {
+  const packageSpec = `${PACKAGE_NAME}@${parseTarget(version)}`;
+  const { command, args } = commandForPackageManager(plan.packageManager, packageSpec);
+  return { ...plan, target: version, packageSpec, command, args };
+}
+
 export function runSelfUpdate(plan: SelfUpdatePlan, options: { verbose?: boolean } = {}): void {
   if (plan.dryRun) return;
   const result = spawnSync(plan.command, plan.args, {
@@ -156,6 +163,14 @@ export function runSelfUpdate(plan: SelfUpdatePlan, options: { verbose?: boolean
     const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
     const suffix = output ? `\n${output}` : "";
     throw new Error(`${plan.command} ${plan.args.join(" ")} failed with exit code ${result.status ?? "unknown"}${suffix}`);
+  }
+  // A zero npm exit code only means its requested operation completed. Confirm
+  // that it actually replaced the running global installation before claiming success.
+  if (installedNpmPrefix()) {
+    const installed = getCliPackageVersion();
+    if (installed !== plan.target) {
+      throw new Error(`CLI upgrade installed version ${installed}; expected ${plan.target}. Retry the upgrade with --verbose to inspect package-manager output.`);
+    }
   }
 }
 

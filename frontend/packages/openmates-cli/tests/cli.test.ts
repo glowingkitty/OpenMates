@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync, symlinkSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync, symlinkSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -2684,6 +2684,38 @@ describe("CLI named authentication profiles", () => {
 
 describe("CLI self-update commands", () => {
   // contract-test: tooling — upgrade-channel, upgrade-no-downgrade
+  for (const installSucceeds of [true, false]) {
+    it(installSucceeds ? "installs the checked version despite a stale npm channel cache" : "rejects npm success when the installed version did not change", () => {
+      const prefix = mkdtempSync(join(tmpdir(), "openmates-install-"));
+      const installed = join(prefix, "lib", "node_modules", "openmates");
+      const bin = join(prefix, "bin");
+      try {
+        mkdirSync(installed, { recursive: true });
+        mkdirSync(bin);
+        cpSync(join(PACKAGE_ROOT, "dist"), join(installed, "dist"), { recursive: true });
+        cpSync(join(PACKAGE_ROOT, "package.json"), join(installed, "package.json"));
+        symlinkSync(join(PACKAGE_ROOT, "node_modules"), join(installed, "node_modules"), "dir");
+        writeFileSync(join(bin, "npm"), `#!/usr/bin/env node\nconst fs = require('node:fs');
+const file = ${JSON.stringify(join(installed, "package.json"))};
+const spec = process.argv.find(arg => arg.startsWith('openmates@'));
+if (${installSucceeds} && spec === 'openmates@99.0.0-alpha.5') {
+  const pkg = JSON.parse(fs.readFileSync(file, 'utf8')); pkg.version = '99.0.0-alpha.5'; fs.writeFileSync(file, JSON.stringify(pkg));
+}\n`);
+        chmodSync(join(bin, "npm"), 0o755);
+        const result = spawnSync("node", [join(installed, "dist", "cli.js"), "upgrade", "--channel", "dev", "--package-manager", "npm", "--json"], {
+          encoding: "utf8", env: { ...process.env, HOME: prefix, PATH: `${bin}:${process.env.PATH}`, OPENMATES_CLI_LATEST_VERSION: "99.0.0-alpha.5" },
+        });
+        if (installSucceeds) {
+          assert.equal(result.status, 0, result.stderr);
+          assert.equal(JSON.parse(readFileSync(join(installed, "package.json"), "utf8")).version, "99.0.0-alpha.5");
+          assert.ok(JSON.parse(result.stdout).run.includes("openmates@99.0.0-alpha.5"));
+        } else {
+          assert.notEqual(result.status, 0);
+          assert.match(result.stderr + result.stdout, /installed version.*expected/i);
+        }
+      } finally { rmSync(prefix, { recursive: true, force: true }); }
+    });
+  }
   it("does not downgrade a newer installed CLI to an older registry release", () => {
     const result = JSON.parse(runCli(["upgrade", "--dry-run", "--json"], {
       OPENMATES_CLI_LATEST_VERSION: "0.1.0",

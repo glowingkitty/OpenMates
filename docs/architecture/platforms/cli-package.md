@@ -116,7 +116,10 @@ exists. A successful update or up-to-date check saves an explicit channel choice
 Automatic upgrades do not downgrade; use `--allow-downgrade` explicitly when switching
 to an older channel version. npm upgrades preserve the running global installation's
 prefix instead of installing into a different default prefix. Registry lookup failures
-stop before installation. These commands do not read or modify login credentials.
+stop before installation. Installation pins the exact checked version so stale npm
+dist-tag caches cannot silently install an older release. Global npm installations
+verify the installed package version before reporting success. These commands do
+not read or modify login credentials.
 
 **Server management:** `install`, `start`, `stop`, `restart`, `status`, `logs`, `update`, `reset`, `make-admin`, `uninstall` -- manages self-hosted instances via Docker Compose. No login required.
 
