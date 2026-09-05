@@ -949,6 +949,45 @@ function isReadOnlyChildBash(command) {
     const invocation = normalizedInvocation(tokens);
     const commandName = invocation.command;
     const args = invocation.args;
+    if (commandName === "openmates") {
+      const [namespace, app, action, ...options] = args;
+      if (namespace !== "apps") return false;
+      const specifications = {
+        "code:get_docs": {
+          booleanOptions: new Set(["--json"]),
+          valueOptions: new Set(["--input", "--library", "--question"]),
+          maxPositionals: 1,
+        },
+        "web:search": {
+          booleanOptions: new Set(["--json"]),
+          valueOptions: new Set(["--input", "--query", "--count", "--country", "--search-lang", "--safesearch", "--filter-tabloids"]),
+          maxPositionals: 1,
+        },
+        "web:read": {
+          booleanOptions: new Set(["--json"]),
+          valueOptions: new Set(["--input", "--url", "--formats", "--only-main-content", "--max-age", "--timeout"]),
+          maxPositionals: 1,
+        },
+      };
+      const specification = specifications[`${app}:${action}`];
+      if (!specification) return false;
+      let positionals = 0;
+      const seenOptions = new Set();
+      for (let index = 0; index < options.length; index += 1) {
+        const option = options[index];
+        if (!option.startsWith("-")) {
+          positionals += 1;
+          continue;
+        }
+        if (seenOptions.has(option)) return false;
+        seenOptions.add(option);
+        if (specification.booleanOptions.has(option)) continue;
+        if (!specification.valueOptions.has(option) || index + 1 >= options.length || options[index + 1].startsWith("-")) return false;
+        index += 1;
+      }
+      return positionals <= specification.maxPositionals
+        && (positionals > 0 || seenOptions.has("--input") || seenOptions.has("--library") || seenOptions.has("--query") || seenOptions.has("--url"));
+    }
     if (commandName === "rg") {
       const executionOptions = ["--pre", "--pre-glob", "--hostname-bin", "--search-zip"];
       return !args.some((arg) => executionOptions.some((option) => arg === option || arg.startsWith(`${option}=`)));
