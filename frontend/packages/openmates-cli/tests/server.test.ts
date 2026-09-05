@@ -10,7 +10,7 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { parse as parseYaml } from "yaml";
@@ -98,6 +98,7 @@ import {
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
+import { publishServerBackupArchive } from "../src/serverBackupArchive.ts";
 import {
   acquireServerUpdateLock,
   readServerUpdateStatus,
@@ -943,12 +944,76 @@ describe("role-based server planning", () => {
   it("plans backup and restore content safely", () => {
     const backup = planBackup({ role: "core", includeObservability: true });
     assert.ok(backup.contents.includes("postgres-dump"));
-    assert.ok(backup.contents.includes("vault-data"));
-    assert.ok(backup.contents.includes("openobserve-data"));
+    assert.deepEqual(backup.contents, ["postgres-dump", "runtime-env", "runtime-config", "manifest", "checksums"]);
 
     const restore = planRestore({ role: "core", file: "/tmp/backup.tar.gz", yes: false });
     assert.equal(restore.requiresConfirmation, true);
     assert.deepEqual(restore.steps, ["confirm", "stop", "restore", "start", "health-check"]);
+  });
+
+  it("publishes 0600 archives atomically and removes failed temporary archives", () => {
+    const root = join(tmpdir(), `openmates-backup-archive-${process.pid}-${Date.now()}`);
+    const sourceDir = join(root, "source");
+    const archivePath = join(root, "backup.tar.gz");
+    try {
+      mkdirSync(sourceDir, { recursive: true });
+      writeFileSync(join(sourceDir, "state.txt"), "new-state\n");
+      writeFileSync(archivePath, "previous-archive");
+
+      publishServerBackupArchive(sourceDir, archivePath);
+      assert.equal(statSync(archivePath).mode & 0o777, 0o600);
+      assert.match(readFileSync(archivePath).subarray(0, 2).toString("hex"), /^1f8b$/);
+      assert.deepEqual(readdirSync(root).filter((entry) => entry.includes(".tmp-")), []);
+
+      writeFileSync(archivePath, "previous-archive");
+      assert.throws(() => publishServerBackupArchive(sourceDir, archivePath, { tarCommand: "false" }));
+      assert.equal(readFileSync(archivePath, "utf-8"), "previous-archive");
+      assert.deepEqual(readdirSync(root).filter((entry) => entry.includes(".tmp-")), []);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses symlinks before publishing an archive", () => {
+    const root = join(tmpdir(), `openmates-backup-symlink-${process.pid}-${Date.now()}`);
+    const sourceDir = join(root, "source");
+    const archivePath = join(root, "backup.tar.gz");
+    try {
+      mkdirSync(sourceDir, { recursive: true });
+      writeFileSync(join(root, "outside.txt"), "outside");
+      symlinkSync(join(root, "outside.txt"), join(sourceDir, "linked.txt"));
+
+      assert.throws(() => publishServerBackupArchive(sourceDir, archivePath), /unsafe entry/);
+      assert.equal(existsSync(archivePath), false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses hard-linked files before publishing an archive", () => {
+    const root = join(tmpdir(), `openmates-backup-hardlink-${process.pid}-${Date.now()}`);
+    const sourceDir = join(root, "source");
+    const archivePath = join(root, "backup.tar.gz");
+    try {
+      mkdirSync(sourceDir, { recursive: true });
+      const original = join(sourceDir, "state.txt");
+      writeFileSync(original, "state");
+      linkSync(original, join(sourceDir, "state-copy.txt"));
+
+      assert.throws(() => publishServerBackupArchive(sourceDir, archivePath), /unsafe entry/);
+      assert.equal(existsSync(archivePath), false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("streams restore SQL through a file descriptor", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const restoreSource = source.slice(source.indexOf("function restoreServerBackup"), source.indexOf("function restoreStopServices"));
+
+    assert.match(restoreSource, /const dumpFile = openSync\(postgresDump, "r"\)/);
+    assert.match(restoreSource, /stdio: \[dumpFile, "pipe", "pipe"\]/);
+    assert.doesNotMatch(restoreSource, /input: readFileSync\(postgresDump\)/);
   });
 
   it("prefers packaged templates before GitHub raw fallback", () => {

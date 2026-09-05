@@ -60,6 +60,7 @@ import {
   upsertEnvValue,
   type VaultSecretPresence,
 } from "./serverPlanning.js";
+import { publishServerBackupArchive } from "./serverBackupArchive.js";
 import {
   applyRuntimeCheckResults,
   buildOperationalDeliveryReceipt,
@@ -133,6 +134,7 @@ const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
 const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
 const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
 const ENV_BACKUP_RETENTION_COUNT = 5;
+const BACKUP_FORMAT_VERSION = 2;
 const IMAGE_CHANNEL_TAGS = {
   stable: MAIN_BRANCH,
   main: MAIN_BRANCH,
@@ -1667,19 +1669,34 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
   const archivePath = options.output
     ? resolve(options.output)
     : join(backupDir, options.preUpdate ? `latest-pre-update-${role}.tar.gz` : `openmates-${role}-${nowStamp()}.tar.gz`);
+  mkdirSync(dirname(archivePath), { recursive: true, mode: 0o700 });
   const tempDir = mkdtempSync(join(backupDir, ".tmp-"));
   const env = readEnvMap(installPath);
-  const manifest = {
+  const manifest: {
+    role: ServerRole;
+    backup_format_version: number;
+    created_at: string;
+    cli_version: string;
+    image_tag: string;
+    recovery_scope: string;
+    include_observability: boolean;
+    contents: string[];
+  } = {
     role,
+    backup_format_version: BACKUP_FORMAT_VERSION,
     created_at: new Date().toISOString(),
     cli_version: getPackageVersion(),
     image_tag: getEnvVar(existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "", "OPENMATES_IMAGE_TAG"),
-    include_observability: options.includeObservability === true,
-    contents: plan.contents,
+    recovery_scope: role === "core" ? "database-and-runtime-only" : "runtime-only",
+    include_observability: false,
+    contents: plan.contents.filter((content) => (
+      content !== "runtime-env" || existsSync(join(installPath, ".env"))
+    )).filter((content) => (
+      content !== "runtime-config" || existsSync(join(installPath, "config"))
+    )),
   };
 
   try {
-    writeFileSync(join(tempDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
     copyIfExists(join(installPath, ".env"), join(tempDir, "runtime", ".env"));
     copyIfExists(join(installPath, "config"), join(tempDir, "runtime", "config"));
 
@@ -1702,17 +1719,9 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
       }
     }
 
-    for (const item of [
-      [join(installPath, "backend", "core", "uploads"), join(tempDir, "directus-uploads")],
-      [join(installPath, "backend", "core", "extensions"), join(tempDir, "directus-extensions")],
-      [join(installPath, "backend", role, "vault"), join(tempDir, `${role}-vault-config`)],
-    ] as Array<[string, string]>) {
-      copyIfExists(item[0], item[1]);
-    }
-
+    writeFileSync(join(tempDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
     writeChecksums(tempDir);
-    execSync(`tar -czf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)} .`, { stdio: "pipe" });
-    chmodSync(archivePath, plan.fileMode);
+    publishServerBackupArchive(tempDir, archivePath);
     return archivePath;
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -1730,8 +1739,11 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
     verifyChecksums(tempDir);
     const manifestPath = join(tempDir, "manifest.json");
     if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string };
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string; backup_format_version?: number; recovery_scope?: string };
     if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
+    if (role === "core" && manifest.backup_format_version === BACKUP_FORMAT_VERSION && manifest.recovery_scope !== "full-core") {
+      throw new Error("This backup records database and runtime state only; refusing unsafe full core restore.");
+    }
 
     copyIfExists(join(tempDir, "runtime", ".env"), join(installPath, ".env"));
     copyIfExists(join(tempDir, "runtime", "config"), join(installPath, "config"));
@@ -1740,10 +1752,18 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
     if (role === "core" && existsSync(postgresDump)) {
       const databaseUser = env.DATABASE_USERNAME || "directus";
       const databaseName = env.DATABASE_NAME || "directus";
-      execSync(`docker exec -i cms-database psql -v ON_ERROR_STOP=1 -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, {
-        input: readFileSync(postgresDump),
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      const dumpFile = openSync(postgresDump, "r");
+      try {
+        const result = spawnSync(
+          "docker",
+          ["exec", "-i", "cms-database", "psql", "-v", "ON_ERROR_STOP=1", "-U", databaseUser, databaseName],
+          { encoding: "utf-8", stdio: [dumpFile, "pipe", "pipe"] },
+        );
+        if (result.error) throw result.error;
+        if (result.status !== 0) throw new Error(result.stderr || `psql exited with status ${result.status}`);
+      } finally {
+        closeSync(dumpFile);
+      }
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

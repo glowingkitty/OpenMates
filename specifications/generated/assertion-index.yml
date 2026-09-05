@@ -2997,12 +2997,12 @@ assertions:
     direct_tests:
     - &id331
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1293
+      line: 1358
       name: activates self-host email only with an admin recipient and available service
       surface: cli
     - &id332
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1333
+      line: 1398
       name: renders idempotent digest and stale-watchdog systemd plans
       surface: cli
     supporting_tests: []
@@ -3032,7 +3032,7 @@ assertions:
       surface: cli
     - &id335
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1293
+      line: 1358
       name: activates self-host email only with an admin recipient and available service
       surface: cli
     supporting_tests: []
@@ -3072,7 +3072,7 @@ assertions:
     direct_tests:
     - &id337
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1359
+      line: 1424
       name: detects stale reports once and recovers after a fresh accepted report
       surface: cli
     supporting_tests: []
@@ -3147,22 +3147,22 @@ assertions:
       surface: cli
     - &id351
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1333
+      line: 1398
       name: renders idempotent digest and stale-watchdog systemd plans
       surface: cli
     - &id352
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1359
+      line: 1424
       name: detects stale reports once and recovers after a fresh accepted report
       surface: cli
     - &id353
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1381
+      line: 1446
       name: keeps per-channel accepted and failed receipts without destinations
       surface: cli
     - &id354
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1721
+      line: 1786
       name: labels alerts with server identity and actionable check details
       surface: cli
     supporting_tests:
@@ -3353,17 +3353,17 @@ assertions:
       surface: cli
     - &id374
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1293
+      line: 1358
       name: activates self-host email only with an admin recipient and available service
       surface: cli
     - &id375
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1381
+      line: 1446
       name: keeps per-channel accepted and failed receipts without destinations
       surface: cli
     - &id376
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1721
+      line: 1786
       name: labels alerts with server identity and actionable check details
       surface: cli
     supporting_tests: []
@@ -3556,17 +3556,17 @@ assertions:
     direct_tests:
     - &id389
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1415
+      line: 1480
       name: renders released update metadata and prefers release provenance
       surface: cli
     - &id390
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1450
+      line: 1515
       name: falls back from pull request to commit and source provenance
       surface: cli
     - &id391
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1459
+      line: 1524
       name: degrades missing and exhausted email delivery without persisting destinations
       surface: cli
     supporting_tests: []
@@ -3588,23 +3588,23 @@ assertions:
     direct_tests:
     - &id392
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1471
+      line: 1536
       name: reuses one idempotency identity across bounded delivery retries
       surface: cli
     - &id393
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1495
+      line: 1560
       name: writes update receipts atomically, fails closed on corruption, and excludes
         concurrent updates
       surface: cli
     - &id394
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1526
+      line: 1591
       name: reuses fresh pending receipts and blocks expired or corrupt recovery
       surface: cli
     - &id395
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1621
+      line: 1686
       name: enforces one durable three-attempt budget across process recovery
       surface: cli
     supporting_tests: []
@@ -3628,7 +3628,7 @@ assertions:
     direct_tests:
     - &id396
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1495
+      line: 1560
       name: writes update receipts atomically, fails closed on corruption, and excludes
         concurrent updates
       surface: cli
@@ -3663,12 +3663,12 @@ assertions:
     direct_tests:
     - &id397
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1415
+      line: 1480
       name: renders released update metadata and prefers release provenance
       surface: cli
     - &id398
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1459
+      line: 1524
       name: degrades missing and exhausted email delivery without persisting destinations
       surface: cli
     supporting_tests: []
@@ -6088,17 +6088,17 @@ assertions:
       surface: cli
     - &id711
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1154
+      line: 1219
       name: warns once, escalates storage after one hour, and resolves once
       surface: cli
     - &id712
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1193
+      line: 1258
       name: preserves every simultaneous warning critical and recovery event
       surface: cli
     - &id713
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1225
+      line: 1290
       name: does not infer a storage outage when a required baseline prevents the
         optional probe
       surface: cli
@@ -6135,7 +6135,7 @@ assertions:
       surface: cli
     - &id716
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1182
+      line: 1247
       name: does not open a storage incident when storage is intentionally unconfigured
       surface: cli
     supporting_tests: []
@@ -6177,7 +6177,7 @@ assertions:
       surface: rest_api
     - &id721
       path: frontend/packages/openmates-cli/tests/server.test.ts
-      line: 1154
+      line: 1219
       name: warns once, escalates storage after one hour, and resolves once
       surface: cli
     supporting_tests: []
