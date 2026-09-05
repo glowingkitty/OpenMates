@@ -10961,10 +10961,18 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
         ):
             time.sleep(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS[attempt])
             continue
-        if "Passkey verification required" in failure_message:
+        if any(marker in failure_message.lower() for marker in (
+            "passkey verification required", "session expired", "not logged in", "session validation failed",
+        )):
+            recovery = (
+                f"OPENMATES_PROFILE={OPENMATES_TASK_BRIDGE_PROFILE} openmates login "
+                f"--api-url {OPENMATES_TASK_BRIDGE_API_URL}"
+            )
             raise RuntimeError(
-                f"OpenMates Task authentication required: {failure_message} "
-                "Do not retry Task operations until `openmates login` completes."
+                f"OpenMates Task authentication required for profile {OPENMATES_TASK_BRIDGE_PROFILE}: "
+                f"{failure_message.replace('`openmates login`', '`' + recovery + '`')} "
+                f"Do not retry Task operations until `{recovery}` completes. "
+                "Logging into the default CLI profile does not repair this isolated profile."
             )
         if failure_message:
             suffix = (

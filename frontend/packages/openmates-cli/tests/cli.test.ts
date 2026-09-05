@@ -2663,6 +2663,25 @@ describe("CLI server command startup feedback", () => {
   });
 });
 
+describe("CLI named authentication profiles", () => {
+  // contract-test: tooling — profile-selection, trusted-profile-boundary
+  it("uses the selected profile in its login recovery command", () => {
+    const result = runCliWithoutSessionResult(["--profile", "regression-profile", "whoami"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /openmates --profile regression-profile login/);
+  });
+  it("rejects an unsafe profile instead of silently checking the default account", () => {
+    const result = runCliWithoutSessionResult(["--profile", "../wrong", "whoami", "--json"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /profile.*lowercase/i);
+  });
+  it("does not let a flag override the trusted OpenCode profile", () => {
+    assert.throws(() => assertTrustedAccountGuardEnvironment({ profile: "other" }, {
+      OPENMATES_PROFILE: "opencode-personal", OPENMATES_API_URL: "https://api.dev.openmates.org",
+    }), /profile/i);
+  });
+});
+
 describe("CLI self-update commands", () => {
   // contract-test: tooling — upgrade-channel, upgrade-no-downgrade
   it("does not downgrade a newer installed CLI to an older registry release", () => {

@@ -98,7 +98,7 @@ def test_task_cli_auth_failure_preserves_actionable_reason(monkeypatch) -> None:
     except RuntimeError as error:
         message = str(error)
         assert "Passkey verification required (location_change)" in message
-        assert "openmates login" in message
+        assert "OPENMATES_PROFILE=opencode-personal openmates login" in message
         assert "do not retry" in message.lower()
     else:
         raise AssertionError("Task CLI authentication failures must fail with actionable context")

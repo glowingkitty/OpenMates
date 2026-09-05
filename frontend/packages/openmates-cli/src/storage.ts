@@ -17,8 +17,10 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
+import lockfile from "proper-lockfile";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
@@ -188,7 +190,56 @@ export function saveAnonymousId(anonymousId: string): void {
  * Save session to disk. Attempts to store the master key in the OS keychain
  * or an encrypted file; only falls back to plaintext if both fail.
  */
-export function saveSession(session: OpenMatesSession): void {
+const SESSION_LOCK_STALE_MS = 30_000;
+const SESSION_LOCK_POLL_MS = 50;
+
+/** Serialize refresh requests across processes sharing this profile. */
+export async function withSessionRefreshLock<T>(operation: () => Promise<T>): Promise<T> {
+  const path = join(ensureStateDir(), "session.json");
+  const release = await lockfile.lock(`${path}.refresh`, {
+    realpath: false, stale: SESSION_LOCK_STALE_MS,
+    retries: { retries: 600, factor: 1, minTimeout: SESSION_LOCK_POLL_MS, maxTimeout: SESSION_LOCK_POLL_MS },
+  });
+  try { return await operation(); } finally { await release(); }
+}
+
+/** Ordinary context writes must never restore an older refresh credential. */
+export function saveSession(session: OpenMatesSession, options: {
+  expectedRefreshToken?: string;
+  replace?: boolean;
+} = {}): void {
+  const path = join(ensureStateDir(), "session.json");
+  let release: (() => void) | undefined;
+  const waitCell = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; ; attempt++) {
+    try {
+      release = lockfile.lockSync(`${path}.write`, { realpath: false, stale: SESSION_LOCK_STALE_MS });
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ELOCKED" || attempt >= 100) throw error;
+      Atomics.wait(waitCell, 0, 0, SESSION_LOCK_POLL_MS);
+    }
+  }
+  try {
+    const current = readJsonFile<SessionOnDisk>(path);
+    if (current && !options.replace) {
+      if (current.sessionId !== session.sessionId || current.hashedEmail !== session.hashedEmail || current.apiUrl !== session.apiUrl) {
+        throw new Error("Login session changed in another process. Retry the command using the current profile.");
+      }
+      if (options.expectedRefreshToken !== undefined) {
+        if (current.cookies.auth_refresh_token !== options.expectedRefreshToken) {
+          throw new Error("Login credentials changed during refresh. Retry with the current profile.");
+        }
+      } else {
+        session.cookies = { ...current.cookies };
+        session.wsToken = current.wsToken;
+      }
+    }
+    writeSession(session);
+  } finally { release(); }
+}
+
+function writeSession(session: OpenMatesSession): void {
   const filePath = join(ensureStateDir(), "session.json");
 
   const result = storeMasterKey(session.masterKeyExportedB64, resolveKeyStorageId(session.hashedEmail));
@@ -227,7 +278,11 @@ export function saveSession(session: OpenMatesSession): void {
     }
   }
 
-  writeJsonFile(filePath, onDisk);
+  const temporary = `${filePath}.${process.pid}.tmp`;
+  try {
+    writeJsonFile(temporary, onDisk);
+    renameSync(temporary, filePath);
+  } finally { rmSync(temporary, { force: true }); }
 
   if (result.type !== "plaintext") {
     process.stderr.write("Decrypting data...\n");

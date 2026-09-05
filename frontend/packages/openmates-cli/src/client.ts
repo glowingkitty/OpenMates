@@ -46,6 +46,7 @@ import {
   type CachedChat,
   loadSession,
   saveSession,
+  withSessionRefreshLock,
   purgeLocalPrivateData,
   loadSyncCache,
   saveSyncCache,
@@ -2956,8 +2957,10 @@ export class OpenMatesClient {
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
+  private readonly explicitSession: boolean;
 
   constructor(options: OpenMatesClientOptions = {}) {
+    this.explicitSession = options.session !== undefined;
     const diskSession = options.session ?? this.getValidSessionFromDisk();
     this.apiUrl = (
       options.apiUrl ??
@@ -4291,38 +4294,41 @@ export class OpenMatesClient {
     await this.hydrateEmailEncryptionKey(session);
 
     this.session = session;
-    saveSession(session);
+    saveSession(session, { replace: true });
   }
 
   async whoAmI(): Promise<Record<string, unknown>> {
-    const session = this.requireSession();
-    const response = await this.http.post<{
-      success?: boolean;
-      message?: string;
-      re_auth_reason?: string;
-      user?: Record<string, unknown>;
-      ws_token?: string;
-    }>(
-      "/v1/auth/session",
-      { session_id: session.sessionId },
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok || !response.data.success) {
-      if (response.status === 502 || response.status === 503 || response.status === 504) {
+    return this.withFreshStoredSession(async () => {
+      const session = this.requireSession();
+      const previousRefreshToken = session.cookies.auth_refresh_token;
+      const response = await this.http.post<{
+        success?: boolean;
+        message?: string;
+        re_auth_reason?: string;
+        user?: Record<string, unknown>;
+        ws_token?: string;
+      }>(
+        "/v1/auth/session",
+        { session_id: session.sessionId },
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok || !response.data.success) {
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          throw new Error(
+            `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`,
+          );
+        }
         throw new Error(
-          `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`,
+          `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`${this.loginRecoveryCommand()}\`.`,
         );
       }
-      throw new Error(
-        `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`openmates login\`.`,
-      );
-    }
-    if (response.data.ws_token) {
-      session.wsToken = response.data.ws_token;
-    }
-    session.cookies = this.http.getCookieMap();
-    saveSession(session);
-    return response.data.user ?? {};
+      if (response.data.ws_token) {
+        session.wsToken = response.data.ws_token;
+      }
+      session.cookies = this.http.getCookieMap();
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      return response.data.user ?? {};
+    });
   }
 
   async getTopicPreferences(): Promise<TopicPreferencesPayload | null> {
@@ -4500,7 +4506,7 @@ export class OpenMatesClient {
       authorizerDeviceName: null,
       autoLogoutMinutes: null,
     };
-    saveSession(session);
+    saveSession(session, { replace: true });
     this.session = session;
     return {
       success: true,
@@ -11038,8 +11044,9 @@ export class OpenMatesClient {
     const session = this.requireSession();
     const currentCookies = this.http.getCookieMap();
     if (JSON.stringify(session.cookies) !== JSON.stringify(currentCookies)) {
+      const previousRefreshToken = session.cookies.auth_refresh_token;
       session.cookies = currentCookies;
-      saveSession(session);
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
     }
     return session;
   }
@@ -11597,9 +11604,32 @@ export class OpenMatesClient {
     );
   }
 
+  private async withFreshStoredSession<T>(operation: () => Promise<T>): Promise<T> {
+    return withSessionRefreshLock(async () => {
+      const previous = this.requireSession();
+      const current = loadSession();
+      if (!current && !this.explicitSession) {
+        throw new Error("Login session was removed. Log in to the current profile before retrying.");
+      }
+      if (current && !this.explicitSession) {
+        if (current.hashedEmail !== previous.hashedEmail || current.apiUrl !== previous.apiUrl) {
+          throw new Error("Login account changed in another process. Retry using the current profile.");
+        }
+        this.session = current;
+        this.http.replaceCookies(current.cookies);
+      }
+      return operation();
+    });
+  }
+
+  private loginRecoveryCommand(): string {
+    const profile = process.env.OPENMATES_PROFILE?.trim();
+    return profile ? `openmates --profile ${profile} login` : "openmates login";
+  }
+
   private requireSession(): OpenMatesSession {
     if (!this.session) {
-      throw new Error("Not logged in. Run `openmates login`.");
+      throw new Error(`Not logged in. Run \`${this.loginRecoveryCommand()}\`.`);
     }
     return this.session;
   }
@@ -11697,43 +11727,49 @@ export class OpenMatesClient {
    * This method fetches a fresh ws_token and captures any rotated cookies.
    */
   private async refreshWsToken(): Promise<string | null> {
-    const session = this.requireSession();
-    let res: HttpResponse<{
-      success?: boolean;
-      ws_token?: string;
-      user?: { id?: string; user_id?: string };
-    }>;
-    try {
-      res = await this.http.post<{
+    return this.withFreshStoredSession(async () => {
+      const session = this.requireSession();
+      const previousRefreshToken = session.cookies.auth_refresh_token;
+      let res: HttpResponse<{
         success?: boolean;
         ws_token?: string;
         user?: { id?: string; user_id?: string };
-      }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
-    } catch {
-      // Network failures are best-effort: proceed with the existing wsToken and
-      // let the WebSocket auth cookie fallback handle it. Explicit server
-      // invalidation below is different and must purge local private data.
-      return null;
-    }
+      }>;
+      try {
+        res = await this.http.post<{
+          success?: boolean;
+          ws_token?: string;
+          user?: { id?: string; user_id?: string };
+        }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
+      } catch {
+        // Network failures are best-effort: proceed with the existing wsToken and
+        // let the WebSocket auth cookie fallback handle it. Explicit server
+        // invalidation below is different and must purge local private data.
+        return null;
+      }
 
-    if (!res.ok || res.data.success === false) {
-      purgeLocalPrivateData();
-      this.session = null;
-      throw new Error("Session expired or invalid. Please run `openmates login` to re-authenticate.");
-    }
+      if (res.status >= 500) {
+        throw new Error(`Session validation temporarily unavailable (HTTP ${res.status}). Retry shortly.`);
+      }
+      if (!res.ok || res.data.success === false) {
+        purgeLocalPrivateData();
+        this.session = null;
+        throw new Error(`Session expired or invalid. Please run \`${this.loginRecoveryCommand()}\` to re-authenticate.`);
+      }
 
-    if (res.data.ws_token) {
-      session.wsToken = res.data.ws_token;
-    }
-    // Capture any rotated cookies from the response (HTTP client does this
-    // automatically via captureCookies — just persist the updated map).
-    session.cookies = this.http.getCookieMap();
-    saveSession(session);
-    return typeof res.data.user?.id === "string"
-      ? res.data.user.id
-      : typeof res.data.user?.user_id === "string"
-        ? res.data.user.user_id
-        : null;
+      if (res.data.ws_token) {
+        session.wsToken = res.data.ws_token;
+      }
+      // Capture any rotated cookies from the response (HTTP client does this
+      // automatically via captureCookies — just persist the updated map).
+      session.cookies = this.http.getCookieMap();
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      return typeof res.data.user?.id === "string"
+        ? res.data.user.id
+        : typeof res.data.user?.user_id === "string"
+          ? res.data.user.user_id
+          : null;
+    });
   }
 
   /**

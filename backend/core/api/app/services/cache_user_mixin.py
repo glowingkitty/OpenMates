@@ -138,6 +138,14 @@ class UserCacheMixin:
             if user_data.get("user_id") != user_id or user_data.get("id") != user_id:
                 logger.error("Cached profile identity did not match its canonical session link; rejecting cached profile")
                 return None
+            # Expiry belongs to this refresh-token chain, never to the account.
+            # Legacy links deliberately refresh once instead of borrowing a sibling's
+            # validity window and making an expired profile appear healthy.
+            user_data = dict(user_data)
+            user_data["token_expiry"] = (
+                user_id_data.get("token_expiry", 0)
+                if isinstance(user_id_data, dict) else 0
+            )
             return user_data
         except Exception as e:
             logger.error(f"Error getting user from cache by token hash {token_hash[:8]}...: {str(e)}")
@@ -223,7 +231,8 @@ class UserCacheMixin:
                         incoming_last_opened,
                     )
 
-            user_set_success = await self.set(user_cache_key, user_data, ttl=user_ttl)
+            profile_data = {key: value for key, value in user_data.items() if key != "token_expiry"}
+            user_set_success = await self.set(user_cache_key, profile_data, ttl=user_ttl)
             logger.debug(f"Cache SET result for user key '{user_cache_key}': {user_set_success}")
 
             session_set_success = True
@@ -232,10 +241,16 @@ class UserCacheMixin:
                 token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
                 session_cache_key = f"{self.SESSION_KEY_PREFIX}{token_hash}"
                 session_link_data = {"user_id": user_id}
+                previous_link = await self.get(session_cache_key)
+                if "token_expiry" in user_data:
+                    session_link_data["token_expiry"] = user_data["token_expiry"]
+                elif isinstance(previous_link, dict) and previous_link.get("user_id") == user_id:
+                    if "token_expiry" in previous_link:
+                        session_link_data["token_expiry"] = previous_link["token_expiry"]
                 session_set_success = await self.set(session_cache_key, session_link_data, ttl=session_ttl)
                 logger.debug(f"Cache SET result for session link key '{session_cache_key}': {session_set_success}")
 
-            return user_set_success
+            return user_set_success and session_set_success
         except Exception as e:
             logger.error(f"Error caching user data for user '{user_id}': {str(e)}")
             return False

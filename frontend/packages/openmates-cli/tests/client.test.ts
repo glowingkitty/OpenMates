@@ -8,6 +8,7 @@
  * Run: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/client.test.ts
  */
 
+import { execFile } from "node:child_process";
 import { describe, it, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHash, webcrypto } from "node:crypto";
@@ -381,6 +382,38 @@ describe("OpenMatesClient session API URL", () => {
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("serializes refreshes and reloads credentials for clients created before rotation", async () => {
+    let token = "test-refresh-token";
+    let rejected = 0;
+    const server = createServer((request, response) => {
+      const accepted = request.headers.cookie === `auth_refresh_token=${token}`;
+      if (accepted) token = `rotated-${Date.now()}-${Math.random()}`;
+      else rejected++;
+      const replacement = token;
+      setTimeout(() => {
+        response.setHeader("content-type", "application/json");
+        if (accepted) response.setHeader("set-cookie", `auth_refresh_token=${replacement}; Path=/; HttpOnly`);
+        response.end(JSON.stringify({ success: accepted, message: accepted ? "valid" : "Session expired", user: { id: "test-user" } }));
+      }, 30);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const clients = Array.from({ length: 4 }, () => OpenMatesClient.load());
+      await Promise.all(clients.map((client) => client.whoAmI()));
+      await Promise.all(Array.from({ length: 4 }, () => new Promise<void>((resolve, reject) => {
+        execFile(process.execPath, ["--experimental-strip-types", "--loader", "./tests/loader.mjs", "--input-type=module", "-e",
+          "import { OpenMatesClient } from './src/client.ts'; await OpenMatesClient.load().whoAmI();"],
+          { env: { ...process.env }, timeout: 30_000 }, (error) => error ? reject(error) : resolve());
+      })));
+      assert.equal(rejected, 0);
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, token);
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
   });
 
   // contract-test: supporting surface=cli assertions=tasks.surface.semantic-parity

@@ -64,6 +64,21 @@ The REST API cannot decrypt/encrypt chats (zero-knowledge architecture). The CLI
 
 Pair-auth login via magic link + PIN remains the default login path. `openmates signup` can create a password account from the terminal using hidden prompts and the same client-side encrypted signup crypto as the web app. Session data is stored in `~/.openmates` with strict `0o600` permissions.
 
+Named authentication profiles use `--profile <name>` or `OPENMATES_PROFILE=<name>`
+and store credentials under `~/.openmates/profiles/<name>/`. Logging into the
+default profile does not renew a named profile. OpenCode's trusted task bridge
+uses `opencode-personal`; its recovery command is
+`OPENMATES_PROFILE=opencode-personal openmates login --api-url https://api.dev.openmates.org`.
+The trusted-account guard rejects attempts to select another profile.
+
+Session validation and WebSocket token refresh acquire a per-profile process
+lock and reload the latest stored credential before sending a request. Session
+writes are atomic and reject stale credential replacement; ordinary context
+writes preserve the latest refresh token. API gateway failures retain the local
+session. The API cache stores token expiry on each token-to-user link, rather
+than borrowing expiry from another session's shared user profile. Legacy links
+without expiry require validation/refresh before reuse.
+
 CLI login derives and stores the email encryption key after pair-auth by decrypting the account email with the master key and applying the same `SHA256(email + user_email_salt)` derivation as the web app. The key uses the same tiered local protection path as the master key and is used for backend flows such as invoice refund requests.
 
 ### Implemented Commands

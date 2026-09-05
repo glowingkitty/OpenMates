@@ -69,6 +69,7 @@ import { arch, platform } from "node:os";
 import { parse as parseYaml } from "yaml";
 import WebSocket from "ws";
 import {
+  resolveStateDir,
   assertTrustedAccountId,
   loadTrustedAccountId,
   saveTrustedAccountId,
@@ -248,6 +249,16 @@ async function main(): Promise<void> {
   if (accountGuardRequired && parsed.flags.help !== true) {
     assertTrustedAccountGuardEnvironment(parsed.flags);
     assertTrustedAccountCommandAllowed(command);
+  }
+  if (parsed.flags.profile !== undefined) {
+    const profile = parsed.flags.profile;
+    if (typeof profile !== "string" || !profile) throw new Error("--profile requires a profile name");
+    // Validate before loading keys or session state. Never silently fall back.
+    resolveStateDir({ profile, stateDir: "" });
+    if (process.env.OPENMATES_STATE_DIR?.trim()) {
+      throw new Error("--profile cannot be combined with OPENMATES_STATE_DIR");
+    }
+    process.env.OPENMATES_PROFILE = profile;
   }
   const client = OpenMatesClient.load({
     apiUrl:
@@ -675,6 +686,9 @@ export function assertTrustedAccountGuardEnvironment(
   flags: Record<string, string | boolean>,
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
+  if (flags.profile !== undefined && flags.profile !== TRUST_GUARD_PROFILE) {
+    throw new Error(`Trusted OpenCode CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
+  }
   if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
     throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
   }
@@ -13333,7 +13347,7 @@ Commands:
 
 Flags:
   --json          Output raw JSON instead of formatted output
-  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
+  --profile <name>        Use an isolated login profile (also OPENMATES_PROFILE)\n  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --version       Show CLI version and update availability
   --help          Show contextual help for any command`);
