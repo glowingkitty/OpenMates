@@ -10849,27 +10849,27 @@ assertions:
       surface: rest_api
     - &id1198
       path: backend/tests/test_transcribe_skill.py
-      line: 339
+      line: 340
       name: test_build_waveform_from_pcm_u8_returns_compact_envelope
       surface: rest_api
     - &id1199
       path: backend/tests/test_transcribe_skill.py
-      line: 366
+      line: 367
       name: test_correct_transcript_with_gemini_success
       surface: rest_api
     - &id1200
       path: backend/tests/test_transcribe_skill.py
-      line: 423
+      line: 424
       name: test_correct_transcript_with_gemini_api_failure_raises
       surface: rest_api
     - &id1201
       path: backend/tests/test_transcribe_skill.py
-      line: 448
+      line: 449
       name: test_correct_transcript_with_gemini_invalid_json_raises
       surface: rest_api
     - &id1202
       path: backend/tests/test_transcribe_skill.py
-      line: 481
+      line: 482
       name: test_full_execute_flow_with_gemini_correction
       surface: rest_api
     tests:
@@ -10967,7 +10967,7 @@ assertions:
       surface: rest_api
     - &id1212
       path: backend/tests/test_transcribe_skill.py
-      line: 481
+      line: 482
       name: test_full_execute_flow_with_gemini_correction
       surface: rest_api
     tests:

@@ -676,7 +676,7 @@ class TranscribeSkill(BaseSkill):
         if language:
             data["language"] = language
         if timestamps != "none":
-            data["timestamp_granularities[]"] = timestamps
+            data["timestamp_granularities"] = timestamps
 
         headers = {
             "Authorization": f"Bearer {mistral_api_key}",

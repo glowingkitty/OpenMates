@@ -330,7 +330,8 @@ async def test_mistral_word_timestamps_use_multipart_array_field():
         )
 
     body = requests[0].content.decode("utf-8")
-    assert 'name="timestamp_granularities[]"' in body
+    assert 'name="timestamp_granularities"' in body
+    assert 'name="timestamp_granularities[]"' not in body
     assert "\r\nword\r\n" in body
     assert result["duration"] == 1.0
 
