@@ -141,3 +141,4 @@ workflow_runtime:
   state_owner: scripts/sessions.py
   decision_consumer: scripts/_workflow_decisions.py
   tracked_root_mirroring: retired
+  subchat_depth: OpenCode Task pre-tool guard allows root -> child -> grandchild only; unknown ancestry blocks spawning

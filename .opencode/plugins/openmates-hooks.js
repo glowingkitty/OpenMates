@@ -785,6 +785,28 @@ function targetsDifferentWorktree(candidate, worktreePath) {
   return isAbsolute(candidate) && pathInWorktree(candidate) && pathEscapesWorktree(candidate, worktreePath);
 }
 
+// Two child edges are permitted: root -> child -> grandchild.
+// Resolve provider ancestry, never the flattened worktree-owner identity.
+// Unknown ancestry must not grant permission to create another session.
+const MAX_SUBCHAT_DEPTH = 2;
+async function guardSubchatDepth(client, sessionID) {
+  let currentID = sessionID;
+  const visited = new Set();
+  const reject = (reason) => { throw new Error(actionable(
+    "[OpenMates subchat depth limit]", reason,
+    "continue this task directly in the current chat; do not spawn another child or retry delegation through another tool.",
+  )); };
+  for (let depth = 0; depth < MAX_SUBCHAT_DEPTH; depth += 1) {
+    if (!currentID || visited.has(currentID)) reject("Session ancestry is missing or cyclic.");
+    visited.add(currentID);
+    const info = await openCodeSession(client, currentID);
+    if (!info || info.id !== currentID) reject("Session ancestry could not be verified.");
+    if (!info.parentID) return;
+    currentID = info.parentID;
+  }
+  reject("Only root → child → grandchild is allowed. This chat cannot create a deeper child.");
+}
+
 async function openCodeSession(client, sessionID) {
   if (!client?.session?.get || !sessionID) return null;
   try {
@@ -3667,6 +3689,7 @@ export const OpenMatesHooks = async ({
       input?.sessionID,
       async () => {
       const tool = input.tool || "";
+      if (TASK_TOOLS.has(tool)) await guardSubchatDepth(client, input.sessionID);
       const githubMcpGuard = githubMcpGuardDecisionForTest(tool);
       if (githubMcpGuard.decision === "block") throw new Error(githubMcpGuard.message);
       if (!BASH_TOOLS.has(tool) && !EDIT_TOOLS.has(tool) && !READ_TOOLS.has(tool) && !SEARCH_TOOLS.has(tool) && !TASK_TOOLS.has(tool)) return;
