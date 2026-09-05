@@ -830,7 +830,7 @@ def test_recovery_backup_quiesces_and_restores_only_prior_services(monkeypatch, 
             kwargs["stdout"].write("-- dump\n")
             return Result()
         if command[:2] == ["docker", "exec"] and command[-1] == "BGSAVE":
-            return Result("Background saving started")
+            return Result("OK")
         if command[:2] == ["docker", "exec"] and command[-1] == "LASTSAVE":
             return Result("100" if sum(item[-1] == "LASTSAVE" for item in commands) == 1 else "101")
         if command[:3] == ["openmates", "server", "env"]:
@@ -1117,3 +1117,17 @@ def test_recovery_unseal_uses_only_readonly_keys_and_existing_image(monkeypatch,
         assert "setup_vault" not in command[-1]
     assert calls[0][calls[0].index("--network") + 1] == "none"
     assert calls[1][calls[1].index("--network") + 1] == "container:vault-id"
+
+
+@pytest.mark.parametrize("acknowledgement", ["OK", "Background saving started"])
+def test_recovery_snapshot_accepts_dragonfly_and_redis_acknowledgements(monkeypatch, tmp_path, acknowledgement):
+    replies = iter(["redis-cli 6", "100", acknowledgement, "101"])
+    monkeypatch.setattr(sessions, "_recovery_backup_run", lambda *args, **kwargs: SimpleNamespace(stdout=next(replies)))
+    sessions._recovery_backup_snapshot_cache("cache", tmp_path, {}, timeout=1, poll=1)
+
+
+def test_recovery_snapshot_rejects_redis_error_even_with_zero_exit(monkeypatch, tmp_path):
+    replies = iter(["redis-cli 6", "100", "ERR saving failed"])
+    monkeypatch.setattr(sessions, "_recovery_backup_run", lambda *args, **kwargs: SimpleNamespace(stdout=next(replies)))
+    with pytest.raises(RuntimeError, match="did not acknowledge"):
+        sessions._recovery_backup_snapshot_cache("cache", tmp_path, {}, timeout=1, poll=1)

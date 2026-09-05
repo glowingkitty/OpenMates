@@ -12426,7 +12426,7 @@ def _recovery_backup_snapshot_cache(container_id: str, checkout_root: Path, redi
     if not before.stdout.strip().isdigit():
         raise RuntimeError("Dragonfly snapshot verification failed: LASTSAVE is invalid.")
     started = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "BGSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
-    if "background saving started" not in started.stdout.lower():
+    if started.stdout.strip().lower() not in {"ok", "background saving started"}:
         raise RuntimeError("Dragonfly snapshot did not acknowledge BGSAVE.")
     baseline = int(before.stdout.strip())
     deadline = time.time() + max(1, timeout)
