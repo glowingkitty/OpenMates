@@ -15,6 +15,13 @@ Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.
 
+Marketing, social videos, Remotion production, and newsletters live in the optional
+sibling `openmates-marketing` repository. Read its `AGENTS.md` and relevant
+`.agents/skills/<name>/SKILL.md` directly. Resolve the sibling from the primary
+checkout, not a session worktree; ask for its location if absent. Keep marketing
+content, skills, media, and changes outside OpenMates staging/deployment. Product
+proof-video and example-chat tooling stays here.
+
 For current web and programming research, use the OpenMates app skills through
 the CLI for search and documentation. Use `web/search` for web search,
 `videos/search` for video discovery, `videos/get_transcript` for a specific

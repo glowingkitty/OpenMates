@@ -193,7 +193,7 @@ Common routing:
 - User-reported issue ID or debugging timeline: use `debug-issue`; for encryption/key/sync symptoms, use the encryption/debug specialist subagents from the available agent list.
 - Vercel deployment failure: use `fix-vercel`.
 - Production SSH request: use `prod-ssh`.
-- Newsletter creation/publishing: use `create-newsletter` or `publish-newsletter`.
+- Marketing, social videos, Remotion production, and newsletters: read the optional sibling `openmates-marketing/AGENTS.md`, then its relevant `.agents/skills/<name>/SKILL.md` directly. Resolve the sibling from the primary checkout, not a session worktree; ask for its location if absent. Keep marketing content, skills, media, and changes in that separate repository, outside OpenMates staging/deployment. Product proof-video and example-chat tooling stays here.
 - iOS/macOS parity work: use `ios`.
 - Task creation or prioritization: use `new-task` or `next-tasks`.
 
