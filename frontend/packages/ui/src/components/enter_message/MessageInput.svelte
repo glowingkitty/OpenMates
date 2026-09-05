@@ -3784,11 +3784,17 @@
             // and clears the progressive processing phase. Without this, the thinking animation
             // keeps spinning until the backend confirms cancellation. The backend will also fire
             // aiTaskEnded when it confirms, but that second fire is harmless (idempotent).
+            const activeTask = chatSyncService.activeAITasks.get(chatId);
             chatSyncService.dispatchEvent(
                 new CustomEvent('aiTaskEnded', {
                     detail: {
                         chatId,
                         taskId: taskId,
+                        // Only pair the optimistic cancel with a user turn when the
+                        // currently tracked task is the task being cancelled.
+                        userMessageId: activeTask?.taskId === taskId
+                            ? activeTask.userMessageId
+                            : undefined,
                         status: 'cancelled',
                     },
                 }),

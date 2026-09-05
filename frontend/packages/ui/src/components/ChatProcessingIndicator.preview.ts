@@ -1,7 +1,7 @@
 /**
  * Preview fixtures for ChatProcessingIndicator.
- * The default is George's thinking status while the selecting variant has no
- * mate identity, matching the initial processing state.
+ * The default resolves general_knowledge to George's known thinking state.
+ * The selecting variant intentionally has no mate identity.
  * onMateClick emits a browser event so preview interaction is observable.
  */
 
@@ -25,9 +25,5 @@ export const variants = {
         lines: ['Selecting mate & AI model...'],
         mateCategory: null,
         statusType: 'processing',
-    },
-    sending: {
-        lines: ['Sending your message...'],
-        statusType: 'sending',
     },
 };

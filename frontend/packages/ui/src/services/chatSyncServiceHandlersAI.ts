@@ -756,6 +756,7 @@ export function handleAIMessageUpdateImpl(
           detail: {
             chatId: payload.chat_id,
             taskId: payload.task_id,
+            userMessageId: taskInfo.userMessageId,
             status: payload.interrupted_by_revocation
               ? "cancelled"
               : payload.interrupted_by_soft_limit
@@ -773,20 +774,12 @@ export function handleAIMessageUpdateImpl(
         `[ChatSyncService:AI] ⚠️ Task tracking mismatch for chat ${payload.chat_id}: taskInfo=${taskInfo ? `{taskId: ${taskInfo.taskId}}` : "undefined"}, payload.task_id=${payload.task_id}`,
       );
 
-      // CRITICAL FIX: Clear the active task for this chat anyway to ensure the stop button disappears
-      // This handles cases where task IDs might be out of sync or mismatched due to websocket hiccups
-      if (taskInfo) {
-        serviceInstance.activeAITasks.delete(payload.chat_id);
-        console.info(
-          `[ChatSyncService:AI] Cleared mismatched active task ${taskInfo.taskId} for chat ${payload.chat_id} because another task ended.`,
-        );
-      }
-
       serviceInstance.dispatchEvent(
         new CustomEvent("aiTaskEnded", {
           detail: {
             chatId: payload.chat_id,
             taskId: payload.task_id,
+            userMessageId: payload.user_message_id,
             status: payload.interrupted_by_revocation
               ? "cancelled"
               : payload.interrupted_by_soft_limit
@@ -1086,7 +1079,8 @@ export async function handleAIBackgroundResponseCompletedImpl(
 
     // Clear AI task tracking
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
-    if (taskInfo && taskInfo.taskId === payload.task_id) {
+    const taskMatchesBackgroundResponse = taskInfo?.taskId === payload.task_id;
+    if (taskMatchesBackgroundResponse) {
       serviceInstance.activeAITasks.delete(payload.chat_id);
       console.info(
         `[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`,
@@ -1116,6 +1110,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
         detail: {
           chatId: payload.chat_id,
           taskId: payload.task_id,
+          userMessageId: payload.user_message_id,
           status: payload.interrupted_by_revocation
             ? "cancelled"
             : payload.interrupted_by_soft_limit
@@ -1981,6 +1976,7 @@ export async function handleAIMessageReadyImpl(
         detail: {
           chatId: payload.chat_id,
           taskId: payload.message_id,
+          userMessageId: taskInfo.userMessageId,
           status: "completed",
         },
       }),
@@ -2053,6 +2049,7 @@ export async function handleAITaskCancelRequestedImpl(
   }
 
   chatIdsToClear.forEach((chatId) => {
+    const taskInfo = serviceInstance.activeAITasks.get(chatId);
     serviceInstance.activeAITasks.delete(chatId);
     // Clear typing status for this cancelled task
     // Use clearTypingForChat since we only have task_id, not message_id
@@ -2063,6 +2060,7 @@ export async function handleAITaskCancelRequestedImpl(
         detail: {
           chatId: chatId,
           taskId: payload.task_id,
+          userMessageId: taskInfo?.userMessageId,
           status:
             payload.status === "revocation_sent" ? "cancelled" : payload.status,
         },
@@ -5661,15 +5659,19 @@ export function handleAwaitingSubChatsCompletionImpl(
   },
 ): void {
   const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
-  if (taskInfo) {
+  const taskMatchesSubChatCompletion = !!payload.task_id && taskInfo?.taskId === payload.task_id;
+  if (taskMatchesSubChatCompletion) {
     serviceInstance.activeAITasks.delete(payload.chat_id);
   }
-  aiTypingStore.clearTypingForChat(payload.chat_id);
+  if (taskInfo && !taskMatchesSubChatCompletion) return;
+
+  if (taskMatchesSubChatCompletion) aiTypingStore.clearTypingForChat(payload.chat_id);
   serviceInstance.dispatchEvent(
     new CustomEvent("aiTaskEnded", {
       detail: {
         chatId: payload.chat_id,
         taskId: payload.task_id,
+        userMessageId: taskMatchesSubChatCompletion ? taskInfo.userMessageId : undefined,
         status: "waiting_for_sub_chats",
       },
     }),
@@ -5817,7 +5819,8 @@ export async function handleAwaitingUserInputImpl(
     aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
     serviceInstance.setSubChatProcessing?.(payload.chat_id, false);
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
-    if (taskInfo && taskInfo.taskId === taskId) {
+    const taskMatchesAwaitingUserInput = taskInfo?.taskId === taskId;
+    if (taskMatchesAwaitingUserInput) {
       serviceInstance.activeAITasks.delete(payload.chat_id);
     }
 
@@ -5840,7 +5843,8 @@ export async function handleAwaitingUserInputImpl(
       new CustomEvent("aiTaskEnded", {
         detail: {
           chatId: payload.chat_id,
-          taskId,
+          taskId: payload.task_id,
+          userMessageId: payload.user_message_id,
           status: "waiting_for_user",
         },
       }),

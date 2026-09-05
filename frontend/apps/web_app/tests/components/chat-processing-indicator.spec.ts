@@ -1,8 +1,8 @@
 /**
  * Focused deployed contract for ChatProcessingIndicator.
- * The preview callback emits a browser event, making navigation observable.
- * Identity assertions remain red until the processing UI adds the approved
- * portrait, AI badge, and accessible mate name control.
+ * It covers selection before identity and selected-mate rendering without
+ * requiring an account or a full chat flow.
+ * The preview callback is asserted as supporting behavior, not visual proof.
  */
 import { expect, test } from '../helpers/cookie-audit';
 
@@ -23,19 +23,31 @@ const CHAT_PROCESSING_INDICATOR_PROOF = defineVideoProof({
     domain: 'app.dev.openmates.org',
     transcript: [
         {
+            id: 'selection-text-only',
+            text: 'The initial selection status is text-only and does not guess a mate identity.',
+            checkpoint: 'selection-text-only',
+            devices: ['web-laptop', 'web-phone'],
+        },
+        {
             id: 'selected-mate-visible',
             text: 'George is shown as the selected mate while processing continues.',
             checkpoint: 'selected-mate-visible',
             devices: ['web-laptop', 'web-phone'],
         },
         {
-            id: 'selected-mate-activated',
-            text: 'Keyboard activation dispatches the preview callback while George remains visible.',
-            checkpoint: 'selected-mate-activated',
+            id: 'selected-mate-accessible',
+            text: 'George remains visible as a focused, keyboard-accessible selected mate action.',
+            checkpoint: 'selected-mate-accessible',
             devices: ['web-laptop', 'web-phone'],
         },
     ],
     assertions: [
+        {
+            id: 'chat-processing-feedback.selection-after-acceptance',
+            checkpoint: 'selection-text-only',
+            visual: 'The status has one text-only selection line with no portrait, badge, or mate-name action.',
+            devices: ['web-laptop', 'web-phone'],
+        },
         {
             id: 'chat-processing-feedback.selected-mate-identity',
             checkpoint: 'selected-mate-visible',
@@ -44,8 +56,8 @@ const CHAT_PROCESSING_INDICATOR_PROOF = defineVideoProof({
         },
         {
             id: 'chat-processing-feedback.accessible-responsive',
-            checkpoint: 'selected-mate-activated',
-            visual: 'George has a keyboard-focusable name action whose activation dispatches the isolated preview callback without hiding the indicator.',
+            checkpoint: 'selected-mate-accessible',
+            visual: 'The portrait and bottom-right AI badge fit within the indicator while the selected-mate action is visibly focused.',
             devices: ['web-laptop', 'web-phone'],
         },
     ],
@@ -53,9 +65,13 @@ const CHAT_PROCESSING_INDICATOR_PROOF = defineVideoProof({
 });
 
 test.describe('ChatProcessingIndicator component preview', () => {
-    // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chat-processing-feedback.selected-mate-identity,chat-processing-feedback.accessible-responsive
-    test('shows the initial text-only selection state without a mate identity', async ({ page }) => {
-        const params = new URLSearchParams({
+    // contract-test: direct surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chat-processing-feedback.selected-mate-identity,chat-processing-feedback.accessible-responsive
+    test('progresses from text-only selection to an accessible selected mate', async ({ page }, testInfo) => {
+        const proof = createVideoProofRuntime(CHAT_PROCESSING_INDICATOR_PROOF, {
+            device: PROOF_DEVICE,
+            attach: testInfo.attach.bind(testInfo),
+        });
+        const selectingParams = new URLSearchParams({
             variant: 'selecting',
             theme: 'light',
             background: '#dbeafe',
@@ -63,27 +79,23 @@ test.describe('ChatProcessingIndicator component preview', () => {
             chrome: '0',
         });
 
-        await page.goto(`/dev/preview/ChatProcessingIndicator?${params}`, { waitUntil: 'networkidle' });
+        await page.goto(`/dev/preview/ChatProcessingIndicator?${selectingParams}`, { waitUntil: 'networkidle' });
 
         const indicator = page.getByTestId('chat-processing-indicator');
-        await expect(indicator).toHaveText('Selecting mate & AI model...');
-        await expect(indicator.getByTestId('chat-processing-mate-avatar')).toHaveCount(0);
-        await expect(indicator.getByTestId('chat-processing-mate-name')).toHaveCount(0);
-    });
-
-    // contract-test: direct surface=gui.web assertions=chat-processing-feedback.selected-mate-identity,chat-processing-feedback.accessible-responsive
-    test('shows and activates the selected mate while processing', async ({ page }, testInfo) => {
-        const proof = createVideoProofRuntime(CHAT_PROCESSING_INDICATOR_PROOF, {
-            device: PROOF_DEVICE,
-            attach: testInfo.attach.bind(testInfo),
+        await proof.assert('chat-processing-feedback.selection-after-acceptance', async () => {
+            await expect(indicator).toHaveText('Selecting mate & AI model...');
+            await expect(indicator.getByTestId('chat-processing-mate-avatar')).toHaveCount(0);
+            await expect(indicator.getByTestId('chat-processing-mate-name')).toHaveCount(0);
         });
-        const params = new URLSearchParams({
+        await proof.checkpoint('selection-text-only');
+
+        const selectedMateParams = new URLSearchParams({
             theme: 'light',
             background: '#dbeafe',
             width: PREVIEW_WIDTH,
             chrome: '0',
         });
-        await page.goto(`/dev/preview/ChatProcessingIndicator?${params}`, { waitUntil: 'networkidle' });
+        await page.goto(`/dev/preview/ChatProcessingIndicator?${selectedMateParams}`, { waitUntil: 'networkidle' });
         await page.evaluate(() => {
             window.addEventListener('openmates-preview-mate-click', (event) => {
                 const detail = (event as CustomEvent<{ mateCategory: string }>).detail;
@@ -92,7 +104,6 @@ test.describe('ChatProcessingIndicator component preview', () => {
             });
         });
 
-        const indicator = page.getByTestId('chat-processing-indicator');
         await expect(indicator).toHaveText('George is thinking...');
         await expect(indicator).toHaveClass(/status-typing/);
 
@@ -103,6 +114,7 @@ test.describe('ChatProcessingIndicator component preview', () => {
             await expect(avatar).toHaveAttribute('data-mate-category', 'general_knowledge');
             await expect(avatar.getByTestId('chat-processing-ai-badge')).toBeVisible();
             await expect(mateName).toHaveAccessibleName('George');
+            await expect(mateName).toHaveText('George is thinking...');
         });
         await proof.checkpoint('selected-mate-visible');
 
@@ -110,14 +122,29 @@ test.describe('ChatProcessingIndicator component preview', () => {
         await proof.action('hover-selected-mate', async () => mateName.hover());
         await proof.action('focus-selected-mate', async () => mateName.focus());
         await expect(mateName).toBeFocused();
-        await proof.action('activate-selected-mate', async () => mateName.press('Enter'));
         await proof.assert('chat-processing-feedback.accessible-responsive', async () => {
-            await expect.poll(() => page.evaluate(() =>
-                (window as Window & { __chatProcessingMateClicks?: string[] }).__chatProcessingMateClicks ?? []
-            )).toEqual(['general_knowledge']);
+            const [indicatorBox, avatarBox, badgeBox] = await Promise.all([
+                indicator.boundingBox(),
+                page.getByTestId('chat-processing-mate-avatar').boundingBox(),
+                page.getByTestId('chat-processing-ai-badge').boundingBox(),
+            ]);
+            expect(indicatorBox).not.toBeNull();
+            expect(avatarBox).not.toBeNull();
+            expect(badgeBox).not.toBeNull();
+            await expect(page.getByTestId('chat-processing-mate-avatar')).toHaveCSS('border-radius', '50%');
+            expect(Math.abs(avatarBox!.width - avatarBox!.height)).toBeLessThanOrEqual(1);
+            expect(badgeBox!.x + badgeBox!.width / 2).toBeGreaterThan(avatarBox!.x + avatarBox!.width * 0.7);
+            expect(badgeBox!.y + badgeBox!.height / 2).toBeGreaterThan(avatarBox!.y + avatarBox!.height * 0.7);
+            expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(indicatorBox!.x + indicatorBox!.width);
+            expect(badgeBox!.y + badgeBox!.height).toBeLessThanOrEqual(indicatorBox!.y + indicatorBox!.height);
             await expect(indicator).toBeVisible();
         });
-        await proof.checkpoint('selected-mate-activated');
+        await proof.checkpoint('selected-mate-accessible');
+
+        await proof.action('activate-selected-mate', async () => mateName.press('Enter'));
+        await expect.poll(() => page.evaluate(() =>
+            (window as Window & { __chatProcessingMateClicks?: string[] }).__chatProcessingMateClicks ?? []
+        )).toEqual(['general_knowledge']);
         await proof.attach();
     });
 });

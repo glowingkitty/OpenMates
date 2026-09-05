@@ -75,6 +75,8 @@
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
     import { modelsMetadata } from '../data/modelsMetadata'; // For reasoning model detection in typing indicator
+    import { getMatesById } from '../data/matesMetadata';
+    import { matchesProcessingFeedbackTerminal } from './activeChatProcessingFeedback';
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
@@ -4164,6 +4166,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // centered status indicator in ChatHistory.
     // Lifecycle: sending → processing (real-time step cards) → typing → null (streaming)
     let processingPhase = $state<ProcessingPhase>(null);
+    // The composer indicator starts only after the server accepts this exact turn.
+    // Keep it separate from the centered step-card phase so both surfaces can evolve
+    // without a delayed acknowledgement replacing known typing information.
+    let processingFeedbackTurn = $state<{ chatId: string; userMessageId: string; taskId: string } | null>(null);
+    const terminalProcessingFeedbackTurns = new Set<string>();
     // Whether the current message being processed is for a new chat (no title yet).
     // Determines the initial spinner text (new chat starts with "Generating chat title...").
     let isNewChatProcessing = $state(false);
@@ -4218,6 +4225,22 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // those are cleared explicitly on chat switch via resetChatHeaderState().
     }
 
+    function processingFeedbackTurnKey(chatId: string, userMessageId: string) {
+        return `${chatId}:${userMessageId}`;
+    }
+
+    function clearProcessingFeedback(chatId: string, userMessageId?: string | null, isTerminal = false) {
+        if (!processingFeedbackTurn || processingFeedbackTurn.chatId !== chatId) return;
+        if (userMessageId && processingFeedbackTurn.userMessageId !== userMessageId) return;
+        if (isTerminal) {
+            terminalProcessingFeedbackTurns.add(processingFeedbackTurnKey(
+                processingFeedbackTurn.chatId,
+                processingFeedbackTurn.userMessageId,
+            ));
+        }
+        processingFeedbackTurn = null;
+    }
+
     function rollbackAnonymousSend(chatId: string, userMessageId: string | null) {
         if (currentChat?.chat_id && currentChat.chat_id !== chatId) return;
         const rolledBackMessages = currentMessages.filter((message) => {
@@ -4226,6 +4249,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             return true;
         });
         clearProcessingPhase();
+        if (userMessageId) {
+            clearProcessingFeedback(chatId, userMessageId, true);
+        }
         currentTypingStatus = null;
         aiTypingStore.clearTypingForChat(chatId);
 
@@ -4613,6 +4639,25 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             showIcon: true,
             completedSteps: [],
         };
+    }
+
+    const processingMatesById = getMatesById();
+
+    function openProcessingMateDetails() {
+        const feedbackTurn = processingFeedbackTurn;
+        const category = currentTypingStatus?.category;
+        if (
+            !feedbackTurn
+            || feedbackTurn.chatId !== currentChat?.chat_id
+            || currentTypingStatus?.chatId !== feedbackTurn.chatId
+            || currentTypingStatus?.userMessageId !== feedbackTurn.userMessageId
+            || !category
+            || category === 'openmates_official'
+            || !processingMatesById[category]
+        ) return;
+
+        settingsDeepLink.set(`mates/${category}`);
+        panelState.openSettings();
     }
 
     /**
@@ -6151,17 +6196,42 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     //   Line 1 (primary):   "{mate} is typing..."
     //   Line 2 (secondary): "Powered by {model_name}"
     //   Line 3 (tertiary):  "via {provider} {flag}"
+    let typingStatusMatchesProcessingFeedback = $derived(
+        currentTypingStatus?.isTyping === true
+        && currentTypingStatus.chatId === currentChat?.chat_id
+        && currentTypingStatus.userMessageId === processingFeedbackTurn?.userMessageId
+        && processingFeedbackTurn?.chatId === currentChat?.chat_id
+        && chatSyncService.getActiveAIUserMessageIdForChat(currentTypingStatus.chatId) === currentTypingStatus.userMessageId
+    );
+    let typingStatusIsTerminal = $derived(
+        currentTypingStatus?.isTyping === true
+        && !!currentTypingStatus.chatId
+        && !!currentTypingStatus.userMessageId
+        && terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(
+            currentTypingStatus.chatId,
+            currentTypingStatus.userMessageId,
+        ))
+    );
+
     let typingIndicatorLines = $derived((() => {
         // _aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
+
+        if (typingStatusIsTerminal) return [];
         
+        // The accepted-turn selection is composer-only. Once exact typing metadata
+        // arrives, it replaces selection there even while centered step cards remain.
+        if (processingFeedbackTurn?.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
+            return [$text('enter_message.status.selecting_mate_and_model')];
+        }
+
         // When the centered indicator is active (processingPhase is not null),
         // hide the bottom typing indicator to avoid duplicate text.
         // The centered overlay handles sending, processing steps, and typing phases.
         // Exception: 'compressing' phase shows the shimmer in the bottom indicator
         // since there is no centered overlay for compression.
-        if (processingPhase !== null && processingPhase.phase !== 'compressing') {
+        if (processingPhase !== null && processingPhase.phase !== 'compressing' && !typingStatusMatchesProcessingFeedback) {
             if (currentChat?.is_anonymous) {
                 return processingPhase.statusLines;
             }
@@ -6176,7 +6246,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // Show detailed AI typing indicator once streaming has started
         // (processingPhase is null, meaning the centered indicator has faded out,
         //  but aiTypingStore still shows isTyping = true during streaming)
-        if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
+        if (
+            currentTypingStatus?.isTyping
+            && currentTypingStatus.chatId === currentChat?.chat_id
+            && currentTypingStatus.category
+            && (!processingFeedbackTurn || typingStatusMatchesProcessingFeedback)
+        ) {
             const mateName = $text('mates.' + currentTypingStatus.category);
             const modelName = currentTypingStatus.modelName || ''; 
             const providerName = currentTypingStatus.providerName || '';
@@ -6234,8 +6309,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
+
+        if (typingStatusIsTerminal) return null;
         
         
+        if (processingFeedbackTurn?.chatId === currentChat?.chat_id) {
+            return typingStatusMatchesProcessingFeedback ? 'typing' : 'processing';
+        }
+
         // When centered indicator is active, bottom shows nothing
         // Exception: 'compressing' phase shows as 'typing' shimmer at the bottom
         if (processingPhase !== null && processingPhase.phase !== 'compressing') {
@@ -6345,6 +6426,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             // Detect if this is a system rejection message (e.g., insufficient credits)
             // These should be rendered as system notices, not as assistant bubbles
             const isRejectionMessage = !!chunk.rejection_reason;
+            if (isRejectionMessage) {
+                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
+            }
             
             // Create a streaming AI message even if sequence is not 1 to avoid dropping chunks
             const fallbackCategory = currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined;
@@ -6424,6 +6508,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
             if (chunk.rejection_reason && targetMessage.role !== 'system') {
                 targetMessage.role = 'system';
                 targetMessage.status = 'waiting_for_user';
+                clearProcessingFeedback(chunk.chat_id, chunk.user_message_id, true);
             } else if (targetMessage.status !== 'streaming' && targetMessage.status !== 'synced' && !chunk.rejection_reason) {
                 targetMessage.status = 'streaming';
             }
@@ -7515,6 +7600,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
+        if (currentChat?.chat_id) clearProcessingFeedback(currentChat.chat_id);
         resetComposerWelcomeState(false);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
         currentChat = null;
@@ -8991,6 +9077,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
         console.debug('[ActiveChat] handleMessageStatusChanged: Processing event for active chat.');
 
+        const message = currentMessages.find((currentMessage) => currentMessage.message_id === messageId);
+        const relatedUserMessageId = message?.role === 'user'
+            ? message.message_id
+            : message?.user_message_id;
+        if (
+            (status === 'failed' || status === 'cancelled' || status === 'waiting_for_user')
+            && relatedUserMessageId === processingFeedbackTurn?.userMessageId
+        ) {
+            clearProcessingFeedback(chatId, relatedUserMessageId, true);
+        }
+
         if (chatMetadata) {
             console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
             // Only update fields that are defined to avoid overwriting with undefined values
@@ -9318,7 +9415,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
           olderMessageWindowLoading = false;
 
          // Clear any active processing phase indicator from the previous chat
-         clearProcessingPhase();
+          if (currentChat?.chat_id && currentChat.chat_id !== chat.chat_id) {
+              clearProcessingFeedback(currentChat.chat_id);
+          }
+          clearProcessingPhase();
          // Reset the chat header state when switching to any chat.
          // For new chats, handleSendMessage will set isNewChatGeneratingTitle=true.
          // For existing chats, we decrypt title/category/icon below (after currentChat is set).
@@ -11748,6 +11848,32 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         const aiTaskInitiatedHandler = (async (event: CustomEvent<AITaskInitiatedPayload>) => {
             const { chat_id, user_message_id } = event.detail;
             if (chat_id === currentChat?.chat_id) {
+                const feedbackTurnKey = processingFeedbackTurnKey(chat_id, user_message_id);
+                const hasKnownTypingForTurn = currentTypingStatus?.isTyping
+                    && currentTypingStatus.chatId === chat_id
+                    && currentTypingStatus.userMessageId === user_message_id
+                    && chatSyncService.getActiveAIUserMessageIdForChat(chat_id) === user_message_id;
+                const latestPendingUserMessage = [...currentMessages].reverse().find((message) =>
+                    message.role === 'user' && (message.status === 'sending' || message.status === 'processing')
+                );
+                const isStaleAcknowledgementForAnotherTurn = !!processingFeedbackTurn
+                    && processingFeedbackTurn.userMessageId !== user_message_id
+                    && latestPendingUserMessage?.message_id !== user_message_id;
+                const isDelayedAcknowledgement = terminalProcessingFeedbackTurns.has(feedbackTurnKey)
+                    || hasKnownTypingForTurn
+                    || isStaleAcknowledgementForAnotherTurn;
+
+                // This is the server-accepted boundary. Set selection before any
+                // asynchronous persistence so it is immediate but never optimistic.
+                if (!isDelayedAcknowledgement) {
+                    processingFeedbackTurn = {
+                        chatId: chat_id,
+                        userMessageId: user_message_id,
+                        taskId: event.detail.ai_task_id,
+                    };
+                    startProcessingStepProgression(isNewChatProcessing);
+                }
+
                 const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
                 if (messageIndex !== -1) {
                     const updatedMessage = { ...currentMessages[messageIndex], status: 'processing' as const };
@@ -11769,18 +11895,27 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     }
                 }
                 
-                // ─── Progressive AI Status Indicator: Transition to 'processing' phase ─────
-                // Start the timed step progression with appropriate steps for new/existing chat
-                startProcessingStepProgression(isNewChatProcessing);
-                console.debug('[ActiveChat] Processing phase set to PROCESSING', { isNewChat: isNewChatProcessing });
+                if (!isDelayedAcknowledgement) {
+                    console.debug('[ActiveChat] Processing phase set to PROCESSING', { isNewChat: isNewChatProcessing });
+                }
                 
                 _aiTaskStateTrigger++;
             }
         }) as EventListenerCallback;
 
-        const aiTaskEndedHandler = (async (event: CustomEvent<{ chatId: string; status?: string }>) => {
+        const aiTaskEndedHandler = (async (event: CustomEvent<{
+            chatId: string;
+            taskId?: string;
+            userMessageId?: string;
+            status?: string;
+        }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
+                const feedbackTurn = processingFeedbackTurn;
+                if (feedbackTurn && !matchesProcessingFeedbackTerminal(feedbackTurn, event.detail)) return;
                 _aiTaskStateTrigger++;
+                if (feedbackTurn) {
+                    clearProcessingFeedback(event.detail.chatId, feedbackTurn.userMessageId, true);
+                }
                 
                 // ─── Progressive AI Status Indicator: Clear on task end (safety fallback) ─────
                 clearProcessingPhase();
@@ -11901,6 +12036,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                 } : null
             });
             if (chat_id === currentChat?.chat_id) {
+                if (
+                    processingFeedbackTurn
+                    && (
+                        processingFeedbackTurn.chatId !== chat_id
+                        || processingFeedbackTurn.userMessageId !== user_message_id
+                    )
+                ) return;
                 // NOTE: Do NOT call ensureThinkingPlaceholder here.
                 // Showing a placeholder ThinkingSection before any real thinking chunks arrive
                 // causes a blank/empty thinking block to flash in the UI. The thinking section
@@ -11952,10 +12094,14 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     // for model/provider info, with the store as fallback. This avoids any potential
                     // timing/reactivity issues where the $state variable hasn't updated yet when
                     // the custom event handler fires.
-                    const resolvedCategory = category || currentTypingStatus?.category;
-                    const resolvedModelName = model_name || currentTypingStatus?.modelName;
-                    const resolvedProviderName = provider_name || currentTypingStatus?.providerName;
-                    const resolvedServerRegion = server_region || currentTypingStatus?.serverRegion;
+                    const typingStoreMatchesActiveTurn = currentTypingStatus?.isTyping
+                        && currentTypingStatus.chatId === chat_id
+                        && currentTypingStatus.userMessageId === user_message_id
+                        && chatSyncService.getActiveAIUserMessageIdForChat(chat_id) === user_message_id;
+                    const resolvedCategory = category || (typingStoreMatchesActiveTurn ? currentTypingStatus?.category : undefined);
+                    const resolvedModelName = model_name || (typingStoreMatchesActiveTurn ? currentTypingStatus?.modelName : undefined);
+                    const resolvedProviderName = provider_name || (typingStoreMatchesActiveTurn ? currentTypingStatus?.providerName : undefined);
+                    const resolvedServerRegion = server_region || (typingStoreMatchesActiveTurn ? currentTypingStatus?.serverRegion : undefined);
                     
                     console.log('[ActiveChat] Typing phase transition data', {
                         fromEvent: { category, model_name, provider_name, server_region },
@@ -11985,9 +12131,17 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             console.debug(`[ActiveChat] Delaying typing transition by ${remainingDelay}ms to show step cards`);
                             // Capture the current chat_id to avoid stale transitions after chat switch
                             const transitionChatId = chat_id;
+                            const transitionFeedbackTurn = processingFeedbackTurn;
                             setTimeout(() => {
                                 // Only apply if we're still on the same chat and in processing phase
                                 if (currentChat?.chat_id !== transitionChatId) return;
+                                if (
+                                    transitionFeedbackTurn
+                                    && (
+                                        processingFeedbackTurn?.chatId !== transitionFeedbackTurn.chatId
+                                        || processingFeedbackTurn?.userMessageId !== transitionFeedbackTurn.userMessageId
+                                    )
+                                ) return;
                                 if (processingPhase?.phase !== 'processing') return;
                                 applyTypingPhaseTransition(resolvedCategory, resolvedModelName, resolvedProviderName, resolvedServerRegion);
                             }, remainingDelay);
@@ -12294,11 +12448,23 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         // that interrupted an active AI stream, finalize any streaming messages in the current
         // chat by saving their current content to the DB and marking them as 'synced'.
         // The subsequent phased sync will deliver the server-persisted version.
-        const aiStreamInterruptedHandler = (async (event: CustomEvent) => {
-            const { chatId } = event.detail;
+        const aiStreamInterruptedHandler = (async (event: CustomEvent<{
+            chatId: string;
+            taskId?: string;
+            userMessageId?: string;
+        }>) => {
+            const { chatId, taskId, userMessageId } = event.detail;
             if (chatId !== currentChat?.chat_id) return;
 
+            if (
+                processingFeedbackTurn
+                && !matchesProcessingFeedbackTerminal(processingFeedbackTurn, { taskId, userMessageId })
+            ) return;
+
             console.warn(`[ActiveChat] AI stream interrupted for current chat ${chatId} - finalizing streaming/processing messages`);
+            if (processingFeedbackTurn) {
+                clearProcessingFeedback(chatId, processingFeedbackTurn.userMessageId, true);
+            }
             for (const msg of currentMessages) {
                 // Recover messages stuck in 'streaming' (stream was interrupted mid-flight)
                 // AND 'processing' (task was dispatched but worker never picked it up / crashed)
@@ -13745,7 +13911,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             <ChatProcessingIndicator
                                 lines={typingIndicatorLines}
                                 statusType={typingIndicatorStatusType}
-                                mateCategory={currentTypingStatus?.chatId === currentChat?.chat_id ? currentTypingStatus.category : null}
+                                mateCategory={typingStatusMatchesProcessingFeedback ? currentTypingStatus?.category : null}
+                                onMateClick={openProcessingMateDetails}
                             />
                         </div>
                     {/if}

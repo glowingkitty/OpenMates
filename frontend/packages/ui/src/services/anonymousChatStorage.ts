@@ -670,6 +670,7 @@ class AnonymousChatStorage {
             detail: {
               chatId: typeof payload.chatId === "string" ? payload.chatId : chat.chat_id,
               taskId: typeof payload.taskId === "string" ? payload.taskId : buildAnonymousTaskId(userMessageId),
+              userMessageId,
               status: taskEndedStatus,
             },
           }));
@@ -934,7 +935,12 @@ class AnonymousChatStorage {
     aiTypingStore.clearTypingForChat(params.chat.chat_id);
     chatSyncService.activeAITasks.delete(params.chat.chat_id);
     chatSyncService.dispatchEvent(new CustomEvent("aiTaskEnded", {
-      detail: { chatId: params.chat.chat_id, taskId, status: "completed" },
+      detail: {
+        chatId: params.chat.chat_id,
+        taskId,
+        userMessageId: params.userMessage.message_id,
+        status: "completed",
+      },
     }));
   }
 

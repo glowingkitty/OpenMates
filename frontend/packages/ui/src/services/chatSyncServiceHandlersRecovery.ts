@@ -336,6 +336,10 @@ export async function handleRecoveryJobsAvailableImpl(
         throw new Error(`Recovery job ${job.job_id} plaintext identity did not match its lease.`);
       }
 
+      const existingAssistantMessage = await chatDB.getMessage(job.assistant_message_id);
+      const linkedUserMessageId = existingAssistantMessage?.role === "assistant"
+        ? existingAssistantMessage.user_message_id
+        : undefined;
       const now = Math.floor(Date.now() / 1000);
       const aiMessage = {
         message_id: job.assistant_message_id,
@@ -408,7 +412,8 @@ export async function handleRecoveryJobsAvailableImpl(
       };
       await chatDB.updateChat(updatedChat);
       const taskInfo = serviceInstance.activeAITasks?.get(job.chat_id);
-      if (taskInfo && taskInfo.taskId === job.assistant_message_id) {
+      const taskMatchesRecoveryMessage = taskInfo?.taskId === job.assistant_message_id;
+      if (taskMatchesRecoveryMessage) {
         serviceInstance.activeAITasks?.delete(job.chat_id);
       }
       aiTypingStore.clearTyping(job.chat_id, job.assistant_message_id);
@@ -437,7 +442,8 @@ export async function handleRecoveryJobsAvailableImpl(
         new CustomEvent("aiTaskEnded", {
           detail: {
             chatId: job.chat_id,
-            taskId: job.assistant_message_id,
+            taskId: taskMatchesRecoveryMessage ? taskInfo.taskId : undefined,
+            userMessageId: linkedUserMessageId ?? (taskMatchesRecoveryMessage ? taskInfo.userMessageId : undefined),
             status: "completed",
           },
         }),
