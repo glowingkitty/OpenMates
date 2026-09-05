@@ -29,6 +29,10 @@ class ConnectedAccountSkillConfig:
 
 
 CONNECTED_ACCOUNT_SKILL_CONFIGS: dict[tuple[str, str], ConnectedAccountSkillConfig] = {
+    ("calendar", "list-calendars"): ConnectedAccountSkillConfig(
+        app_id="calendar", skill_id="list-calendars", provider_id="google",
+        action="read", scope_kind="provider_account",
+    ),
     ("calendar", "get-events"): ConnectedAccountSkillConfig(
         app_id="calendar",
         skill_id="get-events",

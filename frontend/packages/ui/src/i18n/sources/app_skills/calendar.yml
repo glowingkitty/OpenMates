@@ -1,3 +1,49 @@
+list_calendars:
+  context: Skill name for listing calendars in a connected account
+  en: List Calendars
+  de: Kalender auflisten
+  zh: 列出日历
+  es: Listar calendarios
+  fr: Lister les calendriers
+  pt: Listar calendários
+  ru: Список календарей
+  ja: カレンダー一覧
+  ko: 캘린더 목록
+  it: Elenca calendari
+  tr: Takvimleri listele
+  vi: Liệt kê lịch
+  id: Daftar kalender
+  pl: Lista kalendarzy
+  nl: Agenda's weergeven
+  ar: عرض التقويمات
+  hi: कैलेंडर सूची
+  th: แสดงรายการปฏิทิน
+  cs: Seznam kalendářů
+  sv: Lista kalendrar
+  he: רשימת לוחות שנה
+list_calendars.description:
+  context: Description of connected calendar discovery
+  en: List calendars, timezones, and access roles in a connected account.
+  de: Liste Kalender, Zeitzonen und Zugriffsrollen eines verbundenen Kontos auf.
+  zh: 列出已连接账号中的日历、时区和访问角色。
+  es: Lista calendarios, zonas horarias y roles de acceso de una cuenta conectada.
+  fr: Liste les calendriers, fuseaux horaires et rôles d'accès d'un compte connecté.
+  pt: Lista calendários, fusos horários e funções de acesso de uma conta conectada.
+  ru: Список календарей, часовых поясов и прав доступа подключённого аккаунта.
+  ja: 接続済みアカウントのカレンダー、タイムゾーン、アクセス権を一覧表示します。
+  ko: 연결된 계정의 캘린더, 시간대 및 접근 권한을 나열합니다.
+  it: Elenca calendari, fusi orari e ruoli di accesso di un account collegato.
+  tr: Bağlı bir hesaptaki takvimleri, saat dilimlerini ve erişim rollerini listeler.
+  vi: Liệt kê lịch, múi giờ và quyền truy cập trong tài khoản đã kết nối.
+  id: Tampilkan kalender, zona waktu, dan peran akses dalam akun terhubung.
+  pl: Wyświetl kalendarze, strefy czasowe i uprawnienia połączonego konta.
+  nl: Bekijk agenda's, tijdzones en toegangsrollen van een gekoppeld account.
+  ar: اعرض التقويمات والمناطق الزمنية وأدوار الوصول في حساب متصل.
+  hi: जुड़े खाते के कैलेंडर, समय क्षेत्र और पहुँच भूमिकाएँ सूचीबद्ध करें।
+  th: แสดงปฏิทิน เขตเวลา และสิทธิ์การเข้าถึงในบัญชีที่เชื่อมต่อ
+  cs: Vypíše kalendáře, časová pásma a přístupová práva připojeného účtu.
+  sv: Lista kalendrar, tidszoner och åtkomstroller för ett anslutet konto.
+  he: הצגת לוחות שנה, אזורי זמן והרשאות גישה בחשבון מחובר.
 get_events:
   context: Skill name for searching connected calendar events
   en: Search
