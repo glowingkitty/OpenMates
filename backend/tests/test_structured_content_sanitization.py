@@ -118,6 +118,7 @@ async def test_full_search_batch_uses_compact_complete_decisions_without_retries
     units = [{"id": f"unit-{i}", "path": f"results[0].results[{i // 7}].snippet", "text": "Public pricing information."} for i in range(39)]
     async def provider(**kwargs):
         assert kwargs["allow_retries"] is False
+        assert "reasoning_effort" not in kwargs
         assert kwargs["tool_definition"]["function"]["parameters"]["properties"]["decisions"]["items"]["type"] == "array"
         return SimpleNamespace(error_message=None, arguments={"decisions": [[unit["id"], "safe"] for unit in units]})
     monkeypatch.setattr(scanner, "call_preprocessing_llm", provider)

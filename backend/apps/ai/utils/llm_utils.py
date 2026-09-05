@@ -935,8 +935,12 @@ async def call_preprocessing_llm(
     dynamic_context: Optional[Dict[str, Any]] = None,
     fallback_models: Optional[List[str]] = None,  # List of fallback model IDs to try if primary fails
     allow_retries: bool = True,
+    reasoning_effort: Optional[str] = None,
     observability_purpose: str = "preprocess",
 ) -> LLMPreprocessingCallResult:
+    if reasoning_effort not in {None, "low", "medium", "high"}:
+        raise ValueError("reasoning_effort must be one of: low, medium, high")
+
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
     current_tool_definition = copy.deepcopy(tool_definition)
@@ -1240,6 +1244,8 @@ async def call_preprocessing_llm(
                     }
                     if provider_prefix == "groq" and not allow_retries:
                         provider_request_kwargs["max_retries"] = 0
+                    if provider_prefix == "groq" and reasoning_effort:
+                        provider_request_kwargs["reasoning_effort"] = reasoning_effort
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
                         timeout=PREPROCESSING_TIMEOUT_SECONDS

@@ -136,3 +136,92 @@ async def test_call_preprocessing_llm_disables_groq_sdk_retries(monkeypatch: pyt
 
     assert retry_options == [0]
     assert result.error_message == "Client call failed for preprocessing: Request timeout after 25s"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_call_preprocessing_llm_forwards_reasoning_effort_only_to_groq(monkeypatch: pytest.MonkeyPatch) -> None:
+    reasoning_efforts: list[str | None] = []
+
+    async def groq_provider(*, reasoning_effort: str | None = None, **_kwargs):
+        reasoning_efforts.append(reasoning_effort)
+        return UnifiedOpenAIResponse(
+            task_id="test",
+            model_id="model",
+            success=False,
+            error_message="Request timeout after 25s",
+        )
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider_prefix: groq_provider if provider_prefix == "groq" else None)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id: (None, None))
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+
+    await llm_utils.call_preprocessing_llm(
+        task_id="test",
+        model_id="groq/model",
+        message_history=[{"role": "user", "content": "classify this"}],
+        tool_definition=_tool_definition(),
+        allow_retries=False,
+        reasoning_effort="low",
+    )
+
+    assert reasoning_efforts == ["low"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_call_preprocessing_llm_keeps_reasoning_effort_out_of_other_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def primary_provider(**kwargs):
+        assert "reasoning_effort" not in kwargs
+        return UnifiedOpenAIResponse(
+            task_id="test",
+            model_id="model",
+            success=False,
+            error_message="Request timeout after 25s",
+        )
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider_prefix: primary_provider if provider_prefix == "primary" else None)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id: (None, None))
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="test",
+        model_id="primary/model",
+        message_history=[{"role": "user", "content": "classify this"}],
+        tool_definition=_tool_definition(),
+        allow_retries=False,
+        reasoning_effort="low",
+    )
+
+    assert result.error_message == "Client call failed for preprocessing: Request timeout after 25s"
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_call_preprocessing_llm_rejects_invalid_reasoning_effort_before_provider_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        llm_utils,
+        "_get_provider_client",
+        lambda _provider_prefix: (_ for _ in ()).throw(AssertionError("invalid reasoning effort must not reach a provider")),
+    )
+
+    with pytest.raises(ValueError, match="reasoning_effort"):
+        await llm_utils.call_preprocessing_llm(
+            task_id="test",
+            model_id="groq/model",
+            message_history=[{"role": "user", "content": "classify this"}],
+            tool_definition=_tool_definition(),
+            reasoning_effort="minimal",
+        )

@@ -30,6 +30,7 @@ _groq_api_key: Optional[str] = None
 
 # Groq API base URL (default, can be overridden)
 GROQ_API_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_REASONING_EFFORTS = {"low", "medium", "high"}
 
 
 async def initialize_groq_client(secrets_manager: SecretsManager) -> None:
@@ -128,6 +129,7 @@ async def _invoke_groq_direct_api(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     max_retries: Optional[int] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invoke Groq API directly using AsyncGroq SDK.
@@ -142,10 +144,14 @@ async def _invoke_groq_direct_api(
         tool_choice: Tool choice strategy ("auto", "none", "required", or specific tool)
         stream: Whether to stream the response
         max_retries: Optional SDK retry limit for this request
+        reasoning_effort: Optional GPT-OSS reasoning effort
         
     Returns:
         UnifiedOpenAIResponse for non-streaming, or AsyncIterator for streaming
     """
+    if reasoning_effort is not None and reasoning_effort not in GROQ_REASONING_EFFORTS:
+        raise ValueError("reasoning_effort must be one of: low, medium, high")
+
     if not _groq_direct_client:
         error_msg = "Groq client not initialized"
         logger.error(f"[{task_id}] {error_msg}")
@@ -168,6 +174,8 @@ async def _invoke_groq_direct_api(
         
         if max_tokens is not None:
             request_params["max_tokens"] = max_tokens
+        if reasoning_effort is not None:
+            request_params["reasoning_effort"] = reasoning_effort
         
         # Handle tools and tool_choice
         if tools:
@@ -400,6 +408,7 @@ async def invoke_groq_chat_completions(
     tool_choice: Optional[str] = None,
     stream: bool = False,
     max_retries: Optional[int] = None,
+    reasoning_effort: Optional[str] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Main entry point for Groq chat completions.
@@ -417,10 +426,14 @@ async def invoke_groq_chat_completions(
         tool_choice: Tool choice strategy ("auto", "none", "required", or specific tool)
         stream: Whether to stream the response
         max_retries: Optional SDK retry limit for this request
+        reasoning_effort: Optional GPT-OSS reasoning effort
         
     Returns:
         UnifiedOpenAIResponse for non-streaming, or AsyncIterator for streaming
     """
+    if reasoning_effort is not None and reasoning_effort not in GROQ_REASONING_EFFORTS:
+        raise ValueError("reasoning_effort must be one of: low, medium, high")
+
     if secrets_manager and not _groq_client_initialized:
         await initialize_groq_client(secrets_manager)
 
@@ -446,4 +459,5 @@ async def invoke_groq_chat_completions(
         tool_choice=tool_choice,
         stream=stream,
         max_retries=max_retries,
+        reasoning_effort=reasoning_effort,
     )

@@ -283,3 +283,62 @@ async def test_web_read_uses_its_declared_long_document_scan_budget(monkeypatch:
     assert app_skill_output_safety._semantic_scan_timeout(
         AppSkillOutputSafetyContext("web", "read", APP_SKILL_SURFACE_ASSISTANT, {}, True)
     ) == 30.0
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.single-boundary
+@pytest.mark.anyio
+async def test_dispatch_scope_does_not_outlive_its_owner_in_child_task():
+    resume = asyncio.Event()
+
+    async def child():
+        await resume.wait()
+        return app_skill_output_safety.is_central_app_skill_dispatch()
+
+    assert not app_skill_output_safety.is_central_app_skill_dispatch()
+    with app_skill_output_safety.central_app_skill_dispatch():
+        assert app_skill_output_safety.is_central_app_skill_dispatch()
+        with app_skill_output_safety.central_app_skill_dispatch():
+            assert app_skill_output_safety.is_central_app_skill_dispatch()
+        assert app_skill_output_safety.is_central_app_skill_dispatch()
+        pending = asyncio.create_task(child())
+    resume.set()
+    assert not await pending
+    assert not app_skill_output_safety.is_central_app_skill_dispatch()
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_provider_error_logs_do_not_include_external_content(monkeypatch, caplog):
+    private_provider_text = "fixture-private-provider-response"
+
+    async def failed(**kwargs):
+        raise RuntimeError(private_provider_text)
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", failed)
+    with pytest.raises(RuntimeError, match="^OUTPUT_SAFETY_UNAVAILABLE$"):
+        await sanitize_app_skill_output(
+            {"description": "public text"},
+            AppSkillOutputSafetyContext("web", "search", APP_SKILL_SURFACE_REST, {}, True),
+        )
+    assert private_provider_text not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_scan_deadline_cancels_inflight_work(monkeypatch):
+    cancelled = asyncio.Event()
+
+    async def pending(**kwargs):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", pending)
+    monkeypatch.setattr(app_skill_output_safety, "WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS", 0.001)
+    with pytest.raises(RuntimeError, match="^OUTPUT_SAFETY_TIMEOUT$"):
+        await sanitize_app_skill_output(
+            {"description": "public text"},
+            AppSkillOutputSafetyContext("web", "search", APP_SKILL_SURFACE_REST, {}, True),
+        )
+    assert cancelled.is_set()

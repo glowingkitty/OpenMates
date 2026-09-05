@@ -41,7 +41,12 @@ PROMPT_INJECTION_PROTECTION_FIELD = "prompt_injection_protection"
 IGNORE_FIELDS_FOR_INFERENCE_FIELD = "ignore_fields_for_inference"
 
 OPENMATES_PROVIDER_NAME = "openmates"
-_central_dispatch_active: ContextVar[bool] = ContextVar("app_skill_output_safety_dispatch", default=False)
+@dataclass
+class _DispatchScope:
+    active: bool = True
+
+
+_central_dispatch_active: ContextVar[Optional[_DispatchScope]] = ContextVar("app_skill_output_safety_dispatch", default=None)
 
 ALWAYS_EXTERNAL_DATA_SKILLS: set[tuple[str, str]] = {
     ("audio", "transcribe"),
@@ -124,16 +129,20 @@ async def sanitize_long_text_fields_in_payload(*args: Any, **kwargs: Any) -> Any
 @contextmanager
 def central_app_skill_dispatch() -> Any:
     """Mark a trusted dispatcher so a skill can defer its local output scan."""
-    token = _central_dispatch_active.set(True)
+    scope = _DispatchScope()
+    token = _central_dispatch_active.set(scope)
     try:
         yield
     finally:
+        # Child tasks inherit the object, so revoke their deferral permission too.
+        scope.active = False
         _central_dispatch_active.reset(token)
 
 
 def is_central_app_skill_dispatch() -> bool:
     """Return whether a trusted dispatcher will scan the complete raw result."""
-    return _central_dispatch_active.get()
+    scope = _central_dispatch_active.get()
+    return scope is not None and scope.active
 
 
 def strip_request_security_controls(request_body: Any) -> Any:
@@ -233,14 +242,13 @@ async def sanitize_app_skill_output(
         logger.error("%sPrompt-injection protection timed out", log_prefix)
         raise RuntimeError("OUTPUT_SAFETY_TIMEOUT") from exc
     except Exception as exc:
+        error_code = str(exc) if str(exc) in OUTPUT_SAFETY_ERROR_CODES else "OUTPUT_SAFETY_UNAVAILABLE"
         logger.error(
             "%sPrompt-injection protection failed for app-skill output; failing closed: %s",
             log_prefix,
-            exc,
-            exc_info=True,
+            error_code,
         )
-        error_code = str(exc) if str(exc) in OUTPUT_SAFETY_ERROR_CODES else "OUTPUT_SAFETY_UNAVAILABLE"
-        raise RuntimeError(error_code) from exc
+        raise RuntimeError(error_code) from None
 
 
 def _semantic_scan_timeout(context: AppSkillOutputSafetyContext) -> float:

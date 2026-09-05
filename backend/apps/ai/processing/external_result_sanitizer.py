@@ -12,7 +12,11 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+from backend.core.api.app.utils.text_sanitization import (
+    PAYLOAD_SANITIZER_SKIP_FIELD_NAMES,
+    _should_skip_payload_text_field,
+    sanitize_text_for_ascii_smuggling,
+)
 from backend.shared.python_utils.structured_content_sanitization import (
     MAX_UNIT_CHARS,
     StructuredScanError,
@@ -78,6 +82,8 @@ def _should_sanitize_field(
     skip_field_names: Optional[set[str]] = None,
 ) -> bool:
     key_name = _key_name_for_path(path)
+    if _should_skip_payload_text_field(path, text, PAYLOAD_SANITIZER_SKIP_FIELD_NAMES):
+        return False
     if key_name in SKIP_FIELD_NAMES or (skip_field_names and key_name in skip_field_names):
         return False
     value = text.strip()
@@ -100,10 +106,10 @@ def _should_sanitize_field_with_overrides(
     skip_field_names: Optional[set[str]] = None,
 ) -> bool:
     key_name = _key_name_for_path(path)
+    if _should_skip_payload_text_field(path, text, PAYLOAD_SANITIZER_SKIP_FIELD_NAMES):
+        return False
     value = text.strip()
     if not value or key_name in SKIP_FIELD_NAMES or (skip_field_names and key_name in skip_field_names):
-        return False
-    if value.startswith("http://") or value.startswith("https://"):
         return False
     if always_sanitize_field_names and key_name in always_sanitize_field_names:
         return True
@@ -277,11 +283,9 @@ async def sanitize_long_text_fields_in_payload(
     """
     Sanitize long external text fields in a nested payload.
 
-    This helper scans nested dict/list payloads for long text values. Safe fields
-    share target-sized semantic scans; an individual long field remains intact
-    and is chunked by `sanitize_external_content`. Changed batches fall back to
-    field-level scans so redaction behavior remains isolated. It fails closed if
-    any scan fails or gets blocked.
+    Selected fields share bounded structured scans. Complete decisions are
+    validated before applying whole-unit replacements to a copy of the payload;
+    any failed batch cancels unfinished work and leaves the input unchanged.
     """
     candidates: List[Tuple[str, str]] = []
     normalized_skip = {field.lower() for field in skip_field_names or set()}
