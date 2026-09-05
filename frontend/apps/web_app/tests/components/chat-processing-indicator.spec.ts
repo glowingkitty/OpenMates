@@ -88,6 +88,8 @@ test.describe('ChatProcessingIndicator component preview', () => {
             await expect(indicator.getByTestId('chat-processing-mate-name')).toHaveCount(0);
         });
         await proof.checkpoint('selection-text-only');
+        // Preserve actual recorded frames for this state before navigating away.
+        await page.waitForTimeout(CHAT_PROCESSING_INDICATOR_PROOF.tutorial.minimumHoldMs);
 
         const selectedMateParams = new URLSearchParams({
             theme: 'light',
@@ -119,6 +121,7 @@ test.describe('ChatProcessingIndicator component preview', () => {
             await expect(mateName).toHaveText('George');
         });
         await proof.checkpoint('selected-mate-visible');
+        await page.waitForTimeout(CHAT_PROCESSING_INDICATOR_PROOF.tutorial.minimumHoldMs);
 
         const mateName = indicator.getByTestId('chat-processing-mate-name');
         await proof.action('focus-selected-mate', async () => {
@@ -144,6 +147,7 @@ test.describe('ChatProcessingIndicator component preview', () => {
             await expect(indicator).toBeVisible();
         });
         await proof.checkpoint('selected-mate-accessible');
+        await page.waitForTimeout(CHAT_PROCESSING_INDICATOR_PROOF.tutorial.minimumHoldMs);
 
         await mateName.press('Enter');
         await expect.poll(() => page.evaluate(() =>
