@@ -5,7 +5,7 @@
 # architecture: confidential code exchange on backend, one-time handoff to
 # browser, then client-side encrypted connected-account row storage.
 #
-# Spec: docs/specs/calendar-permission-management/spec.yml
+# Specification: feature.app-skills.calendar@3 and architecture.connected-accounts@2
 
 from __future__ import annotations
 
@@ -93,6 +93,7 @@ def make_client(cache: FakeCache, encryption: FakeEncryption | None = None):
     return TestClient(app), route
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.connection.scopes
 def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
     monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
     monkeypatch.setenv("GOOGLE_CALENDAR_OAUTH_REDIRECT_URI", "https://api.dev.openmates.org/v1/provider-oauth/google/calendar/callback")
@@ -128,6 +129,7 @@ def test_google_calendar_start_uses_minimal_read_scope(monkeypatch) -> None:
     assert cache.values[state_key]["webapp_url"] == "https://app.dev.openmates.org"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 @pytest.mark.anyio
 async def test_google_oauth_credentials_resolve_from_vault(monkeypatch) -> None:
     from backend.shared.providers.google_calendar.oauth import get_google_oauth_credentials
@@ -145,6 +147,7 @@ async def test_google_oauth_credentials_resolve_from_vault(monkeypatch) -> None:
     )
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 @pytest.mark.anyio
 async def test_google_oauth_credentials_ignore_env_values(monkeypatch) -> None:
     from backend.shared.providers.google_calendar.oauth import get_google_oauth_credentials
@@ -164,6 +167,7 @@ async def test_google_oauth_credentials_ignore_env_values(monkeypatch) -> None:
     )
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.lifecycle.reconnect-revoke
 @pytest.mark.anyio
 async def test_google_refresh_token_exchange_maps_provider_error(monkeypatch, caplog) -> None:
     from backend.shared.providers.google_calendar import oauth
@@ -209,7 +213,8 @@ async def test_google_refresh_token_exchange_maps_provider_error(monkeypatch, ca
     assert "secret-refresh-token" not in caplog.text
 
 
-def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch) -> None:
+# contract-test: supporting surface=rest_api assertions=calendar.connection.scopes
+def test_google_calendar_start_uses_events_and_discovery_scopes_for_write_or_delete(monkeypatch) -> None:
     cache = FakeCache()
     client, route = make_client(cache)
 
@@ -224,9 +229,47 @@ def test_google_calendar_start_uses_events_scope_for_write_or_delete(monkeypatch
     )
 
     assert response.status_code == 200
-    assert response.json()["scopes"] == [route.CALENDAR_EVENTS_SCOPE]
+    assert set(response.json()["scopes"]) == {
+        route.CALENDAR_EVENTS_SCOPE,
+        "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+    }
 
 
+# contract-test: supporting surface=rest_api assertions=calendar.creation.explicit-secondary,calendar.connection.scopes
+@pytest.mark.parametrize("capabilities", [["create_calendar"], ["read", "write", "create_calendar"]])
+def test_google_calendar_creation_uses_incremental_app_created_scope(monkeypatch, capabilities) -> None:
+    cache = FakeCache()
+    client, route = make_client(cache)
+
+    async def fake_get_google_oauth_credentials():
+        return "vault-client-id", "vault-client-secret"
+
+    monkeypatch.setattr(route, "get_google_oauth_credentials", fake_get_google_oauth_credentials)
+    response = client.post(
+        "/v1/provider-oauth/google/calendar/start",
+        json={"capabilities": capabilities},
+    )
+
+    assert response.status_code == 200
+    scopes = response.json()["scopes"]
+    assert "https://www.googleapis.com/auth/calendar.app.created" in scopes
+    assert "https://www.googleapis.com/auth/calendar.calendarlist.readonly" in scopes
+    assert "https://www.googleapis.com/auth/calendar" not in scopes
+    assert "https://www.googleapis.com/auth/calendar.calendars" not in scopes
+    params = parse_qs(urlparse(response.json()["authorization_url"]).query)
+    assert params["include_granted_scopes"] == ["true"]
+
+
+# contract-test: supporting surface=rest_api assertions=calendar.creation.explicit-secondary
+@pytest.mark.parametrize("capabilities", [["read"], ["write"], ["delete"], ["read", "write", "delete"]])
+def test_google_calendar_event_capabilities_do_not_grant_calendar_creation(capabilities) -> None:
+    route = import_route_module()
+    scopes = route.google_calendar_scopes_for_capabilities(capabilities)
+    assert "https://www.googleapis.com/auth/calendar.app.created" not in scopes
+    assert "https://www.googleapis.com/auth/calendar.calendars" not in scopes
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 def test_google_calendar_start_uses_custom_webapp_origin_for_self_host(monkeypatch) -> None:
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
@@ -250,6 +293,7 @@ def test_google_calendar_start_uses_custom_webapp_origin_for_self_host(monkeypat
     assert cache.values[route._state_key(state)]["webapp_url"] == "https://chat.example.test"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 def test_google_calendar_start_uses_openmates_org_for_production_without_origin(monkeypatch) -> None:
     monkeypatch.setenv("SERVER_ENVIRONMENT", "production")
     monkeypatch.delenv("PRODUCTION_URL", raising=False)
@@ -272,6 +316,7 @@ def test_google_calendar_start_uses_openmates_org_for_production_without_origin(
     assert cache.values[route._state_key(state)]["webapp_url"] == "https://openmates.org"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 @pytest.mark.anyio
 async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(monkeypatch) -> None:
     monkeypatch.setenv("WEBAPP_URL", "http://localhost:5173")
@@ -322,6 +367,7 @@ async def test_google_calendar_callback_creates_encrypted_handoff_and_redirects(
     assert "secret-refresh-token" not in str(cached_handoff)
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable
 def test_google_calendar_callback_rejects_owner_mismatch(monkeypatch) -> None:
     cache = FakeCache()
     client, route = make_client(cache)

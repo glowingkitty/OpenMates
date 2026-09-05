@@ -36,6 +36,8 @@ GOOGLE_CALENDAR_STATE_PREFIX = "connected_account:oauth_state:google_calendar:"
 GOOGLE_CALENDAR_STATE_TTL_SECONDS = 10 * 60
 CALENDAR_READ_SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
 CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events"
+CALENDAR_LIST_READ_SCOPE = "https://www.googleapis.com/auth/calendar.calendarlist.readonly"
+CALENDAR_APP_CREATED_SCOPE = "https://www.googleapis.com/auth/calendar.app.created"
 DEFAULT_DEV_WEBAPP_URL = "https://app.dev.openmates.org"
 DEFAULT_PROD_WEBAPP_URL = "https://openmates.org"
 
@@ -124,14 +126,20 @@ def _append_handoff_query(base_url: str, return_path: str, handoff_id: str) -> s
 
 def google_calendar_scopes_for_capabilities(capabilities: list[str]) -> list[str]:
     normalized = {capability.strip().lower() for capability in capabilities}
-    unsupported = normalized - {"read", "write", "delete"}
+    unsupported = normalized - {"read", "write", "delete", "create_calendar"}
     if unsupported:
         raise ValueError("unsupported Google Calendar capability: " + ", ".join(sorted(unsupported)))
+    if not normalized:
+        raise ValueError("at least one Calendar capability is required")
     if "write" in normalized or "delete" in normalized:
-        return [CALENDAR_EVENTS_SCOPE]
-    if "read" in normalized:
-        return [CALENDAR_READ_SCOPE]
-    raise ValueError("at least one Calendar capability is required")
+        scopes = [CALENDAR_EVENTS_SCOPE, CALENDAR_LIST_READ_SCOPE]
+    elif "read" in normalized:
+        scopes = [CALENDAR_READ_SCOPE]
+    else:
+        scopes = [CALENDAR_LIST_READ_SCOPE]
+    if "create_calendar" in normalized:
+        scopes.append(CALENDAR_APP_CREATED_SCOPE)
+    return scopes
 
 
 @router.post("/start", response_model=GoogleCalendarOAuthStartResponse)

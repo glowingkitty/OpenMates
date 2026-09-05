@@ -75,6 +75,7 @@ def epoch_one_cutover(monkeypatch):
     monkeypatch.setattr(sdk, "ChatRecoveryCutoverController", EpochOneCutover)
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
 @pytest.mark.asyncio
 async def test_claim_and_persist_reauthenticate_and_exclude_plaintext(monkeypatch):
     authenticate = AsyncMock(side_effect=[_auth(), _auth()])
@@ -107,6 +108,7 @@ async def test_claim_and_persist_reauthenticate_and_exclude_plaintext(monkeypatc
     assert persist_data["encrypted_assistant_message"]["encrypted_content"] == "ciphertext"
 
 
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 @pytest.mark.asyncio
 async def test_api_key_or_device_revocation_between_claim_and_persist_is_rejected(monkeypatch):
     authenticate = AsyncMock(side_effect=[_auth(), HTTPException(status_code=401, detail="revoked")])
@@ -130,6 +132,7 @@ async def test_api_key_or_device_revocation_between_claim_and_persist_is_rejecte
     assert execute.await_count == 1
 
 
+# contract-test: supporting surface=rest_api assertions=sdk.auth.approved-api-key-device
 @pytest.mark.asyncio
 async def test_claim_rejects_missing_saved_chat_scope(monkeypatch):
     restricted = _auth() | {"api_key_metadata": {"full_access": False, "scopes": {"chats": []}}}
@@ -143,6 +146,7 @@ async def test_claim_rejects_missing_saved_chat_scope(monkeypatch):
     execute.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_create_rejects_encrypted_row_and_inference_identity_mismatch(monkeypatch):
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
@@ -166,6 +170,7 @@ async def test_create_rejects_encrypted_row_and_inference_identity_mismatch(monk
     assert exc.value.detail["error"] == "encrypted_user_message_identity_mismatch"
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced
 @pytest.mark.asyncio
 async def test_create_saved_chat_requires_authoritative_epoch_one_before_preflight(monkeypatch):
     class EpochZeroCutover:
@@ -205,6 +210,7 @@ async def test_create_saved_chat_requires_authoritative_epoch_one_before_preflig
     execute.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_persist_rejects_assistant_row_identity_mismatch(monkeypatch):
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
@@ -225,6 +231,7 @@ async def test_persist_rejects_assistant_row_identity_mismatch(monkeypatch):
     execute.assert_not_awaited()
 
 
+# contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.asyncio
 async def test_create_dispatches_only_canonical_inference_values_with_stable_auth_identity(monkeypatch):
     registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"task_id": TASK_ID}))
@@ -299,6 +306,7 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
     assert "inference_request" not in dispatch
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch):
     async def run_test():
         with pytest.raises(HTTPException) as exc:
@@ -360,6 +368,7 @@ def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch)
     }
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.asyncio
 async def test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch(monkeypatch):
     from backend.apps.ai.processing import connected_account_execution
@@ -426,6 +435,7 @@ async def test_sdk_connected_account_skill_endpoint_brokers_refs_before_dispatch
     assert dispatched["input_data"]["security"] == {"prompt_injection_protection": "disabled"}
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.asyncio
 async def test_sdk_connected_account_skill_maps_provider_token_exchange_failure(monkeypatch):
     from backend.apps.ai.processing import connected_account_execution
@@ -469,6 +479,61 @@ async def test_sdk_connected_account_skill_maps_provider_token_exchange_failure(
     }
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
+@pytest.mark.asyncio
+@pytest.mark.parametrize("items", [[], [None], ["invalid"]])
+async def test_connected_skill_validates_requests_before_creating_token_refs(monkeypatch, items):
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    apps_api_module = ModuleType("backend.core.api.app.routes.apps_api")
+    apps_api_module.call_app_skill = AsyncMock()
+    monkeypatch.setitem(sys.modules, apps_api_module.__name__, apps_api_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    create_ref = AsyncMock()
+    monkeypatch.setattr(TokenBrokerService, "create_turn_token_ref", create_ref)
+    with pytest.raises(HTTPException) as exc_info:
+        await sdk.run_sdk_connected_account_skill(
+            _connected_account_request(), "finance", "check_accounts",
+            sdk.SdkConnectedAccountSkillRunRequest(
+                input={"connected_account_requests": items},
+                connected_account_token_ref_inputs=[{"connected_account_id": "acct-1"}],
+            ),
+        )
+    assert exc_info.value.status_code == 400
+    create_ref.assert_not_awaited()
+    apps_api_module.call_app_skill.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
+@pytest.mark.asyncio
+async def test_connected_skill_cleans_first_ref_when_second_ref_creation_fails(monkeypatch):
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    apps_api_module = ModuleType("backend.core.api.app.routes.apps_api")
+    apps_api_module.call_app_skill = AsyncMock()
+    monkeypatch.setitem(sys.modules, apps_api_module.__name__, apps_api_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(TokenBrokerService, "create_turn_token_ref", AsyncMock(side_effect=[
+        SimpleNamespace(turn_token_ref="synthetic-ref"), ValueError("invalid envelope"),
+    ]))
+    cleanup = AsyncMock()
+    monkeypatch.setattr(TokenBrokerService, "delete_turn_artifacts", cleanup)
+    with pytest.raises(HTTPException) as exc_info:
+        await sdk.run_sdk_connected_account_skill(
+            _connected_account_request(), "finance", "check_accounts",
+            sdk.SdkConnectedAccountSkillRunRequest(
+                input={"connected_account_requests": [{"source_ref": "one"}, {"source_ref": "two"}]},
+                connected_account_token_ref_inputs=[
+                    {"connected_account_id": "acct-1"}, {"connected_account_id": "acct-2"},
+                ],
+            ),
+        )
+    assert exc_info.value.status_code == 400
+    cleanup.assert_awaited_once_with(turn_token_ref="synthetic-ref")
+    apps_api_module.call_app_skill.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.asyncio
 async def test_connected_account_cleanup_does_not_require_provider_exchange() -> None:
     from backend.apps.ai.processing.connected_account_execution import cleanup_connected_account_token_artifacts
@@ -486,6 +551,7 @@ async def test_connected_account_cleanup_does_not_require_provider_exchange() ->
     )
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.asyncio
 async def test_sdk_chat_route_converts_connected_account_inputs_to_safe_token_refs(monkeypatch):
     registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"response": {"content": "ok"}}))

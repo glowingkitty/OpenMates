@@ -1,0 +1,120 @@
+schema_version: 1
+specification: feature.app-skills.calendar@3
+connection:
+  - id: read-write-discovery
+    given: {selected_capabilities: [read, write, delete]}
+    expect: {calendar_list_scope: true, event_mutation_scope: true, calendar_management_scope: false}
+  - id: old-event-only-grant
+    given: {granted_scopes: [calendar.events]}
+    action: list_calendars
+    expect: {reconnect_required: true, empty_success: false}
+discovery:
+  - id: duplicate-label
+    given: {matching_calendar_labels: 2, explicit_calendar_id: null}
+    expect: {selection_required: true, write_to_primary: false}
+  - id: hidden-second-page-calendar
+    given: {target_hidden: true, target_page: 2}
+    expect: {hidden_option_available: true, continuation_available: true, target_selectable_by_id: true}
+creation:
+  - id: create-isolated-secondary-calendar
+    given: {selected_account_confirmed: true, creation_capability: true, name: OpenMates Calendar Tests, timezone: UTC}
+    action: approve_then_cli_create_calendar
+    expect: {secondary_calendar: true, owner: selected_google_user, provider_confirmed_id: true, discoverable: true, primary_changed: false, sharing_added: false}
+  - id: event-write-is-not-calendar-create
+    given: {capabilities: [read, write, delete], granted_scopes: [calendar.events]}
+    action: create_calendar
+    expect: {additional_capability_and_consent_required: true, provider_create_called: false, broad_calendar_scope_requested: false}
+  - id: concurrent-duplicate-create
+    given: {same_operation_identity: true, concurrent_submissions: 2}
+    expect: {provider_creates_at_most_one_in_flight: true, result_identity_reused: true}
+  - id: ambiguous-create-timeout
+    given: {provider_response: timeout, same_name_calendars: 2, creation_identity_unresolved: true}
+    expect: {blind_retry: false, name_only_adoption: false, review_required: true, success_claimed: false}
+  - id: invalid-timezone
+    given: {name: OpenMates Calendar Tests, timezone: Not_A_Timezone}
+    expect: {validation_error: true, provider_create_called: false}
+reads:
+  - id: search-bounded-and-paged
+    given: {query: planning, interval_days: 14, provider_pages: 2}
+    expect: {selected_calendar_only: true, next_page_explicit: true, silently_truncated: false}
+  - id: freebusy-with-unavailable-calendar
+    given: {calendars: [available_source, inaccessible_source]}
+    expect: {inaccessible_source_reported: true, unknown_treated_as_free: false, descriptions_fetched: false}
+time:
+  - id: all-day-exclusive-end
+    given: {start_date: '2026-10-06', end_date: '2026-10-07'}
+    expect: {all_day_days: 1, timezone_date_shift: false}
+  - id: ambiguous-dst-time
+    given: {local_start: '2026-10-25T02:30:00', timezone: Europe/Berlin, explicit_offset: null}
+    expect: {disambiguation_required: true, provider_mutation: false}
+  - id: recurring-occurrence-only
+    given: {event: weekly_series, mutation_scope: occurrence, occurrence_id: synthetic_occurrence}
+    action: update_event
+    expect: {other_occurrences_changed: false, approval_shows_occurrence: true}
+  - id: unsupported-series-split
+    given: {mutation_scope: this_and_following}
+    expect: {unsupported_error: true, whole_series_changed: false}
+mutations:
+  - id: patch-preserves-and-clears
+    given: {existing_location: room, existing_description: notes, update: {description: ''}}
+    expect: {location: room, description_cleared: true, omitted_times_preserved: true}
+  - id: concurrent-edit
+    given: {approved_version: v1, current_provider_version: v2}
+    action: update_event
+    expect: {conflict: true, v2_overwritten: false}
+  - id: create-timeout-reconciliation
+    given: {provider_created_event: true, response_lost: true, retry_operation_key: same}
+    expect: {duplicate_event_created: false, reconcile_before_retry: true}
+  - id: unsafe-undo
+    given: {event_changed_after_original_mutation: true}
+    action: undo
+    expect: {newer_change_overwritten: false, conflict_visible: true}
+external_effects:
+  - id: attendee-free-reminder
+    given: {attendees: [], notification_policy: none, reminder: {method: popup, minutes: 30}}
+    expect: {attendees_invited: false, reminder_explicit: true}
+  - id: omitted-attendees
+    given: {existing_attendees: [synthetic_recipient], update: {title: New title}}
+    expect: {attendees_removed: false, potential_notification_effect_disclosed: true}
+surfaces:
+  - id: typed-cli-not-generic-rest
+    action: run_openmates_apps_calendar_search_events
+    expect: {registered_skill: true, first_party_auth: true, structured_result: true, direct_google_workaround: false}
+  - id: sdk-equivalence
+    given: {surfaces: [cli, npm, pip], same_input: true}
+    expect: {same_permissions_results_and_errors: true}
+workflows:
+  - id: offline-read-and-preapproved-write
+    given: {calendar_id: synthetic_calendar, bounded_read_write_grant: true, authorizing_clients_connected: false, attendees: []}
+    action: scheduled_calendar_skills
+    expect: {real_provider_read: true, synthetic_event_created_once: true, client_token_required_at_run_time: false, effects_verified_after_reconnect: true, exact_cleanup: true}
+  - id: read-only-workflow-cannot-write
+    given: {grant_actions: [read]}
+    action: workflow_create_event
+    expect: {provider_mutation: false, expanded_access_review_required: true}
+  - id: approval-wait-with-intervening-edit
+    given: {event_version_at_review: v1, event_version_at_resume: v2}
+    action: approve_pending_workflow_update
+    expect: {v2_overwritten: false, conflict_reported: true}
+  - id: created-calendar-not-implicitly-granted
+    given: {calendar_creation_grant: true, created_calendar_id: new_synthetic_calendar}
+    action: workflow_write_event_to_new_calendar_without_resource_grant
+    expect: {provider_event_mutation: false, resource_authorization_required: true}
+live_verification:
+  - id: isolated-crud-proof
+    given: {runtime_test_account_authorized: true, dedicated_test_calendar_confirmed: true, unique_synthetic_label: true}
+    action: cli_discover_search_create_read_update_read_delete_verify_absence
+    expect: {cleanup_verified: true, unrelated_events_changed: false, attendees_invited: false, private_data_in_proof: false}
+  - id: reuse-test-calendar-clean-only-owned-events
+    given: {recorded_test_calendar_id: synthetic_calendar, previous_test_events: [synthetic_event], unrelated_event: unrelated}
+    action: repeat_test_run_and_cleanup
+    expect: {new_calendar_created: false, unrelated_event_deleted: false, synthetic_event_cleanup_verified: true, empty_test_calendar_retention_disclosed: true}
+  - id: same-name-calendar-without-provenance
+    given: {matching_test_calendar_name: true, recorded_id: null}
+    expect: {automatic_adoption: false, confirmation_required: true}
+  - id: login-is-not-test-write-authorization
+    given: {cli_authenticated: true, live_test_authorization: false}
+    expect: {provider_mutation: false, setup_requirement_reported: true, live_check_passed: false}
+  - id: runtime-target-not-committed
+    given: {live_test_authorized: true, runtime_target_configured: true}
+    expect: {account_ids_in_committed_fixtures: false, credential_files_exported: false, real_product_execution: true}

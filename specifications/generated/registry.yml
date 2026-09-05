@@ -19,6 +19,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  architecture.connected-accounts:
+    version: 2
+    status: draft
+    path: architecture/connected-accounts
+    fingerprint: 28a286d72aaf0f946c32b48cf316fd9a92c94d64715cc10cbfad80a288b90186
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   architecture.daily-ai-test-inference:
     version: 2
     status: draft
@@ -144,6 +155,17 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skills.calendar:
+    version: 3
+    status: draft
+    path: features/app-skills/calendar
+    fingerprint: c8bdba5d383489ec4a1473023ba11d72c7638bbe64f78da72961639c9d8ec9c0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   feature.app-skill.code-run:
     version: 1
     status: draft
@@ -650,6 +672,105 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  connected-accounts.connection.client-surfaces:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: security
+    fingerprint: c6e99f271d7ef72171cf23ffb3d21ebb56d1d83baeab4d78c93da76de8b1d6bd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.connection.private-reusable:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: privacy
+    fingerprint: 3b361b891abc9f5df4ac1c06874905c69b8d8f32d1468059c8a072e9cf450e02
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.permissions.deterministic:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: security
+    fingerprint: 6907894ea84e65a60f204ce1cdda6540c9dd620c824543fa94c0ac381b7ce2c6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.execution.client-mediated:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: privacy
+    fingerprint: 7c774c4784e26b35e807c2d01e2d22fccee8fb72c8df813d0a42ab89dfa487f5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.lifecycle.reconnect-revoke:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: 41b697a8ea18a2baf3ceaa1d06925a3233efd401fc4c8ce06917c7fefab38e0c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.workflows.simple-consent:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: dbc514072688b281225d3cd79fd3cba26b8528ac89f5d5decdaf68ed50204018
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.workflows.server-boundary:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: privacy
+    fingerprint: b8687b4199e3ba91552926b4aaa92f95bda54c6cfec53c96f769e1d8d4f8293d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.workflows.changes-lifecycle:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: security
+    fingerprint: 025529b95c677ddc1688a578ebb81f027c2a7aa072ee7973c9a122a64be37915
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  connected-accounts.workflows.offline-verification:
+    specification: architecture.connected-accounts@2
+    specification_id: architecture.connected-accounts
+    type: behavior
+    fingerprint: 1963b775a4ff5162609e7859dc0fa15b606571545893b1bffac9f5c6fa557686
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   daily-ai-tests.replay.zero-paid-calls:
     specification: architecture.daily-ai-test-inference@2
     specification_id: architecture.daily-ai-test-inference
@@ -1863,6 +1984,116 @@ assertions:
     - sdks.pip
     - gui.web
     - gui.apple
+  calendar.connection.scopes:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: security
+    fingerprint: 142d8b1b91fbdcdaf67a49cbeb5f6a4f562df7bd426bd773beb9d7c010f437ab
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.discovery.target:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: behavior
+    fingerprint: b0b91eebe0be1e76a1813f435b88fc54c9c8a907b70ee09a4f7e1ddf2f883811
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.creation.explicit-secondary:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: security
+    fingerprint: 38148598052270d4e8a40b53b043253f17f967d99e4b9d799e9fd483b4fb5483
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.read.search-availability:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: behavior
+    fingerprint: 668244da3de3eb4e7483eee4e66a9919f25a8dbad1bc141c756871dafb438c9a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.events.time-and-recurrence:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: behavior
+    fingerprint: 30ba6f78bec75025b1e30d8c20c06f51d751b0c46ab4778853aabee87719f194
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.events.safe-mutations:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: security
+    fingerprint: 4884fa6cf7c0711d44a35f324d7af463bebd2bec9bf4ace3f557ab12e254b38c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.events.external-effects:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: security
+    fingerprint: f96766b135c348b0dc81308a89d8505aab5650c135cbd04ccfa8fc53e0e42db5
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.surface.skills:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: parity
+    fingerprint: 443222de8fa5a3455a9626784f2bdd484f34955d99bc463ef2e6cfbbeaf14c9c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.workflows.scoped-offline-execution:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: security
+    fingerprint: 549164bcc509e4ea3dffa0ea37d0be8af161c0ab5310fbb24ebdc3e82fa8ffd2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  calendar.verification.isolated-live-account:
+    specification: feature.app-skills.calendar@3
+    specification_id: feature.app-skills.calendar
+    type: behavior
+    fingerprint: 2f96a257eb3655dedbefb9c7f8965b351ec603b27015829a5bd4cef5b5933776
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
   code-run.request.validated:
     specification: feature.app-skill.code-run@1
     specification_id: feature.app-skill.code-run
