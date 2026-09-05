@@ -63,19 +63,16 @@ class FakeSecretsManager:
 
 
 def import_route_module():
-    sys.modules.setdefault(
-        "backend.core.api.app.services.directus",
-        SimpleNamespace(DirectusService=object),
-    )
-    sys.modules.setdefault(
-        "backend.core.api.app.services.directus.directus",
-        SimpleNamespace(DirectusService=object),
-    )
-    sys.modules.setdefault(
-        "backend.core.api.app.services.cache",
-        SimpleNamespace(CacheService=object),
-    )
-    from backend.core.api.app.routes import provider_oauth_google_calendar
+    # Keep lightweight dependency stubs local to this import, not later tests.
+    with pytest.MonkeyPatch.context() as patch:
+        for name, stub in {
+            "backend.core.api.app.services.directus": SimpleNamespace(DirectusService=object),
+            "backend.core.api.app.services.directus.directus": SimpleNamespace(DirectusService=object),
+            "backend.core.api.app.services.cache": SimpleNamespace(CacheService=object),
+        }.items():
+            if name not in sys.modules:
+                patch.setitem(sys.modules, name, stub)
+        from backend.core.api.app.routes import provider_oauth_google_calendar
 
     return provider_oauth_google_calendar
 
@@ -384,3 +381,61 @@ def test_google_calendar_callback_rejects_owner_mismatch(monkeypatch) -> None:
     )
 
     assert response.status_code == 403
+
+
+# contract-test: supporting surface=rest_api assertions=calendar.connection.scopes,connected-accounts.connection.private-reusable
+@pytest.mark.parametrize("granted_scope", ["https://www.googleapis.com/auth/calendar.events", "", None, ["invalid"]])
+def test_google_calendar_callback_rejects_incomplete_or_malformed_grant(monkeypatch, granted_scope) -> None:
+    cache = FakeCache()
+    client, route = make_client(cache)
+    cache.values[route._state_key("synthetic-state")] = {
+        "user_id": "user-1",
+        "capabilities": ["read", "write"],
+        "scopes": [route.CALENDAR_EVENTS_SCOPE, route.CALENDAR_LIST_READ_SCOPE],
+        "redirect_uri": "https://api.dev.openmates.org/oauth/google/calendar/callback",
+    }
+
+    async def exchange(**kwargs):
+        return {"refresh_token": "synthetic-secret", "scope": granted_scope}
+
+    monkeypatch.setattr(route, "exchange_google_authorization_code", exchange)
+    response = client.get(
+        "/v1/provider-oauth/google/calendar/callback?code=synthetic-code&state=synthetic-state",
+        follow_redirects=False,
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "google_calendar_missing_scope"
+    assert "synthetic-secret" not in response.text
+    assert not any(key.startswith("connected_account:oauth_handoff:") for key in cache.values)
+
+
+# contract-test: supporting surface=rest_api assertions=calendar.connection.scopes
+@pytest.mark.parametrize("omit_scope", [False, True])
+def test_google_calendar_callback_preserves_actual_granted_scopes(monkeypatch, omit_scope) -> None:
+    cache = FakeCache()
+    client, route = make_client(cache)
+    expected_scopes = [route.CALENDAR_EVENTS_SCOPE, route.CALENDAR_LIST_READ_SCOPE, route.CALENDAR_APP_CREATED_SCOPE]
+    cache.values[route._state_key("synthetic-state")] = {
+        "user_id": "user-1", "capabilities": ["write"],
+        "scopes": expected_scopes[:2],
+        "redirect_uri": "https://api.dev.openmates.org/oauth/google/calendar/callback",
+    }
+    captured = {}
+
+    async def exchange(**kwargs):
+        return {"refresh_token": "synthetic-secret"} if omit_scope else {"refresh_token": "synthetic-secret", "scope": " ".join(expected_scopes)}
+
+    async def handoff(self, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(handoff_id="synthetic-handoff")
+
+    monkeypatch.setattr(route, "exchange_google_authorization_code", exchange)
+    monkeypatch.setattr(route.ConnectedAccountOAuthHandoffService, "create_handoff", handoff)
+    response = client.get(
+        "/v1/provider-oauth/google/calendar/callback?code=synthetic-code&state=synthetic-state",
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert captured["refresh_token_bundle"]["scopes"] == (expected_scopes[:2] if omit_scope else expected_scopes)
+    assert captured["account_hint"]["scopes"] == (expected_scopes[:2] if omit_scope else expected_scopes)
+    assert captured["account_hint"]["capabilities"] == ["write"]

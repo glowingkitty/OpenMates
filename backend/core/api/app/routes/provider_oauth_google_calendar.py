@@ -230,6 +230,19 @@ async def google_calendar_oauth_callback(
     if not refresh_token:
         raise HTTPException(status_code=502, detail="Google OAuth did not return a refresh token")
 
+    requested_scopes = state_payload.get("scopes") or []
+    # OAuth permits scope omission only when the grant matches the request.
+    granted_scope = token_response.get("scope", " ".join(requested_scopes))
+    granted_scopes = list(dict.fromkeys(granted_scope.split())) if isinstance(granted_scope, str) else []
+    if not set(requested_scopes).issubset(granted_scopes) or not granted_scopes:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "google_calendar_missing_scope",
+                "message": "Required Calendar permissions were not granted. Reconnect and review Google consent.",
+            },
+        )
+
     vault_key_id = getattr(current_user, "vault_key_id", None)
     if not vault_key_id:
         raise HTTPException(status_code=403, detail="User vault key is required for OAuth handoff")
@@ -245,13 +258,13 @@ async def google_calendar_oauth_callback(
         refresh_token_bundle={
             "provider": "google_calendar",
             "refresh_token": refresh_token,
-            "scopes": state_payload.get("scopes") or [],
+            "scopes": granted_scopes,
             "token_type": token_response.get("token_type"),
         },
         account_hint={
             "provider_id": "google_calendar",
             "capabilities": state_payload.get("capabilities") or [],
-            "scopes": state_payload.get("scopes") or [],
+            "scopes": granted_scopes,
         },
     )
 
