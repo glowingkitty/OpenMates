@@ -52,6 +52,8 @@ REQUIRED_CORE_PHRASES = {
     "research routing guidance": (
         "openmates apps code get_docs",
         "openmates apps web search",
+        "openmates apps code search_repos",
+        "openmates apps events search",
         "native `webfetch`",
         "openmates apps web read",
         "do not use direct context7, brave search, or firecrawl mcp tools as a fallback",

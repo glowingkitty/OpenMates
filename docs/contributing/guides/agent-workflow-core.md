@@ -19,12 +19,19 @@ For current web and programming research, use the OpenMates app skills through
 the CLI for search and documentation. Use `web/search` for web search,
 `videos/search` for video discovery, `videos/get_transcript` for a specific
 YouTube transcript, and `code/get_docs` for current library, framework, API, or
-SDK documentation. When a specific webpage URL is already known, use OpenCode's
+SDK documentation. Use `code/search_repos` for public GitHub repository discovery
+by topic, language, framework, or project need; keep `rg` for searching local
+code. Use `events/search` for events, meetups, hackathons, conferences, workshops,
+or concerts. Include the requested location and date range when applicable,
+and do not duplicate the event query with web search.
+When a specific webpage URL is already known, use OpenCode's
 native `webfetch` first; if that webpage read fails or is insufficient, fall back
 to the OpenMates `web/read` skill through the CLI:
 
 ```bash
 openmates apps web search "query" --json
+openmates apps code search_repos "svelte markdown editor" --count 3 --json
+openmates apps events search "technology meetup" --location Berlin --json
 openmates apps web read https://example.com --json
 openmates apps videos search "topic" --json
 openmates apps videos get_transcript --url https://www.youtube.com/watch?v=VIDEO_ID --json
