@@ -2749,7 +2749,7 @@ describe("CLI self-update commands", () => {
   });
 
   it("prints branded npm update status in dry-run mode", () => {
-    const output = runCli(["update", "--dry-run"], {
+    const output = runCli(["update", "--channel", "stable", "--dry-run"], {
       npm_config_user_agent: "",
       OPENMATES_CLI_LATEST_VERSION: "99.0.0",
     });
