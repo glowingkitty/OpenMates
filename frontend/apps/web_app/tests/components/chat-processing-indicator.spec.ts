@@ -95,7 +95,9 @@ test.describe('ChatProcessingIndicator component preview', () => {
             width: PREVIEW_WIDTH,
             chrome: '0',
         });
-        await page.goto(`/dev/preview/ChatProcessingIndicator?${selectedMateParams}`, { waitUntil: 'networkidle' });
+        await proof.action('show-selected-mate', async () => {
+            await page.goto(`/dev/preview/ChatProcessingIndicator?${selectedMateParams}`, { waitUntil: 'networkidle' });
+        });
         await page.evaluate(() => {
             window.addEventListener('openmates-preview-mate-click', (event) => {
                 const detail = (event as CustomEvent<{ mateCategory: string }>).detail;
@@ -119,8 +121,10 @@ test.describe('ChatProcessingIndicator component preview', () => {
         await proof.checkpoint('selected-mate-visible');
 
         const mateName = indicator.getByTestId('chat-processing-mate-name');
-        await proof.action('hover-selected-mate', async () => mateName.hover());
-        await proof.action('focus-selected-mate', async () => mateName.focus());
+        await proof.action('focus-selected-mate', async () => {
+            await mateName.hover();
+            await mateName.focus();
+        });
         await expect(mateName).toBeFocused();
         await proof.assert('chat-processing-feedback.accessible-responsive', async () => {
             const [indicatorBox, avatarBox, badgeBox] = await Promise.all([
@@ -141,7 +145,7 @@ test.describe('ChatProcessingIndicator component preview', () => {
         });
         await proof.checkpoint('selected-mate-accessible');
 
-        await proof.action('activate-selected-mate', async () => mateName.press('Enter'));
+        await mateName.press('Enter');
         await expect.poll(() => page.evaluate(() =>
             (window as Window & { __chatProcessingMateClicks?: string[] }).__chatProcessingMateClicks ?? []
         )).toEqual(['general_knowledge']);
