@@ -1,7 +1,7 @@
 id: agent-workflow-r2
 title: Approved agent workflow simplification
 goal: Implement approved R1, R2, and R3 from workflow proposal WF-20260905-r2.
-status: implementing
+status: verified
 scope:
 - R1 scoped user decision receipts shared by verification and continuation
 - R2 read-only routing and consolidated workspace lifecycle transitions
@@ -49,13 +49,13 @@ tasks:
   status: done
 - id: R3
   title: Package and verify the effective runtime before activation
-  status: in_progress
+  status: done
 handoff:
   current_task_id: R3
-  next_action: Deploy verified tooling, prepare immutable workflow release, perform
-    coordinated activation and verify effective configuration.
+  next_action: Implementation and activation verified. Comparable real-work benefit
+    measurement is pending; do not schedule monitoring automatically.
   blocker: null
-  last_verified_commit: 808efe8dca44d1ceff860dc80b65f4b9d97043f8
+  last_verified_commit: f79708bdc325bf3861c4e260260c47bf1cccff02
 verification_results:
   python: 246 passed; full relevant regression set
   node: 66 passed; hook, routing and continuation contracts
@@ -66,3 +66,13 @@ verification_results:
   agent_parity: passed after canonical mirror synchronization
   automation_budget: Pre-existing findings in unchanged scripts/_zellij_utils.py;
     no proposed automation modifies that file
+  final_safety: 58 passed; scoped-stop preservation and worktree retention
+  release: b2cdbb7df96c-f79708bdc325
+  runtime_commit: f79708bdc325bf3861c4e260260c47bf1cccff02
+  activation: Existing Zellij capture/resume workflow; zero busy chats, zero new chats
+  live_configuration: One packaged hook; expected Task action schema; pinned instruction
+    and skill paths
+  post_activation: Binary/storage, package hashes, helper commit/cleanliness and actual
+    guard probes passed
+implementation_state:
+  subject_commit: f79708bdc325bf3861c4e260260c47bf1cccff02
