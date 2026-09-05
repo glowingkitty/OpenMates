@@ -32,6 +32,8 @@ from backend.shared.python_utils.billing_utils import calculate_total_credits
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_REST,
+    OUTPUT_SAFETY_ERROR_CODES,
+    central_app_skill_dispatch,
     is_external_data_skill,
     sanitize_app_skill_output,
     strip_request_security_controls,
@@ -884,7 +886,8 @@ async def call_app_skill(
         request_payload['_secrets_manager'] = secrets_manager
 
     try:
-        result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+        with central_app_skill_dispatch():
+            result = await registry.dispatch_skill(app_id, skill_id, request_payload)
         return await sanitize_app_skill_output(
             result,
             AppSkillOutputSafetyContext(
@@ -902,6 +905,17 @@ async def call_app_skill(
         # 4xx/5xx from inside the skill (validation, billing, missing skill, ...) —
         # propagate as-is so the REST handler returns the original status/detail.
         raise
+    except RuntimeError as exc:
+        if str(exc) in OUTPUT_SAFETY_ERROR_CODES:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        logger.error(
+            "In-process dispatch failed for %s/%s: %s",
+            app_id,
+            skill_id,
+            type(exc).__name__,
+            exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
     except Exception as e:
         logger.error(
             f"In-process dispatch failed for {app_id}/{skill_id}: {type(e).__name__}: {e}",

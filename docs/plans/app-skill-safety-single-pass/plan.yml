@@ -1,0 +1,410 @@
+schema_version: 2
+id: app-skill-safety-single-pass
+title: Single-Pass App Skill Safety
+status: implementing
+
+goal: >
+  Drastically reduce the processing time without sacrificing safety too much;
+  we still have to assume prompt injection attacks.
+
+specification_refs:
+  - id: architecture.app-skill-execution
+    version: 1
+    role: primary
+    fingerprint: 776da07c84e58d5a24171d8faf5b18775e6a119aa27b078ef45478b7f5df673e
+  - id: feature.app-skill.web-search
+    version: 1
+    role: primary
+    fingerprint: 593c95c94708ac4dc0b57063972934dfe590a5b0a372a7fcc705909b11a7dbcd
+specification_impact:
+  classification: semantic_change
+  specification_update_required: false
+  affected_assertions:
+    - app-skills.output.ascii-always
+    - app-skills.output.external-semantic
+    - app-skills.output.batch-equivalent
+    - app-skills.output.single-boundary
+    - app-skills.output.bounded-failure
+    - app-skills.cli.truthful-status
+    - app-skills.surface.semantic-parity
+    - web-search.response.sanitized
+    - web-search.safety.single-pass
+    - web-search.safety.quality-gate
+    - web-search.safety.latency-gate
+    - web-search.surface-parity
+
+implementation_state:
+  subject_commit: a32637da0d6749191108ab3f7fb19b1b7ca5b24f
+
+scope:
+  in:
+    - Structured field decisions, deterministic whole-unit warnings, atomic validation and finite deadlines.
+    - One shared logical safety boundary across REST, assistant, and Workflow dispatch with request-local trusted coverage.
+    - Eliminate duplicate semantic work, including web/search and web/read skill-local TOON redaction.
+    - Preserve long-document protection, deterministic ASCII cleanup, and existing explicit programmatic opt-out policy.
+    - Remove session-save decryption notices without changing authentication or encryption.
+    - Fixed-corpus quality evaluation, real-provider latency measurements, and deployed cross-client proof.
+  out:
+    - Disabling search protection to meet latency targets.
+    - Silent model changes, cross-request safety caching, billing redesign, or new public endpoints.
+    - New UI configuration, safety opt-out controls, or unrelated visual redesign.
+
+context_discovery:
+  docs:
+    - docs/contributing/guides/spec-driven-development.md
+    - docs/plans/app-skill-output-safety/plan.yml
+    - specifications/architecture/app-skill-execution/specification.yml
+    - specifications/features/app-skills/web-search/specification.yml
+  code_patterns:
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/apps/web/skills/read_skill.py
+    - frontend/packages/openmates-cli/src/storage.ts
+  tests:
+    - backend/tests/test_app_skill_output_safety.py
+    - backend/tests/test_external_result_sanitizer_batching.py
+    - backend/tests/test_external_result_sanitizer.py
+    - backend/tests/test_web_search_contract.py
+    - backend/tests/test_rest_api_web.py
+    - frontend/packages/openmates-cli/tests/storage.test.ts
+    - frontend/apps/web_app/tests/skill-web-search.spec.ts
+  findings:
+    - The measured successful search spent about 10.85 seconds in 36 semantic calls.
+    - A returned snippet retained its behavioral instruction after a removal marker.
+    - Current batching tests require the now-superseded per-field fallback.
+    - Existing skill-web-search E2E uses provider fixtures; it cannot prove live latency or model quality.
+    - The previous standalone REST test credential returned 401; authenticated REST preflight must be repaired or use an approved existing first-party session without exposing credentials.
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-05"
+    reason: Explicit user approval recorded using both exact PDF review artifacts.
+  plan:
+    status: approved
+    approved_at: "2026-09-05"
+    reason: User explicitly approved the Plan and instructed implementation.
+clarification:
+  approved_by_user: true
+  vision_summary: >
+    Keep default-on search protection; replace entire flagged snippets with a fixed
+    warning; fail closed without automatic retries; meet one-call and p95 targets
+    while retaining all mandatory safety and benign-content cases.
+  rounds:
+    - {question: "Keep search semantic protection enabled by default?", answer: "Yes; improve processing speed rather than remove protection."}
+    - {question: "Replace whole flagged fields?", answer: "Replace each affected search snippet with a fixed prompt-injection warning."}
+    - {question: "Automatically retry failed batch scans?", answer: "No; return a safe retryable error and fail closed."}
+    - {question: "Adopt one-call and p95 quality/performance gates?", answer: "Yes."}
+
+contracts:
+  api:
+    - route: POST /v1/apps/web/skills/search
+      access: Existing authenticated developer API-key REST and approved first-party session access; not public anonymous access.
+      request: Existing validated WebSearchRequest; existing explicit programmatic security option unchanged.
+      response: Existing result envelope; whole-field warnings and stable safety-error prefixes.
+    - route: POST /v1/apps/web/skills/read
+      access: Existing authenticated developer API-key REST and approved first-party session access.
+      response: Existing page result envelope with protected contextual text sections.
+  privacy_security:
+    - Existing identity, account scope, request limits, provider throttling, credits, and budget enforcement remain in force.
+    - Inputs and public provider results are plaintext on the existing server path; no new access to encrypted chats, keys, or private material.
+    - The model only classifies server-assigned units; it cannot supply replacement text or trusted coverage flags.
+    - Scan coverage is bound to exact content and active policy within the request; untrusted ignored-field claims cannot bypass it.
+    - Preserve safe content after deterministic cleanup; apply replacements only after all decisions validate.
+
+implementation_notes:
+  plan_path: docs/plans/app-skill-safety-single-pass/plan.yml
+  existing_patterns:
+    - backend/shared/python_utils/app_skill_output_safety.py
+    - backend/apps/ai/processing/content_sanitization.py
+    - backend/apps/ai/processing/external_result_sanitizer.py
+    - backend/apps/web/skills/search_skill.py
+    - backend/apps/web/skills/read_skill.py
+  architecture: >
+    Reuse the provider-call adapter for the current safety model, with a compact
+    field-classification prompt and strict response validation. Keep reusable logic
+    in backend/shared, using the existing AI adapter rather than importing skill code.
+    Select and partition fields deterministically with contextual boundaries, bounded
+    batches and concurrency. A request-scoped server-owned safety context coordinates
+    local persistence and outer dispatch so no output escapes before its complete
+    coverage is validated and no unchanged unit is rescanned. Search-specific result
+    handling replaces snippets/descriptions and omits unsafe identities.
+  data_flow:
+    - Provider output undergoes deterministic text cleanup and server-owned field selection.
+    - Stable IDs and source context enter bounded batches; typical six-result search uses one model call.
+    - Validate exact decision coverage, then replace whole flagged units with application-owned warnings.
+    - Return or persist only the validated payload; propagate stable safe errors and cancellation on failures.
+  affected_files:
+    - {path: backend/shared/python_utils/app_skill_output_safety.py, reason: Planned structured field decisions, coverage validation, and atomic warning replacement.}
+    - {path: backend/apps/ai/processing/external_result_sanitizer.py, reason: Planned shared single-boundary integration.}
+    - {path: backend/apps/web/skills/search_skill.py, reason: Planned removal of duplicate skill-local semantic processing.}
+    - {path: backend/apps/web/skills/read_skill.py, reason: Planned shared protection integration for long document sections.}
+    - {path: frontend/packages/openmates-cli/src/storage.ts, reason: Planned removal of the misleading session-save decryption notice.}
+    - {path: backend/tests/test_app_skill_output_safety.py, reason: Planned red and green shared safety contract coverage.}
+    - {path: frontend/apps/web_app/tests/app-skill-safety.spec.ts, reason: Planned deployed CLI and web proof contract.}
+  rollout:
+    - Scoped dev deployment and coordinated API/affected-worker restart before live verification.
+    - No production deployment in this task; no security-disabled performance shortcut.
+  verification_order:
+    - Focused red unit/contract tests and baseline real-model corpus evidence.
+    - Backend implementation, scoped dev deployment, then authenticated direct REST verification.
+    - CLI storage regression and real CLI command/proof against dev.
+    - npm and pip SDK parity against the same dev endpoints.
+    - Wire CI/daily regression only after real REST, CLI, and SDK checks pass.
+    - Deployed web skill proof on phone and laptop, then user confirmation and Apple parity last.
+  documentation_impact:
+    - Update shared prompt-injection architecture and skill safety/error documentation.
+    - Regenerate Specification indexes and replace affected assertion evidence.
+  verification_strategy:
+    - Add focused red tests for shared decisions, atomic failure, and cross-surface coverage before implementation.
+    - Run real authenticated dev REST, CLI, and SDK checks before deployed web proof.
+    - Run fixed-corpus quality and real-provider latency gates without masking failed attempts.
+    - Deploy only after prior gates are green, then capture reviewed CLI and phone/laptop proof.
+
+risks:
+  - Safety model classification or long-context behavior may miss mandatory adversarial cases; a failure blocks completion.
+  - Field boundaries can split attacks; include cross-snippet and section-boundary fixtures before rollout.
+  - Provider latency may exceed approved p95 gates; report shortfall rather than remove slow attempts.
+  - Shared changes affect other external-data skills; audit all sanitizer entry points before removing local calls.
+  - Live search outputs can change between baseline and candidate; fixed-corpus quality and live timing remain separate evidence.
+
+scenarios:
+  - id: S-1
+    title: One safe batch with complete injection removal
+    given: [A six-result response contains benign text and one instruction-bearing snippet.]
+    when: [The protected skill executes through a supported surface.]
+    then: [One semantic call classifies every selected unit., The whole flagged snippet becomes the fixed warning and unaffected text remains unchanged.]
+  - id: S-2
+    title: Unreliable scanner never exposes unchecked content
+    given: [A scan is unavailable or times out or returns invalid decisions.]
+    when: [The shared deadline or validator rejects it.]
+    then: [No payload is partially mutated or exposed., A safe retryable error is returned without automatic retries.]
+  - id: S-3
+    title: Long and cross-surface output remains protected
+    given: [A web/read document or another external-data skill spans multiple units.]
+    when: [REST or assistant or Workflow dispatch processes the result.]
+    then: [All required units receive bounded coverage., No provider-supplied trust flag or ignored-field claim bypasses scanning.]
+  - id: S-4
+    title: Fast truthful search command
+    given: [The CLI has a protected stored session and dev services are warm.]
+    when: [A normal single-query search executes.]
+    then: [No session-save decryption notice appears., JSON output stays clean., Approved quality and latency gates are met.]
+
+acceptance_criteria:
+  - {id: AC-1, scenario: S-1, text: One structured semantic call and complete whole-unit warnings for typical search., required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [V-UNIT, V-REST, V-QUALITY]}
+  - {id: AC-2, scenario: S-2, text: Stable fail-closed errors with atomic validation and no retries., required: true, status: pending, coverage_status: covered, verification_scope: related_backend, verification_ids: [V-UNIT, V-REST]}
+  - {id: AC-3, scenario: S-3, text: Complete contextual coverage and equivalent protection across dispatch surfaces., required: true, status: pending, coverage_status: covered, verification_scope: custom, verification_ids: [V-UNIT, V-REST, V-SDK, V-CLIENTS]}
+  - {id: AC-4, scenario: S-4, text: No misleading decryption notice and measured safety p95 at most 2s and CLI end-to-end p95 at most 4s., required: true, status: pending, coverage_status: covered, verification_scope: cli, verification_ids: [V-CLI, V-LATENCY, V-PROOF]}
+
+tests:
+  - id: T-PY-SAFETY
+    type: pytest
+    file: backend/tests/test_app_skill_output_safety.py
+    command: python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_external_result_sanitizer_batching.py backend/tests/test_external_result_sanitizer.py
+    assertions: [A typical search receives one structured decision batch, flagged fields become fixed warnings, and missing or invalid coverage fails closed atomically.]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+  - id: T-REST-SAFETY
+    type: pytest
+    file: backend/tests/test_rest_api_web.py
+    command: python3 -m pytest backend/tests/test_rest_api_web.py
+    assertions: [Authenticated search and read preserve safe errors, access controls, limits, and protected whole-field warnings.]
+    covers: [AC-1, AC-2, AC-3]
+    red_phase: {required: true, expected: fail_against_current_dev, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+  - id: T-CLI-SAFETY
+    type: unit
+    file: frontend/packages/openmates-cli/tests/storage.test.ts
+    command: pnpm --dir frontend/packages/openmates-cli test storage.test.ts
+    assertions: [Protected session persistence produces clean JSON output without the misleading decryption notice.]
+    covers: [AC-4]
+    red_phase: {required: true, expected: fail_before_implementation, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_implementation, evidence: {status: pending}}
+  - id: T-PW-SAFETY
+    type: playwright
+    file: frontend/apps/web_app/tests/app-skill-safety.spec.ts
+    target: app.dev.openmates.org
+    command: python3 scripts/tests.py run --spec app-skill-safety.spec.ts --gate-deploy --expected-commit <DEPLOYED_SHA>
+    assertions: [Deployed web search renders fixed warnings without unsafe source text on phone and laptop.]
+    covers: [AC-1, AC-4]
+    red_phase: {required: true, expected: fail_against_current_deploy, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+
+verifications:
+  - id: V-UNIT
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    status: pending
+    covers: [AC-1, AC-2, AC-3]
+    command: python3 -m pytest backend/tests/test_app_skill_output_safety.py backend/tests/test_external_result_sanitizer_batching.py backend/tests/test_external_result_sanitizer.py backend/tests/test_content_sanitization.py backend/tests/test_web_search_contract.py
+    red_requirement: Extend mapped tests first and record expected failure before product edits; use disposable API image when local dependencies are absent.
+    evidence: {}
+  - id: V-REST
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    status: pending
+    covers: [AC-1, AC-2, AC-3]
+    command: python3 -m pytest backend/tests/test_rest_api_web.py
+    requirement: Real dev auth and providers; verify search/read, unauthorized requests, current limits, budget protection, and safe error propagation. Unit fault injection supplements but never replaces live REST evidence.
+    evidence: {}
+  - id: V-CLI
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    status: pending
+    covers: [AC-4]
+    command: python3 scripts/tests.py run --spec app-skill-safety.spec.ts --gate-deploy --expected-commit <DEPLOYED_SHA>
+    requirement: Add a canonical real CLI proof spec; verify whole-warning output, no decryption notice, and valid JSON. Use prepared cli-storage-unit and cli-typecheck profiles for focused local changes.
+    evidence: {}
+  - id: V-SDK
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    status: pending
+    covers: [AC-3]
+    command: python3 scripts/audit_sdk_cli_parity.py
+    requirement: Static parity is supplemental; add real npm/pip dev search/read assertions for warnings, errors, and unchanged explicit opt-out eligibility.
+    evidence: {}
+  - id: V-QUALITY
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    status: pending
+    covers: [AC-1]
+    command: python3 backend/scripts/test_app_skill_safety_benchmark.py --mode quality
+    requirement: Planned runner executes real baseline/candidate models on a committed corpus containing every mandatory Specification example; zero missed mandatory attacks and zero altered mandatory benign fixtures.
+    evidence: {}
+  - id: V-LATENCY
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    status: pending
+    covers: [AC-4]
+    command: python3 backend/scripts/test_app_skill_safety_benchmark.py --mode live --requests 50
+    requirement: Planned runner uses fixed public queries and real CLI/API/provider execution, reports all attempts plus p50/p95, calls, failures, subject/model/prompt/corpus versions, disables safety cache, and excludes only separately reported warmup/recording holds.
+    evidence: {}
+  - id: V-CLIENTS
+    kind: automated_test
+    phase: final
+    required_for_done: true
+    status: pending
+    covers: [AC-3]
+    command: python3 scripts/tests.py run --spec skill-web-search.spec.ts --gate-deploy --expected-commit <DEPLOYED_SHA>
+    requirement: Extend web warning fixtures and assertion metadata; phone/laptop proof follows REST/CLI/SDK. Existing provider-replay E2E is presentation evidence only. Verify backend semantics for Apple and check native warning rendering last.
+    evidence: {}
+  - id: V-PROOF
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    status: pending
+    covers: [AC-4]
+    command: python3 scripts/proof_video_workflow.py start --current --spec app-skill-safety.spec.ts
+    requirement: Reviewed captioned CLI proof and phone/laptop web proof, with exact videos uploaded and embedded at completion. Native proof if native rendering changes are needed.
+    evidence: {}
+
+tasks:
+  - id: TASK-1
+    title: Establish red contracts, corpus baseline, and live-auth preflight
+    status: in_progress
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    expected_files: [backend/tests/test_app_skill_output_safety.py, backend/tests/test_external_result_sanitizer_batching.py, backend/tests/test_external_result_sanitizer.py, backend/scripts/test_app_skill_safety_benchmark.py]
+    dependencies: []
+    verification_ids: [V-UNIT, V-QUALITY, V-REST]
+    blockers: []
+    follow_up_tasks: [TASK-2]
+    ownership: {files: [backend/tests/test_app_skill_output_safety.py, backend/tests/test_external_result_sanitizer_batching.py, backend/tests/test_external_result_sanitizer.py, backend/scripts/test_app_skill_safety_benchmark.py], shared_files: []}
+  - id: TASK-2
+    title: Implement structured shared scanner and single-boundary integration
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    expected_files: [backend/shared/python_utils/app_skill_output_safety.py, backend/apps/ai/processing/external_result_sanitizer.py, backend/apps/web/skills/search_skill.py, backend/apps/web/skills/read_skill.py]
+    dependencies: [TASK-1]
+    verification_ids: [V-UNIT, V-REST]
+    blockers: []
+    follow_up_tasks: [TASK-3]
+    ownership: {files: [backend/shared/python_utils/app_skill_output_safety.py, backend/apps/ai/processing/external_result_sanitizer.py, backend/apps/web/skills/search_skill.py, backend/apps/web/skills/read_skill.py], shared_files: []}
+  - id: TASK-3
+    title: Verify CLI messaging and real SDK parity
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-3, S-4], acceptance_criteria: [AC-3, AC-4]}
+    expected_files: [frontend/packages/openmates-cli/src/storage.ts, frontend/packages/openmates-cli/tests/storage.test.ts, frontend/apps/web_app/tests/app-skill-safety.spec.ts]
+    dependencies: [TASK-2]
+    verification_ids: [V-CLI, V-SDK]
+    blockers: []
+    follow_up_tasks: [TASK-4]
+    ownership: {files: [frontend/packages/openmates-cli/src/storage.ts, frontend/packages/openmates-cli/tests/storage.test.ts, frontend/apps/web_app/tests/app-skill-safety.spec.ts], shared_files: []}
+  - id: TASK-4
+    title: Meet live latency and corpus quality gates
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-4], acceptance_criteria: [AC-1, AC-4]}
+    expected_files: [backend/scripts/test_app_skill_safety_benchmark.py, backend/tests/test_web_search_contract.py]
+    dependencies: [TASK-3]
+    verification_ids: [V-QUALITY, V-LATENCY]
+    blockers: []
+    follow_up_tasks: [TASK-5]
+    ownership: {files: [backend/scripts/test_app_skill_safety_benchmark.py, backend/tests/test_web_search_contract.py], shared_files: []}
+  - id: TASK-5
+    title: Deliver web/client proof, docs, and final conformance
+    status: pending
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-3, S-4], acceptance_criteria: [AC-1, AC-3, AC-4]}
+    expected_files: [frontend/apps/web_app/tests/skill-web-search.spec.ts, frontend/apps/web_app/tests/app-skill-safety.spec.ts, docs/plans/app-skill-safety-single-pass/plan.yml]
+    dependencies: [TASK-4]
+    verification_ids: [V-CLIENTS, V-PROOF]
+    blockers: []
+    follow_up_tasks: []
+    ownership: {files: [frontend/apps/web_app/tests/skill-web-search.spec.ts, frontend/apps/web_app/tests/app-skill-safety.spec.ts, docs/plans/app-skill-safety-single-pass/plan.yml], shared_files: []}
+
+demonstration:
+  eligibility:
+    status: required
+    surface: mixed
+    reason: The Plan changes observable CLI and web safety behavior.
+    classified_at: "2026-09-05T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show real CLI safety output and clean session messaging.
+      expected_proof: The 1280x720 terminal shows fixed snippet warnings, preserved safe results, and no decryption notice.
+      scenario_ids: [S-1, S-4]
+      acceptance_criteria: [AC-1, AC-4]
+    - id: NARR-2
+      purpose: Show deployed web warning presentation on both required responsive profiles.
+      expected_proof: Phone and laptop web results show the warning without unsafe source text or layout regressions.
+      scenario_ids: [S-1, S-3]
+      acceptance_criteria: [AC-1, AC-3]
+  evidence: {status: pending, privacy_status: pending, audio_status: not_required, review_status: pending, publication_status: pending, review_attempts: 0, subject_commit: "", manifest_path: "", manifest_hash: "", review_run_id: "", timestamp: ""}
+apple_impact:
+  affected_files: [none_expected]
+  parity_expectations: [Shared backend warnings and errors must remain meaningful in native search embeds.]
+  verification: [Inspect mapped native search renderer after web confirmation; use Apple remote test/build if native changes are necessary and record any environment blocker explicitly.]
+
+handoff:
+  current_task_id: TASK-1
+  next_action: Update mapped batching tests and establish baseline corpus evidence.
+  command: python3 scripts/plan_validate.py docs/plans/app-skill-safety-single-pass/plan.yml
+  expected_outcome: Approved Plan; red-contract and baseline work starts now.
+  last_verified_commit: a32637da0d6749191108ab3f7fb19b1b7ca5b24f
+  blocker: null
+
+decisions:
+  - id: DECISION-1
+    status: active
+    decision: Keep default-on semantic protection and optimize its shared execution rather than disable it for latency.
+    reason: User clarification requires retained protection, complete warning replacement, and explicit quality and latency gates.
+    decided_at: "2026-09-05T00:00:00Z"
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Plan the red-contract, corpus-baseline, and authenticated REST preflight slice before implementation.
+    outcome: planned
+    recorded_at: "2026-09-05T00:00:00Z"

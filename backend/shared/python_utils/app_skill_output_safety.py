@@ -9,7 +9,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import asyncio
+from contextlib import contextmanager
+from contextvars import ContextVar
 import logging
+import time
 from typing import Any, Mapping, Optional
 
 from backend.core.api.app.utils.text_sanitization import sanitize_text_payload_for_ascii_smuggling
@@ -23,12 +27,21 @@ APP_SKILL_SURFACE_WORKFLOW = "workflow"
 PROMPT_INJECTION_DISABLED = "disabled"
 PROMPT_INJECTION_ENABLED = "enabled"
 SEMANTIC_SCAN_MAX_PARALLEL = 4
+DEFAULT_SEMANTIC_SCAN_TIMEOUT_SECONDS = 20.0
+WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS = 5.0
+WEB_READ_SEMANTIC_SCAN_TIMEOUT_SECONDS = 30.0
+OUTPUT_SAFETY_ERROR_CODES = frozenset({
+    "OUTPUT_SAFETY_INVALID",
+    "OUTPUT_SAFETY_UNAVAILABLE",
+    "OUTPUT_SAFETY_TIMEOUT",
+})
 
 SECURITY_FIELD = "security"
 PROMPT_INJECTION_PROTECTION_FIELD = "prompt_injection_protection"
 IGNORE_FIELDS_FOR_INFERENCE_FIELD = "ignore_fields_for_inference"
 
 OPENMATES_PROVIDER_NAME = "openmates"
+_central_dispatch_active: ContextVar[bool] = ContextVar("app_skill_output_safety_dispatch", default=False)
 
 ALWAYS_EXTERNAL_DATA_SKILLS: set[tuple[str, str]] = {
     ("audio", "transcribe"),
@@ -79,6 +92,7 @@ ALWAYS_SEMANTIC_FIELD_NAMES: set[str] = {
     "reviews",
     "snippet",
     "snippets",
+    "extra_snippets",
     "summary",
     "text",
     "title",
@@ -105,6 +119,21 @@ async def sanitize_long_text_fields_in_payload(*args: Any, **kwargs: Any) -> Any
     )
 
     return await _sanitize_long_text_fields_in_payload(*args, **kwargs)
+
+
+@contextmanager
+def central_app_skill_dispatch() -> Any:
+    """Mark a trusted dispatcher so a skill can defer its local output scan."""
+    token = _central_dispatch_active.set(True)
+    try:
+        yield
+    finally:
+        _central_dispatch_active.reset(token)
+
+
+def is_central_app_skill_dispatch() -> bool:
+    """Return whether a trusted dispatcher will scan the complete raw result."""
+    return _central_dispatch_active.get()
 
 
 def strip_request_security_controls(request_body: Any) -> Any:
@@ -161,30 +190,26 @@ async def sanitize_app_skill_output(
 ) -> Any:
     """Apply mandatory ASCII cleanup and default-on semantic output scanning."""
     log_prefix = context.log_prefix or f"[AppSkillOutputSafety {context.app_id}/{context.skill_id}] "
-    ascii_sanitized, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
-        result,
-        log_prefix=log_prefix,
-        include_stats=True,
-    )
-    if ascii_stats.get("removed_count", 0) > 0:
-        logger.warning(
-            "%sRemoved %s ASCII-smuggling characters from app-skill output across %s field(s)",
-            log_prefix,
-            ascii_stats.get("removed_count", 0),
-            ascii_stats.get("fields_sanitized", 0),
+    started_at = time.monotonic()
+
+    async def _sanitize() -> Any:
+        ascii_sanitized, ascii_stats = sanitize_text_payload_for_ascii_smuggling(
+            result,
+            log_prefix=log_prefix,
+            include_stats=True,
         )
-
-    if not context.external_data:
-        return ascii_sanitized
-
-    if prompt_injection_protection_disabled_for_surface(context.request_body, context.surface):
-        logger.warning(
-            "%sPrompt-injection semantic scanning disabled by direct programmatic caller",
-            log_prefix,
-        )
-        return ascii_sanitized
-
-    try:
+        if ascii_stats.get("removed_count", 0) > 0:
+            logger.warning(
+                "%sRemoved %s ASCII-smuggling characters from app-skill output across %s field(s)",
+                log_prefix,
+                ascii_stats.get("removed_count", 0),
+                ascii_stats.get("fields_sanitized", 0),
+            )
+        if not context.external_data:
+            return ascii_sanitized
+        if prompt_injection_protection_disabled_for_surface(context.request_body, context.surface):
+            logger.warning("%sPrompt-injection semantic scanning disabled by direct programmatic caller", log_prefix)
+            return ascii_sanitized
         return await sanitize_long_text_fields_in_payload(
             payload=ascii_sanitized,
             task_id=f"app_skill_output_{context.app_id}_{context.skill_id}",
@@ -193,8 +218,20 @@ async def sanitize_app_skill_output(
             min_chars=120,
             max_parallel=SEMANTIC_SCAN_MAX_PARALLEL,
             always_sanitize_field_names=ALWAYS_SEMANTIC_FIELD_NAMES,
-            skip_field_names=_ignore_fields_for_inference(ascii_sanitized),
+            app_id=context.app_id,
+            skill_id=context.skill_id,
         )
+    try:
+        sanitized = await asyncio.wait_for(_sanitize(), timeout=_semantic_scan_timeout(context))
+        logger.info(
+            "%sOutput safety completed in %dms",
+            log_prefix,
+            (time.monotonic() - started_at) * 1000,
+        )
+        return sanitized
+    except asyncio.TimeoutError as exc:
+        logger.error("%sPrompt-injection protection timed out", log_prefix)
+        raise RuntimeError("OUTPUT_SAFETY_TIMEOUT") from exc
     except Exception as exc:
         logger.error(
             "%sPrompt-injection protection failed for app-skill output; failing closed: %s",
@@ -202,7 +239,16 @@ async def sanitize_app_skill_output(
             exc,
             exc_info=True,
         )
-        raise RuntimeError("Prompt-injection protection failed for app-skill output") from exc
+        error_code = str(exc) if str(exc) in OUTPUT_SAFETY_ERROR_CODES else "OUTPUT_SAFETY_UNAVAILABLE"
+        raise RuntimeError(error_code) from exc
+
+
+def _semantic_scan_timeout(context: AppSkillOutputSafetyContext) -> float:
+    if (context.app_id, context.skill_id) == ("web", "search"):
+        return WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS
+    if (context.app_id, context.skill_id) == ("web", "read"):
+        return WEB_READ_SEMANTIC_SCAN_TIMEOUT_SECONDS
+    return DEFAULT_SEMANTIC_SCAN_TIMEOUT_SECONDS
 
 
 def _find_skill_metadata(app_metadata: Any, skill_id: str) -> Any:
@@ -211,25 +257,6 @@ def _find_skill_metadata(app_metadata: Any, skill_id: str) -> Any:
         if _read_attr(skill, "id") == skill_id:
             return skill
     return None
-
-
-def _ignore_fields_for_inference(value: Any) -> set[str]:
-    """Collect skill-declared field names that must never enter LLM/sanitizer text paths."""
-
-    ignored: set[str] = set()
-    if isinstance(value, Mapping):
-        raw_fields = value.get(IGNORE_FIELDS_FOR_INFERENCE_FIELD)
-        if isinstance(raw_fields, list):
-            for raw_field in raw_fields:
-                if not isinstance(raw_field, str) or not raw_field.strip():
-                    continue
-                ignored.add(raw_field.strip().rsplit(".", 1)[-1].lower())
-        for nested in value.values():
-            ignored.update(_ignore_fields_for_inference(nested))
-    elif isinstance(value, list):
-        for nested in value:
-            ignored.update(_ignore_fields_for_inference(nested))
-    return ignored
 
 
 def _read_attr(value: Any, name: str) -> Any:

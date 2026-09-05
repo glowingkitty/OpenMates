@@ -127,6 +127,7 @@ async def _invoke_groq_direct_api(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
+    max_retries: Optional[int] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invoke Groq API directly using AsyncGroq SDK.
@@ -140,6 +141,7 @@ async def _invoke_groq_direct_api(
         tools: List of tool definitions (OpenAI format)
         tool_choice: Tool choice strategy ("auto", "none", "required", or specific tool)
         stream: Whether to stream the response
+        max_retries: Optional SDK retry limit for this request
         
     Returns:
         UnifiedOpenAIResponse for non-streaming, or AsyncIterator for streaming
@@ -153,6 +155,7 @@ async def _invoke_groq_direct_api(
 
     log_prefix = f"[{task_id}] Groq Client ({model_id}):"
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Tool choice: {tool_choice}")
+    request_client = _groq_direct_client.with_options(max_retries=max_retries) if max_retries is not None else _groq_direct_client
 
     try:
         # Prepare request parameters
@@ -203,7 +206,7 @@ async def _invoke_groq_direct_api(
             # Streaming response
             async def _stream_response() -> AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]:
                 try:
-                    stream_response = await _groq_direct_client.chat.completions.create(**request_params)
+                    stream_response = await request_client.chat.completions.create(**request_params)
                     
                     current_tool_call_id: Optional[str] = None
                     current_tool_function_name: Optional[str] = None
@@ -309,7 +312,7 @@ async def _invoke_groq_direct_api(
             return _stream_response()
         else:
             # Non-streaming response
-            response = await _groq_direct_client.chat.completions.create(**request_params)
+            response = await request_client.chat.completions.create(**request_params)
             
             # Parse response
             choice = response.choices[0] if response.choices else None
@@ -396,6 +399,7 @@ async def invoke_groq_chat_completions(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
+    max_retries: Optional[int] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Main entry point for Groq chat completions.
@@ -412,6 +416,7 @@ async def invoke_groq_chat_completions(
         tools: List of tool definitions (OpenAI format)
         tool_choice: Tool choice strategy ("auto", "none", "required", or specific tool)
         stream: Whether to stream the response
+        max_retries: Optional SDK retry limit for this request
         
     Returns:
         UnifiedOpenAIResponse for non-streaming, or AsyncIterator for streaming
@@ -440,5 +445,5 @@ async def invoke_groq_chat_completions(
         tools=tools,
         tool_choice=tool_choice,
         stream=stream,
+        max_retries=max_retries,
     )
-

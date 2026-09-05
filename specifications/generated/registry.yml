@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: 860d2e69de71bd86d42a00b40c70ef42a303f97153d969c50c07b1bb3a5fcb0d
+    fingerprint: 776da07c84e58d5a24171d8faf5b18775e6a119aa27b078ef45478b7f5df673e
     required_applies_to:
     - rest_api
     - cli
@@ -193,9 +193,9 @@ specifications:
     - gui.apple
   feature.app-skill.web-search:
     version: 1
-    status: approved
+    status: draft
     path: features/app-skills/web-search
-    fingerprint: 6e7afd0e24023b41490a00f29fa7e3d235b705d6b6dd9cfe407dbd8e01798657
+    fingerprint: 593c95c94708ac4dc0b57063972934dfe590a5b0a372a7fcc705909b11a7dbcd
     required_applies_to:
     - rest_api
     - cli
@@ -558,7 +558,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 69198a81b5b98442980e3fa5d8825da32ce0880a5af04ed2c15ba5d3d596cd6b
+    fingerprint: 6c8283d241073fb6637da4298d5bb62af7857fbdd384457a416686fc7eca8919
     required_applies_to:
     - rest_api
     - cli
@@ -570,7 +570,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: c05823af2363b3cc94a31ecc0fcae55041ffafb7a310bf4f3b544e942f774682
+    fingerprint: 5b20f228db5d4fe7601541212951458d73b4fad5872290c7405eb2a0e04b887b
     required_applies_to:
     - rest_api
     - cli
@@ -582,7 +582,43 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: security
-    fingerprint: 115e073de45d56b1fbc3b974a9306d4184f728727275f8b87f70da3a6a613da4
+    fingerprint: 025dba8c7451a8b378a09d80f29ba02c60803ee6351af0aaab40b7a7b975ed05
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.output.single-boundary:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: security
+    fingerprint: 98711a47abba346212e635c89e5659b48851107d7baeae0a354b7f6b5b9225a6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.output.bounded-failure:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: failure
+    fingerprint: 76abc8f7353d32be6a8b55f36818c1b72160a0b13fde250c412112001605fe5b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.cli.truthful-status:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: behavior
+    fingerprint: b3acaafc141bc2712876f0eda751b4e0655a64f90204d00493f3d968c43f8369
     required_applies_to:
     - rest_api
     - cli
@@ -594,7 +630,7 @@ assertions:
     specification: architecture.app-skill-execution@1
     specification_id: architecture.app-skill-execution
     type: parity
-    fingerprint: 90c672d3f13285d0e9566889f16d1aacff6350297f8ac7fb2fc7bc4cde98b8fc
+    fingerprint: c0e02972d1c3ddfe0084b28392739f9c1057c3c2928536a00be92a0cbaf4058a
     required_applies_to:
     - rest_api
     - cli
@@ -2257,7 +2293,43 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: security
-    fingerprint: cb48e999a2725f11a0d5720e137eee956f0be5df2f62f3837b3cb990f2c33f9b
+    fingerprint: e7de6d6d95c5e6b235389f7019cb2396c22bd3fdc60993a8685120a98369372c
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.safety.single-pass:
+    specification: feature.app-skill.web-search@1
+    specification_id: feature.app-skill.web-search
+    type: invariant
+    fingerprint: 669896e7cb21f759e201c1b533fd9d7f909ebec25792b552ecb6ead491879822
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.safety.quality-gate:
+    specification: feature.app-skill.web-search@1
+    specification_id: feature.app-skill.web-search
+    type: security
+    fingerprint: 57d84505c08dc226479b481c53951404579db419bceb31d9d8db45e1d4e48324
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  web-search.safety.latency-gate:
+    specification: feature.app-skill.web-search@1
+    specification_id: feature.app-skill.web-search
+    type: behavior
+    fingerprint: 6cb07c5983a12264f8ecdc65ee81177efa34479fef2ec7cc39684aaa54faad1b
     required_applies_to:
     - rest_api
     - cli
@@ -2281,7 +2353,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: behavior
-    fingerprint: fc30a66972f8c43c5540d537dd01f0e06b80ea85c6faad324f8c30f86ff6a8aa
+    fingerprint: 788a084aa9626ab80a15429a850d395ea472a014d282055104529fa14b186644
     required_applies_to:
     - rest_api
     - cli
@@ -2293,7 +2365,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: failure
-    fingerprint: 3fd8a7c75c569b9800adf270ddd489c8e64edf464374f5bdc351c51fd1615222
+    fingerprint: 2a5a8b046f5d0bc24f1040a40ce4b080563be0da73441866965ef8369dd8fe3a
     required_applies_to:
     - rest_api
     - cli
@@ -2305,7 +2377,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: privacy
-    fingerprint: 9046ba9759aecfb50741a90d2424292a0f0d1926469eb95901925efc6f1bc1f6
+    fingerprint: 3825d4c19a5ba52efd1b371045cef97b6f5875b5041dc84effc790a0be90676d
     required_applies_to:
     - rest_api
     - cli
@@ -2317,7 +2389,7 @@ assertions:
     specification: feature.app-skill.web-search@1
     specification_id: feature.app-skill.web-search
     type: parity
-    fingerprint: d0ffa31a5198e74811bbe195e76ddcdebd04e90797f61c1aa8b1f4f9ec35a697
+    fingerprint: 302c8f6dabf25dadf950ba22f4a8af8600bd4fdbc52c84caa0c0e565ad34ab38
     required_applies_to:
     - rest_api
     - cli

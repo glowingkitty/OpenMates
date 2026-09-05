@@ -934,6 +934,7 @@ async def call_preprocessing_llm(
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
     dynamic_context: Optional[Dict[str, Any]] = None,
     fallback_models: Optional[List[str]] = None,  # List of fallback model IDs to try if primary fails
+    allow_retries: bool = True,
     observability_purpose: str = "preprocess",
 ) -> LLMPreprocessingCallResult:
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
@@ -1228,16 +1229,19 @@ async def call_preprocessing_llm(
                 # Pass sanitized tool definition to ensure provider-agnostic behavior
                 # Wrap with a bounded preprocessing timeout so overloaded providers fall through to fallback.
                 try:
+                    provider_request_kwargs = {
+                        "task_id": task_id,
+                        "model_id": actual_model_id,
+                        "messages": transformed_messages_for_llm,
+                        "secrets_manager": secrets_manager,
+                        "tools": [sanitized_tool_definition],
+                        "tool_choice": "required",
+                        "stream": False,
+                    }
+                    if provider_prefix == "groq" and not allow_retries:
+                        provider_request_kwargs["max_retries"] = 0
                     response = await asyncio.wait_for(
-                        provider_client(
-                            task_id=task_id, 
-                            model_id=actual_model_id, 
-                            messages=transformed_messages_for_llm,
-                            secrets_manager=secrets_manager, 
-                            tools=[sanitized_tool_definition],  # Use sanitized tool (min/max removed) for all providers
-                            tool_choice="required", 
-                            stream=False
-                        ),
+                        provider_client(**provider_request_kwargs),
                         timeout=PREPROCESSING_TIMEOUT_SECONDS
                     )
                     return handle_response(response, expected_tool_name)
@@ -1360,6 +1364,9 @@ async def call_preprocessing_llm(
             # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.
             if result.arguments is not None and not result.error_message:
                 logger.info(f"[{task_id}] LLM Utils: Preprocessing succeeded with provider: {provider_model_id}")
+                return result
+
+            if not allow_retries:
                 return result
 
             # Non-retryable error (e.g. 401, 400) — stop all retries immediately.
