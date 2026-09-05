@@ -114,7 +114,7 @@ test.describe('ChatProcessingIndicator component preview', () => {
             await expect(avatar).toHaveAttribute('data-mate-category', 'general_knowledge');
             await expect(avatar.getByTestId('chat-processing-ai-badge')).toBeVisible();
             await expect(mateName).toHaveAccessibleName('George');
-            await expect(mateName).toHaveText('George is thinking...');
+            await expect(mateName).toHaveText('George');
         });
         await proof.checkpoint('selected-mate-visible');
 
