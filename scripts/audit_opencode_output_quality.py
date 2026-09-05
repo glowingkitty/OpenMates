@@ -40,11 +40,22 @@ REQUIRED_CORE_TERMS = {
     "verification guidance": ("verification",),
     "uncertainty guidance": ("uncertainty",),
     "command guidance": ("command",),
-    "Firecrawl fallback guidance": ("firecrawl", "fallback", "quota-backed"),
+    "OpenMates code documentation guidance": ("openmates apps code get_docs",),
+    "OpenMates web search guidance": ("openmates apps web search",),
+    "native webpage read guidance": ("native `webfetch`",),
+    "OpenMates webpage fallback guidance": ("openmates apps web read", "fall back"),
+    "legacy research MCP prohibition": ("do not use direct context7", "brave search", "firecrawl mcp"),
     "parallel tool guidance": ("independent calls", "one turn", "batch"),
     "todo coalescing guidance": ("todo update", "standalone", "model round-trip"),
 }
 REQUIRED_CORE_PHRASES = {
+    "research routing guidance": (
+        "openmates apps code get_docs",
+        "openmates apps web search",
+        "native `webfetch`",
+        "openmates apps web read",
+        "do not use direct context7, brave search, or firecrawl mcp tools as a fallback",
+    ),
     "deployed Playwright guidance": (
         "Playwright `*.spec.ts` verification is deployed-code verification",
         "python3 scripts/sessions.py deploy",
@@ -86,7 +97,7 @@ REQUIRED_SCAN_FIRST_GUIDANCE = (
     "## 🧠 Investigation",
     "compact tables",
     "Use icons semantically and sparingly",
-    "Do not paste large YAML, JSON, contracts, or logs",
+    "Do not paste large YAML, JSON",
 )
 REQUIRED_RETROSPECTIVE_PHRASES = (
     "task-closing",
@@ -213,35 +224,13 @@ RETROSPECTIVE_EXCEPTION_TERMS = (
     "unless an agent-workflow deficiency",
     "when an agent-workflow deficiency",
 )
-FIRECRAWL_TOOL_PERMISSIONS = {
-    "firecrawl_firecrawl_agent",
-    "firecrawl_firecrawl_agent_status",
-    "firecrawl_firecrawl_check_crawl_status",
-    "firecrawl_firecrawl_crawl",
-    "firecrawl_firecrawl_extract",
-    "firecrawl_firecrawl_feedback",
-    "firecrawl_firecrawl_interact",
-    "firecrawl_firecrawl_interact_stop",
-    "firecrawl_firecrawl_map",
-    "firecrawl_firecrawl_monitor_check",
-    "firecrawl_firecrawl_monitor_checks",
-    "firecrawl_firecrawl_monitor_create",
-    "firecrawl_firecrawl_monitor_delete",
-    "firecrawl_firecrawl_monitor_get",
-    "firecrawl_firecrawl_monitor_list",
-    "firecrawl_firecrawl_monitor_run",
-    "firecrawl_firecrawl_monitor_update",
-    "firecrawl_firecrawl_parse",
-    "firecrawl_firecrawl_research_inspect_paper",
-    "firecrawl_firecrawl_research_read_paper",
-    "firecrawl_firecrawl_research_related_papers",
-    "firecrawl_firecrawl_research_search_github",
-    "firecrawl_firecrawl_research_search_papers",
-    "firecrawl_firecrawl_scrape",
-    "firecrawl_firecrawl_search",
-    "firecrawl_firecrawl_search_feedback",
-}
-FIRECRAWL_SAFE_PERMISSION_ACTIONS = {"ask", "deny"}
+FORBIDDEN_RESEARCH_MCPS = {"brave-search", "context7", "firecrawl"}
+FORBIDDEN_DIRECT_RESEARCH_FALLBACKS = (
+    "use brave, webfetch, or context7 directly",
+    "use context7 directly",
+    "use brave search directly",
+    "use firecrawl directly",
+)
 MAX_CONSERVATIVE_BATCHABLE_TURNS_PER_DAY = 80
 MAX_STANDALONE_TODO_TURNS_PER_DAY = 80
 MAX_ROUTING_ERROR_TURNS_PER_DAY = 20
@@ -274,6 +263,104 @@ def _load_config(path: Path = OPENCODE_CONFIG) -> dict[str, Any]:
         path.read_text(encoding="utf-8"),
         object_pairs_hook=_reject_duplicate_json_keys,
     )
+
+
+def _strip_jsonc(source: str) -> str:
+    """Remove JSONC comments and trailing commas without exposing string values."""
+
+    output: list[str] = []
+    index = 0
+    in_string = False
+    escaped = False
+    while index < len(source):
+        current = source[index]
+        following = source[index + 1] if index + 1 < len(source) else ""
+        if in_string:
+            output.append(current)
+            if escaped:
+                escaped = False
+            elif current == "\\":
+                escaped = True
+            elif current == '"':
+                in_string = False
+            index += 1
+            continue
+        if current == '"':
+            in_string = True
+            output.append(current)
+            index += 1
+            continue
+        if current == "/" and following == "/":
+            index += 2
+            while index < len(source) and source[index] not in "\r\n":
+                index += 1
+            continue
+        if current == "/" and following == "*":
+            index += 2
+            while index + 1 < len(source) and source[index : index + 2] != "*/":
+                index += 1
+            index = min(index + 2, len(source))
+            continue
+        output.append(current)
+        index += 1
+    uncommented = "".join(output)
+    output = []
+    index = 0
+    in_string = False
+    escaped = False
+    while index < len(uncommented):
+        current = uncommented[index]
+        if in_string:
+            output.append(current)
+            if escaped:
+                escaped = False
+            elif current == "\\":
+                escaped = True
+            elif current == '"':
+                in_string = False
+            index += 1
+            continue
+        if current == '"':
+            in_string = True
+            output.append(current)
+            index += 1
+            continue
+        if current == ",":
+            lookahead = index + 1
+            while lookahead < len(uncommented) and uncommented[lookahead].isspace():
+                lookahead += 1
+            if lookahead < len(uncommented) and uncommented[lookahead] in "}]":
+                index += 1
+                continue
+        output.append(current)
+        index += 1
+    return "".join(output)
+
+
+def _load_runtime_config(path: Path) -> dict[str, Any]:
+    return json.loads(_strip_jsonc(path.read_text(encoding="utf-8")), object_pairs_hook=_reject_duplicate_json_keys)
+
+
+def audit_runtime_mcp_configs(paths: list[Path]) -> list[AuditIssue]:
+    """Reject enabled legacy research MCPs without including config values in output."""
+
+    issues: list[AuditIssue] = []
+    for path in paths:
+        if not path.is_file():
+            continue
+        try:
+            config = _load_runtime_config(path)
+        except (OSError, json.JSONDecodeError, DuplicateConfigKeyError) as error:
+            issues.append(AuditIssue(str(path), f"cannot validate OpenCode runtime config: {type(error).__name__}"))
+            continue
+        mcp = config.get("mcp")
+        if not isinstance(mcp, dict):
+            continue
+        for name in sorted(FORBIDDEN_RESEARCH_MCPS & set(mcp)):
+            entry = mcp.get(name)
+            if isinstance(entry, dict) and entry.get("enabled", True) is not False:
+                issues.append(AuditIssue(str(path), f"forbidden research MCP is enabled: {name}"))
+    return issues
 
 
 def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
@@ -404,19 +491,6 @@ def audit_config(config: dict[str, Any], *, root: Path = REPO_ROOT) -> list[Audi
                 f"always-loaded instruction budget exceeded: {len(instructions)} > {MAX_ALWAYS_LOADED_INSTRUCTIONS}",
             )
         )
-    permission = config.get("permission")
-    if not isinstance(permission, dict):
-        issues.append(AuditIssue("opencode.json", "permission config must explicitly ask-gate Firecrawl MCP tools"))
-    else:
-        for tool in sorted(FIRECRAWL_TOOL_PERMISSIONS):
-            action = permission.get(tool)
-            if action not in FIRECRAWL_SAFE_PERMISSION_ACTIONS:
-                issues.append(
-                    AuditIssue(
-                        "opencode.json",
-                        f"{tool} must be set to ask or deny so Firecrawl credits are not spent silently",
-                    )
-                )
     plan = config.get("agent", {}).get("plan")
     if isinstance(plan, dict):
         issues.extend(
@@ -465,7 +539,11 @@ def audit_instruction_surface(root: Path = REPO_ROOT, config: dict[str, Any] | N
         for label, terms in REQUIRED_CORE_TERMS.items():
             if not _contains_any(core, terms):
                 issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction missing {label}"))
-        lower_core = core.lower()
+        normalized_core = " ".join(core.lower().split())
+        for phrase in FORBIDDEN_DIRECT_RESEARCH_FALLBACKS:
+            if phrase in normalized_core:
+                issues.append(AuditIssue(CORE_INSTRUCTION, f"core instruction permits legacy research MCP fallback: {phrase}"))
+        lower_core = " ".join(core.lower().split())
         for label, phrases in REQUIRED_CORE_PHRASES.items():
             missing = [phrase for phrase in phrases if phrase.lower() not in lower_core]
             if missing:
@@ -994,10 +1072,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit OpenCode output-quality and context-efficiency guardrails.")
     parser.add_argument("--json", action="store_true", help="Print issues as JSON.")
     parser.add_argument("--telemetry-days", type=int, default=0, help="Include aggregate-only tool-turn telemetry for the last N days.")
+    parser.add_argument("--research-routing-only", action="store_true", help="Validate only explicitly supplied runtime configs for forbidden research MCPs.")
+    parser.add_argument("--runtime-config", action="append", default=[], type=Path, help="OpenCode JSON/JSONC config to validate; repeat for every loaded config root.")
     args = parser.parse_args(argv)
 
-    issues = audit(REPO_ROOT)
-    telemetry = summarize_tool_turns(collect_tool_turns(days=args.telemetry_days)) if args.telemetry_days > 0 else None
+    runtime_issues = audit_runtime_mcp_configs(args.runtime_config)
+    issues = [] if args.research_routing_only else audit(REPO_ROOT)
+    issues.extend(runtime_issues)
+    telemetry = summarize_tool_turns(collect_tool_turns(days=args.telemetry_days)) if args.telemetry_days > 0 and not args.research_routing_only else None
     if telemetry is not None:
         telemetry["child_completion"] = summarize_child_completions(
             collect_child_completion_records(days=args.telemetry_days)

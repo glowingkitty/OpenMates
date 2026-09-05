@@ -12,6 +12,16 @@ RELEASE="$RELEASES/current"
 LOG_FILE="${OPENCODE_SERVER_LOG:-$HOME/.local/share/opencode/log/serve-${PORT}.log}"
 SECRETS_FILE="${OPENCODE_SECRETS_FILE:-$HOME/.config/opencode/secrets.env}"
 CONTROL_PLANE_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["control_plane_commit"])' "$RELEASE/manifest.json")"
+RESEARCH_CONFIG_PATHS=(
+    "$HOME/.config/opencode/opencode.jsonc"
+    "$HOME/.config/opencode/opencode.json"
+    "$HOME/.opencode/opencode.jsonc"
+    "$HOME/.opencode/opencode.json"
+    "$SOURCE_CHECKOUT/opencode.jsonc"
+    "$SOURCE_CHECKOUT/opencode.json"
+    "$SOURCE_CHECKOUT/.opencode/opencode.jsonc"
+    "$SOURCE_CHECKOUT/.opencode/opencode.json"
+)
 
 git -C "$SOURCE_CHECKOUT" fetch origin dev
 git -C "$SOURCE_CHECKOUT" merge-base --is-ancestor "$CONTROL_PLANE_COMMIT" origin/dev || {
@@ -33,6 +43,11 @@ python3 "$RUNTIME_CHECKOUT/scripts/opencode_runtime_release.py" validate \
     --release "$RELEASE" \
     --control-plane-commit "$(git -C "$RUNTIME_CHECKOUT" rev-parse HEAD)" \
     >/dev/null
+RESEARCH_AUDIT_ARGS=(--research-routing-only)
+for CONFIG_PATH in "${RESEARCH_CONFIG_PATHS[@]}"; do
+    RESEARCH_AUDIT_ARGS+=(--runtime-config "$CONFIG_PATH")
+done
+python3 "$RUNTIME_CHECKOUT/scripts/audit_opencode_output_quality.py" "${RESEARCH_AUDIT_ARGS[@]}"
 python3 "$RUNTIME_CHECKOUT/scripts/sync_opencode_runtime_hook.py" \
     --runtime-checkout "$RUNTIME_CHECKOUT" \
     --project-root "$SOURCE_CHECKOUT"
