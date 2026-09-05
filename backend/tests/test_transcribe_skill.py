@@ -115,6 +115,28 @@ async def test_legacy_unversioned_transcription_is_untimed():
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-results-and-billing
+@pytest.mark.anyio
+async def test_timed_transcript_uses_decoded_duration_not_whole_second_usage():
+    skill = object.__new__(TranscribeSkill)
+    skill._unwrap_aes_key = AsyncMock(return_value=b"test-key")
+    skill._fetch_and_decrypt_audio = AsyncMock(return_value=b"audio")
+    skill._transcribe_with_mistral = AsyncMock(return_value={
+        "text": "Hello", "duration": 1,
+        "segments": [{"start": 0.0, "end": 1.25, "text": "Hello"}],
+    })
+    skill._extract_waveform = AsyncMock(return_value={"duration_seconds": 1.5})
+    secrets_manager = AsyncMock()
+    secrets_manager.get_secret = AsyncMock(side_effect=["test-key", None])
+    _, results, error = await skill._process_single_transcribe_request({
+        "s3_key": "fixture", "aes_nonce": "fixture", "vault_wrapped_aes_key": "fixture",
+        "_vault_key_id": "fixture", "transcription_contract_version": 1,
+    }, "fixture", secrets_manager)
+    assert error is None
+    assert results[0]["duration_seconds"] == 1.5
+    assert results[0]["words"][0]["end_seconds"] == 1.25
+
+
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-results-and-billing
 def test_null_nested_words_returns_controlled_timing_error():
     with pytest.raises(ValueError, match="Invalid provider timing entries"):
         _normalize_provider_timings({

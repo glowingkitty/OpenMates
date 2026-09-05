@@ -421,6 +421,8 @@ class TranscribeSkill(BaseSkill):
         self,
         audio_bytes: bytes,
         duration_seconds: Optional[float] = None,
+        *,
+        measure_duration: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Best-effort waveform extraction using ffmpeg when available."""
         ffmpeg_path = shutil.which("ffmpeg")
@@ -481,6 +483,8 @@ class TranscribeSkill(BaseSkill):
             )
             return None
 
+        if measure_duration:
+            duration_seconds = len(stdout) / WAVEFORM_PCM_SAMPLE_RATE
         return self._build_waveform_from_pcm_u8(stdout, duration_seconds)
 
     VAULT_TOKEN_PATH: str = "/vault-data/api.token"
@@ -933,6 +937,14 @@ class TranscribeSkill(BaseSkill):
             )
             detected_language = mistral_result.get("language")
             duration_seconds = mistral_result.get("duration")
+            waveform = await self._extract_waveform(
+                audio_bytes, duration_seconds, measure_duration=timestamps != "none"
+            )
+            # Provider usage is whole seconds; decoded samples preserve fractional
+            # bounds needed to validate word timings at the end of a recording.
+            if timestamps != "none" and waveform and waveform.get("duration_seconds"):
+                duration_seconds = waveform["duration_seconds"]
+                mistral_result["duration"] = duration_seconds
             timing_fields = _normalize_provider_timings(mistral_result, timestamps)
             if timestamps != "none" and (
                 not transcript_text
@@ -940,7 +952,6 @@ class TranscribeSkill(BaseSkill):
                 or (timestamps == "word" and not timing_fields.get("words"))
             ):
                 raise TimingUnavailableError("timestamps_unavailable")
-            waveform = await self._extract_waveform(audio_bytes, duration_seconds)
 
             transcript_corrected: Optional[str] = None
             recording_title: Optional[str] = None
