@@ -1,0 +1,329 @@
+schema_version: 2
+id: videos-get-transcript
+title: Video Transcript Retrieval And CLI-Local Video Audio
+status: implementing
+goal: >
+  Backfill the existing YouTube transcript skill and add CLI-only local video
+  audio extraction through existing authenticated audio transcription, with
+  optional accurate timestamps and no new video upload service.
+
+specification_refs:
+  - id: feature.app-skill.videos-get-transcript
+    version: 1
+    fingerprint: 0cf398725542a92e74b140d063e641b121ef9d24dcf9342866fc736d3fe964b7
+    role: primary
+scope:
+  in: ["YouTube backfill", "Audio timestamp negotiation", "CLI --file audio extraction and atomic JSON", "npm/pip timestamp schemas", "web/native speech compatibility"]
+  out: ["Video upload or Videos file route", "provider fork or auth/billing redesign", "web/native local-video picker", "SRT or retention APIs", "marketing/Remotion work"]
+context_discovery:
+  specs: [specifications/features/app-skills/videos-get-transcript/specification.yml, specifications/features/app-skills/videos-get-transcript/examples.yml]
+  source: [backend/apps/audio/skills/transcribe_skill.py, backend/apps/audio/app.yml, backend/core/api/app/routes/apps_api.py, frontend/packages/openmates-cli/src/uploadService.ts, frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, frontend/packages/ui/src/components/enter_message/embedHandlers.ts, apple/OpenMatesShared/BackgroundChatSender.swift]
+  tests: [backend/tests/test_transcribe_skill.py, backend/tests/test_audio_transcribe_ascii_sanitization.py, backend/tests/test_videos_transcript_timeout.py, frontend/packages/openmates-cli/tests/uploadService.test.ts, frontend/packages/openmates-cli/tests/fileEmbed.test.ts, frontend/packages/openmates-cli/tests/sdk.test.ts, packages/openmates-python/tests/test_sdk.py, frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts, frontend/apps/web_app/tests/skill-videos-transcript.spec.ts, apple/OpenMatesTests/BackgroundChatSenderParityTests.swift, apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift]
+discovery_summary: >
+  web embedHandlers.ts, native BackgroundChatSender.swift, and CLI
+  uploadService.ts call transcribeUploadedAudio without timestamps or a reliable
+  semantic discriminator. A global omitted=word default would regress shipped
+  speech behavior. uploadFile and transcribeUploadedAudio already provide the
+  authenticated audio-only boundary; Mistral rejects language with word/segment.
+
+approvals:
+  specification: {status: approved, approved_at: "2026-09-05"}
+  plan: {status: approved, approved_at: "2026-09-05", note: "User approved implementation and waived Apple app testing."}
+implementation_state: {subject_commit: 7638181d2db14e13654f1c77af2e87db050b8530}
+decisions:
+  - id: D-1
+    status: active
+    decision: >
+      Add transcription_contract_version: 1 only to new GENERAL audio/transcribe
+      dispatchers, including generic npm/pip metadata. Versioned omission means
+      word; versioned speech explicitly sends none. Unversioned omission remains
+      legacy none; transitional unversioned explicit timestamps validate normally.
+    reason: >
+      Omission cannot distinguish shipped speech from general transcription. This
+      additive rollout preserves the approved general default without guessing.
+    stop_condition: >
+      Stop and request a Specification change if legacy unversioned none and new
+      versioned general omitted=word cannot both be preserved.
+    decided_at: "2026-09-05"
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: "Revised the draft Plan after concrete command, ordering, baseline, and proof-scope review."
+    outcome: succeeded
+    recorded_at: "2026-09-05"
+handoff:
+  current_task_id: TASK-1
+  next_action: Add backend timestamp tests, record red evidence, and implement the audio pipeline extension.
+  command: python3 scripts/plan_validate.py docs/plans/videos-get-transcript/plan.yml
+  expected_outcome: New timestamp tests fail before implementation; existing speech and YouTube baselines pass.
+  blocker: null
+  last_verified_commit: 7638181d2db14e13654f1c77af2e87db050b8530
+assumptions:
+  - id: A-1
+    text: Existing uploadService paired-upload flow is the source-level pattern for an extracted audio derivative; live auth proof is still required.
+    status: confirmed
+    required_before: implementation
+    evidence: ["frontend/packages/openmates-cli/src/uploadService.ts source inspection"]
+  - id: A-2
+    text: ffprobe can resolve the selected stream presentation offset after edit lists, otherwise the CLI rejects before upload/export.
+    status: unchecked
+    required_before: task_execution
+  - id: A-3
+    text: Provider timing data can be validated as finite, ordered source-relative times without fabricating words.
+    status: unchecked
+    required_before: task_execution
+
+scenarios:
+  - id: S-1
+    title: Existing YouTube captions remain safe and ordered
+    given: ["Caller submits supported YouTube watch or youtu.be URLs."]
+    when: ["videos/get_transcript retrieves captions."]
+    then: ["Ordered grouped results retain visible partial failures, safety, metadata, and existing pricing."]
+  - id: S-2
+    title: General and speech audio requests negotiate safely
+    given: ["A versioned general client, legacy client, or speech boundary transcribes audio."]
+    when: ["It omits or selects timestamps and may select language."]
+    then: ["New general omission is word, legacy omission is none, speech sends none, and invalid language/timing fails before Mistral."]
+  - id: S-3
+    title: CLI extracts local video audio only
+    given: ["A paired CLI user supplies a supported local video and explicit safe JSON output."]
+    when: ["CLI probes, extracts audio, uploads it, and invokes audio/transcribe."]
+    then: ["Only audio uploads; offset-mapped JSON is atomic, complete, and excludes secrets and absolute source paths."]
+  - id: S-4
+    title: SDK and existing embed surfaces preserve parity
+    given: ["A developer uses npm/pip or a user uses existing web/native recording embeds."]
+    when: ["They use transcript behavior."]
+    then: ["SDKs expose audio-only timestamp schemas; existing embeds retain behavior and add no picker."]
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: Existing YouTube request validation, ordered grouped output, safety, metadata, direct response, and pricing/income behavior match the approved backfill.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-BACKFILL]
+  - id: AC-2
+    scenario: S-2
+    text: Versioned general omission is word; legacy omission is none; explicit none/segment/word validate; corrected text is never timestamp-aligned.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-PY-TIMING, V-REST-DEV]
+  - id: AC-3
+    scenario: S-2
+    text: Web, CLI, and native speech boundaries explicitly select none and retain existing language, correction, title, waveform, auth, and billing behavior.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_frontend
+    verification_ids: [T-CLI-COMPAT, T-WEB-REGRESSION, V-APPLE-PARITY]
+  - id: AC-4
+    scenario: S-3
+    text: CLI --file performs safe local audio-only orchestration through uploadFile and transcribeUploadedAudio, with no Videos file route or provider fork.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI-VIDEO, T-CLI-PROOF, V-CLI-DEV]
+  - id: AC-5
+    scenario: S-3
+    text: Provider timing is validated and mapped exactly once; existing regular-audio billing applies; export is complete, atomic, private where supported, and path-safe.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-PY-TIMING, T-CLI-VIDEO, V-CLI-DEV]
+  - id: AC-6
+    scenario: S-4
+    text: npm/pip add generic audio/transcribe timestamp schemas and YouTube parity; web/native embeds retain behavior without local-video UI.
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids: [T-SDK-SCHEMA, V-NPM-DEV, V-PIP-DEV, T-WEB-REGRESSION, V-APPLE-PARITY]
+
+contracts:
+  api:
+    - route: POST /v1/apps/audio/skills/transcribe
+      access_model: Existing session or API-key REST access; CLI --file additionally needs existing paired upload auth.
+      limits_billing: Existing upload limit applies to extracted audio and existing successful-audio formula remains sole charge.
+      privacy: Existing private upload/storage, server-side decrypt for Mistral, and optional Gemini text correction apply; provider credentials never reach clients.
+      negotiation: "Only audio/transcribe version 1 general dispatch uses omitted=word; old unversioned omission=none; versioned speech sends none."
+  data_flow:
+    - "CLI: ffprobe -> ffmpeg audio derivative -> uploadFile -> transcribeUploadedAudio -> validate/map offset -> atomic JSON."
+    - "API/SDK: version marker -> validate timing/language -> regular audio pipeline -> timed original plus separate correction."
+    - "Speech: explicit none at web/CLI/native boundary -> unchanged speech behavior."
+
+tests:
+  - id: T-PY-BACKFILL
+    type: pytest
+    file: backend/tests/test_videos_transcript_timeout.py
+    command: python3 -m pytest backend/tests/test_videos_transcript_timeout.py
+    covers: [AC-1]
+    assertions: ["Existing backfill remains passing: URL rules, order, partial failures, retry/deadline, sanitization, and pricing fixtures."]
+    red_phase: {required: false, expected: pass_baseline, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PY-TIMING
+    type: pytest
+    file: backend/tests/test_transcribe_skill.py
+    command: python3 -m pytest backend/tests/test_transcribe_skill.py backend/tests/test_audio_transcribe_ascii_sanitization.py
+    covers: [AC-2, AC-5]
+    assertions: ["Planned red cases cover version negotiation, explicit none/segment/word, Mistral language conflict, provider timing schema, silence, correction separation, and 90-second billing."]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLI-COMPAT
+    type: unit
+    file: frontend/packages/openmates-cli/tests/uploadService.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/uploadService.test.ts frontend/packages/openmates-cli/tests/fileEmbed.test.ts
+    covers: [AC-3]
+    assertions: ["Planned red cases prove versioned speech sends none and legacy omission remains none; no auth or metadata regression."]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLI-VIDEO
+    type: unit
+    file: frontend/packages/openmates-cli/tests/cli-video-transcript.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/cli-video-transcript.test.ts
+    covers: [AC-4, AC-5]
+    assertions: ["Planned test covers dependency checks, audio-only upload, selected stream offset, cleanup, safe local paths, and atomic JSON using synthetic fixture media."]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-SDK-SCHEMA
+    type: unit
+    file: frontend/packages/openmates-cli/tests/sdk.test.ts
+    command: node --test --experimental-strip-types --loader ./frontend/packages/openmates-cli/tests/loader.mjs frontend/packages/openmates-cli/tests/sdk.test.ts
+    covers: [AC-6]
+    assertions: ["Planned npm schema case limits marker/timestamps to audio/transcribe; pip equivalent is added in packages/openmates-python/tests/test_sdk.py."]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-PIP-SCHEMA
+    type: pytest
+    file: packages/openmates-python/tests/test_sdk.py
+    command: python3 -m pytest packages/openmates-python/tests/test_sdk.py
+    covers: [AC-6]
+    assertions: ["Planned pip schema case sends the audio/transcribe marker and typed timestamp options without private-media work."]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB-REGRESSION
+    type: playwright
+    file: frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <EXPECTED_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-3, AC-6]
+    assertions: ["Existing visible speech recording UX remains intact; request-schema assertions, not video pixels, prove explicit none."]
+    red_phase: {required: false, expected: pass_baseline, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-CLI-PROOF
+    type: playwright
+    file: frontend/apps/web_app/tests/cli-video-transcript.spec.ts
+    command: python3 scripts/tests.py run --spec cli-video-transcript.spec.ts --gate-deploy --expected-commit <EXPECTED_SHA>
+    target: app.dev.openmates.org
+    covers: [AC-4]
+    assertions: ["Planned dispatcher-registered real CLI proof uses authenticated synthetic media, never prints credentials, provider secrets, or personal camera data."]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+
+verifications:
+  - id: V-REST-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-2]
+    status: pending
+    command: python3 scripts/tests/test_videos_get_transcript_real_dev.py --surface rest --api-url https://api.dev.openmates.org
+    evidence: {status: pending, summary: "Planned authenticated real API smoke; synthetic audio only; no mocks or provider credentials."}
+  - id: V-CLI-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-4, AC-5]
+    status: pending
+    command: python3 scripts/tests/test_videos_get_transcript_real_dev.py --surface cli --api-url https://api.dev.openmates.org
+    evidence: {status: pending, summary: "Planned paired real CLI smoke with synthetic local media and redacted output."}
+  - id: V-NPM-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-6]
+    status: pending
+    command: python3 scripts/tests/test_videos_get_transcript_real_dev.py --surface npm --api-url https://api.dev.openmates.org
+    evidence: {status: pending, summary: "Planned authenticated npm real-dev smoke; no mocks."}
+  - id: V-PIP-DEV
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-6]
+    status: pending
+    command: python3 scripts/tests/test_videos_get_transcript_real_dev.py --surface pip --api-url https://api.dev.openmates.org
+    evidence: {status: pending, summary: "Planned authenticated pip real-dev smoke; no mocks."}
+  - id: V-PREPARED-CLI
+    kind: deterministic_check
+    phase: green
+    required_for_done: true
+    covers: [AC-3, AC-4, AC-5]
+    status: pending
+    command: python3 scripts/sessions.py prepare-deploy --session <SESSION_ID> --only frontend/packages/openmates-cli
+    follow_up_commands:
+      - python3 scripts/sessions.py verify-prepared --session <SESSION_ID> --profile cli-storage-unit --only frontend/packages/openmates-cli --expected-manifest-id <MANIFEST_ID>
+      - python3 scripts/sessions.py verify-prepared --session <SESSION_ID> --profile cli-typecheck --only frontend/packages/openmates-cli --expected-manifest-id <MANIFEST_ID>
+    evidence: {status: pending, summary: "Planned dependency-light upload regression and typecheck; no package installation."}
+  - id: V-UI-VISUAL-SMOKE
+    kind: manual_check
+    phase: not_applicable
+    required_for_done: false
+    covers: [AC-6]
+    status: pending
+    evidence: {status: pending, reason: "Pure request-schema and CLI behavior change; no planned visual component, layout, or control change. Deployed regression remains required."}
+  - id: V-USER-CONFIRMATION
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-6]
+    status: pending
+    evidence: {status: pending}
+  - id: V-APPLE-PARITY
+    kind: automated_test
+    phase: final
+    required_for_done: false
+    covers: [AC-3, AC-6]
+    status: waived
+    command: python3 scripts/apple_remote.py test-ios --only-testing OpenMatesTests/BackgroundChatSenderParityTests
+    follow_up_commands:
+      - python3 scripts/apple_remote.py test-ios --only-testing OpenMatesUITests/MessageInputAudioRecordingUITests
+    evidence: {status: waived, decision_id: DEC-be24ff58120cc17a3ec26f21, summary: "Apple app testing explicitly waived by the user. Native speech request change remains in scope; do not claim native verification passed."}
+
+apple_impact:
+  affected_files: [apple/OpenMatesShared/BackgroundChatSender.swift, apple/OpenMatesTests/BackgroundChatSenderParityTests.swift, apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift]
+  parity_expectations: ["Native boundary explicitly sends none after confirmation; no local video picker or layout change."]
+  verification: ["Targeted native parity tests last; iPhone 393x852 and iPad 1366x1024 proof only for an objectively observable native change."]
+  intentional_native_differences: ["CLI local-video extraction has no Apple counterpart."]
+
+tasks:
+  - {id: TASK-1, title: Add red fixtures and compatibility mapping, status: pending, phase: working_tasks, covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2, AC-3]}, expected_files: [backend/tests/test_transcribe_skill.py, backend/tests/test_videos_transcript_timeout.py, frontend/packages/openmates-cli/tests/uploadService.test.ts], verification_ids: [T-PY-BACKFILL, T-PY-TIMING, T-CLI-COMPAT], dependencies: [], blockers: [], follow_up_tasks: [TASK-2], ownership: {files: [backend/tests/test_transcribe_skill.py, backend/tests/test_videos_transcript_timeout.py, frontend/packages/openmates-cli/tests/uploadService.test.ts], shared_files: []}}
+  - {id: TASK-2, title: Add Audio negotiation without changing regular pipeline, status: pending, phase: working_tasks, covers: {scenarios: [S-1, S-2], acceptance_criteria: [AC-1, AC-2, AC-3, AC-5]}, expected_files: [backend/apps/audio/skills/transcribe_skill.py, backend/apps/audio/app.yml, backend/core/api/app/routes/apps_api.py], verification_ids: [T-PY-BACKFILL, T-PY-TIMING, V-REST-DEV], dependencies: [TASK-1], blockers: [], follow_up_tasks: [TASK-3], ownership: {files: [backend/apps/audio/skills/transcribe_skill.py, backend/apps/audio/app.yml, backend/core/api/app/routes/apps_api.py], shared_files: []}}
+  - {id: TASK-3, title: Add CLI local video and speech helper updates, status: pending, phase: working_tasks, covers: {scenarios: [S-2, S-3], acceptance_criteria: [AC-3, AC-4, AC-5]}, expected_files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/uploadService.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/tests/cli-video-transcript.test.ts], verification_ids: [T-CLI-COMPAT, T-CLI-VIDEO, T-CLI-PROOF, V-CLI-DEV], dependencies: [TASK-2], blockers: [], follow_up_tasks: [TASK-4], ownership: {files: [frontend/packages/openmates-cli/src/cli.ts, frontend/packages/openmates-cli/src/uploadService.ts, frontend/packages/openmates-cli/src/client.ts, frontend/packages/openmates-cli/tests/cli-video-transcript.test.ts], shared_files: []}}
+  - {id: TASK-4, title: Add SDK schemas and web explicit-none boundary, status: pending, phase: working_tasks, covers: {scenarios: [S-2, S-4], acceptance_criteria: [AC-3, AC-6]}, expected_files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_sdk.py, frontend/packages/ui/src/components/enter_message/embedHandlers.ts], verification_ids: [T-SDK-SCHEMA, T-PIP-SCHEMA, V-NPM-DEV, V-PIP-DEV], dependencies: [TASK-3], blockers: [], follow_up_tasks: [TASK-5], ownership: {files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, packages/openmates-python/tests/test_sdk.py, frontend/packages/ui/src/components/enter_message/embedHandlers.ts], shared_files: []}}
+  - {id: TASK-5, title: Run ordered real gates CI reproduction deploy and web regressions, status: pending, phase: running_checks, covers: {scenarios: [S-2, S-3, S-4], acceptance_criteria: [AC-2, AC-3, AC-4, AC-5, AC-6]}, expected_files: [scripts/tests/test_videos_get_transcript_real_dev.py, frontend/apps/web_app/tests/cli-video-transcript.spec.ts, frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts], verification_ids: [V-REST-DEV, V-CLI-DEV, V-NPM-DEV, V-PIP-DEV, V-PREPARED-CLI, T-WEB-REGRESSION, T-CLI-PROOF, V-UI-VISUAL-SMOKE], dependencies: [TASK-4], blockers: [], follow_up_tasks: [TASK-6], ownership: {files: [scripts/tests/test_videos_get_transcript_real_dev.py, frontend/apps/web_app/tests/cli-video-transcript.spec.ts, frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts], shared_files: []}}
+  - {id: TASK-6, title: Confirm web then update and verify Apple boundary, status: pending, phase: working_tasks, covers: {scenarios: [S-2, S-4], acceptance_criteria: [AC-3, AC-6]}, expected_files: [apple/OpenMatesShared/BackgroundChatSender.swift, apple/OpenMatesTests/BackgroundChatSenderParityTests.swift, apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift], verification_ids: [V-USER-CONFIRMATION, V-APPLE-PARITY], dependencies: [TASK-5], blockers: ["User confirmation is required before native work."], follow_up_tasks: [TASK-7], ownership: {files: [apple/OpenMatesShared/BackgroundChatSender.swift, apple/OpenMatesTests/BackgroundChatSenderParityTests.swift, apple/OpenMatesUITests/MessageInputAudioRecordingUITests.swift], shared_files: []}}
+  - {id: TASK-7, title: Record proof and completion evidence, status: pending, phase: running_checks, covers: {scenarios: [S-3, S-4], acceptance_criteria: [AC-3, AC-4, AC-5, AC-6]}, expected_files: [docs/plans/videos-get-transcript/plan.yml], verification_ids: [T-CLI-PROOF, V-APPLE-PARITY], dependencies: [TASK-6], blockers: [], follow_up_tasks: [], ownership: {files: [docs/plans/videos-get-transcript/plan.yml], shared_files: []}}
+
+verification_order:
+  - "Red new checks; baseline YouTube and unchanged speech tests must pass."
+  - "Real authenticated REST -> CLI -> npm -> pip smokes against api.dev.openmates.org, then CI/daily reproduction."
+  - "Run the literal V-PREPARED-CLI prepare-deploy, cli-storage-unit, and cli-typecheck commands; do not install dependencies."
+  - "Scoped dev deployment records <EXPECTED_SHA>, then deployed web regressions and CLI proof spec."
+  - "Visual smoke not applicable; user confirmation follows deployed regression; Apple is last."
+  - "Complete with python3 scripts/plan_verify.py docs/plans/videos-get-transcript/plan.yml --phase complete --json."
+demonstration:
+  eligibility: {status: required, surface: cli, reason: "New CLI --file product behavior requires one real terminal proof; web/native visual UI is unchanged.", classified_at: "2026-09-05"}
+  narration_outline:
+    - {id: NARR-1, purpose: "Show local-video transcript retrieval.", expected_proof: "1280x720 real CLI with synthetic media shows audio extraction and complete JSON while redacting credentials and transport details.", scenario_ids: [S-3], acceptance_criteria: [AC-4, AC-5]}
+  evidence: {status: pending, privacy_status: pending, audio_status: pending, review_status: pending, publication_status: pending, review_attempts: 0, subject_commit: "", manifest_path: "", manifest_hash: "", review_run_id: "", timestamp: ""}
+risks:
+  - "Any global omitted=word default regresses shipped speech; D-1 is mandatory."
+  - "Ambiguous edit-list offsets must reject rather than create false timings."
+  - "Provider timing/language incompatibility must visibly fail, never synthesize timings."
+  - "Path aliases and non-atomic output can expose or overwrite local data."
+open_questions: []

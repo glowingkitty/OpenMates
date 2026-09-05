@@ -213,6 +213,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.videos-get-transcript:
+    version: 1
+    status: draft
+    path: features/app-skills/videos-get-transcript
+    fingerprint: 0cf398725542a92e74b140d063e641b121ef9d24dcf9342866fc736d3fe964b7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.web-search:
     version: 1
     status: draft
@@ -2496,6 +2508,126 @@ assertions:
     specification_id: feature.app-skill.travel-search
     type: parity
     fingerprint: ff32d880725d9c999bae4636b4661297f851663f5d62fd059919517a72132fe0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.backfilled-youtube-contract:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: behavior
+    fingerprint: 03572b091764cbf65f90d237de9be05a457a45dcfdb403a125bd0300ca8a0a4b
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.backfilled-youtube-safety:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: privacy
+    fingerprint: 4ed2afafbcda1a1008849742d6d7c28a47df4f965f16a8c92d95fbef3046c2bb
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.backfilled-youtube-result:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: behavior
+    fingerprint: 8fa330b4597c1ded5635c99e567345525789a2965f9912dcbd1fb7d312e39e49
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.local-cli-orchestration:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: behavior
+    fingerprint: f185d1e19966d9819e19a5fa3f37d335eaff323c35f7df46a1302d2725976890
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.audio-timestamps-and-correction:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: behavior
+    fingerprint: 9c2b6a79f0db861539f62d1c9edd428aee7551cdb9c5b983532076d9931c8172
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.speech-input-timestamps-off:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: behavior
+    fingerprint: 08c5a5ca1d0057772eb07271e3c14d92348552ac442e208c5009e9a47089febf
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.audio-results-and-billing:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: behavior
+    fingerprint: 54621587f6c24b12ebeb32716a68d1ed55b7a312025a9cadae7788756d16922e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.access-and-export:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: security
+    fingerprint: 16414215fd03d344be921ca137cf521a282eb80e5dda69b30d3ec4f0846493a7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.existing-media-boundary:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: privacy
+    fingerprint: d9c146fca305fcb03051f5d6c561791c2d3bb8435fe172b74bf593a9341c4f45
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  videos.transcript.surface-parity:
+    specification: feature.app-skill.videos-get-transcript@1
+    specification_id: feature.app-skill.videos-get-transcript
+    type: parity
+    fingerprint: e5a0f0f0913f99a55a21a3bf8d4e02573e9185350528ab4fc099e80537fec71e
     required_applies_to:
     - rest_api
     - cli

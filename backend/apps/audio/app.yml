@@ -157,6 +157,14 @@ skills:
               language:
                 type: string
                 description: "Optional ISO 639-1 language hint (e.g. 'en', 'de')."
+              transcription_contract_version:
+                type: integer
+                enum: [1]
+                description: "Optional contract marker. Version 1 defaults omitted timestamps to word; unversioned omission remains none."
+              timestamps:
+                type: string
+                enum: [none, segment, word]
+                description: "Optional timestamp detail. Explicit selection overrides the contract default; segment and word cannot be combined with language."
               filename:
                 type: string
                 description: "Original filename of the audio recording."

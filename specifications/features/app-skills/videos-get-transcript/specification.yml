@@ -1,0 +1,158 @@
+schema_version: 1
+id: feature.app-skill.videos-get-transcript
+version: 1
+status: draft
+title: Video Transcript Retrieval And CLI-Local Video Audio
+summary: >
+  Backfill the shipped YouTube caption pipeline and extend only the CLI to
+  extract local video audio before using the existing audio transcription path.
+
+inherits:
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - Backfilled server-side YouTube caption retrieval through videos/get_transcript.
+    - Proposed CLI-local video probing, audio extraction, upload, audio/transcribe invocation, and JSON output.
+    - Audio timestamp schemas with word timings enabled by default and explicitly disabled for existing speech input.
+  excludes:
+    - Full-video upload, server-side local paths, a Videos uploaded-audio route, or a provider fork.
+    - YouTube downloading, Shorts, arbitrary video URLs, new GUI file pickers, SRT export, and new retention APIs.
+    - New billing reservations, refunds, duration probes, auth redesign, or a global API-key restriction.
+    - Disabling regular audio correction, title generation, waveform extraction, or existing web/native embeds.
+
+models:
+  ExistingYouTubeRequest:
+    requests: {type: array, items: ExistingYouTubeRequestItem, required: true, constraints: {preserve_input_order: true}}
+  ExistingYouTubeRequestItem:
+    id: {type: correlation_id, nullable: true, constraints: {generated_when_absent: true}}
+    url: {type: string, required: true, constraints: {accepted_hosts: [youtube.com_watch, youtu.be], shorts: forbidden, fragment: remove_before_fetch}}
+    languages: {type: array, items: language_code, nullable: true, default: [en, de, es, fr], constraints: {ordered_preference: true}}
+    additional_metadata: {type: object, additional_properties: true, constraints: {does_not_change_youtube_source_validation: true}}
+  YouTubeTranscriptResult:
+    type: {type: literal, value: transcript_result}
+    url: {type: string, required: true}
+    transcript: {type: string, required: true, constraints: {caption_format: '[HH:MM:SS.mmm] text', sanitization: fail_closed}}
+    word_count: {type: integer, required: true}
+    characters_count: {type: integer, required: true}
+    language: {type: language_code, nullable: true}
+    hash: {type: string, required: true, constraints: {excluded_from_inference: true, retained_for_ui: true}}
+  GroupedResult:
+    id: {type: correlation_id, required: true}
+    results: {type: array, required: true}
+    error: {type: string, nullable: true, constraints: {partial_failure_visible: true}}
+  AudioTimestampRequest:
+    timestamps: {type: enum, values: [none, segment, word], default: word}
+    language: {type: language_code, nullable: true, constraints: {forbidden_when_timestamps_in: [segment, word], normal_when_none: true}}
+  SpeechInputTimestampPolicy:
+    timestamps: {type: literal, value: none, constraints: {explicit_at_speech_input_boundary: true}}
+    compatibility: {type: existing_speech_input_behavior, constraints: {language_hints_preserved: true, correction_title_waveform_preserved: true, provider_timestamps_not_requested: true, shipped_speech_clients_protected_before_default_rollout: true}}
+  TimedText:
+    start_seconds: {type: number, required: true, constraints: {finite: true, minimum: 0, source_relative: true}}
+    end_seconds: {type: number, required: true, constraints: {finite: true, greater_than_start: true, ordered: true}}
+    text: {type: string, required: true, constraints: {original_recognition_only: true}}
+  AudioTranscriptionResult:
+    title: {type: string, nullable: true}
+    transcript: {type: string, required: true}
+    transcript_original: {type: string, required: true}
+    transcript_corrected: {type: string, nullable: true}
+    use_corrected: {type: boolean, required: true}
+    correction_model: {type: string, nullable: true}
+    model: {type: string, nullable: true}
+    language: {type: language_code, nullable: true}
+    duration_seconds: {type: number, nullable: true}
+    waveform: {type: object, nullable: true}
+    segments: {type: array, items: TimedText, nullable: true, constraints: {only_when_timestamps_in: [segment, word], bound_to: transcript_original}}
+    words: {type: array, items: TimedText, nullable: true, constraints: {only_when_timestamps: word, bound_to: transcript_original, synthesized_from_segments: forbidden}}
+  CliLocalVideo:
+    file: {type: local_regular_file, required: true, constraints: {formats: [mov, mp4, m4v, webm], server_path: forbidden, source_unchanged: true, mutually_exclusive_with_url: true}}
+    preparation: {type: local_probe_and_audio_extraction, constraints: {selected_stream_timeline: source_relative, no_full_video_upload: true, temp_cleanup_on_terminal_paths: true}}
+    upload: {type: existing_uploadFile, constraints: {input: extracted_audio_only, existing_limits: preserved, maximum_audio_bytes: 104857600}}
+    transcription: {type: existing_transcribeUploadedAudio, constraints: {endpoint: /v1/apps/audio/skills/transcribe, no_videos_file_route: true}}
+  CliJsonExport:
+    schema_version: {type: integer, required: true, constraints: {value: 1}}
+    output: {type: utf8_json, constraints: {complete: true, atomic: true, private_permissions_where_supported: true, overwrite_requires_explicit_force: true, partial_success_file: forbidden, progress_to_stderr: true}}
+    safety: {type: local_path_validation, constraints: {explicit_output: true, source_alias_or_symlink_or_hardlink: reject, secrets: forbidden, absolute_source_path: forbidden}}
+
+backfilled_existing:
+  youtube_pipeline:
+    input: ExistingYouTubeRequest
+    provider: {type: youtube-transcript-api, proxy: Webshare, credentials: server_vault_secrets}
+    execution: {type: direct_async, polling: forbidden, retries: {maximum_attempts: 10, deadline_seconds: 45}}
+    processing: {type: raw_caption_items, format: '[HH:MM:SS.mmm] text', sanitize_external_content: required, sanitization_failure: visible_fail_closed}
+    output: {type: grouped_results, item: YouTubeTranscriptResult, preserve_request_order: true, partial_failures: retained}
+  pricing_and_surfaces:
+    videos_pricing: {type: configured_skill_framework_pricing, constraints: {unchanged: true}}
+    creator_income: {type: existing_creator_and_platform_split, constraints: {creator_credits: 9, youtube_credits: 1, payment_disabled_skips_income: true, metadata_or_income_failure_does_not_fail_transcript: true}}
+    surfaces: {web_and_native_embeds: retained, rest: existing_videos_endpoint, cli_url: existing_videos_endpoint}
+  regular_audio_pipeline:
+    processing: {type: existing_audio_transcribe, steps: [vault_key_unwrap, private_s3_fetch_and_decrypt, configured_mistral_voxtral_transcription, deterministic_sanitization, best_effort_waveform, optional_gemini_correction_and_title]}
+    correction: {type: normal, constraints: {gemini_failure_returns_original: true, use_corrected_false_on_failure: true, corrected_text_not_timestamp_aligned: true}}
+    billing: {type: existing_successful_batch_formula, formula: 'max(success_count, ceil(sum_successful_duration_seconds / 60)) * 3', missing_duration: minimum_per_success, videos_charge: forbidden, creator_income: forbidden}
+    access: {type: existing_audio_auth, constraints: {session_or_api_key: accepted, paired_upload_required_for_cli_upload: true, api_key_only_cli_file: cannot_upload, no_global_audio_api_key_ban: true}}
+
+proposed_extension:
+  cli_command:
+    invocation: {type: command, value: 'openmates apps videos get_transcript --file clip.mov'}
+    behavior: {local_default_timestamps: word, url_input: existing_videos_endpoint, file_input: CliLocalVideo}
+  audio_timestamp_extension:
+    request: AudioTimestampRequest
+    defaults: {general_transcription: word, local_video: word, existing_speech_input: explicit_none}
+    provider: {type: Mistral, model: configured_voxtral_mini_2602, constraints: {timestamp_and_language_hint: incompatible, reject_combination: true}}
+    response: AudioTranscriptionResult
+    timing: {type: provider_times, constraints: {numeric_nonnegative_ordered: required, audio_response_origin: submitted_audio_start, cli_video_export_origin: source_video_start, cli_stream_presentation_offset_after_edit_lists: map_once, no_fake_words: true, invalid_timing: visible_failure, empty_silence: visible_safe_status}}
+  export:
+    command_flags: [--file, --timestamps, --output]
+    result: {type: CliJsonExport, constraints: {retain: [title, duration_seconds, model, language, transcript, transcript_original, transcript_corrected, use_corrected, correction_model, waveform, segments, words], timing_unit: seconds, timing_origin: source_video_start, extraction_offset_recorded: true}}
+
+assertions:
+  - id: videos.transcript.backfilled-youtube-contract
+    type: behavior
+    must: "The existing Videos endpoint accepts ordered request arrays, generates missing correlation IDs, accepts only YouTube watch and youtu.be URLs without Shorts, removes fragments, uses the ordered en/de/es/fr default, and returns grouped results in request order with visible per-item failures."
+    depends_on: [models.ExistingYouTubeRequest, models.ExistingYouTubeRequestItem, models.GroupedResult, examples.backfilled_youtube]
+  - id: videos.transcript.backfilled-youtube-safety
+    type: privacy
+    must: "Caption retrieval uses youtube-transcript-api and server-configured Webshare credentials with at most ten attempts within 45 seconds. Raw caption start and duration are rendered as timestamped text; sanitizer failures or blocks fail closed and are visible rather than returning unsafe content."
+    depends_on: [models.YouTubeTranscriptResult, examples.backfilled_youtube]
+  - id: videos.transcript.backfilled-youtube-result
+    type: behavior
+    must: "Each successful YouTube item contains transcript_result, URL, formatted transcript, word_count, characters_count, language, and hash. Hash and type remain available to UI rendering but are excluded from inference; the existing async direct response has no polling. Existing Videos pricing metadata and creator/platform income behavior remain unchanged."
+    depends_on: [models.YouTubeTranscriptResult, examples.backfilled_youtube]
+  - id: videos.transcript.local-cli-orchestration
+    type: behavior
+    must: "--file is CLI-only orchestration and mutually exclusive with URL input: probe and extract an audio derivative locally, clean temporary data on every terminal path, upload it with uploadFile, then call transcribeUploadedAudio on the regular audio endpoint. Reject missing dependencies, unsupported or audio-free files, invalid options and unsafe output paths before upload; apply the existing upload size limit to the audio derivative, not the original video. The public Videos schema remains URL-only and no Videos uploaded-audio route, provider fork, backend app import, or shared backend refactor is required."
+    depends_on: [models.CliLocalVideo, examples.local_cli]
+  - id: videos.transcript.audio-timestamps-and-correction
+    type: behavior
+    must: "General audio transcription and local CLI video request word timestamps by default, with explicit segment and none overrides. Reject a language hint combined with segment or word timestamps because Mistral documents them as incompatible; permit language with none. Keep the regular audio pipeline, including Vault unwrap, private S3 decryption, configured Voxtral model, sanitization, waveform, and optional Gemini correction/title. Segments and words describe transcript_original only; corrected text is separate and never claimed timestamp-aligned."
+    depends_on: [models.AudioTimestampRequest, models.AudioTranscriptionResult, examples.audio_timestamps, examples.audio_pipeline]
+  - id: videos.transcript.speech-input-timestamps-off
+    type: behavior
+    must: "Existing speech-input processing explicitly selects timestamps none at its speech-input boundary, so Mistral receives no timestamp request and current language hints, correction, title, waveform and response behavior remain unchanged. Protect existing shipped speech-input clients before rolling out the general word-timestamp default; omission alone must not be used to guess whether a call is speech input or general transcription. Verify both speech input remaining untimed and general transcription defaulting to word timings."
+    depends_on: [models.SpeechInputTimestampPolicy, models.AudioTimestampRequest, examples.audio_timestamps]
+  - id: videos.transcript.audio-results-and-billing
+    type: behavior
+    must: "Timing values are finite and ordered, with nonnegative starts and ends greater than starts within the media duration. The audio response is relative to submitted audio; the CLI maps a probed stream presentation offset exactly once after edit lists for source-video-relative export and rejects unresolved offsets. Do not fabricate word timings from segments. Invalid timings fail visibly; silence returns a safe visible empty status without invented text. Local video consumes only the regular audio pipeline's successful batch billing formula, so one successful 90-second file costs six credits and adds neither a Videos charge nor creator income."
+    depends_on: [models.TimedText, examples.audio_timestamps, examples.billing]
+  - id: videos.transcript.access-and-export
+    type: security
+    must: "Existing audio endpoint session or API-key access is unchanged, while CLI --file needs the existing paired upload auth and therefore cannot run API-key-only. JSON --output is versioned, complete, atomic, private where supported, and rejects source aliases including symlinks and hardlinks; it excludes secrets and absolute source paths while retaining duration, model, language, original/corrected text, and requested timing."
+    depends_on: [models.CliJsonExport, examples.local_cli, examples.export]
+  - id: videos.transcript.existing-media-boundary
+    type: privacy
+    must: "Local video reuses the regular authenticated upload and audio processing boundary, including the caller's server-resolved Vault identity; it does not weaken access checks or send provider credentials to the CLI. Only extracted audio leaves the invoking device and is decrypted server-side for Mistral; corrected transcript processing may send text to Gemini as in the regular audio flow. Original video and local temporary derivatives are not committed, and remote audio follows the existing upload retention lifecycle rather than a newly promised ephemeral lifetime. Export excludes transport keys and authorization material."
+    depends_on: [models.CliLocalVideo, examples.local_cli, examples.audio_pipeline]
+  - id: videos.transcript.surface-parity
+    type: parity
+    must: "REST remains the existing Videos endpoint plus enhanced audio schemas with unchanged auth. CLI adds local orchestration only. SDKs add audio timestamp schemas and preserve YouTube parity without login or private-media access work. Existing web and native transcript/audio embeds retain their behavior; no local-video picker is required."
+    depends_on: [applies_to, models]
+
+applies_to:
+  rest_api: {required: true, role: Existing Videos URL endpoint and regular audio timestamp extension; authentication unchanged.}
+  cli: {required: true, role: Existing URL command plus proposed local audio extraction, paired upload, audio transcription, and JSON export.}
+  sdks: {required: true, parity: semantic, implementations: {npm: {required: true}, pip: {required: true}}, role: Additive audio timestamp schemas and existing YouTube parity only.}
+  gui: {required: true, parity: semantic, implementations: {web: {required: true}, apple: {required: true}}, role: Preserve existing embeds; no local picker.}
+
+examples:
+  file: examples.yml
+  required_groups: [backfilled_youtube, local_cli, audio_timestamps, audio_pipeline, billing, export, parity]
