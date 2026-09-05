@@ -645,6 +645,8 @@ def test_restore_preserves_dirty_active_worktree_when_upstream_paths_overlap(mon
         return 0, "", ""
 
     monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", tmp_path / "locks")
     monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "old")
     monkeypatch.setattr(sessions, "_run_cmd", run_command)

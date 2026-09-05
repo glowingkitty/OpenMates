@@ -40,7 +40,7 @@ else
 fi
 
 python3 "$RUNTIME_CHECKOUT/scripts/opencode_runtime_release.py" validate \
-    --release "$RELEASE" \
+    --release "$RELEASE" --require-workflow \
     --control-plane-commit "$(git -C "$RUNTIME_CHECKOUT" rev-parse HEAD)" \
     >/dev/null
 RESEARCH_AUDIT_ARGS=(--research-routing-only)
@@ -48,9 +48,9 @@ for CONFIG_PATH in "${RESEARCH_CONFIG_PATHS[@]}"; do
     RESEARCH_AUDIT_ARGS+=(--runtime-config "$CONFIG_PATH")
 done
 python3 "$RUNTIME_CHECKOUT/scripts/audit_opencode_output_quality.py" "${RESEARCH_AUDIT_ARGS[@]}"
-python3 "$RUNTIME_CHECKOUT/scripts/sync_opencode_runtime_hook.py" \
-    --runtime-checkout "$RUNTIME_CHECKOUT" \
-    --project-root "$SOURCE_CHECKOUT"
+WORKFLOW_PACKAGE="$(readlink -f "$RELEASE")/workflow"
+# Exactly one release-owned config directory supplies hooks, agents and skills.
+# Project discovery stays disabled; the shared tracked checkout is never mirrored.
 
 if [ -f "$SECRETS_FILE" ]; then
     set -a
@@ -77,8 +77,12 @@ mkdir -p "$(dirname "$LOG_FILE")"
 echo "Starting verified OpenCode release: $(readlink -f "$RELEASE")"
 echo "Runtime checkout: $RUNTIME_CHECKOUT ($(git -C "$RUNTIME_CHECKOUT" rev-parse --short HEAD))"
 
-exec env -u OPENCODE_SERVER_PASSWORD -u OPENCODE_SERVER_USERNAME \
+exec env -u OPENCODE_SERVER_PASSWORD -u OPENCODE_SERVER_USERNAME -u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT \
     OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 \
+    OPENCODE_DISABLE_PROJECT_CONFIG=1 \
+    OPENCODE_CONFIG_DIR="$WORKFLOW_PACKAGE" \
+    OPENMATES_REQUIRE_PLUGIN=1 \
+    OPENMATES_PROJECT_ROOT="$SOURCE_CHECKOUT" \
     OPENMATES_CONTROL_PLANE_RUNTIME="$RUNTIME_CHECKOUT" \
     "$(readlink -f "$RELEASE")/opencode" web --hostname "$HOSTNAME" --port "$PORT" \
     2>&1 | tee -a "$LOG_FILE"

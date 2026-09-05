@@ -17,6 +17,10 @@ try {
   // verified OpenCode runtime provides it when loading the live plugin.
 }
 
+if (process.env.OPENMATES_REQUIRE_PLUGIN === "1" && !openCodeTool) {
+  throw new Error("Verified workflow package cannot load @opencode-ai/plugin");
+}
+
 const EDIT_TOOLS = new Set(["apply_patch", "edit", "write", "Edit", "Write"]);
 const READ_TOOLS = new Set(["read", "Read"]);
 const SEARCH_TOOLS = new Set(["glob", "grep", "Glob", "Grep"]);
@@ -51,10 +55,10 @@ const WORKTREE_ROOTS = [
   `${PROJECT_ROOT}/.agent-worktrees`,
   "/home/superdev/projects/.openmates-agent-worktrees",
 ];
-const BRIDGE = `${PROJECT_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
+const BRIDGE = `${CURRENT_CONTROL_PLANE_ROOT}/.codex/hooks/claude-hook-bridge.sh`;
 const SESSIONS_FILE = `${PROJECT_ROOT}/.claude/sessions.json`;
 const PRESENCE_FILE = `${PROJECT_ROOT}/.opencode/presence.json`;
-const OPENCODE_NOTIFIER = `${PROJECT_ROOT}/scripts/opencode_progress_notifier.py`;
+const OPENCODE_NOTIFIER = `${CURRENT_CONTROL_PLANE_ROOT}/scripts/opencode_progress_notifier.py`;
 const OPENCODE_NOTIFIER_LOG = `${PROJECT_ROOT}/logs/opencode-event-notifier.log`;
 const PRESENCE_DEBOUNCE_MS = 250;
 const PRESENCE_HEARTBEAT_MS = 30_000;
@@ -1503,22 +1507,11 @@ function routeLocalToolArgsWithCircuitBreakerForTest(
   }
 }
 
-async function recordWorktreeRouting(opencodeSessionID) {
-  if (!opencodeSessionID) return false;
-  const result = await runProcess(
-    "python3",
-    ["scripts/sessions.py", "worktree", "repair", "--opencode-session", opencodeSessionID],
-    { cwd: PROJECT_ROOT },
-  );
-  if (result.status !== 0) {
-    const detail = (result.stderr || result.stdout || "routing repair failed").trim();
-    warnOnceForTest(
-      `${ROUTING_GUARD_MARKER} Reason: sessions.py could not record worktree routing. Next: run python3 scripts/sessions.py worktree repair --opencode-session ${opencodeSessionID}. Detail: ${detail}`,
-      { sessionID: opencodeSessionID },
-    );
-    return false;
-  }
-  return true;
+function workspaceIntentArgs(opencodeSessionID, action) {
+  const session = Object.values(sessionsData().sessions || {}).find((item) => item?.opencode_session_id === opencodeSessionID);
+  if (!session) return [];
+  const generation = Number(session.lifecycle?.generation || 0);
+  return ["--generation", String(generation), "--operation-id", `${action}:${opencodeSessionID}:${generation}`];
 }
 
 function createWorktreeCheckpointSchedulerForTest({ spawnProcess = spawn, warn = warnOnceForTest } = {}) {
@@ -1537,6 +1530,7 @@ function createWorktreeCheckpointSchedulerForTest({ spawnProcess = spawn, warn =
         opencodeSessionID,
         "--event",
         event,
+        ...workspaceIntentArgs(opencodeSessionID, `checkpoint:${event}`),
       ],
       { cwd: CURRENT_CONTROL_PLANE_ROOT, env: process.env, detached: true, stdio: "ignore" },
     );
@@ -1573,7 +1567,7 @@ function createWorktreeActivationSchedulerForTest({ spawnProcess = spawn, warn =
     if (!opencodeSessionID || inFlight.has(opencodeSessionID)) return false;
     const child = spawnProcess(
       "python3",
-      ["scripts/sessions.py", "worktree", "activate", "--opencode-session", opencodeSessionID],
+      ["scripts/sessions.py", "worktree", "activate", "--opencode-session", opencodeSessionID, ...workspaceIntentArgs(opencodeSessionID, "activate")],
       { cwd: CURRENT_CONTROL_PLANE_ROOT, env: process.env, detached: true, stdio: "ignore" },
     );
     inFlight.set(opencodeSessionID, child);
@@ -2436,6 +2430,9 @@ function taskContextSystemTextForTest(snapshot) {
       "For simple informational requests or trivial single-action work, do not create a record.",
     );
   }
+  for (const decision of snapshot.scoped_decisions || []) {
+    lines.push(`Scoped user decision: ${decision.decision} ${decision.surface} for ${decision.target} revision ${decision.revision}. Honor this exact scope; unrelated checks remain required.`);
+  }
   lines.push("Ordered remaining Tasks (short id, title, status only):");
   if (remaining.length === 0) lines.push("- none");
   else {
@@ -3180,12 +3177,10 @@ export const OpenMatesHooks = async ({
   client,
   directory,
   routingData,
-  recordRouting = true,
   editLease = runEditLease,
   taskBridge = runTaskBridgeCommand,
 } = {}) => {
   const instanceDirectory = directory || activeCwd();
-  const recordedRoutes = new Set();
   const presenceStates = new Map();
   const notifierLiveSessions = new Set();
   const routingBlockCounts = new Map();
@@ -3715,17 +3710,6 @@ export const OpenMatesHooks = async ({
         throw new Error(repeatedRoutingFailureMessageForTest(childMutation.message, count));
       }
       bindSessionStart(input, output);
-      const routeRecorded = recordRouting
-        && route.decision === "worktree_routed"
-        && route.topLevelOpenCodeSessionID
-        && !recordedRoutes.has(route.topLevelOpenCodeSessionID)
-        && await recordWorktreeRouting(route.topLevelOpenCodeSessionID);
-      if (
-        recordRouting
-        && routeRecorded
-      ) {
-        recordedRoutes.add(route.topLevelOpenCodeSessionID);
-      }
       if (input.sessionID === routedOpenCodeSessionID) {
         await ensureImplicitTaskBeforeMutation({
           sessionID: routedOpenCodeSessionID,
@@ -3868,9 +3852,6 @@ export const OpenMatesHooks = async ({
           } catch (error) {
             console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
           }
-        }
-        if (/python3\s+scripts\/sessions\.py\s+start\b/.test(command)) {
-          await recordWorktreeRouting(input.sessionID);
         }
       } else {
         const mediaRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());

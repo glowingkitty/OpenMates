@@ -130,3 +130,14 @@ quickstart:
     - sessions.py worktree ensure
     - sessions.py edit-lease
     - sessions.py deploy
+
+workflow_runtime:
+  architecture: docs/architecture/agent-workflow-decisions.md
+  package_builder: scripts/sync_opencode_runtime_hook.py
+  release_validator: scripts/opencode_runtime_release.py
+  effective_probe: scripts/probe_opencode_workflow.mjs
+  loader: release-owned OPENCODE_CONFIG_DIR; project discovery disabled
+  bridge_source: pinned OPENMATES_CONTROL_PLANE_RUNTIME for OpenCode; canonical root for Codex
+  state_owner: scripts/sessions.py
+  decision_consumer: scripts/_workflow_decisions.py
+  tracked_root_mirroring: retired

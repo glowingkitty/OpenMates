@@ -246,6 +246,7 @@ privacy-video.mp4
 # Keep config/hooks/skills trackable, but ignore generated session artifacts.
 .claude/sessions.json
 .claude/sessions.json.tmp
+.claude/sessions.tmp
 .claude/sessions.lock
 .claude/sessions.md
 .claude/project-index.json

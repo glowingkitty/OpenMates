@@ -68,6 +68,7 @@ import sys
 import tempfile
 import textwrap
 import threading
+from functools import wraps
 import time
 import urllib.error
 import urllib.parse
@@ -2636,6 +2637,143 @@ def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
     }
 
 
+# One process-local nesting marker complements the existing cross-process lock.
+# Nested lifecycle helpers share their caller's transaction instead of flocking twice.
+_WORKSPACE_NESTING = threading.local()
+_WORKSPACE_THREAD_LOCKS: dict[str, threading.RLock] = {}
+_WORKSPACE_THREAD_LOCKS_GUARD = threading.Lock()
+WORKSPACE_OPERATION_HISTORY_LIMIT = 32
+WORKSPACE_LIFECYCLE_VERSION = 1
+
+
+def _run_workspace_transition(
+    session_id: str,
+    action: str,
+    operation,
+    *,
+    expected_generation=None,
+    operation_id="",
+):
+    """Serialize one lifecycle intent and reject stale owners before source writes."""
+    if session_id in getattr(_WORKSPACE_NESTING, "active", set()):
+        return operation()
+    with _worktree_checkpoint_lock(session_id):
+        current = _load_sessions().get("sessions", {}).get(session_id)
+        if not isinstance(current, dict):
+            raise RuntimeError("Workspace owner disappeared before transition")
+        lifecycle = current.get("lifecycle") or {}
+        generation = int(lifecycle.get("generation") or 0)
+        operation_id = operation_id or secrets.token_hex(16)
+        history = lifecycle.get("operations") or []
+        prior = next((item for item in history if item.get("id") == operation_id), None)
+        if prior:
+            if prior.get("action") != action:
+                raise RuntimeError(
+                    "Workspace operation id reused for a different action"
+                )
+            if prior.get("status") == "completed":
+                return prior["result"]
+            raise RuntimeError(
+                "Workspace operation needs explicit recovery; preserve current source"
+            )
+        if expected_generation is not None and generation != expected_generation:
+            raise RuntimeError(
+                f"Stale workspace generation: expected {expected_generation}, current {generation}"
+            )
+        metadata = current.get("worktree") or {}
+        record = {
+            "id": operation_id,
+            "action": action,
+            "generation": generation + 1,
+            "expected_base": metadata.get("merged_commit")
+            or metadata.get("base_commit")
+            or "",
+            "status": "running",
+            "started_at": _now_iso(),
+        }
+
+        def begin(data):
+            owner = data["sessions"][session_id]
+            owner["lifecycle"] = {
+                "version": WORKSPACE_LIFECYCLE_VERSION,
+                "generation": generation + 1,
+                "operations": [
+                    *history[-(WORKSPACE_OPERATION_HISTORY_LIMIT - 1) :],
+                    record,
+                ],
+            }
+
+        _mutate_sessions(begin)
+        active = getattr(_WORKSPACE_NESTING, "active", set())
+        _WORKSPACE_NESTING.active = active | {session_id}
+        try:
+            result = operation()
+        except BaseException:
+
+            def fail(data):
+                state = data["sessions"][session_id]["lifecycle"]
+                state["operations"][-1]["status"] = "recovery_needed"
+
+            _mutate_sessions(fail)
+            raise
+        finally:
+            _WORKSPACE_NESTING.active = active
+
+        def finish(data):
+            state = data["sessions"][session_id]["lifecycle"]
+            if state["generation"] != generation + 1:
+                raise RuntimeError("Workspace generation changed during transition")
+            state["operations"][-1].update(
+                status="completed", result=result, finished_at=_now_iso()
+            )
+
+        _mutate_sessions(finish)
+        return result
+
+
+def _workspace_transition(action):
+    """Route legacy entry points through the same owner; no second writer remains."""
+
+    def decorate(function):
+        @wraps(function)
+        def wrapped(
+            reference, *args, expected_generation=None, operation_id="", **kwargs
+        ):
+            data = _load_sessions()
+            session_id = (
+                str(reference) if str(reference) in data.get("sessions", {}) else ""
+            )
+            if not session_id:
+                matched = session_for_opencode(data, str(reference))
+                session_id = matched[0] if matched else ""
+            if not session_id and action == "restore":
+                for parent in _opencode_parent_chain(str(reference)):
+                    matched = session_for_opencode(data, parent)
+                    if matched:
+                        session_id = matched[0]
+                        break
+            if not session_id:
+                return function(reference, *args, **kwargs)
+            generation = int(
+                (data["sessions"][session_id].get("lifecycle") or {}).get("generation")
+                or 0
+            )
+            return _run_workspace_transition(
+                session_id,
+                action + (":" + str(kwargs["event"]) if "event" in kwargs else ""),
+                lambda: function(reference, *args, **kwargs),
+                expected_generation=generation
+                if expected_generation is None
+                else expected_generation,
+                operation_id=operation_id,
+            )
+
+        return wrapped
+
+    return decorate
+
+
+@_workspace_transition("ensure")
 def ensure_session_worktree(session_id: str) -> dict:
     """Ensure one session has an active local git worktree and metadata."""
     created: dict | None = None
@@ -4360,15 +4498,26 @@ def _delete_worktree_checkpoint_ref(session_id: str, *, expected_commit: str = "
 
 @contextmanager
 def _worktree_checkpoint_lock(session_id: str):
-    """Serialize checkpoint ref and metadata updates for one session."""
-    WORKTREE_CHECKPOINT_LOCKS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_session_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:64] or "unknown"
-    with (WORKTREE_CHECKPOINT_LOCKS_DIR / f"{safe_session_id}.lock").open("a+", encoding="utf-8") as lock_handle:
-        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
-        try:
+    """Serialize all lifecycle writers with reentrant nesting in one thread."""
+    with _WORKSPACE_THREAD_LOCKS_GUARD:
+        mutex = _WORKSPACE_THREAD_LOCKS.setdefault(session_id, threading.RLock())
+    with mutex:
+        held = getattr(_WORKSPACE_NESTING, "locks", set())
+        if session_id in held:
             yield
-        finally:
-            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+            return
+        WORKTREE_CHECKPOINT_LOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        safe_session_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:64] or "unknown"
+        with (WORKTREE_CHECKPOINT_LOCKS_DIR / f"{safe_session_id}.lock").open(
+            "a+", encoding="utf-8"
+        ) as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            _WORKSPACE_NESTING.locks = held | {session_id}
+            try:
+                yield
+            finally:
+                _WORKSPACE_NESTING.locks = held
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _prune_checkpoint_lock_files(data: dict) -> list[str]:
@@ -4452,7 +4601,7 @@ def _auto_integration_block_reason(files: list[str]) -> str:
     return ""
 
 
-def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict:
+def checkpoint_session_worktree(opencode_session_id: str, *, event: str, expected_generation=None, operation_id="") -> dict:
     """Checkpoint one top-level mutating chat and make safe patches integration eligible."""
     if event not in {"idle", "closed"}:
         raise ValueError("checkpoint event must be idle or closed")
@@ -4472,7 +4621,7 @@ def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict
     ):
         return {"status": "skipped", "reason": "not_mutating_worktree"}
     with _worktree_checkpoint_lock(session_id):
-        return _checkpoint_session_worktree_locked(session_id, event=event)
+        return _checkpoint_session_worktree_locked(session_id, event=event, expected_generation=expected_generation, operation_id=operation_id)
 
 
 def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dict:
@@ -4494,6 +4643,7 @@ def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dic
     return {"status": "active", "session_id": session_id, "workspace_state": "changes_pending"}
 
 
+@_workspace_transition("activate")
 def activate_session_worktree(opencode_session_id: str) -> dict:
     """Invalidate an idle checkpoint when its top-level chat starts a new turn."""
     matched = session_for_opencode(_load_sessions(), opencode_session_id)
@@ -4504,6 +4654,7 @@ def activate_session_worktree(opencode_session_id: str) -> dict:
         return _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
 
 
+@_workspace_transition("checkpoint")
 def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
     """Create and persist one checkpoint while holding its session lock."""
     data = _load_sessions()
@@ -4526,6 +4677,10 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
         return {"status": "skipped", "reason": "no_pending_changes", "workspace_state": workspace_state}
 
     patch_id = _worktree_patch_id(metadata, files)
+    previous = session.get("auto_integration") or {}
+    if (previous.get("status") in {"checkpointed", "eligible"}
+            and previous.get("patch_id") == patch_id and _checkpoint_ref_matches(session_id, previous)):
+        return {"session_id": session_id, **previous}
     def mark_checkpointing(current: dict) -> None:
         current_session = current.get("sessions", {}).get(session_id)
         if isinstance(current_session, dict):
@@ -4572,7 +4727,7 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
     elif block_reason:
         status = "blocked"
     else:
-        status = "eligible"
+        status = "checkpointed"
     eligible_after = (
         datetime.now(timezone.utc) + timedelta(minutes=WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES)
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -4582,7 +4737,7 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
         current_session = current.get("sessions", {}).get(session_id)
         if not isinstance(current_session, dict):
             raise RuntimeError(f"Session {session_id} disappeared during checkpoint")
-        current_session["workspace_state"] = "checkpointed" if status == "eligible" else ("held" if status == "held" else "recovery_needed")
+        current_session["workspace_state"] = "checkpointed" if status in {"eligible", "checkpointed"} else ("held" if status == "held" else "recovery_needed")
         current_session["auto_integration"] = {
             "status": status,
             "hold": hold,
@@ -4599,6 +4754,41 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
 
     result = _mutate_sessions(store)
     return {"session_id": session_id, **result}
+
+
+@_workspace_transition("submit-ready")
+def submit_ready_worktree(
+    session_id: str, *, patch_id: str, checkpoint_commit: str
+) -> dict:
+    """Explicitly publish exactly one preserved submission through existing gates."""
+    with _worktree_checkpoint_lock(session_id):
+        session = _load_sessions()["sessions"][session_id]
+        auto = session.get("auto_integration") or {}
+        if auto.get("status") not in {"checkpointed", "eligible"} or auto.get("hold"):
+            raise RuntimeError("Submission requires an unheld preservation checkpoint")
+        files = _session_deploy_files(session, set())
+        if (
+            auto.get("patch_id") != patch_id
+            or auto.get("checkpoint_commit") != checkpoint_commit
+            or not _checkpoint_ref_matches(session_id, auto)
+            or sorted(files) != sorted(auto.get("files") or [])
+            or _worktree_patch_id(session["worktree"], files) != patch_id
+        ):
+            raise RuntimeError(
+                "Ready submission fingerprint is stale; checkpoint current work first"
+            )
+
+        def store(data):
+            owner = data["sessions"][session_id]
+            owner["ready_submission"] = {
+                "patch_id": patch_id,
+                "checkpoint_commit": checkpoint_commit,
+                "submitted_at": _now_iso(),
+            }
+            owner["auto_integration"]["status"] = "eligible"
+            return owner["ready_submission"]
+
+        return _mutate_sessions(store)
 
 
 def _auto_integration_presence_is_live(session: dict) -> bool:
@@ -4638,6 +4828,9 @@ def select_auto_integration_candidates(*, now: str | None = None) -> list[dict]:
         auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
         metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
         if auto.get("status") != "eligible" or not metadata.get("path"):
+            continue
+        submission = session.get("ready_submission") or {}
+        if submission.get("patch_id") != auto.get("patch_id") or submission.get("checkpoint_commit") != auto.get("checkpoint_commit"):
             continue
         if auto.get("hold"):
             rejected.append((session_id, "held", "explicit_hold"))
@@ -4802,6 +4995,8 @@ def _claim_auto_integration(candidate: dict) -> bool:
             return False
         if (
             auto.get("status") != "eligible"
+            or (session.get("ready_submission") or {}).get("patch_id") != candidate.get("patch_id")
+            or (session.get("ready_submission") or {}).get("checkpoint_commit") != candidate.get("checkpoint_commit")
             or auto.get("patch_id") != candidate.get("patch_id")
             or auto.get("checkpoint_commit") != candidate.get("checkpoint_commit")
             or not _checkpoint_ref_matches(session_id, auto)
@@ -5675,6 +5870,8 @@ def reconcile_session_worktrees(
             queue = data.setdefault("deploy_queue", [])
             manifests = data.setdefault("worktree_deletion_manifests", [])
             for item in deletable:
+                if (sessions.get(str(item.get("session_id")), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION:
+                    continue
                 fresh = _refresh_reconciliation_candidate(item, data, target_commit, idle_hours, approved)
                 session_id = str(fresh["session_id"])
                 refreshed_by_id[session_id] = fresh
@@ -5827,7 +6024,10 @@ def _worktree_pending_files(session: dict) -> list[str]:
 
 
 def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev", force: bool = False) -> None:
-    """Remove a fully integrated worktree before deleting its session record."""
+    """Retain lifecycle-owned workspaces; finalize legacy disposable records safely."""
+    current = _load_sessions().get("sessions", {}).get(session_id, {})
+    if (current.get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION:
+        return
     def finalize(data: dict) -> str:
         session = data.get("sessions", {}).get(session_id)
         if not isinstance(session, dict):
@@ -6083,6 +6283,7 @@ def expire_managed_worktrees(
         str(record.get("session_id") or "")
         for record in records
         if _hard_expiry_record_is_live(record, current_data)
+        or (current_data.get("sessions", {}).get(str(record.get("session_id") or ""), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION
     }
     expired: list[dict] = []
     protected_unresolved: list[dict] = []
@@ -8388,6 +8589,7 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     return recorded_base if recorded_base != current_head else ""
 
 
+@_workspace_transition("refresh-base")
 def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
     """Refresh one session's recorded base after a safe worktree fast-forward."""
     def update(data: dict) -> dict[str, str]:
@@ -8413,6 +8615,7 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
     return _mutate_sessions(update)
 
 
+@_workspace_transition("repair")
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
     recreated = False
@@ -10847,7 +11050,14 @@ def _openmates_task_context(
     if not opencode_session_id:
         return {"decision": "unbound", "active": None, "remaining": []}
     payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
-    return _openmates_task_context_from_payload(payload, opencode_session_id)
+    context = _openmates_task_context_from_payload(payload, opencode_session_id)
+    owner_id = _continuation_repository_session_id(data, session_reference)
+    if context.get("active"):
+        context["active"]["decision_revision"] = _task_decision_revision(context["active"])
+    decisions = _workflow_decision_context(data["sessions"].get(owner_id, {}), context.get("active"))
+    if decisions:
+        context["scoped_decisions"] = decisions
+    return context
 
 
 def _openmates_task_tool(
@@ -11043,6 +11253,10 @@ def _reconcile_openmates_tasks(
         )
         decision = classified["decision"]
         selected = classified.get("active")
+        owner = _load_sessions().get("sessions", {}).get(claim["repository_session_id"], {})
+        scoped = _workflow_decision_context(owner, selected)
+        if any(item["surface"] == "task" for item in scoped):
+            decision = "user_stopped"
         if decision == "activate_next" and isinstance(selected, dict):
             activated = cli_runner([
                 "tasks", "edit", str(selected["task_id"]), "--status", "in_progress", "--json",
@@ -11062,6 +11276,7 @@ def _reconcile_openmates_tasks(
                 session_reference,
                 operation_type="task_ready",
                 operation_key=operation_key,
+                decision_scope={"target":str(selected["task_id"]), "surface":"task", "revision":_task_decision_revision(selected)},
                 next_action=(
                     "Continue the active OpenMates Task from the request-only Task context. "
                     "Work on the smallest remaining step, then explicitly mark the Task done or block it with a reason."
@@ -11115,12 +11330,124 @@ def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: 
     return f"msg_{encoded_time:012x}{suffix}"
 
 
+def _task_decision_revision(task: dict) -> str:
+    """Invalidate decisions on instruction changes, not Activity/status bookkeeping."""
+    subject = {
+        key: task.get(key) for key in ("title", "description", "latest_instruction")
+    }
+    return hashlib.sha256(json.dumps(subject, sort_keys=True).encode()).hexdigest()
+
+
+def _workflow_decision_context(session: dict, task: dict | None) -> list[dict]:
+    """Expose only validated scoped decisions for this exact Task version."""
+    from _workflow_decisions import matching_receipt
+
+    if not task:
+        return []
+    result = []
+    for surface in ("task", "proof"):
+        receipt = matching_receipt(
+            session.get("decisions", []),
+            target=str(task.get("task_id") or ""),
+            surface=surface,
+            revision=_task_decision_revision(task),
+            preserve_stop=True,
+        )
+        if receipt:
+            result.append(
+                {
+                    key: receipt[key]
+                    for key in ("id", "target", "surface", "revision", "decision")
+                }
+            )
+    return result
+
+
+def cmd_decision(args: argparse.Namespace) -> None:
+    """Record a scoped instruction in the owning session and optionally its Plan."""
+    from _workflow_decisions import make_receipt
+
+    data = _load_sessions()
+    session_id = _continuation_repository_session_id(data, args.session)
+    if not session_id:
+        raise RuntimeError("Decision requires an existing owning session")
+    session = data["sessions"][session_id]
+    source_session = args.source_session or session.get("opencode_session_id")
+    if args.provider == "opencode" and source_session != session.get(
+        "opencode_session_id"
+    ):
+        raise RuntimeError("Decision source must belong to this top-level chat")
+    if args.provider == "codex" and source_session != os.environ.get("CODEX_THREAD_ID"):
+        raise RuntimeError(
+            "Codex decision source must match the current CODEX_THREAD_ID"
+        )
+    receipt = make_receipt(
+        target=args.target,
+        surface=args.surface,
+        revision=args.revision,
+        decision=args.decision,
+        quote=args.quote,
+        source={
+            "provider": args.provider,
+            "session_id": source_session,
+            "message_id": args.message_id,
+        },
+    )
+    plan_path = None
+    if args.plan:
+        import yaml
+
+        root = Path(session["worktree"]["path"]).resolve()
+        plan_path = (root / args.plan).resolve()
+        if (
+            not plan_path.is_relative_to(root / "docs/plans")
+            or plan_path.name != "plan.yml"
+        ):
+            raise RuntimeError(
+                "Decision Plan must be inside the owning worktree docs/plans"
+            )
+        plan = yaml.safe_load(plan_path.read_text())
+        if (
+            plan.get("id") != args.target
+            or str(plan.get("implementation_state", {}).get("subject_commit") or "")
+            != args.revision
+        ):
+            raise RuntimeError(
+                "Decision target and revision must match the current Plan"
+            )
+        plan.setdefault("decisions", []).append(receipt)
+        if args.surface == "proof" and args.decision in {"stop", "waive"}:
+            plan.setdefault("demonstration", {}).setdefault("evidence", {}).update(
+                status="waived", decision_id=receipt["id"]
+            )
+        plan_path.write_text(yaml.safe_dump(plan, sort_keys=False))
+
+    def record(current: dict) -> dict:
+        owner = current["sessions"][session_id]
+        receipts = owner.setdefault("decisions", [])
+        if not receipts or receipts[-1].get("id") != receipt["id"]:
+            receipts.append(receipt)
+        continuation = owner.get("continuation") or {}
+        scope = continuation.get("decision_scope") or {}
+        if args.decision in {"stop", "waive"} and scope == {
+            "target": args.target,
+            "surface": args.surface,
+            "revision": args.revision,
+        }:
+            continuation["status"] = "cancelled"
+            continuation["decision_id"] = receipt["id"]
+        return receipt
+
+    print(json.dumps({"decision": _mutate_sessions(record)}, sort_keys=True))
+
+
 def _record_session_continuation(
     session_reference: str,
     *,
     operation_type: str,
     operation_key: str,
     next_action: str,
+    decision_scope: dict | None = None,
 ) -> dict:
     """Persist one allowlisted continuation, replacing only the same operation."""
     if operation_type not in CONTINUATION_ALLOWED_TYPES:
@@ -11151,6 +11478,8 @@ def _record_session_continuation(
             "created_at": now,
             "updated_at": now,
         }
+        if decision_scope:
+            record["decision_scope"] = decision_scope
         session["continuation"] = record
         return dict(record)
 
@@ -11167,6 +11496,13 @@ def _claim_session_continuation(session_reference: str) -> dict | None:
         record = session.get("continuation")
         if not isinstance(record, dict) or record.get("status") != "ready":
             return None
+        scope = record.get("decision_scope")
+        if scope:
+            from _workflow_decisions import matching_receipt
+            receipt = matching_receipt(session.get("decisions", []), preserve_stop=True, **scope)
+            if receipt:
+                record.update(status="cancelled", decision_id=receipt["id"])
+                return None
         attempts = int(record.get("attempts") or 0)
         if attempts >= CONTINUATION_MAX_DELIVERY_ATTEMPTS:
             record["status"] = "failed"
@@ -14762,6 +15098,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
+    if args.worktree_action == "submit-ready":
+        result = submit_ready_worktree(args.session, patch_id=args.patch_id, checkpoint_commit=args.checkpoint_commit)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "root-dirty":
         try:
             result = list_root_dirty_files(path_prefix=args.path_prefix or "")
@@ -14810,7 +15150,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "repair":
         try:
-            result = repair_worktree_routing(args.opencode_session)
+            result = repair_worktree_routing(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
@@ -14826,7 +15166,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "checkpoint":
         try:
-            result = checkpoint_session_worktree(args.opencode_session, event=args.event)
+            result = checkpoint_session_worktree(args.opencode_session, event=args.event, expected_generation=args.generation, operation_id=args.operation_id)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -14834,7 +15174,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "activate":
         try:
-            result = activate_session_worktree(args.opencode_session)
+            result = activate_session_worktree(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -17321,6 +17661,7 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
     os.execvp(cmd[0], cmd)
 
 
+@_workspace_transition("restore")
 def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
     """Validate routing and safely advance a resumable worktree to origin/dev."""
     data = _load_sessions()
@@ -18096,6 +18437,18 @@ def main() -> None:
         if action != "release-task":
             p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
+    p_decision = sub.add_parser("decision", help="Record exact scoped user acceptance, stop or waiver")
+    p_decision.add_argument("--session", required=True)
+    p_decision.add_argument("--provider", choices=["opencode", "codex"], default="opencode")
+    p_decision.add_argument("--source-session", default="")
+    p_decision.add_argument("--message-id", required=True)
+    p_decision.add_argument("--quote", required=True, help="Exact original user text; not persisted")
+    p_decision.add_argument("--target", required=True, help="Exact Task or Plan id")
+    p_decision.add_argument("--surface", choices=["appearance", "proof", "task"], required=True)
+    p_decision.add_argument("--revision", required=True, help="Task decision_revision from context or Plan subject commit")
+    p_decision.add_argument("--decision", choices=["accept", "stop", "waive", "resume"], required=True)
+    p_decision.add_argument("--plan", default="", help="Owning worktree Plan path, if applicable")
+
     p_task_bridge = sub.add_parser("task-bridge", help="Bridge trusted OpenMates Task JSON into OpenCode")
     p_task_bridge_sub = p_task_bridge.add_subparsers(dest="task_bridge_action", required=True)
     p_task_bridge_stage = p_task_bridge_sub.add_parser(
@@ -18216,6 +18569,10 @@ def main() -> None:
     p_worktree_binding.add_argument("--mode", required=True, choices=["native", "pilot_fallback"])
     p_worktree_binding.add_argument("--directory", help="Canonical native session directory")
     p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
+    p_ready = p_worktree_sub.add_parser("submit-ready", help="Explicitly submit one fingerprinted preservation checkpoint")
+    p_ready.add_argument("--session", required=True)
+    p_ready.add_argument("--patch-id", required=True)
+    p_ready.add_argument("--checkpoint-commit", required=True)
     p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
     p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
     p_worktree_refresh_base = p_worktree_sub.add_parser(
@@ -18230,6 +18587,9 @@ def main() -> None:
         "activate", help="Invalidate an idle checkpoint when a chat starts a new user turn"
     )
     p_worktree_activate.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    for transition_parser in (p_worktree_repair, p_worktree_checkpoint, p_worktree_activate):
+        transition_parser.add_argument("--generation", type=int, default=None)
+        transition_parser.add_argument("--operation-id", default="")
     p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
     p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
     p_worktree_expire = p_worktree_sub.add_parser(
@@ -18879,6 +19239,7 @@ def main() -> None:
         "chat": cmd_opencode_chat,
         "presence": cmd_presence,
         "task-bridge": cmd_task_bridge,
+        "decision": cmd_decision,
         "continuation": cmd_continuation,
         "media": cmd_media,
         "docker": cmd_docker,

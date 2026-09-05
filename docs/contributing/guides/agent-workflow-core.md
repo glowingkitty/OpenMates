@@ -286,3 +286,16 @@ For each observed preventable process problem or inefficiency, check the relevan
 - `node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>`
 - `python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."`
 - `python3 scripts/sessions.py deploy --session <id> --title "..." --message "..."`
+
+## Scoped user decisions
+
+Honor explicit acceptance, stop and waiver instructions for their exact scope.
+Record them once with `python3 scripts/sessions.py decision` using the original
+user-message ID and exact quote, Task/Plan target, surface and current revision.
+Use Task context's `decision_revision`, or the Plan subject commit. Appearance
+acceptance does not waive proof or functional checks. Keep waived proof visible;
+continue unrelated checks. See `docs/architecture/agent-workflow-decisions.md`.
+
+Ordinary routing is read-only. Use an explicit worktree repair only for recovery.
+Idle checkpoints preserve work; publication requires an explicit fingerprinted
+`sessions.py worktree submit-ready` or normal scoped `sessions.py deploy`.

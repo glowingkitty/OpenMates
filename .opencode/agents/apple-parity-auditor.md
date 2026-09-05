@@ -51,7 +51,7 @@ Read:
 - `apple/AGENTS.md`
 - `.claude/rules/apple-ui.md`
 - `docs/architecture/apple/parity-matrix.md`
-- `docs/specs/apple-ui-parity-program/spec.yml`
+- `docs/plans/apple-ui-parity-program/plan.yml`
 - `test-results/apple-parity-inventory.json`
 - `apple/SVELTE_SWIFT_COUNTERPARTS.md`
 

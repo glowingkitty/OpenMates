@@ -33,3 +33,10 @@ Deeper references:
 - `docs/architecture/agent-tooling-parity.md`
 - `docs/contributing/guides/spec-driven-development.md`
 - `docs/contributing/guides/testing.md`
+
+Workflow decisions and runtime ownership are documented in
+`docs/architecture/agent-workflow-decisions.md`. Use `sessions.py decision` for
+scoped user instructions; a proof waiver does not waive functional checks.
+Ordinary routing never repairs a workspace. Idle checkpoints require an explicit
+`sessions.py worktree submit-ready` before automatic integration. The verified
+release owns its config directory; startup never mirrors tracked root files.

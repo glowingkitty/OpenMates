@@ -1,0 +1,68 @@
+id: agent-workflow-r2
+title: Approved agent workflow simplification
+goal: Implement approved R1, R2, and R3 from workflow proposal WF-20260905-r2.
+status: implementing
+scope:
+- R1 scoped user decision receipts shared by verification and continuation
+- R2 read-only routing and consolidated workspace lifecycle transitions
+- R3 coherent runtime package, capability checks and explicit source revisions
+non_goals:
+- Product API or database schema changes
+- Production deployments or new agent chats
+- Deletion of existing worktrees or forced busy-workspace migration
+- Changes to the improve-agent-workflow skill
+approval:
+  revision: WF-20260905-r2
+  ids:
+  - R1
+  - R2
+  - R3
+  status: approved
+  source: Explicit user approval in the implementing conversation
+  pdf_sha256: fa9502f11444a7bbb2229513ab225122f7f357bc0b96c9b8f0fd02f423c53090
+implementation_notes:
+  architecture: Extend existing Plan, session and release authorities; do not introduce
+    a second coordinator or approval database.
+  verification_strategy:
+  - Isolated tooling regression tests before deployment
+  - Agent parity, tooling parity, output quality and automation budget audits
+  - Safe coordinated runtime activation only after release capability and storage
+    checks
+  verification_order:
+  - Tooling fixtures; no product REST, CLI, SDK, web or Apple surface changes
+  - Scoped dev deployment
+  - Isolated effective release probes and coordinated activation
+  rollback: Preserve current data and original decisions; restore compatible code
+    and release loader together. Never overwrite newer state or resume explicitly
+    stopped work.
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: Developer workflow tooling only; no observable product surface changes.
+tasks:
+- id: R1
+  title: Share scoped user decisions between verifier and continuation
+  status: done
+- id: R2
+  title: Consolidate workspace transitions and require ready submissions
+  status: done
+- id: R3
+  title: Package and verify the effective runtime before activation
+  status: in_progress
+handoff:
+  current_task_id: R3
+  next_action: Deploy verified tooling, prepare immutable workflow release, perform
+    coordinated activation and verify effective configuration.
+  blocker: null
+  last_verified_commit: 808efe8dca44d1ceff860dc80b65f4b9d97043f8
+verification_results:
+  python: 246 passed; full relevant regression set
+  node: 66 passed; hook, routing and continuation contracts
+  effective_runtime: Real plugin actions, root-write guard, normal read and isolated
+    binary config passed
+  tooling_parity: passed
+  output_quality: passed
+  agent_parity: passed after canonical mirror synchronization
+  automation_budget: Pre-existing findings in unchanged scripts/_zellij_utils.py;
+    no proposed automation modifies that file
