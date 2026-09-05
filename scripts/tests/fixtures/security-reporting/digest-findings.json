@@ -1,0 +1,11 @@
+{
+  "environment": "development",
+  "window_start": "2026-09-05T08:30:00Z",
+  "window_end": "2026-09-06T08:30:00Z",
+  "subject_commit": "abc123def456",
+  "new": [{"id": "finding-one", "severity": "critical", "package": "demo-lib", "advisory": "GHSA-demo-0001", "state": "open"}],
+  "open": [{"id": "finding-two", "severity": "high", "package": "<unsafe-package>", "advisory": "CVE-2026-0002", "state": "open", "url": "javascript:alert(1)"}],
+  "resolved": [{"id": "finding-three", "severity": "medium", "package": "fixed-lib", "advisory": "GHSA-demo-0003", "state": "resolved"}],
+  "coverage": {"dependabot": {"completed": 23, "expected": 24, "missing": 1}, "eu_vulns": {"completed": 24, "expected": 24}},
+  "sources": {"security_audit": {"status": "unavailable", "observed_at": null}, "redteam": {"status": "complete", "observed_at": "2026-09-04T10:00:00Z"}}
+}

@@ -1,0 +1,11 @@
+{
+  "environment": "development",
+  "window_start": "2026-09-05T08:30:00Z",
+  "window_end": "2026-09-06T08:30:00Z",
+  "subject_commit": "abc123def456",
+  "new": [],
+  "open": [],
+  "resolved": [],
+  "coverage": {"dependabot": {"completed": 24, "expected": 24}, "eu_vulns": {"completed": 24, "expected": 24}},
+  "sources": {"security_audit": {"status": "complete", "observed_at": "2026-09-05T08:00:00Z"}, "redteam": {"status": "complete", "observed_at": "2026-09-05T07:00:00Z"}}
+}
