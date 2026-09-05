@@ -152,7 +152,7 @@ import {
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
-import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
+import { buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
@@ -719,11 +719,14 @@ function handleSupport(flags: Record<string, string | boolean>): void {
 function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
   const plan = buildSelfUpdatePlan(flags);
   const status = checkSelfUpdateStatus(plan);
-  const shouldInstall = status.updateAvailable !== false;
+  if (status.checkError) throw new Error(`Update check failed: ${status.checkError}`);
+  const shouldInstall = status.updateAvailable === true;
   if (flags.json === true) {
     if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
+    persistSelfUpdateChannel(plan);
     printJson({
       command,
+      channel: plan.channel,
       status: status.updateAvailable === false ? "up_to_date" : plan.dryRun ? "planned" : "success",
       current_version: plan.currentVersion,
       latest_version: status.latestVersion,
@@ -740,6 +743,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   console.log("");
   console.log("Checking for updates...");
   console.log("");
+  console.log(`Release channel: ${plan.channel}`);
   console.log(`Current version: ${plan.currentVersion}`);
   console.log(`Latest version:  ${status.latestVersion ?? "unknown"}`);
   if (status.checkError) {
@@ -755,11 +759,13 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
     return;
   }
   if (status.updateAvailable === false) {
+    persistSelfUpdateChannel(plan);
     console.log("OpenMates CLI is already up to date.");
     return;
   }
   console.log(`Updating OpenMates CLI with ${plan.packageManager}...`);
   runSelfUpdate(plan, { verbose: flags.verbose === true });
+  persistSelfUpdateChannel(plan);
   console.log(`Installed OpenMates CLI ${status.latestVersion ?? plan.target}.`);
   console.log("");
   console.log("OpenMates is up to date.");
@@ -773,6 +779,7 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
   if (flags.json === true) {
     printJson({
       command: "version",
+      channel: plan.channel,
       current_version: status.currentVersion,
       latest_version: status.latestVersion,
       update_available: status.updateAvailable,
@@ -782,6 +789,7 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
     return;
   }
   console.log(`OpenMates CLI ${status.currentVersion}`);
+  console.log(`Release channel: ${plan.channel}`);
   if (status.checkError) {
     console.log(`Update check failed: ${status.checkError}`);
     return;
@@ -13348,12 +13356,16 @@ function printSelfUpdateHelp(): void {
   openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
   openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
 
-Updates the globally installed openmates package. The default target is latest.
+Updates the globally installed openmates package using the saved release channel.
+Stable installations default to stable; prereleases default to dev.
+Channel changes persist only after a successful update or up-to-date check.
 
 Options:
-  --version <version|tag>       Install a specific npm version or dist-tag (default: latest)
+  --version <version|tag>       Install a specific npm version or dist-tag (one-time override)
   --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
   --dry-run                     Print the package-manager command without running it
+  --channel <dev|stable|main>    Save release channel (dev uses npm alpha; stable/main uses latest)
+  --allow-downgrade             Explicitly allow installing an older version
   --verbose                     Stream package-manager output during installation
   --json                        Output the update plan/result as JSON`);
 }

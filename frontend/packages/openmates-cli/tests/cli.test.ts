@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -2664,6 +2664,64 @@ describe("CLI server command startup feedback", () => {
 });
 
 describe("CLI self-update commands", () => {
+  // contract-test: tooling — upgrade-channel, upgrade-no-downgrade
+  it("does not downgrade a newer installed CLI to an older registry release", () => {
+    const result = JSON.parse(runCli(["upgrade", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.1.0",
+    }));
+    assert.equal(result.update_available, false);
+  });
+
+  it("selects the dev release channel and reports it in a dry run", () => {
+    const result = JSON.parse(runCli(["upgrade", "--channel", "dev", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "99.0.0-alpha.1",
+    }));
+    assert.equal(result.channel, "dev");
+    assert.equal(result.package, "openmates@alpha");
+  });
+
+  it("persists a channel across profiles but never from a dry run", () => {
+    const home = mkdtempSync(join(tmpdir(), "openmates-channel-"));
+    const env = { HOME: home, USERPROFILE: home, OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION };
+    try {
+      runCli(["upgrade", "--channel", "dev", "--dry-run", "--json"], env);
+      assert.equal(existsSync(join(home, ".openmates", "updates.json")), false);
+      runCli(["upgrade", "--channel", "dev", "--json"], env);
+      const result = JSON.parse(runCli(["upgrade", "--dry-run", "--json"], { ...env, OPENMATES_PROFILE: "another-profile" }));
+      assert.equal(result.channel, "dev");
+      assert.equal(result.package, "openmates@alpha");
+      runCli(["upgrade", "--channel", "main", "--json"], env);
+      assert.equal(JSON.parse(readFileSync(join(home, ".openmates", "updates.json"), "utf8")).channel, "stable");
+    } finally { rmSync(home, { recursive: true, force: true }); }
+  });
+
+  it("preserves the running npm installation prefix despite a different npm default", () => {
+    const prefix = mkdtempSync(join(tmpdir(), "openmates-prefix-"));
+    const installed = join(prefix, "lib", "node_modules", "openmates");
+    try {
+      mkdirSync(installed, { recursive: true });
+      cpSync(join(PACKAGE_ROOT, "dist"), join(installed, "dist"), { recursive: true });
+      cpSync(join(PACKAGE_ROOT, "package.json"), join(installed, "package.json"));
+      symlinkSync(join(PACKAGE_ROOT, "node_modules"), join(installed, "node_modules"), "dir");
+      const result = JSON.parse(execFileSync("node", [join(installed, "dist", "cli.js"), "upgrade", "--package-manager", "npm", "--dry-run", "--json"], {
+        encoding: "utf8",
+        env: { ...process.env, npm_config_prefix: "/usr", OPENMATES_CLI_LATEST_VERSION: "99.0.0" },
+      }));
+      assert.deepEqual(result.run.slice(-2), ["--prefix", prefix]);
+    } finally { rmSync(prefix, { recursive: true, force: true }); }
+  });
+
+  it("requires explicit downgrade consent and treats prereleases as older than stable", () => {
+    const older = JSON.parse(runCli(["upgrade", "--version", "0.1.0", "--allow-downgrade", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.1.0",
+    }));
+    assert.equal(older.update_available, true);
+    const pre = JSON.parse(runCli(["upgrade", "--channel", "dev", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION + "-alpha.10",
+    }));
+    assert.equal(pre.update_available, false);
+  });
+
   it("lists update and upgrade aliases in global help", () => {
     const output = runCli(["help"]);
     assert.match(output, /openmates version\s+Show CLI version and update availability/);

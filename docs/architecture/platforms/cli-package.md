@@ -91,6 +91,18 @@ context; generic boolean DELETE confirmation is not supported.
 
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`, `docs list/search/show/download`, `update`/`upgrade` for updating the globally installed CLI package
 
+**Release channel:** `openmates upgrade --channel dev` selects the dev branch's npm
+`alpha` stream; `--channel stable` (or `main`) selects npm `latest`. The preference
+is stored in `~/.openmates/updates.json` across authentication profiles and survives
+upgrades. Subsequent `openmates upgrade` and `openmates version` use it. Stable
+installations default to stable and prereleases default to dev when no preference
+exists. A successful update or up-to-date check saves an explicit channel choice;
+`--dry-run` and failed updates never save it. `--version` is a one-time override.
+Automatic upgrades do not downgrade; use `--allow-downgrade` explicitly when switching
+to an older channel version. npm upgrades preserve the running global installation's
+prefix instead of installing into a different default prefix. Registry lookup failures
+stop before installation. These commands do not read or modify login credentials.
+
 **Server management:** `install`, `start`, `stop`, `restart`, `status`, `logs`, `update`, `reset`, `make-admin`, `uninstall` -- manages self-hosted instances via Docker Compose. No login required.
 
 All commands support `--json` for machine-readable output and `--api-url` to override the API endpoint. Without an explicit override, API target priority is: `--api-url`, `OPENMATES_API_URL`, saved login session, installed self-host server config, then the OpenMates cloud API.
