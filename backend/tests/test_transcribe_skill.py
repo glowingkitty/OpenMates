@@ -292,13 +292,13 @@ async def test_mistral_word_timestamps_use_multipart_array_field():
 
     async def handler(request: httpx.Request) -> httpx.Response:
         requests.append(request)
-        return httpx.Response(200, json={"text": "Hello", "duration": 1.0})
+        return httpx.Response(200, json={"text": "Hello", "usage": {"prompt_audio_seconds": 1.0}})
 
     def client_factory(*args, **kwargs):
         return real_async_client(*args, transport=httpx.MockTransport(handler), **kwargs)
 
     with patch("backend.apps.audio.skills.transcribe_skill.httpx.AsyncClient", client_factory):
-        await skill._transcribe_with_mistral(
+        result = await skill._transcribe_with_mistral(
             audio_bytes=b"audio",
             filename="recording.webm",
             mime_type="audio/webm",
@@ -310,6 +310,7 @@ async def test_mistral_word_timestamps_use_multipart_array_field():
     body = requests[0].content.decode("utf-8")
     assert 'name="timestamp_granularities[]"' in body
     assert "\r\nword\r\n" in body
+    assert result["duration"] == 1.0
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-timestamps-and-correction

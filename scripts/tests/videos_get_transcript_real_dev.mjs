@@ -9,18 +9,18 @@
  * session; this harness only prints aggregate timing metadata and safe statuses.
  */
 
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { loadSession } from "../../frontend/packages/openmates-cli/src/storage.ts";
 import { uploadFile } from "../../frontend/packages/openmates-cli/src/uploadService.ts";
 
 const DEFAULT_API_URL = "https://api.dev.openmates.org";
 const SYNTHETIC_SPEECH = "Hello this is a timestamp test.";
 let stage = "setup";
 let lastHttpStatus = 0;
+let failureReason = "unspecified";
 
 function usage() {
   process.stderr.write(`Usage: node scripts/tests/videos_get_transcript_real_dev.mjs [--api-url <url>] [--include-segment]\n`);
@@ -102,6 +102,9 @@ function resultFor(response, id) {
 function successfulResult(response, id) {
   const group = resultFor(response, id);
   if (group.error || !Array.isArray(group.results) || group.results.length !== 1) {
+    const known = ["timestamps_unavailable", "timestamps_empty_silence", "Invalid provider timing duration", "Invalid provider timing", "Mistral", "decrypt", "Missing required fields"];
+    const matched = known.findIndex((value) => String(group.error ?? "").includes(value));
+    failureReason = matched >= 0 ? `processing_${matched}` : "unsuccessful_result";
     throw new Error("Expected a successful transcription result.");
   }
   return group.results[0];
@@ -151,9 +154,13 @@ async function assertUnauthorized(apiUrl) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.help) return usage();
-  const session = loadSession();
-  if (!session) throw new Error("No isolated test-account session found. Run the Python gate, not this harness directly.");
-  session.apiUrl = options.apiUrl;
+  if (!process.env.OPENMATES_TRANSCRIPT_TEST_HOME || process.env.OPENMATES_TRANSCRIPT_TEST_HOME !== homedir()) {
+    throw new Error("Run the isolated Python gate, not this harness directly.");
+  }
+  // Read only the ephemeral session written by the existing test-account helper.
+  // Upload needs its cookies, not the CLI keychain or refresh/storage machinery.
+  const setupSession = JSON.parse(readFileSync(join(homedir(), ".openmates", "session.json"), "utf8"));
+  const session = { apiUrl: options.apiUrl, cookies: setupSession.cookies };
 
   const fixture = createSyntheticSpeechFixture();
   try {
@@ -216,5 +223,6 @@ async function main() {
 
 main().catch(() => {
   process.stderr.write(`OPENMATES_REST_FAILURE stage=${stage} http=${lastHttpStatus}\n`);
+  process.stderr.write(`OPENMATES_REST_REASON ${failureReason}\n`);
   process.exit(1);
 });

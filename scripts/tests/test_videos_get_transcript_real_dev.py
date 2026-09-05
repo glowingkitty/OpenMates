@@ -36,6 +36,15 @@ def safe_failure(stage: str, result: subprocess.CompletedProcess[str] | None = N
         diagnostic = re.search(r"^OPENMATES_REST_FAILURE stage=([a-z_]+) http=([0-9]{1,3})$", result.stderr, re.MULTILINE)
         if diagnostic:
             status += f" stage={diagnostic[1]} http={diagnostic[2]}"
+        reason = re.search(r"^OPENMATES_REST_REASON ([a-z_0-9]+)$", result.stderr, re.MULTILINE)
+        if reason:
+            status += f" reason={reason[1]}"
+        runtime_code = re.search(r"\b(ERR_[A-Z_]+)\b", result.stderr)
+        if runtime_code:
+            status += f" runtime={runtime_code[1]}"
+        exception = re.search(r"\b(SyntaxError|TypeError|ReferenceError|RangeError):", result.stderr)
+        if exception:
+            status += f" exception={exception[1]}"
     if stage == "Test-account login":
         return RuntimeError(
             "Test-account login failed"
@@ -73,6 +82,7 @@ def test_rest_gate(api_url: str, slot: str | None, include_segment: bool) -> dic
     with tempfile.TemporaryDirectory(prefix="openmates-videos-transcript-") as home:
         env = os.environ.copy()
         env["HOME"] = home
+        env["OPENMATES_TRANSCRIPT_TEST_HOME"] = home
         env["OPENMATES_CLI_DEVICE_IDENTITY"] = "videos-transcript-rest-gate"
 
         login_command = ["node", "scripts/openmates_cli_test_account.mjs", "login", "--api-url", api_url]

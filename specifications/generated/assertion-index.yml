@@ -10732,7 +10732,7 @@ assertions:
     direct_tests:
     - &id1192
       path: scripts/tests/test_videos_get_transcript_real_dev.py
-      line: 71
+      line: 80
       name: test_rest_gate
       surface: rest_api
     supporting_tests:
@@ -10763,27 +10763,27 @@ assertions:
       surface: rest_api
     - &id1187
       path: backend/tests/test_transcribe_skill.py
-      line: 316
+      line: 317
       name: test_build_waveform_from_pcm_u8_returns_compact_envelope
       surface: rest_api
     - &id1188
       path: backend/tests/test_transcribe_skill.py
-      line: 343
+      line: 344
       name: test_correct_transcript_with_gemini_success
       surface: rest_api
     - &id1189
       path: backend/tests/test_transcribe_skill.py
-      line: 400
+      line: 401
       name: test_correct_transcript_with_gemini_api_failure_raises
       surface: rest_api
     - &id1190
       path: backend/tests/test_transcribe_skill.py
-      line: 425
+      line: 426
       name: test_correct_transcript_with_gemini_invalid_json_raises
       surface: rest_api
     - &id1191
       path: backend/tests/test_transcribe_skill.py
-      line: 458
+      line: 459
       name: test_full_execute_flow_with_gemini_correction
       surface: rest_api
     tests:
@@ -10845,7 +10845,7 @@ assertions:
     direct_tests:
     - &id1201
       path: scripts/tests/test_videos_get_transcript_real_dev.py
-      line: 71
+      line: 80
       name: test_rest_gate
       surface: rest_api
     supporting_tests:
@@ -10876,7 +10876,7 @@ assertions:
       surface: rest_api
     - &id1200
       path: backend/tests/test_transcribe_skill.py
-      line: 458
+      line: 459
       name: test_full_execute_flow_with_gemini_correction
       surface: rest_api
     tests:
@@ -10905,7 +10905,7 @@ assertions:
     direct_tests:
     - &id1202
       path: scripts/tests/test_videos_get_transcript_real_dev.py
-      line: 71
+      line: 80
       name: test_rest_gate
       surface: rest_api
     supporting_tests: []
@@ -10923,7 +10923,7 @@ assertions:
     direct_tests:
     - &id1203
       path: scripts/tests/test_videos_get_transcript_real_dev.py
-      line: 71
+      line: 80
       name: test_rest_gate
       surface: rest_api
     supporting_tests: []

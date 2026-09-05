@@ -698,6 +698,9 @@ class TranscribeSkill(BaseSkill):
             )
 
         result = response.json()
+        # Mistral reports audio duration in usage, unlike Whisper-style responses.
+        if result.get("duration") is None and isinstance(result.get("usage"), dict):
+            result["duration"] = result["usage"].get("prompt_audio_seconds")
         logger.info(
             f"[TranscribeSkill] Transcription complete. "
             f"Text length: {len(result.get('text', ''))}, "
