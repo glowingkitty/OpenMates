@@ -121,15 +121,20 @@ def _normalize_provider_timing_entries(
             or isinstance(end, bool)
             or not isinstance(start, (int, float))
             or not isinstance(end, (int, float))
-            or not math.isfinite(start)
-            or not math.isfinite(end)
-            or start < 0
-            or end <= start
-            or end > duration_seconds
-            or start < previous_start
             or not isinstance(text, str)
         ):
-            raise TimingValidationError("Invalid provider timing")
+            raise TimingValidationError("Invalid provider timing: field_type")
+        # Stable categories identify provider drift without logging speech content.
+        if not math.isfinite(start) or not math.isfinite(end):
+            raise TimingValidationError("Invalid provider timing: nonfinite")
+        if start < 0:
+            raise TimingValidationError("Invalid provider timing: negative_start")
+        if end <= start:
+            raise TimingValidationError("Invalid provider timing: empty_or_reversed")
+        if end > duration_seconds:
+            raise TimingValidationError("Invalid provider timing: duration_bound")
+        if start < previous_start:
+            raise TimingValidationError("Invalid provider timing: out_of_order")
         normalized.append({
             "start_seconds": start,
             "end_seconds": end,

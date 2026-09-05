@@ -40,7 +40,7 @@ function parseArgs(argv) {
 
 function createSyntheticSpeechFixture() {
   const path = join(tmpdir(), `openmates-timestamp-${randomUUID()}.wav`);
-  const result = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", `flite=text='${SYNTHETIC_SPEECH}'`, "-f", "wav", "pipe:1"], {
+  const result = spawnSync("ffmpeg", ["-v", "error", "-f", "lavfi", "-i", `flite=text='${SYNTHETIC_SPEECH}'`, "-af", "apad=pad_dur=1", "-f", "wav", "pipe:1"], {
     encoding: "buffer",
     maxBuffer: 2 * 1024 * 1024,
   });
@@ -105,6 +105,8 @@ function successfulResult(response, id) {
     const known = ["timestamps_unavailable", "timestamps_empty_silence", "Invalid provider timing duration", "Invalid provider timing", "Mistral", "decrypt", "Missing required fields"];
     const matched = known.findIndex((value) => String(group.error ?? "").includes(value));
     failureReason = matched >= 0 ? `processing_${matched}` : "unsuccessful_result";
+    const timingCause = String(group.error ?? "").match(/Invalid provider timing: (field_type|nonfinite|negative_start|empty_or_reversed|duration_bound|out_of_order)/);
+    if (timingCause) failureReason = timingCause[1];
     throw new Error("Expected a successful transcription result.");
   }
   return group.results[0];

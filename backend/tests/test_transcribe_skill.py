@@ -286,13 +286,13 @@ def test_provider_timings_normalize_word_segments_without_fabrication():
             {"duration": 3.0, "segments": [{"start": 0.0, "end": 1.0, "text": "Hello world"}]},
             timestamps="word",
         )
-    for invalid_entry in (
-        {"start": float("nan"), "end": 1.0, "word": "bad"},
-        {"start": -0.1, "end": 1.0, "word": "bad"},
-        {"start": 1.0, "end": 1.0, "word": "bad"},
-        {"start": 0.0, "end": 3.1, "word": "bad"},
+    for invalid_entry, cause in (
+        ({"start": float("nan"), "end": 1.0, "word": "bad"}, "nonfinite"),
+        ({"start": -0.1, "end": 1.0, "word": "bad"}, "negative_start"),
+        ({"start": 1.0, "end": 1.0, "word": "bad"}, "empty_or_reversed"),
+        ({"start": 0.0, "end": 3.1, "word": "bad"}, "duration_bound"),
     ):
-        with pytest.raises(ValueError, match="Invalid provider timing"):
+        with pytest.raises(ValueError, match=f"Invalid provider timing: {cause}"):
             _normalize_provider_timings(
                 {"duration": 3.0, "words": [invalid_entry]}, timestamps="word"
             )
