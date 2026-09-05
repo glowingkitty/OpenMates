@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from typing import Any, Optional
 
 from backend.apps.ai.processing.content_sanitization import _load_content_sanitization_model
@@ -19,6 +20,7 @@ MAX_BATCH_CHARS = 50_000
 SAFETY_ERROR_INVALID = "OUTPUT_SAFETY_INVALID"
 SAFETY_ERROR_UNAVAILABLE = "OUTPUT_SAFETY_UNAVAILABLE"
 SAFETY_ERROR_TIMEOUT = "OUTPUT_SAFETY_TIMEOUT"
+logger = logging.getLogger(__name__)
 
 
 class StructuredScanError(RuntimeError):
@@ -38,7 +40,7 @@ def _scan_tool_definition() -> dict[str, Any]:
         "type": "function",
         "function": {
             "name": "classify_external_text_units",
-            "description": "Classify every supplied external text unit. Do not rewrite or quote text.",
+            "description": "Classify every supplied unit once. Return decisions as [unit_id, verdict] pairs, where verdict is safe or injection. Do not rewrite or quote text.",
             "parameters": {
                 "type": "object",
                 "additionalProperties": False,
@@ -47,13 +49,10 @@ def _scan_tool_definition() -> dict[str, Any]:
                     "decisions": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["id", "decision"],
-                            "properties": {
-                                "id": {"type": "string"},
-                                "decision": {"type": "string", "enum": ["safe", "injection"]},
-                            },
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "items": {"type": "string"},
                         },
                     }
                 },
@@ -98,9 +97,9 @@ def _validate_decisions(arguments: Any, expected_ids: set[str]) -> dict[str, str
         raise StructuredScanError(SAFETY_ERROR_INVALID)
     result: dict[str, str] = {}
     for decision in decisions:
-        if not isinstance(decision, dict) or set(decision) != {"id", "decision"}:
+        if not isinstance(decision, list) or len(decision) != 2:
             raise StructuredScanError(SAFETY_ERROR_INVALID)
-        unit_id, verdict = decision.get("id"), decision.get("decision")
+        unit_id, verdict = decision
         if not isinstance(unit_id, str) or not isinstance(verdict, str):
             raise StructuredScanError(SAFETY_ERROR_INVALID)
         if unit_id not in expected_ids or unit_id in result or verdict not in {"safe", "injection"}:
@@ -148,4 +147,6 @@ async def classify_text_units(
         raise StructuredScanError(SAFETY_ERROR_UNAVAILABLE) from exc
     if getattr(result, "error_message", None):
         raise StructuredScanError(SAFETY_ERROR_UNAVAILABLE)
-    return _validate_decisions(getattr(result, "arguments", None), {unit["id"] for unit in units})
+    decisions = _validate_decisions(getattr(result, "arguments", None), {unit["id"] for unit in units})
+    logger.info("Structured output safety batch completed: units=%d model_calls=1", len(units))
+    return decisions
