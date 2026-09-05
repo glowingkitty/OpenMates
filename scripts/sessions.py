@@ -9364,7 +9364,14 @@ def cmd_end(args: argparse.Namespace) -> None:
     has_opencode_identity = bool(
         session.get("opencode_session_id") or session.get("opencode_top_level_session_id")
     )
-    zellij_name = None if has_opencode_identity else session.get("zellij_session")
+    # Codex and legacy records can name the shared terminal without an
+    # OpenCode chat id. Repository completion never owns that server session.
+    shared_zellij_names = {"code", os.environ.get("OPENCODE_ZELLIJ_SESSION", "code")}
+    candidate_zellij_name = session.get("zellij_session")
+    zellij_name = (
+        None if has_opencode_identity or candidate_zellij_name in shared_zellij_names
+        else candidate_zellij_name
+    )
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:

@@ -702,3 +702,41 @@ def test_managed_worktrees_cannot_nest(monkeypatch, tmp_path: Path) -> None:
 
     assert sessions.is_valid_managed_worktree_path(managed / "agent-abcd")
     assert not sessions.is_valid_managed_worktree_path(managed / "agent-abcd" / "managed" / "agent-efgh")
+
+
+@pytest.mark.parametrize('shared_name', ['code', 'configured-server'])
+def test_codex_session_completion_never_kills_shared_opencode_zellij(monkeypatch, shared_name):
+    """Codex lacks an OpenCode id but still must not own the shared server terminal."""
+    import argparse
+    import types
+    sessions = load_sessions_module()
+    data = {'sessions': {'abcd': {'mode': 'feature', 'zellij_session': shared_name,
+                                'worktree': {'path': '/fixture/agent-abcd'}}}}
+    killed = []
+    monkeypatch.setenv('OPENCODE_ZELLIJ_SESSION', shared_name)
+    monkeypatch.delenv('ZELLIJ_SESSION_NAME', raising=False)
+    monkeypatch.setattr(sessions, '_load_sessions', lambda: data)
+    monkeypatch.setattr(sessions, '_session_is_control_plane_repo', lambda _: False)
+    monkeypatch.setattr(sessions, 'finalize_session_worktree', lambda *a, **k: None)
+    monkeypatch.setattr(sessions, '_linear_complete_session', lambda *a: None)
+    monkeypatch.setitem(sys.modules, '_zellij_utils', types.SimpleNamespace(kill_session=killed.append))
+    sessions.cmd_end(argparse.Namespace(session='abcd', force=False))
+    assert killed == []
+
+
+def test_completion_can_still_close_an_owned_private_zellij_session(monkeypatch):
+    import argparse
+    import types
+    sessions = load_sessions_module()
+    data = {'sessions': {'abcd': {'mode': 'feature', 'zellij_session': 'private-worker',
+                                'worktree': {'path': '/fixture/agent-abcd'}}}}
+    killed = []
+    monkeypatch.delenv('ZELLIJ_SESSION_NAME', raising=False)
+    monkeypatch.setenv('OPENCODE_ZELLIJ_SESSION', 'code')
+    monkeypatch.setattr(sessions, '_load_sessions', lambda: data)
+    monkeypatch.setattr(sessions, '_session_is_control_plane_repo', lambda _: False)
+    monkeypatch.setattr(sessions, 'finalize_session_worktree', lambda *a, **k: None)
+    monkeypatch.setattr(sessions, '_linear_complete_session', lambda *a: None)
+    monkeypatch.setitem(sys.modules, '_zellij_utils', types.SimpleNamespace(kill_session=killed.append))
+    sessions.cmd_end(argparse.Namespace(session='abcd', force=False))
+    assert killed == ['private-worker']
