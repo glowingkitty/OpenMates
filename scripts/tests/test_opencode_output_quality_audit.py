@@ -117,6 +117,63 @@ def test_rejects_duplicate_opencode_config_keys(tmp_path: Path) -> None:
     assert issues[0].message == "duplicate JSON key: firecrawl_firecrawl_search"
 
 
+def test_runtime_config_audit_rejects_enabled_or_implicitly_enabled_research_mcps(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    config = tmp_path / "opencode.jsonc"
+    config.write_text(
+        '''{
+          // A later user config can override project-level disablement.
+          "mcp": {
+            "context7": {"enabled": true, "headers": {"API_KEY": "never-print-this"}},
+            "brave-search": {"type": "local"},
+            "firecrawl": {"enabled": false},
+            "safe": {"label": "preserve comma before brace,}"},
+          },
+        }''',
+        encoding="utf-8",
+    )
+
+    issues = audit.audit_runtime_mcp_configs([config])
+
+    assert [issue.message for issue in issues] == [
+        "forbidden research MCP is enabled: brave-search",
+        "forbidden research MCP is enabled: context7",
+    ]
+    assert "never-print-this" not in repr(issues)
+
+
+def test_instruction_audit_rejects_legacy_direct_mcp_fallback(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    write_core(
+        tmp_path,
+        "Use Brave, WebFetch, or Context7 directly when the OpenMates skill is unavailable.",
+    )
+
+    issues = audit.audit_instruction_surface(tmp_path, {"instructions": [audit.CORE_INSTRUCTION]})
+
+    assert any("permits legacy research MCP fallback" in issue.message for issue in issues)
+
+
+def test_runtime_config_audit_accepts_disabled_research_mcps_and_unrelated_mcps(tmp_path: Path) -> None:
+    audit = load_audit_module()
+    config = tmp_path / "opencode.json"
+    config.write_text(
+        json.dumps(
+            {
+                "mcp": {
+                    "context7": {"enabled": False},
+                    "brave-search": {"enabled": False},
+                    "firecrawl": {"enabled": False},
+                    "figma": {"enabled": True},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert audit.audit_runtime_mcp_configs([config]) == []
+
+
 def test_accepts_concise_core_with_lazy_loading_and_quality_guidance(tmp_path: Path) -> None:
     audit = load_audit_module()
     write_core(
@@ -127,8 +184,11 @@ def test_accepts_concise_core_with_lazy_loading_and_quality_guidance(tmp_path: P
 Keep default context concise. Lazy-load frontend, backend, testing, privacy,
 Apple, and spec rules only when relevant. Final responses should cite evidence,
 changed files, verification commands, failed checks, uncertainty, and next steps.
-Use exact commands and state when verification was not run. Firecrawl is a
-quota-backed fallback only.
+Use exact commands and state when verification was not run. Use
+`openmates apps code get_docs` for documentation and `openmates apps web search`
+for web search. Use native `webfetch` for a known URL and fall back to
+`openmates apps web read` if it fails. Do not use direct Context7, Brave Search,
+or Firecrawl MCP tools as a fallback.
 Batch independent calls in one turn. When a todo update and the next operation
 are independent, avoid a standalone model round-trip.
 {RETROSPECTIVE_GUIDANCE}
@@ -149,7 +209,6 @@ against `https://app.dev.openmates.org`.
     write_clarifying_guidance_files(tmp_path)
     config = {
         "instructions": ["docs/contributing/guides/agent-workflow-core.md"],
-        "permission": {tool: "ask" for tool in audit.FIRECRAWL_TOOL_PERMISSIONS},
     }
 
     issues = audit.audit_instruction_surface(tmp_path, config)
@@ -304,7 +363,10 @@ def test_rejects_missing_workflow_retrospective(tmp_path: Path) -> None:
 # Agent Workflow Core
 
 Lazy-load detailed rules. Include verification, uncertainty, and exact command
-evidence in every final response. Firecrawl is a quota-backed fallback.
+evidence in every final response. Use `openmates apps code get_docs` and
+`openmates apps web search`; use native `webfetch` then fall back to
+`openmates apps web read`. Do not use direct Context7, Brave Search, or
+Firecrawl MCP tools as a fallback.
 Batch independent calls in one turn and avoid a standalone todo update model round-trip.
 Playwright `*.spec.ts` verification is deployed-code verification.
 Run python3 scripts/sessions.py deploy and then use
@@ -314,7 +376,6 @@ Run python3 scripts/sessions.py deploy and then use
     write_runtime_instructions(tmp_path, "No retrospective guidance.")
     config = {
         "instructions": ["docs/contributing/guides/agent-workflow-core.md"],
-        "permission": {tool: "ask" for tool in audit.FIRECRAWL_TOOL_PERMISSIONS},
     }
 
     issues = audit.audit_instruction_surface(tmp_path, config)
@@ -685,11 +746,11 @@ def test_tool_turn_telemetry_normalizes_workflow_error_categories() -> None:
     }
 
 
-def test_unavailable_local_firecrawl_parse_is_denied() -> None:
+def test_project_config_does_not_declare_legacy_research_mcps() -> None:
     audit = load_audit_module()
     config = audit._load_config()
 
-    assert config["permission"]["firecrawl_firecrawl_parse"] == "deny"
+    assert audit.FORBIDDEN_RESEARCH_MCPS.isdisjoint(config.get("mcp", {}))
 
 
 def test_telemetry_audit_flags_conservative_efficiency_regressions() -> None:

@@ -405,3 +405,18 @@ describe("keychain-aware session storage", () => {
     assert.strictEqual(loadSession(), null);
   });
 });
+
+
+describe("stale session writers", () => {
+  it("does not overwrite rotated credentials while saving unrelated context", () => {
+    clearSession();
+    saveSession(SAMPLE_SESSION);
+    const stale = loadSession()!;
+    const rotated = { ...stale, cookies: { auth_refresh_token: "replacement" } };
+    saveSession(rotated, { expectedRefreshToken: stale.cookies.auth_refresh_token });
+    saveSession({ ...stale, activeTeamId: "team-selected-later" });
+    assert.equal(loadSession()!.cookies.auth_refresh_token, "replacement");
+    assert.equal(loadSession()!.activeTeamId, "team-selected-later");
+    clearSession();
+  });
+});

@@ -165,6 +165,7 @@ async def execute_task_tool_call(
             safe_metadata={
                 "status": _safe_status(args.get("status"), default="todo"),
                 "assignee_type": _safe_assignee_type(args.get("assignee_type")),
+                "assignee_identity": _safe_assignee_identity(args.get("assignee_type")),
                 "primary_chat_id": context.chat_id,
                 "position": position,
                 "created_at": now,
@@ -187,6 +188,7 @@ async def execute_task_tool_call(
             "description": str(args.get("description") or ""),
             "status": _safe_status(args.get("status"), default="todo"),
             "assignee_type": _safe_assignee_type(args.get("assignee_type")),
+            "assignee_identity": _safe_assignee_identity(args.get("assignee_type")),
             "position": position,
             "created_at": now,
             "updated_at": now,
@@ -202,6 +204,7 @@ async def execute_task_tool_call(
             safe_metadata["status"] = _safe_status(args.get("status"), default=str(task.get("status") or "todo"))
         if args.get("assignee_type") is not None:
             safe_metadata["assignee_type"] = _safe_assignee_type(args.get("assignee_type"))
+            safe_metadata["assignee_identity"] = _safe_assignee_identity(args.get("assignee_type"))
         if _already_applied_client_persisted_change(context, task, args.get("expected_version"), private_patch, safe_metadata):
             return _already_applied_result("update", task)
         _check_turn_expected_version(context, task, args.get("expected_version"))
@@ -747,7 +750,11 @@ def _safe_status(value: Any, *, default: str) -> str:
 
 
 def _safe_assignee_type(value: Any) -> str:
-    return "ai" if value == "ai" else "user"
+    return "openmates" if value == "openmates" else "user"
+
+
+def _safe_assignee_identity(value: Any) -> str | None:
+    return "openmates" if value == "openmates" else None
 
 
 def _safe_int(value: Any, *, default: int) -> int:

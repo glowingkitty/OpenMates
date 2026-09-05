@@ -1452,16 +1452,18 @@ def _decrypt_aes_gcm_bytes(encrypted_b64: str, key: bytes) -> bytes | None:
         return None
 
 
-def _decrypt_aes_gcm_text(encrypted_b64: str, key: bytes) -> str | None:
-    decrypted = _decrypt_aes_gcm_bytes(encrypted_b64, key)
-    if decrypted is None:
+def _decrypt_aes_gcm_text(encrypted_b64: str, key: bytes, associated_data: str | None = None) -> str | None:
+    try:
+        iv, ciphertext = _split_combined_ciphertext(encrypted_b64)
+        decrypted = AESGCM(key).decrypt(iv, ciphertext, associated_data.encode("utf-8") if associated_data else None)
+        return decrypted.decode("utf-8")
+    except Exception:
         return None
-    return decrypted.decode("utf-8")
 
 
-def _encrypt_aes_gcm_text(plaintext: str, key: bytes) -> str:
+def _encrypt_aes_gcm_text(plaintext: str, key: bytes, associated_data: str | None = None) -> str:
     iv = os.urandom(AES_GCM_IV_LENGTH)
-    encrypted = AESGCM(key).encrypt(iv, plaintext.encode("utf-8"), None)
+    encrypted = AESGCM(key).encrypt(iv, plaintext.encode("utf-8"), associated_data.encode("utf-8") if associated_data else None)
     return base64.b64encode(CIPHERTEXT_MAGIC + b"\x01\x00\x00\x00" + iv + encrypted).decode("utf-8")
 
 
@@ -1519,7 +1521,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         raise OpenMatesConfigError("Task title is required")
     task_key = os.urandom(32)
     now = int(time.time())
-    assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
+    assignee_type, assignee_identity, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
     external_chat = _normalize_external_chat_context(
         payload.get("external_chat", payload.get("externalChat")),
         title=payload.get("external_chat_title", payload.get("externalChatTitle")),
@@ -1549,6 +1551,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
         "encrypted_linked_project_ids": _encrypt_aes_gcm_text(json.dumps(project_ids), task_key),
         "status": status,
         "assignee_type": assignee_type,
+        "assignee_identity": assignee_identity,
         "assignee_hash": assignee_hash,
         "primary_chat_id": primary_chat_id,
         "linked_project_ids": project_ids,
@@ -1566,7 +1569,7 @@ def _build_task_create_input(master_key: bytes, payload: dict[str, Any]) -> dict
             "encrypted_external_chat_id": _encrypt_aes_gcm_text(external_chat["id"], task_key),
             "encrypted_external_chat_title": _encrypt_aes_gcm_text(external_chat["title"], task_key),
         })
-    if assignee_type == "ai":
+    if assignee_type == "openmates":
         task["plaintext_title"] = title
         task["plaintext_description"] = str(payload.get("description") or "")
     return task
@@ -1613,8 +1616,9 @@ def _build_task_update_input(task: dict[str, Any], master_key: bytes, payload: d
     if "status" in payload:
         patch["status"] = payload.get("status")
     if "assign" in payload or "assignee" in payload:
-        assignee_type, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
+        assignee_type, assignee_identity, assignee_hash = _task_assignee(payload.get("assign") or payload.get("assignee"))
         patch["assignee_type"] = assignee_type
+        patch["assignee_identity"] = assignee_identity
         patch["assignee_hash"] = assignee_hash
     external_chat_supplied = "external_chat" in payload or "externalChat" in payload
     external_chat = _normalize_external_chat_context(
@@ -1677,6 +1681,7 @@ def _decrypt_task_record(record: dict[str, Any], master_key: bytes) -> dict[str,
         "latest_instruction": _decrypt_aes_gcm_text(str(record.get("encrypted_latest_instruction") or ""), task_key) or "",
         "status": record.get("status"),
         "assignee_type": record.get("assignee_type"),
+        "assignee_identity": record.get("assignee_identity"),
         "assignee_hash": record.get("assignee_hash"),
         "primary_chat_id": record.get("primary_chat_id"),
         "external_chat": {
@@ -1715,14 +1720,13 @@ def _build_task_activity_comment_input(task: dict[str, Any], master_key: bytes, 
     if not isinstance(message, str):
         raise OpenMatesConfigError("Task Activity comment message is required")
     task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
-    entry_key = os.urandom(32)
+    entry_id = str(payload.get("entry_id") or payload.get("entryId") or uuid.uuid4())
     embed_refs = payload.get("embed_refs", payload.get("embedRefs", []))
     if not isinstance(embed_refs, list) or not all(isinstance(embed_ref, str) for embed_ref in embed_refs):
         raise OpenMatesConfigError("Task Activity embed_refs must be a list of strings")
     result: dict[str, Any] = {
-        "entry_id": str(payload.get("entry_id") or payload.get("entryId") or uuid.uuid4()),
-        "encrypted_entry_key": _encrypt_aes_gcm_bytes(entry_key, task_key),
-        "encrypted_message": _encrypt_aes_gcm_text(message, entry_key),
+        "entry_id": entry_id,
+        "encrypted_message": _encrypt_aes_gcm_text(message, task_key, f"task_activity_comment:{task['task_id']}:{entry_id}:v1"),
         "embed_refs": embed_refs,
         "created_at": int(payload.get("created_at") or payload.get("createdAt") or time.time()),
     }
@@ -1730,7 +1734,7 @@ def _build_task_activity_comment_input(task: dict[str, Any], master_key: bytes, 
     if embed_key_material is not None:
         if not isinstance(embed_key_material, str):
             raise OpenMatesConfigError("Task Activity embed_key_material must be a string")
-        result["encrypted_embed_key_material"] = _encrypt_aes_gcm_text(embed_key_material, task_key)
+        result["encrypted_embed_key_material"] = _encrypt_aes_gcm_text(embed_key_material, task_key, f"task_activity_embed_keys:{task['task_id']}:{entry_id}:v1")
     return result
 
 
@@ -1738,20 +1742,16 @@ def _decrypt_task_activity_entry(task: dict[str, Any], master_key: bytes, record
     entry = _project_task_activity_entry(record)
     if record.get("kind") == "tombstone" or record.get("kind") != "comment":
         return entry
-    encrypted_entry_key = record.get("encrypted_entry_key")
     encrypted_message = record.get("encrypted_message")
-    if not isinstance(encrypted_entry_key, str) or not isinstance(encrypted_message, str):
+    if not isinstance(encrypted_message, str):
         raise OpenMatesConfigError(f"Task Activity entry {record.get('entry_id')} is missing encrypted content")
     task_key = _task_key_from_record(task.get("encrypted") if isinstance(task.get("encrypted"), dict) else task, master_key)
-    entry_key = _decrypt_aes_gcm_bytes(encrypted_entry_key, task_key)
-    if entry_key is None:
-        raise OpenMatesConfigError(f"Failed to decrypt Task Activity entry key {record.get('entry_id')}")
-    message = _decrypt_aes_gcm_text(encrypted_message, entry_key)
+    message = _decrypt_aes_gcm_text(encrypted_message, task_key, f"task_activity_comment:{task['task_id']}:{record.get('entry_id')}:v1")
     if message is None:
         raise OpenMatesConfigError(f"Failed to decrypt Task Activity entry {record.get('entry_id')}")
     entry["message"] = message
     if isinstance(record.get("encrypted_embed_key_material"), str):
-        embed_key_material = _decrypt_aes_gcm_text(record["encrypted_embed_key_material"], task_key)
+        embed_key_material = _decrypt_aes_gcm_text(record["encrypted_embed_key_material"], task_key, f"task_activity_embed_keys:{task['task_id']}:{record.get('entry_id')}:v1")
         if embed_key_material is None:
             raise OpenMatesConfigError(f"Failed to decrypt Task Activity embed key material for {record.get('entry_id')}")
         entry["embed_key_material"] = embed_key_material
@@ -1760,9 +1760,9 @@ def _decrypt_task_activity_entry(task: dict[str, Any], master_key: bytes, record
 
 def _project_task_activity_entry(record: dict[str, Any]) -> dict[str, Any]:
     allowed = (
-        "entry_id", "task_id", "kind", "actor_type", "actor_hash", "event_type",
+        "entry_id", "task_id", "kind", "actor_type", "actor_hash", "actor_identity", "event_type",
         "actor_display_name", "actor_profile_image_url", "source_surface", "created_at",
-        "deleted_at", "deleted_by_hash", "deleted_by_display_name",
+        "deleted_at", "deleted_by_hash", "deleted_by_display_name", "previous_status", "next_status",
     )
     entry = {key: record[key] for key in allowed if key in record}
     entry["author_hash"] = record.get("author_hash") or record.get("actor_hash")
@@ -2444,12 +2444,17 @@ def _find_task(tasks: list[dict[str, Any]], task_id: str) -> dict[str, Any]:
     return matches[0]
 
 
-def _task_assignee(value: Any) -> tuple[str, str | None]:
+def _task_assignee(value: Any) -> tuple[str, str | None, str | None]:
     if value in (None, "", "user"):
-        return "user", None
-    if value in ("ai", "openmates", "OpenMates"):
-        return "ai", None
-    return "user", str(value)
+        return "user", None, None
+    normalized = str(value).strip().lower().replace("-", "_")
+    if normalized == "openmates":
+        return "openmates", "openmates", None
+    if normalized in ("external_ai", "opencode"):
+        return "external_ai", "opencode", None
+    if normalized == "unassigned":
+        return "unassigned", None, None
+    return "user", None, str(value)
 
 
 def _normalize_task_labels(value: Any) -> list[str]:
@@ -2625,6 +2630,7 @@ def _workflow_projection_task(record: dict[str, Any]) -> dict[str, Any]:
         "latest_instruction": "",
         "status": record.get("status"),
         "assignee_type": "user",
+        "assignee_identity": None,
         "assignee_hash": None,
         "primary_chat_id": None,
         "linked_project_ids": [],

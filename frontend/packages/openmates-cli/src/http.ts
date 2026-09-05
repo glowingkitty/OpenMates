@@ -50,6 +50,11 @@ export class OpenMatesHttpClient {
     return Object.fromEntries(this.cookies.entries());
   }
 
+  replaceCookies(cookies: Record<string, string>): void {
+    this.cookies.clear();
+    for (const [name, value] of Object.entries(cookies)) this.cookies.set(name, value);
+  }
+
   async get<T>(
     path: string,
     headers: Record<string, string> = {},

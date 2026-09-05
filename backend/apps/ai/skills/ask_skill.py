@@ -560,7 +560,11 @@ class AskSkill(BaseSkill):
                     actual_model_name = chunk_info.get("model_name") or model_name
 
                     # Extract embeds after streaming is complete
-                    embeds_content = await self._extract_and_resolve_embeds(full_response_content, internal_request.chat_id, user_vault_key_id)
+                    embeds_content = chunk_info.get("anonymous_embeds") or await self._extract_and_resolve_embeds(
+                        full_response_content,
+                        internal_request.chat_id,
+                        user_vault_key_id,
+                    )
 
                     # Send embeds as additional data if found
                     if embeds_content:
@@ -720,7 +724,8 @@ class AskSkill(BaseSkill):
                                     "user_input_tokens": data.get("user_input_tokens"),
                                     "system_prompt_tokens": data.get("system_prompt_tokens"),
                                     "total_credits": data.get("total_credits"),
-                                    "category": data.get("category")
+                                    "category": data.get("category"),
+                                    "anonymous_embeds": data.get("anonymous_embeds"),
                                 }
                                 task_completed = True
                                 break

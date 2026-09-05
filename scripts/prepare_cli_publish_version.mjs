@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Keeps npm CLI package versions aligned with the user-facing product version.
 // Stable publishes use the configured stable base. Dev publishes use
-// prereleases on that exact base, e.g. 0.17.0-alpha.N.
+// prereleases on that exact base, e.g. 0.18.0-alpha.N.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, appendFileSync } from "node:fs";

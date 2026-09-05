@@ -16,6 +16,7 @@
   import {
     listUserTaskDependencies,
     listUserTasks,
+    taskAssigneeDisplayName,
     type UserTaskDependencyViewModel,
     type UserTaskActivityEntry,
     type UserTaskViewModel,
@@ -110,7 +111,8 @@
   }
 
   function assigneeLabel(): string {
-    return task.assigneeType === 'ai' ? 'OpenMates' : creatorName;
+    return taskAssigneeDisplayName(task.assigneeIdentity)
+      || (task.assigneeType === 'unassigned' ? 'Unassigned' : creatorName);
   }
 
   function blockedReasonFallback(): string {

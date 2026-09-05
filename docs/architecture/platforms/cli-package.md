@@ -52,7 +52,7 @@ claims:
 
 # CLI Package
 
-> npm package openmates, 0.17.x artifact line for product line v0.17, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
+> npm package openmates, 0.18.x artifact line for product line v0.18, providing both a CLI and a programmatic SDK for signup, pair-auth login, encrypted chat operations, app skill execution, settings management, model benchmarking, bank-transfer billing, and self-hosted server management.
 
 ## Why This Exists
 
@@ -63,6 +63,21 @@ The REST API cannot decrypt/encrypt chats (zero-knowledge architecture). The CLI
 ### Authentication
 
 Pair-auth login via magic link + PIN remains the default login path. `openmates signup` can create a password account from the terminal using hidden prompts and the same client-side encrypted signup crypto as the web app. Session data is stored in `~/.openmates` with strict `0o600` permissions.
+
+Named authentication profiles use `--profile <name>` or `OPENMATES_PROFILE=<name>`
+and store credentials under `~/.openmates/profiles/<name>/`. Logging into the
+default profile does not renew a named profile. OpenCode's trusted task bridge
+uses `opencode-personal`; its recovery command is
+`OPENMATES_PROFILE=opencode-personal openmates login --api-url https://api.dev.openmates.org`.
+The trusted-account guard rejects attempts to select another profile.
+
+Session validation and WebSocket token refresh acquire a per-profile process
+lock and reload the latest stored credential before sending a request. Session
+writes are atomic and reject stale credential replacement; ordinary context
+writes preserve the latest refresh token. API gateway failures retain the local
+session. The API cache stores token expiry on each token-to-user link, rather
+than borrowing expiry from another session's shared user profile. Legacy links
+without expiry require validation/refresh before reuse.
 
 CLI login derives and stores the email encryption key after pair-auth by decrypting the account email with the master key and applying the same `SHA256(email + user_email_salt)` derivation as the web app. The key uses the same tiered local protection path as the master key and is used for backend flows such as invoice refund requests.
 
@@ -90,6 +105,21 @@ carries the exact source ID to the server. Live file calls require an explicit
 context; generic boolean DELETE confirmation is not supported.
 
 **Other:** `mentions list/search`, `embeds show/share`, `inspirations`, `newchatsuggestions`, `docs list/search/show/download`, `update`/`upgrade` for updating the globally installed CLI package
+
+**Release channel:** `openmates upgrade --channel dev` selects the dev branch's npm
+`alpha` stream; `--channel stable` (or `main`) selects npm `latest`. The preference
+is stored in `~/.openmates/updates.json` across authentication profiles and survives
+upgrades. Subsequent `openmates upgrade` and `openmates version` use it. Stable
+installations default to stable and prereleases default to dev when no preference
+exists. A successful update or up-to-date check saves an explicit channel choice;
+`--dry-run` and failed updates never save it. `--version` is a one-time override.
+Automatic upgrades do not downgrade; use `--allow-downgrade` explicitly when switching
+to an older channel version. npm upgrades preserve the running global installation's
+prefix instead of installing into a different default prefix. Registry lookup failures
+stop before installation. Installation pins the exact checked version so stale npm
+dist-tag caches cannot silently install an older release. Global npm installations
+verify the installed package version before reporting success. These commands do
+not read or modify login credentials.
 
 **Server management:** `install`, `start`, `stop`, `restart`, `status`, `logs`, `update`, `reset`, `make-admin`, `uninstall` -- manages self-hosted instances via Docker Compose. No login required.
 

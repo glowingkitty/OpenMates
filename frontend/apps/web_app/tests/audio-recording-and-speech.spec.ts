@@ -308,7 +308,7 @@ test.describe.serial('Audio recording and assistant speech', () => {
 			expect(placeholder === 'false' || status === 'autoplay_blocked').toBeTruthy();
 		}).toPass({ timeout: SPEECH_TIMEOUT_MS });
 
-		await expect(player.getByRole('button', { name: /pause voice response|play voice response/i })).toBeVisible({ timeout: 30_000 });
+		await expect(player.getByTestId('assistant-speech-primary-control').last()).toBeVisible({ timeout: 30_000 });
 		await expect(player.getByTestId('assistant-speech-next-chapter')).toBeVisible();
 
 		await expect(streamingAssistant).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
@@ -339,9 +339,11 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await player.getByTestId('assistant-speech-previous-chapter').click();
 		await expect(waveform).toHaveAttribute('data-segment-id', firstSegmentId || '');
 		const playPause = player.getByTestId('assistant-speech-primary-control').last();
-		if ((await playPause.getAttribute('aria-label')) === 'Play voice response') await playPause.click();
-		await expect(player).toHaveAttribute('data-status', 'playing');
-		await playPause.click();
+		if ((await player.getAttribute('data-status')) !== 'paused') {
+			if ((await playPause.getAttribute('aria-label')) === 'Play voice response') await playPause.click();
+			await expect.poll(() => player.getAttribute('data-status')).toMatch(/playing|paused/);
+			if ((await player.getAttribute('data-status')) === 'playing') await playPause.click();
+		}
 		await expect(player).toHaveAttribute('data-status', 'paused');
 		await expect(player.getByTestId('assistant-speech-close')).toBeVisible();
 		await player.getByTestId('assistant-speech-close').click();

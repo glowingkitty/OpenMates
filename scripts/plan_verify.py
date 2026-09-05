@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from plan_validate import REPO_ROOT, PlanError, validate_plan
+from _workflow_decisions import matching_receipt
 
 
 PASS_STATUSES = {"passed", "passed_after_deploy"}
@@ -211,7 +212,13 @@ def _demonstration_failures(data: dict[str, Any]) -> list[str]:
 
     failures: list[str] = []
     if evidence.get("status") == "waived":
-        return ["demonstration: implemented executable specs cannot waive embedded proof-video evidence"]
+        receipt = matching_receipt(
+            data.get("decisions", []), target=str(data.get("id") or ""), surface="proof",
+            revision=str(data.get("implementation_state", {}).get("subject_commit") or ""),
+        )
+        if receipt and evidence.get("decision_id") == receipt["id"]:
+            return []
+        return ["demonstration: cannot waive embedded proof-video evidence without a valid scoped user decision"]
 
     if evidence.get("status") != "passed":
         failures.append("demonstration: missing required passing evidence")

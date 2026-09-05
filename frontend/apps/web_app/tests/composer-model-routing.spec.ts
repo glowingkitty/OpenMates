@@ -245,6 +245,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await selectorMenu.getByTestId('composer-model-provider-openai').click();
 	await expectComposerFocusPreserved(page, composer);
 	await expect(selectorMenu.getByTestId('composer-model-name')).toHaveText([
+		'GPT-6 Astra',
 		'GPT-5.6 Sol Max',
 		'GPT-5.6 Sol',
 		'GPT-5.6 Terra',
@@ -285,32 +286,32 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	const toggleRightInset = rowBox!.x + rowBox!.width - (toggleBox!.x + toggleBox!.width);
 	expect(toggleRightInset).toBeGreaterThanOrEqual(0);
 	expect(toggleRightInset).toBeLessThanOrEqual(8);
-	expect(capabilityBox!.x + capabilityBox!.width / 2).toBeGreaterThan(iconBox!.x + iconBox!.width / 2);
-	expect(capabilityBox!.y + capabilityBox!.height / 2).toBeGreaterThan(iconBox!.y + iconBox!.height / 2);
+	expect(Math.abs(capabilityBox!.x + capabilityBox!.width / 2 - (iconBox!.x + iconBox!.width))).toBeLessThanOrEqual(1);
+	expect(Math.abs(capabilityBox!.y + capabilityBox!.height / 2 - (iconBox!.y + iconBox!.height))).toBeLessThanOrEqual(1);
+	await expect.poll(async () => selectorMenu.evaluate((element: HTMLElement) => element.scrollWidth <= element.clientWidth)).toBe(true);
 	await takeStepScreenshot(page, '03-model-list');
 	await firstModelName.click();
 	await expect(page.getByTestId('ai-model-details')).toBeVisible();
 	await page.waitForTimeout(COMPOSER_BLUR_SETTLE_MS);
-	await expect(composer).toHaveAttribute('data-focused', 'false');
+	await expect(composer).toHaveAttribute('data-focused', 'true');
 	await page.getByTestId('icon-button-close').click();
 	await expect(page.getByTestId('ai-model-details')).toBeHidden();
-	await focusComposer(page, composer);
 	await expect.poll(async () => selector.getAttribute('aria-label')).toContain(firstModelDisplayName!);
 
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
 	const solMaxRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' });
 	await solMaxRow.getByTestId('composer-model-toggle').click();
-	await expect(selector).toHaveAttribute('aria-label', /Model selection: ChatGPT/i);
-	await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('ChatGPT');
+  await expect(selector).toHaveAttribute('aria-label', /Model selection: GPT-5.6 Sol Max/i);
+  await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('GPT-5.6 Sol Max');
 	const [triggerIconBox, triggerCapabilityBox] = await Promise.all([
 		selector.getByTestId('composer-model-selector-icon').boundingBox(),
 		selector.getByTestId('composer-model-selector-capability').boundingBox()
 	]);
 	expect(triggerIconBox).toBeTruthy();
 	expect(triggerCapabilityBox).toBeTruthy();
-	expect(triggerCapabilityBox!.x + triggerCapabilityBox!.width / 2).toBeLessThan(triggerIconBox!.x + triggerIconBox!.width / 2);
-	expect(triggerCapabilityBox!.y + triggerCapabilityBox!.height / 2).toBeGreaterThan(triggerIconBox!.y + triggerIconBox!.height / 2);
+	expect(Math.abs(triggerCapabilityBox!.x + triggerCapabilityBox!.width / 2 - (triggerIconBox!.x + triggerIconBox!.width))).toBeLessThanOrEqual(1);
+	expect(Math.abs(triggerCapabilityBox!.y + triggerCapabilityBox!.height / 2 - (triggerIconBox!.y + triggerIconBox!.height))).toBeLessThanOrEqual(1);
 
 	await selector.click();
 	const reopenedMenu = composer.getByTestId('composer-model-selector-menu');
@@ -329,7 +330,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expect(bestMention).toBeVisible({ timeout: 10000 });
 	await bestMention.click();
 	await assertProof(proof, 'ai-model-routing.composer.mention-to-exact-selection', async () => {
-		await expect(selector).toHaveAttribute('aria-label', /Model selection: Claude/i);
+      await expect(selector).toHaveAttribute('aria-label', /Model selection: GPT-6 Astra/i);
 		await expect(selector.getByTestId('composer-model-selector-capability')).toHaveAttribute('data-level', 'max');
 		await expect.poll(async () => editor.evaluate((element: HTMLElement) => element.innerText.trim())).toBe('');
 		await expect.poll(async () => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);

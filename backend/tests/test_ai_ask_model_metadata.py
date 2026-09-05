@@ -26,6 +26,7 @@ EXPECTED_CAPABILITIES = {
     "claude-haiku-4-5-20251001": "low",
     "claude-sonnet-5": "medium",
     "claude-opus-5": "high",
+    "claude-fable-5-1": "max",
     "claude-fable-5": "max",
 }
 
@@ -46,7 +47,7 @@ def _ai_ask_models() -> list[dict[str, Any]]:
 def test_every_ai_ask_model_has_explicit_capability_and_release_date() -> None:
     models = _ai_ask_models()
 
-    assert len(models) == 38
+    assert len(models) == 39
     for model in models:
         assert model.get("capability_level") in CAPABILITY_LEVELS, model["id"]
         assert date.fromisoformat(model["release_date"]), model["id"]

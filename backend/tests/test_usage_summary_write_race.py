@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import importlib.util
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,15 @@ UsageMethods = _load_usage_methods_class()
 
 
 class FakeCache:
+    def __init__(self) -> None:
+        self.values: dict[str, Any] = {}
+
+    async def get(self, key: str) -> Any:
+        return self.values.get(key)
+
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> None:
+        self.values[key] = value
+
     async def delete(self, _key: str) -> None:
         return None
 
@@ -55,10 +65,35 @@ class DuplicateCreateSDK:
 
 
 class FakeEncryption:
-    pass
+    async def decrypt_with_user_key(self, ciphertext: str, _key_id: str):
+        return ciphertext.removeprefix("enc:")
+
+
+class ReconciliationSDK:
+    def __init__(self) -> None:
+        self.cache = FakeCache()
+        self.timestamp = int(datetime.now().timestamp())
+        self.date = datetime.fromtimestamp(self.timestamp).strftime("%Y-%m-%d")
+
+    async def get_items(self, collection: str, params: dict[str, Any] | None = None, **kwargs: Any):
+        if collection == "usage_daily_chat_summaries":
+            return [
+                {"id": "stale", "user_id_hash": "user-a", "chat_id": "root-chat", "date": self.date, "total_credits": 10, "entry_count": 1, "updated_at": 100}
+            ]
+        if collection == "usage_daily_api_key_summaries":
+            return []
+        if collection == "usage":
+            return [
+                {"id": "ai", "user_id_hash": "user-a", "source": "chat", "chat_id": "root-chat", "root_chat_id": "root-chat", "created_at": self.timestamp, "updated_at": 103, "encrypted_credits_costs_total": "enc:55"},
+                {"id": "images", "user_id_hash": "user-a", "source": "chat", "chat_id": "child-images", "root_chat_id": "root-chat", "created_at": self.timestamp, "updated_at": 102, "encrypted_credits_costs_total": "enc:10"},
+                {"id": "news", "user_id_hash": "user-a", "source": "chat", "chat_id": "child-news", "root_chat_id": "root-chat", "created_at": self.timestamp, "updated_at": 101, "encrypted_credits_costs_total": "enc:10"},
+                {"id": "other-user", "user_id_hash": "user-b", "source": "chat", "chat_id": "root-chat", "root_chat_id": "root-chat", "created_at": self.timestamp, "updated_at": 104, "encrypted_credits_costs_total": "enc:999"},
+            ]
+        return []
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 async def test_daily_summary_duplicate_create_retries_as_update() -> None:
     sdk = DuplicateCreateSDK({"id": "existing-daily", "total_credits": 10, "entry_count": 2})
     usage = UsageMethods(sdk=sdk, encryption_service=FakeEncryption())
@@ -83,6 +118,7 @@ async def test_daily_summary_duplicate_create_retries_as_update() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=billing.surface.semantic-parity
 async def test_monthly_summary_duplicate_create_retries_as_update() -> None:
     sdk = DuplicateCreateSDK({"id": "existing-monthly", "total_credits": 20, "entry_count": 4})
     usage = UsageMethods(sdk=sdk, encryption_service=FakeEncryption())
@@ -105,3 +141,20 @@ async def test_monthly_summary_duplicate_create_retries_as_update() -> None:
     assert item_id == "existing-monthly"
     assert payload["total_credits"] == 26
     assert payload["entry_count"] == 5
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=billing.surface.semantic-parity
+async def test_daily_overview_reconciles_stale_chat_total_from_raw_usage() -> None:
+    sdk = ReconciliationSDK()
+    usage = UsageMethods(sdk=sdk, encryption_service=FakeEncryption())
+
+    overview = await usage.get_reconciled_daily_overview(
+        user_id_hash="user-a",
+        user_vault_key_id="vault-a",
+        days=7,
+    )
+
+    assert overview[0]["total_credits"] == 75
+    assert overview[0]["items"][0]["total_credits"] == 75
+    assert overview[0]["items"][0]["entry_count"] == 3

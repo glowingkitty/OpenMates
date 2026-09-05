@@ -9,10 +9,10 @@
  */
 
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { homedir, platform, release } from "node:os";
-import { dirname, relative, resolve } from "node:path";
+import { arch, homedir, platform, release } from "node:os";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
@@ -37,6 +37,7 @@ const SAFE_READY_FIELDS = new Set([
   "error",
   "retryable",
   "sequence",
+  "kind",
 ]);
 
 function parseArgs(argv) {
@@ -88,7 +89,11 @@ function run(command, env, label, timeoutMs = 600_000) {
 }
 
 function loadSession() {
-  const sessionPath = resolve(homedir(), ".openmates/session.json");
+  const stateDir = process.env.OPENMATES_STATE_DIR?.trim()
+    || (process.env.OPENMATES_PROFILE?.trim()
+      ? join(homedir(), ".openmates", "profiles", process.env.OPENMATES_PROFILE.trim())
+      : join(homedir(), ".openmates"));
+  const sessionPath = resolve(stateDir, "session.json");
   if (!existsSync(sessionPath)) {
     throw new Error("No logged-in CLI session found; run the test-account login helper first.");
   }
@@ -97,6 +102,37 @@ function loadSession() {
   if (!session.wsToken && !session.cookies?.auth_refresh_token) {
     throw new Error("CLI session is missing wsToken/auth_refresh_token.");
   }
+  return session;
+}
+
+async function refreshSession(apiUrl, session) {
+  const userAgent = `OpenMates CLI/0.1 (${platform()} ${release()})`;
+  const cookie = Object.entries(session.cookies || {})
+    .filter(([, value]) => typeof value === "string" && value)
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
+  const response = await fetch(`${apiUrl.replace(/\/$/, "")}/v1/auth/session`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "User-Agent": userAgent,
+      "X-OpenMates-SDK": "cli",
+      "X-OpenMates-Device-Identity": `cli:${platform()}:${arch()}`,
+      Origin: apiUrl.replace("api.", "app."),
+      ...(cookie ? { Cookie: cookie } : {}),
+    },
+    body: JSON.stringify({ session_id: session.sessionId }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.success === false || !result.ws_token) {
+    throw new Error(`CLI session refresh failed with HTTP ${response.status}.`);
+  }
+  for (const value of response.headers.getSetCookie?.() ?? []) {
+    const [pair] = value.split(";", 1);
+    const separator = pair.indexOf("=");
+    if (separator > 0) session.cookies[pair.slice(0, separator)] = pair.slice(separator + 1);
+  }
+  session.wsToken = result.ws_token;
   return session;
 }
 
@@ -118,10 +154,10 @@ function createChat(cliPath, apiUrl, runId) {
   );
   const messages = parseJsonOutput(messagesOutput, "CLI assistant message lookup").messages;
   const assistantMessage = Array.isArray(messages)
-    ? messages.findLast((message) => message?.role === "assistant" && typeof message.id === "string")
+    ? messages.findLast((message) => message?.role === "assistant" && typeof message.clientMessageId === "string")
     : null;
   if (!assistantMessage) throw new Error("CLI assistant message lookup returned no assistant message identity.");
-  return { ...chat, messageId: assistantMessage.id };
+  return { ...chat, messageId: assistantMessage.clientMessageId };
 }
 
 function deleteChat(cliPath, apiUrl, chatId) {
@@ -138,7 +174,7 @@ function deleteChat(cliPath, apiUrl, chatId) {
 function openWebSocket(apiUrl, session) {
   const wsBase = apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
   const token = session.wsToken || session.cookies.auth_refresh_token;
-  const query = new URLSearchParams({ sessionId: session.sessionId, token });
+  const query = new URLSearchParams({ sessionId: randomUUID(), token });
   const headers = {
     "User-Agent": `OpenMates CLI/0.1 (${platform()} ${release()})`,
   };
@@ -235,15 +271,17 @@ async function main() {
   }
 
   const runId = `assistant-speech-live-${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z")}`;
-  const session = loadSession();
   if ((args.chatId && !args.messageId) || (!args.chatId && args.messageId)) {
     throw new Error("--chat-id and --message-id must be provided together.");
   }
   const chat = args.chatId && args.messageId
     ? { chatId: args.chatId, messageId: args.messageId, assistant: args.assistantText, status: "provided" }
     : createChat(args.cliPath, args.apiUrl, runId);
+  const session = await refreshSession(args.apiUrl, loadSession());
   let chatDeleted = Boolean(args.chatId);
   let readyFields = [];
+  let acceptedLatencyMs = 0;
+  let readyLatencyMs = 0;
   let ws;
   try {
     ws = await openWebSocket(args.apiUrl, session);
@@ -280,7 +318,7 @@ async function main() {
     if (accepted.payload?.status !== "accepted") {
       throw new Error(`Assistant speech request was rejected: ${JSON.stringify(accepted.payload)}`);
     }
-    const acceptedLatencyMs = Math.round(performance.now() - requestStartedAt);
+    acceptedLatencyMs = Math.round(performance.now() - requestStartedAt);
     const acceptedSegments = Array.isArray(accepted.payload?.segments) ? accepted.payload.segments : [];
     if (acceptedSegments.length !== 1 || acceptedSegments[0].status !== "queued") {
       throw new Error(`Assistant speech request was not queued: ${JSON.stringify(accepted.payload)}`);
@@ -302,7 +340,7 @@ async function main() {
       throw new Error(`Assistant speech worker returned error: ${JSON.stringify(ready.payload)}`);
     }
     readyFields = assertSafeReadyPayload(ready.payload, args.assistantText);
-    const readyLatencyMs = Math.round(performance.now() - requestStartedAt);
+    readyLatencyMs = Math.round(performance.now() - requestStartedAt);
 
     send(ws, "assistant_speech", {
       action: "delete",

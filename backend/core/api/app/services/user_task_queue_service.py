@@ -210,13 +210,13 @@ class UserTaskQueueService:
             task_id = str(task.get("task_id") or "")
             if self._is_blocking_task(task):
                 return {
-                    "state": "blocked_by_human_task" if task.get("assignee_type") != "ai" else "blocked_by_ai_task",
+                    "state": "blocked_by_human_task" if task.get("assignee_type") != "openmates" else "blocked_by_ai_task",
                     "task_id": task_id,
                     **self._short_id_field(task),
                     "chat_id": chat_id,
                     "blocked_reason_code": task.get("blocked_reason_code") or "needs_user_input",
                 }
-            if task.get("assignee_type") != "ai":
+            if task.get("assignee_type") != "openmates":
                 return {
                     "state": "blocked_by_human_task",
                     "task_id": task_id,
@@ -252,7 +252,7 @@ class UserTaskQueueService:
             (
                 task
                 for task in candidates
-                if task.get("assignee_type") == "ai" and self._task_status(task) == "todo"
+                if task.get("assignee_type") == "openmates" and self._task_status(task) == "todo"
             ),
             None,
         )

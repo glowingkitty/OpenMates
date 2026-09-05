@@ -8,12 +8,11 @@ steps: 6
 permission:
   read:
     "*": deny
-    "review-prompt-round-*.json": allow
-    "frames/*": allow
     "test-results/proof-videos/**/review-prompt-round-*.json": allow
     "test-results/proof-videos/**/frames/*": allow
   grep: deny
   glob: deny
+  task: deny
   external_directory: deny
   bash: deny
   edit: deny
@@ -32,8 +31,8 @@ narration alignment.
 
 For every approved assertion, cite the frame paths that support or contradict it.
 Independently inspect every frame for incidental visual-integrity defects, including
-clipping, overlap, overflow, wrong geometry or colors, low contrast or unreadable
-text, suspicious unused container space, stale loading, raw implementation text,
+clipping, overlap, overflow, wrong geometry or colors, potential contrast or text-size
+concerns, suspicious unused container space, stale loading, raw implementation text,
 broken navigation, broken media, broken icons
 rendered as generic square shapes, missing icons where sibling actions visibly
 have icons, or apparently unresponsive controls.
@@ -48,14 +47,15 @@ or composition introduced after capture. Do not expect captions to appear in the
 broken, stale, unreadable, incorrect, or unresponsive product UI/CLI/native behavior. Do not
 recommend cropping, trimming, or rewriting captions to conceal product defects.
 Classify a product defect's intent as `obvious` only when the visible UI is
-objectively broken, such as unreadable text, clipping, overlap, malformed assets,
+objectively broken, such as clipping, overlap, malformed assets,
 raw errors, or unusable controls. Use `unclear` when the concern could plausibly
 be intentional design. Obvious defects return to automatic failing-test and
 implementation repair; unclear intent requires user consent before code changes.
-Treat frame-only judgments about color, typography hierarchy, font size, or
-contrast as unclear design intent because the frame bundle contains no
-deterministic contrast measurement. Mark the affected quality check `uncertain`;
-never route those judgments directly to automatic product edits.
+Contrast, text size, font weight, opacity, and other typography/readability concerns
+are always potential intentional design when judged from proof frames alone. Report
+them as `severity: warning`, `intent: unclear`, and uncertain readability; never use
+them to trigger automatic product-code correction. If no other defect exists, return
+`uncertain` so the user can accept the design or request a change.
 
 Return only this JSON shape:
 
@@ -92,7 +92,7 @@ Return only this JSON shape:
   "incidental_findings": [
     {
       "id": "UI-1",
-      "category": "clipping|overlap|overflow|geometry|color|contrast|icon|loading|raw_text|navigation|responsiveness|other",
+      "category": "clipping|overlap|overflow|geometry|color|contrast|typography|icon|loading|raw_text|navigation|responsiveness|other",
       "severity": "blocking|warning",
       "confidence": 0.0,
       "intent": "obvious|unclear",

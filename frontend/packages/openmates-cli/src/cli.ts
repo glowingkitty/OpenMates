@@ -61,6 +61,8 @@ import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMeta
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { readActivityHistory } from "./taskActivityHistory.js";
+import { activityDeliveryStore } from "./taskActivityDelivery.js";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
@@ -69,6 +71,7 @@ import { arch, platform } from "node:os";
 import { parse as parseYaml } from "yaml";
 import WebSocket from "ws";
 import {
+  resolveStateDir,
   assertTrustedAccountId,
   loadTrustedAccountId,
   saveTrustedAccountId,
@@ -152,7 +155,7 @@ import {
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
-import { buildSelfUpdatePlan, checkSelfUpdateStatus, runSelfUpdate } from "./selfUpdate.js";
+import { buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, pinSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
@@ -248,6 +251,16 @@ async function main(): Promise<void> {
   if (accountGuardRequired && parsed.flags.help !== true) {
     assertTrustedAccountGuardEnvironment(parsed.flags);
     assertTrustedAccountCommandAllowed(command);
+  }
+  if (parsed.flags.profile !== undefined) {
+    const profile = parsed.flags.profile;
+    if (typeof profile !== "string" || !profile) throw new Error("--profile requires a profile name");
+    // Validate before loading keys or session state. Never silently fall back.
+    resolveStateDir({ profile, stateDir: "" });
+    if (process.env.OPENMATES_STATE_DIR?.trim()) {
+      throw new Error("--profile cannot be combined with OPENMATES_STATE_DIR");
+    }
+    process.env.OPENMATES_PROFILE = profile;
   }
   const client = OpenMatesClient.load({
     apiUrl:
@@ -675,6 +688,9 @@ export function assertTrustedAccountGuardEnvironment(
   flags: Record<string, string | boolean>,
   environment: NodeJS.ProcessEnv = process.env,
 ): void {
+  if (flags.profile !== undefined && flags.profile !== TRUST_GUARD_PROFILE) {
+    throw new Error(`Trusted OpenCode CLI commands cannot override profile ${TRUST_GUARD_PROFILE}.`);
+  }
   if (environment.OPENMATES_PROFILE !== TRUST_GUARD_PROFILE) {
     throw new Error(`Trusted OpenCode CLI commands require OPENMATES_PROFILE=${TRUST_GUARD_PROFILE}.`);
   }
@@ -717,13 +733,19 @@ function handleSupport(flags: Record<string, string | boolean>): void {
 }
 
 function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
-  const plan = buildSelfUpdatePlan(flags);
+  let plan = buildSelfUpdatePlan(flags);
   const status = checkSelfUpdateStatus(plan);
-  const shouldInstall = status.updateAvailable !== false;
+  if (status.checkError) throw new Error(`Update check failed: ${status.checkError}`);
+  const shouldInstall = status.updateAvailable === true;
+  if (!plan.dryRun && shouldInstall && status.latestVersion) {
+    plan = pinSelfUpdatePlan(plan, status.latestVersion);
+  }
   if (flags.json === true) {
     if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
+    persistSelfUpdateChannel(plan);
     printJson({
       command,
+      channel: plan.channel,
       status: status.updateAvailable === false ? "up_to_date" : plan.dryRun ? "planned" : "success",
       current_version: plan.currentVersion,
       latest_version: status.latestVersion,
@@ -740,6 +762,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   console.log("");
   console.log("Checking for updates...");
   console.log("");
+  console.log(`Release channel: ${plan.channel}`);
   console.log(`Current version: ${plan.currentVersion}`);
   console.log(`Latest version:  ${status.latestVersion ?? "unknown"}`);
   if (status.checkError) {
@@ -755,11 +778,13 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
     return;
   }
   if (status.updateAvailable === false) {
+    persistSelfUpdateChannel(plan);
     console.log("OpenMates CLI is already up to date.");
     return;
   }
   console.log(`Updating OpenMates CLI with ${plan.packageManager}...`);
   runSelfUpdate(plan, { verbose: flags.verbose === true });
+  persistSelfUpdateChannel(plan);
   console.log(`Installed OpenMates CLI ${status.latestVersion ?? plan.target}.`);
   console.log("");
   console.log("OpenMates is up to date.");
@@ -773,6 +798,7 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
   if (flags.json === true) {
     printJson({
       command: "version",
+      channel: plan.channel,
       current_version: status.currentVersion,
       latest_version: status.latestVersion,
       update_available: status.updateAvailable,
@@ -782,6 +808,7 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
     return;
   }
   console.log(`OpenMates CLI ${status.currentVersion}`);
+  console.log(`Release channel: ${plan.channel}`);
   if (status.checkError) {
     console.log(`Update check failed: ${status.checkError}`);
     return;
@@ -817,32 +844,49 @@ async function handleTasks(
     const action = rest[0] ?? "list";
     const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
     const context = { teamId: scope.teamId, personal: scope.personal };
-    if (action === "list") {
-      const records = [];
-      let cursor: string | undefined;
-      do {
-        const page = await client.listUserTaskActivity(task.taskId, {
-          ...context,
-          cursor,
-          limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
-        });
-        records.push(...page.entries);
-        cursor = page.next_cursor ?? undefined;
-      } while (cursor);
-      const entries = await decryptTaskActivityEntries(task, masterKey, records);
-      if (flags.json === true) printJson({ entries: entries.map(taskActivityToJson) });
-      else console.log(renderTaskActivityList(entries));
+    const actor = flags["as-assignee"] === true ? "assignee" : "user";
+    const delivery = () => activityDeliveryStore(JSON.stringify([
+      client.getSession().apiUrl, client.getSession().hashedEmail, scope.teamId || "personal", task.taskId, actor,
+    ]));
+    const createActivity = (input: Parameters<typeof client.createUserTaskActivity>[1]) => client.createUserTaskActivity(task.taskId, input, {
+      ...context, ...(actor === "assignee" ? { actorMode: "assignee" as const } : {}),
+    });
+    if (action === "flush") {
+      printJson(await delivery().flush(createActivity));
+      return;
+    }
+    if (action === "list" || action === "search") {
+      const pending = flags["flush-pending"] === true ? await delivery().flush(createActivity) : undefined;
+      const history = await readActivityHistory({
+        maxEntries: typeof flags["max-entries"] === "string" ? Number(flags["max-entries"]) : action === "search" ? 200 : undefined,
+        pageSize: typeof flags.limit === "string" ? Number(flags.limit) : 100,
+        cursor: typeof flags.cursor === "string" ? flags.cursor : undefined,
+        ...(action === "search" ? { query: typeof flags.query === "string" ? flags.query : "" } : {}),
+        page: async (cursor, limit) => {
+          const page = await client.listUserTaskActivity(task.taskId, {
+            ...context, cursor, limit, newestFirst: flags["newest-first"] === true,
+          });
+          return { entries: await decryptTaskActivityEntries(task, masterKey, page.entries), next_cursor: page.next_cursor };
+        },
+      });
+      if (flags.json === true) printJson({ ...history, entries: history.entries.map(taskActivityToJson), delivery: pending });
+      else {
+        console.log(renderTaskActivityList(history.entries));
+        if (history.truncated) console.log(`Activity history truncated. Search all history: openmates tasks activity search ${task.shortId} --query "text" --max-entries 200`);
+        if (history.next_cursor) console.log(`Next cursor: ${history.next_cursor}`);
+      }
       return;
     }
     if (action === "add") {
       const message = typeof flags.message === "string" ? flags.message : rest.slice(2).join(" ");
       if (!message.trim()) throw new Error("Missing comment. Usage: openmates tasks activity add <task-id> --message <text>");
-      const input = await buildCreateTaskActivityInput(task, masterKey, { message });
-      const entry = await decryptTaskActivityEntry(
-        task,
-        masterKey,
-        await client.createUserTaskActivity(task.taskId, input, context),
-      );
+      const deliveryId = typeof flags["delivery-id"] === "string" ? flags["delivery-id"] : undefined;
+      const build = () => buildCreateTaskActivityInput(task, masterKey, { message, ...(deliveryId ? { entryId: deliveryId } : {}) });
+      const record = deliveryId
+        ? await delivery().deliver(deliveryId, build, createActivity)
+        : await createActivity(await build());
+      const entry = await decryptTaskActivityEntry(task, masterKey, record);
+      if (entry.message !== message) throw new Error("Activity delivery id already belongs to a different milestone message");
       if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
       else console.log(renderTaskActivityList([entry]));
       return;
@@ -859,7 +903,7 @@ async function handleTasks(
       else console.log(renderTaskActivityList([entry]));
       return;
     }
-    throw new Error("Usage: openmates tasks activity list|add|delete <task-id> [<entry-id>] [--message <text>]");
+    throw new Error("Usage: openmates tasks activity list|search|add|flush|delete <task-id> [<entry-id>] [--message <text>]");
   }
 
   if (rest[0] === "add-to-project") {
@@ -4057,6 +4101,7 @@ function taskToJson(task: DecryptedUserTask): Record<string, unknown> {
     latest_instruction: task.latestInstruction,
     status: task.status,
     assignee_type: task.assigneeType,
+    assignee_identity: task.assigneeIdentity,
     assignee_hash: task.assigneeHash,
     primary_chat_id: task.primaryChatId,
     external_chat: task.externalChat ? {
@@ -4085,11 +4130,14 @@ function taskActivityToJson(entry: DecryptedTaskActivityEntry): Record<string, u
     kind: entry.kind,
     actor_type: entry.actorType,
     actor_hash: entry.actorHash,
+    actor_identity: entry.actorIdentity,
     actor_display_name: entry.actorDisplayName,
     actor_profile_image_url: entry.actorProfileImageUrl,
     author_hash: entry.authorHash,
     event_type: entry.eventType,
     source_surface: entry.sourceSurface,
+    previous_status: entry.previousStatus,
+    next_status: entry.nextStatus,
     created_at: entry.createdAt,
     deleted_at: entry.deletedAt,
     deleted_by_hash: entry.deletedByHash,
@@ -7700,6 +7748,11 @@ async function handleCodeRun(
   } else {
     const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
     if (finalOutput) process.stdout.write(finalOutput);
+  }
+  const finalExitCode = typeof finalStatus.exit_code === "number" ? finalStatus.exit_code : null;
+  const finalState = typeof finalStatus.status === "string" ? finalStatus.status : "unknown";
+  if (finalState !== "finished" || finalExitCode !== 0) {
+    throw new Error(`Code Run ${finalState} with exit code ${finalExitCode ?? "unknown"}.`);
   }
 }
 
@@ -11418,7 +11471,7 @@ async function acceptChatTaskProposals(
     title: string;
     description?: string | null;
     status?: UserTaskStatus;
-    assignee_type?: "ai" | "user";
+    assignee_type?: "openmates" | "user";
   }>,
   fallbackText: string,
 ): Promise<Array<Record<string, unknown>>> {
@@ -13313,7 +13366,7 @@ Commands:
 
 Flags:
   --json          Output raw JSON instead of formatted output
-  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
+  --profile <name>        Use an isolated login profile (also OPENMATES_PROFILE)\n  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
   --version       Show CLI version and update availability
   --help          Show contextual help for any command`);
@@ -13336,12 +13389,16 @@ function printSelfUpdateHelp(): void {
   openmates update [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
   openmates upgrade [--version <version|tag>] [--package-manager <name>] [--dry-run] [--verbose] [--json]
 
-Updates the globally installed openmates package. The default target is latest.
+Updates the globally installed openmates package using the saved release channel.
+Stable installations default to stable; prereleases default to dev.
+Channel changes persist only after a successful update or up-to-date check.
 
 Options:
-  --version <version|tag>       Install a specific npm version or dist-tag (default: latest)
+  --version <version|tag>       Install a specific npm version or dist-tag (one-time override)
   --package-manager <name>      npm, pnpm, yarn, or bun (default: detect, then npm)
   --dry-run                     Print the package-manager command without running it
+  --channel <dev|stable|main>    Save release channel (dev uses npm alpha; stable/main uses latest)
+  --allow-downgrade             Explicitly allow installing an older version
   --verbose                     Stream package-manager output during installation
   --json                        Output the update plan/result as JSON`);
 }
@@ -13675,8 +13732,8 @@ function printTasksHelp(): void {
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|ai] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|ai] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
@@ -13687,8 +13744,10 @@ function printTasksHelp(): void {
   openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
   openmates tasks dependencies list <task-id|short-id> [--json]
   openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
-  openmates tasks activity list <task-id|short-id> [--limit <n>] [--json]
-  openmates tasks activity add <task-id|short-id> --message <text> [--json]
+  openmates tasks activity list <task-id|short-id> [--max-entries <1-200>] [--cursor <cursor>] [--newest-first] [--json]
+  openmates tasks activity search <task-id|short-id> --query <text> [--max-entries <1-200>] [--json]
+  openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--delivery-id <sha256>] [--json]
+  openmates tasks activity flush <task-id|short-id> [--as-assignee] [--json]
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Chat-scoped aliases:

@@ -493,17 +493,8 @@ async def _sanitize_text_chunk(
                 # This makes it transparent that content was removed for security
                 sanitized_chunk = sanitized_chunk.replace(injection_string, PROMPT_INJECTION_PLACEHOLDER)
             
-            # Clean up any double placeholders that might result from overlapping or adjacent replacements
-            # Replace multiple consecutive placeholders with a single one
-            sanitized_chunk = re.sub(
-                rf'({re.escape(PROMPT_INJECTION_PLACEHOLDER)}\s*)+',
-                PROMPT_INJECTION_PLACEHOLDER,
-                sanitized_chunk
-            )
-            
-            # Clean up any excessive whitespace while preserving the placeholder
-            # Replace multiple spaces/newlines with single space, but keep placeholders intact
-            sanitized_chunk = re.sub(r'\s+', ' ', sanitized_chunk).strip()
+            # Preserve all other bytes: newlines/indentation may be TOON syntax,
+            # and whitespace after even a single placeholder can delimit a row.
         
         # Log if score is in review range
         if detection_score >= review_threshold:

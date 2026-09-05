@@ -60,6 +60,7 @@ import {
   upsertEnvValue,
   type VaultSecretPresence,
 } from "./serverPlanning.js";
+import { publishServerBackupArchive } from "./serverBackupArchive.js";
 import {
   applyRuntimeCheckResults,
   buildOperationalDeliveryReceipt,
@@ -115,6 +116,7 @@ const ROLE_TEMPLATE_FILES: Record<ServerRole, string> = {
 };
 const CORE_NO_WEBAPP_TEMPLATE_FILE = join("core", "docker-compose.no-webapp.yml");
 const CORE_PROMTAIL_CONFIG_FILE = join("backend", "core", "monitoring", "promtail", "promtail-config.yaml");
+const CORE_ALERTMANAGER_CONFIG_FILE = join("backend", "core", "monitoring", "alertmanager", "alertmanager.yml");
 const COMPOSE_OVERRIDE = join("backend", "core", "docker-compose.override.yml");
 const DEFAULT_INSTALL_PATH = join(homedir(), "openmates");
 const REPO_URL = "https://github.com/glowingkitty/OpenMates.git";
@@ -132,6 +134,7 @@ const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
 const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
 const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
 const ENV_BACKUP_RETENTION_COUNT = 5;
+const BACKUP_FORMAT_VERSION = 2;
 const IMAGE_CHANNEL_TAGS = {
   stable: MAIN_BRANCH,
   main: MAIN_BRANCH,
@@ -765,6 +768,10 @@ function packagedCaddyTemplatePath(role: ServerRole): string {
   return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "caddy", role, "Caddyfile");
 }
 
+function packagedCoreAlertmanagerTemplatePath(): string {
+  return join(dirname(new URL(import.meta.url).pathname), "..", "templates", "core", "monitoring", "alertmanager", "alertmanager.yml");
+}
+
 function readOfficialCloudNoWebappComposeTemplate(): string {
   const packaged = packagedNoWebappTemplatePath();
   if (existsSync(packaged)) return readFileSync(packaged, "utf-8");
@@ -828,6 +835,11 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
     const promtailConfigPath = join(installPath, CORE_PROMTAIL_CONFIG_FILE);
     mkdirSync(dirname(promtailConfigPath), { recursive: true });
     writeFileSync(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE);
+    const alertmanagerTemplatePath = packagedCoreAlertmanagerTemplatePath();
+    if (!existsSync(alertmanagerTemplatePath)) throw new Error(`Packaged Alertmanager config not found: ${alertmanagerTemplatePath}`);
+    const alertmanagerConfigPath = join(installPath, CORE_ALERTMANAGER_CONFIG_FILE);
+    mkdirSync(dirname(alertmanagerConfigPath), { recursive: true });
+    copyFileSync(alertmanagerTemplatePath, alertmanagerConfigPath);
   }
   writeFileSync(join(vaultConfigDir, "vault.hcl"), VAULT_CONFIG_TEMPLATE);
   ensureImageRuntimeConfig(installPath);
@@ -1657,19 +1669,34 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
   const archivePath = options.output
     ? resolve(options.output)
     : join(backupDir, options.preUpdate ? `latest-pre-update-${role}.tar.gz` : `openmates-${role}-${nowStamp()}.tar.gz`);
+  mkdirSync(dirname(archivePath), { recursive: true, mode: 0o700 });
   const tempDir = mkdtempSync(join(backupDir, ".tmp-"));
   const env = readEnvMap(installPath);
-  const manifest = {
+  const manifest: {
+    role: ServerRole;
+    backup_format_version: number;
+    created_at: string;
+    cli_version: string;
+    image_tag: string;
+    recovery_scope: string;
+    include_observability: boolean;
+    contents: string[];
+  } = {
     role,
+    backup_format_version: BACKUP_FORMAT_VERSION,
     created_at: new Date().toISOString(),
     cli_version: getPackageVersion(),
     image_tag: getEnvVar(existsSync(join(installPath, ".env")) ? readFileSync(join(installPath, ".env"), "utf-8") : "", "OPENMATES_IMAGE_TAG"),
-    include_observability: options.includeObservability === true,
-    contents: plan.contents,
+    recovery_scope: role === "core" ? "database-and-runtime-only" : "runtime-only",
+    include_observability: false,
+    contents: plan.contents.filter((content) => (
+      content !== "runtime-env" || existsSync(join(installPath, ".env"))
+    )).filter((content) => (
+      content !== "runtime-config" || existsSync(join(installPath, "config"))
+    )),
   };
 
   try {
-    writeFileSync(join(tempDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
     copyIfExists(join(installPath, ".env"), join(tempDir, "runtime", ".env"));
     copyIfExists(join(installPath, "config"), join(tempDir, "runtime", "config"));
 
@@ -1692,17 +1719,9 @@ function createServerBackup(installPath: string, role: ServerRole, options: { ou
       }
     }
 
-    for (const item of [
-      [join(installPath, "backend", "core", "uploads"), join(tempDir, "directus-uploads")],
-      [join(installPath, "backend", "core", "extensions"), join(tempDir, "directus-extensions")],
-      [join(installPath, "backend", role, "vault"), join(tempDir, `${role}-vault-config`)],
-    ] as Array<[string, string]>) {
-      copyIfExists(item[0], item[1]);
-    }
-
+    writeFileSync(join(tempDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
     writeChecksums(tempDir);
-    execSync(`tar -czf ${shellQuote(archivePath)} -C ${shellQuote(tempDir)} .`, { stdio: "pipe" });
-    chmodSync(archivePath, plan.fileMode);
+    publishServerBackupArchive(tempDir, archivePath);
     return archivePath;
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -1720,8 +1739,11 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
     verifyChecksums(tempDir);
     const manifestPath = join(tempDir, "manifest.json");
     if (!existsSync(manifestPath)) throw new Error("Backup archive is missing manifest.json.");
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string };
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf-8")) as { role?: string; backup_format_version?: number; recovery_scope?: string };
     if (manifest.role !== role) throw new Error(`Backup role '${manifest.role}' does not match requested role '${role}'.`);
+    if (role === "core" && manifest.backup_format_version === BACKUP_FORMAT_VERSION && manifest.recovery_scope !== "full-core") {
+      throw new Error("This backup records database and runtime state only; refusing unsafe full core restore.");
+    }
 
     copyIfExists(join(tempDir, "runtime", ".env"), join(installPath, ".env"));
     copyIfExists(join(tempDir, "runtime", "config"), join(installPath, "config"));
@@ -1730,10 +1752,18 @@ function restoreServerBackup(installPath: string, role: ServerRole, file: string
     if (role === "core" && existsSync(postgresDump)) {
       const databaseUser = env.DATABASE_USERNAME || "directus";
       const databaseName = env.DATABASE_NAME || "directus";
-      execSync(`docker exec -i cms-database psql -v ON_ERROR_STOP=1 -U ${shellQuote(databaseUser)} ${shellQuote(databaseName)}`, {
-        input: readFileSync(postgresDump),
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      const dumpFile = openSync(postgresDump, "r");
+      try {
+        const result = spawnSync(
+          "docker",
+          ["exec", "-i", "cms-database", "psql", "-v", "ON_ERROR_STOP=1", "-U", databaseUser, databaseName],
+          { encoding: "utf-8", stdio: [dumpFile, "pipe", "pipe"] },
+        );
+        if (result.error) throw result.error;
+        if (result.status !== 0) throw new Error(result.stderr || `psql exited with status ${result.status}`);
+      } finally {
+        closeSync(dumpFile);
+      }
     }
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -2402,8 +2432,10 @@ function runRuntimeVerification(installPath: string, role: ServerRole, config: S
 function runtimeNotificationConfig(installPath: string) {
   const env = readEnvMap(installPath);
   const value = (key: string): string | undefined => process.env[key] || env[key] || undefined;
-  const deploymentMode = getInstallDeploymentMode(installPath, loadConfigForInstallPath(installPath));
+  const serverConfig = loadConfigForInstallPath(installPath);
+  const deploymentMode = getInstallDeploymentMode(installPath, serverConfig);
   const serverEnvironment = value("SERVER_ENVIRONMENT") === "production" ? "production" : "development";
+  const environment: RuntimeNotificationPayload["environment"] = deploymentMode === "self_host" ? "self_host" : serverEnvironment;
   const emailTo = value("OPENMATES_RUNTIME_HEALTH_EMAIL_TO") || value("ADMIN_NOTIFY_EMAIL");
   const emailFrom = value("OPENMATES_RUNTIME_HEALTH_EMAIL_FROM") || value("EMAIL_SENDER_EMAIL") || "noreply@openmates.org";
   const emailApiKey = value("OPENMATES_RUNTIME_HEALTH_BREVO_API_KEY") || value("BREVO_API_KEY");
@@ -2429,6 +2461,10 @@ function runtimeNotificationConfig(installPath: string) {
       : value("DISCORD_WEBHOOK_DEV_NIGHTLY") || value("DISCORD_WEBHOOK_DEV_SMOKE");
   const discordWebhookUrl = canonicalDiscordWebhookUrl || fallbackDiscordWebhookUrl;
   return {
+    environment,
+    deploymentMode,
+    serverName: value("OPENMATES_RUNTIME_SERVER_NAME"),
+    version: value("OPENMATES_IMAGE_TAG") || serverConfig?.imageTag || "source",
     email,
     discordWebhookUrl,
     discordDestinationSource: canonicalDiscordWebhookUrl
@@ -2531,11 +2567,22 @@ async function dispatchRuntimeEvent(
   occurredAt: string,
 ): Promise<RuntimeNotificationDelivery[]> {
   const failedChecks = checks.filter((check) => check.status === "failed");
-  return deliverRuntimeNotification(runtimeNotificationConfig(installPath), {
+  const notificationConfig = runtimeNotificationConfig(installPath);
+  const reportedChecks = failedChecks.length ? failedChecks : checks;
+  return deliverRuntimeNotification(notificationConfig, {
     role,
     kind,
     occurredAt,
-    checkIds: (failedChecks.length ? failedChecks : checks).map((check) => check.id),
+    environment: notificationConfig.environment,
+    serverName: notificationConfig.serverName || `${notificationConfig.environment}-${role}`,
+    deploymentMode: notificationConfig.deploymentMode,
+    version: notificationConfig.version,
+    checkIds: reportedChecks.map((check) => check.id),
+    checkDetails: reportedChecks.map((check) => ({
+      id: check.id,
+      failureClass: check.failureClass,
+      reason: check.sanitized_reason,
+    })),
     sanitizedReason: failedChecks[0]?.sanitized_reason ?? (kind === "recovery" ? "required_checks_recovered" : "runtime_health_event"),
   });
 }
@@ -3327,6 +3374,10 @@ async function serverNotifications(rest: string[], flags: Record<string, string 
     role,
     kind: eventKind as RuntimeNotificationPayload["kind"],
     occurredAt: new Date().toISOString(),
+    environment: notificationConfig.environment,
+    serverName: notificationConfig.serverName || `${notificationConfig.environment}-${role}`,
+    deploymentMode: notificationConfig.deploymentMode,
+    version: notificationConfig.version,
     checkIds: [eventKind === "delivery_test" ? "monitor" : "core.object_storage"],
     sanitizedReason: eventKind === "recovery" ? "storage_available" : eventKind === "delivery_test" ? "operator_requested_delivery_test" : "storage_unavailable",
   });

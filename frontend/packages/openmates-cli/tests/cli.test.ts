@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFile, execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, cpSync, symlinkSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
@@ -1463,6 +1463,8 @@ async function withAnonymousMockApi<T>(
   }
 }
 
+const SDK_CHAT_TEST_ID = "11111111-2222-4333-8444-555555555555";
+
 async function withSdkChatMockApi<T>(
   run: (params: {
     apiUrl: string;
@@ -1500,21 +1502,21 @@ async function withSdkChatMockApi<T>(
         return;
       }
 
-      if (request.method === "GET" && request.url?.startsWith("/v1/sdk/chats/chat-1/messages")) {
+      if (request.method === "GET" && request.url?.startsWith(`/v1/sdk/chats/${SDK_CHAT_TEST_ID}/messages`)) {
         requests.push({ method: request.method, url: request.url });
         writeJson(response, {
-          chat: { id: "chat-1", title: "Windowed chat" },
-          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "latest window", created_at: 1 }],
+          chat: { id: SDK_CHAT_TEST_ID, title: "Windowed chat" },
+          messages: [{ id: "message-1", chat_id: SDK_CHAT_TEST_ID, role: "assistant", content: "latest window", created_at: 1 }],
           has_more_before: true,
         });
         return;
       }
 
-      if (request.method === "GET" && request.url === "/v1/sdk/chats/chat-1") {
+      if (request.method === "GET" && request.url === `/v1/sdk/chats/${SDK_CHAT_TEST_ID}`) {
         requests.push({ method: request.method, url: request.url });
         writeJson(response, {
-          chat: { id: "chat-1", title: "Full chat" },
-          messages: [{ id: "message-1", chat_id: "chat-1", role: "assistant", content: "full history", created_at: 1 }],
+          chat: { id: SDK_CHAT_TEST_ID, title: "Full chat" },
+          messages: [{ id: "message-1", chat_id: SDK_CHAT_TEST_ID, role: "assistant", content: "full history", created_at: 1 }],
         });
         return;
       }
@@ -2661,7 +2663,116 @@ describe("CLI server command startup feedback", () => {
   });
 });
 
+describe("CLI named authentication profiles", () => {
+  // contract-test: tooling — profile-selection, trusted-profile-boundary
+  it("uses the selected profile in its login recovery command", () => {
+    const result = runCliWithoutSessionResult(["--profile", "regression-profile", "whoami"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /openmates --profile regression-profile login/);
+  });
+  it("rejects an unsafe profile instead of silently checking the default account", () => {
+    const result = runCliWithoutSessionResult(["--profile", "../wrong", "whoami", "--json"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /profile.*lowercase/i);
+  });
+  it("does not let a flag override the trusted OpenCode profile", () => {
+    assert.throws(() => assertTrustedAccountGuardEnvironment({ profile: "other" }, {
+      OPENMATES_PROFILE: "opencode-personal", OPENMATES_API_URL: "https://api.dev.openmates.org",
+    }), /profile/i);
+  });
+});
+
 describe("CLI self-update commands", () => {
+  // contract-test: tooling — upgrade-channel, upgrade-no-downgrade
+  for (const installSucceeds of [true, false]) {
+    it(installSucceeds ? "installs the checked version despite a stale npm channel cache" : "rejects npm success when the installed version did not change", () => {
+      const prefix = mkdtempSync(join(tmpdir(), "openmates-install-"));
+      const installed = join(prefix, "lib", "node_modules", "openmates");
+      const bin = join(prefix, "bin");
+      try {
+        mkdirSync(installed, { recursive: true });
+        mkdirSync(bin);
+        cpSync(join(PACKAGE_ROOT, "dist"), join(installed, "dist"), { recursive: true });
+        cpSync(join(PACKAGE_ROOT, "package.json"), join(installed, "package.json"));
+        symlinkSync(join(PACKAGE_ROOT, "node_modules"), join(installed, "node_modules"), "dir");
+        writeFileSync(join(bin, "npm"), `#!/usr/bin/env node\nconst fs = require('node:fs');
+const file = ${JSON.stringify(join(installed, "package.json"))};
+const spec = process.argv.find(arg => arg.startsWith('openmates@'));
+if (${installSucceeds} && spec === 'openmates@99.0.0-alpha.5') {
+  const pkg = JSON.parse(fs.readFileSync(file, 'utf8')); pkg.version = '99.0.0-alpha.5'; fs.writeFileSync(file, JSON.stringify(pkg));
+}\n`);
+        chmodSync(join(bin, "npm"), 0o755);
+        const result = spawnSync("node", [join(installed, "dist", "cli.js"), "upgrade", "--channel", "dev", "--package-manager", "npm", "--json"], {
+          encoding: "utf8", env: { ...process.env, HOME: prefix, PATH: `${bin}:${process.env.PATH}`, OPENMATES_CLI_LATEST_VERSION: "99.0.0-alpha.5" },
+        });
+        if (installSucceeds) {
+          assert.equal(result.status, 0, result.stderr);
+          assert.equal(JSON.parse(readFileSync(join(installed, "package.json"), "utf8")).version, "99.0.0-alpha.5");
+          assert.ok(JSON.parse(result.stdout).run.includes("openmates@99.0.0-alpha.5"));
+        } else {
+          assert.notEqual(result.status, 0);
+          assert.match(result.stderr + result.stdout, /installed version.*expected/i);
+        }
+      } finally { rmSync(prefix, { recursive: true, force: true }); }
+    });
+  }
+  it("does not downgrade a newer installed CLI to an older registry release", () => {
+    const result = JSON.parse(runCli(["upgrade", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.1.0",
+    }));
+    assert.equal(result.update_available, false);
+  });
+
+  it("selects the dev release channel and reports it in a dry run", () => {
+    const result = JSON.parse(runCli(["upgrade", "--channel", "dev", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "99.0.0-alpha.1",
+    }));
+    assert.equal(result.channel, "dev");
+    assert.equal(result.package, "openmates@alpha");
+  });
+
+  it("persists a channel across profiles but never from a dry run", () => {
+    const home = mkdtempSync(join(tmpdir(), "openmates-channel-"));
+    const env = { HOME: home, USERPROFILE: home, OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION };
+    try {
+      runCli(["upgrade", "--channel", "dev", "--dry-run", "--json"], env);
+      assert.equal(existsSync(join(home, ".openmates", "updates.json")), false);
+      runCli(["upgrade", "--channel", "dev", "--json"], env);
+      const result = JSON.parse(runCli(["upgrade", "--dry-run", "--json"], { ...env, OPENMATES_PROFILE: "another-profile" }));
+      assert.equal(result.channel, "dev");
+      assert.equal(result.package, "openmates@alpha");
+      runCli(["upgrade", "--channel", "main", "--json"], env);
+      assert.equal(JSON.parse(readFileSync(join(home, ".openmates", "updates.json"), "utf8")).channel, "stable");
+    } finally { rmSync(home, { recursive: true, force: true }); }
+  });
+
+  it("preserves the running npm installation prefix despite a different npm default", () => {
+    const prefix = mkdtempSync(join(tmpdir(), "openmates-prefix-"));
+    const installed = join(prefix, "lib", "node_modules", "openmates");
+    try {
+      mkdirSync(installed, { recursive: true });
+      cpSync(join(PACKAGE_ROOT, "dist"), join(installed, "dist"), { recursive: true });
+      cpSync(join(PACKAGE_ROOT, "package.json"), join(installed, "package.json"));
+      symlinkSync(join(PACKAGE_ROOT, "node_modules"), join(installed, "node_modules"), "dir");
+      const result = JSON.parse(execFileSync("node", [join(installed, "dist", "cli.js"), "upgrade", "--package-manager", "npm", "--dry-run", "--json"], {
+        encoding: "utf8",
+        env: { ...process.env, npm_config_prefix: "/usr", OPENMATES_CLI_LATEST_VERSION: "99.0.0" },
+      }));
+      assert.deepEqual(result.run.slice(-2), ["--prefix", prefix]);
+    } finally { rmSync(prefix, { recursive: true, force: true }); }
+  });
+
+  it("requires explicit downgrade consent and treats prereleases as older than stable", () => {
+    const older = JSON.parse(runCli(["upgrade", "--version", "0.1.0", "--allow-downgrade", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: "0.1.0",
+    }));
+    assert.equal(older.update_available, true);
+    const pre = JSON.parse(runCli(["upgrade", "--channel", "dev", "--dry-run", "--json"], {
+      OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION + "-alpha.10",
+    }));
+    assert.equal(pre.update_available, false);
+  });
+
   it("lists update and upgrade aliases in global help", () => {
     const output = runCli(["help"]);
     assert.match(output, /openmates version\s+Show CLI version and update availability/);
@@ -2670,7 +2781,7 @@ describe("CLI self-update commands", () => {
   });
 
   it("prints branded npm update status in dry-run mode", () => {
-    const output = runCli(["update", "--dry-run"], {
+    const output = runCli(["update", "--channel", "stable", "--dry-run"], {
       npm_config_user_agent: "",
       OPENMATES_CLI_LATEST_VERSION: "99.0.0",
     });
@@ -4299,14 +4410,14 @@ describe("unauthenticated example chats", () => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "--api-key", apiKey,
-        "chats", "show", "chat-1", "--json",
+        "chats", "show", SDK_CHAT_TEST_ID, "--json",
       ]);
       const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
 
       assert.equal(parsed.messages?.[0]?.content, "latest window");
       assert.equal(parsed.has_more_before, true);
       assert.deepEqual(requests.map((request) => request.url), [
-        "/v1/sdk/chats/chat-1/messages?direction=latest&limit=30",
+        `/v1/sdk/chats/${SDK_CHAT_TEST_ID}/messages?direction=latest&limit=30`,
       ]);
     });
   });
@@ -4316,14 +4427,14 @@ describe("unauthenticated example chats", () => {
       const output = await runCliAsync([
         "--api-url", apiUrl,
         "--api-key", apiKey,
-        "chats", "show", "chat-1", "--json", "--all",
+        "chats", "show", SDK_CHAT_TEST_ID, "--json", "--all",
       ]);
       const parsed = JSON.parse(output) as { messages?: Array<{ content?: string }>; has_more_before?: boolean };
 
       assert.equal(parsed.messages?.[0]?.content, "full history");
       assert.equal(parsed.has_more_before, undefined);
       assert.deepEqual(requests.map((request) => request.url), [
-        "/v1/sdk/chats/chat-1",
+        `/v1/sdk/chats/${SDK_CHAT_TEST_ID}`,
       ]);
     });
   });

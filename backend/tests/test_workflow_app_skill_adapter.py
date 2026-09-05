@@ -14,6 +14,7 @@ import pytest
 
 from backend.core.api.app.services import workflow_app_skill_adapter
 from backend.core.api.app.services.workflow_app_skill_adapter import WorkflowAppSkillAdapter
+from backend.shared.python_utils.app_skill_output_safety import is_central_app_skill_dispatch
 
 
 class FakeRegistry:
@@ -23,10 +24,12 @@ class FakeRegistry:
 
     async def dispatch_skill(self, app_id: str, skill_id: str, request: dict[str, Any]) -> dict[str, Any]:
         self.calls.append((app_id, skill_id, request))
+        self.central_dispatch_active = is_central_app_skill_dispatch()
         return self.response
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_context() -> None:
     registry = FakeRegistry()
     adapter = WorkflowAppSkillAdapter(registry=registry)
@@ -52,9 +55,11 @@ async def test_ai_ask_workflow_prompt_is_adapted_to_openai_messages_with_owner_c
         )
     ]
     assert result["raw"] == {"choices": [{"message": {"content": "Workflow AI OK"}}]}
+    assert registry.central_dispatch_active is True
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_ai_ask_preserves_openai_messages_shape() -> None:
     registry = FakeRegistry()
     adapter = WorkflowAppSkillAdapter(registry=registry)
@@ -75,6 +80,7 @@ async def test_ai_ask_preserves_openai_messages_shape() -> None:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_generic_output_normalization_exposes_artifact_and_task_ids() -> None:
     registry = FakeRegistry(
         response={
@@ -95,6 +101,7 @@ async def test_generic_output_normalization_exposes_artifact_and_task_ids() -> N
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic
 async def test_workflow_strips_prompt_injection_opt_out_and_still_sanitizes_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

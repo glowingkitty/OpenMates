@@ -24,7 +24,6 @@
 
 import logging
 import base64
-import io
 import os
 import math
 import hashlib
@@ -33,7 +32,7 @@ import asyncio
 import shutil
 import httpx
 from typing import Dict, Any, List, Optional, Tuple
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 from fastapi import HTTPException
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -70,6 +69,130 @@ WAVEFORM_PCM_SAMPLE_RATE = 800
 WAVEFORM_MAX_VALUE = 100
 WAVEFORM_MIN_TIMEOUT_SECONDS = 5.0
 WAVEFORM_MAX_TIMEOUT_SECONDS = 45.0
+TIMESTAMP_OPTIONS = {"none", "segment", "word"}
+TRANSCRIPTION_CONTRACT_VERSION = 1
+
+
+class TimingValidationError(ValueError):
+    """Mistral returned timing data that cannot safely be exposed or billed."""
+
+
+class TimingUnavailableError(ValueError):
+    """Mistral did not return the timing detail explicitly requested by the caller."""
+
+
+def _resolve_timestamp_option(request: Dict[str, Any]) -> str:
+    """Resolve the additive timestamp default without changing legacy callers."""
+    contract_version = request.get("transcription_contract_version")
+    if contract_version is not None and (
+        isinstance(contract_version, bool)
+        or not isinstance(contract_version, int)
+        or contract_version != TRANSCRIPTION_CONTRACT_VERSION
+    ):
+        raise ValueError("Unknown transcription_contract_version")
+
+    timestamps = request.get("timestamps")
+    if timestamps is not None:
+        if not isinstance(timestamps, str) or timestamps not in TIMESTAMP_OPTIONS:
+            raise ValueError("timestamps must be one of: none, segment, word")
+        return timestamps
+    return "word" if contract_version == TRANSCRIPTION_CONTRACT_VERSION else "none"
+
+
+def _normalize_provider_timing_entries(
+    entries: Any,
+    duration_seconds: float,
+    text_key: str,
+) -> List[Dict[str, Any]]:
+    """Validate Mistral source-relative timing objects without inventing values."""
+    if not isinstance(entries, list):
+        raise TimingValidationError("Invalid provider timing entries")
+
+    normalized: List[Dict[str, Any]] = []
+    previous_start = -1.0
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise TimingValidationError("Invalid provider timing entry")
+        start = entry.get("start")
+        end = entry.get("end")
+        text = entry.get(text_key, entry.get("text"))
+        if (
+            isinstance(start, bool)
+            or isinstance(end, bool)
+            or not isinstance(start, (int, float))
+            or not isinstance(end, (int, float))
+            or not isinstance(text, str)
+        ):
+            raise TimingValidationError("Invalid provider timing: field_type")
+        # Stable categories identify provider drift without logging speech content.
+        if not math.isfinite(start) or not math.isfinite(end):
+            raise TimingValidationError("Invalid provider timing: nonfinite")
+        if start < 0:
+            raise TimingValidationError("Invalid provider timing: negative_start")
+        if end <= start:
+            raise TimingValidationError("Invalid provider timing: empty_or_reversed")
+        if end > duration_seconds:
+            raise TimingValidationError("Invalid provider timing: duration_bound")
+        if start < previous_start:
+            raise TimingValidationError("Invalid provider timing: out_of_order")
+        normalized.append({
+            "start_seconds": start,
+            "end_seconds": end,
+            "text": sanitize_text_simple(text, log_prefix="[TranscribeSkill][Mistral timing] "),
+        })
+        previous_start = start
+    return normalized
+
+
+def _normalize_provider_timings(
+    mistral_result: Dict[str, Any],
+    timestamps: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Return timing data only when Mistral supplied valid source timings."""
+    if timestamps == "none":
+        return {}
+
+    duration = mistral_result.get("duration")
+    if (
+        isinstance(duration, bool)
+        or not isinstance(duration, (int, float))
+        or not math.isfinite(duration)
+        or duration < 0
+    ):
+        raise TimingValidationError("Invalid provider timing duration")
+
+    raw_segments = mistral_result.get("segments", [])
+    segments = _normalize_provider_timing_entries(raw_segments, duration, "text")
+    if timestamps == "segment":
+        return {"segments": segments}
+
+    raw_words = mistral_result.get("words")
+    if raw_words is None:
+        if any(
+            "words" in segment and not isinstance(segment["words"], list)
+            for segment in raw_segments
+        ):
+            raise TimingValidationError("Invalid provider timing entries")
+        nested_words = [
+            word
+            for segment in raw_segments
+            if isinstance(segment, dict)
+            for word in segment.get("words", [])
+        ]
+        if nested_words:
+            raw_words = nested_words
+        elif raw_segments and all(
+            isinstance(segment, dict)
+            and isinstance(segment.get("text"), str)
+            and len(segment["text"].split()) == 1
+            for segment in raw_segments
+        ):
+            # Mistral may return one-word entries in segments for a word request.
+            raw_words = raw_segments
+        else:
+            raise TimingUnavailableError("timestamps_unavailable")
+    words = _normalize_provider_timing_entries(raw_words, duration, "word")
+    return {"segments": segments, "words": words}
 
 
 def _sanitize_transcription_result_text(
@@ -123,6 +246,14 @@ class TranscribeRequestItem(BaseModel):
     )
     language: Optional[str] = Field(
         None, description="Optional ISO 639-1 language hint (e.g. 'en', 'de'). Improves accuracy."
+    )
+    transcription_contract_version: Optional[StrictInt] = Field(
+        None,
+        description="Optional audio transcription contract version. Version 1 defaults omitted timestamps to word.",
+    )
+    timestamps: Optional[str] = Field(
+        None,
+        description="Optional timestamp detail: none, segment, or word. Overrides the contract default.",
     )
     filename: Optional[str] = Field(
         None, description="Original filename of the recording (used to detect audio format)."
@@ -295,6 +426,8 @@ class TranscribeSkill(BaseSkill):
         self,
         audio_bytes: bytes,
         duration_seconds: Optional[float] = None,
+        *,
+        measure_duration: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Best-effort waveform extraction using ffmpeg when available."""
         ffmpeg_path = shutil.which("ffmpeg")
@@ -355,6 +488,8 @@ class TranscribeSkill(BaseSkill):
             )
             return None
 
+        if measure_duration:
+            duration_seconds = len(stdout) / WAVEFORM_PCM_SAMPLE_RATE
         return self._build_waveform_from_pcm_u8(stdout, duration_seconds)
 
     VAULT_TOKEN_PATH: str = "/vault-data/api.token"
@@ -514,6 +649,7 @@ class TranscribeSkill(BaseSkill):
         filename: str,
         mime_type: str,
         language: Optional[str],
+        timestamps: str,
         mistral_api_key: str,
     ) -> Dict[str, Any]:
         """
@@ -539,13 +675,13 @@ class TranscribeSkill(BaseSkill):
         logger.info(f"[TranscribeSkill] Sending {len(audio_bytes)} bytes to Mistral Voxtral ({VOXTRAL_MODEL})")
 
         files = {
-            "file": (filename, io.BytesIO(audio_bytes), mime_type),
+            "file": (filename, audio_bytes, mime_type),
         }
-        data = {
-            "model": VOXTRAL_MODEL,
-        }
+        data = {"model": VOXTRAL_MODEL}
         if language:
             data["language"] = language
+        if timestamps != "none":
+            data["timestamp_granularities"] = timestamps
 
         headers = {
             "Authorization": f"Bearer {mistral_api_key}",
@@ -571,6 +707,9 @@ class TranscribeSkill(BaseSkill):
             )
 
         result = response.json()
+        # Mistral reports audio duration in usage, unlike Whisper-style responses.
+        if result.get("duration") is None and isinstance(result.get("usage"), dict):
+            result["duration"] = result["usage"].get("prompt_audio_seconds")
         logger.info(
             f"[TranscribeSkill] Transcription complete. "
             f"Text length: {len(result.get('text', ''))}, "
@@ -748,6 +887,17 @@ class TranscribeSkill(BaseSkill):
         language = req.get("language") or None
         filename = req.get("filename") or "recording.webm"
 
+        try:
+            timestamps = _resolve_timestamp_option(req)
+            if language and timestamps != "none":
+                return (
+                    request_id,
+                    [],
+                    f"language cannot be used with {timestamps} timestamps",
+                )
+        except ValueError as exc:
+            return (request_id, [], str(exc))
+
         # Validate required fields
         if not s3_key or not aes_nonce or not vault_wrapped_aes_key or not vault_key_id:
             return (request_id, [], "Missing required fields: s3_key, aes_nonce, vault_wrapped_aes_key, vault_key_id")
@@ -781,6 +931,7 @@ class TranscribeSkill(BaseSkill):
                 filename=filename,
                 mime_type=mime_type,
                 language=language,
+                timestamps=timestamps,
                 mistral_api_key=mistral_api_key,
             )
 
@@ -791,7 +942,21 @@ class TranscribeSkill(BaseSkill):
             )
             detected_language = mistral_result.get("language")
             duration_seconds = mistral_result.get("duration")
-            waveform = await self._extract_waveform(audio_bytes, duration_seconds)
+            waveform = await self._extract_waveform(
+                audio_bytes, duration_seconds, measure_duration=timestamps != "none"
+            )
+            # Provider usage is whole seconds; decoded samples preserve fractional
+            # bounds needed to validate word timings at the end of a recording.
+            if timestamps != "none" and waveform and waveform.get("duration_seconds"):
+                duration_seconds = waveform["duration_seconds"]
+                mistral_result["duration"] = duration_seconds
+            timing_fields = _normalize_provider_timings(mistral_result, timestamps)
+            if timestamps != "none" and (
+                not transcript_text
+                or (timestamps == "segment" and not timing_fields.get("segments"))
+                or (timestamps == "word" and not timing_fields.get("words"))
+            ):
+                raise TimingUnavailableError("timestamps_unavailable")
 
             transcript_corrected: Optional[str] = None
             recording_title: Optional[str] = None
@@ -844,6 +1009,7 @@ class TranscribeSkill(BaseSkill):
                 "model": VOXTRAL_MODEL,
                 "correction_model": correction_model,
             }
+            result_entry.update(timing_fields)
             result_entry = _sanitize_transcription_result_text(result_entry)
 
             logger.debug(
@@ -851,6 +1017,15 @@ class TranscribeSkill(BaseSkill):
                 f"{len(transcript_text)} chars, language={detected_language}"
             )
             return (request_id, [result_entry], None)
+
+        except TimingUnavailableError as e:
+            status = "timestamps_empty_silence" if not transcript_text else str(e)
+            logger.info("[TranscribeSkill] Timing unavailable for request %s: %s", request_id, status)
+            return (request_id, [], status)
+
+        except TimingValidationError as e:
+            logger.error(f"[TranscribeSkill] Invalid timing for request {request_id}: {e}")
+            return (request_id, [], f"Invalid transcription timing: {e}")
 
         except ValueError as e:
             # Decryption errors
@@ -928,7 +1103,7 @@ class TranscribeSkill(BaseSkill):
         requests_as_dicts: List[Dict[str, Any]] = []
         for req in requests:
             if isinstance(req, TranscribeRequestItem):
-                requests_as_dicts.append(req.model_dump())
+                requests_as_dicts.append(req.model_dump(exclude_unset=True))
             elif isinstance(req, dict):
                 requests_as_dicts.append(req)
             else:

@@ -14,6 +14,7 @@ from typing import Any
 from backend.shared.python_utils.app_skill_output_safety import (
     AppSkillOutputSafetyContext,
     APP_SKILL_SURFACE_WORKFLOW,
+    central_app_skill_dispatch,
     is_external_data_skill,
     sanitize_app_skill_output,
     strip_request_security_controls,
@@ -59,7 +60,8 @@ class WorkflowAppSkillAdapter:
             registry = get_global_registry()
         request_without_security = strip_request_security_controls(request)
         skill_request = _prepare_workflow_skill_request(app_id, skill_id, request_without_security, user_id)
-        raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
+        with central_app_skill_dispatch():
+            raw_output = await registry.dispatch_skill(app_id, skill_id, skill_request)
         if hasattr(raw_output, "model_dump"):
             raw_output = raw_output.model_dump(mode="json")
         if not isinstance(raw_output, dict):

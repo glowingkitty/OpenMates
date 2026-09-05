@@ -31,6 +31,36 @@ class GoogleCalendarClient:
         self.access_token = access_token
         self.timeout = timeout
 
+    async def list_calendars(
+        self, *, page_token: str | None = None, show_hidden: bool = False,
+        max_results: int = 100,
+    ) -> dict[str, Any]:
+        """Return one calendar-list page without discarding its continuation."""
+        params: dict[str, Any] = {
+            "maxResults": max(1, min(max_results, 250)),
+            "showHidden": str(show_hidden).lower(),
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{GOOGLE_CALENDAR_API_BASE_URL}/users/me/calendarList",
+                params=params, headers=self._headers(),
+            )
+            response.raise_for_status()
+            payload = response.json()
+        return {
+            "calendars": [{
+                "id": item["id"],
+                "name": item.get("summaryOverride") or item.get("summary", ""),
+                "timezone": item.get("timeZone"),
+                "access_role": item.get("accessRole"),
+                "primary": bool(item.get("primary", False)),
+                "hidden": bool(item.get("hidden", False)),
+            } for item in payload.get("items", [])],
+            "next_page_token": payload.get("nextPageToken"),
+        }
+
     async def list_events(
         self,
         *,

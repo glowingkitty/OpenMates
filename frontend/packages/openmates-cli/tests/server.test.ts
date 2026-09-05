@@ -10,9 +10,10 @@
 
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, readFileSync, readdirSync, statSync, symlinkSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { parse as parseYaml } from "yaml";
 
 // Use dynamic imports to avoid ESM .js extension resolution issues with
 // --experimental-strip-types. tsx handles this automatically, but we use
@@ -85,6 +86,7 @@ import {
   buildUpdateCompletionEmail,
   buildUpdateCompletionOutcome,
   buildOperationalDeliveryReceipt,
+  buildRuntimeEmail,
   deliverUpdateCompletionEmail,
   evaluateOperationalReportFreshness,
   isBrevoIdempotencyDuplicate,
@@ -96,6 +98,7 @@ import {
   validateRuntimeWebhookDestination,
 } from "../src/serverHealth.ts";
 import { renderSupportStartReminder } from "../src/support.ts";
+import { publishServerBackupArchive } from "../src/serverBackupArchive.ts";
 import {
   acquireServerUpdateLock,
   readServerUpdateStatus,
@@ -877,6 +880,17 @@ describe("role-based server planning", () => {
     assert.match(source, /writeFileSync\(promtailConfigPath, SELFHOST_PROMTAIL_CONFIG_TEMPLATE\)/);
   });
 
+  it("packages Alertmanager config for image installs and updates", () => {
+    const packaged = readFileSync(new URL("../templates/core/monitoring/alertmanager/alertmanager.yml", import.meta.url), "utf-8");
+    const canonical = readFileSync(new URL("../../../../backend/core/monitoring/alertmanager/alertmanager.yml", import.meta.url), "utf-8");
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+
+    assert.deepEqual(parseYaml(packaged), parseYaml(canonical));
+    assert.match(source, /CORE_ALERTMANAGER_CONFIG_FILE = join\("backend", "core", "monitoring", "alertmanager", "alertmanager\.yml"\)/);
+    assert.match(source, /copyFileSync\(alertmanagerTemplatePath, alertmanagerConfigPath\)/);
+    assert.match(source, /version: value\("OPENMATES_IMAGE_TAG"\) \|\| serverConfig\?\.imageTag \|\| "source"/);
+  });
+
   it("keeps packaged core task workers wired to Vault and config volumes", () => {
     const template = readFileSync(new URL("../templates/core/docker-compose.selfhost.yml", import.meta.url), "utf-8");
     const baseBlock = template.slice(
@@ -930,12 +944,76 @@ describe("role-based server planning", () => {
   it("plans backup and restore content safely", () => {
     const backup = planBackup({ role: "core", includeObservability: true });
     assert.ok(backup.contents.includes("postgres-dump"));
-    assert.ok(backup.contents.includes("vault-data"));
-    assert.ok(backup.contents.includes("openobserve-data"));
+    assert.deepEqual(backup.contents, ["postgres-dump", "runtime-env", "runtime-config", "manifest", "checksums"]);
 
     const restore = planRestore({ role: "core", file: "/tmp/backup.tar.gz", yes: false });
     assert.equal(restore.requiresConfirmation, true);
     assert.deepEqual(restore.steps, ["confirm", "stop", "restore", "start", "health-check"]);
+  });
+
+  it("publishes 0600 archives atomically and removes failed temporary archives", () => {
+    const root = join(tmpdir(), `openmates-backup-archive-${process.pid}-${Date.now()}`);
+    const sourceDir = join(root, "source");
+    const archivePath = join(root, "backup.tar.gz");
+    try {
+      mkdirSync(sourceDir, { recursive: true });
+      writeFileSync(join(sourceDir, "state.txt"), "new-state\n");
+      writeFileSync(archivePath, "previous-archive");
+
+      publishServerBackupArchive(sourceDir, archivePath);
+      assert.equal(statSync(archivePath).mode & 0o777, 0o600);
+      assert.match(readFileSync(archivePath).subarray(0, 2).toString("hex"), /^1f8b$/);
+      assert.deepEqual(readdirSync(root).filter((entry) => entry.includes(".tmp-")), []);
+
+      writeFileSync(archivePath, "previous-archive");
+      assert.throws(() => publishServerBackupArchive(sourceDir, archivePath, { tarCommand: "false" }));
+      assert.equal(readFileSync(archivePath, "utf-8"), "previous-archive");
+      assert.deepEqual(readdirSync(root).filter((entry) => entry.includes(".tmp-")), []);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses symlinks before publishing an archive", () => {
+    const root = join(tmpdir(), `openmates-backup-symlink-${process.pid}-${Date.now()}`);
+    const sourceDir = join(root, "source");
+    const archivePath = join(root, "backup.tar.gz");
+    try {
+      mkdirSync(sourceDir, { recursive: true });
+      writeFileSync(join(root, "outside.txt"), "outside");
+      symlinkSync(join(root, "outside.txt"), join(sourceDir, "linked.txt"));
+
+      assert.throws(() => publishServerBackupArchive(sourceDir, archivePath), /unsafe entry/);
+      assert.equal(existsSync(archivePath), false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses hard-linked files before publishing an archive", () => {
+    const root = join(tmpdir(), `openmates-backup-hardlink-${process.pid}-${Date.now()}`);
+    const sourceDir = join(root, "source");
+    const archivePath = join(root, "backup.tar.gz");
+    try {
+      mkdirSync(sourceDir, { recursive: true });
+      const original = join(sourceDir, "state.txt");
+      writeFileSync(original, "state");
+      linkSync(original, join(sourceDir, "state-copy.txt"));
+
+      assert.throws(() => publishServerBackupArchive(sourceDir, archivePath), /unsafe entry/);
+      assert.equal(existsSync(archivePath), false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("streams restore SQL through a file descriptor", () => {
+    const source = readFileSync(new URL("../src/server.ts", import.meta.url), "utf-8");
+    const restoreSource = source.slice(source.indexOf("function restoreServerBackup"), source.indexOf("function restoreStopServices"));
+
+    assert.match(restoreSource, /const dumpFile = openSync\(postgresDump, "r"\)/);
+    assert.match(restoreSource, /stdio: \[dumpFile, "pipe", "pipe"\]/);
+    assert.doesNotMatch(restoreSource, /input: readFileSync\(postgresDump\)/);
   });
 
   it("prefers packaged templates before GitHub raw fallback", () => {
@@ -1700,5 +1778,36 @@ describe("hasLlmCredentials", () => {
       "OTHER_VAR=something",
     ].join("\n") + "\n");
     assert.equal(hasLlmCredentials(tempEnv), true);
+  });
+});
+
+describe("runtime notification email", () => {
+  // contract-test: direct surface=cli assertions=operational-monitoring.delivery.observable,operational-monitoring.environments.isolated-labeled
+  it("labels alerts with server identity and actionable check details", () => {
+    const email = buildRuntimeEmail({
+      role: "core",
+      kind: "post_update_failed",
+      occurredAt: "2026-09-04T13:52:27.000Z",
+      environment: "production",
+      serverName: "production-core",
+      deploymentMode: "official_cloud",
+      version: "v0.17.0",
+      checkIds: ["billing.health_freshness"],
+      checkDetails: [{ id: "billing.health_freshness", failureClass: "billing_health_stale", reason: "check_failed" }],
+      sanitizedReason: "check_failed",
+    });
+
+    assert.equal(email.subject, "[PRODUCTION] OpenMates core degraded: billing.health_freshness");
+    for (const expected of [
+      "Environment: production",
+      "Server: production-core",
+      "Deployment: official_cloud",
+      "Version: v0.17.0",
+      "Check: billing.health_freshness",
+      "Failure class: billing_health_stale",
+      "Next action: Review Stripe readiness, repair the configured destination, then rerun `openmates server verify --json`.",
+    ]) {
+      assert.match(email.textContent, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    }
   });
 });

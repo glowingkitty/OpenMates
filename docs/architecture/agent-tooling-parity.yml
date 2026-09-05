@@ -130,3 +130,27 @@ quickstart:
     - sessions.py worktree ensure
     - sessions.py edit-lease
     - sessions.py deploy
+
+workflow_runtime:
+  architecture: docs/architecture/agent-workflow-decisions.md
+  package_builder: scripts/sync_opencode_runtime_hook.py
+  release_validator: scripts/opencode_runtime_release.py
+  effective_probe: scripts/probe_opencode_workflow.mjs
+  loader: release-owned OPENCODE_CONFIG_DIR; project discovery disabled
+  bridge_source: pinned OPENMATES_CONTROL_PLANE_RUNTIME for OpenCode; canonical root for Codex
+  state_owner: scripts/sessions.py
+  decision_consumer: scripts/_workflow_decisions.py
+  tracked_root_mirroring: retired
+  subchat_depth: OpenCode Task pre-tool guard allows root -> child -> grandchild only; unknown ancestry blocks spawning
+
+  task_activity:
+    context_owner: OpenCode hook single-flight cache, 60-second active refresh with backoff
+    cli_owner: sessions.py task-bridge via isolated opencode-personal profile
+    history_limit: 20 entries, 12000 message characters, 2000 characters per entry
+    full_history_search: openmates_task activity_search via openmates tasks activity search
+    delivery: scoped encrypted CLI outbox with stable entry id and original ciphertext
+    verification:
+      - scripts/tests/test_opencode_task_bridge.py
+      - scripts/tests/test_opencode_task_bridge_hook.mjs
+      - frontend/packages/openmates-cli/tests/taskActivityHistory.test.ts
+      - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts

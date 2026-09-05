@@ -387,32 +387,13 @@ def test_start_refresh_does_not_steal_newer_opencode_binding() -> None:
     assert data["sessions"]["current"]["opencode_session_id"] == "ses_parent"
 
 
-def test_opencode_session_reuse_keeps_resumes_but_rotates_new_preserved_tasks() -> None:
-    sessions = load_sessions_module()
-
-    merged = {
-        "task": "old task",
-        "worktree": {"status": "active", "integration": {"status": "merged"}},
-    }
-    checkpointed = {
-        "task": "old task",
-        "worktree": {"status": "active"},
-        "auto_integration": {"checkpoint_ref": "refs/openmates/checkpoints/abcd"},
-    }
-
-    assert sessions.opencode_session_reusable_for_start(merged, "old task")
-    assert not sessions.opencode_session_reusable_for_start(merged, "new task")
-    assert not sessions.opencode_session_reusable_for_start(checkpointed, "new task")
-    assert sessions.opencode_session_reusable_for_start({"worktree": {"status": "active"}})
-    assert sessions.opencode_session_reusable_for_start({})
-
-
-def test_register_session_rotates_preserved_chat_binding_atomically(monkeypatch) -> None:
+def test_register_session_reuses_checkpointed_chat_when_task_description_changes(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = {
         "sessions": {
             "old1": {
                 "task": "old task",
+                "auto_integration": {"checkpoint_ref": "refs/checkpoint"},
                 "opencode_session_id": "ses_parent",
                 "opencode_top_level_session_id": "ses_parent",
             }
@@ -427,15 +408,12 @@ def test_register_session_rotates_preserved_chat_binding_atomically(monkeypatch)
     session_id, _pruned, _locks, _updated, created = sessions.register_session_record(
         {"task": "new task", "opencode_session_id": None},
         "ses_parent",
-        "old1",
     )
 
-    assert created is True
-    assert session_id == "new1"
-    assert data["sessions"]["old1"]["opencode_session_id"] is None
-    assert data["sessions"]["old1"]["opencode_top_level_session_id"] is None
-    assert data["sessions"]["old1"]["rotated_opencode_session_id"] == "ses_parent"
-    assert data["sessions"]["new1"]["opencode_session_id"] == "ses_parent"
+    assert created is False
+    assert session_id == "old1"
+    assert data["sessions"]["old1"]["opencode_session_id"] == "ses_parent"
+    assert set(data["sessions"]) == {"old1"}
 
 
 def test_stale_resource_waits_are_pruned(monkeypatch) -> None:
@@ -645,6 +623,8 @@ def test_restore_preserves_dirty_active_worktree_when_upstream_paths_overlap(mon
         return 0, "", ""
 
     monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "WORKTREE_CHECKPOINT_LOCKS_DIR", tmp_path / "locks")
     monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
     monkeypatch.setattr(sessions, "_current_git_sha", lambda _path=None: "old")
     monkeypatch.setattr(sessions, "_run_cmd", run_command)
@@ -700,3 +680,83 @@ def test_managed_worktrees_cannot_nest(monkeypatch, tmp_path: Path) -> None:
 
     assert sessions.is_valid_managed_worktree_path(managed / "agent-abcd")
     assert not sessions.is_valid_managed_worktree_path(managed / "agent-abcd" / "managed" / "agent-efgh")
+
+
+@pytest.mark.parametrize('shared_name', ['code', 'configured-server'])
+def test_codex_session_completion_never_kills_shared_opencode_zellij(monkeypatch, shared_name):
+    """Codex lacks an OpenCode id but still must not own the shared server terminal."""
+    import argparse
+    import types
+    sessions = load_sessions_module()
+    data = {'sessions': {'abcd': {'mode': 'feature', 'zellij_session': shared_name,
+                                'worktree': {'path': '/fixture/agent-abcd'}}}}
+    killed = []
+    monkeypatch.setenv('OPENCODE_ZELLIJ_SESSION', shared_name)
+    monkeypatch.delenv('ZELLIJ_SESSION_NAME', raising=False)
+    monkeypatch.setattr(sessions, '_load_sessions', lambda: data)
+    monkeypatch.setattr(sessions, '_session_is_control_plane_repo', lambda _: False)
+    monkeypatch.setattr(sessions, 'finalize_session_worktree', lambda *a, **k: None)
+    monkeypatch.setattr(sessions, '_linear_complete_session', lambda *a: None)
+    monkeypatch.setitem(sys.modules, '_zellij_utils', types.SimpleNamespace(kill_session=killed.append))
+    sessions.cmd_end(argparse.Namespace(session='abcd', force=False))
+    assert killed == []
+
+
+def test_completion_can_still_close_an_owned_private_zellij_session(monkeypatch):
+    import argparse
+    import types
+    sessions = load_sessions_module()
+    data = {'sessions': {'abcd': {'mode': 'feature', 'zellij_session': 'private-worker',
+                                'worktree': {'path': '/fixture/agent-abcd'}}}}
+    killed = []
+    monkeypatch.delenv('ZELLIJ_SESSION_NAME', raising=False)
+    monkeypatch.setenv('OPENCODE_ZELLIJ_SESSION', 'code')
+    monkeypatch.setattr(sessions, '_load_sessions', lambda: data)
+    monkeypatch.setattr(sessions, '_session_is_control_plane_repo', lambda _: False)
+    monkeypatch.setattr(sessions, 'finalize_session_worktree', lambda *a, **k: None)
+    monkeypatch.setattr(sessions, '_linear_complete_session', lambda *a: None)
+    monkeypatch.setitem(sys.modules, '_zellij_utils', types.SimpleNamespace(kill_session=killed.append))
+    sessions.cmd_end(argparse.Namespace(session='abcd', force=False))
+    assert killed == ['private-worker']
+
+
+@pytest.mark.parametrize("blocked", ["", "pending", "busy", "owner", "lineage", "commit", "lease"])
+def test_restore_original_binding_preserves_source_and_rejects_conflicts(monkeypatch, blocked):
+    import copy
+    from contextlib import nullcontext
+
+    sessions = load_sessions_module()
+    data = {"sessions": {
+        "original": {"repo_id": "openmates", "rotated_opencode_session_id": "ses_parent",
+                     "worktree": {"path": "/repo/original", "base_commit": "base", "status": "active"},
+                     "auto_integration": {"checkpoint_ref": "refs/checkpoint"}},
+        "successor": {"repo_id": "openmates", "opencode_session_id": "ses_parent",
+                      "opencode_top_level_session_id": "ses_parent",
+                      "worktree": {"path": "/repo/successor", "base_commit": "base", "status": "active"}}
+    }}
+    if blocked == "owner":
+        data["sessions"]["original"]["opencode_session_id"] = "ses_other"
+    if blocked == "lineage":
+        data["sessions"]["original"]["rotated_opencode_session_id"] = "ses_other"
+    if blocked == "lease":
+        data["edit_leases"] = {"file": {"session_id": "successor"}}
+    before = copy.deepcopy(data)
+    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback(data))
+    monkeypatch.setattr(sessions, "_worktree_checkpoint_lock", lambda _sid: nullcontext())
+    monkeypatch.setattr(sessions, "_existing_direct_managed_worktree", lambda _path: True)
+    monkeypatch.setattr(sessions, "_auto_integration_presence_is_live", lambda _session: blocked == "busy")
+    monkeypatch.setattr(sessions, "_worktree_pending_files", lambda _session: ["file"] if blocked == "pending" else [])
+    monkeypatch.setattr(sessions, "_current_git_sha", lambda _path: "local-commit" if blocked == "commit" else "base")
+    monkeypatch.setattr(sessions, "link_shared_worktree_resources", lambda _path: [])
+    if blocked:
+        with pytest.raises(RuntimeError):
+            sessions.restore_original_worktree_binding("ses_parent", "original")
+        assert data == before
+    else:
+        result = sessions.restore_original_worktree_binding("ses_parent", "original")
+        assert result["session_id"] == "original"
+        assert sessions.session_for_opencode(data, "ses_parent")[0] == "original"
+        assert data["sessions"]["original"]["auto_integration"] == before["sessions"]["original"]["auto_integration"]
+        assert data["sessions"]["successor"]["opencode_top_level_session_id"] is None
+        assert data["sessions"]["successor"]["worktree"] == before["sessions"]["successor"]["worktree"]

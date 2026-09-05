@@ -23,6 +23,7 @@
     createUserTaskActivity,
     deleteUserTaskActivity,
     listUserTaskActivity,
+    taskAssigneeDisplayName,
     type CreateUserTaskActivityInput,
     type UserTaskActivityEntry,
     type UserTaskViewModel,
@@ -204,7 +205,17 @@
   }
 
   function actorLabel(entry: UserTaskActivityEntry): string {
-    return entry.actorType === 'user' ? (entry.actorDisplayName || $text('tasks.activity.user')) : 'OpenMates';
+    return entry.actorType === 'user'
+      ? (entry.actorDisplayName || $text('tasks.activity.user'))
+      : taskAssigneeDisplayName(entry.actorIdentity) || (entry.actorType === 'system' ? 'System' : 'External AI');
+  }
+
+  function lifecycleLabel(entry: UserTaskActivityEntry): string {
+    if (entry.eventType === 'status' && entry.nextStatus) {
+      return `Status changed${entry.previousStatus ? ` from ${entry.previousStatus.replaceAll('_', ' ')}` : ''} to ${entry.nextStatus.replaceAll('_', ' ')}`;
+    }
+    if (entry.eventType === 'created') return `Task created${entry.nextStatus ? ` as ${entry.nextStatus.replaceAll('_', ' ')}` : ''}`;
+    return entry.eventType.replaceAll('_', ' ');
   }
 
   function sourceLabel(entry: UserTaskActivityEntry): string {
@@ -285,7 +296,7 @@
             </div>
           {:else if entry.kind === 'lifecycle_update'}
             <div class="message-wrapper system">
-              <ChatMessage role="system" content={entry.eventType.replaceAll('_', ' ')} canAnnotate={false} />
+              <ChatMessage role="system" content={lifecycleLabel(entry)} canAnnotate={false} />
               <time datetime={new Date(entry.createdAt * 1000).toISOString()}>{formatTime(entry.createdAt)}</time>
             </div>
           {:else}
@@ -298,7 +309,7 @@
                 </div>
                 {#key entry.message}<ChatMessage role="user" content={entry.message ?? ''} canAnnotate={false} />{/key}
               {:else}
-                {#key entry.message}<ChatMessage role="assistant" category="openmates_official" sender_name="OpenMates" content={entry.message ?? ''} canAnnotate={false} />{/key}
+                {#key entry.message}<ChatMessage role="assistant" category="openmates_official" sender_name={actorLabel(entry)} content={entry.message ?? ''} canAnnotate={false} />{/key}
               {/if}
               <div class="message-footer">
                 <time datetime={new Date(entry.createdAt * 1000).toISOString()}>{formatTime(entry.createdAt)}</time>

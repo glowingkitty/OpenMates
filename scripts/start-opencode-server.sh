@@ -12,6 +12,16 @@ RELEASE="$RELEASES/current"
 LOG_FILE="${OPENCODE_SERVER_LOG:-$HOME/.local/share/opencode/log/serve-${PORT}.log}"
 SECRETS_FILE="${OPENCODE_SECRETS_FILE:-$HOME/.config/opencode/secrets.env}"
 CONTROL_PLANE_COMMIT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["control_plane_commit"])' "$RELEASE/manifest.json")"
+RESEARCH_CONFIG_PATHS=(
+    "$HOME/.config/opencode/opencode.jsonc"
+    "$HOME/.config/opencode/opencode.json"
+    "$HOME/.opencode/opencode.jsonc"
+    "$HOME/.opencode/opencode.json"
+    "$SOURCE_CHECKOUT/opencode.jsonc"
+    "$SOURCE_CHECKOUT/opencode.json"
+    "$SOURCE_CHECKOUT/.opencode/opencode.jsonc"
+    "$SOURCE_CHECKOUT/.opencode/opencode.json"
+)
 
 git -C "$SOURCE_CHECKOUT" fetch origin dev
 git -C "$SOURCE_CHECKOUT" merge-base --is-ancestor "$CONTROL_PLANE_COMMIT" origin/dev || {
@@ -30,12 +40,17 @@ else
 fi
 
 python3 "$RUNTIME_CHECKOUT/scripts/opencode_runtime_release.py" validate \
-    --release "$RELEASE" \
+    --release "$RELEASE" --require-workflow \
     --control-plane-commit "$(git -C "$RUNTIME_CHECKOUT" rev-parse HEAD)" \
     >/dev/null
-python3 "$RUNTIME_CHECKOUT/scripts/sync_opencode_runtime_hook.py" \
-    --runtime-checkout "$RUNTIME_CHECKOUT" \
-    --project-root "$SOURCE_CHECKOUT"
+RESEARCH_AUDIT_ARGS=(--research-routing-only)
+for CONFIG_PATH in "${RESEARCH_CONFIG_PATHS[@]}"; do
+    RESEARCH_AUDIT_ARGS+=(--runtime-config "$CONFIG_PATH")
+done
+python3 "$RUNTIME_CHECKOUT/scripts/audit_opencode_output_quality.py" "${RESEARCH_AUDIT_ARGS[@]}"
+WORKFLOW_PACKAGE="$(readlink -f "$RELEASE")/workflow"
+# Exactly one release-owned config directory supplies hooks, agents and skills.
+# Project discovery stays disabled; the shared tracked checkout is never mirrored.
 
 if [ -f "$SECRETS_FILE" ]; then
     set -a
@@ -62,8 +77,12 @@ mkdir -p "$(dirname "$LOG_FILE")"
 echo "Starting verified OpenCode release: $(readlink -f "$RELEASE")"
 echo "Runtime checkout: $RUNTIME_CHECKOUT ($(git -C "$RUNTIME_CHECKOUT" rev-parse --short HEAD))"
 
-exec env -u OPENCODE_SERVER_PASSWORD -u OPENCODE_SERVER_USERNAME \
+exec env -u OPENCODE_SERVER_PASSWORD -u OPENCODE_SERVER_USERNAME -u OPENCODE_CONFIG -u OPENCODE_CONFIG_CONTENT \
     OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 \
+    OPENCODE_DISABLE_PROJECT_CONFIG=1 \
+    OPENCODE_CONFIG_DIR="$WORKFLOW_PACKAGE" \
+    OPENMATES_REQUIRE_PLUGIN=1 \
+    OPENMATES_PROJECT_ROOT="$SOURCE_CHECKOUT" \
     OPENMATES_CONTROL_PLANE_RUNTIME="$RUNTIME_CHECKOUT" \
     "$(readlink -f "$RELEASE")/opencode" web --hostname "$HOSTNAME" --port "$PORT" \
     2>&1 | tee -a "$LOG_FILE"

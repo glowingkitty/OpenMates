@@ -1,0 +1,547 @@
+schema_version: 2
+id: connected-accounts-calendar
+title: Connected Accounts And Google Calendar Including Unattended Workflows
+status: implementing
+goal: >
+  Implement and fix the full Calendar capabilities and app skills, from reading
+  and searching calendars to creating calendars and events and updating existing
+  events, for Google Calendar first under a unified connected-accounts specification,
+  including unattended workflow compatibility and real offline execution testing.
+specification_refs:
+  - id: feature.app-skills.calendar
+    version: 3
+    role: primary
+    fingerprint: c8bdba5d383489ec4a1473023ba11d72c7638bbe64f78da72961639c9d8ec9c0
+  - id: architecture.connected-accounts
+    version: 2
+    role: inherited
+    fingerprint: 28a286d72aaf0f946c32b48cf316fd9a92c94d64715cc10cbfad80a288b90186
+scope:
+  in:
+    - Shared interactive account ownership, normalization, permissions, scope upgrades, token lifecycle, and safe errors.
+    - Nine Calendar skills through Google provider, authenticated API, CLI, npm/pip SDKs, and affected web surfaces.
+    - Calendar creation/discovery, bounded search and availability, event CRUD, time and recurrence handling, safe retry and conflict handling.
+    - Real opt-in integration tests with runtime-selected account and isolated calendar, synthetic data and exact cleanup.
+    - Explicit workflow grant activation, server-usable encrypted credential brokerage, scheduled offline execution, lifecycle controls, and proof.
+    - CLI and web connection/reconnection; npm and pip execute existing authorized connections only.
+  out:
+    - SDK account-connection or OAuth setup methods and trusted-device workflow execution.
+    - Other providers, new team sharing, native implementation, calendar deletion/clearing/renaming, ACL changes, and recurrence splitting.
+    - Operator-specific accounts, environments, business processes, credentials, calendar IDs, and private instructions in tracked files.
+context_discovery:
+  docs:
+    - specifications/architecture/connected-accounts/specification.yml
+    - specifications/features/app-skills/calendar/specification.yml
+    - specifications/features/workflows/specification.yml
+    - docs/plans/calendar-permission-management/plan.yml
+  code_patterns:
+    - backend/shared/python_utils/connected_account_registry.py
+    - backend/apps/ai/processing/connected_account_execution.py
+    - backend/core/api/app/routes/sdk.py
+    - backend/core/api/app/routes/provider_oauth_google_calendar.py
+    - frontend/packages/openmates-cli/src/client.ts
+    - backend/core/api/app/services/workflow_app_skill_adapter.py
+    - backend/core/api/app/services/workflow_service.py
+    - backend/core/api/app/services/workflow_scheduler_service.py
+    - backend/core/api/app/services/workflow_runner.py
+  tests:
+    - backend/tests/test_calendar_app_contract.py
+    - backend/tests/test_google_calendar_oauth_adapter.py
+    - backend/tests/test_connected_account_execution.py
+    - backend/tests/live/test_google_calendar_permissions_live.py
+    - frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    - frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts
+    - backend/tests/test_workflow_key_boundary.py
+    - backend/tests/test_workflow_app_skill_adapter.py
+    - backend/tests/test_workflow_scheduler_contract.py
+    - frontend/apps/web_app/tests/cli-workflows-schedule-real.spec.ts
+    - frontend/apps/web_app/tests/workflows-editor.spec.ts
+  findings:
+    - Calendar metadata declares four skills but typed CLI Calendar commands and calendar discovery are absent.
+    - Write/delete Google consent omits calendar-list authorization; calendar creation needs separate incremental scope.
+    - Existing live provider test bypasses OpenMates and defaults to primary; replace as acceptance evidence and remove unsafe fallback.
+    - Reuse existing broker and SDK session execution instead of exposing connected skills through developer-key REST.
+    - Legacy Calendar Plan and tests reference absent Specification paths; map touched tests to approved stable assertions.
+    - VaultWorkflowPayloadCipher already encrypts workflow execution blobs with user Vault keys; reuse that boundary without reclassifying interactive credentials.
+    - WorkflowAppSkillAdapter exposes opaque binding revalidation but fails when a resolver is absent; wire real grants rather than pretending this hook supplies offline authorization.
+clarification:
+  approved_by_user: true
+  vision_summary: >
+    Interactive Calendar and unattended workflow server authorization in this delivery. Portable
+    product truth and generic tests only; real target selection stays in private
+    runtime state. No delegation or parallel chats are required.
+apple_impact:
+  affected_files: [apple/OpenMates/Sources]
+  parity_expectations: [Shared contracts remain platform-neutral; native UI and execution parity are deferred by the approved Specifications.]
+  verification: [No native completion claim in this Plan; native implementation follows verified shared and web delivery.]
+  intentional_native_differences: [Temporary delivery staging only.]
+implementation_state:
+  subject_commit: 35c1acdc0d6cdab32d277816a0df7312e60619c8
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-05'
+  plan:
+    status: approved
+    approved_at: '2026-09-05'
+    reason: User explicitly approved the expanded implementation Plan.
+decisions:
+  - id: D-1
+    status: active
+    decision: Implement unattended workflows in this delivery after establishing the shared Calendar backend and explicit grant boundary.
+    reason: The approved scope includes offline execution and testing; connection alone never enables durable server authorization.
+    decided_at: '2026-09-05'
+  - id: D-2
+    status: active
+    decision: Real integration targets and resource provenance are private runtime configuration.
+    reason: Logged-in state is not test-write authorization and committed fixtures must be portable.
+    decided_at: '2026-09-05'
+assumptions:
+  - id: A-1
+    text: The runtime-selected connection can obtain the required Google scopes through user consent.
+    category: auth
+    required_before: task_execution
+    status: unchecked
+    evidence: []
+attempts:
+  - id: ATTEMPT-1
+    task_id: TASK-1
+    approach: Extend current broker and OAuth tests with missing-scope and fail-closed authorization assertions before source changes.
+    outcome: planned
+    recorded_at: '2026-09-05'
+  - id: ATTEMPT-2
+    task_id: TASK-1
+    approach: Reproduce missing discovery scope and calendar creation rejection, then request the minimal explicit Google scopes.
+    outcome: succeeded
+    recorded_at: '2026-09-05T17:57:34Z'
+    evidence:
+      red: Three expected OAuth assertion failures before source edits.
+      green: OAuth and adjacent broker tests passed after source edits.
+  - id: ATTEMPT-3
+    task_id: TASK-1
+    approach: Reproduce malformed request failures, partial token-ref leaks, and resolution cancellation handle leaks; validate shapes and clean all created artifacts.
+    outcome: succeeded
+    recorded_at: '2026-09-05T17:57:34Z'
+    evidence:
+      red: Four SDK route failures and two preparation cleanup failures before their fixes.
+      green: 48 focused OAuth broker preparation and SDK recovery tests passed; this is local unit evidence only, not live API acceptance.
+      command: /tmp/opencode/calendar-1523-venv/bin/python -m pytest backend/tests/test_google_calendar_oauth_adapter.py backend/tests/test_calendar_permission_broker.py backend/tests/test_connected_account_execution.py backend/tests/test_sdk_chat_recovery.py backend/tests/test_token_broker_refs.py -q --json-report --json-report-file=/tmp/opencode/calendar-1523-auth-green.json
+      run_id: calendar-1523-auth-green
+      timestamp: '2026-09-05T17:57:34Z'
+      subject_commit: 35c1acdc0d6cdab32d277816a0df7312e60619c8
+      candidate_note: Dirty worktree candidate; rerun against the deployed commit before recording live green evidence.
+handoff:
+  current_task_id: TASK-1
+  next_action: Deploy the first scoped authorization fixes for dev verification, then continue TASK-1 authorization and OAuth lifecycle checks.
+  command: 'python3 scripts/sessions.py deploy --session 1523 --title "fix: harden connected account scope and token cleanup" --message "Scoped authorization verification deployment"'
+  expected_outcome: Recorded dev commit for the tested authorization slice; full Calendar and workflow acceptance remains pending.
+  blocker: null
+  last_verified_commit: 35c1acdc0d6cdab32d277816a0df7312e60619c8
+scenarios:
+  - id: S-1
+    title: Connect and authorize without leaking credentials
+    given: [An authenticated first-party owner and an explicitly selected connection.]
+    when: [The owner reads or approves an exact mutation and required scope upgrades.]
+    then: [Only authorized scopes execute and transient token artifacts are cleaned on every outcome.]
+  - id: S-2
+    title: Create and discover an isolated calendar
+    given: [Explicit live-test opt-in and secondary-calendar creation authorization.]
+    when: [Create-calendar returns an identity and later runs reuse it.]
+    then: [The exact calendar is discoverable and duplicate or primary-calendar writes are prevented.]
+  - id: S-3
+    title: Read search and inspect availability
+    given: [Synthetic events in an authorized calendar.]
+    when: [List exact read search and freebusy skills execute with bounds and pagination.]
+    then: [Results preserve time and identity and partial failures are not reported as free time.]
+  - id: S-4
+    title: Mutate safely and clean up
+    given: [Synthetic timed all-day and recurring events with operation provenance.]
+    when: [Create partial update delete retry conflict and undo cases execute.]
+    then: [No duplicate creation lost updates unrelated deletions or silent attendee effects occur.]
+  - id: S-5
+    title: Equivalent first-party clients
+    given: [The same authenticated resource and action inputs.]
+    when: [API CLI npm pip and web execute supported Calendar behavior.]
+    then: [Permissions results and failures are equivalent and clean synthetic proof is delivered.]
+  - id: S-6
+    title: SDK uses an existing connection without connecting accounts
+    given: [A connection provisioned through CLI or web and valid runtime authorization.]
+    when: [npm or pip executes a Calendar skill or encounters a missing scope.]
+    then: [Execution works or directs reconnection to CLI or web; no SDK OAuth or raw-token shortcut exists.]
+  - id: S-7
+    title: Workflow executes while authorizing clients are offline
+    given: [An enabled workflow with an exact bounded read/write grant and isolated synthetic calendar.]
+    when: [All authorizing clients disconnect and the real scheduler dispatches the due run.]
+    then: [The worker performs the exact provider operations once and encrypted results and cleanup are verified after observer reconnection.]
+  - id: S-8
+    title: Workflow access is understandable and revocable
+    given: [A connected account selected in a workflow draft.]
+    when: [The user reviews enables pauses resumes expands revokes or deletes workflow access.]
+    then: [The inline disclosure and single access review match actual server permissions and lifecycle enforcement.]
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    text: OAuth scope upgrades and owner/action/resource checks reject unauthorized execution and clean token artifacts.
+    specification_assertions: [connected-accounts.connection.private-reusable, connected-accounts.permissions.deterministic, connected-accounts.execution.client-mediated, connected-accounts.lifecycle.reconnect-revoke, calendar.connection.scopes]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-LIVE-API]
+  - id: AC-2
+    scenario: S-2
+    text: Secondary creation is separately authorized and returns a discoverable stable identity with safe retry and private test provenance.
+    specification_assertions: [calendar.creation.explicit-secondary, calendar.discovery.target, calendar.verification.isolated-live-account]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-LIVE-API, T-CLI]
+  - id: AC-3
+    scenario: S-3
+    text: Bounded listing search exact reads and freebusy preserve identity pagination timezone and explicit partial failures.
+    specification_assertions: [calendar.read.search-availability, calendar.events.time-and-recurrence]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-LIVE-API, T-CLI]
+  - id: AC-4
+    scenario: S-4
+    text: Timed all-day and recurring mutations preserve omitted fields prevent lost updates and reconcile uncertain writes without duplicate events.
+    specification_assertions: [calendar.events.time-and-recurrence, calendar.events.safe-mutations, calendar.events.external-effects, calendar.verification.isolated-live-account]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-BACKEND, T-LIVE-API, T-CLI]
+  - id: AC-5
+    scenario: S-5
+    text: All nine skills have real CLI npm pip and affected web verification with deployed synthetic proof and user confirmation.
+    specification_assertions: [calendar.surface.skills]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: cli
+    verification_ids: [T-CLI, T-SDK, T-WEB, V-PARITY, V-UI-VISUAL-SMOKE, V-USER]
+  - id: AC-6
+    scenario: S-6
+    text: SDKs expose no account connection or OAuth setup and execute only already-connected authorized accounts with CLI or web reconnect guidance.
+    specification_assertions: [connected-accounts.connection.client-surfaces, calendar.surface.skills]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: npm_sdk
+    verification_ids: [T-SDK, V-PARITY]
+  - id: AC-7
+    scenario: S-7
+    text: A real scheduled workflow reads and writes synthetic Calendar data without per-run client tokens and verifies effects and cleanup after reconnect.
+    specification_assertions: [connected-accounts.workflows.server-boundary, connected-accounts.workflows.offline-verification, calendar.workflows.scoped-offline-execution]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WORKFLOW-BACKEND, T-WORKFLOW-LIVE, T-WORKFLOW-CLI]
+  - id: AC-8
+    scenario: S-8
+    text: Selection creates no grant; enabling reviews access once; pause resume revoke deletion expiry and scope expansion enforce the exact disclosed authorization.
+    specification_assertions: [connected-accounts.workflows.simple-consent, connected-accounts.workflows.changes-lifecycle, connected-accounts.workflows.offline-verification]
+    required: true
+    status: pending
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-WORKFLOW-BACKEND, T-WORKFLOW-LIVE, T-WORKFLOW-CLI, T-WORKFLOW-WEB, V-UI-VISUAL-SMOKE, V-USER]
+contracts:
+  api:
+    - route: /v1/workflows/* activation access-review and grant lifecycle extensions
+      access: First-party authenticated owner only; SDK acceptance binds a reviewed access revision but cannot connect an account.
+      limits: Enforce existing workflow activation limits rate and credit budgets plus grant operation frequency retry and resource limits.
+      privacy: Encrypted workflow grant content and server credentials; opaque references only in operational metadata.
+    - route: Internal scheduler runner and workflow provider-binding resolver
+      access: Internal-only worker execution with persisted owner workflow grant revision and resource checks before each provider call.
+      limits: Bounded retries leases and execution budget; approval waits persist state without holding workers.
+      privacy: Decrypt server authorization only in the broker for authorized execution; no per-run client credential dependency.
+    - route: /v1/connected-accounts and /v1/provider-oauth/google/calendar/*
+      access: first-party session or approved device authentication; owner-scoped, not developer API key alone
+      limits: Preserve route rate limits; add bounded validation and explicit rate-limit tests to changed endpoints.
+      privacy: Client-encrypted persisted identity and credential envelopes; transient exchange only.
+    - route: /v1/sdk/connected-account-skills/calendar/{skill_id}
+      access: first-party client surface only with scoped account authorization
+      limits: Enforce shared skill billing budgets request limits and request-level rate limits before provider mutation.
+      privacy: Decrypted provider data only transiently; sanitized response; encrypted receipts and operation journal.
+    - route: /v1/token-broker/* and /v1/connected-accounts/actions/*
+      access: first-party owner-scoped turn/action authorization; internal exchange execution
+      limits: Short-lived scoped refs; cleanup even when validation or later ref creation fails.
+      privacy: No tokens or raw account content in logs CLI arguments fixtures or proof.
+  data:
+    - Normalize shipped google/google_calendar account identifiers without broadening old capabilities.
+    - Creation capability is distinct from event-write capability; resource scope binds creation input until a calendar exists.
+    - Operation journal binds account calendar event and operation identities; reconcile ambiguous Google outcomes before retry.
+    - Runtime test target and provenance are stored outside tracked files; no direct refresh-token test input.
+  ui_states: [disconnected, reconnect_required, selection_required, approval_pending, cancelled, conflict, uncertain, success, provider_failure]
+  privacy_security:
+    - No generic developer REST exposure; unattended access requires an explicit activation grant, never copied interactive refs.
+    - Tests use no attendees or broadcast notifications; side-effect cases use controlled provider mocks.
+    - Missing setup is a blocked live acceptance gate, not a successful skipped test.
+tests:
+  - id: T-BACKEND
+    type: pytest
+    file: backend/tests/test_calendar_app_contract.py
+    command: python3 -m pytest backend/tests/test_calendar_app_contract.py backend/tests/test_google_calendar_oauth_adapter.py backend/tests/test_connected_account_execution.py backend/tests/test_calendar_permission_broker.py
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions: [scope upgrade, wrong owner and key-only denial, empty input before refs, ref cleanup on partial failure, pagination, DST and all-day validation, recurrence scope, omitted fields, ETag conflict, timeout reconciliation, attendee policy]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-LIVE-API
+    type: pytest
+    file: backend/tests/live/test_google_calendar_permissions_live.py
+    command: python3 -m pytest backend/tests/live/test_google_calendar_permissions_live.py -m live
+    covers: [AC-1, AC-2, AC-3, AC-4]
+    assertions: [real deployed first-party API, unauthorized and forbidden responses, owner and scope boundary, bounded rate and credit behavior, isolated create discover search read CRUD cleanup, no direct Google shortcut]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-CLI
+    type: playwright
+    target: app.dev.openmates.org
+    file: frontend/apps/web_app/tests/cli-calendar.spec.ts
+    command: python3 scripts/tests.py run --spec cli-calendar.spec.ts --gate-deploy --expected-commit <SUBJECT_COMMIT>
+    covers: [AC-2, AC-3, AC-4, AC-5]
+    assertions: [nine real openmates apps calendar commands, runtime authorization, exact target, JSON and error parity, isolated cleanup, synthetic terminal proof]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-SDK
+    type: pytest
+    file: backend/tests/live/test_calendar_sdk_parity_live.py
+    command: python3 -m pytest backend/tests/live/test_calendar_sdk_parity_live.py -m live
+    covers: [AC-5, AC-6]
+    assertions: [npm and pip real dev API calls, first-party auth parity, nine skill results, conflict and unauthorized failures, precise cleanup, no connection or OAuth methods, missing connection and scope direct to CLI or web]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WEB
+    type: playwright
+    target: app.dev.openmates.org
+    file: frontend/apps/web_app/tests/calendar-permission-flow.spec.ts
+    command: python3 scripts/tests.py run --spec calendar-permission-flow.spec.ts --gate-deploy --expected-commit <SUBJECT_COMMIT>
+    covers: [AC-5]
+    assertions: [account selection, scope upgrade recovery, exact approval and cancellation, timezone recurrence and error rendering, encrypted persistence]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-WORKFLOW-BACKEND
+    type: pytest
+    file: backend/tests/test_workflow_connected_account_grants.py
+    command: python3 -m pytest backend/tests/test_workflow_connected_account_grants.py backend/tests/test_workflow_key_boundary.py backend/tests/test_workflow_app_skill_adapter.py backend/tests/test_workflow_scheduler_contract.py backend/tests/test_workflows_routes_security.py
+    covers: [AC-7, AC-8]
+    assertions: [draft has no grant, atomic activation and rollback, wrong owner denied, encrypted credentials and rotation, bound resources and access revision, two independently revocable grants, no plaintext logs, queued revocation and expiry, delayed approval conflict, last grant credential deletion, idempotent retry]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WORKFLOW-LIVE
+    type: pytest
+    file: backend/tests/live/test_calendar_workflow_offline_live.py
+    command: python3 -m pytest backend/tests/live/test_calendar_workflow_offline_live.py -m live
+    covers: [AC-7, AC-8]
+    assertions: [real activation API, due scheduler and worker, no authorizing client or per-run token, actual synthetic provider effect exactly once, encrypted result, paused run cannot dispatch, resume works, revoked grant prevents next call, exact cleanup]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass, evidence: {status: pending}}
+  - id: T-WORKFLOW-CLI
+    type: playwright
+    target: app.dev.openmates.org
+    file: frontend/apps/web_app/tests/cli-calendar-workflow-offline.spec.ts
+    command: python3 scripts/tests.py run --spec cli-calendar-workflow-offline.spec.ts --gate-deploy --expected-commit <SUBJECT_COMMIT>
+    covers: [AC-7, AC-8]
+    assertions: [real CLI reviewed activation, terminate authorizing process before schedule fires, no client token submission during run, reconnect observer after completion, read actual synthetic event and clean it, pause resume revoke enforcement, terminal proof]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+  - id: T-WORKFLOW-WEB
+    type: playwright
+    target: app.dev.openmates.org
+    file: frontend/apps/web_app/tests/workflows-connected-accounts.spec.ts
+    command: python3 scripts/tests.py run --spec workflows-connected-accounts.spec.ts --gate-deploy --expected-commit <SUBJECT_COMMIT>
+    covers: [AC-8]
+    assertions: [offline banner on selection, no grant in draft, one activation review, exact access details, no redundant prompt, expansion requires review, pause retention visible, revoke and dependent workflow display]
+    red_phase: {required: true, expected: fail, evidence: {status: pending}}
+    green_phase: {required: true, expected: pass_after_deploy, evidence: {status: pending}}
+verifications:
+  - id: V-PARITY
+    kind: deterministic_check
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-6]
+    status: pending
+    command: python3 scripts/audit_sdk_cli_parity.py
+    evidence: {}
+  - id: V-UI-VISUAL-SMOKE
+    kind: artifact_review
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-8]
+    status: pending
+    viewports: [laptop, mobile]
+    evidence: {}
+  - id: V-USER
+    kind: user_confirmation
+    phase: final
+    required_for_done: true
+    covers: [AC-5, AC-8]
+    status: pending
+    evidence: {}
+implementation_notes:
+  plan_path: docs/plans/connected-accounts-calendar/plan.yml
+  architecture: Extend the existing broker registry provider and skill layers without a second authorization implementation.
+  existing_patterns: [backend/shared/python_utils/connected_account_registry.py, backend/core/api/app/routes/sdk.py, frontend/packages/openmates-cli/src/client.ts]
+  data_flow:
+    - First-party client resolves a runtime-selected encrypted account and reviews effective capability and resource scope.
+    - Backend validates session ownership request and limits before broker refs; authorized Google adapter executes only the exact action.
+    - Sanitized structured result and encrypted operation receipt return; temporary authorization is cleaned and uncertain writes remain uncertain.
+    - Workflow draft selection has no credential upload; explicit activation commits the reviewed grant and encrypted server authorization together or leaves neither usable.
+    - Scheduler leases a due run; runner revalidates owner workflow grant and exact action immediately before broker exchange and provider dispatch.
+    - Pause fences new runs; revoke and expiry fence queued calls and retries; last retained grant removal deletes server authorization while interactive encrypted connection stays separate.
+  affected_files:
+    - {path: backend/core/api/app/routes/workflows.py, reason: Owner-bound grant review and activation lifecycle.}
+    - {path: backend/core/api/app/services/workflow_service.py, reason: Reuse Vault encryption and atomic activation persistence.}
+    - {path: backend/core/api/app/services/workflow_app_skill_adapter.py, reason: Exact grant resolution and authorized Calendar dispatch.}
+    - {path: backend/core/api/app/services/workflow_runner.py, reason: Pending approvals grant fencing and uncertainty handling.}
+    - {path: backend/core/api/app/services/workflow_scheduler_service.py, reason: Due-run pause revocation and bounded retry behavior.}
+    - {path: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte, reason: Offline disclosure activation review and access controls.}
+    - {path: backend/core/api/app/routes/provider_oauth_google_calendar.py, reason: Incremental scope and reconnect behavior.}
+    - {path: backend/core/api/app/routes/sdk.py, reason: First-party auth request validation permission and cleanup boundary.}
+    - {path: backend/shared/python_utils/connected_account_registry.py, reason: Capability provider normalization and exact scope registry.}
+    - {path: backend/shared/providers/google_calendar, reason: Discovery creation query time mutation preconditions and normalization.}
+    - {path: backend/apps/calendar, reason: Nine registered skill contracts and schemas.}
+    - {path: frontend/packages/openmates-cli/src, reason: Typed commands account handling and SDK facade.}
+    - {path: packages/openmates-python/openmates/sdk.py, reason: Python authenticated skill parity.}
+    - {path: frontend/packages/ui/src/components/embeds/calendar, reason: Event and action result presentation.}
+  verification_strategy:
+    - Record failing assertion-specific tests before every implementation slice and rerun the same tests plus adjacent broker regressions.
+    - Unit commands describe test payloads; shared Docker and test operations use the current sessions.py coordinator and queue rather than bypass locks.
+    - Deploy scoped changes through sessions.py deploy; record exact subject commit and use commit-gated deployed tests.
+    - Use prepare-deploy and verify-prepared for dependency-light CLI typechecking; verify installed executable identity before real CLI proof.
+    - Create focused component preview specs for each modified component with chrome=0 before broader web flow proof.
+    - Run plan_verify.py --phase complete --json and require complete true plus every proof snippet before completion.
+  verification_order: [real REST API first, real CLI second, real npm and pip third, CI daily wiring fourth, deployed web fifth, reviewed visual smoke sixth, user confirmation seventh, native deferred by approved scope]
+  rollout:
+    - Preserve old encrypted accounts and explicitly request newly required consent without disconnecting unrelated apps.
+    - No schema migration is presumed; if journal changes require one add a reviewed reversible migration before deploying that slice.
+    - Deploy grant schema and broker first, runner dispatch next, then CLI and web exposure; advertise offline support only after real scheduled execution passes.
+    - No retroactive grants for existing workflows; they remain without connected-account offline access until explicit activation review.
+    - Rollback disables new dispatch and preserves encrypted receipts for reconciliation; no plaintext fallback or automatic grant recreation.
+  documentation:
+    - Regenerate skill CLI SDK references and map touched tests to the approved assertion IDs.
+    - Add generic live-test setup and cleanup instructions with placeholders only.
+    - Document SDK execution-only boundaries and offline grant storage pause versus revoke and provider-versus-OpenMates enforcement honestly.
+tasks:
+  - &task
+    id: TASK-1
+    title: Repair shared interactive OAuth and authorization boundary
+    status: in_progress
+    phase: working_tasks
+    specification_assertions: [connected-accounts.connection.private-reusable, connected-accounts.permissions.deterministic, connected-accounts.execution.client-mediated, connected-accounts.lifecycle.reconnect-revoke, calendar.connection.scopes]
+    surfaces: [rest_api]
+    covers: {scenarios: [S-1], acceptance_criteria: [AC-1]}
+    expected_files: [backend/core/api/app/routes/provider_oauth_google_calendar.py, backend/core/api/app/routes/sdk.py, backend/shared/python_utils/connected_account_registry.py]
+    verification_ids: [T-BACKEND]
+    dependencies: []
+    ownership: {files: [backend/core/api/app/routes/provider_oauth_google_calendar.py], shared_files: [backend/core/api/app/routes/sdk.py, backend/shared/python_utils/connected_account_registry.py]}
+    blockers: []
+    follow_up_tasks: []
+  - <<: *task
+    id: TASK-2
+    status: pending
+    ownership: {files: [backend/shared/providers/google_calendar, backend/apps/calendar], shared_files: [backend/tests/live/test_google_calendar_permissions_live.py]}
+    title: Calendar creation discovery and isolated API fixture
+    covers: {scenarios: [S-2], acceptance_criteria: [AC-2]}
+    expected_files: [backend/shared/providers/google_calendar, backend/apps/calendar, backend/tests/live/test_google_calendar_permissions_live.py]
+    verification_ids: [T-BACKEND, T-LIVE-API]
+    dependencies: [TASK-1]
+  - <<: *task
+    id: TASK-3
+    status: pending
+    ownership: {files: [backend/core/api/app/routes/connected_account_actions.py], shared_files: [backend/shared/providers/google_calendar, backend/apps/calendar]}
+    title: Complete read search availability and safe event mutations
+    covers: {scenarios: [S-3, S-4], acceptance_criteria: [AC-3, AC-4]}
+    expected_files: [backend/shared/providers/google_calendar, backend/apps/calendar, backend/core/api/app/routes/connected_account_actions.py]
+    verification_ids: [T-BACKEND, T-LIVE-API]
+    dependencies: [TASK-2]
+  - <<: *task
+    id: TASK-4
+    status: pending
+    ownership: {files: [frontend/apps/web_app/tests/cli-calendar.spec.ts, frontend/apps/web_app/tests/cli-calendar-workflow-offline.spec.ts], shared_files: [frontend/packages/openmates-cli/src]}
+    title: Typed CLI skills workflow activation and real terminal proof
+    covers: {scenarios: [S-5, S-7, S-8], acceptance_criteria: [AC-5, AC-7, AC-8]}
+    expected_files: [frontend/packages/openmates-cli/src, frontend/apps/web_app/tests/cli-calendar.spec.ts, frontend/apps/web_app/tests/cli-calendar-workflow-offline.spec.ts]
+    verification_ids: [T-CLI, T-WORKFLOW-CLI]
+    dependencies: [TASK-7]
+  - <<: *task
+    id: TASK-5
+    status: pending
+    ownership: {files: [backend/tests/live/test_calendar_sdk_parity_live.py], shared_files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py]}
+    title: npm and pip SDK parity then opt-in CI wiring
+    covers: {scenarios: [S-5, S-6], acceptance_criteria: [AC-5, AC-6]}
+    expected_files: [frontend/packages/openmates-cli/src/sdk.ts, packages/openmates-python/openmates/sdk.py, backend/tests/live/test_calendar_sdk_parity_live.py]
+    verification_ids: [T-SDK, V-PARITY]
+    dependencies: [TASK-4]
+  - <<: *task
+    id: TASK-6
+    status: pending
+    ownership: {files: [frontend/packages/ui/src/components/embeds/calendar], shared_files: [frontend/apps/web_app/tests/calendar-permission-flow.spec.ts]}
+    title: Web account and event behavior with focused preview proof
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-5]}
+    expected_files: [frontend/packages/ui/src/components/embeds/calendar, frontend/apps/web_app/tests/calendar-permission-flow.spec.ts, frontend/apps/web_app/tests/connected-account-calendar-settings.spec.ts]
+    verification_ids: [T-WEB, V-UI-VISUAL-SMOKE, V-USER]
+    dependencies: [TASK-5]
+  - <<: *task
+    id: TASK-7
+    status: pending
+    title: Server grants scheduler execution and real offline Calendar API proof
+    covers: {scenarios: [S-7, S-8], acceptance_criteria: [AC-7, AC-8]}
+    expected_files: [backend/core/api/app/routes/workflows.py, backend/core/api/app/services/workflow_service.py, backend/core/api/app/services/workflow_app_skill_adapter.py, backend/core/api/app/services/workflow_runner.py, backend/core/api/app/services/workflow_scheduler_service.py, backend/tests/test_workflow_connected_account_grants.py, backend/tests/live/test_calendar_workflow_offline_live.py]
+    ownership: {files: [backend/tests/test_workflow_connected_account_grants.py, backend/tests/live/test_calendar_workflow_offline_live.py], shared_files: [backend/core/api/app/routes/workflows.py, backend/core/api/app/services/workflow_service.py, backend/core/api/app/services/workflow_runner.py]}
+    verification_ids: [T-WORKFLOW-BACKEND, T-WORKFLOW-LIVE]
+    dependencies: [TASK-3]
+  - <<: *task
+    id: TASK-8
+    status: pending
+    title: Workflow offline disclosure access review and lifecycle UI proof
+    covers: {scenarios: [S-8], acceptance_criteria: [AC-8]}
+    expected_files: [frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte, frontend/apps/web_app/tests/workflows-connected-accounts.spec.ts]
+    ownership: {files: [frontend/apps/web_app/tests/workflows-connected-accounts.spec.ts], shared_files: [frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte]}
+    verification_ids: [T-WORKFLOW-WEB, V-UI-VISUAL-SMOKE, V-USER]
+    dependencies: [TASK-6]
+demonstration:
+  eligibility:
+    status: required
+    surface: mixed
+    reason: New CLI and web Calendar capabilities require deployed synthetic product proof.
+    classified_at: '2026-09-05'
+  narration_outline:
+    - id: NARR-3
+      purpose: Prove unattended Calendar execution rather than mere workflow activation.
+      expected_proof: Real CLI review and activation then authorizing process exit; observer reconnect verifies the scheduled synthetic effect and exact cleanup at 1280x720.
+      scenario_ids: [S-7, S-8]
+      acceptance_criteria: [AC-7, AC-8]
+    - id: NARR-4
+      purpose: Explain offline storage and effective access without extra consent prompts.
+      expected_proof: Phone and laptop bare component previews show the offline banner one enable review pause retention and revoke controls, with real flow assertions backing UI fixtures.
+      scenario_ids: [S-8]
+      acceptance_criteria: [AC-8]
+    - id: NARR-1
+      purpose: Prove real typed Calendar skills and isolated lifecycle without revealing account data.
+      expected_proof: CLI at 1280x720 creates discovers searches reads updates and deletes synthetic events with confirmed cleanup.
+      scenario_ids: [S-2, S-3, S-4, S-5]
+      acceptance_criteria: [AC-2, AC-3, AC-4, AC-5]
+    - id: NARR-2
+      purpose: Prove readable interactive account approval and event states on phone and laptop.
+      expected_proof: Bare component previews at 390x844 and 1440x900 with meaningful focus click approval cancellation and expanded states.
+      scenario_ids: [S-1, S-5]
+      acceptance_criteria: [AC-1, AC-5]
+  evidence:
+    status: pending
+    privacy_status: pending
+    audio_status: not_required
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ''
+    manifest_path: ''
+    manifest_hash: ''
+    review_run_id: ''
+    timestamp: ''

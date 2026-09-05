@@ -7,7 +7,7 @@
 
 import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import mapsMarkerIconUrl from "../../../../static/icons/maps.svg?url";
+import mapsMarkerIconSvg from "../../../../static/icons/maps.svg?raw";
 import EmbedLeafletMap from "../EmbedLeafletMap.svelte";
 
 const leafletMocks = vi.hoisted(() => {
@@ -189,10 +189,12 @@ describe("EmbedLeafletMap theme selection", () => {
     expect(leafletMocks.markerInstances[0].elementSetAttribute).toHaveBeenCalledWith("data-testid", "endpoint-marker");
     expect(leafletMocks.markerInstances[1].elementSetAttribute).toHaveBeenCalledWith("data-testid", "stop-marker");
     expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
-      html: expect.stringContaining('<img'),
+      html: expect.stringContaining('<svg'),
     }));
     expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
-      html: expect.stringContaining(`src="${mapsMarkerIconUrl}"`),
+      html: mapsMarkerIconSvg
+        .replace('<svg ', '<svg class="marker-icon" aria-hidden="true" ')
+        .replace('fill="#000"', 'fill="currentColor"'),
     }));
     expect(leafletMocks.markerInstances[1].bindTooltip).toHaveBeenCalledWith("Mainz Hbf", expect.objectContaining({
       permanent: true,

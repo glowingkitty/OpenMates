@@ -135,7 +135,7 @@ export interface TaskProposalEvent {
   title: string;
   description?: string | null;
   status?: "backlog" | "todo" | "in_progress" | "blocked" | "done";
-  assignee_type?: "ai" | "user";
+  assignee_type?: "openmates" | "user";
 }
 
 export interface TaskUpdateProposalEvent {
@@ -143,7 +143,7 @@ export interface TaskUpdateProposalEvent {
   title?: string | null;
   description?: string | null;
   status?: "backlog" | "todo" | "in_progress" | "blocked" | "done" | null;
-  assignee_type?: "ai" | "user" | null;
+  assignee_type?: "openmates" | "user" | null;
 }
 
 export interface TaskEventFrame {
@@ -201,7 +201,7 @@ const SUB_CHAT_COMPLETION_TIMEOUT_MS = 10 * 60_000;
 const CLIENT_UPDATE_REQUIRED_GUIDANCE =
   "OpenMates CLI update required. Run `openmates upgrade` and retry.";
 const TASK_STATUSES = new Set(["backlog", "todo", "in_progress", "blocked", "done"]);
-const TASK_ASSIGNEES = new Set(["ai", "user"]);
+const TASK_ASSIGNEES = new Set(["openmates", "user"]);
 
 export class WebSocketProtocolError extends Error {
   readonly code: string;

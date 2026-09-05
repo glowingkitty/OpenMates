@@ -401,6 +401,19 @@ async def anonymous_chat_stream(
                         model_name = openai_payload["model"]
                     for choice in openai_payload.get("choices") or []:
                         delta = choice.get("delta") or {}
+                        for embed in delta.get("embeds") or []:
+                            if not isinstance(embed, dict) or not embed.get("embed_id"):
+                                continue
+                            yield _anonymous_sse_event({
+                                "type": "send_embed_data",
+                                "payload": {
+                                    **embed,
+                                    "chat_id": payload.client_chat_id,
+                                    "message_id": assistant_message_id,
+                                    "user_id": payload.anonymous_id,
+                                    "task_id": task_id,
+                                },
+                            })
                         content_delta = delta.get("content")
                         if content_delta:
                             full_content += str(content_delta)

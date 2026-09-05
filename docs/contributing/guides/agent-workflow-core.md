@@ -15,14 +15,30 @@ Keep default context concise. Lazy-load detailed rules, docs, and skills only
 when the task touches that area: frontend, backend, testing, privacy, settings,
 embeds, Apple, specs, deployment, or provider integrations.
 
-For current web and programming research, prefer the OpenMates app skills through
-the CLI before using generic external research tools. Use `web/search` for web
-search, `web/read` when a specific webpage URL is available, `videos/search` for
-video discovery, `videos/get_transcript` for a specific YouTube transcript, and
-`code/get_docs` for current library, framework, API, or SDK documentation:
+Marketing, social videos, Remotion production, and newsletters live in the optional
+sibling `openmates-marketing` repository. Read its `AGENTS.md` and relevant
+`.agents/skills/<name>/SKILL.md` directly. Resolve the sibling from the primary
+checkout, not a session worktree; ask for its location if absent. Keep marketing
+content, skills, media, and changes outside OpenMates staging/deployment. Product
+proof-video and example-chat tooling stays here.
+
+For current web and programming research, use the OpenMates app skills through
+the CLI for search and documentation. Use `web/search` for web search,
+`videos/search` for video discovery, `videos/get_transcript` for a specific
+YouTube transcript, and `code/get_docs` for current library, framework, API, or
+SDK documentation. Use `code/search_repos` for public GitHub repository discovery
+by topic, language, framework, or project need; keep `rg` for searching local
+code. Use `events/search` for events, meetups, hackathons, conferences, workshops,
+or concerts. Include the requested location and date range when applicable,
+and do not duplicate the event query with web search.
+When a specific webpage URL is already known, use OpenCode's
+native `webfetch` first; if that webpage read fails or is insufficient, fall back
+to the OpenMates `web/read` skill through the CLI:
 
 ```bash
 openmates apps web search "query" --json
+openmates apps code search_repos "svelte markdown editor" --count 3 --json
+openmates apps events search "technology meetup" --location Berlin --json
 openmates apps web read https://example.com --json
 openmates apps videos search "topic" --json
 openmates apps videos get_transcript --url https://www.youtube.com/watch?v=VIDEO_ID --json
@@ -30,9 +46,9 @@ openmates apps code get_docs --library React --question "How do I use useState?"
 ```
 
 Use `openmates apps skill-info <app> <skill> --json` when the required input
-schema or options are unclear. Preserve the returned app-skill results as the
-primary research evidence; use Brave, WebFetch, or Context7 directly only when
-the relevant OpenMates skill is unavailable or cannot satisfy the request.
+schema or options are unclear. Preserve returned app-skill results as the
+primary research evidence. Do not use direct Context7, Brave Search, or
+Firecrawl MCP tools as a fallback.
 
 OpenCode Web chats intentionally remain at the root project URL. For mutating
 work, run `python3 scripts/sessions.py start --mode <mode> --task "..."` before
@@ -284,3 +300,16 @@ For each observed preventable process problem or inefficiency, check the relevan
 - `node frontend/apps/web_app/scripts/visual-smoke.mjs --url https://app.dev.openmates.org/<route> --session <id>`
 - `python3 scripts/sessions.py visual-smoke --session <id> --url https://app.dev.openmates.org/<route> --viewport laptop --viewport mobile --result passed --method playwright --run-id test-results/visual-smoke/<run>/summary.json --summary "Reviewed laptop and mobile screenshots. Defects: none. Accepted differences: none."`
 - `python3 scripts/sessions.py deploy --session <id> --title "..." --message "..."`
+
+## Scoped user decisions
+
+Honor explicit acceptance, stop and waiver instructions for their exact scope.
+Record them once with `python3 scripts/sessions.py decision` using the original
+user-message ID and exact quote, Task/Plan target, surface and current revision.
+Use Task context's `decision_revision`, or the Plan subject commit. Appearance
+acceptance does not waive proof or functional checks. Keep waived proof visible;
+continue unrelated checks. See `docs/architecture/agent-workflow-decisions.md`.
+
+Ordinary routing is read-only. Use an explicit worktree repair only for recovery.
+Idle checkpoints preserve work; publication requires an explicit fingerprinted
+`sessions.py worktree submit-ready` or normal scoped `sessions.py deploy`.

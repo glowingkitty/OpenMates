@@ -1,0 +1,118 @@
+schema_version: 1
+specification: feature.app-skill.videos-get-transcript@1
+
+backfilled_youtube:
+  - id: watch-url-fragment-and-default-language
+    given: {requests: [{url: 'https://www.youtube.com/watch?v=abcdefghijk#t=5'}]}
+    expect: {url_used: 'https://www.youtube.com/watch?v=abcdefghijk', generated_id: true, languages: [en, de, es, fr], provider: YouTube}
+  - id: short-url-and-ordered-results
+    given: {requests: [{id: first, url: 'https://youtu.be/abcdefghijk'}, {id: second, url: invalid}]}
+    expect: {grouped_ids: [first, second], first_result_type: transcript_result, second_error_visible: true, polling: false}
+  - id: shorts-rejected
+    given: {requests: [{url: 'https://www.youtube.com/shorts/abc123'}]}
+    expect: {error: invalid_youtube_url, provider_called: false}
+  - id: formatted-captions
+    given: {caption: {start: 1.25, duration: 0.75, text: Hello}}
+    expect: {transcript_line: '[00:00:01.250] Hello', result_fields: [type, url, transcript, word_count, characters_count, language, hash]}
+  - id: sanitization-block
+    given: {caption_sanitizer: blocked}
+    expect: {error_visible: true, transcript_returned: false, fail_closed: true}
+  - id: existing-income-and-pricing
+    given: {youtube_result: successful}
+    expect: {configured_videos_pricing: unchanged, creator_income_credits: 9, youtube_income_credits: 1}
+  - id: caption-provider-timeout
+    given: {caption_provider: stalled, elapsed_seconds: 45}
+    expect: {timeout_visible: true, successful_transcript: false, mistral_fallback: false}
+
+local_cli:
+  - id: audio-only-local-flow
+    given: {command: 'openmates apps videos get_transcript --file clip.mov --json', source_video: local, audio_streams: 1}
+    expect: {probe_and_extract: local, source_changed: false, uploaded_kind: audio_derivative, upload_helper: uploadFile, endpoint: /v1/apps/audio/skills/transcribe, videos_file_route: absent}
+  - id: paired-upload-required
+    given: {command: 'openmates apps videos get_transcript --file clip.mov', auth: api_key_only}
+    expect: {error: paired_upload_auth_required, upload_attempted: false, global_audio_api_key_ban: false}
+  - id: conflicting-inputs
+    given: {file: clip.mov, url: supported_youtube_url}
+    expect: {error: invalid_source_selection, upload_attempted: false}
+  - id: missing-local-dependency
+    given: {file: clip.mov, ffmpeg: unavailable}
+    expect: {error: dependency_missing, actionable_message: true, upload_attempted: false}
+
+audio_timestamps:
+  - id: general-audio-default
+    given: {skill: audio/transcribe, flow: general_transcription, timestamps: absent, language: absent}
+    expect: {timestamps: word, provider_word_timestamps_requested: true}
+  - id: speech-input-explicitly-untimed
+    given: {skill: audio/transcribe, flow: existing_speech_input, language: en}
+    expect: {timestamps_at_speech_boundary: none, provider_timestamp_parameter: absent, language_hint_sent: en, correction_title_waveform: unchanged}
+  - id: shipped-speech-client-compatible
+    given: {flow: existing_speech_input, client: already_shipped, timestamp_field: absent}
+    expect: {speech_input_boundary: preserves_untimed_behavior, language_hints: unchanged, general_default_rollout_without_compatibility: blocked}
+  - id: explicit-untimed-general-audio
+    given: {skill: audio/transcribe, flow: general_transcription, timestamps: none, language: en}
+    expect: {provider_timestamp_parameter: absent, language_hint_sent: en}
+  - id: local-video-default
+    given: {command: 'openmates apps videos get_transcript --file clip.mov'}
+    expect: {timestamps: word}
+  - id: language-and-word-rejected
+    given: {skill: audio/transcribe, timestamps: word, language: en}
+    expect: {error: incompatible_transcription_options, provider_called: false}
+  - id: segment-result-is-original
+    given: {timestamps: segment, original: 'Raw words', corrected: 'Edited words'}
+    expect: {segments_bound_to: transcript_original, corrected_timestamp_aligned: false}
+  - id: word-result-not-synthesized
+    given: {timestamps: word, provider: segment_only}
+    expect: {error: timestamps_unavailable, words_synthesized: false}
+  - id: source-offset-once
+    given: {stream_presentation_offset_seconds: 0.5, provider_word: {start_seconds: 1.0, end_seconds: 1.4, text: Hello}}
+    expect: {word: {start_seconds: 1.5, end_seconds: 1.9, text: Hello}, offset_applied_count: 1}
+  - id: zero-start-is-valid
+    given: {provider_word: {start_seconds: 0, end_seconds: 0.3, text: Hello}}
+    expect: {valid: true}
+  - id: invalid-timing
+    given: {provider_word: {start_seconds: 4, end_seconds: 3, text: Hello}}
+    expect: {error: invalid_timestamps, success: false}
+  - id: silence
+    given: {provider_transcript: ''}
+    expect: {status: empty_transcript, invented_text: false, visible: true}
+
+audio_pipeline:
+  - id: correction-success
+    given: {gemini_correction: successful}
+    expect: {transcript_original: retained, transcript_corrected: retained, use_corrected: true, correction_model: returned}
+  - id: correction-failure
+    given: {gemini_correction: unavailable}
+    expect: {transcript: original, transcript_corrected: null, use_corrected: false, title: null}
+
+billing:
+  - id: one-local-ninety-second-file
+    given: {successful_audio_results: [{duration_seconds: 90}]}
+    expect: {credits: 6, formula: 'max(1, ceil(90 / 60)) * 3', videos_charge: 0, creator_income: 0}
+  - id: successful-batch-rounding
+    given: {successful_audio_results: [{duration_seconds: 20}, {duration_seconds: 20}]}
+    expect: {credits: 6, formula: 'max(2, ceil(40 / 60)) * 3'}
+  - id: missing-duration
+    given: {successful_audio_results: [{duration_seconds: null}]}
+    expect: {minimum_per_success_applied: true, new_duration_probe: false}
+
+export:
+  - id: complete-private-json
+    given: {command: 'openmates apps videos get_transcript --file clip.mov --timestamps word --output transcript.json --json'}
+    expect: {schema_version: 1, atomic: true, private_permissions: true, includes: [duration_seconds, model, language, transcript_original, transcript_corrected, segments, words], excludes: [secrets, absolute_source_path]}
+  - id: unsafe-output-alias
+    given: {output: clip.mov, force: true}
+    expect: {error: unsafe_output_path, source_changed: false, provider_called: false}
+  - id: symlink-or-hardlink-output
+    given: {output_alias_kind: symlink_or_hardlink}
+    expect: {error: unsafe_output_path, output_written: false}
+
+parity:
+  - id: rest-and-cli-boundary
+    given: {surface: rest_api, input: youtube_url}
+    expect: {videos_url_schema: unchanged, local_filesystem_access: false}
+  - id: sdk-additive-schema
+    given: {surfaces: [npm_sdk, pip_sdk], audio_timestamps: word}
+    expect: {timestamp_schema: available, youtube_parity: preserved, login_or_private_access_added: false}
+  - id: gui-regression
+    given: {surfaces: [web, apple]}
+    expect: {existing_youtube_and_audio_embeds: retained, local_video_picker: absent}

@@ -21,8 +21,8 @@ Commands:
     check-vulns     Main workflow: scan deps, query sources, dispatch if needed
 
 Environment variables (set by the shell script):
-    TRACKING_FILE_PATH          — path to eu-vuln-processed.json
-    DEPENDABOT_TRACKING_PATH    — path to dependabot-processed.json (for dedup)
+    TRACKING_FILE_PATH          — path to logs/eu-vuln-processed.json
+    DEPENDABOT_TRACKING_PATH    — runtime Dependabot path, or checked-in seed fallback
     PROJECT_ROOT                — absolute path to the repo root
     REDISPATCH_AFTER_DAYS       — days before re-dispatching unresolved vuln
     DRY_RUN                     — "true" to skip OpenCode invocation
@@ -31,7 +31,7 @@ Environment variables (set by the shell script):
     TODAY_DATE                  — current date as YYYY-MM-DD
     NVD_API_KEY                 — optional free NVD API key for higher rate limits
 
-Tracking file format (scripts/eu-vuln-processed.json):
+Tracking file format (logs/eu-vuln-processed.json):
 {
   "last_run": "2026-03-31T05:00:00Z",
   "processed": [
@@ -66,6 +66,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from audit_frontend_dependency_pins import collect_package_versions
 from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
 
 
@@ -105,16 +106,12 @@ USER_DISCLOSURE_PACKAGES = {
     "httpx", "aiohttp", "redis", "boto3",
 }
 
-# Dependency file locations relative to project root
-DEPENDENCY_FILES = {
-    "npm": [
-        "frontend/packages/ui/package.json",
-        "frontend/apps/web_app/package.json",
-    ],
-    "PyPI": [
-        "backend/core/api/requirements.txt",
-        "backend/apps/pdf/requirements.txt",
-    ],
+IGNORED_DEPENDENCY_DIRECTORIES = {
+    ".git",
+    ".openmates-agent-worktrees",
+    ".pnpm-store",
+    "node_modules",
+    "test-results",
 }
 
 
@@ -282,11 +279,52 @@ def _parse_requirements_txt(filepath: str) -> List[Dict[str, str]]:
     return deps
 
 
+def _parse_pnpm_lock(filepath: str) -> List[Dict[str, str]]:
+    """Parse every resolved npm package version from the pnpm lockfile."""
+    try:
+        with open(filepath, encoding="utf-8") as file:
+            package_versions = collect_package_versions(file.read())
+    except OSError as error:
+        print(f"[eu-vulns] WARNING: could not parse {filepath}: {error}", file=sys.stderr)
+        return []
+
+    return [
+        {
+            "name": name,
+            "version": version.split("(", 1)[0],
+            "ecosystem": "npm",
+            "source_file": "pnpm-lock.yaml",
+        }
+        for name, versions in sorted(package_versions.items())
+        for version in sorted(versions)
+    ]
+
+
+def _discover_dependency_files(project_root: str) -> Dict[str, List[str]]:
+    """Discover every checked-out npm and requirements manifest."""
+    discovered: Dict[str, List[str]] = {"npm": [], "PyPI": []}
+    for directory, child_directories, filenames in os.walk(project_root):
+        child_directories[:] = [
+            name for name in child_directories if name not in IGNORED_DEPENDENCY_DIRECTORIES
+        ]
+        relative_directory = os.path.relpath(directory, project_root)
+        for filename in filenames:
+            relative_path = os.path.normpath(os.path.join(relative_directory, filename))
+            if filename == "package.json":
+                discovered["npm"].append(relative_path)
+            elif filename.startswith("requirements") and filename.endswith(".txt"):
+                discovered["PyPI"].append(relative_path)
+
+    for files in discovered.values():
+        files.sort()
+    return discovered
+
+
 def _collect_all_dependencies(project_root: str) -> List[Dict[str, str]]:
-    """Collect all dependencies from all known dependency files."""
+    """Collect declared versions from every discovered dependency manifest."""
     all_deps = []
 
-    for ecosystem, files in DEPENDENCY_FILES.items():
+    for ecosystem, files in _discover_dependency_files(project_root).items():
         for rel_path in files:
             filepath = os.path.join(project_root, rel_path)
             if not os.path.isfile(filepath):
@@ -303,11 +341,17 @@ def _collect_all_dependencies(project_root: str) -> List[Dict[str, str]]:
             all_deps.extend(deps)
             print(f"[eu-vulns] Parsed {len(deps)} deps from {rel_path}")
 
-    # Deduplicate by (name, ecosystem) — keep the first occurrence
+    lockfile_path = os.path.join(project_root, "pnpm-lock.yaml")
+    if os.path.isfile(lockfile_path):
+        lockfile_dependencies = _parse_pnpm_lock(lockfile_path)
+        all_deps.extend(lockfile_dependencies)
+        print(f"[eu-vulns] Parsed {len(lockfile_dependencies)} deps from pnpm-lock.yaml")
+
+    # The same package may resolve to different versions in separate runtimes.
     seen = set()
     unique_deps = []
     for dep in all_deps:
-        key = (dep["name"].lower(), dep["ecosystem"])
+        key = (dep["name"].lower(), dep["ecosystem"], dep["version"])
         if key not in seen:
             seen.add(key)
             unique_deps.append(dep)
@@ -714,10 +758,10 @@ def check_vulns() -> None:
 
     if not findings:
         print("[eu-vulns] No new vulnerabilities found beyond Dependabot coverage — done.")
-        # Update tracking last_run
-        tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
-        tracking["last_run"] = _now_iso()
-        _save_json_file(tracking_file, tracking)
+        if not dry_run and not summary_only:
+            tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
+            tracking["last_run"] = _now_iso()
+            _save_json_file(tracking_file, tracking)
         if not summary_only and not dry_run:
             prompt = f"""# EU/OSV/NVD Vulnerability Check Summary — {today_date}
 
@@ -836,11 +880,12 @@ code changes are needed, and do not edit files, commit, or deploy.
     print(f"[eu-vulns] Dispatch summary: {len(to_dispatch)} to dispatch, "
           f"{skip_count} skipped (grace period), {resolve_count} resolved in git.")
 
-    # Update tracking
+    # Persist only real scans; dry runs and summaries must remain read-only.
     tracking["last_run"] = now_iso
     tracking["processed"] = list(processed_map.values())
-    _save_json_file(tracking_file, tracking)
-    print(f"[eu-vulns] Tracking file updated: {tracking_file}")
+    if not dry_run:
+        _save_json_file(tracking_file, tracking)
+        print(f"[eu-vulns] Tracking file updated: {tracking_file}")
 
     if not to_dispatch:
         print("[eu-vulns] Nothing to dispatch — done.")

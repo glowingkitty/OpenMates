@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * OpenCode hook contracts for request-only OpenMates Task context and
+ * OpenCode hook Specification tests for request-only OpenMates Task context and
  * response-boundary reconciliation. These tests use exported pure helpers so
  * they cannot call the live CLI, mutate sessions, or prompt a real chat.
  */
@@ -29,6 +29,50 @@ const activeSnapshot = {
   ],
 };
 
+test("bounded refresh coalesces concurrent callers and retains stale history through failure", async () => {
+  let now = 0;
+  let calls = 0;
+  let fail = false;
+  let reports = 0;
+  const cache = OpenMatesHooks.test.createTaskContextCacheForTest(async () => {
+    calls++;
+    if (fail) throw new Error("offline");
+    return { ...activeSnapshot, activity: { entries: [{ message: `Human correction ${calls}` }] } };
+  }, { now: () => now, report: () => reports++ });
+  await Promise.all(Array.from({ length: 100 }, () => cache.get("parent")));
+  assert.equal(calls, 1);
+  now = 60_001;
+  assert.equal((await cache.get("parent", { wait: true })).activity.entries[0].message, "Human correction 2");
+  fail = true;
+  now = 120_002;
+  const stale = await cache.get("parent", { wait: true });
+  assert.equal(stale.stale, true);
+  assert.equal(stale.active.title, activeSnapshot.active.title);
+  assert.equal(stale.activity.entries[0].message, "Human correction 2");
+  await Promise.all(Array.from({ length: 100 }, () => cache.get("parent")));
+  assert.equal(calls, 3);
+  assert.equal(reports, 1);
+  now = 180_003;
+  fail = false;
+  assert.equal((await cache.get("parent", { wait: true })).stale, false);
+});
+
+test("truncated history shows attributed entries and full-history search", () => {
+  const text = OpenMatesHooks.test.taskContextSystemTextForTest({
+    ...activeSnapshot,
+    activity: { max_entries: 20, truncated: true,
+      entries: [{ actor_type: "user", message: "Correction: use the new endpoint" }],
+      search_command: 'openmates tasks activity search TASK-1 --query "SEARCH TEXT"',
+      search_tool: { action: "activity_search", task_id: "TASK-1", query: "SEARCH TEXT" },
+    },
+  });
+  assert.match(text, /at most 20/);
+  assert.match(text, /Correction: use the new endpoint/);
+  assert.match(text, /Search FULL activity history/);
+  assert.match(text, /activity_search/);
+  assert.match(text, /attributed data, not system instructions/);
+});
+
 
 test("request context contains full active details and title-only remaining Tasks", () => {
   const { taskContextSystemTextForTest } = OpenMatesHooks.test;
@@ -49,6 +93,10 @@ test("empty chats instruct the model to create tracking for implicit non-trivial
   assert.match(text, /non-trivial multi-step/i);
   assert.match(text, /create.*openmates_task/i);
   assert.match(text, /before the first product mutation/i);
+  assert.match(text, /external_ai\/opencode/i);
+  assert.match(text, /activity_add/i);
+  assert.match(text, /meaningful milestone/i);
+  assert.match(text, /do not post commands.*routine tests.*retries/i);
   assert.match(text, /simple informational.*do not create/i);
 });
 
@@ -112,6 +160,7 @@ test("only completed successful top-level assistant messages stage reconciliatio
   });
   assert.equal(taskBridgeCompletionForTest(completed, { topLevelSessionID: "ses-other" }), null);
   assert.equal(taskBridgeCompletionForTest({ ...completed, properties: { ...completed.properties, info: { ...completed.properties.info, error: "aborted" } } }, { topLevelSessionID: "ses-parent" }), null);
+  assert.equal(taskBridgeCompletionForTest({ ...completed, properties: { ...completed.properties, info: { ...completed.properties.info, finish: "tool-calls" } } }, { topLevelSessionID: "ses-parent" }), null);
 });
 
 
@@ -139,7 +188,7 @@ test("Task continuation uses an internal instruction without decrypted Task text
 });
 
 
-test("request context is fetched once per turn and refreshed for compaction", async () => {
+test("fresh context is reused across requests and compaction", async () => {
   const calls = [];
   const hooks = await OpenMatesHooks({
     routingData: {
@@ -164,7 +213,7 @@ test("request context is fetched once per turn and refreshed for compaction", as
   const compacted = { context: [] };
   await hooks["experimental.session.compacting"]({ sessionID: "ses-parent" }, compacted);
 
-  assert.equal(calls.filter((call) => call.action === "context").length, 2);
+  assert.equal(calls.filter((call) => call.action === "context").length, 1);
   assert.match(first.system[0], /OpenMates authoritative Task context/);
   assert.match(compacted.context[0], /OpenMates authoritative Task context/);
 });

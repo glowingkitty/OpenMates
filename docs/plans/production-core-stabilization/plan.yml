@@ -1,0 +1,594 @@
+schema_version: 3
+id: production-core-stabilization
+title: Production Core Chat Stabilization
+status: approved
+
+specification_refs:
+  - id: architecture.storage-lifecycle
+    version: 1
+    role: primary
+    fingerprint: ea385037ccf54359ff4eb4ea3ee7ed53991400a4d14b1684dab70118a4c05a80
+  - id: architecture.storage-resilience
+    version: 1
+    role: inherited
+    fingerprint: 4da84f38dede2f8727338aa9470c2c1f9b3f5bd1f931b4a2820b4db12c70cf89
+  - id: architecture.sync
+    version: 1
+    role: inherited
+    fingerprint: 3b0204824a9c59a247d19c930ad8edd08b29605f7f8a34dd111bfc4407e5d694
+  - id: feature.chats
+    version: 2
+    role: inherited
+    fingerprint: 13d258a587aad182838e9f6eef2e09ae6a4a7f9f51dd6f7fbb8ec59c26ba336b
+  - id: feature.assistant-response-speech
+    version: 5
+    role: inherited
+    fingerprint: 3f66240297ca59d6a809d4e849b1a7487fa699e555402266e5f3d40af4b24184
+
+specification_impact:
+  classification: implementation_only
+  specification_update_required: false
+  affected_assertions:
+    - storage.regions.configurable-redundancy
+    - storage.integrity.observable-reconcilable
+    - storage-resilience.core.s3-is-noncritical
+    - chats.persistence.client-encrypted
+    - chats.local-state.precedence
+    - assistant-speech.preference.chat-scoped-default-off
+  reason: The hotfix restores already specified storage reconciliation and encrypted chat synchronization behavior.
+
+documentation_impact:
+  generated_reference:
+    status: unchanged
+    reason: No Specification content changes.
+    documents: []
+  user_docs:
+    status: not_applicable
+    reason: This is a behavior-restoring production hotfix.
+    documents: []
+  semantic_layer:
+    status: unchanged
+    reason: Existing storage and sync architecture documents already describe the intended behavior.
+    documents: []
+
+goal: >
+  Stabilize production without rollback by fixing the confirmed encrypted chat
+  summary, late-metadata header, image-processing, and account-deletion
+  regressions through verified forward hotfixes. Regional bucket provisioning is
+  complete; historical S3 backfill and failover-readiness work is explicitly
+  deferred.
+
+scope:
+  in:
+    - Create missing managed replicated buckets in every configured region during background reconciliation.
+    - Preserve unmanaged and explicitly non-replicated bucket exclusions.
+    - Apply the existing ACL, lifecycle, and CORS policy after creation.
+    - Surface failed creation as degraded storage and retry without blocking API startup.
+    - Prevent assistant speech preference persistence from discarding generated chat summaries.
+    - Repair the active chat title/icon/category when authoritative encrypted metadata arrives after cold boot.
+    - Investigate and fix any shared cause of missing chat keys or ciphertext fingerprint mismatches required for safe production rollout.
+    - Include the already implemented runtime locale and Alertmanager packaging repair.
+    - Restore account deletion inventory against the deployed usage-summary and task-archive schemas.
+    - Verify the exact production mutation set before creating buckets or deploying code.
+  out:
+    - Historical S3 object backfill, source-of-truth selection, or failover-readiness claims; these require a separate non-mutating inventory and migration Plan later.
+    - Production core-journey and branch-protection redesign.
+    - Signup and live-card billing changes except post-stabilization verification.
+    - New storage regions, renamed buckets, product-media replication, or temporary-media replication.
+    - Rollback without a new explicit user approval.
+    - Unrelated product redesign while stabilizing production.
+
+context_discovery:
+  production_findings:
+    - Production web, API, workers, Directus, and setup use revision 8aa9fd4e834ce460014f4f144e287ffadc4942a0.
+    - Directus schema setup completed and the new chat metadata columns exist.
+    - Active-region startup creates missing managed buckets, while replica-region reconciliation logs and skips missing buckets.
+    - Configured-region parsing defaults official cloud to nbg1, fsn1, and hel1; production lacks the fsn1 and hel1 replicas.
+    - Two production chats discarded summaries when speech preference advanced metadata_v from 1 to 2.
+    - Cold reload resumed the reported chat as Untitled chat and did not repair its active header after phase-one metadata arrived.
+    - Production logs also contain missing-key and ciphertext-fingerprint mismatch evidence that must be bounded before rollout.
+    - Hotfix PR 513 is deployed at main revision 152babc3e4cc63af2386d319821aaeb9c8062e29; core runtime verification, the exact reported share, a fresh free chat, and the EMH2K regression test pass.
+    - The production signup journey completes account creation, then the dormant smoke blocks on a stale gift-card code; its cleanup exposed account deletion querying usage summary collections with the wrong owner field.
+  source_patterns:
+    - backend/core/api/app/services/s3/service.py owns active and regional bucket reconciliation.
+    - backend/core/api/main.py runs reconciliation in a retrying background task so provider failure does not block startup.
+    - frontend/packages/ui/src/services/assistantSpeechPreference.ts advances encrypted metadata versions.
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts protects user-authored metadata from stale post-processing.
+    - frontend/packages/ui/src/components/ActiveChat.svelte and chat sync events own active header recovery.
+
+clarification:
+  rounds:
+    - question: Should missing configured regional buckets be created automatically while preserving exclusions?
+      answer: Yes; implement and run automatic creation in production, preserving exclusions.
+    - question: Should failed regional creation block core startup?
+      answer: No; preserve non-blocking startup, expose degradation, and retry.
+    - question: Is rollback authorized as part of this Plan?
+      answer: No; rollback remains a last resort requiring separate explicit approval.
+  vision_summary: >
+    Use a narrow forward hotfix to restore production. Prove idempotent regional
+    provisioning and core chat repairs first, inspect the exact production
+    mutation set, then execute only the approved bucket provisioning and scoped
+    release. Discuss broader production test gates only after stabilization.
+  approved_by_user: true
+
+implementation_state:
+  subject_commit: 316aa6fc4
+
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-09-04T00:00:00Z"
+    reason: This hotfix restores behavior already defined by the linked Specifications.
+  plan:
+    status: approved
+    approved_at: "2026-09-04T00:00:00Z"
+    reason: User explicitly approved the forward-hotfix Plan and production bucket creation.
+
+decisions:
+  - id: D-1
+    status: active
+    decision: Automatically create missing managed regional buckets while preserving all replication exclusions.
+    reason: Active-region initialization already self-provisions; configured replicas must follow the same idempotent behavior.
+    decided_at: "2026-09-04T00:00:00Z"
+  - id: D-2
+    status: active
+    decision: Failed bucket creation degrades and retries storage reconciliation without blocking API startup.
+    reason: Core chat and signup must remain available during object-storage provider failures.
+    decided_at: "2026-09-04T00:00:00Z"
+  - id: D-3
+    status: active
+    decision: Rollback is excluded unless the user separately approves it.
+    reason: The user selected forward hotfixes as the primary stabilization path.
+    decided_at: "2026-09-04T00:00:00Z"
+
+technical_boundaries:
+  endpoints_changed: []
+  access_model: internal-only startup reconciliation and existing first-party encrypted chat synchronization
+  auth: Existing server-side storage credentials and authenticated first-party chat session rules remain unchanged.
+  limits: Bucket creation is limited to configured regions and managed replicated bucket definitions.
+  billing: No credit or provider-billing behavior changes.
+  encryption: Bucket names and policies contain no chat plaintext or keys; chat metadata remains encrypted with the existing chat key.
+
+scenarios:
+  - id: S-1
+    title: Missing regional bucket self-provisions
+    given: [A managed replicated bucket is missing in a configured replica region.]
+    when: [Background storage reconciliation runs.]
+    then:
+      - The bucket is created once through that region's client.
+      - Existing ACL, lifecycle, and CORS policy is applied.
+      - A later reconciliation observes the bucket and does not recreate it.
+  - id: S-2
+    title: Excluded buckets remain untouched
+    given: [A bucket is unmanaged or excluded from regional replication.]
+    when: [Regional reconciliation runs.]
+    then: [The bucket is not inspected, created, or policy-mutated as a regional replica.]
+  - id: S-3
+    title: Regional creation failure is retryable
+    given: [A configured provider region rejects or times out during bucket creation.]
+    when: [Regional reconciliation runs.]
+    then:
+      - API startup and core chat remain available.
+      - Storage is visibly degraded.
+      - The existing bounded background retry attempts reconciliation again.
+  - id: S-4
+    title: Speech preference does not discard generated summary
+    given: [A first voice-authored chat persists its encrypted auto-speak preference while AI post-processing is in flight.]
+    when: [Post-processing returns a summary from the turn's original metadata version.]
+    then:
+      - The summary is encrypted and persisted unless the summary field itself was changed by a newer user edit.
+      - The encrypted speech preference remains persisted.
+  - id: S-5
+    title: Late encrypted metadata repairs active header
+    given: [Cold boot activates a chat before its authoritative encrypted metadata is available.]
+    when: [Phase-one metadata and the chat key become available.]
+    then:
+      - The active title, icon, and category update without reopening the chat.
+      - The update does not enter a repeated resume loop.
+  - id: S-6
+    title: Account deletion inventories archives with schema-correct ownership filters
+    given: [An account deletion inventories monthly usage archives and task archives before owner removal.]
+    when: [The storage tombstone phase queries Directus.]
+    then:
+      - Monthly usage summaries are filtered by user_id_hash.
+      - Task archives remain filtered by hashed_user_id.
+      - Directus accepts every inventory query and deletion can continue.
+
+acceptance_criteria:
+  - id: AC-1
+    scenario: S-1
+    specification_assertions: [storage.regions.configurable-redundancy, storage.integrity.observable-reconcilable]
+    text: Every missing managed replicated physical bucket in a configured region is created idempotently and receives current policy.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-S3-REGIONAL-UNIT, V-PROD-S3-PLAN, V-PROD-S3-VERIFY]
+  - id: AC-2
+    scenario: S-2
+    specification_assertions: [storage.regions.configurable-redundancy]
+    text: Unmanaged, product-media, and temporary non-replicated buckets are never created as regional replicas.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: custom
+    verification_ids: [T-S3-REGIONAL-UNIT, V-PROD-S3-PLAN]
+  - id: AC-3
+    scenario: S-3
+    specification_assertions: [storage-resilience.core.s3-is-noncritical]
+    text: Failed regional provisioning degrades and retries storage reconciliation without failing API startup.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-S3-REGIONAL-UNIT]
+  - id: AC-4
+    scenario: S-4
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, assistant-speech.preference.chat-scoped-default-off]
+    text: A preference-only metadata update cannot cause a generated summary for the same AI turn to be discarded.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-CHAT-SUMMARY-RACE, V-DEV-VOICE-CHAT]
+  - id: AC-5
+    scenario: S-5
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
+    text: Late authoritative encrypted metadata repairs the currently displayed header exactly once without navigation or a resume loop.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: playwright
+    verification_ids: [T-CHAT-LATE-METADATA, V-DEV-COLD-CHAT]
+  - id: AC-6
+    scenario: S-6
+    specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
+    text: Account deletion uses each archive collection's deployed ownership field while building durable storage tombstones.
+    required: true
+    status: satisfied
+    coverage_status: covered
+    verification_scope: related_backend
+    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS, V-PROD-ACCOUNT-DELETION-FILTERS]
+
+rollout:
+  production_approval: approved_for_bucket_creation_only
+  application_deploy_approval: required_after_dev_evidence
+  rollback: forbidden_without_new_explicit_user_approval
+  order:
+    - Prove the exact missing managed replica bucket set without mutation.
+    - Run focused unit tests and verify idempotent creation behavior.
+    - Execute approved production bucket creation and verify all configured replicas and policies.
+    - Complete and deploy the scoped chat/runtime hotfix to dev.
+    - Run deployed cold-chat and voice-chat evidence against the exact dev revision.
+    - Present evidence and exact application image revisions for production deployment approval.
+
+apple_impact:
+  affected_files: [none]
+  parity_expectations: [No Apple source change unless investigation proves the shared protocol requires one.]
+  verification: [Apple not affected by regional server provisioning; chat fixes are currently bounded to the web client regression evidence.]
+
+demonstration:
+  eligibility:
+    status: required
+    surface: visual
+    reason: The chat fixes change user-visible cold-load and summary behavior.
+    classified_at: "2026-09-04T00:00:00Z"
+  narration_outline:
+    - id: NARR-1
+      purpose: Show a voice-authored new chat receiving a durable generated summary after automatic speech preference persistence.
+      expected_proof: The summary remains present after reload.
+      scenario_ids: [S-4]
+      acceptance_criteria: [AC-4]
+    - id: NARR-2
+      purpose: Show a fresh browser context repairing late encrypted metadata.
+      expected_proof: Title, icon, category, and messages appear without reopening or a resume loop.
+      scenario_ids: [S-5]
+      acceptance_criteria: [AC-5]
+  evidence:
+    status: pending
+    privacy_status: pending
+    review_status: pending
+    publication_status: pending
+    review_attempts: 0
+    subject_commit: ""
+    manifest_path: ""
+    manifest_hash: ""
+    review_run_id: ""
+    timestamp: ""
+    source: passing deployed voice and cold-chat Playwright recordings
+    device_profiles: [web_phone_390x844, web_laptop_1440x900]
+    captions: Exact device-scoped WebVTT written after normal green gates.
+    full_video_in_model_context: forbidden
+    frame_sampling: Bounded canonical frame-only review.
+    pii_replacement: disabled_for_proof_workflow
+    publication: Upload approved media through scripts/opencode_response_media.py.
+
+tests:
+  - id: T-ACCOUNT-DELETION-ARCHIVE-FILTERS
+    type: pytest
+    file: backend/tests/test_account_deletion_storage_lifecycle.py
+    command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+    target: local
+    covers: [AC-6]
+    specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
+    assertions:
+      - Monthly usage summary queries use user_id_hash.
+      - Task archive queries use hashed_user_id.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "production account-deletion smoke cleanup", run_id: "prod-signup-cleanup-20260904", subject_commit: "152babc3e4cc63af2386d319821aaeb9c8062e29", target: production, timestamp: "2026-09-04T22:35:00Z", summary: "Account deletion stopped in storage inventory because Directus rejected hashed_user_id on usage_monthly_chat_summaries; the two exact throwaway accounts were subsequently finalized and production returned to its baseline user count."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q", run_id: "local-3d18-account-deletion-20260904", subject_commit: "working-tree-3d18", target: local, timestamp: "2026-09-04T22:50:00Z", summary: "6/6 tests passed, including exact owner-field assertions for all four archive collections."}}
+  - id: T-S3-REGIONAL-UNIT
+    type: pytest
+    file: backend/tests/test_s3_multi_region_service.py
+    command: python3 -m pytest backend/tests/test_s3_multi_region_service.py
+    target: local
+    covers: [AC-1, AC-2, AC-3]
+    specification_assertions: [storage.regions.configurable-redundancy, storage.integrity.observable-reconcilable, storage-resilience.core.s3-is-noncritical]
+    assertions:
+      - Missing managed replicas are created once and configured.
+      - Excluded buckets are untouched.
+      - Creation failure is visible and retryable without blocking startup.
+    red_phase: {required: true, expected: fail_before_implementation, status: failed_as_expected, evidence: {status: failed_as_expected, command: "python3 -m pytest backend/tests/test_s3_multi_region_service.py -q", run_id: "local-2d76-s3-red-20260904", subject_commit: "316aa6fc4", target: local, timestamp: "2026-09-04T16:00:00Z", summary: "New regression failed because the replica reconciler skipped both the missing managed chatfiles bucket and the excluded buffer-media bucket."}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 -m pytest backend/tests/test_s3_multi_region_service.py backend/tests/test_object_storage_regions.py backend/tests/test_audit_object_storage_inventory.py backend/tests/test_s3_service_no_sync_boto3_in_async.py -q", run_id: "local-2d76-s3-green-20260904", subject_commit: "working-tree-2d76", target: local, timestamp: "2026-09-04T17:18:00Z", summary: "29 focused storage tests passed; missing managed replicas create idempotently, exclusions remain untouched, and every boto3 call in async storage methods remains off the event loop."}}
+  - id: T-CHAT-SUMMARY-RACE
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+    command: focused Vitest through the repository test runner
+    target: local
+    covers: [AC-4]
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, assistant-speech.preference.chat-scoped-default-off]
+    assertions: [Preference-only metadata changes do not suppress the same-turn generated summary.]
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --force", run_id: "33900829731", subject_commit: "d73d82a3d78ebfc7c31002d760f57cdecf8294ae", target: github_actions, timestamp: "2026-09-04T17:32:46Z", summary: "Both summary-race assertions passed: preference-only metadata permits the generated summary and an existing newer manual summary remains protected. The full suite retained seven unrelated baseline failures."}}
+  - id: T-CHAT-LATE-METADATA
+    type: vitest
+    file: frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts and frontend/packages/ui/src/components/__tests__/activeChatResumeEffect.test.ts
+    command: focused Vitest through the repository test runner
+    target: local
+    covers: [AC-5]
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
+    assertions: [Late authoritative metadata repairs the active header once without a resume loop.]
+    red_phase: {required: true, expected: fail_before_implementation, status: pending, evidence: {}}
+    green_phase: {required: true, expected: pass_after_implementation, status: passed, evidence: {status: passed, command: "python3 scripts/tests.py run --suite vitest --force", run_id: "33900829731", subject_commit: "d73d82a3d78ebfc7c31002d760f57cdecf8294ae", target: github_actions, timestamp: "2026-09-04T17:32:46Z", summary: "The active Phase-1 metadata notification and untracked resume-loader state regression assertions passed. The full suite retained seven unrelated baseline failures."}}
+
+tasks:
+  - id: T-6
+    title: Restore schema-correct account deletion archive inventory
+    status: done
+    phase: complete
+    covers: {scenarios: [S-6], acceptance_criteria: [AC-6]}
+    specification_assertions: [storage.deletion.global-authoritative, storage.privacy.ciphertext-boundary]
+    surface: internal
+    expected_files:
+      - backend/core/api/app/services/storage_reference_service.py
+      - backend/tests/test_account_deletion_storage_lifecycle.py
+    verification_ids: [T-ACCOUNT-DELETION-ARCHIVE-FILTERS, V-PROD-ACCOUNT-DELETION-FILTERS]
+    verification: [focused pytest followed by read-only production Directus field probes]
+    command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+    dependencies: []
+    follow_up_tasks: []
+    ownership: {session: 3d18, files: [backend/core/api/app/services/storage_reference_service.py, backend/tests/test_account_deletion_storage_lifecycle.py], shared_files: []}
+    independently_deployable: true
+    blockers: []
+    deployable: true
+  - id: T-1
+    title: Add regional bucket self-provisioning tests and implementation
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    specification_assertions: [storage.regions.configurable-redundancy, storage.integrity.observable-reconcilable, storage-resilience.core.s3-is-noncritical]
+    surface: internal
+    expected_files:
+      - backend/core/api/app/services/s3/service.py
+      - backend/tests/test_s3_multi_region_service.py
+    verification_ids: [T-S3-REGIONAL-UNIT]
+    verification: [python3 -m pytest backend/tests/test_s3_multi_region_service.py]
+    command: python3 -m pytest backend/tests/test_s3_multi_region_service.py
+    dependencies: []
+    follow_up_tasks: [T-2]
+    ownership: {session: 2d76, files: [backend/core/api/app/services/s3/service.py, backend/tests/test_s3_multi_region_service.py], shared_files: []}
+    independently_deployable: true
+    blockers: []
+    deployable: true
+  - id: T-2
+    title: Provision and verify missing production regional buckets
+    status: done
+    phase: running_checks
+    covers: {scenarios: [S-1, S-2, S-3], acceptance_criteria: [AC-1, AC-2, AC-3]}
+    specification_assertions: [storage.regions.configurable-redundancy, storage.integrity.observable-reconcilable]
+    surface: internal
+    expected_files: [docs/plans/production-core-stabilization/plan.yml]
+    verification_ids: [V-PROD-S3-PLAN, V-PROD-S3-VERIFY]
+    verification: [scripts/audit_object_storage_inventory.py production dry-run, provision, and post-provision capability verification]
+    command: python3 scripts/audit_object_storage_inventory.py --env prod --dry-run --json
+    dependencies: [T-1]
+    follow_up_tasks: []
+    ownership: {session: 2d76, files: [docs/plans/production-core-stabilization/plan.yml], shared_files: []}
+    independently_deployable: false
+    blockers: []
+    deployable: false
+  - id: T-3
+    title: Preserve generated summary across preference-only metadata updates
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-4], acceptance_criteria: [AC-4]}
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence, assistant-speech.preference.chat-scoped-default-off]
+    surface: gui.web
+    expected_files:
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+      - frontend/packages/ui/src/services/assistantSpeechPreference.ts
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts
+      - frontend/apps/web_app/tests/audio-recording-and-speech.spec.ts
+    verification_ids: [T-CHAT-SUMMARY-RACE, V-DEV-VOICE-CHAT]
+    verification: [focused Vitest followed by deployed voice-chat Playwright]
+    command: focused Vitest through the repository test runner
+    dependencies: []
+    follow_up_tasks: [T-5]
+    ownership: {session: 2d76, files: [frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts, frontend/packages/ui/src/services/assistantSpeechPreference.ts, frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersAI.test.ts], shared_files: []}
+    independently_deployable: true
+    blockers: []
+    deployable: true
+  - id: T-4
+    title: Repair active header after late encrypted metadata
+    status: done
+    phase: working_tasks
+    covers: {scenarios: [S-5], acceptance_criteria: [AC-5]}
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
+    surface: gui.web
+    expected_files:
+      - frontend/packages/ui/src/components/ActiveChat.svelte
+      - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+      - frontend/packages/ui/src/services/__tests__/chatSyncServiceHandlersCoreSync.test.ts
+      - frontend/packages/ui/src/components/__tests__/activeChatResumeEffect.test.ts
+      - frontend/apps/web_app/tests/chat-flow.spec.ts
+    verification_ids: [T-CHAT-LATE-METADATA, V-DEV-COLD-CHAT]
+    verification: [focused Vitest followed by deployed cold-chat Playwright]
+    command: focused Vitest through the repository test runner
+    dependencies: []
+    follow_up_tasks: [T-5]
+    ownership: {session: 2d76, files: [frontend/packages/ui/src/components/ActiveChat.svelte, frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts, frontend/packages/ui/src/services/__tests__], shared_files: []}
+    independently_deployable: true
+    blockers: []
+    deployable: true
+  - id: T-5
+    title: Bound chat-key mismatch risk and assemble emergency candidate
+    status: blocked
+    phase: running_checks
+    covers: {scenarios: [S-4, S-5], acceptance_criteria: [AC-4, AC-5]}
+    specification_assertions: [chats.persistence.client-encrypted, chats.local-state.precedence]
+    surface: gui.web
+    expected_files:
+      - frontend/packages/ui/src/services/encryption
+      - frontend/packages/ui/src/services/db
+      - backend/core/api/app/services
+      - backend/core/api/Dockerfile.selfhost
+      - .github/workflows/publish-selfhost-images.yml
+    verification_ids: [V-DEV-VOICE-CHAT, V-DEV-COLD-CHAT]
+    verification: [exact-revision dev deployment, focused Playwright, visual smoke, and production artifact manifest review]
+    command: python3 scripts/plan_verify.py docs/plans/production-core-stabilization/plan.yml
+    dependencies: [T-3, T-4]
+    follow_up_tasks: []
+    ownership: {session: 2d76, files: [frontend/packages/ui/src/services/encryption, frontend/packages/ui/src/services/db, backend/core/api/app/services, backend/core/api/Dockerfile.selfhost, .github/workflows/publish-selfhost-images.yml], shared_files: []}
+    independently_deployable: false
+    blockers: [B-PROD-SCOPED-PR]
+    deployable: false
+
+checks:
+  - id: T-ACCOUNT-DELETION-ARCHIVE-FILTERS
+    type: test
+    required: true
+    command: python3 -m pytest backend/tests/test_account_deletion_storage_lifecycle.py -q
+  - id: V-PROD-ACCOUNT-DELETION-FILTERS
+    type: production_read_only
+    required: true
+    command: read-only Directus probes for each archive collection using a guaranteed-nonexistent owner hash
+  - id: T-S3-REGIONAL-UNIT
+    type: test
+    required: true
+    command: python3 -m pytest backend/tests/test_s3_multi_region_service.py
+  - id: V-PROD-S3-PLAN
+    type: production_read_only
+    required: true
+    command: python3 scripts/audit_object_storage_inventory.py --env prod --dry-run --json
+  - id: V-PROD-S3-VERIFY
+    type: production_mutation_and_verify
+    required: true
+    command: production provision-regions followed by dry-run and bounded per-region capability probes
+  - id: T-CHAT-SUMMARY-RACE
+    type: test
+    required: true
+    command: focused Vitest for chatSyncServiceHandlersAI and assistantSpeechPreference
+  - id: T-CHAT-LATE-METADATA
+    type: test
+    required: true
+    command: focused Vitest for active-chat late metadata event handling
+  - id: V-DEV-VOICE-CHAT
+    type: deployed_playwright
+    required: true
+    command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
+  - id: V-DEV-COLD-CHAT
+    type: deployed_playwright
+    required: true
+    command: python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <FULL_SHA>
+
+verifications:
+  - id: V-PROD-ACCOUNT-DELETION-FILTERS
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-6]
+    status: passed
+    command: read-only Directus probes for each archive collection using a guaranteed-nonexistent owner hash
+    evidence: {status: passed, command: "production API container read-only Directus probes", run_id: "prod-account-deletion-filters-20260904", subject_commit: "117654de0ec23b382c7ba66a8cd336476fdb90f1", summary: "Production accepted user_id_hash filters for all three monthly usage summary collections and hashed_user_id for user_task_archives. The exact regression test also passed inside the production API container; both deployed containers run the expected revision with zero restarts.", timestamp: "2026-09-04T23:25:00Z"}
+  - id: V-PROD-S3-PLAN
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1, AC-2]
+    status: passed
+    command: python3 scripts/audit_object_storage_inventory.py --env prod --dry-run --json
+    evidence: {status: passed, command: "python3 scripts/audit_object_storage_inventory.py --env prod --dry-run --json", run_id: "prod-s3-inventory-20260904", subject_commit: "production-8aa9fd4e834ce460014f4f144e287ffadc4942a0", summary: "The bounded plan contained only managed replicated buckets and preserved product-media and temporary-media exclusions.", timestamp: "2026-09-04T16:30:00Z"}
+  - id: V-PROD-S3-VERIFY
+    kind: manual_check
+    phase: final
+    required_for_done: true
+    covers: [AC-1]
+    status: passed
+    command: production provision-regions followed by dry-run and bounded per-region capability probes
+    evidence: {status: passed, command: "production provision-regions followed by bounded per-region capability probes", run_id: "prod-s3-provision-20260904", subject_commit: "production-8aa9fd4e834ce460014f4f144e287ffadc4942a0", summary: "Missing fsn1 and hel1 managed replicas were created, exclusions remained absent, and bounded create/read/delete probes passed in nbg1, fsn1, and hel1. This does not assert historical backfill completeness.", timestamp: "2026-09-04T16:45:00Z"}
+  - id: V-DEV-VOICE-CHAT
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-4]
+    status: passed
+    command: python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit <FULL_SHA>
+    evidence: {status: passed, command: "python3 scripts/tests.py run --spec audio-recording-and-speech.spec.ts --gate-deploy --expected-commit 29241f9b6401d01cf3d18bf7767159ac595c3c03", run_id: "33902468569", subject_commit: "29241f9b6401d01cf3d18bf7767159ac595c3c03", summary: "Voice-first chat retained generated title, icon, summary, and encrypted assistant-speech preference across reload.", timestamp: "2026-09-04T17:50:51Z"}
+  - id: V-DEV-COLD-CHAT
+    kind: automated_test
+    phase: green
+    required_for_done: true
+    covers: [AC-5]
+    status: passed
+    command: python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit <FULL_SHA>
+    evidence: {status: passed, command: "python3 scripts/tests.py run --spec chat-flow.spec.ts --gate-deploy --expected-commit 29241f9b6401d01cf3d18bf7767159ac595c3c03", run_id: "33902054590", subject_commit: "29241f9b6401d01cf3d18bf7767159ac595c3c03", summary: "Core chat passed end-to-end; cold reload restored title, icon, summary, messages, and the same chat-key fingerprint.", timestamp: "2026-09-04T17:47:26Z"}
+
+attempts:
+  - id: ATTEMPT-1
+    task_id: T-1
+    approach: Inspect existing active-region and replica-region reconciliation before editing.
+    outcome: succeeded
+    recorded_at: "2026-09-04T00:00:00Z"
+    evidence: Active-region reconciliation creates missing managed buckets; replica-region reconciliation logs and skips them.
+
+handoff:
+  current_task_id: T-6
+  next_action: Keep production stable and inspect the least-privilege repair path for the stale paid-smoke API key and consumed gift-card fixture before any credential mutation.
+  command: read-only inspection of production smoke-account and GitHub Actions fixture state
+  expected_outcome: A bounded proposal identifies exactly which test credentials need rotation and how cleanup remains reliable without changing product behavior.
+  blocker:
+    task_id: T-6
+    requires_user_input: false
+    reason: The account-deletion hotfix is complete; credential repair has not started and no production mutation is currently required.
+    question: ""
+    next_action: Continue the scoped forward hotfix; never roll back without approval.
+  last_verified_commit: b5f2ad96409233099c48b5dd0075b10a3b167d35
+  recent_evidence:
+    - Account-deletion hotfix PR 515 merged as main revision 117654de0ec23b382c7ba66a8cd336476fdb90f1 and is deployed only to API and user-init-worker. Both containers are running with zero restarts; the managed runtime verifier passes every core check and retains only the pre-existing Stripe freshness warning.
+    - The live Directus collections accept the schema-correct owner filters, and the exact archive-filter regression passes in the production API container. No access-denied or account-deletion error appeared after deployment.
+    - One unrelated legacy-profile test is environment-dependent because its fixed example URL does not match production bucket names; this does not affect the archive-filter hotfix and is deferred as test hermeticity work.
+    - Main revision 152babc3e4cc63af2386d319821aaeb9c8062e29 is running on all nine scoped services with zero restarts. Core verifier sections pass; only Stripe health freshness remains degraded.
+    - The reported production share resolves and its encrypted metadata endpoints pass. The chat has no stored encrypted summary, while title, description, and icon metadata are present.
+    - Fresh free smoke run 33924920857 passed. Paid smoke is blocked before chat by a stale GitHub API-key secret; the dormant signup smoke proves signup through account creation and then blocks on a stale gift-card secret.
+    - Production API passed all 6 EMH2K parallel Bedrock image tests. No new chat, metadata, signup, S3, or image-processing errors appeared after the rollout.
+    - Signup smoke cleanup exposed a schema mismatch in account-deletion storage inventory. The two exact throwaway accounts were fully cleaned up and production returned to its baseline account count.
+
+deferred_follow_up:
+  - id: SPEC-FIVE-MINUTE-LIMIT
+    reason: User requested every spec.ts run be capped at five minutes, with explicit review of exceptional cases; implement after production stabilization.
+  - id: S3-HISTORICAL-BACKFILL
+    reason: Current uploads work; migration must not be improvised during core-chat stabilization.
+    required_before_execution:
+      - Read-only per-bucket and per-region object inventory including counts, bytes, versions, and representative checksums.
+      - Explicit source-of-truth and conflict rules for objects already present in destination regions.
+      - Idempotent copy design with dry-run, bounded batches, checkpointing, verification, and no source deletion.
+      - Separate user-approved production migration Plan and rollback procedure.

@@ -13,6 +13,8 @@ scope:
     - Request validation, external-output sanitization, and safe visible failures
     - Equivalent request, result, error, billing, and safety semantics across supported surfaces
     - Explicitly opted-in concurrent assistant execution for independent read-only skill calls
+    - Single-pass structured external-text safety decisions with bounded failure latency
+    - Truthful CLI app-skill status messages without session-save decryption notices
   excludes:
     - Provider-specific request and result fields
     - Client-specific visual layout
@@ -42,20 +44,42 @@ models:
       constraints: {disable_surfaces: [rest_api, cli, sdks], assistant_or_workflow_disable: forbidden}
     scan_failure:
       type: enum
-      values: [none, blocked, unavailable, malformed]
-      constraints: {non_none_result: fail_closed}
+      values: [none, blocked, unavailable, timeout, malformed, incomplete]
+      constraints: {non_none_result: fail_closed, technical_failure: safe_retryable_error, automatic_retry: forbidden}
+    coverage:
+      type: server_owned
+      required: true
+      constraints: {before_exposure_or_persistence_or_inference: true, provider_claimed_scan_status: untrusted, unchanged_text_rescan: forbidden, changed_text_requires_scan: true}
+    deadline:
+      type: finite_per_skill_budget
+      required: true
+      constraints: {includes_queue_and_model_time: true, cancellation_propagates: true, no_silent_ascii_only_fallback: true}
+    technical_error_codes:
+      type: enum
+      values: [OUTPUT_SAFETY_TIMEOUT, OUTPUT_SAFETY_UNAVAILABLE, OUTPUT_SAFETY_INVALID]
+      constraints: {delivery: stable_prefix_in_existing_safe_error_string, caller_retry_allowed: true, raw_provider_error: forbidden}
 
   SemanticScanBatch:
-    fields: {type: array, required: true, items: external_text}
-    unchanged_result: {type: boolean, required: true}
-    changed_result:
-      type: boolean
+    fields:
+      type: array
       required: true
-      constraints: {requires_field_level_rescan: true}
+      items: identified_external_text_unit
+      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 12000, max_parallel_batches: 4, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden}
+    decisions:
+      type: array
+      required: true
+      constraints: {one_per_input_id: true, values: [safe, injection], unknown_duplicate_or_missing_ids: reject, model_rewritten_text: forbidden}
+    application:
+      type: deterministic
+      required: true
+      constraints: {safe_units: preserve_exactly_after_ascii_cleanup, injection_units: replace_entire_unit_with_fixed_warning, field_level_rescan: forbidden, serialized_structure_redaction: forbidden}
     partial_payload_mutation:
       type: boolean
       required: true
       constraints: {must_remain_false_on_failure: true}
+    long_documents:
+      type: bounded_contextual_sections
+      constraints: {web_read_semantic_protection: retained, entire_coverage_required: true, partition_boundaries: paragraph_then_sentence_then_character, boundary_context: required_within_batch_budget, flagged_section: replace_entire_section, retained_directives_across_boundaries: forbidden, cannot_cover_within_deadline: reject_payload_atomically}
 
   ParallelSafeSkillBatch:
     eligibility:
@@ -82,12 +106,24 @@ assertions:
     depends_on: [models.AppSkillOutputSafety.ascii_smuggling_cleanup, examples.output_safety]
   - id: app-skills.output.external-semantic
     type: security
-    must: Selected external provider text is semantically scanned by default before client exposure or AI context; assistant and Workflow callers cannot disable the scan, and unavailable, blocked, or malformed scans fail closed.
+    must: All policy-selected external provider text, including web search snippets and web read sections, is semantically scanned by default before client exposure, persistence, or AI context; assistant and Workflow callers cannot disable the scan, and unavailable, blocked, timed-out, malformed, or incomplete scans fail closed. Existing explicit direct-programmatic opt-out eligibility is unchanged; performance targets never authorize an implicit opt-out.
     depends_on: [models.AppSkillOutputSafety, examples.output_safety]
   - id: app-skills.output.batch-equivalent
     type: security
-    must: Semantic scan batching may reduce provider calls only when the batch is returned unchanged; changed batches are rescanned field by field, and any failure rejects the payload without partial mutation.
+    must: Each bounded semantic batch returns exactly one validated safe or injection decision for every server-assigned text-unit ID; safe units remain unchanged after deterministic cleanup and flagged units are replaced in full with a fixed application-owned warning. Unknown, duplicate, missing, or invalid decisions reject the payload atomically. Neither model-authored replacement text, substring redaction of serialized structures, nor automatic field-by-field rescans are permitted.
     depends_on: [models.SemanticScanBatch, examples.batch_outcomes]
+  - id: app-skills.output.single-boundary
+    type: security
+    must: Protected dispatch surfaces share one logical safety boundary with complete policy-selected field coverage; skill-local and outer dispatch layers must not scan the same unchanged text twice. Any scan reuse is request-local, server-controlled, and bound to the exact text and active policy; external payload flags or ignored-field claims cannot authorize a bypass. No unscanned text may be appended after validation.
+    depends_on: [models.AppSkillOutputSafety.coverage, examples.output_safety]
+  - id: app-skills.output.bounded-failure
+    type: failure
+    must: Queueing and semantic processing share a finite declared per-skill deadline; technical scan failures return a safe visible retryable error without raw external content, automatic model retries, or field-level fallback. Cancellation stops unfinished work. A valid injection decision is handled by replacing its whole text unit, not by retrying the scan; a policy-level block remains a fail-closed rejection.
+    depends_on: [models.AppSkillOutputSafety.deadline, models.AppSkillOutputSafety.scan_failure, examples.batch_outcomes]
+  - id: app-skills.cli.truthful-status
+    type: behavior
+    must: Saving or refreshing a CLI session must not emit Decrypting data or an equivalent decryption notice. App-skill progress describes only work actually being performed, never implies search-result decryption, and never pollutes JSON stdout; this changes messaging, not authentication or encryption behavior.
+    depends_on: [examples.surface_parity]
   - id: app-skills.surface.semantic-parity
     type: parity
     must: REST API, CLI, npm/pip SDKs, assistant, Workflow, and GUI clients preserve the applicable validated request, structured result, visible error, billing, and output-safety semantics of each app skill.

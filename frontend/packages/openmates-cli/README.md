@@ -327,12 +327,12 @@ intentionally want the chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.17`, in the web app.
+OpenMates shows the short product line, for example `v0.18`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.17.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.18.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.17.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.18.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

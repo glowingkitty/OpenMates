@@ -1,5 +1,5 @@
 /**
- * OpenMates npm SDK user task contract tests.
+ * OpenMates npm SDK user Task Specification tests.
  *
  * Purpose: verify API-key SDK task CRUD/start parity with CLI and pip.
  * Security: uses a local HTTP server and synthetic API key only; no task data or
@@ -78,7 +78,7 @@ describe("OpenMates SDK user tasks", () => {
         }
         if (request.method === "GET" && request.url?.includes("/activity")) return { entries: storedActivity ? [storedActivity] : [] };
         if (request.method === "DELETE" && request.url?.includes("/activity/")) {
-          return { entry: { ...storedActivity, kind: "tombstone", encrypted_entry_key: null, encrypted_message: null, encrypted_embed_key_material: null, embed_refs: [], author_hash: "author-hash", deleted_by_hash: "author-hash", deleted_at: 101 } };
+          return { entry: { ...storedActivity, kind: "tombstone", encrypted_message: null, encrypted_embed_key_material: null, embed_refs: [], author_hash: "author-hash", deleted_by_hash: "author-hash", deleted_at: 101 } };
         }
         throw new Error(`Unexpected request ${request.method} ${request.url}`);
       },

@@ -823,3 +823,28 @@ test("failed test triage output gets lease hint", async () => {
   assert.match(output, /\[OpenMates failed-test lease hint\]/);
   assert.match(output, /python3 scripts\/tests\.py next --lease/);
 });
+
+// The real pre-tool entry point must reject recursion before routing or spawning.
+for (const [name, parents, allowed] of [
+  ["root", { root: null }, true],
+  ["child", { child: "root", root: null }, true],
+  ["grandchild", { grandchild: "child", child: "root", root: null }, false],
+  ["existing deeper child", { deep: "grandchild", grandchild: "child", child: "root", root: null }, false],
+  ["missing ancestry", {}, false],
+  ["cycle", { cycle: "cycle" }, false],
+]) {
+  test(`Task nesting guard: ${name}`, async () => {
+    const sessionID = Object.keys(parents)[0] || "missing";
+    const client = { session: { get: async ({ path }) => ({ data:
+      Object.hasOwn(parents, path.id) ? { id: path.id, parentID: parents[path.id] } : null,
+    }) } };
+    const hooks = await pluginModule.OpenMatesHooks({ client, routingData: { sessions: {
+      test: { ...routedTestData.sessions.test, opencode_session_id: sessionID },
+    } } });
+    const invoke = () => hooks["tool.execute.before"](
+      { tool: "task", sessionID }, { args: { subagent_type: "general", prompt: "bounded task" } },
+    );
+    if (allowed) await assert.doesNotReject(invoke);
+    else await assert.rejects(invoke, /OpenMates subchat depth limit/);
+  });
+}

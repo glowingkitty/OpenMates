@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.app-skill.web-search
 version: 1
-status: approved
+status: draft
 title: Web Search
 summary: >
   Search the public web for current information and return sanitized,
@@ -16,6 +16,7 @@ scope:
     - Public web discovery for current general information
     - One to five independent search requests per invocation
     - Sanitized grouped website results and explicit empty/error behavior
+    - Whole-snippet prompt-injection warnings and measured safety/latency acceptance gates
   excludes:
     - Reading the complete contents of a known URL
     - Private or authenticated third-party pages
@@ -75,6 +76,10 @@ models:
       type: string
       required: true
       constraints: {html: stripped}
+    extra_snippets:
+      type: array
+      items: string
+      constraints: {html: stripped, flagged_item: fixed_warning_only, unaffected_items: preserved}
     age: {type: string, nullable: true}
     meta_url: {type: object, nullable: true}
     language: {type: string, nullable: true}
@@ -107,7 +112,33 @@ models:
     error:
       type: string
       nullable: true
-      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden}
+      constraints: {secrets: forbidden, raw_provider_diagnostics: forbidden, safety_technical_failure: shared_stable_retryable_error_code_prefix}
+
+  SearchSafety:
+    warning: {type: string, required: true, default: "[PROMPT INJECTION DETECTED & REMOVED]"}
+    unit_policy:
+      type: deterministic
+      constraints: {flagged_snippet_or_description: replace_entire_field, unsafe_title_or_url: omit_result, unusable_result: omit_result, raw_flagged_text_in_warning: forbidden}
+    scan_budget:
+      type: bounded
+      constraints: {typical_single_query_semantic_calls: 1, automatic_retries: 0, field_rescans: 0, safety_deadline_seconds: 5, empty_text_calls: 0}
+
+  SearchSafetyBenchmark:
+    workload:
+      type: fixed_versioned_corpus
+      constraints: {single_query: true, results: 6, selected_text_max_chars: 12000, includes_multiple_snippets: true, includes_benign_and_injection_cases: true}
+    live_workload:
+      type: fixed_public_query_manifest
+      constraints: {requests_per_invocation: 1, requested_results: 6, real_search_provider: true, real_safety_model: true, baseline_and_candidate_same_queries: true, changed_provider_outputs: reported}
+    measurement:
+      type: deployed_dev
+      constraints: {minimum_measured_requests: 50, sequential_requests: true, warmed_services: true, safety_cache: disabled, baseline_and_candidate_same_corpus: true, percentile: nearest_rank, warmup_reported_separately: true, frozen_corpus_not_live_e2e_proof: true}
+    targets:
+      type: acceptance_gate
+      constraints: {safety_p95_seconds: 2, end_to_end_p95_seconds: 4, mandatory_attack_cases_missed: 0, mandatory_benign_cases_altered: 0}
+    reporting:
+      type: bounded_metrics
+      constraints: {p50_and_p95: required, model_calls: required, timeout_and_failure_counts: required, false_positives_and_misses: required, deployed_commit_model_prompt_and_corpus_versions: required, raw_private_content: forbidden}
 
 assertions:
   - id: web-search.request.validated
@@ -120,8 +151,20 @@ assertions:
     depends_on: [models.WebSearchRequestItem.id, models.WebSearchResultGroup.id, examples.valid_inputs]
   - id: web-search.response.sanitized
     type: security
-    must: Provider titles and descriptions are sanitized as untrusted external data before client exposure or persistence.
-    depends_on: [models.WebSearchResult, examples.successful_outputs]
+    must: Provider titles, descriptions, extra snippets, and other policy-selected external text are protected before exposure, persistence, or inference. Semantic scanning stays enabled by default for every caller, with assistant/Workflow opt-out forbidden under the shared policy. Each flagged snippet or description is replaced entirely by the fixed warning, never a warning plus surviving source text; unsafe titles or URLs and unusable results are omitted. Unaffected fields and results are preserved.
+    depends_on: [models.WebSearchResult, models.SearchSafety, examples.successful_outputs, examples.safety_cases]
+  - id: web-search.safety.single-pass
+    type: invariant
+    must: With protection enabled, a typical six-result single-query response within the benchmark text bound uses exactly one structured semantic model call, including when snippets are flagged. Skill and dispatch layers must not duplicate scans; malformed, incomplete, unavailable, or timed-out scans fail closed with a safe retryable error, no automatic retry, and no field-by-field fallback. Empty results require no semantic call; larger supported requests retain complete bounded coverage rather than silent truncation or unchecked overflow.
+    depends_on: [models.SearchSafety, models.SearchSafetyBenchmark.workload, examples.safety_cases]
+  - id: web-search.safety.quality-gate
+    type: security
+    must: Before completion, baseline and candidate run with real safety models against the same committed versioned benign/adversarial corpus containing literal inputs and exact expected replacements or omissions, including every mandatory safety example. Cases cover the observed AI-targeted phrase-insertion pattern, paraphrases, spoofed authority, exfiltration/tool-use instructions, cross-snippet instructions, and quoted legitimate API documentation. All mandatory attack cases must have their complete actionable directives neutralized and all mandatory benign cases preserved. Misses, false positives, technical failures, and model/prompt versions are reported; unmet gates block completion rather than authorizing weaker protection or a silent model switch.
+    depends_on: [models.SearchSafetyBenchmark, examples.safety_cases]
+  - id: web-search.safety.latency-gate
+    type: behavior
+    must: On the declared warmed dev workload, at least 50 measured sequential requests must meet safety-processing p95 at most 2 seconds and end-to-end p95 at most 4 seconds, with one semantic call per nonempty typical response. Safety timing covers collection, queueing, model execution, validation, and application; end-to-end timing uses the live query manifest and real providers from CLI command invocation through complete response, including startup/session validation and billing but excluding recording holds. Frozen-corpus quality evaluation cannot substitute for live end-to-end timing. The report includes all attempts and failure/timeout counts; errors or timeouts cannot be counted as fast successes. Provider throttling or uncontrolled load invalidates the normal-load gate and requires a reported rerun, not selective removal of slow samples. Targets are acceptance requirements, not claims about current performance.
+    depends_on: [models.SearchSafetyBenchmark, examples.performance_cases]
   - id: web-search.results.bounded
     type: invariant
     must: Each request returns no more than its requested count and never more than 20 results.
@@ -162,4 +205,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [valid_inputs, invalid_inputs, successful_outputs, error_outputs, boundary_cases]
+  required_groups: [valid_inputs, invalid_inputs, successful_outputs, error_outputs, boundary_cases, safety_cases, performance_cases]

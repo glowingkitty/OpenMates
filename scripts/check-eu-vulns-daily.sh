@@ -23,8 +23,7 @@
 #      user disclosure needed
 #   7. Dispatch OpenCode chat to fix new/re-dispatched vulns
 #
-# Triggered by system crontab (daily at 05:00 UTC, after Dependabot at 04:30):
-#   0 5 * * * bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/check-eu-vulns-daily.sh' >> /path/to/logs/eu-vulns.log 2>&1
+# Triggered hourly by the managed schedule in scripts/dependency_security_schedule.py.
 #
 # Can also be invoked manually:
 #   ./scripts/check-eu-vulns-daily.sh
@@ -33,29 +32,27 @@
 #
 # Requirements:
 #   - python3 with urllib (stdlib — no pip deps)
-#   - Dependabot tracking file (scripts/dependabot-processed.json) for dedup
+#   - Dependabot runtime tracking in logs/, with the checked-in seed as fallback
 #
 # Env vars (optional):
 #   NVD_API_KEY — free NVD API key for higher rate limits (50 vs 5 req/30s)
+# The script intentionally does not load .env; callers may provide only the
+# optional NVD key when enrichment is required.
 # =============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-TRACKING_FILE="$SCRIPT_DIR/eu-vuln-processed.json"
-DEPENDABOT_TRACKING="$SCRIPT_DIR/dependabot-processed.json"
+TRACKING_SEED="$SCRIPT_DIR/eu-vuln-processed.json"
+TRACKING_FILE="$PROJECT_ROOT/logs/eu-vuln-processed.json"
+DEPENDABOT_TRACKING_SEED="$SCRIPT_DIR/dependabot-processed.json"
+DEPENDABOT_TRACKING_RUNTIME="$PROJECT_ROOT/logs/dependabot-processed.json"
+DEPENDABOT_TRACKING="$DEPENDABOT_TRACKING_SEED"
+LOCK_FILE="$PROJECT_ROOT/logs/eu-vuln-scanner.lock"
 PROMPT_TEMPLATE="$SCRIPT_DIR/prompts/eu-vuln-analysis.md"
 
 # Re-dispatch threshold: re-dispatch if still unresolved after this many days
 REDISPATCH_AFTER_DAYS=7
-
-# Source .env if present
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source "$PROJECT_ROOT/.env"
-  set +a
-fi
 
 # --- Parse CLI args ---
 DRY_RUN=false
@@ -72,6 +69,29 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ "$DRY_RUN" != "true" && "$SUMMARY_ONLY" != "true" ]]; then
+  # One persistent scanner instance owns its runtime state at a time.
+  mkdir -p "$(dirname "$LOCK_FILE")"
+  exec 200>"$LOCK_FILE"
+  if ! flock -n 200; then
+    echo "[eu-vulns] Another instance is already running. Exiting."
+    exit 0
+  fi
+  if [[ ! -f "$TRACKING_FILE" ]]; then
+    if [[ -f "$TRACKING_SEED" ]]; then
+      cp "$TRACKING_SEED" "$TRACKING_FILE"
+    else
+      printf '{"last_run":"","processed":[]}\n' > "$TRACKING_FILE"
+    fi
+  fi
+elif [[ ! -f "$TRACKING_FILE" ]]; then
+  TRACKING_FILE="$TRACKING_SEED"
+fi
+
+if [[ -f "$DEPENDABOT_TRACKING_RUNTIME" ]]; then
+  DEPENDABOT_TRACKING="$DEPENDABOT_TRACKING_RUNTIME"
+fi
+
 echo "[eu-vulns] Starting EU vulnerability source check at $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 
 export TRACKING_FILE_PATH="$TRACKING_FILE"
@@ -83,7 +103,7 @@ export SUMMARY_ONLY
 export PROMPT_TEMPLATE_PATH="$PROMPT_TEMPLATE"
 TODAY_DATE=$(date -u '+%Y-%m-%d')
 export TODAY_DATE
-# NVD_API_KEY is optional — sourced from .env if available
+# NVD_API_KEY is optional and inherited only when explicitly exported by the caller.
 
 python3 "$SCRIPT_DIR/_eu_vuln_helper.py" check-vulns
 

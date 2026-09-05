@@ -373,6 +373,7 @@ export async function unwrapEmbedKeyWithChatKey(
 export async function encryptWithEmbedKey(
   data: string,
   embedKey: Uint8Array,
+  associatedData?: string,
 ): Promise<string> {
   const encoder = new TextEncoder();
   const dataBytes = encoder.encode(data);
@@ -388,7 +389,7 @@ export async function encryptWithEmbedKey(
 
   const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
   const encrypted = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv },
+    { name: "AES-GCM", iv, ...(associatedData ? { additionalData: encoder.encode(associatedData) } : {}) },
     cryptoKey,
     dataBytes,
   );
@@ -405,7 +406,7 @@ export async function encryptWithEmbedKey(
 export async function decryptWithEmbedKey(
   encryptedDataWithIV: string,
   embedKey: Uint8Array,
-  context?: { embedId?: string; chatId?: string; fieldName?: string },
+  context?: { embedId?: string; chatId?: string; fieldName?: string; associatedData?: string },
 ): Promise<string | null> {
   try {
     const combined = base64ToUint8Array(encryptedDataWithIV);
@@ -422,7 +423,7 @@ export async function decryptWithEmbedKey(
     );
 
     const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv, ...(context?.associatedData ? { additionalData: new TextEncoder().encode(context.associatedData) } : {}) },
       cryptoKey,
       ciphertext,
     );

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # backend/apps/ai/tests/test_anthropic_direct_api.py
+# contract-test-file: infrastructure
 #
 # Focused unit tests for the Anthropic direct API adapter.
 # These tests guard provider-specific request shaping before calls reach the
@@ -27,6 +28,7 @@ except ImportError:
 @pytest.mark.parametrize(
     "model_id, expected_text",
     [
+        ("claude-fable-5-1", "Fable 5.1 is online."),
         ("claude-fable-5", "Fable 5 is online."),
         ("claude-opus-5", "Opus 5 is online."),
         ("claude-sonnet-5", "Sonnet 5 is online."),

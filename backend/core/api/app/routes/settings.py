@@ -2044,6 +2044,7 @@ async def get_message_cost(
 async def get_daily_overview(
     request: Request,
     days: int = 7,
+    reconcile: bool = False,
     current_user: User = Depends(get_current_user_or_api_key),  # Supports both session and API key auth
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service)
@@ -2063,11 +2064,28 @@ async def get_daily_overview(
         # Hash user ID
         user_id_hash = hashlib.sha256(current_user.id.encode()).hexdigest()
         
-        # Fetch daily overview from the usage service
-        daily_data = await directus_service.usage.get_daily_overview(
-            user_id_hash=user_id_hash,
-            days=days
-        )
+        if reconcile:
+            user_vault_key_id = await cache_service.get_user_vault_key_id(current_user.id)
+            if not user_vault_key_id:
+                user_profile_result = await directus_service.get_user_profile(current_user.id)
+                if not user_profile_result or not user_profile_result[0]:
+                    raise HTTPException(status_code=404, detail="User profile not found")
+                user_vault_key_id = user_profile_result[1].get("vault_key_id")
+                if not user_vault_key_id:
+                    raise HTTPException(status_code=500, detail="User encryption key not found")
+                await cache_service.update_user(current_user.id, {"vault_key_id": user_vault_key_id})
+
+            # The web Usage screen opts into this bounded repair; no background scan runs.
+            daily_data = await directus_service.usage.get_reconciled_daily_overview(
+                user_id_hash=user_id_hash,
+                user_vault_key_id=user_vault_key_id,
+                days=days
+            )
+        else:
+            daily_data = await directus_service.usage.get_daily_overview(
+                user_id_hash=user_id_hash,
+                days=days,
+            )
         
         # Calculate total days available by checking if the oldest requested day has data
         # If the last day has data, there might be more days available

@@ -489,22 +489,23 @@ export async function handleRequestAppSettingsMemoriesImpl(
     // Clear the active AI task so the stop button disappears
     // The task is paused waiting for user input - it's not actively processing
     const taskInfo = serviceInstance.activeAITasks.get(chat_id);
-    if (taskInfo) {
+    const taskMatchesPermissionRequest = taskInfo?.userMessageId === payload.message_id;
+    if (taskMatchesPermissionRequest) {
       console.info(
         `[ChatSyncService:AppSettings] Clearing active AI task ${taskInfo.taskId} for chat ${chat_id} - waiting for user permission`,
       );
       serviceInstance.activeAITasks.delete(chat_id);
-      // Dispatch aiTaskEnded event so MessageInput component updates
-      serviceInstance.dispatchEvent(
-        new CustomEvent("aiTaskEnded", {
-          detail: {
-            chatId: chat_id,
-            taskId: taskInfo.taskId,
-            status: "waiting_for_permission",
-          },
-        }),
-      );
     }
+    serviceInstance.dispatchEvent(
+      new CustomEvent("aiTaskEnded", {
+        detail: {
+          chatId: chat_id,
+          taskId: taskMatchesPermissionRequest ? taskInfo.taskId : undefined,
+          userMessageId: payload.message_id,
+          status: "waiting_for_permission",
+        },
+      }),
+    );
 
     // Update user message status from 'processing' to 'waiting_for_user' since we're waiting for input
     // This shows "Waiting for you..." in the sidebar and typing indicator instead of "Processing..."

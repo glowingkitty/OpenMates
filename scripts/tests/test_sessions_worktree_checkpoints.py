@@ -87,8 +87,8 @@ def test_idle_mutating_session_creates_exact_local_checkpoint(monkeypatch, tmp_p
     result = sessions.checkpoint_session_worktree("ses-parent", event="idle")
 
     checkpoint = data["sessions"]["abcd"]["auto_integration"]
-    assert result["status"] == "eligible"
-    assert checkpoint["status"] == "eligible"
+    assert result["status"] == "checkpointed"
+    assert checkpoint["status"] == "checkpointed"
     assert checkpoint["files"] == ["tracked.txt"]
     assert checkpoint["patch_id"]
     assert checkpoint["checkpoint_commit"] == git(root, "rev-parse", "refs/openmates/checkpoints/abcd")
@@ -96,6 +96,15 @@ def test_idle_mutating_session_creates_exact_local_checkpoint(monkeypatch, tmp_p
     assert git(root, "rev-parse", "HEAD") == root_head
     assert git(worktree, "status", "--porcelain") == source_status
     assert git(root, "show", f"{checkpoint['checkpoint_commit']}:tracked.txt") == "after"
+    assert sessions.select_auto_integration_candidates() == []
+    submission = sessions.submit_ready_worktree(
+        "abcd", patch_id=checkpoint["patch_id"], checkpoint_commit=checkpoint["checkpoint_commit"],
+    )
+    assert submission["patch_id"] == checkpoint["patch_id"]
+    assert data["sessions"]["abcd"]["auto_integration"]["status"] == "eligible"
+    with pytest.raises(RuntimeError, match="stale"):
+        sessions.submit_ready_worktree("abcd", patch_id="stale", checkpoint_commit=checkpoint["checkpoint_commit"])
+
 
 
 def test_checkpoint_preserves_hold_and_separates_workspace_state(monkeypatch) -> None:

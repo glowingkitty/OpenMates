@@ -24,7 +24,7 @@ const TASK_ACTIVITY_PROOF = defineVideoProof({
 	transcript: [
 		{ id: 'final-activity', text: 'Task detail ends with one Activity section. Its comment composer appears before a stable chronological stream.', checkpoint: 'final-activity', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'rich-composer', text: 'The composer accepts multiline content and exposes voice and file controls while pending uploads and transcription prevent sending.', checkpoint: 'rich-composer', devices: ['web-laptop', 'web-phone'] },
-		{ id: 'attribution-tombstones', text: 'Web, CLI, SDK, and OpenMates entries have distinct attribution, while deleted comments retain only author and deleter identities.', checkpoint: 'attribution-tombstones', devices: ['web-laptop', 'web-phone'] }
+		{ id: 'attribution-tombstones', text: 'Web, CLI, SDK, and OpenCode entries have distinct attribution, while deleted comments retain only author and deleter identities.', checkpoint: 'attribution-tombstones', devices: ['web-laptop', 'web-phone'] }
 	],
 	assertions: [
 		{ id: 'single-final-section', checkpoint: 'final-activity', visual: 'One Activity section is the final Task detail section with its composer first.', devices: ['web-laptop', 'web-phone'] },
@@ -115,10 +115,11 @@ test.describe('Task Activity component', () => {
 			await expect(page.getByTestId('task-activity-entry-web').locator('img')).toBeVisible();
 			await expect(page.getByTestId('task-activity-entry-cli')).toContainText('via OpenMates CLI');
 			await expect(page.getByTestId('task-activity-entry-sdk')).toContainText('via OpenMates SDK');
-			await expect(page.getByTestId('task-activity-entry-mate')).toContainText('OpenMates');
+			await expect(page.getByTestId('task-activity-entry-mate')).toContainText('OpenCode');
 			await expect(page.getByTestId('task-activity-entry-mate').getByTestId('mate-message-content')).toBeVisible();
 			await expect(page.getByTestId('task-activity-entry-deleted-user')).toContainText('Comment by Alice Weber deleted by Sam Rivera');
-			await expect(page.getByTestId('task-activity-entry-deleted-mate')).toContainText('Comment by OpenMates deleted by Alice Weber');
+			await expect(page.getByTestId('task-activity-entry-deleted-mate')).toContainText('Comment by OpenCode deleted by Alice Weber');
+			await expect(page.getByTestId('task-activity-entry-lifecycle')).toContainText('Status changed from todo to in progress');
 			await page.getByTestId('task-activity-entry-cli').getByTestId('task-activity-delete').click();
 			await page.getByTestId('task-activity-entry-cli').getByRole('button', { name: 'Delete' }).click();
 			await expect(page.getByTestId('task-activity-entry-cli')).toContainText('Comment by Sam Rivera deleted by Alice Weber');

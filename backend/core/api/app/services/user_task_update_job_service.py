@@ -23,6 +23,7 @@ ALLOWED_CLIENT_PAYLOAD_SAFE_KEYS = {
     "ai_execution_state",
     "assignee_hash",
     "assignee_type",
+    "assignee_identity",
     "blocked_reason_code",
     "created_at",
     "due_at",

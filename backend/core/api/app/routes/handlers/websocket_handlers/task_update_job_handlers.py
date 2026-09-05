@@ -404,6 +404,7 @@ def _validate_encrypted_payload(payload: dict[str, Any]) -> None:
         "ai_execution_state",
         "assignee_hash",
         "assignee_type",
+        "assignee_identity",
         "blocked_reason_code",
         "created_at",
         "due_at",

@@ -15,10 +15,12 @@ import os
 import copy
 import hashlib
 import time
+import uuid
 from functools import lru_cache
 from pathlib import Path
 from toon_format import encode
 import yaml
+from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -1106,7 +1108,7 @@ async def _record_connected_account_operation_journal_entries(
                 decision="completed",
                 action_scope=artifact.get("action_scope") if isinstance(artifact.get("action_scope"), dict) else {},
                 receipt=receipt,
-                undo_payload=_calendar_undo_payload(skill_id, normalized_results),
+                undo_payload=calendar_undo_payload(skill_id, normalized_results),
                 chat_id=chat_id,
                 message_id=message_id,
             )
@@ -1139,70 +1141,6 @@ def _normalize_connected_account_results(results: Any) -> list[dict[str, Any]]:
 
 def _calendar_undo_available(skill_id: str) -> bool:
     return skill_id in {"create-event", "update-event", "delete-event"}
-
-
-def _calendar_undo_payload(skill_id: str, results: list[dict[str, Any]]) -> dict[str, Any] | None:
-    if skill_id not in {"create-event", "update-event", "delete-event"} or not results:
-        return None
-    undo_events: list[dict[str, Any]] = []
-    for result in results:
-        calendar_id = result.get("calendar_id")
-        if skill_id == "create-event":
-            event = result.get("event") if isinstance(result.get("event"), dict) else {}
-            event_id = event.get("id")
-            if event_id and calendar_id:
-                undo_events.append(
-                    {
-                        "undo_type": "delete_created_event",
-                        "calendar_id": calendar_id,
-                        "event_id": event_id,
-                        "etag": event.get("etag"),
-                    }
-                )
-        elif skill_id == "update-event":
-            previous_event = result.get("previous_event") if isinstance(result.get("previous_event"), dict) else {}
-            updated_event = result.get("event") if isinstance(result.get("event"), dict) else {}
-            event_id = previous_event.get("id") or updated_event.get("id")
-            if event_id and calendar_id and _calendar_snapshot_has_required_fields(previous_event):
-                undo_events.append(
-                    {
-                        "undo_type": "restore_updated_event",
-                        "calendar_id": calendar_id,
-                        "event_id": event_id,
-                        "etag": previous_event.get("etag"),
-                        "snapshot": _calendar_event_snapshot(previous_event),
-                    }
-                )
-        elif skill_id == "delete-event":
-            deleted_event = result.get("deleted_event") if isinstance(result.get("deleted_event"), dict) else {}
-            event_id = deleted_event.get("id") or result.get("event_id")
-            if event_id and calendar_id and _calendar_snapshot_has_required_fields(deleted_event):
-                undo_events.append(
-                    {
-                        "undo_type": "recreate_deleted_event",
-                        "calendar_id": calendar_id,
-                        "event_id": event_id,
-                        "etag": deleted_event.get("etag"),
-                        "snapshot": _calendar_event_snapshot(deleted_event),
-                    }
-                )
-    return {"events": undo_events} if undo_events else None
-
-
-def _calendar_snapshot_has_required_fields(event: dict[str, Any]) -> bool:
-    return bool(event.get("title") and event.get("start") and event.get("end"))
-
-
-def _calendar_event_snapshot(event: dict[str, Any]) -> dict[str, Any]:
-    snapshot = {
-        "title": event.get("title"),
-        "start": event.get("start"),
-        "end": event.get("end"),
-        "location": event.get("location"),
-        "description": event.get("description"),
-        "attendees": event.get("attendees") if isinstance(event.get("attendees"), list) else [],
-    }
-    return {key: value for key, value in snapshot.items() if value not in (None, "", [])}
 
 
 DEFAULT_APP_INTERNAL_PORT = 8000
@@ -7075,6 +7013,84 @@ async def handle_main_processing(
                                     for result in request_results
                                 ]
 
+                anonymous_embed_payloads: List[Dict[str, Any]] = []
+                anonymous_embed_reference: Optional[str] = None
+                if (
+                    getattr(request_data, "is_anonymous", False)
+                    and not is_async_skill
+                    and not is_multimodal_result
+                ):
+                    try:
+                        from backend.core.api.app.services.embed_service import EmbedService as _AnonymousEmbedSvc
+
+                        child_type = await _AnonymousEmbedSvc.get_child_embed_type(
+                            app_id,
+                            skill_id,
+                            cache_service=cache_service,
+                        )
+                        parent_embed_id = str(uuid.uuid4())
+                        child_embed_ids = [str(uuid.uuid4()) for _ in results_with_refs]
+                        now = int(time.time())
+                        parent_content = {
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                            "result_count": len(results_with_refs),
+                            "embed_ids": child_embed_ids,
+                            "status": "finished",
+                            **{key: value for key, value in preview_data.items() if key != "results_toon"},
+                            **_AnonymousEmbedSvc._build_parent_preview_metadata(app_id, skill_id, results_with_refs),
+                        }
+                        parent_content = _AnonymousEmbedSvc._sanitize_final_app_skill_content(
+                            app_id,
+                            skill_id,
+                            parent_content,
+                        )
+                        anonymous_embed_payloads.append({
+                            "embed_id": parent_embed_id,
+                            "type": "app_skill_use",
+                            "content": encode(_flatten_for_toon_tabular(parent_content)),
+                            "status": "finished",
+                            "embed_ids": child_embed_ids,
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                            "created_at": now,
+                            "updated_at": now,
+                        })
+                        for child_embed_id, result in zip(child_embed_ids, results_with_refs):
+                            child_content = {
+                                **_flatten_for_toon_tabular(result),
+                                "type": child_type,
+                                "app_id": app_id,
+                                "skill_id": child_type,
+                                "status": "finished",
+                            }
+                            anonymous_embed_payloads.append({
+                                "embed_id": child_embed_id,
+                                "type": child_type,
+                                "content": encode(child_content),
+                                "status": "finished",
+                                "parent_embed_id": parent_embed_id,
+                                "app_id": app_id,
+                                "skill_id": child_type,
+                                "created_at": now,
+                                "updated_at": now,
+                            })
+                        anonymous_embed_reference = json.dumps({
+                            "type": "app_skill_use",
+                            "embed_id": parent_embed_id,
+                            "app_id": app_id,
+                            "skill_id": skill_id,
+                        })
+                        yield f"```json\n{anonymous_embed_reference}\n```\n\n"
+                    except Exception as anonymous_embed_error:
+                        logger.error(
+                            "%s Failed to build transient anonymous embeds for '%s': %s",
+                            log_prefix,
+                            tool_name,
+                            anonymous_embed_error,
+                            exc_info=True,
+                        )
+
                 # Filter results WITH embed_refs for current LLM inference
                 # Removes non-essential fields (URLs, thumbnails, etc.) to reduce noise
                 # and make embed_ref more prominent. Full results are already stored in
@@ -7912,10 +7928,11 @@ async def handle_main_processing(
                     "input": _sanitize_tool_call_input_for_storage(parsed_args),
                     "preview_data": preview_data,  # Metadata + results_toon (contains full TOON-encoded results)
                     "ignore_fields_for_inference": ignore_fields_for_inference,  # Fields excluded from LLM inference
-                    "embed_reference": embed_references[0] if embed_references else None,  # First embed reference (for backward compatibility)
+                    "embed_reference": anonymous_embed_reference or (embed_references[0] if embed_references else None),  # First embed reference (for backward compatibility)
                     "embed_references": embed_references if len(embed_references) > 1 else None,  # All embed references (for multiple requests)
-                    "embed_id": embed_ids[0] if embed_ids else None,  # First embed ID (for backward compatibility)
-                    "embed_ids": embed_ids if len(embed_ids) > 1 else None  # All embed IDs (for multiple requests)
+                    "embed_id": anonymous_embed_payloads[0]["embed_id"] if anonymous_embed_payloads else (embed_ids[0] if embed_ids else None),  # First embed ID (for backward compatibility)
+                    "embed_ids": [embed["embed_id"] for embed in anonymous_embed_payloads] if anonymous_embed_payloads else (embed_ids if len(embed_ids) > 1 else None),  # All embed IDs (for multiple requests)
+                    "anonymous_embeds": anonymous_embed_payloads or None,
                 }
                 tool_calls_info.append(tool_call_info)
                 logger.debug(

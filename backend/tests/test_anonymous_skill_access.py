@@ -15,6 +15,7 @@ from types import ModuleType
 
 import pytest
 from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
 from starlette.requests import Request
 
 import backend.core.api.app.routes.anonymous as anonymous_routes
@@ -196,6 +197,71 @@ async def test_anonymous_chat_dispatches_ai_with_open_request_ledger(monkeypatch
     status = await service.get_budget_status()
     assert status.daily_used_credits == 0
     assert any(row.get("status") == "request_open" for row in directus.reservations.values())
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=chats.streaming.ordered-final,web-search.surface-parity
+async def test_anonymous_sse_forwards_transient_app_skill_embeds(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def openai_stream():
+        yield 'data: {"model":"openmates-ai","choices":[{"delta":{"content":"News with [source](embed:source-ref)"}}]}\n\n'
+        yield (
+            'data: {"model":"google/gemini-test","choices":[{"delta":{"embeds":['
+            '{"embed_id":"parent-id","type":"app_skill_use","content":"app_id: news\\nskill_id: search\\nstatus: finished",'
+            '"status":"finished","embed_ids":["child-id"]},'
+            '{"embed_id":"child-id","type":"news_result","content":"type: news_result\\nembed_ref: source-ref\\ntitle: Source",'
+            '"status":"finished","parent_embed_id":"parent-id"}'
+            ']},"finish_reason":null}]}\n\n'
+        )
+        yield 'data: {"model":"google/gemini-test","choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
+        yield 'data: [DONE]\n\n'
+
+    class FakeRegistry:
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> StreamingResponse:
+            assert request_body["is_anonymous"] is True
+            return StreamingResponse(openai_stream(), media_type="text/event-stream")
+
+    fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    fake_skill_registry_module.get_global_registry = lambda: FakeRegistry()
+    monkeypatch.setattr(anonymous_routes, "validate_request_domain", lambda _request: ("api.dev.openmates.org", False, "development"))
+    monkeypatch.setattr(
+        AnonymousFreeUsageService,
+        "open_request",
+        lambda self, **kwargs: asyncio.sleep(0, result=AnonymousReservationResult(accepted=True, request_id=kwargs["request_id"])),
+    )
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.services.skill_registry", fake_skill_registry_module)
+
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/v1/anonymous/chat/stream",
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
+        "client": ("198.51.100.7", 443),
+    })
+    payload = AnonymousChatStreamRequest(
+        anonymous_id="anon-1",
+        client_chat_id="anonymous-chat-1",
+        client_message_id="message-1",
+        plaintext_message="Search the news",
+    )
+
+    response = await anonymous_chat_stream(
+        request=request,
+        payload=payload,
+        directus_service=FakeDirectus(),
+        cache_service=FakeCache(),
+    )
+    body = ""
+    async for chunk in response.body_iterator:
+        body += chunk.decode() if isinstance(chunk, bytes) else str(chunk)
+
+    events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
+    embed_events = [event for event in events if event["type"] == "send_embed_data"]
+    assert [event["payload"]["embed_id"] for event in embed_events] == ["parent-id", "child-id"]
+    assert [event["payload"]["type"] for event in embed_events] == ["app_skill_use", "news_result"]
+    assert all(event["payload"]["chat_id"] == payload.client_chat_id for event in embed_events)
+    assert all(event["payload"]["message_id"] != payload.client_message_id for event in embed_events)
+    final_chunk = next(event for event in events if event["type"] == "ai_message_chunk" and event["is_final_chunk"])
+    assert final_chunk["model_name"] == "google/gemini-test"
 
 
 @pytest.mark.asyncio

@@ -102,11 +102,35 @@ def _is_chat_model(model_config: Dict[str, Any]) -> bool:
 
 def _model_object(provider_id: str, model_config: Dict[str, Any]) -> Dict[str, Any]:
     model_id = str(model_config["id"])
+    costs = model_config.get("costs") or {}
+    input_costs = costs.get("input_per_million_token") or {}
+    output_costs = costs.get("output_per_million_token") or {}
+    features = model_config.get("features") or {}
+    token_pricing = (model_config.get("pricing") or {}).get("tokens") or {}
     return {
         "id": f"{provider_id}/{model_id}",
         "object": OPENAI_MODEL_OBJECT,
         "created": _created_timestamp(model_config),
         "owned_by": provider_id,
+        "openmates": _remove_none({
+            "name": model_config.get("name"),
+            "description": model_config.get("description"),
+            "capability_level": model_config.get("capability_level"),
+            "input_types": model_config.get("input_types"),
+            "output_types": model_config.get("output_types"),
+            "context_window_tokens": input_costs.get("max_context") or output_costs.get("max_context"),
+            "max_output_tokens": features.get("max_output_tokens"),
+            "features": {
+                "reasoning": bool(model_config.get("reasoning")),
+                "tool_use": bool(features.get("tool_use")),
+                "streaming": bool(features.get("streaming")),
+            },
+            "pricing": {
+                "unit": "tokens_per_credit",
+                "input": (token_pricing.get("input") or {}).get("per_credit_unit"),
+                "output": (token_pricing.get("output") or {}).get("per_credit_unit"),
+            },
+        }),
     }
 
 
@@ -528,9 +552,7 @@ async def _dispatch_client_tool_chat_completion(
 @router.get("/v1/models")
 async def list_models(
     request: Request,
-    user_info: Dict[str, Any] = Depends(get_session_or_api_key_info),
 ) -> Dict[str, Any]:
-    del user_info
     return {"object": OPENAI_LIST_OBJECT, "data": await _available_model_objects(_get_config_manager(request), _get_secrets_manager(request))}
 
 
@@ -538,9 +560,7 @@ async def list_models(
 async def get_model(
     model_id: str,
     request: Request,
-    user_info: Dict[str, Any] = Depends(get_session_or_api_key_info),
 ) -> Any:
-    del user_info
     canonical_model_id = _normalize_model_id(model_id)
     model = await _find_model(_get_config_manager(request), canonical_model_id, _get_secrets_manager(request))
     if not model:

@@ -320,11 +320,11 @@ class TaskAdmissionService:
         return due_at is None or int(due_at) <= now
 
     def _is_active_ai_task(self, task: dict[str, Any]) -> bool:
-        return task.get("assignee_type") == "ai" and task.get("status") == "in_progress"
+        return task.get("assignee_type") == "openmates" and task.get("status") == "in_progress"
 
     def _is_waiting_ai_task(self, task: dict[str, Any]) -> bool:
         return (
-            task.get("assignee_type") == "ai"
+            task.get("assignee_type") == "openmates"
             and task.get("status") == "todo"
             and task.get("queue_state") != "skipped"
             and task.get("queue_state") != TASK_QUEUE_STAGING_STATE

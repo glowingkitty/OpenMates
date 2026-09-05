@@ -240,7 +240,8 @@
       const task = await createUserTask({
         title: trimmedTitle,
         description: description.trim(),
-        assigneeType: assignedToAI ? 'ai' : 'user',
+        assigneeType: assignedToAI ? 'openmates' : 'user',
+        assigneeIdentity: assignedToAI ? 'openmates' : null,
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });
@@ -309,7 +310,8 @@
       const task = await createUserTask({
         title: value,
         description: value.split(/\s+/).length > 10 ? value : '',
-        assigneeType: assignedToAI ? 'ai' : 'user',
+        assigneeType: assignedToAI ? 'openmates' : 'user',
+        assigneeIdentity: assignedToAI ? 'openmates' : null,
         primaryChatId: chatId,
         linkedProjectIds: projectId ? [projectId] : [],
       });

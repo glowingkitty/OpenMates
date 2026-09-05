@@ -54,6 +54,17 @@ def test_launcher_uses_agent_skills_without_claude_skill_compatibility() -> None
     assert "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1" in launcher
 
 
+def test_launcher_preflights_every_loaded_research_mcp_config_root() -> None:
+    launcher = (PROJECT_ROOT / "scripts/start-opencode-server.sh").read_text(encoding="utf-8")
+
+    assert '"$HOME/.config/opencode/opencode.json"' in launcher
+    assert '"$HOME/.opencode/opencode.jsonc"' in launcher
+    assert '"$SOURCE_CHECKOUT/opencode.json"' in launcher
+    assert '"$SOURCE_CHECKOUT/.opencode/opencode.jsonc"' in launcher
+    assert "--research-routing-only" in launcher
+    assert '--runtime-config "$CONFIG_PATH"' in launcher
+
+
 def test_runtime_patch_bounds_provider_retries_and_persists_terminal_errors() -> None:
     patch = (
         PROJECT_ROOT / "scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch"

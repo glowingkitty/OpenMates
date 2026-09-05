@@ -585,12 +585,11 @@ export function planUpdate(input: {
 export function planBackup(input: { role?: ServerRole | string; includeObservability?: boolean }): BackupPlan {
   const role = parseServerRole(input.role);
   const contentsByRole: Record<ServerRole, string[]> = {
-    core: ["postgres-dump", "directus-uploads", "directus-extensions", "vault-data", "vault-setup-data", "runtime-env", "runtime-config", "manifest", "checksums"],
-    upload: ["vault-data", "vault-setup-data", "runtime-env", "runtime-config", "manifest", "checksums"],
-    preview: ["runtime-env", "runtime-config", "preview-cache", "manifest", "checksums"],
+    core: ["postgres-dump", "runtime-env", "runtime-config", "manifest", "checksums"],
+    upload: ["runtime-env", "runtime-config", "manifest", "checksums"],
+    preview: ["runtime-env", "runtime-config", "manifest", "checksums"],
   };
   const contents = [...contentsByRole[role]];
-  if (input.includeObservability) contents.push("openobserve-data", "prometheus-data");
   return { role, contents, fileMode: 0o600 };
 }
 

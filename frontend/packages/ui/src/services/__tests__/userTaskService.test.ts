@@ -62,7 +62,7 @@ function taskResponse(overrides: Record<string, unknown> = {}): EncryptedUserTas
 function taskViewModel(): UserTaskViewModel {
   return {
     task_id: 'task-server-id', title: 'Private task title', description: '', tags: [], latestInstruction: '',
-    status: 'blocked', assigneeType: 'user', primaryChatId: null, externalChat: null,
+    status: 'blocked', assigneeType: 'user', assigneeIdentity: null, primaryChatId: null, externalChat: null,
     linkedProjectIds: [], planId: null, dueAt: null, priority: 0, position: 0, version: 1,
     createdAt: 1, updatedAt: 1, blockedReasonCode: 'missing_credentials', blockedReason: '', aiExecutionState: null,
     encrypted: taskResponse(),
@@ -186,7 +186,6 @@ describe('userTaskService external chat privacy', () => {
       deleted_at: null,
       deleted_by_hash: null,
       deleted_by_display_name: null,
-      encrypted_entry_key: 'wrapped-chat-key',
       encrypted_message: 'sealed:UHJpdmF0ZSBhY3Rpdml0eSBjb21tZW50',
       encrypted_embed_key_material: 'sealed:ZW1iZWQta2V5LW1hdGVyaWFs',
       embed_refs: ['embed-1'],
@@ -204,7 +203,6 @@ describe('userTaskService external chat privacy', () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
     expect(body).toMatchObject({
       entry_id: '00000000-0000-4000-8000-000000000001',
-      encrypted_entry_key: 'wrapped-chat-key',
       encrypted_message: 'sealed:UHJpdmF0ZSBhY3Rpdml0eSBjb21tZW50',
       encrypted_embed_key_material: 'sealed:ZW1iZWQta2V5LW1hdGVyaWFs',
       embed_refs: ['embed-1'],
@@ -212,6 +210,12 @@ describe('userTaskService external chat privacy', () => {
     });
     expect(JSON.stringify(body)).not.toContain('Private activity comment');
     expect(JSON.stringify(body)).not.toContain('embed-key-material');
+    expect(body).not.toHaveProperty('encrypted_entry_key');
+    expect(cryptoMocks.encryptWithEmbedKey).toHaveBeenCalledWith(
+      'Private activity comment',
+      expect.any(Uint8Array),
+      'task_activity_comment:task-server-id:00000000-0000-4000-8000-000000000001:v1',
+    );
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('team_id=team-1');
     expect(entry).toMatchObject({
       entryId: activityRecord.entry_id,
@@ -227,7 +231,7 @@ describe('userTaskService external chat privacy', () => {
   it('paginates Activity and suppresses tombstone content without decrypting it', async () => {
     const comment = {
       entry_id: 'entry-comment', task_id: 'task-server-id', kind: 'comment', actor_type: 'user', actor_hash: 'author-hash',
-      event_type: 'comment_added', source_surface: 'cli', created_at: 100, encrypted_entry_key: 'wrapped-chat-key',
+      event_type: 'comment_added', source_surface: 'cli', created_at: 100,
       encrypted_message: 'sealed:SGVsbG8=', encrypted_embed_key_material: null, embed_refs: [],
     };
     const tombstone = {
@@ -248,7 +252,7 @@ describe('userTaskService external chat privacy', () => {
     expect(entries[0]).toMatchObject({ entryId: 'entry-comment', message: 'Hello', sourceSurface: 'cli' });
     expect(entries[1]).toMatchObject({ entryId: 'entry-deleted', kind: 'tombstone', deletedByDisplayName: 'Grace', embedRefs: [] });
     expect(entries[1]).not.toHaveProperty('message');
-    expect(cryptoMocks.unwrapEmbedKeyWithChatKey).toHaveBeenCalledTimes(1);
+    expect(cryptoMocks.unwrapEmbedKeyWithChatKey).not.toHaveBeenCalled();
     expect(deleted).not.toHaveProperty('message');
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain('/activity/entry-deleted');
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain('team_id=team-1');

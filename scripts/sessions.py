@@ -63,16 +63,20 @@ import secrets
 import shutil
 import socket
 import sqlite3
+import stat
 import subprocess
+import shlex
 import sys
+import tarfile
 import tempfile
 import textwrap
 import threading
+from functools import wraps
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -154,6 +158,16 @@ DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+RECOVERY_BACKUP_REQUIRED_SERVICES = {"cache", "cms", "cms-database", "vault", "vault-setup"}
+RECOVERY_BACKUP_DATABASE_SERVICE = "cms-database"
+RECOVERY_BACKUP_SETUP_SERVICES = {"cms-setup", "vault-setup"}
+RECOVERY_BACKUP_STORAGE_SERVICES = {"cache", "vault"}
+RECOVERY_BACKUP_SOURCES = {
+    "cms-uploads": ("cms", "/directus/uploads"),
+    "vault-file": ("vault", "/vault/file"),
+    "cache-data": ("cache", "/data"),
+    "vault-setup-data": ("vault-setup", "/app/data"),
+}
 PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
 PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
 PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
@@ -172,6 +186,10 @@ OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
 OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
 OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
 OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
+OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS = (2,)
+OPENMATES_TASK_ACTIVITY_MAX_ENTRIES = 20
+OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS = 12000
+OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS = 2000
 OPENMATES_TASK_OPEN_STATUSES = {"backlog", "todo", "in_progress", "blocked"}
 OPENMATES_TASK_WAIT_QUEUE_STATES = {"waiting", "waiting_for_user", "blocked"}
 OPENMATES_TASK_STOP_EXECUTION_STATES = {"failed", "aborted", "stopped", "waiting_for_user"}
@@ -2288,6 +2306,12 @@ def request_docker_restart(session_id: str, services: list[str]) -> dict:
     return _mutate_sessions(mutate)
 
 
+def request_docker_backup(session_id: str, services: list[str]) -> dict:
+    """Queue a recovery backup through the same exclusive dev-stack admission path."""
+    operation = request_docker_restart(session_id, services)
+    return update_docker_operation(operation["id"], operation["status"], action="recovery-backup")
+
+
 def update_docker_operation(operation_id: str, status: str, **fields) -> dict:
     if status not in DOCKER_OPERATION_ACTIVE_STATUSES | DOCKER_OPERATION_TERMINAL_STATUSES:
         raise ValueError(f"Unknown Docker operation status: {status}")
@@ -2635,6 +2659,143 @@ def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
     }
 
 
+# One process-local nesting marker complements the existing cross-process lock.
+# Nested lifecycle helpers share their caller's transaction instead of flocking twice.
+_WORKSPACE_NESTING = threading.local()
+_WORKSPACE_THREAD_LOCKS: dict[str, threading.RLock] = {}
+_WORKSPACE_THREAD_LOCKS_GUARD = threading.Lock()
+WORKSPACE_OPERATION_HISTORY_LIMIT = 32
+WORKSPACE_LIFECYCLE_VERSION = 1
+
+
+def _run_workspace_transition(
+    session_id: str,
+    action: str,
+    operation,
+    *,
+    expected_generation=None,
+    operation_id="",
+):
+    """Serialize one lifecycle intent and reject stale owners before source writes."""
+    if session_id in getattr(_WORKSPACE_NESTING, "active", set()):
+        return operation()
+    with _worktree_checkpoint_lock(session_id):
+        current = _load_sessions().get("sessions", {}).get(session_id)
+        if not isinstance(current, dict):
+            raise RuntimeError("Workspace owner disappeared before transition")
+        lifecycle = current.get("lifecycle") or {}
+        generation = int(lifecycle.get("generation") or 0)
+        operation_id = operation_id or secrets.token_hex(16)
+        history = lifecycle.get("operations") or []
+        prior = next((item for item in history if item.get("id") == operation_id), None)
+        if prior:
+            if prior.get("action") != action:
+                raise RuntimeError(
+                    "Workspace operation id reused for a different action"
+                )
+            if prior.get("status") == "completed":
+                return prior["result"]
+            raise RuntimeError(
+                "Workspace operation needs explicit recovery; preserve current source"
+            )
+        if expected_generation is not None and generation != expected_generation:
+            raise RuntimeError(
+                f"Stale workspace generation: expected {expected_generation}, current {generation}"
+            )
+        metadata = current.get("worktree") or {}
+        record = {
+            "id": operation_id,
+            "action": action,
+            "generation": generation + 1,
+            "expected_base": metadata.get("merged_commit")
+            or metadata.get("base_commit")
+            or "",
+            "status": "running",
+            "started_at": _now_iso(),
+        }
+
+        def begin(data):
+            owner = data["sessions"][session_id]
+            owner["lifecycle"] = {
+                "version": WORKSPACE_LIFECYCLE_VERSION,
+                "generation": generation + 1,
+                "operations": [
+                    *history[-(WORKSPACE_OPERATION_HISTORY_LIMIT - 1) :],
+                    record,
+                ],
+            }
+
+        _mutate_sessions(begin)
+        active = getattr(_WORKSPACE_NESTING, "active", set())
+        _WORKSPACE_NESTING.active = active | {session_id}
+        try:
+            result = operation()
+        except BaseException:
+
+            def fail(data):
+                state = data["sessions"][session_id]["lifecycle"]
+                state["operations"][-1]["status"] = "recovery_needed"
+
+            _mutate_sessions(fail)
+            raise
+        finally:
+            _WORKSPACE_NESTING.active = active
+
+        def finish(data):
+            state = data["sessions"][session_id]["lifecycle"]
+            if state["generation"] != generation + 1:
+                raise RuntimeError("Workspace generation changed during transition")
+            state["operations"][-1].update(
+                status="completed", result=result, finished_at=_now_iso()
+            )
+
+        _mutate_sessions(finish)
+        return result
+
+
+def _workspace_transition(action):
+    """Route legacy entry points through the same owner; no second writer remains."""
+
+    def decorate(function):
+        @wraps(function)
+        def wrapped(
+            reference, *args, expected_generation=None, operation_id="", **kwargs
+        ):
+            data = _load_sessions()
+            session_id = (
+                str(reference) if str(reference) in data.get("sessions", {}) else ""
+            )
+            if not session_id:
+                matched = session_for_opencode(data, str(reference))
+                session_id = matched[0] if matched else ""
+            if not session_id and action == "restore":
+                for parent in _opencode_parent_chain(str(reference)):
+                    matched = session_for_opencode(data, parent)
+                    if matched:
+                        session_id = matched[0]
+                        break
+            if not session_id:
+                return function(reference, *args, **kwargs)
+            generation = int(
+                (data["sessions"][session_id].get("lifecycle") or {}).get("generation")
+                or 0
+            )
+            return _run_workspace_transition(
+                session_id,
+                action + (":" + str(kwargs["event"]) if "event" in kwargs else ""),
+                lambda: function(reference, *args, **kwargs),
+                expected_generation=generation
+                if expected_generation is None
+                else expected_generation,
+                operation_id=operation_id,
+            )
+
+        return wrapped
+
+    return decorate
+
+
+@_workspace_transition("ensure")
 def ensure_session_worktree(session_id: str) -> dict:
     """Ensure one session has an active local git worktree and metadata."""
     created: dict | None = None
@@ -4359,15 +4520,26 @@ def _delete_worktree_checkpoint_ref(session_id: str, *, expected_commit: str = "
 
 @contextmanager
 def _worktree_checkpoint_lock(session_id: str):
-    """Serialize checkpoint ref and metadata updates for one session."""
-    WORKTREE_CHECKPOINT_LOCKS_DIR.mkdir(parents=True, exist_ok=True)
-    safe_session_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:64] or "unknown"
-    with (WORKTREE_CHECKPOINT_LOCKS_DIR / f"{safe_session_id}.lock").open("a+", encoding="utf-8") as lock_handle:
-        fcntl.flock(lock_handle.fileno(), fcntl.LOCK_EX)
-        try:
+    """Serialize all lifecycle writers with reentrant nesting in one thread."""
+    with _WORKSPACE_THREAD_LOCKS_GUARD:
+        mutex = _WORKSPACE_THREAD_LOCKS.setdefault(session_id, threading.RLock())
+    with mutex:
+        held = getattr(_WORKSPACE_NESTING, "locks", set())
+        if session_id in held:
             yield
-        finally:
-            fcntl.flock(lock_handle.fileno(), fcntl.LOCK_UN)
+            return
+        WORKTREE_CHECKPOINT_LOCKS_DIR.mkdir(parents=True, exist_ok=True)
+        safe_session_id = re.sub(r"[^A-Za-z0-9_-]", "-", session_id)[:64] or "unknown"
+        with (WORKTREE_CHECKPOINT_LOCKS_DIR / f"{safe_session_id}.lock").open(
+            "a+", encoding="utf-8"
+        ) as handle:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            _WORKSPACE_NESTING.locks = held | {session_id}
+            try:
+                yield
+            finally:
+                _WORKSPACE_NESTING.locks = held
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 def _prune_checkpoint_lock_files(data: dict) -> list[str]:
@@ -4451,7 +4623,7 @@ def _auto_integration_block_reason(files: list[str]) -> str:
     return ""
 
 
-def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict:
+def checkpoint_session_worktree(opencode_session_id: str, *, event: str, expected_generation=None, operation_id="") -> dict:
     """Checkpoint one top-level mutating chat and make safe patches integration eligible."""
     if event not in {"idle", "closed"}:
         raise ValueError("checkpoint event must be idle or closed")
@@ -4471,7 +4643,7 @@ def checkpoint_session_worktree(opencode_session_id: str, *, event: str) -> dict
     ):
         return {"status": "skipped", "reason": "not_mutating_worktree"}
     with _worktree_checkpoint_lock(session_id):
-        return _checkpoint_session_worktree_locked(session_id, event=event)
+        return _checkpoint_session_worktree_locked(session_id, event=event, expected_generation=expected_generation, operation_id=operation_id)
 
 
 def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dict:
@@ -4493,6 +4665,7 @@ def _store_session_worktree_active(data: dict, session_id: str, now: str) -> dic
     return {"status": "active", "session_id": session_id, "workspace_state": "changes_pending"}
 
 
+@_workspace_transition("activate")
 def activate_session_worktree(opencode_session_id: str) -> dict:
     """Invalidate an idle checkpoint when its top-level chat starts a new turn."""
     matched = session_for_opencode(_load_sessions(), opencode_session_id)
@@ -4503,6 +4676,7 @@ def activate_session_worktree(opencode_session_id: str) -> dict:
         return _mutate_sessions(lambda data: _store_session_worktree_active(data, session_id, _now_iso()))
 
 
+@_workspace_transition("checkpoint")
 def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
     """Create and persist one checkpoint while holding its session lock."""
     data = _load_sessions()
@@ -4525,6 +4699,10 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
         return {"status": "skipped", "reason": "no_pending_changes", "workspace_state": workspace_state}
 
     patch_id = _worktree_patch_id(metadata, files)
+    previous = session.get("auto_integration") or {}
+    if (previous.get("status") in {"checkpointed", "eligible"}
+            and previous.get("patch_id") == patch_id and _checkpoint_ref_matches(session_id, previous)):
+        return {"session_id": session_id, **previous}
     def mark_checkpointing(current: dict) -> None:
         current_session = current.get("sessions", {}).get(session_id)
         if isinstance(current_session, dict):
@@ -4571,7 +4749,7 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
     elif block_reason:
         status = "blocked"
     else:
-        status = "eligible"
+        status = "checkpointed"
     eligible_after = (
         datetime.now(timezone.utc) + timedelta(minutes=WORKTREE_AUTO_INTEGRATION_GRACE_MINUTES)
     ).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -4581,7 +4759,7 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
         current_session = current.get("sessions", {}).get(session_id)
         if not isinstance(current_session, dict):
             raise RuntimeError(f"Session {session_id} disappeared during checkpoint")
-        current_session["workspace_state"] = "checkpointed" if status == "eligible" else ("held" if status == "held" else "recovery_needed")
+        current_session["workspace_state"] = "checkpointed" if status in {"eligible", "checkpointed"} else ("held" if status == "held" else "recovery_needed")
         current_session["auto_integration"] = {
             "status": status,
             "hold": hold,
@@ -4598,6 +4776,41 @@ def _checkpoint_session_worktree_locked(session_id: str, *, event: str) -> dict:
 
     result = _mutate_sessions(store)
     return {"session_id": session_id, **result}
+
+
+@_workspace_transition("submit-ready")
+def submit_ready_worktree(
+    session_id: str, *, patch_id: str, checkpoint_commit: str
+) -> dict:
+    """Explicitly publish exactly one preserved submission through existing gates."""
+    with _worktree_checkpoint_lock(session_id):
+        session = _load_sessions()["sessions"][session_id]
+        auto = session.get("auto_integration") or {}
+        if auto.get("status") not in {"checkpointed", "eligible"} or auto.get("hold"):
+            raise RuntimeError("Submission requires an unheld preservation checkpoint")
+        files = _session_deploy_files(session, set())
+        if (
+            auto.get("patch_id") != patch_id
+            or auto.get("checkpoint_commit") != checkpoint_commit
+            or not _checkpoint_ref_matches(session_id, auto)
+            or sorted(files) != sorted(auto.get("files") or [])
+            or _worktree_patch_id(session["worktree"], files) != patch_id
+        ):
+            raise RuntimeError(
+                "Ready submission fingerprint is stale; checkpoint current work first"
+            )
+
+        def store(data):
+            owner = data["sessions"][session_id]
+            owner["ready_submission"] = {
+                "patch_id": patch_id,
+                "checkpoint_commit": checkpoint_commit,
+                "submitted_at": _now_iso(),
+            }
+            owner["auto_integration"]["status"] = "eligible"
+            return owner["ready_submission"]
+
+        return _mutate_sessions(store)
 
 
 def _auto_integration_presence_is_live(session: dict) -> bool:
@@ -4637,6 +4850,9 @@ def select_auto_integration_candidates(*, now: str | None = None) -> list[dict]:
         auto = session.get("auto_integration") if isinstance(session.get("auto_integration"), dict) else {}
         metadata = session.get("worktree") if isinstance(session.get("worktree"), dict) else {}
         if auto.get("status") != "eligible" or not metadata.get("path"):
+            continue
+        submission = session.get("ready_submission") or {}
+        if submission.get("patch_id") != auto.get("patch_id") or submission.get("checkpoint_commit") != auto.get("checkpoint_commit"):
             continue
         if auto.get("hold"):
             rejected.append((session_id, "held", "explicit_hold"))
@@ -4801,6 +5017,8 @@ def _claim_auto_integration(candidate: dict) -> bool:
             return False
         if (
             auto.get("status") != "eligible"
+            or (session.get("ready_submission") or {}).get("patch_id") != candidate.get("patch_id")
+            or (session.get("ready_submission") or {}).get("checkpoint_commit") != candidate.get("checkpoint_commit")
             or auto.get("patch_id") != candidate.get("patch_id")
             or auto.get("checkpoint_commit") != candidate.get("checkpoint_commit")
             or not _checkpoint_ref_matches(session_id, auto)
@@ -5674,6 +5892,8 @@ def reconcile_session_worktrees(
             queue = data.setdefault("deploy_queue", [])
             manifests = data.setdefault("worktree_deletion_manifests", [])
             for item in deletable:
+                if (sessions.get(str(item.get("session_id")), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION:
+                    continue
                 fresh = _refresh_reconciliation_candidate(item, data, target_commit, idle_hours, approved)
                 session_id = str(fresh["session_id"])
                 refreshed_by_id[session_id] = fresh
@@ -5826,7 +6046,10 @@ def _worktree_pending_files(session: dict) -> list[str]:
 
 
 def finalize_session_worktree(session_id: str, *, target_ref: str = "origin/dev", force: bool = False) -> None:
-    """Remove a fully integrated worktree before deleting its session record."""
+    """Retain lifecycle-owned workspaces; finalize legacy disposable records safely."""
+    current = _load_sessions().get("sessions", {}).get(session_id, {})
+    if (current.get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION:
+        return
     def finalize(data: dict) -> str:
         session = data.get("sessions", {}).get(session_id)
         if not isinstance(session, dict):
@@ -6082,6 +6305,7 @@ def expire_managed_worktrees(
         str(record.get("session_id") or "")
         for record in records
         if _hard_expiry_record_is_live(record, current_data)
+        or (current_data.get("sessions", {}).get(str(record.get("session_id") or ""), {}).get("lifecycle") or {}).get("version") == WORKSPACE_LIFECYCLE_VERSION
     }
     expired: list[dict] = []
     protected_unresolved: list[dict] = []
@@ -8216,29 +8440,6 @@ def session_for_opencode(data: dict, opencode_session_id: str, *, repo_id: str =
     return matches[0] if matches else None
 
 
-def opencode_session_reusable_for_start(session: dict, task: str | None = None) -> bool:
-    """Return whether `sessions.py start` may keep using this chat binding.
-
-    A restart or same-task continuation must retain its existing worktree. Once
-    work from a different task has been integrated or durably checkpointed,
-    however, reusing that worktree mixes historical residue into the new task.
-    """
-    incoming_task = str(task or "").strip()
-    current_task = str(session.get("task") or "").strip()
-    if not incoming_task or not current_task or incoming_task == current_task:
-        return True
-
-    worktree = session.get("worktree") or {}
-    integration = worktree.get("integration") or {}
-    auto_integration = session.get("auto_integration") or {}
-    work_is_preserved = (
-        integration.get("status") == "merged"
-        or bool(session.get("merged_commit"))
-        or bool(auto_integration.get("checkpoint_ref"))
-    )
-    return not work_is_preserved
-
-
 def rotate_opencode_session_binding(
     data: dict,
     session_id: str,
@@ -8387,6 +8588,7 @@ def refresh_worktree_base_after_fast_forward(worktree: dict) -> str:
     return recorded_base if recorded_base != current_head else ""
 
 
+@_workspace_transition("refresh-base")
 def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
     """Refresh one session's recorded base after a safe worktree fast-forward."""
     def update(data: dict) -> dict[str, str]:
@@ -8412,6 +8614,72 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
     return _mutate_sessions(update)
 
 
+def restore_original_worktree_binding(opencode_session_id: str, original_session_id: str) -> dict:
+    """Recover a retired binding without copying, publishing, or deleting source.
+
+    Lock both workspaces in stable order and revalidate inside the sessions
+    transaction. Only an idle, pristine successor may relinquish the binding.
+    See docs/architecture/agent-workflow-decisions.md for workspace ownership.
+    """
+    initial = _load_sessions()
+    current = session_for_opencode(initial, opencode_session_id)
+    if current is None:
+        raise RuntimeError("Recovery requires an existing chat binding")
+    current_id = current[0]
+    with ExitStack() as locks:
+        for session_id in sorted({current_id, original_session_id}):
+            locks.enter_context(_worktree_checkpoint_lock(session_id))
+
+        def restore(data: dict) -> dict:
+            matched = session_for_opencode(data, opencode_session_id)
+            if matched is None or matched[0] != current_id:
+                raise RuntimeError("Chat binding changed during recovery; inspect and retry")
+            original = data["sessions"].get(original_session_id)
+            successor = data["sessions"][current_id]
+            if not isinstance(original, dict):
+                raise RuntimeError("Original repository session does not exist")
+            if _session_repo_id(original) != _session_repo_id(successor):
+                raise RuntimeError("Recovery cannot cross repository boundaries")
+            if current_id != original_session_id:
+                if original.get("rotated_opencode_session_id") != opencode_session_id:
+                    raise RuntimeError("Original session has no matching retired chat lineage")
+                if original.get("opencode_session_id") or original.get("opencode_top_level_session_id"):
+                    raise RuntimeError("Original session is already owned by a chat")
+            for session_id in {current_id, original_session_id}:
+                session = data["sessions"][session_id]
+                if _auto_integration_presence_is_live(session) or session.get("writing"):
+                    raise RuntimeError("Recovery requires idle workspaces without active writers")
+                if any(lease.get("session_id") == session_id for lease in data.get("edit_leases", {}).values()):
+                    raise RuntimeError("Recovery requires release of workspace edit leases")
+                if any(lock.get("claimed_by") == session_id for lock in data.get("locks", {}).values()):
+                    raise RuntimeError("Recovery requires release of workspace resource locks")
+                metadata = session.get("worktree") or {}
+                if not metadata.get("path") or not _existing_direct_managed_worktree(metadata["path"]):
+                    raise RuntimeError("Recovery requires both preserved managed worktrees")
+            if current_id != original_session_id:
+                metadata = successor["worktree"]
+                baseline = metadata.get("merged_commit") or metadata.get("base_commit")
+                if not baseline or _current_git_sha(Path(metadata["path"])) != baseline or _worktree_pending_files(successor):
+                    raise RuntimeError("Successor has pending source or commits; preserve and reconcile before recovery")
+            path = original["worktree"]["path"]
+            resources = link_shared_worktree_resources(path)
+            if current_id != original_session_id:
+                rotate_opencode_session_binding(data, current_id, opencode_session_id)
+            bind_opencode_session(data, original_session_id, opencode_session_id)
+            original["opencode_top_level_session_id"] = opencode_session_id
+            original["binding_mode"] = "worktree_routed"
+            original["binding_updated_at"] = _now_iso()
+            original["binding_failure_reason"] = ""
+            original["last_active"] = _now_iso()
+            original["binding_recovery"] = {"from_session": current_id, "recovered_at": _now_iso()}
+            return {"session_id": original_session_id, "previous_session_id": current_id,
+                    "mode": "worktree_routed", "worktree_path": path,
+                    "shared_runtime_resources": resources}
+
+        return _mutate_sessions(restore)
+
+
+@_workspace_transition("repair")
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
     recreated = False
@@ -8486,15 +8754,12 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
-    replace_session_id: str | None = None,
 ) -> tuple[str, list[str], list[str], dict, bool]:
     """Atomically register one repo session and its authoritative OpenCode chat."""
     def register(data: dict) -> tuple[str, list[str], list[str], dict, bool]:
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
         _prune_checkpoint_lock_files(data)
-        if opencode_session_id and replace_session_id:
-            rotate_opencode_session_binding(data, replace_session_id, opencode_session_id)
         if opencode_session_id:
             existing = session_for_opencode(
                 data,
@@ -8590,10 +8855,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         opencode_session_id,
         repo_id=repo["repo_id"],
     ) if opencode_session_id else None
-    replace_session_id: str | None = None
-    if existing and not opencode_session_reusable_for_start(existing[1], args.task):
-        replace_session_id = existing[0]
-        existing = None
+    # Chat + repository identity owns the worktree; task descriptions are mutable.
     if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
         existing = None
     is_new_session = existing is None
@@ -8642,7 +8904,6 @@ def cmd_start(args: argparse.Namespace) -> None:
         sid, pruned, cleared_locks, data, registered_new = register_session_record(
             session_record,
             opencode_session_id,
-            replace_session_id,
         )
         is_new_session = registered_new
     worktree_metadata: dict | None = None
@@ -9160,7 +9421,14 @@ def cmd_end(args: argparse.Namespace) -> None:
     has_opencode_identity = bool(
         session.get("opencode_session_id") or session.get("opencode_top_level_session_id")
     )
-    zellij_name = None if has_opencode_identity else session.get("zellij_session")
+    # Codex and legacy records can name the shared terminal without an
+    # OpenCode chat id. Repository completion never owns that server session.
+    shared_zellij_names = {"code", os.environ.get("OPENCODE_ZELLIJ_SESSION", "code")}
+    candidate_zellij_name = session.get("zellij_session")
+    zellij_name = (
+        None if has_opencode_identity or candidate_zellij_name in shared_zellij_names
+        else candidate_zellij_name
+    )
     if zellij_name:
         current_zellij = os.environ.get("ZELLIJ_SESSION_NAME")
         if current_zellij == zellij_name:
@@ -10628,6 +10896,41 @@ def _openmates_task_opencode_session_id(data: dict, session_reference: str) -> s
     return session_reference if OPENCODE_SESSION_ID_RE.fullmatch(session_reference) else ""
 
 
+def _openmates_task_cli_failure_message(result: subprocess.CompletedProcess) -> str:
+    """Extract one bounded, terminal-safe error message from CLI output."""
+    for candidate in (result.stdout, result.stderr):
+        if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
+            continue
+        try:
+            failure_payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            failure_payload = None
+        if isinstance(failure_payload, dict):
+            failure = failure_payload.get("error")
+            if isinstance(failure, dict) and isinstance(failure.get("message"), str):
+                return re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
+    return ""
+
+
+def _openmates_task_cli_failure_is_transient(result: subprocess.CompletedProcess, message: str) -> bool:
+    """Recognize API restart failures without retrying caller or authentication errors."""
+    combined = " ".join((message, result.stdout or "", result.stderr or "")).lower()
+    transient_signatures = (
+        "http 502",
+        "http 503",
+        "http 504",
+        "bad gateway",
+        "service unavailable",
+        "gateway timeout",
+        "econnrefused",
+        "connection refused",
+        "connection reset",
+        "socket hang up",
+        "fetch failed",
+    )
+    return any(signature in combined for signature in transient_signatures)
+
+
 def _run_openmates_task_cli(arguments: list[str]) -> dict:
     """Execute one trusted personal-profile Task CLI command and parse bounded JSON."""
     if not arguments or arguments[0] != "tasks":
@@ -10639,39 +10942,51 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
         "OPENMATES_API_URL": OPENMATES_TASK_BRIDGE_API_URL,
         "OPENMATES_STATE_DIR": "",
     })
-    try:
-        result = subprocess.run(
-            ["openmates", *arguments],
-            cwd=str(CONTROL_PLANE_ROOT),
-            env=environment,
-            text=True,
-            capture_output=True,
-            timeout=OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired) as error:
-        raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
-    if result.returncode != 0:
-        failure_message = ""
-        for candidate in (result.stdout, result.stderr):
-            if not candidate or len(candidate.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
-                continue
-            try:
-                failure_payload = json.loads(candidate)
-            except json.JSONDecodeError:
-                failure_payload = None
-            if isinstance(failure_payload, dict):
-                failure = failure_payload.get("error")
-                if isinstance(failure, dict) and isinstance(failure.get("message"), str):
-                    failure_message = re.sub(r"[\x00-\x1f\x7f]+", " ", failure["message"]).strip()
-                    break
-        if "Passkey verification required" in failure_message:
+    # Only encrypted, durable activity deliveries can safely repeat a write.
+    retry_delays = OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS if "--delivery-id" in arguments else ()
+    attempt_count = len(retry_delays) + 1
+    for attempt in range(attempt_count):
+        try:
+            result = subprocess.run(
+                ["openmates", *arguments],
+                cwd=str(CONTROL_PLANE_ROOT),
+                env=environment,
+                text=True,
+                capture_output=True,
+                timeout=120 if arguments[:3] == ["tasks", "activity", "search"] else OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise RuntimeError(f"OpenMates Task CLI unavailable: {type(error).__name__}") from error
+        failure_message = _openmates_task_cli_failure_message(result)
+        if result.returncode == 0:
+            break
+        if (
+            attempt < len(retry_delays)
+            and _openmates_task_cli_failure_is_transient(result, failure_message)
+        ):
+            time.sleep(retry_delays[attempt])
+            continue
+        if any(marker in failure_message.lower() for marker in (
+            "passkey verification required", "session expired", "not logged in", "session validation failed",
+        )):
+            recovery = (
+                f"OPENMATES_PROFILE={OPENMATES_TASK_BRIDGE_PROFILE} openmates login "
+                f"--api-url {OPENMATES_TASK_BRIDGE_API_URL}"
+            )
             raise RuntimeError(
-                f"OpenMates Task authentication required: {failure_message} "
-                "Do not retry Task operations until `openmates login` completes."
+                f"OpenMates Task authentication required for profile {OPENMATES_TASK_BRIDGE_PROFILE}: "
+                f"{failure_message.replace('`openmates login`', '`' + recovery + '`')} "
+                f"Do not retry Task operations until `{recovery}` completes. "
+                "Logging into the default CLI profile does not repair this isolated profile."
             )
         if failure_message:
-            raise RuntimeError(f"OpenMates Task CLI failed: {failure_message[:500]}")
+            suffix = (
+                f" after {attempt_count} attempts"
+                if _openmates_task_cli_failure_is_transient(result, failure_message)
+                else ""
+            )
+            raise RuntimeError(f"OpenMates Task CLI failed{suffix}: {failure_message[:500]}")
         raise RuntimeError(f"OpenMates Task CLI failed with exit status {result.returncode}")
     if len(result.stdout.encode("utf-8")) > OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES:
         raise RuntimeError("OpenMates Task CLI returned an oversized JSON response")
@@ -10735,7 +11050,10 @@ def _openmates_task_is_waiting(record: dict) -> bool:
 def _classify_openmates_task_snapshot(records: list[dict]) -> dict:
     """Return one deterministic fail-closed scheduling decision."""
     ordered = sorted(records, key=_openmates_task_order)
-    ai_tasks = [record for record in ordered if record.get("assignee_type") == "ai"]
+    ai_tasks = [
+        record for record in ordered
+        if record.get("assignee_type") == "external_ai" and record.get("assignee_identity") == "opencode"
+    ]
     active = [record for record in ai_tasks if record.get("status") == "in_progress"]
     if len(active) > 1:
         raise RuntimeError("OpenMates Task bridge found multiple active Tasks")
@@ -10780,7 +11098,7 @@ def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str
             key: active.get(key)
             for key in (
                 "task_id", "short_id", "title", "description", "latest_instruction",
-                "status", "assignee_type", "queue_state", "blocked_reason_code",
+                "status", "assignee_type", "assignee_identity", "queue_state", "blocked_reason_code",
                 "blocked_reason", "ai_execution_state", "priority", "version",
             )
         }
@@ -10795,6 +11113,55 @@ def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str
     return {"decision": classified["decision"], "active": active_context, "remaining": remaining}
 
 
+def _openmates_task_activity_context(context: dict, opencode_session_id: str, cli_runner: Callable) -> dict:
+    """Attach bounded attributed activity; never persist decrypted comments."""
+    active = context.get("active")
+    context["fetched_at"] = _now_iso()
+    if not active:
+        return context
+    task_id = str(active["task_id"])
+    scope = ["--external-chat", f"opencode:{opencode_session_id}"]
+    history = cli_runner([
+        "tasks", "activity", "list", task_id, *scope, "--newest-first",
+        "--max-entries", str(OPENMATES_TASK_ACTIVITY_MAX_ENTRIES), "--flush-pending", "--as-assignee", "--json",
+    ])
+    records = history.get("entries")
+    if not isinstance(records, list):
+        raise RuntimeError("Task activity response is missing entries")
+    entries = []
+    budget = OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS
+    truncated = bool(history.get("truncated")) or len(records) > OPENMATES_TASK_ACTIVITY_MAX_ENTRIES
+    for record in records[:OPENMATES_TASK_ACTIVITY_MAX_ENTRIES]:
+        if not isinstance(record, dict) or record.get("task_id") != task_id:
+            raise RuntimeError("Task activity response crossed task scope")
+        entry = {key: record.get(key) for key in (
+            "entry_id", "kind", "actor_type", "actor_identity", "actor_display_name", "created_at", "event_type",
+        )}
+        message = str(record.get("message") or "")
+        visible = message[:min(budget, OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS)]
+        entry["message"] = visible
+        if len(visible) < len(message):
+            entry["text_truncated"] = True
+            truncated = True
+        budget -= len(visible)
+        entries.append(entry)
+        if budget <= 0:
+            truncated = truncated or len(entries) < len(records)
+            break
+    context["activity"] = {
+        "entries": list(reversed(entries)), "truncated": truncated,
+        "max_entries": OPENMATES_TASK_ACTIVITY_MAX_ENTRIES,
+        "search_command": shlex.join([
+            "env", f"OPENMATES_PROFILE={OPENMATES_TASK_BRIDGE_PROFILE}",
+            f"OPENMATES_API_URL={OPENMATES_TASK_BRIDGE_API_URL}", "openmates", "tasks", "activity", "search", task_id,
+            *scope, "--query", "SEARCH TEXT", "--max-entries", "200", "--json",
+        ]),
+        "search_tool": {"action": "activity_search", "task_id": task_id, "query": "SEARCH TEXT"},
+        "pending_delivery": history.get("delivery", {}).get("pending", 0) if isinstance(history.get("delivery"), dict) else 0,
+    }
+    return context
+
+
 def _openmates_task_context(
     session_reference: str,
     *,
@@ -10806,7 +11173,14 @@ def _openmates_task_context(
     if not opencode_session_id:
         return {"decision": "unbound", "active": None, "remaining": []}
     payload = cli_runner(["tasks", "list", "--external-chat", f"opencode:{opencode_session_id}", "--json"])
-    return _openmates_task_context_from_payload(payload, opencode_session_id)
+    context = _openmates_task_context_from_payload(payload, opencode_session_id)
+    owner_id = _continuation_repository_session_id(data, session_reference)
+    if context.get("active"):
+        context["active"]["decision_revision"] = _task_decision_revision(context["active"])
+    decisions = _workflow_decision_context(data["sessions"].get(owner_id, {}), context.get("active"))
+    if decisions:
+        context["scoped_decisions"] = decisions
+    return _openmates_task_activity_context(context, opencode_session_id, cli_runner)
 
 
 def _openmates_task_tool(
@@ -10819,7 +11193,7 @@ def _openmates_task_tool(
     if not isinstance(input_payload, dict):
         raise RuntimeError("Task tool input must be a JSON object")
     action = input_payload.get("action")
-    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done"}
+    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done", "activity_add", "activity_search", "activity_flush"}
     if action not in allowed_actions:
         raise RuntimeError(f"unsupported Task tool action: {action}")
 
@@ -10842,31 +11216,46 @@ def _openmates_task_tool(
 
     if action == "context":
         payload = cli_runner(["tasks", "list", *scope, "--json"])
-        return _openmates_task_context_from_payload(payload, opencode_session_id)
+        return _openmates_task_activity_context(
+            _openmates_task_context_from_payload(payload, opencode_session_id), opencode_session_id, cli_runner,
+        )
 
     if action == "create":
         command = ["tasks", "create", "--title", text_field("title", required=True, maximum=500)]
         description = text_field("description")
         if description:
             command.extend(["--description", description])
-        # The Task API currently accepts external-context AI assignment as an
-        # update but rejects it on create. Keep both allowlisted operations
-        # explicit and return only the final AI-owned record.
-        command.extend(["--assign", "user", *scope, "--json"])
-        created = cli_runner(command).get("task")
-        if not isinstance(created, dict) or not created.get("task_id"):
-            raise RuntimeError("Task create returned an invalid record")
-        assignment = ["tasks", "edit", str(created["task_id"]), "--assign", "ai"]
+        assignee = input_payload.get("assignee", "external_ai")
+        if assignee not in {"external_ai", "user"}:
+            raise RuntimeError("Task tool assignee must be external_ai or user")
+        command.extend(["--assign", "external-ai" if assignee == "external_ai" else "user"])
         status = input_payload.get("status")
         if status is not None:
             if status not in {"backlog", "todo", "in_progress", "blocked", "done"}:
                 raise RuntimeError("Task tool received an invalid status")
-            assignment.extend(["--status", str(status)])
-        return cli_runner([*assignment, *scope, "--json"])
+            command.extend(["--status", str(status)])
+        command.extend([*scope, "--json"])
+        return cli_runner(command)
 
     task_id = text_field("task_id", required=True, maximum=200)
     if action == "show":
         return cli_runner(["tasks", "show", task_id, *scope, "--json"])
+    if action == "activity_search":
+        return cli_runner([
+            "tasks", "activity", "search", task_id, "--query", text_field("query", required=True, maximum=500),
+            *scope, "--max-entries", "200", "--json",
+        ])
+    if action == "activity_flush":
+        return cli_runner(["tasks", "activity", "flush", task_id, "--as-assignee", *scope, "--json"])
+    if action == "activity_add":
+        message = text_field("message", required=True, maximum=10000)
+        delivery_id = hashlib.sha256(json.dumps([
+            opencode_session_id, task_id, text_field("milestone_id", maximum=200) or message,
+        ], ensure_ascii=False).encode("utf-8")).hexdigest()
+        return cli_runner([
+            "tasks", "activity", "add", task_id, "--message", message,
+            "--delivery-id", delivery_id, "--as-assignee", *scope, "--json",
+        ])
     if action == "start":
         # The generic status mutation is supported for AI-owned external-chat
         # Tasks, while the specialized CLI `start` transition can reject that
@@ -10904,6 +11293,10 @@ def _openmates_task_tool(
             command.extend(["--reason-text", reason_text])
         command.extend([*scope, "--json"])
         return cli_runner(command)
+    if action == "done":
+        delivery = cli_runner(["tasks", "activity", "flush", task_id, "--as-assignee", *scope, "--json"])
+        if delivery.get("pending"):
+            raise RuntimeError("Task has pending Activity delivery; reconcile activity_flush before marking done")
     return cli_runner(["tasks", str(action), task_id, *scope, "--json"])
 
 
@@ -10999,6 +11392,10 @@ def _reconcile_openmates_tasks(
         )
         decision = classified["decision"]
         selected = classified.get("active")
+        owner = _load_sessions().get("sessions", {}).get(claim["repository_session_id"], {})
+        scoped = _workflow_decision_context(owner, selected)
+        if any(item["surface"] == "task" for item in scoped):
+            decision = "user_stopped"
         if decision == "activate_next" and isinstance(selected, dict):
             activated = cli_runner([
                 "tasks", "edit", str(selected["task_id"]), "--status", "in_progress", "--json",
@@ -11018,6 +11415,7 @@ def _reconcile_openmates_tasks(
                 session_reference,
                 operation_type="task_ready",
                 operation_key=operation_key,
+                decision_scope={"target":str(selected["task_id"]), "surface":"task", "revision":_task_decision_revision(selected)},
                 next_action=(
                     "Continue the active OpenMates Task from the request-only Task context. "
                     "Work on the smallest remaining step, then explicitly mark the Task done or block it with a reason."
@@ -11071,12 +11469,124 @@ def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: 
     return f"msg_{encoded_time:012x}{suffix}"
 
 
+def _task_decision_revision(task: dict) -> str:
+    """Invalidate decisions on instruction changes, not Activity/status bookkeeping."""
+    subject = {
+        key: task.get(key) for key in ("title", "description", "latest_instruction")
+    }
+    return hashlib.sha256(json.dumps(subject, sort_keys=True).encode()).hexdigest()
+
+
+def _workflow_decision_context(session: dict, task: dict | None) -> list[dict]:
+    """Expose only validated scoped decisions for this exact Task version."""
+    from _workflow_decisions import matching_receipt
+
+    if not task:
+        return []
+    result = []
+    for surface in ("task", "proof"):
+        receipt = matching_receipt(
+            session.get("decisions", []),
+            target=str(task.get("task_id") or ""),
+            surface=surface,
+            revision=_task_decision_revision(task),
+            preserve_stop=True,
+        )
+        if receipt:
+            result.append(
+                {
+                    key: receipt[key]
+                    for key in ("id", "target", "surface", "revision", "decision")
+                }
+            )
+    return result
+
+
+def cmd_decision(args: argparse.Namespace) -> None:
+    """Record a scoped instruction in the owning session and optionally its Plan."""
+    from _workflow_decisions import make_receipt
+
+    data = _load_sessions()
+    session_id = _continuation_repository_session_id(data, args.session)
+    if not session_id:
+        raise RuntimeError("Decision requires an existing owning session")
+    session = data["sessions"][session_id]
+    source_session = args.source_session or session.get("opencode_session_id")
+    if args.provider == "opencode" and source_session != session.get(
+        "opencode_session_id"
+    ):
+        raise RuntimeError("Decision source must belong to this top-level chat")
+    if args.provider == "codex" and source_session != os.environ.get("CODEX_THREAD_ID"):
+        raise RuntimeError(
+            "Codex decision source must match the current CODEX_THREAD_ID"
+        )
+    receipt = make_receipt(
+        target=args.target,
+        surface=args.surface,
+        revision=args.revision,
+        decision=args.decision,
+        quote=args.quote,
+        source={
+            "provider": args.provider,
+            "session_id": source_session,
+            "message_id": args.message_id,
+        },
+    )
+    plan_path = None
+    if args.plan:
+        import yaml
+
+        root = Path(session["worktree"]["path"]).resolve()
+        plan_path = (root / args.plan).resolve()
+        if (
+            not plan_path.is_relative_to(root / "docs/plans")
+            or plan_path.name != "plan.yml"
+        ):
+            raise RuntimeError(
+                "Decision Plan must be inside the owning worktree docs/plans"
+            )
+        plan = yaml.safe_load(plan_path.read_text())
+        if (
+            plan.get("id") != args.target
+            or str(plan.get("implementation_state", {}).get("subject_commit") or "")
+            != args.revision
+        ):
+            raise RuntimeError(
+                "Decision target and revision must match the current Plan"
+            )
+        plan.setdefault("decisions", []).append(receipt)
+        if args.surface == "proof" and args.decision in {"stop", "waive"}:
+            plan.setdefault("demonstration", {}).setdefault("evidence", {}).update(
+                status="waived", decision_id=receipt["id"]
+            )
+        plan_path.write_text(yaml.safe_dump(plan, sort_keys=False))
+
+    def record(current: dict) -> dict:
+        owner = current["sessions"][session_id]
+        receipts = owner.setdefault("decisions", [])
+        if not receipts or receipts[-1].get("id") != receipt["id"]:
+            receipts.append(receipt)
+        continuation = owner.get("continuation") or {}
+        scope = continuation.get("decision_scope") or {}
+        if args.decision in {"stop", "waive"} and scope == {
+            "target": args.target,
+            "surface": args.surface,
+            "revision": args.revision,
+        }:
+            continuation["status"] = "cancelled"
+            continuation["decision_id"] = receipt["id"]
+        return receipt
+
+    print(json.dumps({"decision": _mutate_sessions(record)}, sort_keys=True))
+
+
 def _record_session_continuation(
     session_reference: str,
     *,
     operation_type: str,
     operation_key: str,
     next_action: str,
+    decision_scope: dict | None = None,
 ) -> dict:
     """Persist one allowlisted continuation, replacing only the same operation."""
     if operation_type not in CONTINUATION_ALLOWED_TYPES:
@@ -11107,6 +11617,8 @@ def _record_session_continuation(
             "created_at": now,
             "updated_at": now,
         }
+        if decision_scope:
+            record["decision_scope"] = decision_scope
         session["continuation"] = record
         return dict(record)
 
@@ -11123,6 +11635,13 @@ def _claim_session_continuation(session_reference: str) -> dict | None:
         record = session.get("continuation")
         if not isinstance(record, dict) or record.get("status") != "ready":
             return None
+        scope = record.get("decision_scope")
+        if scope:
+            from _workflow_decisions import matching_receipt
+            receipt = matching_receipt(session.get("decisions", []), preserve_stop=True, **scope)
+            if receipt:
+                record.update(status="cancelled", decision_id=receipt["id"])
+                return None
         attempts = int(record.get("attempts") or 0)
         if attempts >= CONTINUATION_MAX_DELIVERY_ATTEMPTS:
             record["status"] = "failed"
@@ -11830,6 +12349,354 @@ def _run_cmd_with_heartbeat(
     return result
 
 
+@contextmanager
+def _recovery_backup_heartbeats(heartbeat):
+    stop = threading.Event()
+    errors = []
+
+    def renew() -> None:
+        while not stop.wait(60):
+            try:
+                heartbeat()
+            except Exception as exc:
+                errors.append(exc)
+                stop.set()
+
+    thread = threading.Thread(target=renew, name="recovery-backup-heartbeat", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=2)
+    if errors:
+        raise RuntimeError("Recovery backup operation heartbeat failed.")
+
+
+def _recovery_backup_run(command: list[str], *, cwd: Path, timeout: int = 120, env: dict[str, str] | None = None, heartbeat=None, stdout=None) -> subprocess.CompletedProcess:
+    """Run a recovery command without relaying stdout, stderr, or secret-bearing arguments."""
+    run_kwargs = {"cwd": str(cwd), "text": True, "timeout": timeout, "env": env}
+    if stdout is None:
+        run_kwargs["capture_output"] = True
+    else:
+        run_kwargs.update({"stdout": stdout, "stderr": subprocess.PIPE})
+    if heartbeat:
+        with _recovery_backup_heartbeats(heartbeat):
+            result = subprocess.run(command, **run_kwargs)
+    else:
+        result = subprocess.run(command, **run_kwargs)
+    if result.returncode:
+        raise RuntimeError("A recovery backup command failed; inspect local Docker and CLI logs directly.")
+    return result
+
+
+def _recovery_backup_container(service: str, checkout_root: Path) -> str:
+    result = _recovery_backup_run(
+        _docker_compose_command("ps", "-aq", service, checkout_root=checkout_root), cwd=checkout_root
+    )
+    container_id = result.stdout.strip()
+    if not container_id:
+        raise RuntimeError(f"Recovery backup coverage is incomplete: no container exists for {service}.")
+    return container_id
+
+
+def _recovery_backup_compose_mounts(checkout_root: Path) -> dict[tuple[str, str], dict[str, str]]:
+    result = _recovery_backup_run(_docker_compose_command("config", "--format", "json", checkout_root=checkout_root), cwd=checkout_root)
+    try:
+        resolved = json.loads(result.stdout)
+        services = resolved.get("services") or {}
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Recovery backup coverage is incomplete: resolved Compose configuration was invalid.") from exc
+    mounts: dict[tuple[str, str], dict[str, str]] = {}
+    for name, (service, destination) in RECOVERY_BACKUP_SOURCES.items():
+        volume = next((item for item in services.get(service, {}).get("volumes", []) if item.get("target") == destination), None)
+        if not isinstance(volume, dict) or volume.get("type") not in {"bind", "volume"} or not volume.get("source"):
+            raise RuntimeError(f"Recovery backup coverage is incomplete: {service}:{destination} has no supported Compose mount.")
+        source = str(volume["source"])
+        if volume["type"] == "volume":
+            source = str((resolved.get("volumes", {}).get(source) or {}).get("name") or source)
+        mounts[(service, destination)] = {"type": volume["type"], "source": source}
+    return mounts
+
+
+def _recovery_backup_mount(container_id: str, destination: str, expected: dict[str, str], checkout_root: Path) -> dict:
+    result = _recovery_backup_run(
+        ["docker", "inspect", "--format", "{{json .Mounts}}", container_id], cwd=checkout_root
+    )
+    try:
+        mounts = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Recovery backup coverage is incomplete: Docker mount inspection was invalid.") from exc
+    mount = next((item for item in mounts if item.get("Destination") == destination), None)
+    if not isinstance(mount, dict):
+        raise RuntimeError(f"Recovery backup coverage is incomplete: {destination} is not mounted.")
+    mount_type = str(mount.get("Type") or "")
+    actual_source = str(mount.get("Name") if mount_type == "volume" else mount.get("Source") or "")
+    if mount_type not in {"bind", "volume"} or not actual_source or mount_type != expected["type"]:
+        raise RuntimeError(f"Recovery backup coverage is incomplete: {destination} mount type or source is invalid.")
+    expected_source = expected["source"]
+    if mount_type == "bind":
+        expected_source = str((checkout_root / "backend" / "core" / expected_source).resolve()) if not Path(expected_source).is_absolute() else str(Path(expected_source).resolve())
+        actual_source = str(Path(actual_source).resolve())
+    if actual_source != expected_source:
+        raise RuntimeError(f"Recovery backup coverage is incomplete: {destination} does not match resolved Compose source.")
+    return {"destination": destination, "type": mount_type, "source": actual_source}
+
+
+def _recovery_backup_copy(container_id: str, source: str, destination: Path, checkout_root: Path, *, heartbeat=None) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    _recovery_backup_run(["docker", "cp", f"{container_id}:{source}", str(destination)], cwd=checkout_root, timeout=600, heartbeat=heartbeat)
+
+
+def _recovery_backup_image(container_id: str, checkout_root: Path) -> dict[str, str]:
+    image_id = _recovery_backup_run(["docker", "inspect", "--format", "{{.Image}}", container_id], cwd=checkout_root).stdout.strip()
+    if not image_id:
+        raise RuntimeError("Recovery backup image inventory is missing an immutable image ID.")
+    digest = _recovery_backup_run(["docker", "image", "inspect", "--format", "{{if .RepoDigests}}{{index .RepoDigests 0}}{{end}}", image_id], cwd=checkout_root).stdout.strip()
+    return {"image_id": image_id, "image_digest": digest}
+
+
+def _recovery_backup_vault_unseal(image_id: str, setup_mount: dict, vault_container: str, checkout_root: Path, *, preflight: bool = False, heartbeat=None) -> None:
+    """Unseal with the existing key through a read-only mount; never rerun secret setup."""
+    script = """import http.client, json, pathlib, time
+key = pathlib.Path('/app/data/unseal.key').read_text().strip()
+if not key:
+    raise SystemExit('Recovery key unavailable')
+"""
+    if not preflight:
+        script += """for attempt in range(60):
+    try:
+        connection = http.client.HTTPConnection('127.0.0.1', 8200, timeout=5)
+        connection.request('GET', '/v1/sys/seal-status')
+        status = json.loads(connection.getresponse().read())
+        if not status.get('initialized'):
+            raise SystemExit('Refusing to initialize Vault during recovery')
+        if not status.get('sealed', True):
+            break
+        connection.request('POST', '/v1/sys/unseal', json.dumps({'key': key}), {'Content-Type': 'application/json'})
+        status = json.loads(connection.getresponse().read())
+        if not status.get('sealed', True):
+            break
+    except (OSError, http.client.HTTPException):
+        pass
+    time.sleep(1)
+else:
+    raise SystemExit('Vault recovery unseal failed')
+"""
+    _recovery_backup_run([
+        "docker", "run", "--rm", "--pull=never", "--network", "none" if preflight else f"container:{vault_container}",
+        "--mount", f"type={setup_mount['type']},source={setup_mount['source']},target=/app/data,readonly",
+        "--entrypoint", "python", image_id, "-c", script,
+    ], cwd=checkout_root, timeout=150, heartbeat=heartbeat)
+
+
+def _recovery_backup_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _recovery_backup_snapshot_cache(container_id: str, checkout_root: Path, redis_env: dict[str, str], *, timeout: int, poll: int, heartbeat=None) -> None:
+    """Wait for the asynchronous Dragonfly snapshot to complete before stopping cache."""
+    _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "--version"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+    before = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "LASTSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+    if not before.stdout.strip().isdigit():
+        raise RuntimeError("Dragonfly snapshot verification failed: LASTSAVE is invalid.")
+    started = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "BGSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+    if started.stdout.strip().lower() not in {"ok", "background saving started"}:
+        raise RuntimeError("Dragonfly snapshot did not acknowledge BGSAVE.")
+    baseline = int(before.stdout.strip())
+    deadline = time.time() + max(1, timeout)
+    while time.time() < deadline:
+        saved = _recovery_backup_run(["docker", "exec", "--env", "REDISCLI_AUTH", container_id, "redis-cli", "LASTSAVE"], cwd=checkout_root, env=redis_env, heartbeat=heartbeat)
+        if saved.stdout.strip().isdigit() and int(saved.stdout.strip()) > baseline:
+            return
+        time.sleep(max(1, poll))
+    raise RuntimeError("Dragonfly snapshot did not complete before the backup timeout.")
+
+
+def _recovery_backup_validate_archive_input(root: Path) -> None:
+    """Refuse archive inputs that could escape or change meaning during restore."""
+    for path in root.rglob("*"):
+        mode = path.lstat().st_mode
+        if stat.S_ISLNK(mode) or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+            raise RuntimeError("Recovery backup refused symlink or special-file archive input.")
+
+
+def _record_recovery_backup_terminal(operation_id: str, status: str, **fields) -> None:
+    for attempt in range(3):
+        try:
+            update_docker_operation(operation_id, status, **fields)
+            return
+        except Exception:
+            if attempt < 2:
+                time.sleep(1)
+    raise RuntimeError("Recovery backup could not record its terminal operation state.")
+
+
+def cmd_docker_backup(args: argparse.Namespace) -> None:
+    """Create an owner-only, coordinated recovery archive without deleting restore targets."""
+    checkout_root = _docker_checkout_root(args.session)
+    configured = set(_recovery_backup_run(
+        _docker_compose_command("config", "--services", checkout_root=checkout_root), cwd=checkout_root
+    ).stdout.splitlines())
+    missing = sorted(RECOVERY_BACKUP_REQUIRED_SERVICES - configured)
+    if missing:
+        raise RuntimeError("Recovery backup coverage is unavailable for: " + ", ".join(missing))
+    output_dir = Path(args.output_dir).expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    output_dir.chmod(0o700)
+    operation = request_docker_backup(args.session, sorted(RECOVERY_BACKUP_REQUIRED_SERVICES))
+    lock_acquired = False
+    persistent_coordination = _persistent_coordination_enabled()
+    prior_running: list[str] = []
+    writer_services: list[str] = []
+    storage_services: list[str] = []
+    writer_stop_attempted: list[str] = []
+    storage_stop_attempted: list[str] = []
+    restore_error: RuntimeError | None = None
+    failure: BaseException | None = None
+    completed: dict[str, str] = {}
+    recovery_heartbeat = None
+    try:
+        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+        if not persistent_coordination:
+            _wait_and_acquire_session_lock("docker_rebuild", args.session, phase="draining_tests", timeout=args.timeout, poll=args.poll,
+                                           heartbeat=lambda: update_docker_operation(operation["id"], "admitted"))
+            lock_acquired = True
+
+        def heartbeat(phase: str = "draining_tests") -> None:
+            if not persistent_coordination:
+                _acquire_session_lock("docker_rebuild", args.session, phase=phase)
+            update_docker_operation(operation["id"], phase)
+
+        wait_for_docker_test_leases(operation["id"], timeout=args.timeout, poll=args.poll, heartbeat=heartbeat)
+        containers = {service: _recovery_backup_container(service, checkout_root) for service in RECOVERY_BACKUP_REQUIRED_SERVICES}
+        images = {service: _recovery_backup_image(container_id, checkout_root) for service, container_id in containers.items()}
+        compose_mounts = _recovery_backup_compose_mounts(checkout_root)
+        mounts = {
+            name: _recovery_backup_mount(containers[service], source, compose_mounts[(service, source)], checkout_root)
+            for name, (service, source) in RECOVERY_BACKUP_SOURCES.items()
+        }
+        _recovery_backup_vault_unseal(images["vault-setup"]["image_id"], mounts["vault-setup-data"], containers["vault"], checkout_root, preflight=True)
+        running_result = _recovery_backup_run(
+            _docker_compose_command("ps", "--services", "--status", "running", checkout_root=checkout_root), cwd=checkout_root
+        )
+        prior_running = sorted(set(running_result.stdout.splitlines()))
+        active_setup = sorted(set(prior_running) & RECOVERY_BACKUP_SETUP_SERVICES)
+        if active_setup:
+            raise RuntimeError("Recovery backup refused active setup writer services: " + ", ".join(active_setup))
+        writer_services = sorted(
+            set(prior_running) - {RECOVERY_BACKUP_DATABASE_SERVICE, *RECOVERY_BACKUP_STORAGE_SERVICES}
+        )
+        storage_services = sorted(set(prior_running) & RECOVERY_BACKUP_STORAGE_SERVICES)
+        redis_env = dict(os.environ)
+        password = _read_env_values(ENV_FILE).get("DRAGONFLY_PASSWORD")
+        if not password:
+            raise RuntimeError("Recovery backup coverage is incomplete: Dragonfly authentication is unavailable.")
+        redis_env["REDISCLI_AUTH"] = password
+        # Record recovery targets before each command: a failed stop may have stopped only part of its list.
+        staging = output_dir / f".recovery-backup-{operation['id']}"
+        if staging.exists():
+            raise RuntimeError("Recovery backup staging path already exists.")
+        old_umask = os.umask(0o077)
+        try:
+            staging.mkdir(mode=0o700)
+        finally:
+            os.umask(old_umask)
+        try:
+            heartbeat("restarting")
+            recovery_heartbeat = _recovery_backup_heartbeats(lambda: heartbeat("restarting"))
+            recovery_heartbeat.__enter__()
+            if writer_services:
+                writer_stop_attempted = writer_services
+                _recovery_backup_run(_docker_compose_command("stop", *writer_services, checkout_root=checkout_root), cwd=checkout_root, timeout=args.timeout, heartbeat=lambda: heartbeat("restarting"))
+            _recovery_backup_snapshot_cache(containers["cache"], checkout_root, redis_env, timeout=args.timeout, poll=args.poll, heartbeat=lambda: heartbeat("restarting"))
+            if storage_services:
+                storage_stop_attempted = storage_services
+                _recovery_backup_run(_docker_compose_command("stop", *storage_services, checkout_root=checkout_root), cwd=checkout_root, timeout=args.timeout, heartbeat=lambda: heartbeat("restarting"))
+            dump_path = staging / "postgres.sql"
+            with dump_path.open("w", encoding="utf-8") as dump:
+                result = _recovery_backup_run(
+                    ["docker", "exec", containers[RECOVERY_BACKUP_DATABASE_SERVICE], "sh", "-c", 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"'],
+                    cwd=checkout_root, stdout=dump, timeout=600, heartbeat=lambda: heartbeat("restarting"),
+                )
+            if result.returncode:
+                raise RuntimeError("PostgreSQL recovery dump failed; no archive was published.")
+            for name, (service, source) in RECOVERY_BACKUP_SOURCES.items():
+                _recovery_backup_copy(containers[service], source, staging / name, checkout_root, heartbeat=lambda: heartbeat("restarting"))
+            shutil.copy2(ENV_FILE, staging / "runtime.env")
+            _recovery_backup_copy(containers["vault"], "/vault/config", staging / "vault-config", checkout_root, heartbeat=lambda: heartbeat("restarting"))
+            shutil.copy2(checkout_root / "backend" / "core" / "docker-compose.yml", staging / "docker-compose.yml")
+            override = checkout_root / "backend" / "core" / "docker-compose.override.yml"
+            if override.is_file():
+                shutil.copy2(override, staging / "docker-compose.override.yml")
+            resolved_config = _recovery_backup_run(_docker_compose_command("config", "--format", "json", checkout_root=checkout_root), cwd=checkout_root)
+            (staging / "compose-resolved.json").write_text(resolved_config.stdout, encoding="utf-8")
+            _recovery_backup_validate_archive_input(staging)
+            inventory = {"version": 1, "operation": operation["id"], "services_running_before_backup": prior_running, "mounts": mounts, "images": images,
+                         "files": {path.relative_to(staging).as_posix(): _recovery_backup_sha256(path) for path in staging.rglob("*") if path.is_file()}}
+            (staging / "inventory.json").write_text(json.dumps(inventory, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            archive = output_dir / f"recovery-backup-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{operation['id']}.tar.gz"
+            temporary_archive = archive.with_suffix(".tar.gz.tmp")
+            archive_fd = os.open(temporary_archive, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(archive_fd, "wb") as archive_handle:
+                with tarfile.open(fileobj=archive_handle, mode="w:gz") as tar:
+                    tar.add(staging, arcname="recovery")
+            checksum = _recovery_backup_sha256(temporary_archive)
+            temporary_archive.replace(archive)
+            checksum_path = archive.with_suffix(archive.suffix + ".sha256")
+            temporary_checksum = checksum_path.with_suffix(checksum_path.suffix + ".tmp")
+            temporary_checksum.write_text(f"{checksum}  {archive.name}\n", encoding="utf-8")
+            temporary_checksum.chmod(0o600)
+            temporary_checksum.replace(checksum_path)
+            completed = {"archive": archive.name, "checksum": checksum}
+        finally:
+            if staging.exists():
+                shutil.rmtree(staging)
+    except BaseException as exc:
+        failure = exc
+    finally:
+        if storage_stop_attempted or writer_stop_attempted:
+            try:
+                if storage_stop_attempted:
+                    _recovery_backup_run(_docker_compose_command("restart", *storage_stop_attempted, checkout_root=checkout_root), cwd=checkout_root, timeout=args.health_timeout, heartbeat=lambda: heartbeat("verifying"))
+                    if "vault" in storage_stop_attempted:
+                        _recovery_backup_vault_unseal(images["vault-setup"]["image_id"], mounts["vault-setup-data"], containers["vault"], checkout_root, heartbeat=lambda: heartbeat("verifying"))
+                    wait_for_docker_services_healthy(storage_stop_attempted, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root, heartbeat=lambda: heartbeat("verifying"))
+                cms = ["cms"] if "cms" in writer_stop_attempted else []
+                if cms:
+                    _recovery_backup_run(_docker_compose_command("restart", "cms", checkout_root=checkout_root), cwd=checkout_root, timeout=args.health_timeout, heartbeat=lambda: heartbeat("verifying"))
+                    wait_for_docker_services_healthy(cms, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root, heartbeat=lambda: heartbeat("verifying"))
+                other_writers = sorted(set(writer_stop_attempted) - {"cms"})
+                if other_writers:
+                    _recovery_backup_run(_docker_compose_command("restart", *other_writers, checkout_root=checkout_root), cwd=checkout_root, timeout=args.health_timeout, heartbeat=lambda: heartbeat("verifying"))
+                    wait_for_docker_services_healthy(other_writers, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root, heartbeat=lambda: heartbeat("verifying"))
+            except Exception:
+                restore_error = RuntimeError("Recovery backup could not restore prior services; inspect local Docker and CLI logs directly.")
+        if restore_error:
+            failure = restore_error
+        if recovery_heartbeat:
+            try:
+                recovery_heartbeat.__exit__(None, None, None)
+            except Exception:
+                failure = RuntimeError("Recovery backup operation heartbeat failed.")
+        try:
+            if failure:
+                _record_recovery_backup_terminal(operation["id"], "failed", error=type(failure).__name__)
+            else:
+                _record_recovery_backup_terminal(operation["id"], "completed", **completed)
+                print(f"Recovery backup completed: {completed['archive']}")
+        except Exception:
+            failure = RuntimeError("Recovery backup could not record its terminal operation state.")
+        if lock_acquired:
+            _release_session_lock("docker_rebuild", released_by=args.session)
+    if failure:
+        raise failure
+
+
 def cmd_docker_restart(args: argparse.Namespace) -> None:
     """Drain dependent tests, restart allowlisted services, and verify health."""
     services = sorted(set(args.service))
@@ -12048,6 +12915,9 @@ def cmd_docker(args: argparse.Namespace) -> None:
             return
         if args.docker_action == "run-setup":
             cmd_docker_run_setup(args)
+            return
+        if args.docker_action == "backup":
+            cmd_docker_backup(args)
             return
     except RuntimeError as exc:
         print(f"Docker operation failed: {exc}", file=sys.stderr)
@@ -14718,6 +15588,10 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
+    if args.worktree_action == "submit-ready":
+        result = submit_ready_worktree(args.session, patch_id=args.patch_id, checkpoint_commit=args.checkpoint_commit)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "root-dirty":
         try:
             result = list_root_dirty_files(path_prefix=args.path_prefix or "")
@@ -14766,7 +15640,12 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "repair":
         try:
-            result = repair_worktree_routing(args.opencode_session)
+            if getattr(args, "restore_session", None):
+                if args.generation is not None or args.operation_id:
+                    raise ValueError("Binding recovery cannot use routing generation or operation-id options")
+                result = restore_original_worktree_binding(args.opencode_session, args.restore_session)
+            else:
+                result = repair_worktree_routing(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
@@ -14782,7 +15661,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "checkpoint":
         try:
-            result = checkpoint_session_worktree(args.opencode_session, event=args.event)
+            result = checkpoint_session_worktree(args.opencode_session, event=args.event, expected_generation=args.generation, operation_id=args.operation_id)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -14790,7 +15669,7 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "activate":
         try:
-            result = activate_session_worktree(args.opencode_session)
+            result = activate_session_worktree(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
         except (OSError, RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
@@ -17277,6 +18156,7 @@ def cmd_git_stats(args: argparse.Namespace) -> None:
     os.execvp(cmd[0], cmd)
 
 
+@_workspace_transition("restore")
 def prepare_opencode_restore(opencode_session_id: str) -> dict[str, Any]:
     """Validate routing and safely advance a resumable worktree to origin/dev."""
     data = _load_sessions()
@@ -18052,6 +18932,18 @@ def main() -> None:
         if action != "release-task":
             p_presence_task.add_argument("--ttl", type=int, default=900, help="Renewable claim TTL in seconds")
 
+    p_decision = sub.add_parser("decision", help="Record exact scoped user acceptance, stop or waiver")
+    p_decision.add_argument("--session", required=True)
+    p_decision.add_argument("--provider", choices=["opencode", "codex"], default="opencode")
+    p_decision.add_argument("--source-session", default="")
+    p_decision.add_argument("--message-id", required=True)
+    p_decision.add_argument("--quote", required=True, help="Exact original user text; not persisted")
+    p_decision.add_argument("--target", required=True, help="Exact Task or Plan id")
+    p_decision.add_argument("--surface", choices=["appearance", "proof", "task"], required=True)
+    p_decision.add_argument("--revision", required=True, help="Task decision_revision from context or Plan subject commit")
+    p_decision.add_argument("--decision", choices=["accept", "stop", "waive", "resume"], required=True)
+    p_decision.add_argument("--plan", default="", help="Owning worktree Plan path, if applicable")
+
     p_task_bridge = sub.add_parser("task-bridge", help="Bridge trusted OpenMates Task JSON into OpenCode")
     p_task_bridge_sub = p_task_bridge.add_subparsers(dest="task_bridge_action", required=True)
     p_task_bridge_stage = p_task_bridge_sub.add_parser(
@@ -18151,6 +19043,12 @@ def main() -> None:
         help="Seconds to wait for the Docker lock and dependent tests",
     )
     p_docker_setup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
+    p_docker_backup = p_docker_sub.add_parser("backup", help="Create a coordinated, owner-only recovery backup archive")
+    p_docker_backup.add_argument("--session", "-s", required=True, help="Requesting sessions.py ID")
+    p_docker_backup.add_argument("--output-dir", required=True, help="Existing or new owner-controlled archive directory")
+    p_docker_backup.add_argument("--timeout", type=int, default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS)
+    p_docker_backup.add_argument("--poll", type=int, default=5, help="Seconds between lease checks")
+    p_docker_backup.add_argument("--health-timeout", type=int, default=DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS)
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
@@ -18172,8 +19070,13 @@ def main() -> None:
     p_worktree_binding.add_argument("--mode", required=True, choices=["native", "pilot_fallback"])
     p_worktree_binding.add_argument("--directory", help="Canonical native session directory")
     p_worktree_binding.add_argument("--reason", help="Stable pilot fallback reason")
+    p_ready = p_worktree_sub.add_parser("submit-ready", help="Explicitly submit one fingerprinted preservation checkpoint")
+    p_ready.add_argument("--session", required=True)
+    p_ready.add_argument("--patch-id", required=True)
+    p_ready.add_argument("--checkpoint-commit", required=True)
     p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
     p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    p_worktree_repair.add_argument("--restore-session", help="Restore a retired original session from an idle pristine successor")
     p_worktree_refresh_base = p_worktree_sub.add_parser(
         "refresh-base",
         help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
@@ -18186,6 +19089,9 @@ def main() -> None:
         "activate", help="Invalidate an idle checkpoint when a chat starts a new user turn"
     )
     p_worktree_activate.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    for transition_parser in (p_worktree_repair, p_worktree_checkpoint, p_worktree_activate):
+        transition_parser.add_argument("--generation", type=int, default=None)
+        transition_parser.add_argument("--operation-id", default="")
     p_worktree_auto_integrate = p_worktree_sub.add_parser("auto-integrate", help="Integrate eligible checkpointed work through normal deploy gates")
     p_worktree_auto_integrate.add_argument("--dry-run", action="store_true", help="List eligible checkpoints without deploying")
     p_worktree_expire = p_worktree_sub.add_parser(
@@ -18835,6 +19741,7 @@ def main() -> None:
         "chat": cmd_opencode_chat,
         "presence": cmd_presence,
         "task-bridge": cmd_task_bridge,
+        "decision": cmd_decision,
         "continuation": cmd_continuation,
         "media": cmd_media,
         "docker": cmd_docker,

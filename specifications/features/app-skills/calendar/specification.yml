@@ -1,0 +1,210 @@
+schema_version: 1
+id: feature.app-skills.calendar
+version: 3
+status: draft
+title: Calendar Skills
+summary: >
+  Provider-neutral Calendar skills create and discover calendars, search and read events,
+  inspect availability, and safely create, update, and delete events. Google
+  Calendar is the first adapter under the shared connected-accounts contract.
+inherits:
+  - architecture.connected-accounts@2
+  - architecture.app-skill-execution@1
+
+scope:
+  includes:
+    - Google OAuth connection and reuse through the shared account platform.
+    - Calendar discovery, bounded search/list, exact event reads, and free/busy availability.
+    - Explicit creation of secondary calendars with a name and IANA timezone, including an isolated reusable test calendar.
+    - Timed and all-day event creation, partial updates, deletion, reminders, and supported recurrence.
+    - Explicit attendee/notification effects, optimistic concurrency, duplicate prevention, and honest undo.
+    - Real CLI and SDK skills, web account and event interactions, and isolated provider-backed verification.
+    - Unattended Calendar workflow execution and testing through explicit shared server grants.
+  excludes:
+    - Other provider implementations, calendar deletion/clearing/renaming, ACL management, and calendar subscriptions.
+    - Automatic meeting booking, conference provisioning, attachments, event moves, and research automation.
+    - Recurrence splitting for this-and-following edits; reject explicitly rather than mutate a whole series.
+
+models:
+  CalendarSkills:
+    commands:
+      type: array
+      values: [list-calendars, create-calendar, get-events, get-event, search-events, get-availability, create-event, update-event, delete-event]
+    provider: {type: enum, values: [google], constraints: {future_adapters_explicit_capabilities: true}}
+  EventTime:
+    timed: {type: object, constraints: {explicit_iana_timezone_or_offset: true, end_after_start: true}}
+    all_day: {type: object, constraints: {date_only_start_and_exclusive_end: true}}
+    recurrence: {type: object, constraints: {iana_timezone_for_timed_series: true, mutation_scope_explicit: true}}
+
+assertions:
+  - id: calendar.connection.scopes
+    type: security
+    must: >
+      Google consent includes supported calendar-list read authorization for discovery
+      and event scopes matching selected capabilities, including when Write/Delete are
+      enabled. Incremental upgrades and revoked grants follow the shared reconnect
+      contract. Never treat insufficient scope as an empty calendar. Translate provider
+      roles and capabilities explicitly; future providers must not silently emulate
+      unsupported operations. Shipped account/provider identifiers remain usable.
+    depends_on: [examples.connection]
+  - id: calendar.discovery.target
+    type: behavior
+    must: >
+      List authorized calendars with stable IDs, labels, timezone, primary flag, and
+      access role, with pagination and hidden-calendar selection available. Bind every
+      event operation to the selected connected account and calendar ID; resolve labels
+      only when unambiguous. An explicitly selected primary calendar is allowed, but
+      writes never silently default to primary. Missing, read-only, deleted, and
+      inaccessible calendars produce distinct safe failures without another-calendar
+      fallback. No calendar management scopes are requested merely to select a target.
+    depends_on: [examples.discovery]
+  - id: calendar.creation.explicit-secondary
+    type: security
+    must: >
+      Create-calendar creates a secondary calendar owned by the selected authorized
+      Google user, with an explicit nonempty name, valid IANA timezone, and optional
+      description. Calendar creation is a distinct capability from event writes,
+      defaults to Always ask, and binds approval to account and exact creation input.
+      Request Google's calendar.app.created scope incrementally when this capability
+      is enabled rather than broad calendar or calendar.calendars scope merely for
+      creation. Explain the actual provider scope and retain OpenMates action checks;
+      the Google scope is not a creation-only guarantee. Existing event-only grants
+      require user consent instead of silent escalation. Do not modify the primary
+      calendar, add sharing permissions, transfer ownership, or invite anyone.
+      Return the provider-confirmed calendar ID, name, timezone, and account reference
+      and verify it is discoverable before using it for events. Reuse an operation
+      identity and serialize duplicate submissions; after an uncertain provider
+      outcome reconcile using recorded identity and creation metadata, never blindly
+      retry or treat a matching name alone as proof of ownership or prior creation.
+      Report unresolved outcomes for review without claiming success. Creation does
+      not automatically grant a workflow access to the new calendar.
+    depends_on: [examples.creation]
+  - id: calendar.read.search-availability
+    type: behavior
+    must: >
+      Get-events lists a bounded explicit interval, get-event fetches an exact identity,
+      and search-events supports text within selected calendars and date bounds.
+      Return stable provider/account/calendar/event identity, normalized times, status,
+      recurrence context, and page continuation without silent truncation or duplicate
+      pages. Free/busy reads expose intervals without titles or descriptions where
+      sufficient and never imply availability when a calendar failed to load. Preserve
+      provider search limitations and per-calendar partial failures in structured results.
+      Private provider text is untrusted data, not instructions or permission grants.
+    depends_on: [examples.reads]
+  - id: calendar.events.time-and-recurrence
+    type: behavior
+    must: >
+      Support timed events with an explicit timezone or offset and all-day events with
+      date-only start and exclusive end; never invent a local timezone or shift all-day
+      dates through UTC. Validate positive ranges and reject nonexistent or ambiguous
+      local DST times unless explicitly disambiguated. Timed recurring series require
+      an IANA timezone, validated supported recurrence, and explicit series versus
+      occurrence scope for update/delete. Support creating a series and changing one
+      occurrence or the whole series; show that scope during approval. Reject unsupported
+      recurrence patterns and this-and-following edits without partial mutation.
+    depends_on: [models.EventTime, examples.time]
+  - id: calendar.events.safe-mutations
+    type: security
+    must: >
+      Create supports title, description, location, time, and supported reminders with
+      validated provider limits. Partial update preserves omitted fields and supports
+      explicitly clearing optional values. Updates/deletes re-read provider state after
+      delayed approval and use version preconditions to prevent overwriting intervening
+      changes; conflicts require review rather than blind overwrite. Create uses a
+      stable operation key and reconciliation to prevent duplicates after retries or
+      uncertain timeouts. Provider success plus exact event identity is required before
+      reporting a successful write. An uncertain post-dispatch outcome remains explicitly
+      uncertain even if subsequent output processing fails. Delete reports absence or
+      cancellation accurately; undo is offered only when technically valid and never
+      overwrites newer edits or claims to retract delivered notifications.
+    depends_on: [examples.mutations]
+  - id: calendar.events.external-effects
+    type: security
+    must: >
+      Attendee or notification changes require an explicit requested policy and disclosure
+      of recipients and effect in the authorized action. Omitted attendee fields remain
+      unchanged on update. Invitations, attendee removal, and external broadcasts are
+      never inferred from event text or silently added. Default creation without attendees
+      does not invite anyone; edits involving existing attendees must disclose potential
+      provider effects rather than promise silence that Google cannot guarantee. Treat
+      reminders separately from invitations and expose whether calendar defaults apply.
+      Initial live proof uses only synthetic attendee-free events with notifications off.
+    depends_on: [examples.external_effects]
+  - id: calendar.surface.skills
+    type: parity
+    must: >
+      Every CalendarSkills command runs a registered real OpenMates app skill through
+      the shared first-party execution boundary. CLI and npm/pip SDKs preserve equivalent
+      validated input, explicit account/calendar selection, permission review, structured
+      results, errors, and pagination. Web presents usable account selection, permission
+      prompts and event results with timezone/recurrence context. Do not substitute direct
+      Google API calls or mocked product endpoints for deployed integration evidence.
+      SDKs use already-connected accounts only; connection and reconnection are provided
+      by CLI and web, with Apple later, under the inherited client-surface boundary.
+    depends_on: [models.CalendarSkills, examples.surfaces]
+  - id: calendar.workflows.scoped-offline-execution
+    type: security
+    must: >
+      Calendar skills execute in unattended workflows through the shared server grant
+      boundary, never interactive token-ref reuse. Bind every operation to the approved
+      account, calendar, action, data bounds, and external-effect policy. Account selection
+      displays the shared offline banner and activation reviews access once. Read-only
+      grants cannot mutate; new calendar creation requires its distinct capability and
+      does not automatically expand the workflow grant to that calendar. Mutations either
+      wait for exact approval or run within explicit preapproved limits. Recheck grant
+      revision and provider state on resume; fence retries and reconcile uncertain writes.
+      Live proof uses a provisioned isolated calendar, a scheduled read and synthetic
+      attendee-free write with authorizing clients disconnected, then verifies the
+      provider effects and exact cleanup. Pause, resume, and revoke tests must observe
+      actual execution behavior rather than only updated settings or accepted run IDs.
+    depends_on: [examples.workflows]
+  - id: calendar.verification.isolated-live-account
+    type: behavior
+    must: >
+      Live integration tests use a provisioned, explicitly authorized connected account
+      through real OpenMates interfaces. Account selection, environment, credential
+      setup, and calendar IDs are runtime configuration, never operator-specific
+      specification content or committed account data. Require explicit live-test opt-in
+      and an authorized isolated calendar target or authorization to create one;
+      authentication alone is not test-write consent. Missing or ambiguous authorization
+      must prevent writes and be reported as a setup requirement, not a passing live
+      check. Tests may reuse a locally authenticated CLI session without reading or
+      exporting credential files, and must not silently switch account or environment.
+      Create the isolated secondary calendar through create-calendar with an explicit
+      timezone. Retain confirmed account/calendar identity in private runtime test state
+      and reuse that exact calendar across runs; do not create one each run or adopt
+      a same-name calendar without provenance or confirmation.
+      Discover and search through CLI, create uniquely labeled test events, read them,
+      update them, read back, delete them, and verify cleanup, including recurrence
+      artifacts. Clean only exact test-created event IDs and run markers, never clear
+      a calendar or delete events merely because their title matches. Retain the empty
+      reusable test calendar and disclose that retention. Never modify
+      unrelated events, invite attendees, or broadcast notifications.
+      Report residual test events if cleanup fails; proof media contains synthetic data
+      only. Real integration evidence must exercise the deployed OpenMates API path,
+      including real CLI and SDK execution; provider mocks remain appropriate for
+      deterministic faults and edge cases but cannot replace live acceptance evidence.
+    depends_on: [examples.live_verification]
+
+applies_to:
+  rest_api:
+    required: true
+    role: First-party connected-account endpoints; normal developer API-key skill exposure remains disabled.
+  cli: {required: true, parity: semantic}
+  sdks:
+    required: true
+    parity: semantic
+    role: Calendar skill execution against accounts already connected through CLI or web; SDK connection is unsupported.
+    implementations:
+      npm: {required: true}
+      pip: {required: true}
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web: {required: true}
+      apple: {required: false, role: Native implementation follows verified shared and web behavior in a separate stage.}
+
+examples:
+  file: examples.yml
+  required_groups: [connection, discovery, creation, reads, time, mutations, external_effects, surfaces, workflows, live_verification]

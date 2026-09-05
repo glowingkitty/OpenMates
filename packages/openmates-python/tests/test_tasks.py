@@ -1,7 +1,7 @@
-"""Python SDK user task contract tests.
+"""Python SDK user Task Specification tests.
 
 Purpose: verify the pip SDK encrypts/decrypts task content behind plaintext
-task helpers, matching the CLI contract without real network calls.
+task helpers, matching the CLI Specification behavior without real network calls.
 Security: monkeypatches requests; no API keys or task payloads leave tests.
 Run: python3 -m pytest packages/openmates-python/tests/test_tasks.py
 """
@@ -52,7 +52,7 @@ def test_pip_sdk_manages_decrypted_task_activity(monkeypatch):
 
     def fake_delete(url, *, json, headers, timeout):
         assert "/activity/" in url
-        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_entry_key": None, "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
+        return FakeResponse({"entry": {**stored_activity, "kind": "tombstone", "encrypted_message": None, "encrypted_embed_key_material": None, "embed_refs": [], "author_hash": "author-hash", "deleted_by_hash": "author-hash", "deleted_at": 101}})
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
     monkeypatch.setattr("openmates.sdk.requests.post", fake_post)

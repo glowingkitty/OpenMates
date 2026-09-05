@@ -56,13 +56,13 @@ const AI_MODEL_SETTINGS_PROOF = defineVideoProof({
 		},
 		{
 			id: 'tier-catalog',
-			text: 'Simple requests opens a tier catalog with automatic routing, provider families, and capability guidance.',
+			text: 'Most demanding requests opens a tier catalog with automatic routing, provider families, and max capability guidance.',
 			checkpoint: 'ai-tier-catalog',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'tier-provider-models',
-			text: 'The ChatGPT provider page lists exact model choices for the Simple requests tier.',
+			text: 'The Claude provider page lists Claude Fable 5.1 as a max-capability model for the Most demanding tier.',
 			checkpoint: 'ai-tier-provider-models',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -95,13 +95,13 @@ const AI_MODEL_SETTINGS_PROOF = defineVideoProof({
 		{
 			id: 'ai-model-routing.catalog.capability-recommendation-variants',
 			checkpoint: 'ai-tier-catalog',
-			visual: 'The tier catalog visibly identifies automatic routing, provider families, and low capability guidance.',
+			visual: 'The tier catalog visibly identifies automatic routing, provider families, and max capability guidance.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'ai-model-routing.catalog.provider-models',
 			checkpoint: 'ai-tier-provider-models',
-			visual: 'The provider-specific tier catalog visibly lists exact model choices without raw translation placeholders.',
+			visual: 'The Claude tier catalog visibly lists Claude Fable 5.1 as a max-capability exact model choice.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -180,37 +180,39 @@ test('AI settings overview, tier, provider, and model detail match the approved 
 	await takeStepScreenshot(page, '02-ai-settings-providers');
 	await proof.checkpoint('ai-settings-overview-providers');
 
-	await proof.action('open-simple-tier-catalog', async () => {
-		await aiSettings.getByTestId('ai-tier-row-simple-modify-button').scrollIntoViewIfNeeded();
-		await aiSettings.getByTestId('ai-tier-row-simple-modify-button').click();
+	await proof.action('open-most-demanding-tier-catalog', async () => {
+		await aiSettings.getByTestId('ai-tier-row-most-demanding-modify-button').scrollIntoViewIfNeeded();
+		await aiSettings.getByTestId('ai-tier-row-most-demanding-modify-button').click();
 	});
-	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/simple', { timeout: 10000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/most-demanding', { timeout: 10000 });
 	const tierCatalog = settingsMenu.getByTestId('ai-tier-provider-catalog');
 	await proof.assert('ai-model-routing.catalog.capability-recommendation-variants', async () => {
 		await expect(tierCatalog.getByTestId('ai-model-option-auto')).toContainText('Auto select');
-		await expect(tierCatalog.getByTestId('ai-capability-scale')).toHaveAttribute('data-level', 'low');
+		await expect(tierCatalog.getByTestId('ai-capability-scale')).toHaveAttribute('data-level', 'max');
 		await expect(tierCatalog.getByTestId('ai-provider-family-card').first()).toContainText('ChatGPT');
 		await expect(settingsMenu).not.toContainText('[T:');
 	});
 	await tierCatalog.getByTestId('ai-provider-family-card').first().scrollIntoViewIfNeeded();
-	await takeStepScreenshot(page, '03-simple-tier-families');
+	await takeStepScreenshot(page, '03-most-demanding-tier-families');
 	await proof.checkpoint('ai-tier-catalog');
 
-	await proof.action('open-chatgpt-provider-models', async () => {
-		await tierCatalog.getByTestId('ai-provider-family-card').first().click();
+	await proof.action('open-claude-provider-models', async () => {
+		await tierCatalog.getByTestId('ai-provider-family-card').nth(1).click();
 	});
-	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/simple/provider/openai', { timeout: 10000 });
+	await expect(settingsMenu).toHaveAttribute('data-active-view', 'ai/tier/most-demanding/provider/anthropic', { timeout: 10000 });
 	const providerCatalog = settingsMenu.getByTestId('ai-tier-provider-catalog');
 	await proof.assert('ai-model-routing.catalog.provider-models', async () => {
-		await expect(providerCatalog.getByTestId('ai-model-option-exact').first()).toBeVisible();
+		const fable = providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.1' });
+		await expect(fable).toBeVisible();
+		await expect(fable).toContainText('Max capabilities');
 		await expect(providerCatalog.getByText(/Recommended/i).first()).toBeVisible();
 		await expect(settingsMenu).not.toContainText('[T:');
 	});
-	await takeStepScreenshot(page, '04-simple-tier-chatgpt-models');
+	await takeStepScreenshot(page, '04-most-demanding-tier-claude-models');
 	await proof.checkpoint('ai-tier-provider-models');
 
-	await proof.action('open-first-chatgpt-model-detail', async () => {
-		await providerCatalog.getByTestId('ai-model-option-exact').first().click();
+	await proof.action('open-fable-model-detail', async () => {
+		await providerCatalog.getByTestId('ai-model-option-exact').filter({ hasText: 'Claude Fable 5.1' }).click();
 	});
 	await expect(settingsMenu).toHaveAttribute('data-active-view', /^ai\/model\//, { timeout: 10000 });
 	const modelDetails = settingsMenu.getByTestId('ai-model-details');

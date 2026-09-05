@@ -22,6 +22,7 @@ import {
 } from "../guestSmartSelection";
 
 describe("guestSmartSelection", () => {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable
   it("defines the approved 21-work and 13-personal tag taxonomy", () => {
     expect(INTEREST_TAGS).toHaveLength(34);
     expect(INTEREST_TAGS.filter((tag) => tag.audience === "work")).toHaveLength(21);
@@ -40,6 +41,7 @@ describe("guestSmartSelection", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable
   it("maps every interest to registered public example chats", () => {
     const registeredIds = new Set(ALL_EXAMPLE_CHATS.map((chat) => chat.chat_id));
     const unknownMappings = INTEREST_TAGS.flatMap((tag) =>
@@ -52,6 +54,7 @@ describe("guestSmartSelection", () => {
     expect(INTEREST_TAGS.filter((tag) => tag.exampleChats.length === 0)).toEqual([]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable
   it("migrates legacy stored tag IDs to canonical tags", () => {
     expect(normalizeInterestTagIds([
       "marketing_sales",
@@ -71,6 +74,7 @@ describe("guestSmartSelection", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
   it("uses interest translation keys for every guest-selectable tag", () => {
     const source = readFileSync(
       new URL("../../i18n/sources/chat/interests.yml", import.meta.url),
@@ -89,6 +93,7 @@ describe("guestSmartSelection", () => {
     ).toEqual([]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable
   it("keeps selected tags first and moves related tags next without hiding unrelated tags", () => {
     const ranked = rankInterestTagsForSelection(["software_development"]);
     const rankedIds = ranked.map((tag) => tag.id);
@@ -106,6 +111,7 @@ describe("guestSmartSelection", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable
   it("keeps multiple selected tags first in selection order and ignores invalid duplicates", () => {
     const rankedIds = rankInterestTagsForSelection([
       "privacy_personal_data",
@@ -124,6 +130,7 @@ describe("guestSmartSelection", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
   it("ranks developer, CLI, and privacy feature inspirations before generic defaults", () => {
     const inspirations = [
       { inspiration_id: "openmates-intro", category: "openmates_official" },
@@ -150,6 +157,7 @@ describe("guestSmartSelection", () => {
     );
   });
 
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.catalog.discoverable
   it("dedupes ranked example chats and remains deterministic", () => {
     const selected: InterestTagId[] = [
       "software_development",
@@ -177,6 +185,7 @@ describe("guestSmartSelection", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=landing-onboarding.legacy-intros-retired
   it("ranks intro chats and suggestion keys from the shared registry", () => {
     expect(
       rankIntroChatIdsByInterests(
@@ -188,9 +197,10 @@ describe("guestSmartSelection", () => {
         ["software_development"],
       ),
     ).toEqual([
-      "demo-for-developers",
       "demo-who-develops-openmates",
+      // Retired intros no longer receive registry interest boosts.
       "demo-for-everyone",
+      "demo-for-developers",
     ]);
 
     expect(
@@ -209,6 +219,7 @@ describe("guestSmartSelection", () => {
     ]);
   });
 
+  // contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated
   it("keeps personalized inspirations ahead of guest product explainers", () => {
     const ranked = rankDailyInspirationsByInterests(
       [

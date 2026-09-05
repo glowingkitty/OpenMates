@@ -24,43 +24,43 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'minimized-state',
-			text: 'The minimized message field shows its grey AI affordance and microphone without expanded controls.',
+			text: 'The minimized composer shows only its AI affordance and microphone.',
 			checkpoint: 'minimized',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'expanded-state',
-			text: 'Focusing the message field expands the composer and reveals its action controls.',
+			text: 'Focusing expands the composer and reveals its controls.',
 			checkpoint: 'expanded',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'speech-toggle-off',
-			text: 'The speech control starts with a visible mute glyph and no square background.',
+			text: 'Speech starts muted on a transparent control.',
 			checkpoint: 'speech-toggle-off',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'speech-toggle-on',
-			text: 'Clicking the speech control immediately replaces the mute glyph with the audio glyph.',
+			text: 'Clicking speech displays the audio glyph.',
 			checkpoint: 'speech-toggle-on',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'hover-state',
-			text: 'Hovering the model selector adds only the intended gentle interaction shadow.',
+			text: 'Hovering adds a gentle selector shadow.',
 			checkpoint: 'model-selector-hovered',
 			devices: ['web-laptop']
 		},
 		{
 			id: 'model-menu-state',
-			text: 'Clicking the model selector opens the model selection menu inside the isolated component.',
+			text: 'The selector opens the model menu.',
 			checkpoint: 'model-menu-open',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'model-row-selection',
-			text: 'Clicking a model row selects that exact model while opening its details.',
+			text: 'Clicking a model row selects it while opening details.',
 			checkpoint: 'model-row-selected',
 			devices: ['web-laptop', 'web-phone']
 		}
@@ -190,6 +190,16 @@ test.describe('MessageInput component preview', () => {
 		const modelMenu = page.getByTestId('composer-model-selector-menu');
 		await modelMenu.getByTestId('composer-model-provider-label').first().click();
 		const firstModelName = modelMenu.getByTestId('composer-model-name').first();
+		const firstModelIcon = modelMenu.getByTestId('composer-model-icon').first();
+		const firstModelCapability = modelMenu.getByTestId('composer-model-capability').first();
+		const [iconBox, capabilityBox] = await Promise.all([
+			firstModelIcon.boundingBox(),
+			firstModelCapability.boundingBox()
+		]);
+		expect(iconBox).not.toBeNull();
+		expect(capabilityBox).not.toBeNull();
+		expect(Math.abs(capabilityBox!.x + capabilityBox!.width / 2 - (iconBox!.x + iconBox!.width))).toBeLessThanOrEqual(1);
+		expect(Math.abs(capabilityBox!.y + capabilityBox!.height / 2 - (iconBox!.y + iconBox!.height))).toBeLessThanOrEqual(1);
 		const selectedModelName = (await firstModelName.textContent())?.trim();
 		expect(selectedModelName).toBeTruthy();
 		await proof.action('select-model-row', async () => firstModelName.click());

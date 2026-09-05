@@ -239,6 +239,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:pdf:view': renderGenericAppSkill,
 	'app:mail:search': renderMailSearch,
 	'app:calendar:get-events': renderGenericAppSkill,
+	'app:calendar:list-calendars': renderGenericAppSkill,
 	'app:calendar:create-event': renderGenericAppSkill,
 	'app:calendar:update-event': renderGenericAppSkill,
 	'app:calendar:delete-event': renderGenericAppSkill,

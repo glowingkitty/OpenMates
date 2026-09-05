@@ -8,7 +8,7 @@ set -u
 
 EVENT="${1:-}"
 PROJECT_ROOT="/home/superdev/projects/OpenMates"
-HOOK_DIR="$PROJECT_ROOT/.claude/hooks"
+HOOK_DIR="${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/.claude/hooks"
 INPUT=$(cat)
 CALLER_CWD=$(echo "$INPUT" | jq -r --arg fallback "$PROJECT_ROOT" '.cwd // $fallback')
 

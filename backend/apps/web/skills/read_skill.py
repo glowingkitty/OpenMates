@@ -13,12 +13,17 @@ import asyncio
 from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
-from toon_format import encode, decode, DecodeOptions
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.firecrawl.firecrawl_scrape import scrape_url
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_utils.app_skill_helpers import sanitize_external_content, check_rate_limit, wait_for_rate_limit
+from backend.shared.python_utils.app_skill_helpers import check_rate_limit, wait_for_rate_limit
+from backend.shared.python_utils.app_skill_output_safety import (
+    APP_SKILL_SURFACE_REST,
+    AppSkillOutputSafetyContext,
+    is_central_app_skill_dispatch,
+    sanitize_app_skill_output,
+)
 # RateLimitScheduledException is no longer caught here - it bubbles up to route handler
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_utils.url_normalizer import extract_domain_from_url, normalize_url_for_content_id, sanitize_url_remove_fragment
@@ -406,14 +411,10 @@ class ReadSkill(BaseSkill):
                 only_main_content=req_only_main_content,
                 max_age=req_max_age,
                 timeout=req_timeout,
-                sanitize_output=True
             )
             
             if scrape_result.get("error"):
                 return (request_id, [], f"URL '{read_url}': {scrape_result['error']}")
-            
-            # Check if sanitization should be skipped
-            should_sanitize = scrape_result.get("sanitize_output", True)
             
             # Extract data from scrape result
             data = scrape_result.get("data", {})
@@ -433,126 +434,38 @@ class ReadSkill(BaseSkill):
                 og_image = metadata.get("ogImage") or metadata.get("og:image")
                 og_sitename = metadata.get("ogSiteName") or metadata.get("og:site_name")
             
-            # Build result with sanitized content
-            task_id = f"read_{request_id}_{read_url[:50]}"
-            
-            # Build JSON structure with only text fields that need sanitization
-            text_data_for_sanitization = {
+            result = {
+                "type": "read_result",
+                "url": read_url,
                 "title": title,
-                "markdown": markdown
+                "markdown": markdown,
+                "language": language,
+                "favicon": favicon,
+                "og_image": og_image,
+                "og_sitename": og_sitename,
+                "hash": self._generate_result_hash(read_url),
             }
-            
-            # Skip sanitization if sanitize_output=False
-            if not should_sanitize:
-                logger.debug(f"[{task_id}] Sanitization skipped (sanitize_output=False), using raw results")
-                result = {
-                    "type": "read_result",
-                    "url": read_url,
-                    "title": title,
-                    "markdown": markdown,
-                    "language": language,
-                    "favicon": favicon,
-                    "og_image": og_image,
-                    "og_sitename": og_sitename,
-                    "hash": self._generate_result_hash(read_url)
-                }
-                return (request_id, [result], None)
-            else:
-                # Convert JSON to TOON format and sanitize
+
+            logger.info(f"Web read (id: {request_id}) completed: url='{read_url}'")
+
+            # Create creator income entry asynchronously (fire-and-forget).
+            # Skip revenue sharing if payment is disabled (self-hosted mode).
+            from backend.core.api.app.utils.server_mode import is_payment_enabled
+            if is_payment_enabled():
                 try:
-                    toon_text = encode(text_data_for_sanitization)
-                    logger.info(f"[{task_id}] Encoding web read content into TOON format ({len(toon_text)} chars, ~{len(toon_text)/4:.0f} tokens)")
-                    
-                    # Sanitize all text content in one request
-                    sanitized_toon = await sanitize_external_content(
-                        content=toon_text,
-                        content_type="text",
-                        task_id=task_id,
-                        secrets_manager=secrets_manager,
-                        cache_service=cache_service
+                    asyncio.create_task(
+                        self._create_creator_income_for_url(
+                            url=read_url,
+                            app_id=self.app_id,
+                            skill_id=self.skill_id,
+                        )
                     )
-                    
-                    if sanitized_toon is None:
-                        error_msg = f"[{task_id}] Content sanitization failed: sanitization returned None."
-                        logger.error(error_msg)
-                        return (request_id, [], f"URL '{read_url}': Content sanitization failed - LLM call failed")
-                    
-                    if not sanitized_toon or not sanitized_toon.strip():
-                        error_msg = f"[{task_id}] Content sanitization blocked: sanitization returned empty."
-                        logger.error(error_msg)
-                        return (request_id, [], f"URL '{read_url}': Content sanitization blocked - high prompt injection risk detected")
-                    
-                    # Decode sanitized TOON back to Python dict
-                    sanitized_data = None
-                    try:
-                        try:
-                            sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=True))
-                        except (ValueError, Exception) as decode_error:
-                            logger.warning(f"[{task_id}] Strict TOON decode failed: {decode_error}. Attempting lenient decode...")
-                            sanitized_data = decode(sanitized_toon, DecodeOptions(indent=2, strict=False))
-                            logger.info(f"[{task_id}] Lenient TOON decode succeeded.")
-                        
-                        if not isinstance(sanitized_data, dict):
-                            raise ValueError("Invalid sanitized TOON structure")
-                            
-                    except Exception as e:
-                        error_msg = f"[{task_id}] Failed to decode sanitized TOON: {e}"
-                        logger.error(error_msg, exc_info=True)
-                        return (request_id, [], f"URL '{read_url}': Failed to decode sanitized TOON content - {str(e)}")
-                    
-                    # Extract sanitized content
-                    sanitized_title = sanitized_data.get("title", "").strip() if isinstance(sanitized_data.get("title"), str) else ""
-                    sanitized_markdown = sanitized_data.get("markdown", "").strip() if isinstance(sanitized_data.get("markdown"), str) else ""
-                    
-                    if not sanitized_title or not sanitized_title.strip():
-                        logger.warning(f"[{task_id}] Web read title empty after sanitization, using original")
-                        sanitized_title = title
-                    
-                    if not sanitized_markdown or not sanitized_markdown.strip():
-                        sanitized_markdown = markdown
-                    
-                    # Build result with sanitized content
-                    result = {
-                        "type": "read_result",
-                        "url": read_url,
-                        "title": sanitized_title,
-                        "markdown": sanitized_markdown,
-                        "language": language,
-                        "favicon": favicon,
-                        "og_image": og_image,
-                        "og_sitename": og_sitename,
-                        "hash": self._generate_result_hash(read_url)
-                    }
-                    
-                    logger.info(f"Web read (id: {request_id}) completed: url='{read_url}'")
-                    
-                    # Create creator income entry asynchronously (fire-and-forget)
-                    # This doesn't block the skill response
-                    # Skip revenue sharing if payment is disabled (self-hosted mode)
-                    from backend.core.api.app.utils.server_mode import is_payment_enabled
-                    payment_enabled = is_payment_enabled()
-                    
-                    if payment_enabled:
-                        try:
-                            asyncio.create_task(
-                                self._create_creator_income_for_url(
-                                    url=read_url,
-                                    app_id=self.app_id,
-                                    skill_id=self.skill_id
-                                )
-                            )
-                        except Exception as e:
-                            # Log but don't fail - income tracking failure shouldn't break skill execution
-                            logger.warning(f"Failed to create creator income entry for URL '{read_url}': {e}")
-                    else:
-                        logger.debug(f"Payment disabled (self-hosted mode). Skipping creator income entry for URL '{read_url}'")
-                    
-                    return (request_id, [result], None)
-                
                 except Exception as e:
-                    error_msg = f"[{task_id}] Error encoding/decoding TOON format: {e}"
-                    logger.error(error_msg, exc_info=True)
-                    return (request_id, [], f"URL '{read_url}': TOON encoding/decoding error - {str(e)}")
+                    logger.warning(f"Failed to create creator income entry for URL '{read_url}': {e}")
+            else:
+                logger.debug(f"Payment disabled (self-hosted mode). Skipping creator income entry for URL '{read_url}'")
+
+            return (request_id, [result], None)
             
         except Exception as e:
             error_msg = f"URL '{read_url}' (id: {request_id}): {str(e)}"
@@ -724,6 +637,21 @@ class ReadSkill(BaseSkill):
             logger=logger
         )
         
-        return response
+        if is_central_app_skill_dispatch():
+            return response
+        sanitized = await sanitize_app_skill_output(
+            response.model_dump(mode="json"),
+            AppSkillOutputSafetyContext(
+                app_id=self.app_id,
+                skill_id=self.skill_id,
+                surface=APP_SKILL_SURFACE_REST,
+                request_body=kwargs,
+                external_data=True,
+                secrets_manager=secrets_manager,
+                cache_service=cache_service,
+                log_prefix="[WebRead direct execute] ",
+            ),
+        )
+        return ReadResponse.model_validate(sanitized)
     
     # _generate_result_hash is now provided by BaseSkill

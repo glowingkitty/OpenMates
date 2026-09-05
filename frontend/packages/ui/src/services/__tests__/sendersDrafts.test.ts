@@ -178,7 +178,7 @@ describe("sendDeleteDraftImpl", () => {
   // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
   it("logs failed background draft deletion without showing a user error notification", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const deletion = sendDeleteDraftImpl({} as never, "chat-1");
+    const deletion = sendDeleteDraftImpl({ dispatchEvent: vi.fn() } as never, "chat-1");
 
     await vi.waitFor(() => {
       expect(mocks.webSocketService.sendMessage).toHaveBeenCalledWith("delete_draft", { chatId: "chat-1" });

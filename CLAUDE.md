@@ -3,6 +3,13 @@
 Domain-specific rules are in `.claude/rules/` — loaded automatically by file path context.
 Full contributing docs are in `docs/contributing/` — loaded on demand via `sessions.py context --doc <name>`.
 
+Marketing, social videos, Remotion production, and newsletters live in the optional
+sibling `openmates-marketing` repository. Read its `AGENTS.md` and relevant
+`.agents/skills/<name>/SKILL.md` directly. Resolve the sibling from the primary
+checkout, not a session worktree; ask for its location if absent. Keep marketing
+content, skills, media, and changes outside OpenMates staging/deployment. Product
+proof-video and example-chat tooling stays here.
+
 ---
 
 ## Project Overview

@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import pytest
@@ -32,6 +33,7 @@ def _tag_payload(text: str = HIDDEN_INSTRUCTION) -> str:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.ascii-always,app-skills.output.external-semantic
 async def test_assistant_surface_ignores_prompt_injection_opt_out(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, Any]] = []
 
@@ -67,6 +69,7 @@ async def test_assistant_surface_ignores_prompt_injection_opt_out(monkeypatch: p
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.ascii-always,app-skills.output.external-semantic
 async def test_rest_surface_explicit_opt_out_skips_semantic_scan_but_keeps_ascii(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -95,6 +98,7 @@ async def test_rest_surface_explicit_opt_out_skips_semantic_scan_but_keeps_ascii
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic
 async def test_workflow_surface_ignores_prompt_injection_opt_out(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, Any]] = []
 
@@ -119,6 +123,7 @@ async def test_workflow_surface_ignores_prompt_injection_opt_out(monkeypatch: py
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic
 async def test_external_output_scans_semantic_fields_without_forcing_all_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -144,9 +149,41 @@ async def test_external_output_scans_semantic_fields_without_forcing_all_metadat
     assert calls
     assert calls[0]["min_chars"] == 120
     assert "transcript" in calls[0]["always_sanitize_field_names"]
+    assert "extra_snippets" in calls[0]["always_sanitize_field_names"]
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.single-boundary
+async def test_external_scan_uses_server_owned_policy_and_skill_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    async def fake_semantic_sanitizer(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return kwargs["payload"]
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
+
+    await sanitize_app_skill_output(
+        {
+            "ignore_fields_for_inference": ["results.title"],
+            "results": [{"title": "Untrusted search title", "description": "Untrusted description"}],
+        },
+        AppSkillOutputSafetyContext(
+            app_id="web",
+            skill_id="search",
+            surface=APP_SKILL_SURFACE_ASSISTANT,
+            external_data=True,
+            request_body={},
+        ),
+    )
+
+    assert calls[0]["app_id"] == "web"
+    assert calls[0]["skill_id"] == "search"
+    assert "skip_field_names" not in calls[0]
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.ascii-always
 async def test_non_external_output_skips_semantic_scan_and_preserves_binary_fields(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -181,13 +218,14 @@ async def test_non_external_output_skips_semantic_scan_and_preserves_binary_fiel
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic,app-skills.output.bounded-failure
 async def test_external_semantic_scan_failure_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
     async def fake_semantic_sanitizer(**_kwargs: Any) -> Any:
         raise RuntimeError("safeguard unavailable")
 
     monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
 
-    with pytest.raises(RuntimeError, match="Prompt-injection protection failed"):
+    with pytest.raises(RuntimeError, match="OUTPUT_SAFETY_UNAVAILABLE"):
         await sanitize_app_skill_output(
             {"results": [{"description": "External visible text"}]},
             AppSkillOutputSafetyContext(
@@ -198,3 +236,109 @@ async def test_external_semantic_scan_failure_fails_closed(monkeypatch: pytest.M
                 request_body={},
             ),
         )
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic,app-skills.output.bounded-failure
+async def test_whole_semantic_scan_has_a_finite_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def slow_semantic_sanitizer(**_kwargs: Any) -> Any:
+        await asyncio.sleep(1)
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", slow_semantic_sanitizer)
+    monkeypatch.setattr(app_skill_output_safety, "WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS", 0.001)
+
+    with pytest.raises(RuntimeError, match="OUTPUT_SAFETY_TIMEOUT"):
+        await sanitize_app_skill_output(
+            {"results": [{"description": "External visible text"}]},
+            AppSkillOutputSafetyContext(
+                app_id="web",
+                skill_id="search",
+                surface=APP_SKILL_SURFACE_ASSISTANT,
+                external_data=True,
+                request_body={},
+            ),
+        )
+
+
+@pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=app-skills.output.external-semantic
+async def test_web_read_uses_its_declared_long_document_scan_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[dict[str, Any]] = []
+
+    async def fake_semantic_sanitizer(**kwargs: Any) -> Any:
+        calls.append(kwargs)
+        return kwargs["payload"]
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", fake_semantic_sanitizer)
+
+    await sanitize_app_skill_output(
+        {"results": [{"markdown": "External document"}]},
+        AppSkillOutputSafetyContext(
+            app_id="web", skill_id="read", surface=APP_SKILL_SURFACE_ASSISTANT,
+            external_data=True, request_body={},
+        ),
+    )
+
+    assert calls
+    assert app_skill_output_safety._semantic_scan_timeout(
+        AppSkillOutputSafetyContext("web", "read", APP_SKILL_SURFACE_ASSISTANT, {}, True)
+    ) == 30.0
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.single-boundary
+@pytest.mark.anyio
+async def test_dispatch_scope_does_not_outlive_its_owner_in_child_task():
+    resume = asyncio.Event()
+
+    async def child():
+        await resume.wait()
+        return app_skill_output_safety.is_central_app_skill_dispatch()
+
+    assert not app_skill_output_safety.is_central_app_skill_dispatch()
+    with app_skill_output_safety.central_app_skill_dispatch():
+        assert app_skill_output_safety.is_central_app_skill_dispatch()
+        with app_skill_output_safety.central_app_skill_dispatch():
+            assert app_skill_output_safety.is_central_app_skill_dispatch()
+        assert app_skill_output_safety.is_central_app_skill_dispatch()
+        pending = asyncio.create_task(child())
+    resume.set()
+    assert not await pending
+    assert not app_skill_output_safety.is_central_app_skill_dispatch()
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_provider_error_logs_do_not_include_external_content(monkeypatch, caplog):
+    private_provider_text = "fixture-private-provider-response"
+
+    async def failed(**kwargs):
+        raise RuntimeError(private_provider_text)
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", failed)
+    with pytest.raises(RuntimeError, match="^OUTPUT_SAFETY_UNAVAILABLE$"):
+        await sanitize_app_skill_output(
+            {"description": "public text"},
+            AppSkillOutputSafetyContext("web", "search", APP_SKILL_SURFACE_REST, {}, True),
+        )
+    assert private_provider_text not in caplog.text
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_scan_deadline_cancels_inflight_work(monkeypatch):
+    cancelled = asyncio.Event()
+
+    async def pending(**kwargs):
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    monkeypatch.setattr(app_skill_output_safety, "sanitize_long_text_fields_in_payload", pending)
+    monkeypatch.setattr(app_skill_output_safety, "WEB_SEARCH_SEMANTIC_SCAN_TIMEOUT_SECONDS", 0.001)
+    with pytest.raises(RuntimeError, match="^OUTPUT_SAFETY_TIMEOUT$"):
+        await sanitize_app_skill_output(
+            {"description": "public text"},
+            AppSkillOutputSafetyContext("web", "search", APP_SKILL_SURFACE_REST, {}, True),
+        )
+    assert cancelled.is_set()

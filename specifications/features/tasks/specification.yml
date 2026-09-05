@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.tasks
-version: 3
-status: approved
+version: 4
+status: draft
 title: Tasks
 summary: >
   Tasks are encrypted, independently trackable units of human or agent work.
@@ -18,10 +18,11 @@ scope:
   includes:
     - Create, list, show, update, reorder, assign, block, unblock, skip, complete, delete, start-AI, ask, history, and restore behavior.
     - Backlog, todo, in-progress, blocked, and done lifecycle with explicit queue and AI execution state.
-    - Human and AI assignment, priority, due dates, labels, Project/Plan/native-chat/external-chat links, and optimistic versions.
+    - Human, OpenMates, and named external-AI assignment, priority, due dates, labels, Project/Plan/native-chat/external-chat links, and optimistic versions.
     - One user-facing Activity section at the end of Task detail, combining lifecycle updates, comments, and deletion tombstones in a stable chronological stream.
     - A top-of-Activity composer that reuses normal message processing for multiline text, voice, files/uploads, and message embeds.
-    - Client-encrypted Activity comment text and uploaded embed keys decryptable through the Task key boundary, with context-aware personal, Team, CLI, SDK, and OpenMates attribution.
+    - Client-encrypted Activity comment text and uploaded embed keys encrypted directly with the Task key, with context-aware personal, Team, CLI, SDK, OpenMates, and named external-AI attribution.
+    - Server-authored lifecycle Activity entries for successful Task creation and status transitions, independent of the client or assignee that initiated the mutation.
     - Typed external-chat contexts whose private identifiers and display titles remain client-encrypted while provider and keyed lookup metadata remain server-visible.
     - Safe blocked reason codes plus client-encrypted user-facing blocker explanations.
     - Flat Tasks with optional dependency links and Plan phase grouping; no recursive child Task ownership.
@@ -46,13 +47,15 @@ actors:
   - id: human_assignee
     role: Performs or confirms work outside automated execution.
   - id: ai_assignee
-    role: Executes authorized work through the Task queue.
+    role: Executes authorized work through either OpenMates or an identified external-AI runtime.
 
 models:
   TaskRecord:
     task_id: {type: stable_id, required: true}
     status: {type: enum, values: [backlog, todo, in_progress, blocked, done], required: true}
-    assignee_type: {type: enum, values: [user, ai, unassigned], required: true}
+    assignee_type: {type: enum, values: [user, openmates, external_ai, unassigned], required: true}
+    assignee_identity: {type: allowlisted_identity_or_null, values: [openmates, opencode], nullable: true, constraints: {required_for: [openmates, external_ai], forbidden_for: [user, unassigned], display_name_derived_from_registry: true}}
+    assignee_hash: {type: hashed_user_id_or_null, nullable: true, constraints: {required_for: [user], forbidden_for: [openmates, external_ai, unassigned]}}
     priority: {type: integer, values: [0, 1, 2, 3, 4], required: true}
     position: {type: integer, required: true}
     due_at: {type: timestamp_or_null, nullable: true}
@@ -94,6 +97,12 @@ models:
     capacity_scope: {type: enum, values: [personal, team], required: true}
     execution_lane: {type: derived_identifier, required: true, constraints: {precedence: [plan_id, primary_chat_id, standalone_task_id]}}
     waiting_state: {type: enum, values: [waiting_for_previous_task, waiting_for_plan_dependency, waiting_for_capacity], required: true}
+    executable_assignee: {type: invariant, required: true, constraints: {openmates_queue_accepts_only: openmates, external_ai_never_admitted: true}}
+
+  TaskAssigneeIdentity:
+    identity: {type: allowlisted_identifier, values: [openmates, opencode], required: true}
+    assignee_type: {type: enum, values: [openmates, external_ai], required: true}
+    display_name: {type: safe_display_name, values: [OpenMates, OpenCode], required: true, constraints: {client_supplied_override: forbidden}}
 
   TaskExternalChatContext:
     provider: {type: enum, values: [opencode], required: true}
@@ -128,8 +137,12 @@ models:
     entry_id: {type: stable_id, required: true, constraints: {idempotent_create: true}}
     task_id: {type: stable_id, required: true}
     kind: {type: enum, values: [comment, lifecycle_update, tombstone], required: true}
-    actor_kind: {type: enum, values: [user, openmates, system], required: true}
+    actor_kind: {type: enum, values: [user, openmates, external_ai, system], required: true}
+    actor_identity: {type: allowlisted_identity_or_null, values: [openmates, opencode], nullable: true, constraints: {display_name_derived_from_registry: true}}
     source_surface: {type: enum, values: [web, apple, cli, sdk_npm, sdk_pip, system], required: true}
+    event_type: {type: enum, values: [created, updated, moved, status, comment_added, comment_deleted], required: true}
+    previous_status: {type: task_status_or_null, nullable: true, constraints: {allowed_for_event_type: status}}
+    next_status: {type: task_status_or_null, nullable: true, constraints: {allowed_for_event_type: status}}
     created_at: {type: timestamp, required: true}
     deleted_at: {type: timestamp_or_null, nullable: true}
     ordering: {type: chronological_stable_order, required: true}
@@ -140,9 +153,8 @@ models:
     send_gating: {type: invariant, required: true, constraints: {defer_while_uploading_or_transcribing: true, empty_comment_forbidden: true, failed_embed_visible: true}}
 
   TaskActivityEncryption:
-    encrypted_entry_key: {type: client_ciphertext, required: true, constraints: {wrapped_by_task_key: true, raw_entry_key_backend_storage: forbidden}}
-    encrypted_comment_text: {type: client_ciphertext_or_null, nullable: true, constraints: {encrypted_with_entry_key: true, durable_plaintext_comment: forbidden}}
-    encrypted_embed_key_material: {type: client_ciphertext_or_null, nullable: true, constraints: {task_key_can_decrypt_uploaded_embed_keys: true, raw_embed_key_backend_storage: forbidden}}
+    encrypted_comment_text: {type: client_ciphertext_or_null, nullable: true, constraints: {encrypted_directly_with_task_key: true, unique_nonce_per_entry: true, aad_binds_task_and_entry: true, durable_plaintext_comment: forbidden}}
+    encrypted_embed_key_material: {type: client_ciphertext_or_null, nullable: true, constraints: {encrypted_directly_with_task_key: true, unique_nonce_per_embed_key_payload: true, aad_binds_task_entry_and_embed: true, raw_embed_key_backend_storage: forbidden}}
     server_visible_metadata: {type: safe_metadata, required: true, constraints: {plaintext_private_content: forbidden}}
 
   TaskActivityAttribution:
@@ -151,6 +163,12 @@ models:
     team_cli_user: {type: display_identity, required: true, constraints: {shows_user_name: true, shows_profile_image: true, via_suffix: "via OpenMates CLI"}}
     team_sdk_user: {type: display_identity, required: true, constraints: {shows_user_name: true, shows_profile_image: true, via_suffix: "via OpenMates SDK"}}
     mate_authored: {type: display_identity, required: true, constraints: {label: OpenMates, actual_mate_name_visible: forbidden}}
+    external_ai_authored: {type: display_identity, required: true, constraints: {label_from_allowlisted_identity_registry: true, opencode_label: OpenCode, arbitrary_client_label: forbidden}}
+
+  TaskActivityLifecycle:
+    generation: {type: server_behavior, required: true, constraints: {successful_task_creation_and_status_transition_append_system_entry: true, client_specific_implementation: forbidden}}
+    status_event: {type: safe_metadata, required: true, constraints: {event_type: status, previous_and_next_status_required: true, comment_ciphertext: forbidden}}
+    mutation_consistency: {type: invariant, required: true, constraints: {task_mutation_and_lifecycle_entry_commit_together: true, duplicate_transition_entry: forbidden}}
 
   TaskActivityTombstone:
     hidden_content: {type: invariant, required: true, constraints: {comment_text: hidden, embed_previews: hidden, attachments: hidden}}
@@ -170,8 +188,12 @@ assertions:
     depends_on: [models.TaskRecord, models.TaskKeyWrapper, examples.task_private_content]
   - id: tasks.lifecycle.visible
     type: behavior
-    must: Task creation, update, reorder, assignment, blocking, skipping, completion, deletion, AI start, restoration, and queue transitions preserve explicit status, timestamps, conflict versions, and visible blockers; assistant prose never changes Task state by itself.
-    depends_on: [models.TaskRecord, models.TaskLifecycleState, examples.task_lifecycle]
+    must: Task creation, update, reorder, assignment, blocking, skipping, completion, deletion, OpenMates start, restoration, and queue transitions preserve explicit status, timestamps, conflict versions, and visible blockers; every successful creation or status transition atomically appends one server-authored lifecycle Activity entry, and assistant prose never changes Task state by itself.
+    depends_on: [models.TaskRecord, models.TaskLifecycleState, models.TaskActivityLifecycle, examples.task_lifecycle]
+  - id: tasks.assignment.identity-separated
+    type: invariant
+    must: Assignment distinguishes a human user, native OpenMates, a named external-AI identity, and unassigned work; OpenCode Tasks are created atomically as external_ai with the allowlisted opencode identity, human or real-world Tasks remain user-assigned when requested, and only openmates-assigned Tasks enter the native OpenMates execution queue.
+    depends_on: [models.TaskRecord.assignee_type, models.TaskRecord.assignee_identity, models.TaskRecord.assignee_hash, models.TaskAssigneeIdentity, models.TaskExecutionAdmission.executable_assignee, examples.task_assignment_identity]
   - id: tasks.blocking.encrypted-reason
     type: privacy
     must: Blocking a Task stores one allowlisted server-visible blocked_reason_code and an optional client-encrypted user-facing blocked explanation; REST, CLI, SDK, and web decrypt and display the explanation only in authorized client memory, with a localized code fallback when no explanation exists.
@@ -218,12 +240,16 @@ assertions:
     depends_on: [models.TaskActivityComposer, examples.task_activity_composer]
   - id: tasks.activity.client-encrypted
     type: privacy
-    must: Activity comment text is durably stored only as client ciphertext through per-entry key material wrapped by the Task key; uploaded embed keys are decryptable through that Task key boundary, and durable backend stores, logs, history, and indexes contain no plaintext comments, voice transcripts, file content, raw Task keys, raw entry keys, or raw embed keys.
+    must: Activity comment text and uploaded embed-key material are encrypted directly with the Task key using unique nonces and Task/entry/content-bound authenticated context; durable backend stores, logs, history, and indexes contain no plaintext comments, voice transcripts, file content, raw Task keys, or raw embed keys, and the unreleased per-entry wrapped-key format is not retained.
     depends_on: [models.TaskActivityEncryption, models.TaskKeyWrapper, examples.task_activity_encryption]
   - id: tasks.activity.context-attribution
     type: behavior
-    must: Personal OpenMates and mate-authored entries show the generic OpenMates identity; Team web and Apple comments show user name plus profile image without via text, Team CLI comments add via OpenMates CLI, and Team npm or pip SDK comments add via OpenMates SDK.
+    must: Personal OpenMates and mate-authored entries show the generic OpenMates identity; allowlisted external-AI comments show their registered identity such as OpenCode; Team web and Apple comments show user name plus profile image without via text, Team CLI comments add via OpenMates CLI, and Team npm or pip SDK comments add via OpenMates SDK.
     depends_on: [models.TaskActivityAttribution, examples.task_activity_attribution]
+  - id: tasks.activity.lifecycle-system-generated
+    type: behavior
+    must: The Task backend appends lifecycle_update entries with system attribution for successful Task creation and status transitions on every client surface, reuses the canonical created and status event types, stores previous and next status as safe metadata, and never requires OpenCode-specific lifecycle logic.
+    depends_on: [models.TaskActivityEntry, models.TaskActivityLifecycle, examples.task_activity_lifecycle]
   - id: tasks.activity.deletion-tombstone
     type: behavior
     must: Deleting a comment hides its text, embed previews, and attachments from normal Activity rendering but preserves a tombstone naming the original author and deleting user; mate-authored comments use OpenMates instead of the mate's actual name.
@@ -234,7 +260,7 @@ assertions:
     depends_on: [models.TaskActivityAuthorization, examples.task_activity_authorization]
   - id: tasks.execution.capacity-scoped
     type: behavior
-    must: AI Tasks use independent owner-scoped personal or Team capacity pools; capacity-full Tasks wait visibly and are reconsidered automatically, while Workflow projections do not consume Task capacity.
+    must: OpenMates-assigned Tasks use independent owner-scoped personal or Team capacity pools; capacity-full Tasks wait visibly and are reconsidered automatically, while external-AI Tasks and Workflow projections do not consume native OpenMates Task capacity.
     depends_on: [models.TaskExecutionAdmission, examples.task_execution_capacity]
   - id: tasks.execution.order-preserved
     type: invariant
@@ -246,7 +272,7 @@ assertions:
     depends_on: [models.TaskDependency, examples.task_dependencies]
   - id: tasks.surface.semantic-parity
     type: parity
-    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, flat dependencies, assignment, lifecycle, Activity comments and tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
+    must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, named assignment identities, lifecycle, Activity comments and system entries, tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
     depends_on: [models, examples, applies_to]
 
 applies_to:
@@ -258,10 +284,11 @@ applies_to:
     required: true
     parity: semantic
     requirements:
-      - List, show, create, edit, assign, reorder, depend, block, skip, start, complete, and inspect Task blockers.
+      - List, show, create, edit, assign, reorder, depend, block, skip, start, complete, and inspect Task blockers with user, OpenMates, external-AI identity, and unassigned semantics.
       - Create and filter external-chat Tasks through provider:id input while encrypting the external id locally and sending only safe provider plus blind-index metadata.
       - Preserve --reason as the legacy blocked-reason-code alias while supporting explicit --reason-code and encrypted --reason-text input.
       - List, add, and delete Activity comments after local Task-key unlock; Team-created comments use via OpenMates CLI attribution.
+      - Trusted OpenCode commands create external_ai Tasks with the opencode identity and post ordinary comment_added Activity entries attributed as OpenCode.
   sdks:
     required: true
     parity: semantic
@@ -276,10 +303,10 @@ applies_to:
         required: true
         requirements:
           - id: tasks.gui.card
-            elements: [title, status, assignee, priority, due_state, plan_or_check_or_external_chat_context, blocked_indicator]
+            elements: [title, status, assignee_name, priority, due_state, plan_or_check_or_external_chat_context, blocked_indicator]
             interactions: [open_detail, move_status, reorder_when_allowed]
           - id: tasks.gui.detail
-            elements: [header, description, status, assignee, dependencies, project_links, plan_link, source_check_link, external_chat_source, blocked_reason, activity, activity_composer, activity_attribution, activity_tombstones]
+            elements: [header, description, status, assignee_name, dependencies, project_links, plan_link, source_check_link, external_chat_source, blocked_reason, activity, activity_composer, activity_attribution, activity_lifecycle, activity_tombstones]
             interactions: [edit, assign, block, unblock, skip, complete, open_plan, open_check, add_activity_comment, attach_activity_file, record_activity_voice, open_activity_embed, delete_authorized_activity_comment]
             states: [backlog, todo, in_progress, blocked, done, waiting_for_capacity, waiting_for_dependency, error]
             accessibility: [keyboard_board_alternative, semantic_status, dependency_labels, non_color_priority]
@@ -294,4 +321,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [task_private_content, task_lifecycle, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_activity_layout, task_activity_composer, task_activity_encryption, task_activity_attribution, task_activity_tombstones, task_activity_authorization, task_execution_capacity, task_execution_order, task_surface_parity]
+  required_groups: [task_private_content, task_lifecycle, task_assignment_identity, task_blocked_reason, task_external_chat_context, task_dependencies, task_plan_links, task_check_links, task_project_links, task_workflow_projections, task_detail_presentation, task_activity_layout, task_activity_composer, task_activity_encryption, task_activity_attribution, task_activity_lifecycle, task_activity_tombstones, task_activity_authorization, task_execution_capacity, task_execution_order, task_surface_parity]
