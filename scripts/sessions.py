@@ -73,7 +73,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -8418,29 +8418,6 @@ def session_for_opencode(data: dict, opencode_session_id: str, *, repo_id: str =
     return matches[0] if matches else None
 
 
-def opencode_session_reusable_for_start(session: dict, task: str | None = None) -> bool:
-    """Return whether `sessions.py start` may keep using this chat binding.
-
-    A restart or same-task continuation must retain its existing worktree. Once
-    work from a different task has been integrated or durably checkpointed,
-    however, reusing that worktree mixes historical residue into the new task.
-    """
-    incoming_task = str(task or "").strip()
-    current_task = str(session.get("task") or "").strip()
-    if not incoming_task or not current_task or incoming_task == current_task:
-        return True
-
-    worktree = session.get("worktree") or {}
-    integration = worktree.get("integration") or {}
-    auto_integration = session.get("auto_integration") or {}
-    work_is_preserved = (
-        integration.get("status") == "merged"
-        or bool(session.get("merged_commit"))
-        or bool(auto_integration.get("checkpoint_ref"))
-    )
-    return not work_is_preserved
-
-
 def rotate_opencode_session_binding(
     data: dict,
     session_id: str,
@@ -8615,6 +8592,71 @@ def refresh_session_worktree_base(session_id: str) -> dict[str, str]:
     return _mutate_sessions(update)
 
 
+def restore_original_worktree_binding(opencode_session_id: str, original_session_id: str) -> dict:
+    """Recover a retired binding without copying, publishing, or deleting source.
+
+    Lock both workspaces in stable order and revalidate inside the sessions
+    transaction. Only an idle, pristine successor may relinquish the binding.
+    See docs/architecture/agent-workflow-decisions.md for workspace ownership.
+    """
+    initial = _load_sessions()
+    current = session_for_opencode(initial, opencode_session_id)
+    if current is None:
+        raise RuntimeError("Recovery requires an existing chat binding")
+    current_id = current[0]
+    with ExitStack() as locks:
+        for session_id in sorted({current_id, original_session_id}):
+            locks.enter_context(_worktree_checkpoint_lock(session_id))
+
+        def restore(data: dict) -> dict:
+            matched = session_for_opencode(data, opencode_session_id)
+            if matched is None or matched[0] != current_id:
+                raise RuntimeError("Chat binding changed during recovery; inspect and retry")
+            original = data["sessions"].get(original_session_id)
+            successor = data["sessions"][current_id]
+            if not isinstance(original, dict):
+                raise RuntimeError("Original repository session does not exist")
+            if _session_repo_id(original) != _session_repo_id(successor):
+                raise RuntimeError("Recovery cannot cross repository boundaries")
+            if current_id != original_session_id:
+                if original.get("rotated_opencode_session_id") != opencode_session_id:
+                    raise RuntimeError("Original session has no matching retired chat lineage")
+                if original.get("opencode_session_id") or original.get("opencode_top_level_session_id"):
+                    raise RuntimeError("Original session is already owned by a chat")
+            for session_id in {current_id, original_session_id}:
+                session = data["sessions"][session_id]
+                if _auto_integration_presence_is_live(session) or session.get("writing"):
+                    raise RuntimeError("Recovery requires idle workspaces without active writers")
+                if any(lease.get("session_id") == session_id for lease in data.get("edit_leases", {}).values()):
+                    raise RuntimeError("Recovery requires release of workspace edit leases")
+                if any(lock.get("claimed_by") == session_id for lock in data.get("locks", {}).values()):
+                    raise RuntimeError("Recovery requires release of workspace resource locks")
+                metadata = session.get("worktree") or {}
+                if not metadata.get("path") or not _existing_direct_managed_worktree(metadata["path"]):
+                    raise RuntimeError("Recovery requires both preserved managed worktrees")
+            if current_id != original_session_id:
+                metadata = successor["worktree"]
+                baseline = metadata.get("merged_commit") or metadata.get("base_commit")
+                if not baseline or _current_git_sha(Path(metadata["path"])) != baseline or _worktree_pending_files(successor):
+                    raise RuntimeError("Successor has pending source or commits; preserve and reconcile before recovery")
+            path = original["worktree"]["path"]
+            resources = link_shared_worktree_resources(path)
+            if current_id != original_session_id:
+                rotate_opencode_session_binding(data, current_id, opencode_session_id)
+            bind_opencode_session(data, original_session_id, opencode_session_id)
+            original["opencode_top_level_session_id"] = opencode_session_id
+            original["binding_mode"] = "worktree_routed"
+            original["binding_updated_at"] = _now_iso()
+            original["binding_failure_reason"] = ""
+            original["last_active"] = _now_iso()
+            original["binding_recovery"] = {"from_session": current_id, "recovered_at": _now_iso()}
+            return {"session_id": original_session_id, "previous_session_id": current_id,
+                    "mode": "worktree_routed", "worktree_path": path,
+                    "shared_runtime_resources": resources}
+
+        return _mutate_sessions(restore)
+
+
 @_workspace_transition("repair")
 def repair_worktree_routing(opencode_session_id: str) -> dict:
     """Reconstruct durable tool routing without depending on OpenCode runtime state."""
@@ -8690,15 +8732,12 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
-    replace_session_id: str | None = None,
 ) -> tuple[str, list[str], list[str], dict, bool]:
     """Atomically register one repo session and its authoritative OpenCode chat."""
     def register(data: dict) -> tuple[str, list[str], list[str], dict, bool]:
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
         _prune_checkpoint_lock_files(data)
-        if opencode_session_id and replace_session_id:
-            rotate_opencode_session_binding(data, replace_session_id, opencode_session_id)
         if opencode_session_id:
             existing = session_for_opencode(
                 data,
@@ -8794,10 +8833,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         opencode_session_id,
         repo_id=repo["repo_id"],
     ) if opencode_session_id else None
-    replace_session_id: str | None = None
-    if existing and not opencode_session_reusable_for_start(existing[1], args.task):
-        replace_session_id = existing[0]
-        existing = None
+    # Chat + repository identity owns the worktree; task descriptions are mutable.
     if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
         existing = None
     is_new_session = existing is None
@@ -8846,7 +8882,6 @@ def cmd_start(args: argparse.Namespace) -> None:
         sid, pruned, cleared_locks, data, registered_new = register_session_record(
             session_record,
             opencode_session_id,
-            replace_session_id,
         )
         is_new_session = registered_new
     worktree_metadata: dict | None = None
@@ -15157,7 +15192,12 @@ def cmd_worktree(args: argparse.Namespace) -> None:
         return
     if args.worktree_action == "repair":
         try:
-            result = repair_worktree_routing(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
+            if getattr(args, "restore_session", None):
+                if args.generation is not None or args.operation_id:
+                    raise ValueError("Binding recovery cannot use routing generation or operation-id options")
+                result = restore_original_worktree_binding(args.opencode_session, args.restore_session)
+            else:
+                result = repair_worktree_routing(args.opencode_session, expected_generation=args.generation, operation_id=args.operation_id)
         except (RuntimeError, ValueError) as exc:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(2)
@@ -18582,6 +18622,7 @@ def main() -> None:
     p_ready.add_argument("--checkpoint-commit", required=True)
     p_worktree_repair = p_worktree_sub.add_parser("repair", help="Reconstruct root-hosted OpenCode worktree routing")
     p_worktree_repair.add_argument("--opencode-session", required=True, help="Top-level OpenCode session ID")
+    p_worktree_repair.add_argument("--restore-session", help="Restore a retired original session from an idle pristine successor")
     p_worktree_refresh_base = p_worktree_sub.add_parser(
         "refresh-base",
         help="Refresh recorded base after a managed worktree was safely fast-forwarded to origin/dev",
