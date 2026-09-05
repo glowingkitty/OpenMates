@@ -4,6 +4,7 @@
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
@@ -13737,16 +13738,15 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                     {#if typingIndicatorLines.length > 0}
                         <div
-                            class="typing-indicator"
+                            class="typing-indicator-wrapper"
                             data-testid="typing-indicator"
-                            class:status-sending={typingIndicatorStatusType === 'sending'}
-                            class:status-processing={typingIndicatorStatusType === 'processing'}
-                            class:status-typing={typingIndicatorStatusType === 'typing'}
                             transition:fade={{ duration: 200 }}
                         >
-                            {#each typingIndicatorLines as line, index}
-                                <span class={index === 0 ? 'indicator-primary-line' : index === 1 ? 'indicator-secondary-line' : 'indicator-tertiary-line'}>{line}</span>
-                            {/each}
+                            <ChatProcessingIndicator
+                                lines={typingIndicatorLines}
+                                statusType={typingIndicatorStatusType}
+                                mateCategory={currentTypingStatus?.chatId === currentChat?.chat_id ? currentTypingStatus.category : null}
+                            />
                         </div>
                     {/if}
 
@@ -14601,7 +14601,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: var(--spacing-5);
     }
     
-    .chat-wrapper.side-by-side-chat .typing-indicator {
+    .chat-wrapper.side-by-side-chat :global(.typing-indicator) {
         font-size: 0.75rem;
     }
     
@@ -15164,85 +15164,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: var(--z-index-dropdown);
     }
 
-    .typing-indicator {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: flex-end;
-        gap: var(--spacing-1);
-        text-align: center;
-        font-size: 1rem;
-        color: var(--color-grey-60);
-        padding: var(--spacing-0) var(--spacing-8) var(--spacing-3);
-        font-style: italic;
-        /* Gradient background so the text remains readable when positioned over chat messages.
-           Uses the active chat background color (--color-grey-20) fading from transparent at the top
-           to match the chat area background seamlessly. Taller gradient to cover the larger text. */
-        background: linear-gradient(
-            to bottom,
-            transparent 0%,
-            transparent 14%,
-            var(--color-grey-20) 56%,
-            var(--color-grey-20) 100%
-        );
-        position: relative;
-        z-index: var(--z-index-raised);
-    }
-
-    .typing-indicator + .message-input-container {
+    .typing-indicator-wrapper + .message-input-container {
         padding-top: 0;
     }
-    
-    /* Primary line: "{mate} is typing..." — prominent */
-    .typing-indicator .indicator-primary-line {
-        font-size: 1rem;
-    }
-    
-    /* Secondary line: "Powered by {model}" — smaller, subtler */
-    .typing-indicator .indicator-secondary-line {
-        font-size: 0.7rem;
-        opacity: 0.8;
-    }
-    
-    /* Tertiary line: "via {provider} {flag}" — smallest, most subtle */
-    .typing-indicator .indicator-tertiary-line {
-        font-size: 0.65rem;
-        opacity: 0.65;
-    }
-    
-    /* Shimmer animation for the bottom typing indicator during streaming */
-    .typing-indicator.status-processing,
-    .typing-indicator.status-typing {
-        color: var(--color-grey-50);
-    }
-    
-    /* Apply shimmer to the text spans inside the typing indicator */
-    .typing-indicator.status-typing span,
-    .typing-indicator.status-processing span {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-60) 0%,
-            var(--color-grey-60) 40%,
-            var(--color-grey-40) 50%,
-            var(--color-grey-60) 60%,
-            var(--color-grey-60) 100%
-        );
-        background-size: 200% 100%;
-        background-clip: text;
-        -webkit-background-clip: text;
-        color: transparent;
-        animation: typing-indicator-shimmer 1.5s infinite linear;
-    }
-    
-    @keyframes typing-indicator-shimmer {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
-    
     /* Horizontal scroll container for resume + recent chat cards */
     .recent-chats-scroll-container {
         display: flex;
@@ -16024,7 +15948,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         padding: var(--spacing-5);
     }
     
-    .active-chat-container.narrow .typing-indicator {
+    .active-chat-container.narrow :global(.typing-indicator) {
         font-size: 0.75rem;
     }
 

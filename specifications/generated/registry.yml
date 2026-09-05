@@ -273,6 +273,13 @@ specifications:
     required_applies_to:
     - gui.web
     - gui.apple
+  feature.chat-processing-feedback:
+    version: 1
+    status: draft
+    path: features/chat-processing-feedback
+    fingerprint: dd611ce040ddb4c76df15564cd36a87cba906abe09311985be8180cae9725fd9
+    required_applies_to:
+    - gui.web
   feature.chat-share-settings:
     version: 1
     status: draft
@@ -3248,6 +3255,41 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  chat-processing-feedback.selection-after-acceptance:
+    specification: feature.chat-processing-feedback@1
+    specification_id: feature.chat-processing-feedback
+    type: behavior
+    fingerprint: 621d24193e78683006a2938c936e7cb1f3c19a35f3ae979858ea65e40d5a21c0
+    required_applies_to:
+    - gui.web
+  chat-processing-feedback.selected-mate-identity:
+    specification: feature.chat-processing-feedback@1
+    specification_id: feature.chat-processing-feedback
+    type: behavior
+    fingerprint: 9083f1d9cd09e6fd6961e9b5f80097d81f4757b965bee2927e059d24bff10839
+    required_applies_to:
+    - gui.web
+  chat-processing-feedback.turn-lifecycle:
+    specification: feature.chat-processing-feedback@1
+    specification_id: feature.chat-processing-feedback
+    type: invariant
+    fingerprint: a183ef7d468eddce883bdc2774d5f4243e33b29d1337fb751c4c6941bfabdecc
+    required_applies_to:
+    - gui.web
+  chat-processing-feedback.fade-preserves-border:
+    specification: feature.chat-processing-feedback@1
+    specification_id: feature.chat-processing-feedback
+    type: behavior
+    fingerprint: b2980a18d39c155bcdacc7d679abe661a4a8238656563aa29eb96e73479be80b
+    required_applies_to:
+    - gui.web
+  chat-processing-feedback.accessible-responsive:
+    specification: feature.chat-processing-feedback@1
+    specification_id: feature.chat-processing-feedback
+    type: behavior
+    fingerprint: 82aa556146da1d5add94581cb85ec2e540e685bafb23ee582d97aae185012f10
+    required_applies_to:
+    - gui.web
   chat-share-settings.shell-navigation:
     specification: feature.chat-share-settings@1
     specification_id: feature.chat-share-settings
