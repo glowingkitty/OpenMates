@@ -181,6 +181,20 @@ async def test_activity_cursor_uses_stable_created_at_and_entry_id_order() -> No
     assert later_params["filter[created_at][_gt]"] == 100
 
 
+# contract-test: supporting surface=rest_api assertions=tasks.activity.single-final-section,tasks.activity.task-scoped-authorization
+async def test_newest_activity_cursor_walks_backwards_with_timestamp_ties() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[]))
+    methods = UserTaskMethods(directus)
+    await methods.list_task_activity("user-1", "task-1", cursor="100:activity-1", limit=20, newest_first=True)
+    same = directus.get_items.await_args_list[0].kwargs["params"]
+    earlier = directus.get_items.await_args_list[1].kwargs["params"]
+    assert same["sort"] == "-entry_id"
+    assert same["filter[entry_id][_lt]"] == "activity-1"
+    assert earlier["sort"] == "-created_at,-entry_id"
+    assert earlier["filter[created_at][_lt]"] == 100
+    assert earlier["limit"] == 20
+
+
 # contract-test: supporting surface=rest_api assertions=tasks.activity.client-encrypted,tasks.activity.task-scoped-authorization
 def test_activity_schema_setup_verifies_scoped_indexes_and_legacy_backfill() -> None:
     root = Path(__file__).parents[1]

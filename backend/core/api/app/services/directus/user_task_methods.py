@@ -408,12 +408,14 @@ class UserTaskMethods:
         team_id: str | None = None,
         cursor: str | None = None,
         limit: int = 50,
+        newest_first: bool = False,
     ) -> list[dict[str, Any]]:
+        comparison = "_lt" if newest_first else "_gt"
         bounded_limit = max(1, min(limit, 201))
         params: dict[str, Any] = {
             "fields": USER_TASK_ACTIVITY_FIELDS,
             "filter[hashed_task_id][_eq]": hash_id(task_id),
-            "sort": "created_at,entry_id",
+            "sort": "-created_at,-entry_id" if newest_first else "created_at,entry_id",
             "limit": bounded_limit,
         }
         if team_id:
@@ -429,8 +431,8 @@ class UserTaskMethods:
             same_timestamp_params = {
                 **params,
                 "filter[created_at][_eq]": created_at,
-                "filter[entry_id][_gt]": entry_id,
-                "sort": "entry_id",
+                f"filter[entry_id][{comparison}]": entry_id,
+                "sort": "-entry_id" if newest_first else "entry_id",
             }
             same_timestamp = await self.directus_service.get_items(
                 "user_task_activity",
@@ -442,7 +444,7 @@ class UserTaskMethods:
                 return entries
             later_params = {
                 **params,
-                "filter[created_at][_gt]": created_at,
+                f"filter[created_at][{comparison}]": created_at,
                 "limit": bounded_limit - len(entries),
             }
             later = await self.directus_service.get_items(

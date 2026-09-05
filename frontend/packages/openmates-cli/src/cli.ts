@@ -61,6 +61,8 @@ import { OpenMates, OpenMatesApiError, type ChatResponse, type EncryptedChatMeta
 import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEvent, type SubChatEvent, type TaskEventFrame } from "./ws.js";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
+import { readActivityHistory } from "./taskActivityHistory.js";
+import { activityDeliveryStore } from "./taskActivityDelivery.js";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { basename, dirname } from "node:path";
@@ -842,35 +844,49 @@ async function handleTasks(
     const action = rest[0] ?? "list";
     const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
     const context = { teamId: scope.teamId, personal: scope.personal };
-    if (action === "list") {
-      const records = [];
-      let cursor: string | undefined;
-      do {
-        const page = await client.listUserTaskActivity(task.taskId, {
-          ...context,
-          cursor,
-          limit: typeof flags.limit === "string" ? Number(flags.limit) : undefined,
-        });
-        records.push(...page.entries);
-        cursor = page.next_cursor ?? undefined;
-      } while (cursor);
-      const entries = await decryptTaskActivityEntries(task, masterKey, records);
-      if (flags.json === true) printJson({ entries: entries.map(taskActivityToJson) });
-      else console.log(renderTaskActivityList(entries));
+    const actor = flags["as-assignee"] === true ? "assignee" : "user";
+    const delivery = () => activityDeliveryStore(JSON.stringify([
+      client.getSession().apiUrl, client.getSession().hashedEmail, scope.teamId || "personal", task.taskId, actor,
+    ]));
+    const createActivity = (input: Parameters<typeof client.createUserTaskActivity>[1]) => client.createUserTaskActivity(task.taskId, input, {
+      ...context, ...(actor === "assignee" ? { actorMode: "assignee" as const } : {}),
+    });
+    if (action === "flush") {
+      printJson(await delivery().flush(createActivity));
+      return;
+    }
+    if (action === "list" || action === "search") {
+      const pending = flags["flush-pending"] === true ? await delivery().flush(createActivity) : undefined;
+      const history = await readActivityHistory({
+        maxEntries: typeof flags["max-entries"] === "string" ? Number(flags["max-entries"]) : action === "search" ? 200 : undefined,
+        pageSize: typeof flags.limit === "string" ? Number(flags.limit) : 100,
+        cursor: typeof flags.cursor === "string" ? flags.cursor : undefined,
+        ...(action === "search" ? { query: typeof flags.query === "string" ? flags.query : "" } : {}),
+        page: async (cursor, limit) => {
+          const page = await client.listUserTaskActivity(task.taskId, {
+            ...context, cursor, limit, newestFirst: flags["newest-first"] === true,
+          });
+          return { entries: await decryptTaskActivityEntries(task, masterKey, page.entries), next_cursor: page.next_cursor };
+        },
+      });
+      if (flags.json === true) printJson({ ...history, entries: history.entries.map(taskActivityToJson), delivery: pending });
+      else {
+        console.log(renderTaskActivityList(history.entries));
+        if (history.truncated) console.log(`Activity history truncated. Search all history: openmates tasks activity search ${task.shortId} --query "text" --max-entries 200`);
+        if (history.next_cursor) console.log(`Next cursor: ${history.next_cursor}`);
+      }
       return;
     }
     if (action === "add") {
       const message = typeof flags.message === "string" ? flags.message : rest.slice(2).join(" ");
       if (!message.trim()) throw new Error("Missing comment. Usage: openmates tasks activity add <task-id> --message <text>");
-      const input = await buildCreateTaskActivityInput(task, masterKey, { message });
-      const entry = await decryptTaskActivityEntry(
-        task,
-        masterKey,
-        await client.createUserTaskActivity(task.taskId, input, {
-          ...context,
-          ...(flags["as-assignee"] === true ? { actorMode: "assignee" as const } : {}),
-        }),
-      );
+      const deliveryId = typeof flags["delivery-id"] === "string" ? flags["delivery-id"] : undefined;
+      const build = () => buildCreateTaskActivityInput(task, masterKey, { message, ...(deliveryId ? { entryId: deliveryId } : {}) });
+      const record = deliveryId
+        ? await delivery().deliver(deliveryId, build, createActivity)
+        : await createActivity(await build());
+      const entry = await decryptTaskActivityEntry(task, masterKey, record);
+      if (entry.message !== message) throw new Error("Activity delivery id already belongs to a different milestone message");
       if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
       else console.log(renderTaskActivityList([entry]));
       return;
@@ -887,7 +903,7 @@ async function handleTasks(
       else console.log(renderTaskActivityList([entry]));
       return;
     }
-    throw new Error("Usage: openmates tasks activity list|add|delete <task-id> [<entry-id>] [--message <text>]");
+    throw new Error("Usage: openmates tasks activity list|search|add|flush|delete <task-id> [<entry-id>] [--message <text>]");
   }
 
   if (rest[0] === "add-to-project") {
@@ -13728,8 +13744,10 @@ function printTasksHelp(): void {
   openmates tasks reorder <task-id|short-id> [--before <task-id>] [--after <task-id>] [--position <n>] [--status <status>] [--json]
   openmates tasks dependencies list <task-id|short-id> [--json]
   openmates tasks dependencies add|remove <task-id|short-id> --target plan:<id>|task:<id> [--recovery-root <external-root>] [--json]
-  openmates tasks activity list <task-id|short-id> [--limit <n>] [--json]
-  openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--json]
+  openmates tasks activity list <task-id|short-id> [--max-entries <1-200>] [--cursor <cursor>] [--newest-first] [--json]
+  openmates tasks activity search <task-id|short-id> --query <text> [--max-entries <1-200>] [--json]
+  openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--delivery-id <sha256>] [--json]
+  openmates tasks activity flush <task-id|short-id> [--as-assignee] [--json]
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
 
 Chat-scoped aliases:

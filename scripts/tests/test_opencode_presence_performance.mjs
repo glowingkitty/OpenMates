@@ -13,6 +13,50 @@ import { OpenMatesHooks } from "../../.opencode/plugins/openmates-hooks.js";
 
 const { createPresenceSchedulerForTest, runProcessForTest } = OpenMatesHooks.test;
 
+test("slow presence polling remains single-flight and disposal aborts pending work", async () => {
+  let calls = 0;
+  let signal;
+  let release;
+  const poll = OpenMatesHooks.test.createPresencePollForTest(async nextSignal => {
+    calls++;
+    signal = nextSignal;
+    await new Promise(resolve => { release = resolve; });
+  });
+  const pending = Array.from({ length: 100 }, () => poll.run());
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 1);
+  poll.dispose();
+  assert.equal(signal.aborted, true);
+  release();
+  await Promise.all(pending);
+  await poll.run();
+  assert.equal(calls, 1);
+});
+
+test("failed status responses cannot be mistaken for an empty idle snapshot", () => {
+  const validate = OpenMatesHooks.test.validatedPresenceStatusesForTest;
+  assert.throws(() => validate({ error: { message: "timeout" } }), /preserving presence/);
+  assert.throws(() => validate({ data: [] }), /preserving presence/);
+  assert.deepEqual(validate({ data: { "ses-a": { type: "busy" } } }), { "ses-a": { type: "busy" } });
+  assert.deepEqual(validate({ data: {} }), {});
+});
+
+test("disposed presence schedulers cancel queued writes", async () => {
+  let writes = 0;
+  let cancelled = false;
+  const scheduler = createPresenceSchedulerForTest({
+    persist: async () => { writes++; },
+    setTimer: () => 1,
+    clearTimer: () => { cancelled = true; },
+  });
+  scheduler.schedule({ session_id: "ses-a" });
+  scheduler.dispose();
+  scheduler.schedule({ session_id: "ses-b" });
+  await scheduler.flush();
+  assert.equal(writes, 0);
+  assert.equal(cancelled, true);
+});
+
 test("guard subprocesses do not block the server event loop", async () => {
   let ticked = false;
   const timer = setTimeout(() => { ticked = true; }, 10);

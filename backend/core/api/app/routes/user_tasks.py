@@ -754,6 +754,7 @@ async def list_user_task_activity(
     team_id: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
+    newest_first: bool = Query(default=False),
     service: UserTaskService = Depends(get_user_task_service),
 ) -> dict[str, Any]:
     """First-party ciphertext read; Task authorization applies, no credits."""
@@ -762,6 +763,7 @@ async def list_user_task_activity(
     team_id = _unwrap_query_default(team_id)
     cursor = _unwrap_query_default(cursor)
     limit = int(_unwrap_query_default(limit))
+    newest_first = bool(_unwrap_query_default(newest_first))
     try:
         if team_id:
             await request.app.state.directus_service.team.require_team_role(
@@ -773,6 +775,7 @@ async def list_user_task_activity(
             team_id=team_id,
             cursor=cursor,
             limit=limit + 1,
+            newest_first=newest_first,
         )
         visible = entries[:limit]
         return {

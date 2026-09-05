@@ -9590,7 +9590,7 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async listUserTaskActivity(taskId: string, context: TeamContextOptions & { cursor?: string; limit?: number } = {}): Promise<UserTaskActivityPage> {
+  async listUserTaskActivity(taskId: string, context: TeamContextOptions & { cursor?: string; limit?: number; newestFirst?: boolean } = {}): Promise<UserTaskActivityPage> {
     this.requireSession();
     const params = new URLSearchParams();
     const teamId = this.resolveTeamContext(context);
@@ -9599,6 +9599,7 @@ export class OpenMatesClient {
     if (Number.isSafeInteger(context.limit) && context.limit !== undefined && context.limit > 0) {
       params.set("limit", String(context.limit));
     }
+    if (context.newestFirst) params.set("newest_first", "true");
     const query = params.toString();
     const response = await this.http.get<UserTaskActivityPage>(
       `/v1/user-tasks/${encodeURIComponent(taskId)}/activity${query ? `?${query}` : ""}`,

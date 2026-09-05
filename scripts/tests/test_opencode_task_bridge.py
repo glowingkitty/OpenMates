@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -112,7 +113,7 @@ def test_task_cli_retries_api_restart_failures_with_bounded_backoff(monkeypatch)
     def run(*_args, **_kwargs):
         nonlocal attempts
         attempts += 1
-        if attempts < 3:
+        if attempts < 2:
             return subprocess.CompletedProcess(
                 args=["openmates", "tasks", "list"],
                 returncode=1,
@@ -134,9 +135,9 @@ def test_task_cli_retries_api_restart_failures_with_bounded_backoff(monkeypatch)
     monkeypatch.setattr(sessions.subprocess, "run", run)
     monkeypatch.setattr(sessions.time, "sleep", delays.append)
 
-    assert sessions._run_openmates_task_cli(["tasks", "list", "--json"]) == {"tasks": []}
-    assert attempts == 3
-    assert delays == [2, 4]
+    assert sessions._run_openmates_task_cli(["tasks", "activity", "add", "TASK-1", "--delivery-id", "a" * 64, "--json"]) == {"tasks": []}
+    assert attempts == 2
+    assert delays == [2]
 
 
 def test_task_cli_does_not_retry_permanent_failures(monkeypatch) -> None:
@@ -189,10 +190,10 @@ def test_task_cli_reports_exhausted_transient_retry_attempts(monkeypatch) -> Non
     try:
         sessions._run_openmates_task_cli(["tasks", "create", "--title", "Test", "--json"])
     except RuntimeError as error:
-        assert "after 6 attempts" in str(error)
+        assert "after 1 attempts" in str(error)
     else:
         raise AssertionError("Exhausted transient failures must remain visible")
-    assert attempts == 6
+    assert attempts == 1
 
 
 def test_snapshot_classification_is_deterministic_and_fail_closed() -> None:
@@ -439,6 +440,7 @@ def test_typed_tool_posts_activity_as_opencode_and_can_create_human_work(monkeyp
         ],
         [
             "tasks", "activity", "add", "TASK-9", "--message", "Milestone: API specification behavior is verified.",
+            "--delivery-id", hashlib.sha256(json.dumps(["ses_parent", "TASK-9", "Milestone: API specification behavior is verified."], ensure_ascii=False).encode()).hexdigest(),
             "--as-assignee", "--external-chat", "opencode:ses_parent", "--json",
         ],
     ]
@@ -464,6 +466,7 @@ def test_new_top_level_chat_can_read_and_create_before_worktree_binding(monkeypa
         cli_runner=cli,
     )
 
+    assert context.pop("fetched_at")
     assert context == {"decision": "no_work", "active": None, "remaining": []}
     assert created["task"]["assignee_type"] == "external_ai"
     assert all("opencode:ses_newchat" in command for command in calls)
@@ -493,3 +496,25 @@ def test_staged_reconciliation_survives_process_restart(tmp_path, monkeypatch) -
     durable = sessions_file.read_text(encoding="utf-8")
     assert "Private title" not in durable
     assert "Private description" not in durable
+
+
+def test_context_activity_is_bounded_attributed_and_has_full_history_search() -> None:
+    sessions = load_sessions_module()
+    context = sessions._openmates_task_context_from_payload({"tasks": [task("TASK-1", status="in_progress")]}, "ses_parent")
+    calls = []
+    def cli(args):
+        calls.append(args)
+        return {"entries": [
+            {"task_id": "uuid-TASK-1", "entry_id": str(i), "actor_type": "user" if i % 2 else "external_ai", "message": "x" * 2500}
+            for i in range(30)
+        ], "truncated": True}
+    result = sessions._openmates_task_activity_context(context, "ses_parent", cli)
+    history = result["activity"]
+    assert len(history["entries"]) <= 20
+    assert sum(len(entry["message"]) for entry in history["entries"]) <= 12000
+    assert history["truncated"]
+    assert {entry["actor_type"] for entry in history["entries"]} == {"user", "external_ai"}
+    assert "--external-chat opencode:ses_parent" in history["search_command"]
+    assert "activity search" in history["search_command"]
+    assert "--newest-first" in calls[0]
+    assert calls[0][calls[0].index("--max-entries") + 1] == "20"

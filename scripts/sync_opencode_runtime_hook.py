@@ -25,6 +25,8 @@ REQUIRED_TASK_ACTIONS = [
     "unblock",
     "done",
     "activity_add",
+    "activity_search",
+    "activity_flush",
 ]
 
 

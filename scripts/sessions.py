@@ -65,6 +65,7 @@ import socket
 import sqlite3
 import stat
 import subprocess
+import shlex
 import sys
 import tarfile
 import tempfile
@@ -185,7 +186,10 @@ OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
 OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
 OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
 OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
-OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS = (2, 4, 8, 12, 16)
+OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS = (2,)
+OPENMATES_TASK_ACTIVITY_MAX_ENTRIES = 20
+OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS = 12000
+OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS = 2000
 OPENMATES_TASK_OPEN_STATUSES = {"backlog", "todo", "in_progress", "blocked"}
 OPENMATES_TASK_WAIT_QUEUE_STATES = {"waiting", "waiting_for_user", "blocked"}
 OPENMATES_TASK_STOP_EXECUTION_STATES = {"failed", "aborted", "stopped", "waiting_for_user"}
@@ -10938,7 +10942,9 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
         "OPENMATES_API_URL": OPENMATES_TASK_BRIDGE_API_URL,
         "OPENMATES_STATE_DIR": "",
     })
-    attempt_count = len(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS) + 1
+    # Only encrypted, durable activity deliveries can safely repeat a write.
+    retry_delays = OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS if "--delivery-id" in arguments else ()
+    attempt_count = len(retry_delays) + 1
     for attempt in range(attempt_count):
         try:
             result = subprocess.run(
@@ -10947,7 +10953,7 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
                 env=environment,
                 text=True,
                 capture_output=True,
-                timeout=OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
+                timeout=120 if arguments[:3] == ["tasks", "activity", "search"] else OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS,
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as error:
@@ -10956,10 +10962,10 @@ def _run_openmates_task_cli(arguments: list[str]) -> dict:
         if result.returncode == 0:
             break
         if (
-            attempt < len(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS)
+            attempt < len(retry_delays)
             and _openmates_task_cli_failure_is_transient(result, failure_message)
         ):
-            time.sleep(OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS[attempt])
+            time.sleep(retry_delays[attempt])
             continue
         if any(marker in failure_message.lower() for marker in (
             "passkey verification required", "session expired", "not logged in", "session validation failed",
@@ -11107,6 +11113,55 @@ def _openmates_task_context_from_payload(payload: dict, opencode_session_id: str
     return {"decision": classified["decision"], "active": active_context, "remaining": remaining}
 
 
+def _openmates_task_activity_context(context: dict, opencode_session_id: str, cli_runner: Callable) -> dict:
+    """Attach bounded attributed activity; never persist decrypted comments."""
+    active = context.get("active")
+    context["fetched_at"] = _now_iso()
+    if not active:
+        return context
+    task_id = str(active["task_id"])
+    scope = ["--external-chat", f"opencode:{opencode_session_id}"]
+    history = cli_runner([
+        "tasks", "activity", "list", task_id, *scope, "--newest-first",
+        "--max-entries", str(OPENMATES_TASK_ACTIVITY_MAX_ENTRIES), "--flush-pending", "--as-assignee", "--json",
+    ])
+    records = history.get("entries")
+    if not isinstance(records, list):
+        raise RuntimeError("Task activity response is missing entries")
+    entries = []
+    budget = OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS
+    truncated = bool(history.get("truncated")) or len(records) > OPENMATES_TASK_ACTIVITY_MAX_ENTRIES
+    for record in records[:OPENMATES_TASK_ACTIVITY_MAX_ENTRIES]:
+        if not isinstance(record, dict) or record.get("task_id") != task_id:
+            raise RuntimeError("Task activity response crossed task scope")
+        entry = {key: record.get(key) for key in (
+            "entry_id", "kind", "actor_type", "actor_identity", "actor_display_name", "created_at", "event_type",
+        )}
+        message = str(record.get("message") or "")
+        visible = message[:min(budget, OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS)]
+        entry["message"] = visible
+        if len(visible) < len(message):
+            entry["text_truncated"] = True
+            truncated = True
+        budget -= len(visible)
+        entries.append(entry)
+        if budget <= 0:
+            truncated = truncated or len(entries) < len(records)
+            break
+    context["activity"] = {
+        "entries": list(reversed(entries)), "truncated": truncated,
+        "max_entries": OPENMATES_TASK_ACTIVITY_MAX_ENTRIES,
+        "search_command": shlex.join([
+            "env", f"OPENMATES_PROFILE={OPENMATES_TASK_BRIDGE_PROFILE}",
+            f"OPENMATES_API_URL={OPENMATES_TASK_BRIDGE_API_URL}", "openmates", "tasks", "activity", "search", task_id,
+            *scope, "--query", "SEARCH TEXT", "--max-entries", "200", "--json",
+        ]),
+        "search_tool": {"action": "activity_search", "task_id": task_id, "query": "SEARCH TEXT"},
+        "pending_delivery": history.get("delivery", {}).get("pending", 0) if isinstance(history.get("delivery"), dict) else 0,
+    }
+    return context
+
+
 def _openmates_task_context(
     session_reference: str,
     *,
@@ -11125,7 +11180,7 @@ def _openmates_task_context(
     decisions = _workflow_decision_context(data["sessions"].get(owner_id, {}), context.get("active"))
     if decisions:
         context["scoped_decisions"] = decisions
-    return context
+    return _openmates_task_activity_context(context, opencode_session_id, cli_runner)
 
 
 def _openmates_task_tool(
@@ -11138,7 +11193,7 @@ def _openmates_task_tool(
     if not isinstance(input_payload, dict):
         raise RuntimeError("Task tool input must be a JSON object")
     action = input_payload.get("action")
-    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done", "activity_add"}
+    allowed_actions = {"context", "show", "create", "start", "edit", "block", "unblock", "done", "activity_add", "activity_search", "activity_flush"}
     if action not in allowed_actions:
         raise RuntimeError(f"unsupported Task tool action: {action}")
 
@@ -11161,7 +11216,9 @@ def _openmates_task_tool(
 
     if action == "context":
         payload = cli_runner(["tasks", "list", *scope, "--json"])
-        return _openmates_task_context_from_payload(payload, opencode_session_id)
+        return _openmates_task_activity_context(
+            _openmates_task_context_from_payload(payload, opencode_session_id), opencode_session_id, cli_runner,
+        )
 
     if action == "create":
         command = ["tasks", "create", "--title", text_field("title", required=True, maximum=500)]
@@ -11183,11 +11240,21 @@ def _openmates_task_tool(
     task_id = text_field("task_id", required=True, maximum=200)
     if action == "show":
         return cli_runner(["tasks", "show", task_id, *scope, "--json"])
+    if action == "activity_search":
+        return cli_runner([
+            "tasks", "activity", "search", task_id, "--query", text_field("query", required=True, maximum=500),
+            *scope, "--max-entries", "200", "--json",
+        ])
+    if action == "activity_flush":
+        return cli_runner(["tasks", "activity", "flush", task_id, "--as-assignee", *scope, "--json"])
     if action == "activity_add":
         message = text_field("message", required=True, maximum=10000)
+        delivery_id = hashlib.sha256(json.dumps([
+            opencode_session_id, task_id, text_field("milestone_id", maximum=200) or message,
+        ], ensure_ascii=False).encode("utf-8")).hexdigest()
         return cli_runner([
             "tasks", "activity", "add", task_id, "--message", message,
-            "--as-assignee", *scope, "--json",
+            "--delivery-id", delivery_id, "--as-assignee", *scope, "--json",
         ])
     if action == "start":
         # The generic status mutation is supported for AI-owned external-chat
@@ -11226,6 +11293,10 @@ def _openmates_task_tool(
             command.extend(["--reason-text", reason_text])
         command.extend([*scope, "--json"])
         return cli_runner(command)
+    if action == "done":
+        delivery = cli_runner(["tasks", "activity", "flush", task_id, "--as-assignee", *scope, "--json"])
+        if delivery.get("pending"):
+            raise RuntimeError("Task has pending Activity delivery; reconcile activity_flush before marking done")
     return cli_runner(["tasks", str(action), task_id, *scope, "--json"])
 
 
