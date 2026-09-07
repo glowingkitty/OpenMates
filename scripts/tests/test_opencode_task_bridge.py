@@ -600,30 +600,20 @@ def test_context_activity_is_bounded_attributed_and_has_full_history_search() ->
     assert calls[0][calls[0].index("--max-entries") + 1] == "20"
 
 
-def test_monitor_paces_active_task_instead_of_immediate_idle_loop(monkeypatch) -> None:
+def test_retired_monitor_metadata_does_not_strand_task_continuations(monkeypatch) -> None:
     sessions = load_sessions_module()
-    data = state()
-    install_mutator(monkeypatch, sessions, data)
-    monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
-    monkeypatch.setattr(sessions, '_now_iso', lambda: '2026-09-07T14:01:00Z')
-    sessions.orchestration_monitor.register(data['sessions']['4bf3'], 'ses_worker',
-        '2026-09-07T14:00:00Z', '2026-09-07T23:00:00Z', sessions._now_iso())
-    sessions._stage_openmates_task_reconciliation('ses_parent', 'msg_checkpoint')
-    result = sessions._reconcile_openmates_tasks('ses_parent', cli_runner=lambda args: {
-        'tasks': [task('TASK-1', status='in_progress', version=7)]})
-    assert result['decision'] == 'monitor_scheduled'
-    assert result['continuation'] is None
-    assert sessions.orchestration_monitor.prepare(data['sessions']['4bf3'], '2026-09-07T14:05:00Z')['operation_type'] == 'monitor_ready'
-
-
-def test_stopped_monitor_does_not_fall_back_to_generic_auto_continuation(monkeypatch) -> None:
-    sessions = load_sessions_module()
-    data = state()
-    install_mutator(monkeypatch, sessions, data)
-    monkeypatch.setattr(sessions, '_load_sessions', lambda: data)
-    data['sessions']['4bf3']['orchestration_monitor'] = {'status': 'stopped'}
-    sessions._stage_openmates_task_reconciliation('ses_parent', 'msg_stopped')
-    result = sessions._reconcile_openmates_tasks('ses_parent', cli_runner=lambda args: {
-        'tasks': [task('TASK-1', status='in_progress', version=7)]})
-    assert result['decision'] == 'monitor_stopped'
-    assert result['continuation'] is None
+    for monitor_status in ("active", "stopped"):
+        data = state()
+        install_mutator(monkeypatch, sessions, data)
+        monkeypatch.setattr(sessions, "_load_sessions", lambda: data)
+        monitor = {"status": monitor_status, "workers": {"ses_worker": {"next_due": "2026-09-07T14:05:00Z"}}}
+        data["sessions"]["4bf3"]["orchestration_monitor"] = monitor.copy()
+        sessions._stage_openmates_task_reconciliation("ses_parent", "msg_checkpoint")
+        result = sessions._reconcile_openmates_tasks("ses_parent", cli_runner=lambda args: {
+            "tasks": [task("TASK-1", status="in_progress", version=7)]})
+        assert result["decision"] == "resume_active"
+        assert result["continuation"]["operation_type"] == "task_ready"
+        claimed = sessions._claim_session_continuation("ses_parent")
+        assert claimed["status"] == "delivering"
+        assert claimed["operation_type"] == "task_ready"
+        assert data["sessions"]["4bf3"]["orchestration_monitor"] == monitor

@@ -206,7 +206,7 @@ async function withHookDeadlineForTest(label, sessionID, operation, timeoutMs = 
         timeout = setTimeout(() => reject(new Error(actionable(
           "[OpenMates hook deadline]",
           `${label} did not settle within ${timeoutMs}ms for ${sessionID || "unknown session"}.`,
-          "retry the tool once; if it repeats, the orchestration monitor must inspect the named hook stage rather than leaving the chat busy.",
+          "retry the tool once; if it repeats, the coordinating task must inspect the named hook stage rather than leaving the chat busy.",
         ))), timeoutMs);
       }),
     ]);
@@ -2459,38 +2459,8 @@ function continuationSuppressedForTest(state) {
   );
 }
 
-function orchestrationReportingTextForTest(sessionID, data, skillText) {
-  const owner = Object.values(data?.sessions || {}).find(record => record.opencode_session_id === sessionID);
-  if (!owner?.orchestration_monitor) return "";
-  const match = String(skillText || "").match(/## Every reply: show current progress\n([\s\S]*?)(?=\n## |$)/);
-  return match ? `[Orchestration reply requirements]\n${match[1].trim()}` : "";
-}
-
 function continuationPartsForTest(record) {
-  return [{ type: "text", text: taskContinuationPromptForTest(record),
-    ...(record.operation_type === "monitor_ready" ? { synthetic: true, metadata: { openmates_monitor: true } } : {}) }];
-}
-
-function monitorSessionsForTest(data, directory) {
-  return Object.values(data?.sessions || {})
-    .filter(record => record.repo_root === directory && record.orchestration_monitor?.status === "active"
-      && !record.orchestration_monitor?.restart_manifest)
-    .map(record => record.opencode_session_id).filter(Boolean);
-}
-
-function monitorDeliveryAllowedForTest(state, status) {
-  return !["busy", "retry"].includes(status?.type)
-    && state?.execution === "idle" && !continuationSuppressedForTest(state);
-}
-
-async function runMonitorCheckpointForTest(sessionID, { state, status, command, deliver, cancelled = () => false }) {
-  const current = state();
-  if (["aborted", "failed"].includes(current?.turn) || ["stopped", "closed", "error"].includes(current?.execution)) {
-    await command("stop", sessionID);
-  } else if (monitorDeliveryAllowedForTest(current, status)) {
-    await command("tick", sessionID);
-    if (!cancelled() && monitorDeliveryAllowedForTest(state(), status)) await deliver(sessionID);
-  }
+  return [{ type: "text", text: taskContinuationPromptForTest(record) }];
 }
 
 function taskBridgeSuppressedForTest(state) {
@@ -3405,12 +3375,11 @@ export const OpenMatesHooks = async ({
   // Queue automation and sessions.py are deployed independently. Feature-gate
   // each optional queue by executing its help command once; unsupported
   // argparse commands must not be retried from every lifecycle event.
-  const [continuationQueueEnabled, mediaQueueEnabled, monitorQueueEnabled] = await Promise.all([
+  const [continuationQueueEnabled, mediaQueueEnabled] = await Promise.all([
     sessionsCommandSupportedForTest("continuation"),
     responseMediaAutomationEnabledForTest()
       ? sessionsCommandSupportedForTest("media")
       : Promise.resolve(false),
-    sessionsCommandSupportedForTest("monitor"),
   ]);
   const assistantTextParts = new Map();
   const presenceSourceID = randomUUID();
@@ -3522,25 +3491,6 @@ export const OpenMatesHooks = async ({
     const result = await runProcess("python3", args, { cwd: CURRENT_CONTROL_PLANE_ROOT });
     if (result.status !== 0) throw new Error(result.stderr || result.stdout || `continuation ${action} failed`);
     return JSON.parse(result.stdout || "{}").continuation || null;
-  };
-  const monitorCommand = async (action, sessionID) => {
-    if (!monitorQueueEnabled) return null;
-    const result = await runProcess("python3", ["scripts/sessions.py", "monitor", action, "--session", sessionID],
-      { cwd: CURRENT_CONTROL_PLANE_ROOT, timeoutMs: 10_000 });
-    if (result.status !== 0) throw new Error(result.stderr || result.stdout || `monitor ${action} failed`);
-    return JSON.parse(result.stdout || "{}");
-  };
-  const orchestrationReporting = (sessionID) => {
-    const data = sessionsData();
-    if (!Object.values(data.sessions || {}).some(record => record.opencode_session_id === sessionID && record.orchestration_monitor)) return "";
-    // Read the small authored section afresh: skill discovery is instance-cached.
-    try {
-      return orchestrationReportingTextForTest(sessionID, data,
-        readFileSync(`${PROJECT_ROOT}/.agents/skills/daily-meeting-and-orchestration/SKILL.md`, "utf8"));
-    } catch (error) {
-      console.warn(`[OpenMates orchestration reporting] ${error?.message || error}`);
-      return "";
-    }
   };
   const taskOwner = async (sessionID) => {
     const route = await resolveWorktreeRoute(client, sessionID, routingData || sessionsData());
@@ -3733,17 +3683,6 @@ export const OpenMatesHooks = async ({
       record = await continuationCommand("claim", sessionID);
       if (!record) return false;
       readyContinuationSessions.delete(sessionID);
-      if (record.operation_type === "monitor_ready" && record.attempts > 1) {
-        const existing = await client.session.message({ path: { id: sessionID, messageID: record.message_id } });
-        if (existing?.data?.info?.id === record.message_id) {
-          await continuationCommand("ack", sessionID);
-          return true;
-        }
-        const code = existing?.error?.status || existing?.response?.status;
-        if (code !== 404 && existing?.error?.name !== "NotFoundError") {
-          throw new Error("Monitor delivery acceptance is uncertain; inspect its persisted message ID before retrying");
-        }
-      }
       const response = await client.session.promptAsync({
         path: { id: sessionID },
         body: {
@@ -3787,10 +3726,6 @@ export const OpenMatesHooks = async ({
     if (pendingQueries.length) await Promise.allSettled(pendingQueries);
     if (disposed || signal?.aborted) return;
     const reconciledPending = Object.keys(authoritativePending).length ? authoritativePending : null;
-    const monitorSessions = monitorQueueEnabled ? monitorSessionsForTest(sessionsData(), instanceDirectory) : [];
-    for (const sessionID of monitorSessions) {
-      if (!presenceStates.has(sessionID)) presenceStates.set(sessionID, currentPresence(sessionID));
-    }
     const persistedSessions = presenceData().sessions || {};
     for (const [sessionID, record] of Object.entries(persistedSessions)) {
       // Each plugin instance sees only its directory's live statuses. Adopting
@@ -3803,12 +3738,6 @@ export const OpenMatesHooks = async ({
       { authoritativePending: reconciledPending },
     )) {
       schedulePresence(record);
-    }
-    for (const sessionID of monitorSessions) {
-      await runMonitorCheckpointForTest(sessionID, {
-        state: () => currentPresence(sessionID), status: statuses[sessionID], command: monitorCommand,
-        deliver: deliverReadyContinuation, cancelled: () => disposed || signal?.aborted,
-      });
     }
   };
   const presencePoll = createPresencePollForTest(reconcileAuthoritativePresence);
@@ -3846,16 +3775,12 @@ export const OpenMatesHooks = async ({
       const snapshot = await taskContextForSession(input.sessionID);
       const context = taskContextSystemTextForTest(snapshot);
       if (context) output.system.push(context);
-      const reporting = orchestrationReporting(input.sessionID);
-      if (reporting) output.system.push(reporting);
     },
     "experimental.session.compacting": async (input, output) => {
       if (!input?.sessionID) return;
       const snapshot = await taskContextForSession(input.sessionID, { refresh: true });
       const context = taskContextSystemTextForTest(snapshot);
       if (context) output.context.push(context);
-      const reporting = orchestrationReporting(input.sessionID);
-      if (reporting) output.context.push(reporting);
     },
     event: async ({ event }) => {
       if (disposed) return;
@@ -3877,13 +3802,6 @@ export const OpenMatesHooks = async ({
           readyContinuationSessions.delete(userSessionID);
         } catch (error) {
           console.warn(`[OpenMates continuation diagnostic] ${error?.message || error}`);
-        }
-      }
-      if (event.type === "session.deleted" || event.properties?.error?.name === "MessageAbortedError"
-        || event.properties?.info?.error?.name === "MessageAbortedError") {
-        const stoppedSessionID = eventSessionID(event);
-        if (monitorSessionsForTest(sessionsData(), instanceDirectory).includes(stoppedSessionID)) {
-          await monitorCommand("stop", stoppedSessionID);
         }
       }
       if (event.type === "session.idle") {
@@ -4210,12 +4128,8 @@ OpenMatesHooks.test = Object.freeze({
   reviewerSpawnDecisionForTest,
   continuationSignalForTest,
   continuationSuppressedForTest,
-  monitorSessionsForTest,
-  orchestrationReportingTextForTest,
   continuationPartsForTest,
   guardBash,
-  monitorDeliveryAllowedForTest,
-  runMonitorCheckpointForTest,
   taskBridgeCompletionForTest,
   taskBridgeSuppressedForTest,
   taskContextSystemTextForTest,

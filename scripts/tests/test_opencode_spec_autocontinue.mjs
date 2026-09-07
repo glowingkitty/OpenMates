@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 // OpenCode idle-continuation removal tests.
 // Purpose: prevent synthetic spec prompts from being injected into idle chats.
 // Architecture: instantiate the loaded project hook and inspect its hook surface.
@@ -15,16 +16,18 @@ const source = readFileSync(new URL("../../.opencode/plugins/openmates-hooks.js"
 test("loaded hook exposes no idle spec continuation handler", async () => {
   let promptCalls = 0;
   const hooks = await OpenMatesHooks({
-    client: { session: { messages: async () => [], prompt: async () => { promptCalls += 1; return {}; } } },
+    client: { session: { messages: async () => [], prompt: async () => { promptCalls += 1; return {}; }, promptAsync: async () => { promptCalls += 1; return {}; } } },
     worktree: "/repo",
   });
 
   assert.equal(typeof hooks.event, "function");
   await hooks.event({ event: { type: "session.idle", properties: { sessionID: "synthetic-idle" } } });
   assert.equal(promptCalls, 0);
+  await hooks.dispose();
 });
 
 test("loaded hook contains no deterministic spec continuation prompt", () => {
   assert.doesNotMatch(source, /Continue until the full spec is implemented/);
+  assert.doesNotMatch(source, /monitorCommand|runMonitorCheckpoint/);
   assert.match(source, /continuationCommand\("claim".*client\.session\.prompt/s);
 });

@@ -57,7 +57,7 @@ def probe_runtime_package(package: Path, runtime_checkout: Path) -> dict:
             raise RuntimeError(
                 "workflow advertised actions do not match the effective tool schema"
             )
-        for command in ("decision", "continuation", "worktree", "monitor"):
+        for command in ("decision", "continuation", "worktree"):
             check = subprocess.run(
                 [
                     "python3",

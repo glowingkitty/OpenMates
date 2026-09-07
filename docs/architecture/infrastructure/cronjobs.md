@@ -83,6 +83,8 @@ Automatic OpenCode launches were turned off and their obsolete scheduling implem
 
 ## Removed implementations
 
+The `sessions.py monitor` command, cadence helper, `monitor_ready` operation and hook timer delivery are removed. General continuations remain for Task reconciliation, media and scoped decisions; they are shared infrastructure, not the retired monitor. Historical monitor metadata is retained but cannot be claimed for delivery.
+
 The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner.
 
 OpenCode-only runtime registrations are narrowly removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/`. No product service or shared work-life `allowed` guard is part of this removal.

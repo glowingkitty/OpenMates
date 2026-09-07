@@ -24,6 +24,7 @@ RUN_SESSION_RE = re.compile(r"\brun_opencode_session\s*\(")
 # These entry points were removed, not disabled. Manual tools and shared
 # security collectors remain supported; TASK-8338 owns any future replacement.
 RETIRED_AUTOMATION_PATHS = (
+    "scripts/_orchestration_monitor.py",
     "scripts/linear-poller.py",
     "scripts/agent-trigger-watcher.sh",
     "scripts/agent-trigger-watcher.service",

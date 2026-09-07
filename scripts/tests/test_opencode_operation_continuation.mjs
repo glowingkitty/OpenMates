@@ -1,3 +1,4 @@
+// contract-test-file: tooling
 // Bounded deterministic OpenCode continuation contract tests.
 // Purpose: allow typed operation resumption without generic idle prompting.
 // Security: pure helpers receive only sanitized operation metadata.
@@ -75,71 +76,13 @@ test("idle delivery claims durable operation before prompting", () => {
   assert.match(source, /continuationCommand\("release", sessionID\)/);
 });
 
-test("monitor discovery stays scoped and recovers persisted idle coordinators", () => {
-  const data = { sessions: {
-    own: { repo_root: "/project", opencode_session_id: "ses_own", orchestration_monitor: { status: "active" } },
-    other: { repo_root: "/other", opencode_session_id: "ses_other", orchestration_monitor: { status: "active" } },
-    stopped: { repo_root: "/project", opencode_session_id: "ses_stop", orchestration_monitor: { status: "stopped" } },
-  } };
-  assert.deepEqual(OpenMatesHooks.test.monitorSessionsForTest(data, "/project"), ["ses_own"]);
-});
-
-test("monitor waits through user questions and busy work, then resumes", () => {
-  const state = { execution: "idle", turn: "completed", pending_permission_ids: [], pending_question_ids: [] };
-  const allowed = OpenMatesHooks.test.monitorDeliveryAllowedForTest;
-  assert.equal(allowed(state, undefined), true);
-  assert.equal(allowed(state, { type: "busy" }), false);
-  assert.equal(allowed(state, { type: "retry" }), false);
-  assert.equal(allowed({ ...state, pending_question_ids: ["q"] }), false);
-  assert.equal(allowed({ ...state, pending_permission_ids: ["p"] }), false);
-  assert.equal(allowed({ ...state, turn: "aborted" }), false);
-  assert.equal(allowed({ ...state, execution: "unknown" }), false);
-  assert.equal(allowed(state, undefined), true);
-});
-
-test("heartbeat uses durable tick before delivery and preserves questions", async () => {
-  const events = [];
-  let current = { execution: "idle", turn: "completed", pending_question_ids: ["q"] };
-  const options = { state: () => current,
-    command: async action => events.push(action), deliver: async () => events.push("deliver") };
-  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", options);
-  assert.deepEqual(events, []);
-  current = { ...current, pending_question_ids: [] };
-  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", options);
-  assert.deepEqual(events, ["tick", "deliver"]);
-  events.length = 0;
-  current = { ...current, turn: "aborted" };
-  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", options);
-  assert.deepEqual(events, ["stop"]);
-});
-
-test("a user turn arriving during tick suppresses delivery", async () => {
-  let current = { execution: "idle", turn: "completed" };
-  let delivered = false;
-  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", {
-    state: () => current,
-    command: async () => { current = { execution: "busy", turn: "streaming" }; },
-    deliver: async () => { delivered = true; },
-  });
-  assert.equal(delivered, false);
-});
-
-test("scheduler instructions are internal text parts, ordinary continuations unchanged", () => {
-  const parts = OpenMatesHooks.test.continuationPartsForTest({ operation_type: "monitor_ready", next_action: "Check workers" });
-  assert.equal(parts[0].synthetic, true);
-  assert.equal(parts[0].metadata.openmates_monitor, true);
-  assert.equal(parts[0].text, "Check workers");
-  assert.equal(OpenMatesHooks.test.continuationPartsForTest({ operation_type: "task_ready", next_action: "Continue" })[0].synthetic, undefined);
-});
-
-test("every coordinator turn receives current authored reporting rules despite skill cache", () => {
-  const data = { sessions: { owner: { opencode_session_id: "ses_coordinator", orchestration_monitor: { status: "active" } } } };
-  const skill = "## Every reply: show current progress\nEvery reply needs a table and highlighted input.\n## Meeting style and task records\nOther instructions";
-  const reporting = OpenMatesHooks.test.orchestrationReportingTextForTest;
-  assert.match(reporting("ses_coordinator", data, skill), /Every reply needs a table/);
-  assert.doesNotMatch(reporting("ses_coordinator", data, skill), /Other instructions/);
-  assert.equal(reporting("ses_worker", data, skill), "");
-  assert.match(reporting("ses_coordinator", data, skill.replace("a table", "a fresh progress table")), /fresh progress table/);
+test("monitor wiring is removed while shared continuation delivery remains", () => {
+  assert.doesNotMatch(source, /monitorCommand|monitorQueueEnabled|runMonitorCheckpoint|orchestration_monitor|monitor_ready/);
+  assert.equal(OpenMatesHooks.test.monitorSessionsForTest, undefined);
+  assert.match(source, /continuationCommand\("claim", sessionID\)/);
+  const parts = OpenMatesHooks.test.continuationPartsForTest({ operation_type: "task_ready", next_action: "Continue" });
+  assert.equal(parts[0].synthetic, undefined);
+  assert.equal(parts[0].type, "text");
 });
 
 test("reviewed remote patch command passes source guard without allowing raw source writes", () => {
