@@ -19,16 +19,17 @@ import { listProjects } from "./projectService";
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
-export type UserTaskAssigneeIdentity = "openmates" | "opencode";
+export type UserTaskAssigneeIdentity = "openmates" | "codex" | "opencode";
 
 export function taskAssigneeDisplayName(identity: UserTaskAssigneeIdentity | null | undefined): string | null {
   if (identity === "openmates") return "OpenMates";
+  if (identity === "codex") return "Codex";
   if (identity === "opencode") return "OpenCode";
   return null;
 }
 export type UserTaskKeyWrapperType = "master" | "chat" | "project" | "plan";
 export type WorkflowRunProjectionKind = "last_run" | "current_run" | "next_run";
-export type ExternalChatProvider = "opencode";
+export type ExternalChatProvider = "codex" | "opencode";
 export type BlockedReasonCode = "needs_user_input" | "waiting_for_approval" | "missing_credentials" | "ambiguous_requirement" | "external_dependency" | "environment_unavailable" | "verification_failed" | "other";
 
 export interface ExternalChatContext {
@@ -303,11 +304,11 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
 }
 
 const EXTERNAL_CHAT_INDEX_INFO = "openmates-task-external-chat-index-v1";
-const EXTERNAL_CHAT_PROVIDER: ExternalChatProvider = "opencode";
+const EXTERNAL_CHAT_PROVIDERS: ReadonlySet<ExternalChatProvider> = new Set(["codex", "opencode"]);
 
 function assertExternalChatContext(context: ExternalChatContext): void {
-  if (context.provider !== EXTERNAL_CHAT_PROVIDER) {
-    throw new Error(`Unsupported external chat provider '${context.provider}'. Only opencode is allowed.`);
+  if (!EXTERNAL_CHAT_PROVIDERS.has(context.provider)) {
+    throw new Error(`Unsupported external chat provider '${context.provider}'. Expected codex or legacy opencode.`);
   }
   if (!context.id) throw new Error("External chat id is required.");
 }
@@ -473,6 +474,14 @@ async function buildTaskKeyWrappers(
     });
   }
   return wrappers;
+}
+
+export async function getTaskAssignmentEligibility(): Promise<boolean> {
+  // Eligibility is owner-scoped server provenance, independent of board filters
+  // and mutable assignment/chat context. Never infer it from visible Tasks.
+  const data = await requestJson<{ eligible_external_ai?: string[] }>("/v1/user-tasks?limit=1");
+  if (!Array.isArray(data.eligible_external_ai)) throw new Error("Task assignment eligibility is unavailable");
+  return data.eligible_external_ai.includes("codex");
 }
 
 export async function listTaskBoardItems(filters: ListUserTasksFilters = {}): Promise<TasksBoardItem[]> {
@@ -810,6 +819,13 @@ export async function startUserTaskWithAI(task: UserTaskViewModel): Promise<User
     body.plaintext_title = task.title;
     body.plaintext_description = task.description;
     body.plaintext_latest_instruction = task.latestInstruction;
+  }
+  if (task.externalChat) {
+    body.primary_chat_id = null;
+    body.external_chat_provider = null;
+    body.external_chat_lookup_hash = null;
+    body.encrypted_external_chat_id = null;
+    body.encrypted_external_chat_title = null;
   }
   if (task.linkedProjectIds.length > 0) {
     body.plaintext_project_context = `Linked projects: ${task.linkedProjectIds.join(", ")}`;
