@@ -14,7 +14,6 @@ const { getE2EDebugUrl, assertNoMissingTranslations } = require('./signup-flow-h
 const REPORTED_PROMPT =
 	'is it practical to run clo3d in a VM in virtual box? heard there is a 256mb vram max for vms? is that true? if so, this would be a no go...';
 const PROCESSING_ERROR = 'The AI service encountered an error while processing your request.';
-
 async function startAnonymousChat(page: any): Promise<void> {
 	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
@@ -48,30 +47,90 @@ async function typeMessage(page: any, text: string): Promise<void> {
 	await expect(editor).toContainText(text);
 }
 
-test.describe('Anonymous production repair', () => {
-	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
-	test('completes the reported prompt with authoritative model attribution', async ({ page }: { page: any }) => {
-		test.setTimeout(150_000);
-		await page.setViewportSize({ width: 390, height: 844 });
-		await page.addInitScript((anonymousId: string) => {
-			localStorage.removeItem('openmates:last-auth-method');
-			localStorage.setItem('openmates_anonymous_id', anonymousId);
-		}, `h753f-web-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+async function sendAndAwaitAnswer(page: any, text: string, expected?: RegExp): Promise<number> {
+	await typeMessage(page, text);
+	const startedAt = Date.now();
+	await page.locator('[data-action="send-message"]').click();
 
-		await startAnonymousChat(page);
-		await typeMessage(page, REPORTED_PROMPT);
-		await page.locator('[data-action="send-message"]').click();
+	const assistant = page.getByTestId('message-assistant').last();
+	await expect(assistant).toBeVisible({ timeout: 120_000 });
+	await expect(assistant).toHaveAttribute('data-streaming', 'false', { timeout: 120_000 });
+	await expect(assistant).not.toContainText(PROCESSING_ERROR);
+	const messageContent = assistant.getByTestId('message-content').last();
+	await expect(messageContent).toBeVisible({ timeout: 15_000 });
+	await expect
+		.poll(async () => (await messageContent.innerText()).trim().length, { timeout: 15_000 })
+		.toBeGreaterThan(40);
+	if (expected) await expect(messageContent).toContainText(expected);
+	await expect(page.getByTestId('chat-processing-indicator')).toBeHidden();
+	return Date.now() - startedAt;
+}
 
-		const assistant = page.getByTestId('message-assistant').last();
-		await expect(assistant).toBeVisible({ timeout: 120_000 });
-		await expect(assistant).toHaveAttribute('data-streaming', 'false', { timeout: 120_000 });
-		await expect(assistant).not.toContainText(PROCESSING_ERROR);
-		await expect(assistant).toContainText(/CLO3D|VirtualBox|VRAM/i);
+async function runReliabilityCase(
+	page: any,
+	testInfo: any,
+	options: {
+		viewport: { width: number; height: number };
+		prompt: string;
+		followUp: string;
+		expected: RegExp;
+	}
+): Promise<void> {
+	await page.setViewportSize(options.viewport);
+	await page.addInitScript((anonymousId: string) => {
+		localStorage.removeItem('openmates:last-auth-method');
+		localStorage.setItem('openmates_anonymous_id', anonymousId);
+	}, `h753f-web-${Date.now()}-${Math.random().toString(16).slice(2)}`);
 
-		const attribution = page.getByTestId('generated-by').last();
+	await startAnonymousChat(page);
+	const initialMs = await sendAndAwaitAnswer(page, options.prompt, options.expected);
+	const followUpMs = await sendAndAwaitAnswer(page, options.followUp);
+
+	await expect(page.getByTestId('message-user')).toHaveCount(2);
+	await expect(page.getByTestId('message-assistant')).toHaveCount(2);
+	for (const attribution of await page.getByTestId('generated-by').all()) {
 		await expect(attribution).toBeVisible({ timeout: 15_000 });
 		await expect(attribution).not.toContainText('openmates-ai');
 		await expect(attribution).not.toHaveText('');
-		await assertNoMissingTranslations(page);
+	}
+	await assertNoMissingTranslations(page);
+	await testInfo.attach('anonymous-turn-timings.json', {
+		body: JSON.stringify({ initialMs, followUpMs }),
+		contentType: 'application/json'
+	});
+}
+
+test.describe('Anonymous production repair', () => {
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
+	test('completes reported CLO3D prompt and follow-up on phone', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(300_000);
+		await runReliabilityCase(page, testInfo, {
+			viewport: { width: 390, height: 844 },
+			prompt: REPORTED_PROMPT,
+			followUp: 'What setup would you recommend instead?',
+			expected: /CLO3D|VirtualBox|VRAM/i
+		});
+	});
+
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
+	test('completes plain-language prompt and follow-up on phone', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(300_000);
+		await runReliabilityCase(page, testInfo, {
+			viewport: { width: 390, height: 844 },
+			prompt: 'In one short paragraph, explain why rainbows appear after rain.',
+			followUp: 'Name the first three colors in order.',
+			expected: /rainbow|light|water/i
+		});
+	});
+
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
+	test('completes troubleshooting prompt and follow-up on laptop', async ({ page }: { page: any }, testInfo: any) => {
+		test.setTimeout(300_000);
+		await runReliabilityCase(page, testInfo, {
+			viewport: { width: 1440, height: 900 },
+			prompt: 'Give me two practical checks when a local development server will not start.',
+			followUp: 'Which check should I run first?',
+			expected: /port|process|log|configuration|dependency/i
+		});
 	});
 });
