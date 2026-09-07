@@ -227,9 +227,10 @@ def compose_profile(source_hash: str) -> dict:
         },
         "vault": {
             "image": "hashicorp/vault:1.19",
-            "mem_limit": 256 * MIB,
+            "mem_limit": 512 * MIB,
             "environment": {
                 "VAULT_DEV_ROOT_TOKEN_ID": credentials["vault"],
+                "GOMEMLIMIT": "384MiB",
                 "VAULT_DEV_LISTEN_ADDRESS": "0.0.0.0:8200",
             },
             "command": ["server", "-dev", "-log-level=warn"],
@@ -434,6 +435,13 @@ def main():
             # Generated secrets are replaced before logs become uploaded artifacts.
             profile = json.loads(COMPOSE_PATH.read_text())
             output = result.stdout
+            containers = compose("ps", "-aq", capture=True).stdout.split()
+            for container in containers:
+                state = subprocess.check_output(
+                    ["docker", "inspect", "--format", "{{json .State}}", container],
+                    text=True, timeout=20,
+                )
+                output += "\nContainer " + container + " state: " + state
             for service in profile["services"].values():
                 for key, value in service.get("environment", {}).items():
                     if (
