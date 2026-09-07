@@ -117,3 +117,14 @@ def test_named_diagnostic_reads_without_clearing_or_admitting_render(monkeypatch
     record['id'] = 'another-stop'
     with pytest.raises(guard.MacDeletionStop):
         guard.require_safe_operation('render-diagnostic')
+
+
+def test_crash_diagnostic_requires_pid_sandbox_and_unlink_evidence():
+    from _apple_render_diagnostic import crash_summary
+    report = {'pid': 15585, 'termination': {'namespace': 'SANDBOX'},
+              'faultingThread': 0, 'threads': [{'frames': [{'symbol': '__unlink'}]}]}
+    assert crash_summary('{}\n' + json.dumps(report))['confirmed_sandbox_unlink']
+    report['termination']['namespace'] = 'SIGNAL'
+    assert not crash_summary(json.dumps(report))['confirmed_sandbox_unlink']
+    report['pid'] = 1
+    assert crash_summary(json.dumps(report)) is None

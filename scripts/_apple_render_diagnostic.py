@@ -8,9 +8,30 @@ It neither clears stop state nor retries the browser or any render operation.
 import json
 import os
 from pathlib import Path
-import subprocess
 
 RUN = Path('/Users/kitty/openmates-marketing/videos/remotion/renders/runs/4ee1ce49a798445794ac296af9bbed23')
+
+
+def crash_summary(text):
+    decoder = json.JSONDecoder()
+    first, end = decoder.raw_decode(text)
+    report = decoder.raw_decode(text[end:].lstrip())[0] if text[end:].strip() else first
+    if report.get('pid') != 15585:
+        return None
+    summary = {key: report.get(key) for key in ('pid', 'procName', 'captureTime', 'exception', 'termination', 'asi', 'faultingThread')}
+    summary['report_fields'] = sorted(report)
+    threads = report.get('threads', [])
+    index = report.get('faultingThread')
+    if isinstance(index, int) and 0 <= index < len(threads):
+        summary['faulting_frames'] = threads[index].get('frames', [])[:40]
+    summary['confirmed_sandbox_unlink'] = (
+        (report.get('termination') or {}).get('namespace') == 'SANDBOX'
+        and any(frame.get('symbol') in {'unlink', '__unlink', 'unlinkat', '__unlinkat'}
+                for frame in summary.get('faulting_frames', [])))
+    for key in report:
+        if 'sandbox' in key.lower() or 'violation' in key.lower():
+            summary[key] = report[key]
+    return summary
 
 
 def main():
@@ -28,11 +49,25 @@ def main():
             evidence['files'][name] = os.read(fd, 65536).decode(errors='replace')
         finally:
             os.close(fd)
-    result = subprocess.run(['/usr/bin/log', 'show', '--last', '24h', '--style', 'ndjson',
-                             '--predicate', 'eventMessage CONTAINS "15585" AND (process == "kernel" OR process == "sandboxd")'],
-                            capture_output=True, text=True, timeout=45,
-                            env={'PATH': '/usr/bin:/bin'})
-    evidence['os_log'] = {'exit_code': result.returncode, 'stdout': result.stdout[-65536:], 'stderr': result.stderr[-3000:]}
+    # `log show` explicitly refuses sandboxed execution on this Mac. Keep the
+    # read-only boundary and inspect only PID-matched Chrome crash metadata.
+    evidence['crash_reports'] = []
+    for directory in (Path('/Users/kitty/Library/Logs/DiagnosticReports'), Path('/Library/Logs/DiagnosticReports')):
+        if any(p.is_symlink() for p in (directory, *directory.parents)):
+            raise ValueError('diagnostic directory contains symlink')
+        candidates = sorted(directory.glob('Google Chrome*.ips'), reverse=True)[:50]
+        for path in candidates:
+            fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+            try:
+                if os.fstat(fd).st_size > 2 * 1024 * 1024:
+                    continue
+                summary = crash_summary(os.read(fd, 2 * 1024 * 1024).decode())
+                if summary:
+                    evidence['crash_reports'].append({'file': str(path), 'summary': summary})
+                    if summary['confirmed_sandbox_unlink']:
+                        evidence['classification'] = 'sandbox_denied_unlink_target_path_unavailable'
+            finally:
+                os.close(fd)
     print(json.dumps(evidence))
 
 

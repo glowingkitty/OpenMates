@@ -86,3 +86,24 @@ symlink escape, prefix collisions, root/parent protection, original protection,
 Git origin checks, retained transition history and subsequent terminal stops.
 Real Mac scope queries and a bounded render check provide separate execution
 proof. No outside deletion fixture or attempted outside deletion is used.
+
+### Named Chrome failure diagnosis
+
+Fresh user authorization permits `apple_remote.py render-diagnostic --output <local.json>`
+for stop `0ba26b6a94cd43c3a189c2150e52430c` only. It reads the fixed failed run and
+PID-matched Chrome crash metadata under `(deny file-write*)`; it does not clear
+any stop, accept Mac paths/commands, or retry rendering. The Mac crash report
+for PID15585 confirms termination namespace `SANDBOX` with faulting `__unlink`
+frames. It omits the target path. This is stronger evidence than SIGKILL alone.
+The system `log show` command explicitly refuses sandboxed execution, so the
+wrapper cannot fetch its kernel denial record through this diagnostic. An
+operator can run this read-only command locally on the Mac and provide the
+matching denial line (no deletion is requested):
+
+```sh
+/usr/bin/log show --last 24h --style compact --predicate 'eventMessage CONTAINS "15585" AND (process == "kernel" OR process == "sandboxd")'
+```
+
+The target path is needed to identify an appropriate in-repository cache/temp
+configuration. No outside-root permission is inferred, and the render gate
+remains closed while this confirmed denial is unresolved.
