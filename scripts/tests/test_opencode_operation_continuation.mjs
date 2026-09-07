@@ -123,3 +123,27 @@ test("a user turn arriving during tick suppresses delivery", async () => {
   });
   assert.equal(delivered, false);
 });
+
+test("scheduler instructions are internal text parts, ordinary continuations unchanged", () => {
+  const parts = OpenMatesHooks.test.continuationPartsForTest({ operation_type: "monitor_ready", next_action: "Check workers" });
+  assert.equal(parts[0].synthetic, true);
+  assert.equal(parts[0].metadata.openmates_monitor, true);
+  assert.equal(parts[0].text, "Check workers");
+  assert.equal(OpenMatesHooks.test.continuationPartsForTest({ operation_type: "task_ready", next_action: "Continue" })[0].synthetic, undefined);
+});
+
+test("every coordinator turn receives current authored reporting rules despite skill cache", () => {
+  const data = { sessions: { owner: { opencode_session_id: "ses_coordinator", orchestration_monitor: { status: "active" } } } };
+  const skill = "## Every reply: show current progress\nEvery reply needs a table and highlighted input.\n## Meeting style and task records\nOther instructions";
+  const reporting = OpenMatesHooks.test.orchestrationReportingTextForTest;
+  assert.match(reporting("ses_coordinator", data, skill), /Every reply needs a table/);
+  assert.doesNotMatch(reporting("ses_coordinator", data, skill), /Other instructions/);
+  assert.equal(reporting("ses_worker", data, skill), "");
+  assert.match(reporting("ses_coordinator", data, skill.replace("a table", "a fresh progress table")), /fresh progress table/);
+});
+
+test("reviewed remote patch command passes source guard without allowing raw source writes", () => {
+  assert.doesNotThrow(() => OpenMatesHooks.test.guardBash("python3 scripts/apple_remote.py apply-patch --repo /Users/example/project --patch /tmp/review.patch --expected /tmp/hashes.json --apply", "ses_worker"));
+  assert.throws(() => OpenMatesHooks.test.guardBash("git apply /tmp/review.patch", "ses_worker"), /source write guard/);
+  assert.throws(() => OpenMatesHooks.test.guardBash("python3 scripts/apple_remote.py run -- patch --dry-run -p0 -d /Users/example/project < /tmp/review.patch", "ses_worker"), /source write guard/);
+});

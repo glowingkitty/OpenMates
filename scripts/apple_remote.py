@@ -3302,6 +3302,30 @@ def run_remote(
     return result.returncode
 
 
+def reviewed_remote_patch(config: RemoteConfig, args: argparse.Namespace) -> int:
+    """Send only a fixed reviewed helper plus bounded JSON data to the Mac."""
+    request: dict[str, Any] = {"repo": args.repo}
+    if args.command == "patch-snapshot":
+        request.update(action="snapshot", files=args.file)
+    else:
+        patch_path, manifest_path = Path(args.patch), Path(args.expected)
+        if patch_path.stat().st_size > 1024 * 1024 or manifest_path.stat().st_size > 65536:
+            raise AppleRemoteError("Patch or hash manifest exceeds the bounded request size")
+        manifest = json.loads(manifest_path.read_text())
+        if not isinstance(manifest, dict):
+            raise AppleRemoteError("Hash manifest must be a JSON object")
+        request.update(action="apply", patch=patch_path.read_text(),
+                       expected=manifest.get("files", manifest), apply=args.apply)
+    helper = Path(__file__).with_name("_apple_remote_patch.py").read_text()
+    result = subprocess.run(ssh_command(config, shell_join(["python3", "-c", helper])),
+                            input=json.dumps(request), capture_output=True, text=True, timeout=90, check=False)
+    if result.stdout:
+        print(redact_output(result.stdout, config).strip())
+    if result.stderr:
+        print(redact_output(result.stderr, config).strip(), file=sys.stderr)
+    return result.returncode
+
+
 def shell_join(parts: Sequence[str]) -> str:
     return " ".join(shlex.quote(part) for part in parts)
 
@@ -4570,6 +4594,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("doctor", help="Check redacted remote Mac, Xcode, repo, schemes, simulator, and Watch-test readiness")
 
+    snapshot_parser = subparsers.add_parser("patch-snapshot", help="Read source hashes before preparing a remote patch")
+    snapshot_parser.add_argument("--repo", required=True, help="Explicit absolute remote Git checkout root")
+    snapshot_parser.add_argument("--file", action="append", required=True, help="Repository-relative source file; repeat as needed")
+    patch_parser = subparsers.add_parser("apply-patch", help="Check a reviewed remote patch; writes only with --apply")
+    patch_parser.add_argument("--repo", required=True, help="Explicit absolute remote Git checkout root")
+    patch_parser.add_argument("--patch", required=True, help="Local reviewed unified diff")
+    patch_parser.add_argument("--expected", required=True, help="Local JSON file of snapshot hashes")
+    patch_parser.add_argument("--apply", action="store_true", help="Apply after all paths, hashes and patch checks pass")
+
     run_parser = subparsers.add_parser("run", help="Run a raw remote command")
     run_parser.add_argument("remote_command", nargs=argparse.REMAINDER)
 
@@ -4816,6 +4849,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return print_status(config)
         if args.command == "doctor":
             return run_remote(config, apple_remote_doctor_command(config.repo_path))
+        if args.command in {"patch-snapshot", "apply-patch"}:
+            return reviewed_remote_patch(config, args)
         if args.command == "run":
             remote_command = strip_command_separator(args.remote_command)
             if not remote_command:

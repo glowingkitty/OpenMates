@@ -1810,7 +1810,7 @@ function guardBash(command, sessionID) {
   const repositoryMutation = /\bgit\s+apply\b/.test(command);
   const writesRepositoryFile = extractWriteTargets(command).some(isRepositoryWritePath);
   if (repositoryMutation || writesRepositoryFile) {
-    throw new Error(actionable("[OpenMates source write guard]", "Bash would mutate repository source outside the reviewable edit path.", "use apply_patch for source-file changes."));
+    throw new Error(actionable("[OpenMates source write guard]", "Bash would mutate repository source outside the reviewable edit path.", "use apply_patch for local source-file changes. For an approved remote Mac patch, use scripts/apple_remote.py patch-snapshot and apply-patch with a reviewed local patch and expected hashes; never reset/clean the remote checkout."));
   }
 }
 
@@ -2457,6 +2457,18 @@ function continuationSuppressedForTest(state) {
     || (state?.pending_permission_ids || []).length
     || (state?.pending_question_ids || []).length
   );
+}
+
+function orchestrationReportingTextForTest(sessionID, data, skillText) {
+  const owner = Object.values(data?.sessions || {}).find(record => record.opencode_session_id === sessionID);
+  if (!owner?.orchestration_monitor) return "";
+  const match = String(skillText || "").match(/## Every reply: show current progress\n([\s\S]*?)(?=\n## |$)/);
+  return match ? `[Orchestration reply requirements]\n${match[1].trim()}` : "";
+}
+
+function continuationPartsForTest(record) {
+  return [{ type: "text", text: taskContinuationPromptForTest(record),
+    ...(record.operation_type === "monitor_ready" ? { synthetic: true, metadata: { openmates_monitor: true } } : {}) }];
 }
 
 function monitorSessionsForTest(data, directory) {
@@ -3482,6 +3494,18 @@ export const OpenMatesHooks = async ({
     if (result.status !== 0) throw new Error(result.stderr || result.stdout || `monitor ${action} failed`);
     return JSON.parse(result.stdout || "{}");
   };
+  const orchestrationReporting = (sessionID) => {
+    const data = sessionsData();
+    if (!Object.values(data.sessions || {}).some(record => record.opencode_session_id === sessionID && record.orchestration_monitor)) return "";
+    // Read the small authored section afresh: skill discovery is instance-cached.
+    try {
+      return orchestrationReportingTextForTest(sessionID, data,
+        readFileSync(`${PROJECT_ROOT}/.agents/skills/daily-meeting-and-orchestration/SKILL.md`, "utf8"));
+    } catch (error) {
+      console.warn(`[OpenMates orchestration reporting] ${error?.message || error}`);
+      return "";
+    }
+  };
   const taskOwner = async (sessionID) => {
     const route = await resolveWorktreeRoute(client, sessionID, routingData || sessionsData());
     return route.topLevelOpenCodeSessionID || sessionID;
@@ -3686,7 +3710,7 @@ export const OpenMatesHooks = async ({
         path: { id: sessionID },
         body: {
           messageID: record.message_id,
-          parts: [{ type: "text", text: taskContinuationPromptForTest(record) }],
+          parts: continuationPartsForTest(record),
         },
       });
       if (response?.error) throw new Error(String(response.error?.message || response.error));
@@ -3784,12 +3808,16 @@ export const OpenMatesHooks = async ({
       const snapshot = await taskContextForSession(input.sessionID);
       const context = taskContextSystemTextForTest(snapshot);
       if (context) output.system.push(context);
+      const reporting = orchestrationReporting(input.sessionID);
+      if (reporting) output.system.push(reporting);
     },
     "experimental.session.compacting": async (input, output) => {
       if (!input?.sessionID) return;
       const snapshot = await taskContextForSession(input.sessionID, { refresh: true });
       const context = taskContextSystemTextForTest(snapshot);
       if (context) output.context.push(context);
+      const reporting = orchestrationReporting(input.sessionID);
+      if (reporting) output.context.push(reporting);
     },
     event: async ({ event }) => {
       if (disposed) return;
@@ -4140,6 +4168,9 @@ OpenMatesHooks.test = Object.freeze({
   continuationSignalForTest,
   continuationSuppressedForTest,
   monitorSessionsForTest,
+  orchestrationReportingTextForTest,
+  continuationPartsForTest,
+  guardBash,
   monitorDeliveryAllowedForTest,
   runMonitorCheckpointForTest,
   taskBridgeCompletionForTest,
