@@ -5,6 +5,27 @@ description: Clarify daily priorities, review the last working day's chats and t
 
 # Daily Meeting & Chat Orchestration
 
+## Every reply: show current progress
+
+Every user-facing reply must include a compact progress table, including brief
+answers, clarification questions, checkpoint updates, and final summaries:
+
+| Chat | Status | Progress / next checkpoint | Your input needed |
+|---|---|---|---|
+
+Show every coordinated chat in today's plan, including waiting, blocked, and
+completed chats. Link chat titles, use short phrases, and distinguish **Working**,
+**Waiting**, **Blocked**, **Done**, and **Not checked**. Before any chats start,
+include a **None started — planning** row. State when progress was last checked;
+reuse verified updates between checkpoints and label stale or unknown status.
+Never imply a fresh check just to fill the table.
+
+Highlight required user actions in bold in the last column; use **—** when none
+is needed. An agent/tool blocker is not automatically a user task. When input is
+required, add **Your input needed:** immediately below the table with the next
+specific decision or action, its **Recommendation:** and **Examples:**. Ask only
+one decision at a time and continue monitoring unaffected chats.
+
 ## Meeting style and task records
 
 - Ask one question at a time, include **Recommendation:** with a brief reason
