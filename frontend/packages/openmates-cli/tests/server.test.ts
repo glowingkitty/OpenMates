@@ -1815,8 +1815,8 @@ describe("runtime notification email", () => {
 
 
 describe("isolated environment routing", () => {
-  it("refuses task targets before a broker is installed instead of mutating shared dev", () => {
-    assert.throws(() => validateServerEnvironmentTarget("restart", "task"), /not enabled/);
+  it("directs task targets to GitHub CI without mutating shared dev", () => {
+    assert.throws(() => validateServerEnvironmentTarget("restart", "task"), /replaced by GitHub CI/);
     assert.throws(() => validateServerEnvironmentTarget("start", "unknown"), /Unknown/);
     assert.doesNotThrow(() => validateServerEnvironmentTarget("restart", "shared-dev"));
     assert.doesNotThrow(() => validateServerEnvironmentTarget("logs", undefined));

@@ -316,6 +316,10 @@ def main():
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
         data = compose_profile(source)
+        # Docker cannot create nested mountpoints inside a read-only bind.
+        # These ignored directories contain only runner-local runtime output.
+        for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
+            (Path(SOURCE) / relative).mkdir(parents=True, exist_ok=True)
         COMPOSE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)

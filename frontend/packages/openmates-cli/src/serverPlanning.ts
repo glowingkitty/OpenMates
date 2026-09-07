@@ -888,9 +888,7 @@ export function validateServerEnvironmentTarget(
   if (!environmentCommands.has(command) || environment === undefined) return;
   if (environment === "shared-dev") return;
   if (environment === "task") {
-    throw new Error(
-      "Task environments are not enabled: verified storage limits and the runtime broker are required. Shared dev was not changed.",
-    );
+    throw new Error("Task Docker environments were replaced by GitHub CI. Use scripts/tests.py run --spec <spec>.");
   }
-  throw new Error("Unknown server environment target; use shared-dev or an enabled task environment.");
+  throw new Error("Unknown server environment target; use shared-dev for explicit server administration.");
 }
