@@ -38,10 +38,6 @@ async function typeMessage(page: any, text: string): Promise<void> {
 test.describe('Anonymous production repair', () => {
 	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
 	test('completes the reported prompt with authoritative model attribution', async ({ page }: { page: any }) => {
-		test.skip(
-			process.env.OPENMATES_LIVE_ANONYMOUS_CHAT_E2E !== '1',
-			'Live anonymous inference is opt-in.'
-		);
 		test.setTimeout(150_000);
 		await page.setViewportSize({ width: 390, height: 844 });
 		await page.addInitScript((anonymousId: string) => {
