@@ -1,40 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
-# OpenMates Daily Dependabot Security Alert Checker
-#
-# Fetches open Dependabot security alerts from GitHub, deduplicates by GHSA ID,
-# checks git history for matching commits, and starts an OpenCode chat to fix
-# any unresolved alerts.
-#
-# Processing logic:
-#   1. Fetch all open Dependabot alerts via gh API (severity: critical, high, medium)
-#   2. Deduplicate by GHSA ID (same vuln across multiple manifests = one entry)
-#   3. Load runtime tracking state, seeded from scripts/dependabot-processed.json
-#   4. For each unique GHSA:
-#      a. If commit referencing the GHSA ID exists in git → mark resolved, skip
-#      b. If never processed → dispatch now
-#      c. If previously dispatched → re-dispatch if last dispatch was >7 days ago
-#         (increment re_dispatch_count); skip if within 7-day grace period
-#   5. Build consolidated prompt for all new/re-dispatched alerts
-#   6. Run OpenCode to fix the alerts
-#   7. Update logs/dependabot-processed.json without dirtying the source tree
-#
-# Triggered by the managed schedule in scripts/dependency_security_schedule.py.
-#
-# Can also be invoked manually:
-#   ./scripts/check-dependabot-daily.sh
-#   ./scripts/check-dependabot-daily.sh --dry-run   # show what would be dispatched, no OpenCode
-#
-# Requirements:
-#   - gh CLI installed and authenticated (gh auth status)
-#   - GITHUB_REPO env var set to "owner/repo" (e.g. "glowingkitty/OpenMates"), OR
-#     auto-detected from git remote
-#
-# Optional inherited env vars:
-#   GITHUB_REPO   — GitHub repo in "owner/repo" format (optional, auto-detected if not set)
-# The script intentionally does not load .env: GitHub CLI authentication is
-# sufficient for alert scanning.
-# =============================================================================
+# Fetch Dependabot alerts and report deterministic security observations.
+# Retains collection/reporting and existing manual arguments.
+# Automatic OpenCode launches were removed under TASK-7543.
+# Dry runs do not persist security ledger reports. Existing schedules remain off.
+# Future workflow requirements: TASK-8338. No replacement scheduler is installed.
+# Architecture: docs/architecture/infrastructure/cronjobs.md
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

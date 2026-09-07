@@ -4,7 +4,7 @@ last_verified: 2026-09-07
 key_files:
 - .github/dependabot.yml
 - pnpm-workspace.yaml
-- scripts/check-deploy-status.sh
+- scripts/_dependabot_helper.py
 - scripts/run_tests.py
 - scripts/auto_fix_failed_tests.py
 - scripts/nightly-dead-code-removal.sh
@@ -29,7 +29,7 @@ claims:
   source:
   - .github/dependabot.yml
   - pnpm-workspace.yaml
-  - scripts/check-deploy-status.sh
+  - scripts/_dependabot_helper.py
   - scripts/run_tests.py
   - scripts/auto_fix_failed_tests.py
   test:
@@ -85,7 +85,9 @@ Automatic OpenCode launches were turned off and their obsolete scheduling implem
 
 The `sessions.py monitor` command, cadence helper, `monitor_ready` operation and hook timer delivery are removed. General continuations remain for Task reconciliation, media and scoped decisions; they are shared infrastructure, not the retired monitor. Historical monitor metadata is retained but cannot be claimed for delivery.
 
-The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner.
+The Vercel failure-to-repair launcher, deep AI security review and legal/compliance AI review launchers are removed; their prompt/folder requirements and historical findings remain for TASK-8338.
+
+The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner. EU vulnerability entry points retain deterministic collection and reporting, without remediation chats or legacy dispatch tracking. The Dependabot launcher-tail removal remains prepared but held by the shared-worktree integration guard; its automatic schedule stays off and deterministic digest collection stays intact. Security audit/red-team entry points ingest existing snapshots through the digest adapter, which retains missing/stale snapshot checks; they do not create a fresh AI review.
 
 OpenCode-only runtime registrations are narrowly removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/`. No product service or shared work-life `allowed` guard is part of this removal.
 

@@ -1,34 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
-# OpenMates Twice-Weekly Red Team Probe
-#
-# Simulates an external attacker probing app.dev.openmates.org and
-# api.dev.openmates.org. Reads source code to identify attack vectors, then
-# uses curl to non-destructively probe live endpoints.
-#
-# Runs in OpenCode read-only mode for safety — can read files and run curl, but
-# cannot modify code or data. Capped at 20 minutes.
-#
-# Features:
-#   - Source code analysis to identify attack vectors
-#   - Non-destructive endpoint probing (GET/HEAD/OPTIONS only)
-#   - Strict guardrails: no admin tools, no localhost, no destructive requests
-#   - Deduplication: skips previously reported findings
-#   - 20-minute hard timeout
-#
-# Triggered by system crontab (Wed + Sat at 02:30 UTC):
-#   30 2 * * 3,6 bash -c 'set -a && . /path/to/.env && set +a && /path/to/scripts/red-teaming.sh' >> /path/to/logs/red-teaming.log 2>&1
-#
-# Can also be invoked manually:
-#   ./scripts/red-teaming.sh
-#   ./scripts/red-teaming.sh --dry-run   # print prompt without running OpenCode
-#
-# State files (.claude/ — gitignored):
-#   .claude/security-audit-state.json      — shared with security-audit.sh
-#   .claude/security-acknowledged.json     — shared with security-audit.sh
-#
-# No env vars required beyond what OpenCode itself needs.
-# =============================================================================
+# Ingest the existing red-team snapshot through the digest adapter.
+# Retains collection/reporting and existing manual arguments.
+# Automatic OpenCode launches were removed under TASK-7543.
+# Dry runs do not persist security ledger reports. Existing schedules remain off.
+# Future workflow requirements: TASK-8338. No replacement scheduler is installed.
+# Architecture: docs/architecture/infrastructure/cronjobs.md
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

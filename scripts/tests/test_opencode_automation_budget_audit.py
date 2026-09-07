@@ -130,3 +130,52 @@ def test_retirement_audit_preserves_deterministic_scans_and_manual_tools(tmp_pat
 def test_retired_launchers_are_absent_from_repository():
     audit = load_audit_module()
     assert audit.audit_retired_automation(ROOT) == []
+
+
+def load_collector(monkeypatch, name, reports, snapshots):
+    from types import SimpleNamespace
+    monkeypatch.syspath_prepend(str(ROOT / "scripts"))
+    monkeypatch.setitem(sys.modules, "security_scan_reporting", SimpleNamespace(
+        report_scan=lambda **kwargs: reports.append(kwargs),
+        ingest_snapshot=lambda **kwargs: snapshots.append(kwargs),
+    ))
+    spec = importlib.util.spec_from_file_location(name, ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_eu_default_path_keeps_coverage_and_never_dispatches(monkeypatch, tmp_path):
+    reports = []
+    helper = load_collector(monkeypatch, "_eu_vuln_helper", reports, [])
+    monkeypatch.delenv("SECURITY_REPORTING_COLLECTION_ONLY", raising=False)
+    monkeypatch.setenv("DRY_RUN", "false")
+    monkeypatch.setenv("PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("TRACKING_FILE_PATH", str(tmp_path / "tracking.json"))
+    monkeypatch.setattr(helper, "_current_commit", lambda _: "test-commit")
+    monkeypatch.setattr(helper, "_collect_all_dependencies", lambda _: [{"name": "example", "ecosystem": "npm", "version": "1.0.0"}])
+    coverage = {"expected_and_completed_stages": {"osv_queries": [1, 1]}, "sanitized_failure_codes": []}
+    monkeypatch.setattr(helper, "_query_osv_batch", lambda _: ([], coverage))
+    finding = {"vuln_id": "TEST-1", "package": "example", "ecosystem": "npm", "severity": "high"}
+    monkeypatch.setattr(helper, "_process_osv_results", lambda *_: ([finding], [finding]))
+    helper.check_vulns()
+    assert len(reports) == 1
+    assert reports[0]["findings"] == [finding]
+    assert reports[0]["coverage"]["expected_and_completed_stages"]["osv_queries"] == [1, 1]
+    assert not (tmp_path / "tracking.json").exists()
+    assert not hasattr(helper, "run_opencode_session")
+
+
+def test_security_defaults_ingest_snapshots_without_creating_audits(monkeypatch, tmp_path):
+    snapshots = []
+    helper = load_collector(monkeypatch, "_security_helper", [], snapshots)
+    monkeypatch.delenv("SECURITY_REPORTING_COLLECTION_ONLY", raising=False)
+    monkeypatch.setenv("PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("DRY_RUN", "true")
+    helper.run_audit()
+    helper.run_redteam()
+    assert [item["source"] for item in snapshots] == ["security_audit", "redteam"]
+    assert all(item["dry_run"] for item in snapshots)
+    assert all(str(item["path"]).startswith(str(tmp_path)) for item in snapshots)
+    assert not hasattr(helper, "run_opencode_session")

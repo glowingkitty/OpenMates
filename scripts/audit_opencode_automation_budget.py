@@ -24,6 +24,13 @@ RUN_SESSION_RE = re.compile(r"\brun_opencode_session\s*\(")
 # These entry points were removed, not disabled. Manual tools and shared
 # security collectors remain supported; TASK-8338 owns any future replacement.
 RETIRED_AUTOMATION_PATHS = (
+    "scripts/check-deploy-status.sh",
+    "scripts/_deploy_checker_helper.py",
+    "scripts/security-deep-audit.sh",
+    "scripts/_security_deep_audit_helper.py",
+    "scripts/legal-compliance-scan.sh",
+    "scripts/_legal_compliance_helper.py",
+
     "scripts/_orchestration_monitor.py",
     "scripts/linear-poller.py",
     "scripts/agent-trigger-watcher.sh",
@@ -53,6 +60,8 @@ RETAINED_DETERMINISTIC_WRAPPERS = (
     "scripts/run-tests-daily.sh",
     "scripts/_daily_runner_helper.py",
     "scripts/_daily_meeting_helper.py",
+    "scripts/_eu_vuln_helper.py",
+    "scripts/_security_helper.py",
 )
 RISKY_TERMS = ("auth", "payment", "billing", "encryption", "sync", "privacy", "legal", "migration", "websocket")
 REQUIRED_PROMPT_RULES = (

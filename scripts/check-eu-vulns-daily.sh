@@ -1,44 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
-# OpenMates Daily EU Vulnerability Source Checker (OPE-224)
-#
-# Queries EU and international vulnerability databases (OSV, NVD) to detect
-# security issues in our npm and pip dependencies that Dependabot may miss.
-#
-# Data sources:
-#   - OSV (api.osv.dev) — primary: aggregates GitHub Advisories, PyPI, npm,
-#     Debian, Alpine, and EU-contributed advisories. Batch queries, no auth.
-#   - NVD (services.nvd.nist.gov) — secondary: enriches CVE details with
-#     CVSS scores and references. Free API key optional (higher rate limit).
-#   - EUVD (euvd.enisa.europa.eu) — noted for future: EU Vulnerability
-#     Database under NIS2 Directive. No public API yet as of 2026-03.
-#
-# Processing logic:
-#   1. Parse all package.json and requirements.txt files for dependencies
-#   2. Query OSV batch API with package name + version + ecosystem
-#   3. Filter out vulns already tracked by Dependabot (cross-ref GHSA IDs)
-#   4. Enrich with NVD data (CVSS scores, references) where available
-#   5. Deduplicate against previous runs (eu-vuln-processed.json)
-#   6. Generate summary with: package, old->new version, CVE, relevance,
-#      user disclosure needed
-#   7. Dispatch OpenCode chat to fix new/re-dispatched vulns
-#
-# Triggered hourly by the managed schedule in scripts/dependency_security_schedule.py.
-#
-# Can also be invoked manually:
-#   ./scripts/check-eu-vulns-daily.sh
-#   ./scripts/check-eu-vulns-daily.sh --dry-run   # show findings, no OpenCode
-#   ./scripts/check-eu-vulns-daily.sh --summary    # output JSON summary only
-#
-# Requirements:
-#   - python3 with urllib (stdlib — no pip deps)
-#   - Dependabot runtime tracking in logs/, with the checked-in seed as fallback
-#
-# Env vars (optional):
-#   NVD_API_KEY — free NVD API key for higher rate limits (50 vs 5 req/30s)
-# The script intentionally does not load .env; callers may provide only the
-# optional NVD key when enrichment is required.
-# =============================================================================
+# Query OSV/NVD and report dependency observations with query coverage.
+# Retains collection/reporting and existing manual arguments.
+# Automatic OpenCode launches were removed under TASK-7543.
+# Dry runs do not persist security ledger reports. Existing schedules remain off.
+# Future workflow requirements: TASK-8338. No replacement scheduler is installed.
+# Architecture: docs/architecture/infrastructure/cronjobs.md
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

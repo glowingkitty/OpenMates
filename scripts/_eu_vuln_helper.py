@@ -1,57 +1,12 @@
 #!/usr/bin/env python3
 """
-scripts/_eu_vuln_helper.py
+Collect dependency vulnerability observations from OSV and NVD.
 
-Python helper for check-eu-vulns-daily.sh (OPE-224).
-
-Queries EU and international vulnerability databases (OSV, NVD) to detect
-security issues in our npm and pip dependencies that GitHub Dependabot may
-miss. Cross-references findings against the Dependabot tracking file to
-avoid duplicate work.
-
-Data sources:
-    - OSV (api.osv.dev) — primary. Aggregates GitHub Advisories, PyPI, npm,
-      Debian, Alpine, and EU-contributed advisories. Free, no auth, batch API.
-    - NVD (services.nvd.nist.gov) — secondary enrichment. CVSS scores and
-      detailed references. Free API key optional (higher rate limits).
-    - EUVD (euvd.enisa.europa.eu) — EU Vulnerability Database under NIS2
-      Directive. No public API yet as of 2026-03 — noted for future.
-
-Commands:
-    check-vulns     Main workflow: scan deps, query sources, dispatch if needed
-
-Environment variables (set by the shell script):
-    TRACKING_FILE_PATH          — path to logs/eu-vuln-processed.json
-    DEPENDABOT_TRACKING_PATH    — runtime Dependabot path, or checked-in seed fallback
-    PROJECT_ROOT                — absolute path to the repo root
-    REDISPATCH_AFTER_DAYS       — days before re-dispatching unresolved vuln
-    DRY_RUN                     — "true" to skip OpenCode invocation
-    SUMMARY_ONLY                — "true" to output JSON summary and exit
-    PROMPT_TEMPLATE_PATH        — path to prompts/eu-vuln-analysis.md
-    TODAY_DATE                  — current date as YYYY-MM-DD
-    NVD_API_KEY                 — optional free NVD API key for higher rate limits
-
-Tracking file format (logs/eu-vuln-processed.json):
-{
-  "last_run": "2026-03-31T05:00:00Z",
-  "processed": [
-    {
-      "vuln_id": "GHSA-xxxx-yyyy-zzzz",
-      "aliases": ["CVE-2026-12345"],
-      "severity": "high",
-      "package": "lodash",
-      "ecosystem": "npm",
-      "summary": "Prototype pollution in lodash",
-      "fixed_version": "4.17.22",
-      "source": "osv",
-      "first_seen_at": "2026-03-31T05:00:00Z",
-      "last_dispatched_at": "2026-03-31T05:00:00Z",
-      "re_dispatch_count": 0,
-      "resolved_via_commit": null,
-      "user_disclosure_needed": false
-    }
-  ]
-}
+The check-vulns command retains dependency inventory, query coverage, enrichment
+and the deterministic security ledger adapter. DRY_RUN and SUMMARY_ONLY avoid
+report persistence. Legacy tracking utilities remain for existing records.
+Automatic OpenCode remediation was removed under TASK-7543; TASK-8338 owns
+future workflows. See docs/architecture/infrastructure/cronjobs.md.
 """
 
 import json
@@ -67,7 +22,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from audit_frontend_dependency_pins import collect_package_versions
-from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
 from security_scan_reporting import report_scan
 
 
@@ -767,15 +721,12 @@ def _build_json_summary(findings: List[Dict]) -> str:
 
 
 def check_vulns() -> None:
-    """Main entry point: scan dependencies, query EU/intl sources, dispatch if needed."""
+    """Scan dependencies and report deterministic EU/intl observations without AI launches."""
     tracking_file = os.environ.get("TRACKING_FILE_PATH", "")
     dependabot_tracking = os.environ.get("DEPENDABOT_TRACKING_PATH", "")
     project_root = os.environ.get("PROJECT_ROOT", "")
-    redispatch_days = int(os.environ.get("REDISPATCH_AFTER_DAYS", "7"))
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
     summary_only = os.environ.get("SUMMARY_ONLY", "false").lower() == "true"
-    prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH", "")
-    today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
     nvd_api_key = os.environ.get("NVD_API_KEY", "") or None
 
     if not project_root:
@@ -823,180 +774,12 @@ def check_vulns() -> None:
     )
     print(f"[eu-vulns] Actionable findings (after Dependabot dedup): {len(findings)}")
 
-    if os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
-        print(f"[eu-vulns] Collection complete: {len(all_findings)} findings; remediation disabled")
-        return
-
-    if not findings:
-        print("[eu-vulns] No new vulnerabilities found beyond Dependabot coverage — done.")
-        if not dry_run and not summary_only:
-            tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
-            tracking["last_run"] = _now_iso()
-            _save_json_file(tracking_file, tracking)
-        return
-
-    # Sort by severity
-    findings.sort(key=lambda f: SEVERITY_ORDER.get(f["severity"], 99))
-
-    # Summary-only mode: output JSON and exit
-    if summary_only or os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+    # Preserve all scanner/coverage reporting above. Legacy OpenCode launch
+    # and redispatch state are retired; historical tracking files stay intact.
+    if summary_only:
         print(_build_json_summary(findings))
-        return
-
-    # Step 5: Load tracking state and determine which to dispatch
-    tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
-    processed_map: Dict[str, Dict] = {e["vuln_id"]: e for e in tracking.get("processed", [])}
-
-    now = datetime.now(timezone.utc)
-    now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    to_dispatch: List[Dict] = []
-    skip_count = 0
-    resolve_count = 0
-
-    for finding in findings:
-        vuln_id = finding["vuln_id"]
-
-        existing = processed_map.get(vuln_id)
-
-        if existing is None:
-            # New finding
-            print(f"[eu-vulns] {vuln_id} [{finding['severity']}] {finding['package']} — NEW")
-            finding["re_dispatch_count"] = 0
-            to_dispatch.append(finding)
-            processed_map[vuln_id] = {
-                **finding,
-                "first_seen_at": now_iso,
-                "last_dispatched_at": now_iso,
-                "re_dispatch_count": 0,
-                "resolved_via_commit": None,
-            }
-        else:
-            # Previously seen — check grace period
-            last_dispatched_str = existing.get("last_dispatched_at")
-            if not last_dispatched_str:
-                print(f"[eu-vulns] {vuln_id} — tracked but never dispatched, dispatching now.")
-                finding["re_dispatch_count"] = 0
-                to_dispatch.append(finding)
-                existing["last_dispatched_at"] = now_iso
-            else:
-                try:
-                    last_dispatched = datetime.fromisoformat(last_dispatched_str.replace("Z", "+00:00"))
-                    days_since = (now - last_dispatched).days
-                except ValueError:
-                    days_since = redispatch_days + 1
-
-                if days_since >= redispatch_days:
-                    re_count = existing.get("re_dispatch_count", 0) + 1
-                    print(f"[eu-vulns] {vuln_id} [{finding['severity']}] — "
-                          f"still unresolved after {days_since} days, RE-DISPATCHING (count={re_count}).")
-                    finding["re_dispatch_count"] = re_count
-                    to_dispatch.append(finding)
-                    existing["re_dispatch_count"] = re_count
-                    existing["last_dispatched_at"] = now_iso
-                else:
-                    remaining = redispatch_days - days_since
-                    print(f"[eu-vulns] {vuln_id} [{finding['severity']}] — "
-                          f"within grace period ({remaining} day(s) remaining), skipping.")
-                    skip_count += 1
-
-    print(f"[eu-vulns] Dispatch summary: {len(to_dispatch)} to dispatch, "
-          f"{skip_count} skipped (grace period), {resolve_count} resolved in git.")
-
-    # Persist only real scans; dry runs and summaries must remain read-only.
-    tracking["last_run"] = now_iso
-    tracking["processed"] = list(processed_map.values())
-    if not dry_run:
-        _save_json_file(tracking_file, tracking)
-        print(f"[eu-vulns] Tracking file updated: {tracking_file}")
-
-    if not to_dispatch:
-        print("[eu-vulns] Nothing to dispatch — done.")
-        return
-
-    # Sort for prompt
-    to_dispatch.sort(key=lambda f: SEVERITY_ORDER.get(f["severity"], 99))
-
-    # Step 6: Build prompt and dispatch OpenCode
-    if not prompt_template_path or not os.path.isfile(prompt_template_path):
-        print(f"[eu-vulns] ERROR: Prompt template not found at {prompt_template_path}", file=sys.stderr)
-        sys.exit(1)
-
-    with open(prompt_template_path) as f:
-        prompt_template = f.read()
-
-    alert_summary = _build_alert_summary(to_dispatch)
-
-    # Build disclosure summary
-    disclosure_pkgs = [f for f in to_dispatch if f.get("user_disclosure_needed")]
-    disclosure_section = "(none)" if not disclosure_pkgs else "\n".join(
-        f"- {f['package']} ({f['vuln_id']}): handles {_disclosure_reason(f['package'])}"
-        for f in disclosure_pkgs
-    )
-
-    # Start a sessions.py session for proper deploy workflow
-    session_title = f"security: eu-vulns {today_date}"
-    sessions_py_id = None
-    if not dry_run:
-        sessions_py_id = start_sessions_py(
-            mode="bug",
-            task=f"EU vulns: fix {len(to_dispatch)} vulnerability(ies)",
-            project_root=project_root,
-            log_prefix="[eu-vulns]",
-        )
-
-    # Inject session ID into prompt so OpenCode uses sessions.py deploy
-    deploy_instructions = ""
-    if sessions_py_id:
-        deploy_instructions = (
-            f"\n\n## Deploy Instructions\n\n"
-            f"Use `sessions.py deploy` to commit and push your changes:\n"
-            f"```bash\n"
-            f"python3 scripts/sessions.py deploy --session {sessions_py_id} "
-            f'--title "fix: <description> (<vuln-ID>)" --end\n'
-            f"```\n"
-            f"Do NOT use raw `git commit` or `git push`.\n"
-        )
-
-    prompt = (
-        prompt_template
-        .replace("{{DATE}}", today_date)
-        .replace("{{ALERT_SUMMARY}}", alert_summary)
-        .replace("{{DISCLOSURE_SUMMARY}}", disclosure_section)
-        .replace("{{TOTAL_FINDINGS}}", str(len(to_dispatch)))
-    ) + deploy_instructions
-
-    if dry_run:
-        print("[eu-vulns] DRY RUN — would run OpenCode with the following prompt:")
-        print("-" * 60)
-        print(prompt[:3000])
-        if len(prompt) > 3000:
-            print(f"... ({len(prompt)} chars total)")
-        print("-" * 60)
-        print()
-        print("[eu-vulns] JSON summary:")
-        print(_build_json_summary(to_dispatch))
-        return
-
-    print(f"[eu-vulns] Starting OpenCode chat for {len(to_dispatch)} finding(s)...")
-
-    run_opencode_session(
-        prompt=prompt,
-        session_title=session_title,
-        project_root=project_root,
-        log_prefix="[eu-vulns]",
-        agent=None,  # build mode — fix the vulns
-        timeout=1800,
-        job_type="eu-vulns",
-        context_summary=f"{len(to_dispatch)} EU-source vulnerability(ies) dispatched for fix",
-        kill_on_exit=True,
-        linear_task=False,
-        requires_human_approval=True,
-    )
-
-    # End session if OpenCode didn't deploy (cleanup)
-    if sessions_py_id:
-        end_sessions_py(sessions_py_id, project_root, "[eu-vulns]")
+    else:
+        print(f"[eu-vulns] Collection complete: {len(all_findings)} findings; automatic remediation retired")
 
 
 def _disclosure_reason(package_name: str) -> str:
