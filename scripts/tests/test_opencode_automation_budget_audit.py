@@ -146,6 +146,29 @@ def load_collector(monkeypatch, name, reports, snapshots):
     return module
 
 
+def test_dependabot_default_path_reports_without_launch_or_legacy_tracking(monkeypatch, tmp_path):
+    import json
+    reports = []
+    helper = load_collector(monkeypatch, "_dependabot_helper", reports, [])
+    monkeypatch.delenv("SECURITY_REPORTING_COLLECTION_ONLY", raising=False)
+    monkeypatch.setenv("DRY_RUN", "false")
+    monkeypatch.setenv("PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("TRACKING_FILE_PATH", str(tmp_path / "tracking.json"))
+    monkeypatch.setenv("ALERTS_JSON_FILE", str(tmp_path / "alerts.json"))
+    monkeypatch.setattr(helper, "_current_commit", lambda _: "test-commit")
+    (tmp_path / "alerts.json").write_text(json.dumps([{
+        "number": 1, "dependency": {"package": {"name": "example", "ecosystem": "npm"}, "manifest_path": "pnpm-lock.yaml"},
+        "security_advisory": {"ghsa_id": "GHSA-test-test-test", "severity": "high", "summary": "Test advisory"},
+        "security_vulnerability": {"first_patched_version": {"identifier": "2.0.0"}},
+    }]))
+    helper.process_alerts()
+    assert len(reports) == 1
+    assert reports[0]["source"] == "dependabot"
+    assert len(reports[0]["findings"]) == 1
+    assert not (tmp_path / "tracking.json").exists()
+    assert not hasattr(helper, "run_opencode_session")
+
+
 def test_eu_default_path_keeps_coverage_and_never_dispatches(monkeypatch, tmp_path):
     reports = []
     helper = load_collector(monkeypatch, "_eu_vuln_helper", reports, [])

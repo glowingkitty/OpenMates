@@ -54,6 +54,7 @@ RETIRED_AUTOMATION_PATHS = (
 )
 RETIRED_UNIT_NAMES = ("linear-poller.service", "work-life-opencode.service", "work-life-opencode.timer")
 RETAINED_DETERMINISTIC_WRAPPERS = (
+    "scripts/_dependabot_helper.py",
     "scripts/weekly-contract-audits.sh",
     "scripts/weekly-technical-debt.sh",
     "scripts/linear-cron-setup.sh",
