@@ -110,7 +110,7 @@ def _normalize_provider_timing_entries(
 
     normalized: List[Dict[str, Any]] = []
     previous_start = -1.0
-    for entry in entries:
+    for entry_index, entry in enumerate(entries):
         if not isinstance(entry, dict):
             raise TimingValidationError("Invalid provider timing entry")
         start = entry.get("start")
@@ -130,7 +130,14 @@ def _normalize_provider_timing_entries(
         if start < 0:
             raise TimingValidationError("Invalid provider timing: negative_start")
         if end <= start:
-            raise TimingValidationError("Invalid provider timing: empty_or_reversed")
+            text_kind = "blank" if not text.strip() else (
+                "lexical" if any(character.isalnum() for character in text) else "punctuation"
+            )
+            relation = "equal" if end == start else "reversed"
+            raise TimingValidationError(
+                "Invalid provider timing: empty_or_reversed; "
+                f"entry={entry_index}; text_kind={text_kind}; relation={relation}"
+            )
         if end > duration_seconds:
             raise TimingValidationError("Invalid provider timing: duration_bound")
         if start < previous_start:

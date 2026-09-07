@@ -21,6 +21,7 @@ const SYNTHETIC_SPEECH = "Hello this is a timestamp test.";
 let stage = "setup";
 let lastHttpStatus = 0;
 let failureReason = "unspecified";
+let intervalDiagnostic = null;
 
 function usage() {
   process.stderr.write(`Usage: node scripts/tests/videos_get_transcript_real_dev.mjs [--api-url <url>] [--include-segment]\n`);
@@ -107,6 +108,8 @@ function successfulResult(response, id) {
     failureReason = matched >= 0 ? `processing_${matched}` : "unsuccessful_result";
     const timingCause = String(group.error ?? "").match(/Invalid provider timing: (field_type|nonfinite|negative_start|empty_or_reversed|duration_bound|out_of_order)/);
     if (timingCause) failureReason = timingCause[1];
+    const interval = String(group.error ?? "").match(/empty_or_reversed; entry=(\d{1,8}); text_kind=(blank|punctuation|lexical); relation=(equal|reversed)/);
+    if (interval) intervalDiagnostic = { entry: interval[1], kind: interval[2], relation: interval[3] };
     throw new Error("Expected a successful transcription result.");
   }
   return group.results[0];
@@ -226,5 +229,8 @@ async function main() {
 main().catch(() => {
   process.stderr.write(`OPENMATES_REST_FAILURE stage=${stage} http=${lastHttpStatus}\n`);
   process.stderr.write(`OPENMATES_REST_REASON ${failureReason}\n`);
+  if (intervalDiagnostic) {
+    process.stderr.write(`OPENMATES_REST_INTERVAL entry=${intervalDiagnostic.entry} kind=${intervalDiagnostic.kind} relation=${intervalDiagnostic.relation}\n`);
+  }
   process.exit(1);
 });

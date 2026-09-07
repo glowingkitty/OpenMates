@@ -137,6 +137,21 @@ async def test_timed_transcript_uses_decoded_duration_not_whole_second_usage():
 
 
 # contract-test: supporting surface=rest_api assertions=videos.transcript.audio-results-and-billing
+@pytest.mark.parametrize("text, kind", [(" ", "blank"), ("...", "punctuation"), ("privateword", "lexical")])
+@pytest.mark.parametrize("start, end, relation", [(0.0, 0.0, "equal"), (1.0, 0.5, "reversed")])
+def test_invalid_interval_diagnostic_never_exposes_text(text, kind, start, end, relation):
+    with pytest.raises(ValueError) as failure:
+        _normalize_provider_timings({
+            "duration": 2.0,
+            "segments": [{"start": start, "end": end, "text": text}],
+        }, "word")
+    assert str(failure.value) == (
+        f"Invalid provider timing: empty_or_reversed; entry=0; text_kind={kind}; relation={relation}"
+    )
+    assert "privateword" not in str(failure.value)
+
+
+# contract-test: supporting surface=rest_api assertions=videos.transcript.audio-results-and-billing
 def test_null_nested_words_returns_controlled_timing_error():
     with pytest.raises(ValueError, match="Invalid provider timing entries"):
         _normalize_provider_timings({

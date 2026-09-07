@@ -39,6 +39,9 @@ def safe_failure(stage: str, result: subprocess.CompletedProcess[str] | None = N
         reason = re.search(r"^OPENMATES_REST_REASON ([a-z_0-9]+)$", result.stderr, re.MULTILINE)
         if reason:
             status += f" reason={reason[1]}"
+        interval = re.search(r"^OPENMATES_REST_INTERVAL entry=(\d{1,8}) kind=(blank|punctuation|lexical) relation=(equal|reversed)$", result.stderr, re.MULTILINE)
+        if interval:
+            status += f" entry={interval[1]} kind={interval[2]} relation={interval[3]}"
         runtime_code = re.search(r"\b(ERR_[A-Z_]+)\b", result.stderr)
         if runtime_code:
             status += f" runtime={runtime_code[1]}"
