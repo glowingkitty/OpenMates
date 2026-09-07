@@ -17605,7 +17605,7 @@ assertions:
       surface: gui.web
     - &id2024
       path: frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
-      line: 165
+      line: 167
       name: signed-in new chat acknowledges the user message before AI typing and
         metadata persistence
       surface: gui.web
@@ -18426,7 +18426,7 @@ assertions:
       surface: gui.web
     - &id2129
       path: frontend/apps/web_app/tests/hpfsl-acknowledgement-timing.spec.ts
-      line: 165
+      line: 167
       name: signed-in new chat acknowledges the user message before AI typing and
         metadata persistence
       surface: gui.web

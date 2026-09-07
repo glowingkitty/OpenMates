@@ -59,12 +59,14 @@ function captureProtocolEvents(page: any, events: ProtocolEvent[]): void {
 				const message = JSON.parse(String(frame.payload));
 				if (typeof message.type !== 'string') return;
 				const payload = message.payload && typeof message.payload === 'object' ? message.payload : {};
+				// Outgoing chat messages nest their identity under payload.message.
+				const messagePayload = message.type === 'chat_message_added' ? payload.message : payload;
 				events.push({
 					direction,
 					type: message.type,
 					at: Date.now(),
 					chatId: typeof payload.chat_id === 'string' ? payload.chat_id : undefined,
-					messageId: typeof payload.message_id === 'string' ? payload.message_id : undefined,
+					messageId: typeof messagePayload?.message_id === 'string' ? messagePayload.message_id : undefined,
 					turnId: typeof payload.turn_id === 'string' ? payload.turn_id : undefined,
 					state: typeof payload.state === 'string' ? payload.state : undefined,
 					taskId: typeof payload.task_id === 'string' ? payload.task_id : undefined,
