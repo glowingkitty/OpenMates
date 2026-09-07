@@ -13,6 +13,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 from pathlib import Path, PurePosixPath
 import stat
 import subprocess
@@ -367,7 +368,7 @@ def process_group_states(group):
     return rows
 
 
-def observed_process(command, run, *, input_data, env, probe=False, task_stop=None):
+def observed_process(command, run, *, input_data, env, probe=False, task_stop=None, watched=()):
     # Retained logs avoid pipe backpressure. All launched descendants inherit
     # the OS policy; Node additionally prevents detached child groups.
     with (run / 'stdout.log').open('xb') as output, (run / 'stderr.log').open('xb') as errors:
@@ -378,6 +379,12 @@ def observed_process(command, run, *, input_data, env, probe=False, task_stop=No
             child.stdin.close()
             deadline = time.monotonic() + 180
             while time.monotonic() < deadline:
+                for native in watched:
+                    if native.poll() == -signal.SIGKILL:
+                        detail = {'reason': 'OS no-unlink policy killed separately supervised browser; no retry', 'pid': native.pid}
+                        with task_stop.open('x') as marker:
+                            json.dump(detail, marker)
+                        return {'status': 'deletion-stopped', 'detail': detail}
                 states = process_group_states(child.pid)
                 stopped = [row for row in states if 'T' in row['state']]
                 explicit_stop = run / 'stop.json'
@@ -482,10 +489,8 @@ def render_check(root, request):
         result = observed_process(command, run, input_data=b'', env=env, probe=True)
         result['probe_kind'] = request.get('probe_kind', 'read')
     else:
-        command = ['/usr/bin/sandbox-exec', '-p', RENDER_PROFILE, str(node), '-e', RENDER_CODE]
-        payload = json.dumps({'root': str(root), 'run': str(run), 'browser': str(browser), 'encoder': str(encoder)}).encode()
         task_stop = parent / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
-        result = observed_process(command, run, input_data=payload, env=env, task_stop=task_stop)
+        result = staged_render_check(root, run, node, browser, encoder, env, task_stop)
     result['run'] = str(run)
     with (run / 'supervisor-result.json').open('x') as artifact:
         json.dump(result, artifact)
@@ -497,8 +502,105 @@ def render_check(root, request):
     return result
 
 
+def staged_render_check(root, run, node, browser, encoder, env, task_stop):
+    def node_stage(stage, **extra):
+        directory = run / stage
+        directory.mkdir()
+        (directory / 'tmp').mkdir()
+        (directory / 'empty-public').mkdir()
+        payload = {'root': str(root), 'run': str(directory), 'encoder': str(encoder), 'stage': stage, **extra}
+        command = ['/usr/bin/sandbox-exec', '-p', RENDER_PROFILE, str(node), '-e', RENDER_CODE]
+        return command, directory, json.dumps(payload).encode(), {**env, 'TMPDIR': str(directory / 'tmp')}
+    command, directory, payload, stage_env = node_stage('bundle')
+    result = observed_process(command, directory, input_data=payload, env=stage_env, task_stop=task_stop)
+    if result.get('status') != 'bundle-ready':
+        return result
+    bundle_path = result['bundle']
+    profile = run / 'browser-profile'
+    profile.mkdir()
+    # sandbox_init cannot nest on this Mac. Launch the browser as a separately
+    # supervised sibling with the complete policy applied once, before exec.
+    native_profile = RENDER_PROFILE + '(deny process-fork)'
+    args = ['/usr/bin/sandbox-exec', '-p', native_profile, str(browser), '--headless=new',
+            '--no-sandbox', '--single-process', '--in-process-gpu', '--no-zygote',
+            '--disable-breakpad', '--disable-crash-reporter', '--disable-background-networking',
+            '--disable-component-update', '--no-first-run', '--no-default-browser-check',
+            '--remote-debugging-port=0', '--user-data-dir=' + str(profile), 'about:blank']
+    with (run / 'browser.log').open('xb') as log:
+        native = subprocess.Popen(args, stdout=log, stderr=log, env=env, start_new_session=True)
+        try:
+            deadline = time.monotonic() + 20
+            endpoint = None
+            while time.monotonic() < deadline:
+                code = native.poll()
+                if code == -signal.SIGKILL:
+                    detail = {'reason': 'OS no-unlink policy killed browser before readiness; no retry', 'pid': native.pid}
+                    with task_stop.open('x') as marker:
+                        json.dump(detail, marker)
+                    return {'status': 'deletion-stopped', 'detail': detail}
+                text = (run / 'browser.log').read_text(errors='replace')
+                if code is not None:
+                    return {'status': 'render-failed', 'stage': 'browser', 'exit_code': code, 'stderr': text[-3000:]}
+                match = re.search(r'DevTools listening on (ws://127\.0\.0\.1:[0-9]+/devtools/browser/[a-zA-Z0-9-]+)', text)
+                if match:
+                    endpoint = match.group(1)
+                    break
+                time.sleep(0.05)
+            if endpoint is None:
+                return {'status': 'render-failed', 'stage': 'browser', 'error': 'browser readiness timed out', 'stderr': text[-3000:]}
+            command, directory, payload, stage_env = node_stage('frame', browserWS=endpoint, profile=str(profile), bundlePath=bundle_path)
+            result = observed_process(command, directory, input_data=payload, env=stage_env, task_stop=task_stop, watched=(native,))
+            if result.get('status') != 'frame-ready':
+                return result
+        finally:
+            try:
+                os.killpg(native.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            native.wait(timeout=10)
+    output = run / 'check.mp4'
+    command = ['/usr/bin/sandbox-exec', '-p', native_profile, str(encoder), '-n', '-v', 'error',
+               '-loop', '1', '-framerate', '30', '-i', result['frame'], '-frames:v', '1', '-an',
+               '-c:v', 'libx264', '-pix_fmt', 'yuv420p', str(output)]
+    encoded = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False,
+                             env=env, cwd=str(encoder.parent))
+    if encoded.returncode == -signal.SIGKILL:
+        detail = {'reason': 'OS no-unlink policy killed encoder; no retry'}
+        with task_stop.open('x') as marker:
+            json.dump(detail, marker)
+        return {'status': 'deletion-stopped', 'detail': detail}
+    if encoded.returncode:
+        return {'status': 'render-failed', 'stage': 'encode', 'exit_code': encoded.returncode, 'stderr': encoded.stderr[-3000:]}
+    return {'status': 'render-check-passed', 'frame': result['frame'], 'output': str(output), 'bytes': output.stat().st_size}
+
+
+def render_report(root, request):
+    name = request.get('run')
+    if not isinstance(name, str) or len(name) != 32 or any(c not in '0123456789abcdef' for c in name):
+        raise RequestError('run must be an exact retained UUID')
+    directory = root / 'renders/no-delete-retained' / name
+    fd = open_directory(directory)
+    try:
+        result = {}
+        for name in ('stdout.log', 'stderr.log', 'failure.json', 'result.json', 'supervisor-result.json', 'stop.json',
+                     'browser.log', 'bundle/stderr.log', 'bundle/failure.json', 'frame/stderr.log', 'frame/failure.json'):
+            try:
+                file_fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+            except FileNotFoundError:
+                continue
+            try:
+                size = os.fstat(file_fd).st_size
+                os.lseek(file_fd, max(0, size - MAX_BYTES), os.SEEK_SET)
+                result[name] = os.read(file_fd, MAX_BYTES).decode(errors='replace')
+            finally:
+                os.close(file_fd)
+        return result
+    finally:
+        os.close(fd)
+
+
 def execute(request):
-    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original', 'supervisor-probe', 'render-check'}:
+    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original', 'supervisor-probe', 'render-check', 'render-report'}:
         raise RequestError('unsupported typed operation')
     root = root_path(request.get('repo'))
     task = request.get('_task_identity')
@@ -508,6 +610,8 @@ def execute(request):
             return {'status': 'deletion-stopped', 'detail': json.loads(task_stop.read_text()), 'persistent_stop': str(task_stop)}
     if request['action'] in {'supervisor-probe', 'render-check'}:
         return render_check(root, request)
+    if request['action'] == 'render-report':
+        return render_report(root, request)
     if request['action'] in {'relocation-info', 'relocate-original'}:
         return relocate(root, request)
     if request['action'] in {'source-read', 'source-put'}:

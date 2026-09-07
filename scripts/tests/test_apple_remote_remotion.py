@@ -289,3 +289,32 @@ def test_render_transport_latches_before_alternate_call(monkeypatch, tmp_path):
     with pytest.raises(remote.no_delete_guard.MacDeletionStop):
         remote.main(['status'])
     assert len(calls) == 1
+
+
+def test_separate_browser_denial_stops_before_frame_or_encoder(tmp_path, monkeypatch):
+    m = helper()
+    calls = []
+    monkeypatch.setattr(m, 'observed_process', lambda *a, **kw: {'status': 'bundle-ready', 'bundle': str(tmp_path / 'bundle')})
+    class Browser:
+        pid = 9876
+        def poll(self):
+            return -m.signal.SIGKILL
+        def wait(self, timeout):
+            return -m.signal.SIGKILL
+    def start(argv, **kw):
+        calls.append(argv)
+        return Browser()
+    monkeypatch.setattr(m.subprocess, 'Popen', start)
+    monkeypatch.setattr(m.os, 'killpg', lambda *a: None)
+    stop = tmp_path / 'task.stop.json'
+    result = m.staged_render_check(tmp_path, tmp_path, m.Path('/node'), m.Path('/chrome'), m.Path('/encoder'), {}, stop)
+    assert result['status'] == 'deletion-stopped' and stop.is_file()
+    assert len(calls) == 1
+    assert calls[0][:2] == ['/usr/bin/sandbox-exec', '-p']
+    assert 'deny file-write-unlink' in calls[0][2] and 'deny process-fork' in calls[0][2]
+
+
+def test_render_report_rejects_path_escape(project):
+    m = helper()
+    with pytest.raises(m.RequestError):
+        m.render_report(project, {'run': '../another-run'})

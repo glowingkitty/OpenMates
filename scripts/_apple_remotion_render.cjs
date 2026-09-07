@@ -12,7 +12,7 @@ const path = require('node:path');
 const cp = require('node:child_process');
 const {createRequire} = require('node:module');
 const request = JSON.parse(fs.readFileSync(0, 'utf8'));
-const {root, run, browser, encoder} = request;
+const {root, run, encoder} = request;
 const requireProject = createRequire(path.join(root, 'package.json'));
 const retained = [];
 const write = fs.writeFileSync.bind(fs);
@@ -30,12 +30,11 @@ const originalSpawn = cp.spawn.bind(cp);
 cp.spawn = (command, args, options = {}) => {
   const compositor = path.join(path.dirname(encoder), 'remotion');
   const compiler = path.join(root, 'node_modules/@esbuild/darwin-arm64/bin/esbuild');
-  if (![browser, encoder, compositor, compiler].includes(command)) throw new Error('Unsupported render child: ' + command);
-  // Native helpers cannot create an unobserved grandchild. Fork denial returns
-  // an ordinary failure; inherited unlink denial kills the observed child.
-  const nativeProfile = '(version 1)(allow default)(deny process-fork)';
-  const nativeArgs = command === browser ? [...args, '--single-process', '--in-process-gpu', '--no-zygote', '--disable-crash-reporter'] : args;
-  const child = originalSpawn('/usr/bin/sandbox-exec', ['-p', nativeProfile, command, ...nativeArgs], {...options, detached: false});
+  if (![compositor, compiler].includes(command)) throw new Error('Unsupported render child: ' + command);
+  // Only the compiler transform service and in-process compositor are native
+  // children here. Both inherit no-unlink. Browser and encoder are separately
+  // launched by Python with no-fork, avoiding unsupported nested sandbox_init.
+  const child = originalSpawn(command, args, {...options, detached: false});
   child.on('exit', (code, signal) => {
     if (signal === 'SIGKILL' && !request.finishing) stop('native-child-killed', command);
   });
@@ -58,37 +57,38 @@ async function main() {
     retained.push(map.assetDir);
     return map;
   };
-  const {bundle} = requireProject('@remotion/bundler');
-  const {openBrowser, renderStill} = requireProject('@remotion/renderer');
-  const entry = path.join(run, 'check.tsx');
-  write(entry, "import React from 'react'; import {AbsoluteFill,Composition,registerRoot} from 'remotion'; const Frame=()=> <AbsoluteFill style={{background:'#101828',color:'white',fontSize:64,justifyContent:'center',alignItems:'center'}}>Retained Mac render check</AbsoluteFill>; registerRoot(()=> <Composition id='RetainedCheck' component={Frame} durationInFrames={1} fps={30} width={1080} height={1920}/>);", {flag: 'wx'});
-  const bundlePath = await bundle({entryPoint: entry, outDir: path.join(run, 'bundle'),
-    publicDir: path.join(run, 'empty-public'), enableCaching: false,
-    webpackOverride: (config) => ({...config, cache: false, output: {...config.output, clean: false}})});
-  const instance = await openBrowser('chrome', {browserExecutable: browser, logLevel: 'error'});
-  // Passing a browser avoids renderStill owning its profile lifecycle.
-  await renderStill({serveUrl: bundlePath, composition: {id: 'RetainedCheck', width: 1080,
-    height: 1920, fps: 30, durationInFrames: 1, props: {}, defaultProps: {}},
-    puppeteerInstance: instance, output: path.join(run, 'frame-000000.png'),
-    frame: 0, imageFormat: 'png', logLevel: 'error'});
-  const output = path.join(run, 'check.mp4');
-  await new Promise((resolve, reject) => {
-    const child = cp.spawn(encoder, ['-n', '-v', 'error', '-loop', '1', '-framerate', '30',
-      '-i', path.join(run, 'frame-000000.png'), '-frames:v', '1', '-an', '-c:v', 'libx264',
-      '-pix_fmt', 'yuv420p', output], {cwd: path.dirname(encoder), stdio: ['ignore', 'pipe', 'pipe']});
-    let errors = '';
-    child.stderr.on('data', (chunk) => { errors += chunk; });
-    child.on('error', reject);
-    child.on('exit', (code) => code === 0 ? resolve() : reject(new Error('Encoder failed: ' + errors)));
-  });
-  // The supervisor terminates the process group without running native/profile
-  // teardown. No browser.close(), temp cleanup, or exit handlers are invoked.
-  write(path.join(run, 'result.json'), JSON.stringify({status: 'render-check-passed',
-    frame: path.join(run, 'frame-000000.png'), output, retained, bytes: fs.statSync(output).size}), {flag: 'wx'});
+  if (request.stage === 'bundle') {
+    const {bundle} = requireProject('@remotion/bundler');
+    const entry = path.join(run, 'check.tsx');
+    write(entry, "import React from 'react'; import {AbsoluteFill,Composition,registerRoot} from 'remotion'; const Frame=()=> <AbsoluteFill style={{background:'#101828',color:'white',fontSize:64,justifyContent:'center',alignItems:'center'}}>Retained Mac render check</AbsoluteFill>; registerRoot(()=> <Composition id='RetainedCheck' component={Frame} durationInFrames={1} fps={30} width={1080} height={1920}/>);", {flag: 'wx'});
+    const bundlePath = await bundle({entryPoint: entry, outDir: path.join(run, 'bundle'),
+      publicDir: path.join(run, 'empty-public'), enableCaching: false,
+      webpackOverride: (config) => ({...config, cache: false, output: {...config.output, clean: false}})});
+    write(path.join(run, 'result.json'), JSON.stringify({status: 'bundle-ready', bundle: bundlePath, retained}), {flag: 'wx'});
+  } else if (request.stage === 'frame') {
+    const {HeadlessBrowser} = requireProject(path.join(rendererBase, 'dist/browser/Browser.js'));
+    const {Connection} = requireProject(path.join(rendererBase, 'dist/browser/Connection.js'));
+    const {NodeWebSocketTransport} = requireProject(path.join(rendererBase, 'dist/browser/NodeWebSocketTransport.js'));
+    const transport = await NodeWebSocketTransport.create(request.browserWS);
+    const connection = new Connection(transport);
+    const runner = {connection, listeners: [], deleteBrowserCaches: () => retained.push(request.profile),
+      closeProcess: async () => {}, forgetEventLoop: () => transport.forgetEventLoop(),
+      rememberEventLoop: () => transport.rememberEventLoop()};
+    const instance = new HeadlessBrowser({connection, runner, defaultViewport: {width: 1080, height: 1920}});
+    await connection.send('Target.setDiscoverTargets', {discover: true});
+    const {renderStill} = requireProject('@remotion/renderer');
+    const output = path.join(run, 'frame-000000.png');
+    await renderStill({serveUrl: request.bundlePath, composition: {id: 'RetainedCheck', width: 1080,
+      height: 1920, fps: 30, durationInFrames: 1, props: {}, defaultProps: {}},
+      puppeteerInstance: instance, output, frame: 0, imageFormat: 'png', logLevel: 'error'});
+    write(path.join(run, 'result.json'), JSON.stringify({status: 'frame-ready', frame: output, retained}), {flag: 'wx'});
+  } else throw new Error('Unsupported fixed render stage');
   request.finishing = true;
   process.kill(process.pid, 'SIGSTOP');
 }
-main().catch((error) => {
+main().catch(async (error) => {
+  // Let native exit events surface before freezing an ordinary failure outcome.
+  await new Promise((resolve) => setTimeout(resolve, 250));
   write(path.join(run, 'failure.json'), JSON.stringify({error: String(error.stack || error)}), {flag: 'wx'});
   process.kill(process.pid, 'SIGSTOP');
 });
