@@ -71,7 +71,7 @@ API_KEY_CHARS = string.ascii_letters + string.digits
 TASK_PRIORITY_LEVELS = ("none", "low", "medium", "high", "urgent")
 TASK_LABEL_INDEX_INFO = b"openmates-task-label-index-v1"
 EXTERNAL_CHAT_INDEX_INFO = b"openmates-task-external-chat-index-v1"
-EXTERNAL_CHAT_PROVIDER = "opencode"
+EXTERNAL_CHAT_PROVIDERS = {"codex", "opencode"}
 BLOCKED_REASON_CODES = (
     "needs_user_input",
     "waiting_for_approval",
@@ -2450,7 +2450,9 @@ def _task_assignee(value: Any) -> tuple[str, str | None, str | None]:
     normalized = str(value).strip().lower().replace("-", "_")
     if normalized == "openmates":
         return "openmates", "openmates", None
-    if normalized in ("external_ai", "opencode"):
+    if normalized in ("external_ai", "codex"):
+        return "external_ai", "codex", None
+    if normalized == "opencode":
         return "external_ai", "opencode", None
     if normalized == "unassigned":
         return "unassigned", None, None
@@ -2497,9 +2499,9 @@ def _normalize_external_chat_context(value: Any, *, title: Any = None) -> dict[s
             raise OpenMatesConfigError("external_chat requires provider and id")
     else:
         raise OpenMatesConfigError("external_chat must be provider:id or a mapping")
-    if provider != EXTERNAL_CHAT_PROVIDER:
-        raise OpenMatesConfigError("Only opencode is supported as an external chat provider")
-    return {"provider": EXTERNAL_CHAT_PROVIDER, "id": chat_id, "title": str(context_title or "")}
+    if provider not in EXTERNAL_CHAT_PROVIDERS:
+        raise OpenMatesConfigError("Unsupported external chat provider; use codex (opencode is retained for legacy records)")
+    return {"provider": provider, "id": chat_id, "title": str(context_title or "")}
 
 
 def _external_chat_lookup_hash(master_key: bytes, context: dict[str, str]) -> str:

@@ -235,3 +235,26 @@ keyboard-navigable Kanban and task detail pages for the same actions.
 - `frontend/packages/openmates-cli/src/tui.ts`
 - `frontend/packages/openmates-cli/src/tuiRenderer.ts`
 - `frontend/packages/ui/src/services/userTaskService.ts`
+
+
+## Codex external connection
+
+The installed local Codex daemon exposes thread metadata through its Unix
+WebSocket transport. The CLI discovers the socket with `codex app-server daemon
+version`, disables compression negotiation, initializes the connection and
+calls only `thread/read` with `includeTurns=false`. It neither starts the daemon
+nor accesses internal Codex databases. Explicit interactive resume uses
+`codex resume <thread-uuid>`. [Protocol documentation](https://developers.openai.com/codex/app-server).
+
+`X-OpenMates-Task-Creator: codex` accompanies explicit CLI `--as-assignee`
+creation only after local thread verification. The server additionally requires
+the authenticated paired-session owner and CLI actor surface. This is owner
+attribution, not process attestation. Only creation stamps a lifecycle receipt;
+GET eligibility uses personal owner-scoped creator receipts independently of
+board filters. New assignment and legacy-to-Codex switches require Codex
+eligibility. PATCH, comments and external context fields cannot mint it.
+
+Provider identities and external IDs remain separate. Existing OpenCode
+ciphertext and provider-domain keyed lookup indexes are never rewritten.
+Native OpenMates queue admission remains independent. This migration creates
+no polling, worker dispatcher, background agent or replacement periodic workflow.

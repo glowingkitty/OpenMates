@@ -30,6 +30,7 @@ import {
   findTask,
   normalizeBlockedReasonCode,
   parseExternalChatRef,
+  parseAssignee,
   renderTaskActivityList,
   taskEditLookupScope,
   taskLookupScopes,
@@ -176,7 +177,7 @@ describe("OpenMatesClient user tasks", () => {
     const native = await buildCreateUserTaskInput(masterKey, { title: "Native work", assign: "openmates" });
     const human = await buildCreateUserTaskInput(masterKey, { title: "Human work", assign: "user" });
 
-    assert.deepEqual([external.assignee_type, external.assignee_identity], ["external_ai", "opencode"]);
+    assert.deepEqual([external.assignee_type, external.assignee_identity], ["external_ai", "codex"]);
     assert.deepEqual([native.assignee_type, native.assignee_identity], ["openmates", "openmates"]);
     assert.deepEqual([human.assignee_type, human.assignee_identity], ["user", null]);
   });
@@ -452,4 +453,45 @@ describe("OpenMatesClient user tasks", () => {
       "└─ openmates tasks show TASK-42",
     ]);
   });
+});
+
+
+describe("Codex Task provider compatibility", () => {
+  // contract-test: supporting surface=cli assertions=tasks.assignment.identity-separated,tasks.external-chat.encrypted-context
+  it("defaults external assignment to Codex and keeps provider-specific encrypted indexes", async () => {
+    assert.equal(parseAssignee("external-ai").assigneeIdentity, "codex");
+    assert.equal(parseAssignee("codex").assigneeIdentity, "codex");
+    const masterKey = Buffer.alloc(32, 4);
+    const id = "00000000-0000-4000-8000-000000000001";
+    const codex = parseExternalChatRef(`codex:${id}`);
+    const legacy = parseExternalChatRef(`opencode:${id}`);
+    assert.notEqual(externalChatLookupHash(masterKey, codex), externalChatLookupHash(masterKey, legacy));
+    const input = await buildCreateUserTaskInput(masterKey, {
+      title: "Codex task", assign: "external-ai", externalChat: { ...codex, title: "Private thread title" },
+    });
+    assert.equal(input.assignee_identity, "codex");
+    assert.equal(input.external_chat_provider, "codex");
+    assert.doesNotMatch(JSON.stringify(input), /00000000-0000-4000-8000-000000000001|Private thread title/);
+    const task = await decryptUserTask(input, masterKey);
+    assert.equal(task.externalChat?.id, id);
+    assert.equal(task.externalChat?.provider, "codex");
+    assert.throws(() => parseExternalChatRef("unknown:thread"), /Unsupported/);
+  });
+});
+
+// contract-test: supporting surface=cli assertions=tasks.assignment.identity-separated
+it("declares Codex creator only on explicit creation and never on a later ordinary request", async () => {
+  const creators: Array<string | string[] | undefined> = [];
+  const actors: Array<string | string[] | undefined> = [];
+  await withServer((request, body) => {
+    creators.push(request.headers["x-openmates-task-creator"]);
+    actors.push(request.headers["x-openmates-task-actor"]);
+    return { task: body };
+  }, async (apiUrl) => {
+    const client = new OpenMatesClient({ apiUrl, session: testSession() });
+    await client.createUserTask(encryptedTaskInput(), { creator: "codex" });
+    await client.createUserTask(encryptedTaskInput());
+  });
+  assert.deepEqual(creators, ["codex", undefined]);
+  assert.deepEqual(actors, ["assignee", undefined]);
 });
