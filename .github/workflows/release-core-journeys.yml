@@ -104,6 +104,10 @@ jobs:
           }
           require_context "Vercel"
           require_context "$RELEASE_CONTEXT"
+      - name: Reject retired shared-dev release verification
+        run: |
+          echo "::error::Release journey coverage requires verified isolated GitHub evidence, including cloud-only billing/signup behavior. Shared-dev fallback is forbidden."
+          exit 1
       - name: Require reachable dev endpoints
         env:
           WEB_URL: ${{ secrets.E2E_DEV_TEST_BASE_URL }}

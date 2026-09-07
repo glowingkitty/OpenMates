@@ -79,3 +79,25 @@ Fresh accounts are created through real CLI signup and security initialization. 
 The current portable profile is the self-host edition. It is not equivalent to official-cloud billing, anonymous eligibility or provider-spend enforcement. Cloud-only tests must not silently become self-host tests. Their private-code execution and cost decision is pending. External email, provider, upload and broader worker coverage must be admitted explicitly before complete migration is claimed.
 
 The first pilot failed at concurrent volume initialization; the second completed schema setup but failed at a missing mountpoint beneath a read-only source bind. Both returned honest failure evidence without E2E results. The third pilot repairs the mountpoint. Fresh schema initialization took approximately eight minutes in pilot two; no test-speed improvement is claimed yet.
+
+
+### Reviewed current-base deployment
+
+Publishing a candidate is not deployment. A preserved worktree can deploy an exact
+reviewed candidate with `sessions.py deploy --session <existing> --reviewed-candidate
+<full-sha> --reviewed-base <parent-sha> --only <all-candidate-paths> --title ...`.
+Use `ci-source --base ... --resolved-patch ... --patch-sha256 ...` first. The adapter
+requires the session candidate ref, exact parent and full changed-path inventory.
+It runs the ordinary integration gates and push lock, rejects selected-path upstream
+drift and deletion amplification, and requires staged selected files to equal the
+candidate. It checks original worktree/HEAD/index identity and skips source
+synchronization; it never rewrites the source to fabricate a newer base.
+
+### Remaining legacy coverage holds
+
+These legacy workflows now fail explicitly before shared-dev execution. They are
+unmigrated coverage, not passing skips: typed Task/Workflow CLI smoke, main-processor
+CLI smoke, installed VSIX login, and release core journeys. Their runner-local
+profiles and cloud-only/provider requirements must be implemented before release.
+Existing unit/build checks in the VS Code workflow remain executable. Public
+self-host mocks do not replace official-cloud billing, eligibility or budget proof.

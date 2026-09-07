@@ -43,6 +43,10 @@ jobs:
       OPENMATES_TEST_ACCOUNT_PASSWORD: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_PASSWORD', inputs.account || '18')] }}
       OPENMATES_TEST_ACCOUNT_OTP_KEY: ${{ secrets[format('OPENMATES_TEST_ACCOUNT_{0}_OTP_KEY', inputs.account || '18')] }}
     steps:
+      - name: Reject retired shared-dev execution
+        run: |
+          echo "::error::Shared-dev CI is retired. This CLI/provider suite is held until its isolated GitHub profile is verified; no fallback or passing skip is permitted."
+          exit 1
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4

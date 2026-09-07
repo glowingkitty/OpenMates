@@ -79,7 +79,18 @@ risks:
   latency.
 - Other tasks are active; hunk integration must preserve their changes and shared
   runtime leases.
-evidence: []
+evidence:
+- kind: tooling
+  command: python3 -m pytest scripts/tests/test_reviewed_deploy.py -q
+  result: Four passed, including real temporary-repository integration and source/index preservation.
+- kind: github_pilot
+  run_id: 34167498270
+  subject: 741b51e5e55cbdd540fee99f19df7e83e0f0fdd8
+  harness: b1733117093cdfd2860d67a8e3b46990579c402a
+  result: Failed before API startup; Vault exited 137. No E2E coverage credited.
+- kind: migration
+  commit: 9da8d2b3334932b74641e2e45855ba72d4ca7819
+  result: Shell launchers forward to canonical dispatcher; daily units can queue while E2E remains held; superseded local runtime probe removed.
 handoff:
   session: ecad
   next: Portable stack and coordinator implementation; no shared runtime mutation.
