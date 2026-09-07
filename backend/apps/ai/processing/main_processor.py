@@ -831,6 +831,15 @@ def _append_tool_call_turn_to_history(
         message_history.append(rejection_message)
 
 
+def _is_empty_post_tool_turn(tool_inference_iterations: int, llm_turn_had_content: bool) -> bool:
+    """Return whether a tool continuation ended without a user-visible answer."""
+    return tool_inference_iterations > 0 and not llm_turn_had_content
+
+
+def _has_visible_text(content: str) -> bool:
+    return bool(content.strip())
+
+
 def _build_async_skill_pending_tool_result(
     *,
     async_result: Dict[str, Any],
@@ -3938,6 +3947,7 @@ async def handle_main_processing(
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
     task_queue_guard_retries = 0
+    empty_post_tool_recovery_attempted = False
     
     # === SKILL CALL DEDUPLICATION ===
     # Track successfully completed skill calls to prevent duplicate executions.
@@ -4645,22 +4655,23 @@ async def handle_main_processing(
                     yield chunk
                 elif chunk.type == StreamChunkType.TEXT:
                     # Text content wrapped in UnifiedStreamChunk - extract and yield as string
-                    llm_turn_had_content = True
                     if chunk.content:
+                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
                         yield chunk.content
                         if tool_calls_for_this_turn:
                             current_turn_text_buffer.append(chunk.content)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
-                llm_turn_had_content = True
                 # CRITICAL: Always yield text chunks immediately, even when tool calls are pending
                 # This ensures paragraph-by-paragraph streaming works correctly
                 # Tool calls will be executed after the LLM finishes its turn, but text should stream immediately
-                yield chunk
-                # Also buffer for message history (needed for tool execution context)
-                if tool_calls_for_this_turn:
-                    current_turn_text_buffer.append(chunk)
+                if chunk:
+                    llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
+                    yield chunk
+                    # Also buffer for message history (needed for tool execution context)
+                    if tool_calls_for_this_turn:
+                        current_turn_text_buffer.append(chunk)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
         except AllServersFailedError as asf_err:
@@ -4788,6 +4799,23 @@ async def handle_main_processing(
                     TASK_QUEUE_GUARD_MAX_RETRIES,
                 )
                 continue
+            if _is_empty_post_tool_turn(tool_inference_iterations, llm_turn_had_content):
+                has_retry_iteration = iteration < MAX_TOOL_CALL_ITERATIONS - 1
+                if has_retry_iteration and not empty_post_tool_recovery_attempted:
+                    empty_post_tool_recovery_attempted = True
+                    force_no_tools = True
+                    logger.warning(
+                        f"{log_prefix} [POST_TOOL_RECOVERY] Tool continuation produced no answer. "
+                        "Retrying once with tools disabled."
+                    )
+                    continue
+
+                logger.error(
+                    f"{log_prefix} [POST_TOOL_RECOVERY] Forced tool continuation retry produced no answer. "
+                    "Emitting the standardized user-facing error."
+                )
+                yield STANDARDIZED_USER_ERROR_MESSAGE
+                break
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
             # rejected) and produced no visible text, the user would see zero
             # response.  Force one more LLM iteration with tool_choice="none"

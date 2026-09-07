@@ -8358,7 +8358,7 @@ assertions:
       surface: rest_api
     - &id953
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 318
+      line: 333
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id954
@@ -8797,7 +8797,7 @@ assertions:
       surface: rest_api
     - &id991
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 318
+      line: 333
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     - &id992
@@ -15136,7 +15136,7 @@ assertions:
       surface: rest_api
     - &id1695
       path: backend/tests/test_main_processor_invalid_tool_calls.py
-      line: 318
+      line: 333
       name: test_chat_skill_billing_uses_audio_result_declared_credits
       surface: rest_api
     supporting_tests:
