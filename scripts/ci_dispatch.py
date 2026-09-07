@@ -227,6 +227,7 @@ def run(argv: list[str]) -> int:
     )
     jobs = []
     held_specs = []
+    held_reasons = {}
     if args.daily and args.suite in ("all", "pytest", "vitest"):
         for mode in ("pytest", "vitest") if args.suite == "all" else (args.suite,):
             jobs.append(queue.enqueue(owner, source, [], mode, attempt))
@@ -238,6 +239,10 @@ def run(argv: list[str]) -> int:
             raise ValueError("No E2E tests selected")
         if not ready:
             held_specs, specs = specs, []
+        else:
+            from scripts.ci_coverage import partition
+            specs, held_reasons = partition(specs)
+            held_specs = list(held_reasons)
         for index in range(0, len(specs), BATCH_SIZE):
             jobs.append(
                 queue.enqueue(
@@ -257,7 +262,8 @@ def run(argv: list[str]) -> int:
                 "environment": "github-isolated",
                 "jobs": [j["id"] for j in jobs],
                 "held_specs": held_specs,
-                "hold_reason": "Runner-local E2E cutover is not verified"
+                "held_reasons": held_reasons,
+                "hold_reason": ("Some runtime coverage is not migrated" if ready else "Runner-local E2E cutover is not verified")
                 if held_specs
                 else None,
             }

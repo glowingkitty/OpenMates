@@ -88,3 +88,28 @@ def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, cap
     assert "held.spec.ts" in capsys.readouterr().out
     jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
     assert sorted(job["mode"] for job in jobs) == ["pytest", "vitest"]
+
+
+def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatch, capsys):
+    import json
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+    cutover = root / "logs/ci-coordinator/cutover.json"
+    cutover.parent.mkdir(parents=True)
+    cutover.write_text(json.dumps({"ready": True}))
+    monkeypatch.setattr(ci_dispatch, "select_specs", lambda *_: [
+        "tasks-flow.spec.ts", "anonymous-production-repair.spec.ts"
+    ])
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    result = ci_dispatch.run([
+        "--worktree", str(root), "--expected-commit", source,
+        "--spec", "tasks-flow.spec.ts", "--detach"
+    ])
+    assert result == 2
+    assert "official-cloud" in capsys.readouterr().out
+    jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
+    assert len(jobs) == 1
+    assert json.loads(jobs[0]["specs"]) == ["tasks-flow.spec.ts"]

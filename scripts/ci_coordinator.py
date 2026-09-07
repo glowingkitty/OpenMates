@@ -382,6 +382,9 @@ def main():
     status.add_argument("id", nargs="?")
     result = sub.add_parser("result")
     result.add_argument("id")
+    verify = sub.add_parser("verify-pilot")
+    verify.add_argument("id")
+    verify.add_argument("--activate", action="store_true", help="Enable only verified core coverage; other profiles remain held")
     sub.add_parser("health")
     sub.add_parser("serve")
     sub.add_parser("tick")
@@ -389,6 +392,14 @@ def main():
     root = canonical_root(Path(__file__).resolve().parent.parent)
     queue = Queue(root / "logs/ci-coordinator/queue.sqlite3")
     if args.action == "submit":
+        if args.mode == "e2e":
+            try:
+                from scripts.ci_coverage import partition
+            except ModuleNotFoundError:
+                from ci_coverage import partition
+            _, held = partition(args.spec)
+            if held:
+                raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
         print(
             json.dumps(
                 queue.enqueue(
@@ -406,6 +417,28 @@ def main():
     elif args.action == "health":
         with queue.connect() as db:
             print(json.dumps(dict(db.execute("SELECT key, value FROM meta"))))
+    elif args.action == "verify-pilot":
+        from ci_results import fetch
+        try:
+            from scripts.ci_coverage import verify_pilot
+        except ModuleNotFoundError:
+            from ci_coverage import verify_pilot
+        receipt = queue.result(GitHub(root), args.id, root, fetch)
+        checkpoint = verify_pilot(receipt)
+        if args.activate:
+            runtime_paths = [".github/workflows/isolated-tests.yml", "scripts/ci_environment.py",
+                             "scripts/ci_run_tests.py", "scripts/ci_static_web.py"]
+            drift = subprocess.check_output(
+                ["git", "diff", "--name-only", receipt["harness_commit"], "HEAD", "--", *runtime_paths],
+                cwd=root, text=True,
+            ).strip()
+            if drift:
+                raise RuntimeError("CI runtime changed after pilot; new live evidence is required: " + drift)
+            target = root / "logs/ci-coordinator/cutover.json"
+            temporary = target.with_suffix("." + uuid.uuid4().hex + ".tmp")
+            temporary.write_text(json.dumps(checkpoint, indent=2) + "\n")
+            temporary.replace(target)
+        print(json.dumps(checkpoint))
     elif args.action == "result":
         from ci_results import fetch
 

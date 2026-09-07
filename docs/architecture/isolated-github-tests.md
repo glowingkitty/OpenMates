@@ -101,3 +101,20 @@ CLI smoke, installed VSIX login, and release core journeys. Their runner-local
 profiles and cloud-only/provider requirements must be implemented before release.
 Existing unit/build checks in the VS Code workflow remain executable. Public
 self-host mocks do not replace official-cloud billing, eligibility or budget proof.
+
+
+### Verified core admission
+
+`ci_coordinator.py verify-pilot REQUEST_ID --activate` validates an overall passing
+GitHub job, non-skipped real account browser preflight, runner-local source receipt
+and shared-dev rejection before enabling core dispatch. It rejects runtime source
+drift since the verified harness. `scripts/ci_coverage.py` lists supported core
+specs; unported and cloud-only specs produce explicit holds, including in daily
+batches. This partial cutover never means all E2E has migrated. The coordinator's
+low-level submit command enforces the same coverage boundary.
+
+The public core profile supplies fresh encrypted accounts and the real CLI. Task
+spec admission permits candidate verification; it does not certify the candidate's
+creator/eligibility contract or declare those product tests passed. Their selected
+source must include the reviewed compatible implementation. Proof artifact links
+retain source/harness/profile identities; visual review remains a separate gate.
