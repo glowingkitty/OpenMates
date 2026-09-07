@@ -50,6 +50,7 @@ def compose_profile(source_hash: str) -> dict:
     }
     common = {
         "PYTHONPATH": "/app",
+        "BUILD_COMMIT_SHA": source_hash,
         "PYTHONDONTWRITEBYTECODE": "1",
         "CMS_URL": "http://cms:8055",
         "DIRECTUS_TOKEN": credentials["directus"],
@@ -92,6 +93,7 @@ def compose_profile(source_hash: str) -> dict:
         "depends_on": {
             "cms-setup": {"condition": "service_completed_successfully"},
             "vault-init": {"condition": "service_completed_successfully"},
+            "fixture-init": {"condition": "service_completed_successfully"},
         },
         "healthcheck": {
             "test": ["CMD", "curl", "-f", "http://localhost:8000/health"],
@@ -238,6 +240,16 @@ def compose_profile(source_hash: str) -> dict:
             "depends_on": {"vault": {"condition": "service_healthy"}},
         },
     }
+    services["fixture-init"] = {
+        "image": "openmates-ci-api:local",
+        "mem_limit": 128 * MIB,
+        "command": [
+            "sh",
+            "-ec",
+            "cp -a /app/backend/apps/ai/testing/api_cache/. /fixtures/",
+        ],
+        "volumes": ["api-cache:/fixtures"],
+    }
     volumes = {}
     for service in services.values():
         service.update(
@@ -253,9 +265,23 @@ def compose_profile(source_hash: str) -> dict:
                 "options": {"max-size": "5m", "max-file": "2"},
             },
         )
+        mounts = []
         for mount in service.get("volumes", []):
             if not mount.startswith("/"):
-                volumes[mount.split(":")[0]] = {}
+                name, target = mount.split(":", 1)
+                volumes[name] = {}
+                mounts.append(
+                    {
+                        "type": "volume",
+                        "source": name,
+                        "target": target,
+                        "volume": {"nocopy": True},
+                    }
+                )
+            else:
+                mounts.append(mount)
+        if mounts:
+            service["volumes"] = mounts
     return {"name": "openmates-ci", "services": services, "volumes": volumes}
 
 
@@ -270,7 +296,7 @@ def require_runner():
         raise RuntimeError("Isolated test stacks run only on GitHub-hosted runners")
 
 
-def compose(*args, capture=False):
+def compose(*args, capture=False, timeout=90):
     require_runner()
     return subprocess.run(
         ["docker", "compose", "-f", str(COMPOSE_PATH), *args],
@@ -278,6 +304,7 @@ def compose(*args, capture=False):
         check=True,
         text=True,
         capture_output=capture,
+        timeout=timeout,
     )
 
 
@@ -301,7 +328,63 @@ def main():
             json.dumps(evidence)
         )
     elif action == "start":
-        compose("up", "-d", "--no-build", "--wait", "--wait-timeout", "600")
+        # Compose's wait limit may not bound one-shot dependency startup.
+        compose(
+            "up", "-d", "--no-build", "--wait", "--wait-timeout", "600", timeout=720
+        )
+    elif action == "verify":
+        import socket
+        import urllib.request
+
+        evidence_path = Path(SOURCE) / "test-results/ci-environment.json"
+        evidence = json.loads(evidence_path.read_text())
+        for host in ("api.dev.openmates.org", "app.dev.openmates.org"):
+            addresses = {
+                item[4][0]
+                for item in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+            }
+            if addresses != {"127.0.0.2"}:
+                raise RuntimeError("Shared dev DNS isolation was not installed")
+            try:
+                connection = socket.create_connection((host, 443), timeout=2)
+            except OSError:
+                pass
+            else:
+                connection.close()
+                raise RuntimeError("Shared dev HTTPS egress was unexpectedly reachable")
+        with urllib.request.urlopen(
+            "http://localhost:8000/health", timeout=10
+        ) as response:
+            if response.status != 200:
+                raise RuntimeError("Runner-local API is not healthy")
+        identities = {}
+        for service in ("api", "core-worker", "cms", "cms-database", "cache", "vault"):
+            container = compose("ps", "-q", service, capture=True).stdout.strip()
+            if not container:
+                raise RuntimeError("Required private service is missing: " + service)
+            raw = subprocess.check_output(["docker", "inspect", container], text=True)
+            info = json.loads(raw)[0]
+            if (
+                info["Config"]["Labels"].get("org.openmates.source")
+                != evidence["source_commit"]
+            ):
+                raise RuntimeError("Runtime source identity mismatch")
+            identities[service] = {
+                "container": container,
+                "image": info["Image"],
+                "running": info["State"]["Running"],
+            }
+            if not info["State"]["Running"]:
+                raise RuntimeError("Private service exited: " + service)
+        evidence.update(
+            services=identities,
+            api_url="http://localhost:8000",
+            web_url="http://localhost:5173",
+            shared_dev_dns="rejected",
+            shared_dev_https="rejected",
+            runner_environment=os.environ["RUNNER_ENVIRONMENT"],
+        )
+        evidence_path.write_text(json.dumps(evidence, indent=2))
     elif action == "stop":
         if COMPOSE_PATH.exists():
             compose("down", "--volumes", "--remove-orphans", "--timeout", "20")

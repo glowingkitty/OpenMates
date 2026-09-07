@@ -31,20 +31,7 @@ def reviewed_paths(root: Path, session_files: list[str]) -> list[str]:
     changed.update(name for name in session_files if (root / name).is_file())
     safe = []
     for name in sorted(changed):
-        path = Path(name)
-        if (
-            path.is_absolute()
-            or ".." in path.parts
-            or "\n" in name
-            or path.parts[0] in {"logs", "test-results", "vaults", ".git"}
-        ):
-            raise ValueError(
-                "CI snapshot contains a non-source path; narrow session tracking"
-            )
-        if path.name.startswith(".env") and path.name != ".env.example":
-            raise ValueError("CI snapshot cannot publish environment files")
-        if any(part.lower() in {"credentials", "secrets"} for part in path.parts):
-            raise ValueError("CI snapshot cannot publish credential directories")
+        path = source_path(name)
         if any(
             parent.is_symlink()
             for parent in [root / path, *(root / path).parents]
@@ -54,6 +41,23 @@ def reviewed_paths(root: Path, session_files: list[str]) -> list[str]:
         if (root / path).exists() or name in changed:
             safe.append(name)
     return safe
+
+
+def source_path(name: str) -> Path:
+    path = Path(name)
+    if (
+        not path.parts
+        or path.is_absolute()
+        or ".." in path.parts
+        or any(char in name for char in ("\n", "\r", "\t", '"', "\\"))
+        or path.parts[0] in {"logs", "test-results", "vaults", ".git"}
+    ):
+        raise ValueError("CI snapshot contains a non-source path")
+    if path.name.startswith(".env") and path.name != ".env.example":
+        raise ValueError("CI snapshot cannot publish environment files")
+    if any(part.lower() in {"credentials", "secrets"} for part in path.parts):
+        raise ValueError("CI snapshot cannot publish credential directories")
+    return path
 
 
 def fingerprint(root: Path, paths: list[str]) -> str:
@@ -83,6 +87,7 @@ def publish(
     if shutil.disk_usage(root).free < DISK_RESERVE + MAX_CHANGED_BYTES:
         raise RuntimeError("CI snapshot would risk the 30 GiB dev-server disk reserve")
     patch = None
+    original_head = git(root, "rev-parse", "HEAD")
     if resolved_patch:
         if not re.fullmatch(r"[0-9a-f]{40}", base):
             raise ValueError(
@@ -98,14 +103,7 @@ def publish(
             for line in git(root, "apply", "--numstat", input=patch).splitlines()
         ]
         for name in paths:
-            path = Path(name)
-            if (
-                path.is_absolute()
-                or ".." in path.parts
-                or path.name.startswith(".env")
-                or path.parts[0] in {"logs", "test-results", "vaults", ".git"}
-            ):
-                raise ValueError("Resolved patch contains a non-source path")
+            source_path(name)
         parent = base
     else:
         if base or patch_sha256:
@@ -119,10 +117,17 @@ def publish(
         if patch is not None:
             git(root, "apply", "--cached", "--check", env=env, input=patch)
             git(root, "apply", "--cached", env=env, input=patch)
+            for entry in git(
+                root, "ls-files", "--stage", "--", *paths, env=env
+            ).splitlines():
+                if entry.startswith(("120000 ", "160000 ")):
+                    raise ValueError("CI patches cannot publish symlinks or submodules")
         elif paths:
             git(root, "add", "-A", "--", *paths, env=env)
         tree = git(root, "write-tree", env=env)
-        if patch is None and fingerprint(root, paths) != before:
+        if git(root, "rev-parse", "HEAD") != original_head or (
+            patch is None and fingerprint(root, paths) != before
+        ):
             raise RuntimeError("Source changed during capture; request a new snapshot")
         timestamp = git(root, "show", "-s", "--format=%cI", parent)
         env.update(

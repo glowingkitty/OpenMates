@@ -12,10 +12,13 @@ import argparse
 from dataclasses import asdict
 from datetime import datetime, timezone
 import json
+import io
 import os
 from pathlib import Path
 import subprocess
 import sys
+import tarfile
+import tempfile
 import time
 
 try:
@@ -49,15 +52,48 @@ def ensure_coordinator(root: Path):
     )
 
 
-def select_specs(root: Path, args) -> list[str]:
+def select_specs(root: Path, args, source: str) -> list[str]:
+    """Discover only files and policy from the immutable test subject."""
+    payload = subprocess.check_output(
+        [
+            "git",
+            "archive",
+            source,
+            "frontend/apps/web_app/tests",
+            "scripts/daily_ai_test_manifest.json",
+        ],
+        cwd=root,
+    )
+    with tempfile.TemporaryDirectory(prefix="ci-selection-") as directory:
+        snapshot = Path(directory)
+        with tarfile.open(fileobj=io.BytesIO(payload)) as archive:
+            for member in archive:
+                path = Path(member.name)
+                if path.is_absolute() or ".." in path.parts:
+                    raise ValueError("Unsafe test subject path")
+                if member.isfile() and (
+                    member.name.endswith(".spec.ts")
+                    or member.name == "scripts/daily_ai_test_manifest.json"
+                ):
+                    target = snapshot / path
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    target.write_bytes(archive.extractfile(member).read())
+        return select_snapshot_specs(snapshot, args)
+
+
+def select_snapshot_specs(root: Path, args) -> list[str]:
     folder = root / "frontend/apps/web_app/tests"
     if args.spec:
         names = args.spec
     else:
         from scripts import daily_ai_test_policy as policy
 
+        manifest = policy.load_manifest(root / "scripts/daily_ai_test_manifest.json")
+
         names = policy.discover_specs(
-            (p.name for p in folder.glob("*.spec.ts")), spec_dir=folder
+            (p.name for p in folder.glob("*.spec.ts")),
+            manifest=manifest,
+            spec_dir=folder,
         )
         if args.daily:
             plan = policy.daily_plan(
@@ -65,6 +101,7 @@ def select_specs(root: Path, args) -> list[str]:
                 datetime.now(timezone.utc).date(),
                 scheduled=True,
                 record_mode=False,
+                manifest=manifest,
             )
             names = list(dict.fromkeys([*names, *plan.selected]))
     for name in names:
@@ -117,12 +154,29 @@ def run(argv: list[str]) -> int:
         args.session = root.name.removeprefix("agent-")
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     canonical = canonical_root(root)
-    if args.suite in ("pytest", "vitest") and not args.daily and not args.spec:
-        from scripts.run_tests import run_pytest, run_vitest
+    if args.suite in ("all", "pytest", "vitest") and not args.daily and not args.spec:
+        from scripts import run_tests as local_tests
 
-        result = run_pytest() if args.suite == "pytest" else run_vitest()
-        print(json.dumps(asdict(result), default=str))
-        return 0 if result.status == "passed" else 1
+        local_tests.PROJECT_ROOT = root
+        local_tests.RESULTS_DIR = root / "test-results"
+        checks = (
+            (local_tests.run_pytest, local_tests.run_vitest)
+            if args.suite == "all"
+            else (
+                (local_tests.run_pytest,)
+                if args.suite == "pytest"
+                else (local_tests.run_vitest,)
+            )
+        )
+        units_passed = True
+        for check in checks:
+            result = check()
+            print(json.dumps(asdict(result), default=str))
+            units_passed &= result.status == "passed"
+        if not units_passed:
+            return 1
+        if args.suite != "all":
+            return 0
     if args.source:
         source = subprocess.check_output(
             ["git", "rev-parse", args.source + "^{commit}"], cwd=root, text=True
@@ -142,7 +196,7 @@ def run(argv: list[str]) -> int:
         output = subprocess.check_output(
             [
                 sys.executable,
-                str(root / "scripts/sessions.py"),
+                str(canonical / "scripts/sessions.py"),
                 "ci-source",
                 "--session",
                 args.session,
@@ -165,7 +219,7 @@ def run(argv: list[str]) -> int:
         for mode in ("pytest", "vitest") if args.suite == "all" else (args.suite,):
             jobs.append(queue.enqueue(owner, source, [], mode, attempt))
     if args.spec or args.suite in ("all", "playwright", "cli"):
-        specs = select_specs(root, args)
+        specs = select_specs(root, args, source)
         if args.suite == "cli":
             specs = [s for s in specs if s.startswith("cli-")]
         if not specs:

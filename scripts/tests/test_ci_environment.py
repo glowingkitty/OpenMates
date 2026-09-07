@@ -20,7 +20,7 @@ def test_profile_is_private_and_source_bound():
         assert not service.get("privileged")
         assert not service.get("env_file")
         assert all(
-            ".env:" not in mount and "docker.sock" not in mount
+            ".env:" not in str(mount) and "docker.sock" not in str(mount)
             for mount in service.get("volumes", [])
         )
     assert (
@@ -39,3 +39,17 @@ def test_fresh_credentials_and_runner_only(monkeypatch):
     monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     with pytest.raises(RuntimeError, match="GitHub-hosted"):
         require_runner()
+
+
+def test_named_volumes_have_one_explicit_fixture_writer():
+    services = compose_profile("a" * 40)["services"]
+    for service in services.values():
+        for mount in service.get("volumes", []):
+            if isinstance(mount, dict):
+                assert mount["volume"]["nocopy"] is True
+    for name in ("api", "core-worker"):
+        assert (
+            services[name]["depends_on"]["fixture-init"]["condition"]
+            == "service_completed_successfully"
+        )
+    assert services["fixture-init"]["volumes"][0]["source"] == "api-cache"

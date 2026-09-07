@@ -99,6 +99,9 @@ class GitHub:
             },
         )
 
+    def run(self, run_id):
+        return self.request(f"repos/{self.repo}/actions/runs/{run_id}")
+
 
 class Queue:
     def __init__(self, path: Path):
@@ -180,6 +183,36 @@ class Queue:
             (key, str(value)),
         )
 
+    def result(self, github, key, root, fetch):
+        """Use the same serialized rate budget for evidence and dispatch traffic."""
+        with self.path.with_suffix(".lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            jobs = self.status(key)
+            if not jobs:
+                raise ValueError("Unknown CI request")
+            receipt = root / "test-results/ci-runs" / key / "receipt.json"
+            if receipt.is_file():
+                return json.loads(receipt.read_text())
+            with self.connect() as db:
+                now = time.time()
+                if now < float(self.metadata(db, "network_retry_at")):
+                    raise RuntimeError(
+                        "GitHub backoff active; use cached status/health"
+                    )
+                try:
+                    budget = github.budget()
+                    if int(budget["remaining"]) < RATE_RESERVE + 3:
+                        raise GitHubError(
+                            "GitHub request reserve reached", int(budget["reset"]) + 1
+                        )
+                    return fetch(github, jobs[0], root)
+                except GitHubError as exc:
+                    self.set_meta(db, "network_retry_at", exc.retry_at)
+                    self.set_meta(db, "next_poll", exc.retry_at)
+                    self.set_meta(db, "last_error", str(exc))
+                    db.commit()
+                    raise
+
     def tick(self, github, now=None):
         now = time.time() if now is None else now
         with self.path.with_suffix(".lock").open("a") as lock:
@@ -205,6 +238,11 @@ class Queue:
                     if int(budget["remaining"]) < RATE_RESERVE + MAX_ACTIVE + 2:
                         self.set_meta(
                             db,
+                            "network_retry_at",
+                            max(now + POLL_SECONDS, int(budget["reset"]) + 1),
+                        )
+                        self.set_meta(
+                            db,
                             "next_poll",
                             max(now + POLL_SECONDS, int(budget["reset"]) + 1),
                         )
@@ -222,6 +260,15 @@ class Queue:
                     active = 0
                     for job in jobs:
                         matches = by_token[job["token"]]
+                        if not matches and job["run_id"]:
+                            # Long jobs can fall out of the newest 100 runs. Their
+                            # persisted IDs provide bounded, unambiguous recovery.
+                            run = github.run(job["run_id"])
+                            if job["token"] not in run.get("display_title", ""):
+                                raise ValueError(
+                                    "Persisted GitHub run identity mismatch"
+                                )
+                            matches = [run]
                         if len(matches) > 1:
                             db.execute(
                                 "UPDATE jobs SET state='attention',error='Duplicate remote dispatch requires reconciliation' WHERE id=?",
@@ -288,6 +335,11 @@ class Queue:
                         max(now + ERROR_BACKOFF, getattr(exc, "retry_at", 0)),
                     )
                     self.set_meta(db, "last_error", str(exc))
+                    self.set_meta(
+                        db,
+                        "network_retry_at",
+                        max(now + ERROR_BACKOFF, getattr(exc, "retry_at", 0)),
+                    )
 
 
 def main():
@@ -301,6 +353,9 @@ def main():
     submit.add_argument("--attempt", default="")
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
+    result = sub.add_parser("result")
+    result.add_argument("id")
+    sub.add_parser("health")
     sub.add_parser("serve")
     sub.add_parser("tick")
     args = parser.parse_args()
@@ -316,6 +371,13 @@ def main():
         )
     elif args.action == "status":
         print(json.dumps(queue.status(args.id)))
+    elif args.action == "health":
+        with queue.connect() as db:
+            print(json.dumps(dict(db.execute("SELECT key, value FROM meta"))))
+    elif args.action == "result":
+        from ci_results import fetch
+
+        print(json.dumps(queue.result(GitHub(root), args.id, root, fetch)))
     else:
         github = GitHub(root)
         while True:

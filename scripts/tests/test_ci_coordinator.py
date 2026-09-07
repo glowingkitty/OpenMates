@@ -84,3 +84,42 @@ def test_rate_reserve_and_cached_poll(tmp_path):
     remote.remaining = 5000
     q.tick(remote, 499)
     assert not remote.sent
+
+
+def test_known_run_outside_listing_uses_persisted_id(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    q = Queue(tmp_path / "queue.db")
+    remote = Remote()
+    job = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    q.tick(remote, 100)
+    with q.connect() as db:
+        db.execute("UPDATE jobs SET run_id=7, state='running'")
+    remote.run = lambda run_id: dict(
+        id=run_id,
+        display_title=job["token"],
+        status="completed",
+        conclusion="success",
+        html_url="https://example.test/7",
+    )
+    q.tick(remote, 140)
+    assert q.status(job["id"])[0]["state"] == "success"
+    assert len(remote.sent) == 1
+
+
+def test_result_rate_reserve_and_cached_receipt(tmp_path):
+    import json
+    import pytest
+
+    q = Queue(tmp_path / "queue.db")
+    remote = Remote()
+    remote.remaining = 100
+    job = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    fetched = []
+    with pytest.raises(GitHubError):
+        q.result(remote, job["id"], tmp_path, lambda *args: fetched.append(args))
+    assert not fetched
+    receipt = tmp_path / "test-results/ci-runs" / job["id"] / "receipt.json"
+    receipt.parent.mkdir(parents=True)
+    receipt.write_text(json.dumps({"cached": True}))
+    remote.budget = lambda: pytest.fail("Cached evidence must not query GitHub")
+    assert q.result(remote, job["id"], tmp_path, None) == {"cached": True}

@@ -57,6 +57,7 @@ jobs:
           assert re.fullmatch('[0-9a-f]{40}', expected), 'Full source SHA required'
           assert subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip() == expected
           PY
+          echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -112,7 +113,9 @@ jobs:
           pnpm --filter web_app build
       - name: Start isolated backend
         if: inputs.mode == 'e2e'
-        run: python3 scripts/ci_environment.py start
+        run: |
+          python3 scripts/ci_environment.py start
+          python3 scripts/ci_environment.py verify
       - name: Install browser
         if: inputs.mode == 'e2e'
         working-directory: frontend/apps/web_app
