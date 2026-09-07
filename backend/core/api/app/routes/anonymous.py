@@ -48,6 +48,12 @@ EMBED_REFERENCE_PATTERN = re.compile(
     r'```(?:json|json_embed)\s*\n\s*\{[^`]*("embed_id"|"type"\s*:\s*"(?:image|audio|pdf|document|file)")',
     re.IGNORECASE,
 )
+ANONYMOUS_SKILL_DISPLAY_PATTERN = re.compile(
+    r"^[ \t]*```(?:json|json_embed)[ \t]*\r?\n(?P<body>.*?)\r?\n[ \t]*```[ \t]*(?=\r?$)",
+    re.MULTILINE | re.DOTALL,
+)
+ANONYMOUS_SKILL_DISPLAY_FIELDS = frozenset({"type", "embed_id", "app_id", "skill_id"})
+ANONYMOUS_SKILL_DISPLAY_TYPE = "app_skill_use"
 
 
 class AnonymousHistoryMessage(BaseModel):
@@ -112,13 +118,44 @@ def validate_anonymous_skill_allowed(app_id: str, skill: dict[str, Any]) -> None
         )
 
 
+def _anonymous_history_content(message: AnonymousHistoryMessage | dict[str, Any]) -> str:
+    """Discard local display references, never resolve client-supplied embed IDs.
+
+    Anonymous history is untrusted even when its role says assistant. Only the
+    exact display-only skill reference is removed; extra fields and attachment
+    references stay intact for the upload guard to reject. The same projection
+    must be used for validation and dispatch so forged IDs never reach inference.
+    See docs/architecture/apps/rest-api.md for anonymous API boundaries.
+    """
+    content = message.content if isinstance(message, AnonymousHistoryMessage) else str(message.get("content", ""))
+    role = message.role if isinstance(message, AnonymousHistoryMessage) else message.get("role")
+    if role != "assistant":
+        return content
+
+    def discard_display_reference(match: re.Match[str]) -> str:
+        try:
+            reference = json.loads(match.group("body"))
+        except json.JSONDecodeError:
+            return match.group(0)
+        if (
+            isinstance(reference, dict)
+            and reference.keys() == ANONYMOUS_SKILL_DISPLAY_FIELDS
+            and reference["type"] == ANONYMOUS_SKILL_DISPLAY_TYPE
+            and all(isinstance(value, str) for value in reference.values())
+        ):
+            return ""
+        return match.group(0)
+
+    return ANONYMOUS_SKILL_DISPLAY_PATTERN.sub(discard_display_reference, content)
+
+
 def reject_anonymous_file_payloads(payload: AnonymousChatStreamRequest) -> None:
     if payload.files or payload.embeds:
         raise _signup_required_for_uploads()
     if _contains_embed_reference(payload.plaintext_message):
         raise _signup_required_for_uploads()
     for message in payload.message_history:
-        content = message.content if isinstance(message, AnonymousHistoryMessage) else str(message.get("content", ""))
+        content = _anonymous_history_content(message)
         if _contains_embed_reference(content):
             raise _signup_required_for_uploads()
 
@@ -244,7 +281,7 @@ async def anonymous_chat_stream(
     messages = [
         {
             "role": message.role if isinstance(message, AnonymousHistoryMessage) else str(message.get("role", "user")),
-            "content": message.content if isinstance(message, AnonymousHistoryMessage) else str(message.get("content", "")),
+            "content": _anonymous_history_content(message),
             "name": message.sender_name if isinstance(message, AnonymousHistoryMessage) else message.get("sender_name"),
         }
         for message in payload.message_history
