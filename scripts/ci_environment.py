@@ -21,7 +21,9 @@ SOURCE = os.environ.get(
     "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
 )
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
-VAULT_INITIALIZE = """import os, pathlib, requests
+VAULT_INITIALIZE = """import asyncio, os, pathlib, requests
+from backend.core.vault.setup.vault_setup.policies import PolicyManager
+from backend.core.api.app.utils.vault_token_check import validate_token_file
 url='http://vault:8200/v1/'
 token=os.environ['VAULT_TOKEN']
 headers={'X-Vault-Token':token}
@@ -31,7 +33,20 @@ for mount,body in [('kv',{'type':'kv','options':{'version':'2'}}),('transit',{'t
 data={'admin_log_api_key':os.environ['INTERNAL_API_SHARED_TOKEN']}
 response=requests.post(url+'kv/data/providers/core_server',headers=headers,json={'data':data},timeout=15)
 response.raise_for_status()
-pathlib.Path('/vault-data/api.token').write_text(token)
+class Client:
+    async def vault_request(self, method, path, data):
+        response=requests.request(method, url+path, headers=headers, json=data, timeout=15)
+        response.raise_for_status()
+async def policies():
+    manager=PolicyManager(Client())
+    assert await manager.create_api_policy(), 'API service policy setup failed'
+    assert await manager.create_api_encryption_policy(), 'API encryption policy setup failed'
+asyncio.run(policies())
+response=requests.post(url+'auth/token/create',headers=headers,json={'policies':['api-service','api-encryption'],'ttl':'2h','renewable':True},timeout=15)
+response.raise_for_status()
+pathlib.Path('/vault-data/api.token').write_text(response.json()['auth']['client_token'])
+validation=asyncio.run(validate_token_file('http://vault:8200','/vault-data/api.token'))
+assert validation.valid, 'Synthetic API token failed canonical startup validation: '+validation.reason
 pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
 """
 

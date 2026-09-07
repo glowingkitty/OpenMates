@@ -53,3 +53,55 @@ def test_named_volumes_have_one_explicit_fixture_writer():
             == "service_completed_successfully"
         )
     assert services["fixture-init"]["volumes"][0]["source"] == "api-cache"
+
+
+def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
+    tmp_path, monkeypatch
+):
+    import httpx
+    import requests
+    from scripts.ci_environment import VAULT_INITIALIZE
+
+    policies = {}
+
+    class Response:
+        status_code = 204
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"auth": {"client_token": "scoped-ci-token"}}
+
+    def request(method, url, **kwargs):
+        if "/sys/policies/acl/" in url:
+            policies[url.rsplit("/", 1)[1]] = kwargs["json"]["policy"]
+        if url.endswith("auth/token/create"):
+            assert set(kwargs["json"]["policies"]) == {"api-service", "api-encryption"}
+            assert kwargs["json"]["ttl"] == "2h"
+        return Response()
+
+    monkeypatch.setattr(requests, "request", request)
+    monkeypatch.setattr(
+        requests, "post", lambda url, **kwargs: request("post", url, **kwargs)
+    )
+
+    def lookup(request):
+        assert request.headers["X-Vault-Token"] == "scoped-ci-token"
+        return httpx.Response(
+            200, json={"data": {"policies": list(policies), "ttl": 7200}}
+        )
+
+    original_client = httpx.AsyncClient
+    monkeypatch.setattr(
+        httpx,
+        "AsyncClient",
+        lambda **kwargs: original_client(transport=httpx.MockTransport(lookup)),
+    )
+    monkeypatch.setenv("VAULT_TOKEN", "synthetic-root-token")
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "synthetic-internal-token")
+    program = VAULT_INITIALIZE.replace("/vault-data/", str(tmp_path) + "/")
+    exec(compile(program, "<ci-vault-init>", "exec"), {})
+    assert (tmp_path / "api.token").read_text() == "scoped-ci-token"
+    assert "transit/encrypt/*" in policies["api-encryption"]
+    assert "kv/data/providers/*" in policies["api-service"]
