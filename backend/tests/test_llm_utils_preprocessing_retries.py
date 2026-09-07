@@ -1,9 +1,11 @@
 # contract-test-file: infrastructure
 # backend/tests/test_llm_utils_preprocessing_retries.py
 #
-# Purpose: ensure bounded output-safety preprocessing returns the first
-# provider failure without automatic provider or same-provider retries.
+# Purpose: ensure bounded output-safety preprocessing controls provider retry
+# behavior and caps the total fallback-chain latency.
 # Architecture: specifications/architecture/app-skill-execution/specification.yml
+
+import asyncio
 
 import pytest
 
@@ -225,3 +227,39 @@ async def test_call_preprocessing_llm_rejects_invalid_reasoning_effort_before_pr
             tool_definition=_tool_definition(),
             reasoning_effort="minimal",
         )
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.output.bounded-failure
+@pytest.mark.anyio
+async def test_call_preprocessing_llm_stops_when_total_retry_budget_is_exhausted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[str] = []
+
+    async def slow_provider(**_kwargs):
+        calls.append("provider")
+        await asyncio.sleep(1)
+        raise AssertionError("provider call should be cancelled by preprocessing timeout")
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _provider_prefix: slow_provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _model_id: (None, None))
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TIMEOUT_SECONDS", 0.02)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TOTAL_TIMEOUT_SECONDS", 0.025, raising=False)
+
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="test",
+        model_id="primary/model",
+        message_history=[{"role": "user", "content": "classify this"}],
+        tool_definition=_tool_definition(),
+        fallback_models=["fallback-one/model", "fallback-two/model"],
+    )
+
+    assert calls == ["provider", "provider"]
+    assert result.error_message is not None
+    assert "Preprocessing retry budget exhausted" in result.error_message

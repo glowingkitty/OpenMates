@@ -26,6 +26,7 @@ from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, _
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
     PREPROCESSING_TIMEOUT_SECONDS,
+    PREPROCESSING_TOTAL_TIMEOUT_SECONDS,
     get_first_chunk_timeout_seconds,
     get_inter_chunk_timeout_seconds,
 )
@@ -1164,8 +1165,29 @@ async def call_preprocessing_llm(
             logger.debug(f"[{task_id}] LLM Utils: Could not check health status for '{provider_id}': {e}. Proceeding with attempt.")
         return False  # If cache miss or error, proceed (don't block on missing health data)
     
+    def _format_timeout_seconds(timeout_seconds: float) -> str:
+        return f"{timeout_seconds:g}"
+
+    preprocessing_started_at = asyncio.get_running_loop().time()
+
+    def _remaining_preprocessing_budget_seconds() -> Optional[float]:
+        if PREPROCESSING_TOTAL_TIMEOUT_SECONDS <= 0:
+            return None
+        elapsed = asyncio.get_running_loop().time() - preprocessing_started_at
+        return PREPROCESSING_TOTAL_TIMEOUT_SECONDS - elapsed
+
+    def _preprocessing_budget_exhausted_error() -> str:
+        return (
+            "Preprocessing retry budget exhausted after "
+            f"{_format_timeout_seconds(PREPROCESSING_TOTAL_TIMEOUT_SECONDS)}s"
+        )
+
     # Helper function to call a single provider
-    async def _call_single_provider(provider_model_id: str, is_last_provider: bool = False) -> LLMPreprocessingCallResult:
+    async def _call_single_provider(
+        provider_model_id: str,
+        is_last_provider: bool = False,
+        timeout_seconds: Optional[float] = None,
+    ) -> LLMPreprocessingCallResult:
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
         provider_prefix = ""
         actual_model_id = provider_model_id
@@ -1246,13 +1268,26 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["max_retries"] = 0
                     if provider_prefix == "groq" and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
+                    effective_timeout = PREPROCESSING_TIMEOUT_SECONDS
+                    if timeout_seconds is not None:
+                        effective_timeout = min(PREPROCESSING_TIMEOUT_SECONDS, max(0.0, timeout_seconds))
+                    if effective_timeout <= 0:
+                        return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
+
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
-                        timeout=PREPROCESSING_TIMEOUT_SECONDS
+                        timeout=effective_timeout
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:
-                    return LLMPreprocessingCallResult(error_message=f"Request timeout after {PREPROCESSING_TIMEOUT_SECONDS}s")
+                    if effective_timeout < PREPROCESSING_TIMEOUT_SECONDS:
+                        return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
+                    return LLMPreprocessingCallResult(
+                        error_message=(
+                            "Request timeout after "
+                            f"{_format_timeout_seconds(PREPROCESSING_TIMEOUT_SECONDS)}s"
+                        )
+                    )
             
             # No provider found
             err_msg_no_provider = (
@@ -1344,6 +1379,7 @@ async def call_preprocessing_llm(
 
     attempted_providers = []
     last_error = None
+    budget_exhausted_error: Optional[str] = None
 
     for provider_idx, provider_model_id in enumerate(providers_to_try):
         # Allow one same-provider retry for wrong-tool errors; infra errors go straight to fallback.
@@ -1353,6 +1389,16 @@ async def call_preprocessing_llm(
 
         attempt = 0
         while attempt < attempts_for_this_provider:
+            remaining_budget_seconds = _remaining_preprocessing_budget_seconds()
+            if remaining_budget_seconds is not None and remaining_budget_seconds <= 0:
+                budget_exhausted_error = _preprocessing_budget_exhausted_error()
+                last_error = budget_exhausted_error
+                logger.warning(
+                    f"[{task_id}] LLM Utils: {budget_exhausted_error}; "
+                    "skipping remaining preprocessing providers."
+                )
+                break
+
             attempt += 1
             attempted_providers.append(provider_model_id)
             logger.info(
@@ -1364,6 +1410,7 @@ async def call_preprocessing_llm(
                 result = await _call_single_provider(
                     provider_model_id,
                     is_last_provider=is_last_provider,
+                    timeout_seconds=remaining_budget_seconds,
                 )
 
             # Success — return immediately.
@@ -1371,6 +1418,15 @@ async def call_preprocessing_llm(
             if result.arguments is not None and not result.error_message:
                 logger.info(f"[{task_id}] LLM Utils: Preprocessing succeeded with provider: {provider_model_id}")
                 return result
+
+            if result.error_message and result.error_message.startswith("Preprocessing retry budget exhausted"):
+                budget_exhausted_error = result.error_message
+                last_error = result.error_message
+                logger.warning(
+                    f"[{task_id}] LLM Utils: {budget_exhausted_error}; "
+                    "stopping preprocessing fallback attempts."
+                )
+                break
 
             if not allow_retries:
                 return result
@@ -1399,11 +1455,21 @@ async def call_preprocessing_llm(
             )
             break  # exit inner while, advance to next provider
 
+        if budget_exhausted_error:
+            break
+
     # All providers (and same-provider retries) exhausted.
-    error_summary = (
-        f"All {len(providers_to_try)} provider(s) failed. "
-        f"Attempted providers: {', '.join(attempted_providers)}. Last error: {last_error}"
-    )
+    attempted_summary = ", ".join(attempted_providers) if attempted_providers else "none"
+    if budget_exhausted_error:
+        error_summary = (
+            f"{budget_exhausted_error}. "
+            f"Attempted providers: {attempted_summary}. Last error: {last_error}"
+        )
+    else:
+        error_summary = (
+            f"All {len(providers_to_try)} provider(s) failed. "
+            f"Attempted providers: {attempted_summary}. Last error: {last_error}"
+        )
     logger.error(f"[{task_id}] LLM Utils: {error_summary}")
     return LLMPreprocessingCallResult(error_message=error_summary)
 

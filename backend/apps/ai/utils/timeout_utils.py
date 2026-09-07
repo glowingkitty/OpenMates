@@ -128,6 +128,16 @@ PREPROCESSING_TIMEOUT_SECONDS = _get_env_float(
     DEFAULT_PREPROCESSING_TIMEOUT_SECONDS,
 )
 
+# Overall wall-clock budget for one preprocessing fallback chain.
+# Keeps a slow primary plus slow fallbacks from delaying signed-in chat for a full
+# per-provider timeout on every configured server. Set <= 0 to disable.
+# Override via env: AI_PREPROCESSING_TOTAL_TIMEOUT_SECONDS
+DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS = 45.0
+PREPROCESSING_TOTAL_TIMEOUT_SECONDS = _get_env_float(
+    "AI_PREPROCESSING_TOTAL_TIMEOUT_SECONDS",
+    DEFAULT_PREPROCESSING_TOTAL_TIMEOUT_SECONDS,
+)
+
 T = TypeVar('T')
 
 
