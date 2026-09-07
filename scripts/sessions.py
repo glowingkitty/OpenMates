@@ -18381,7 +18381,6 @@ def cmd_restore(args: argparse.Namespace) -> None:
             return
 
         # Extract OPE identifiers and fetch Linear titles in batch
-        import re
         ope_ids_per_session = []
         all_ope_ids = set()
         for s in sessions:
@@ -18501,6 +18500,12 @@ def cmd_restore(args: argparse.Namespace) -> None:
             print("  or: python3 scripts/sessions.py restore <session-id> --name my-session --prompt 'custom message'")
         return
 
+    # An explicit selection replaces the old chat profile without banning models.
+    requested_model = getattr(args, "model", None)
+    if requested_model and (getattr(args, "mode", "plan") == "plan" or not re.fullmatch(r"[^/\s]+/[^/\s]+", requested_model)):
+        print("Error: --model requires --mode execute and a provider/model identifier.", file=sys.stderr)
+        sys.exit(1)
+
     # Single session restore
     session_id = args.session_id
     if not session_id:
@@ -18540,6 +18545,9 @@ def cmd_restore(args: argparse.Namespace) -> None:
     prompt = _restore_prompt(restore, prompt)
 
     profile = _opencode_resume_profile(session_id) if getattr(args, "mode", "plan") != "plan" else {}
+    if requested_model:
+        provider_id, model_id = requested_model.split("/", 1)
+        profile.update(provider_id=provider_id, model_id=model_id)
     success = resume_opencode_session(
         session_name=restore_name,
         opencode_session_id=session_id,
@@ -19728,6 +19736,10 @@ def main() -> None:
         choices=["plan", "execute"],
         default="plan",
         help="Permission mode for the resumed session (default: plan)",
+    )
+    p_restore.add_argument(
+        "--model",
+        help="Explicit provider/model for execute resume; otherwise preserve the chat model",
     )
     p_restore.add_argument(
         "--prompt",

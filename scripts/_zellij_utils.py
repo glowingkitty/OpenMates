@@ -34,7 +34,7 @@ OPENCODE_CONTROL_PLANE_RUNTIME = os.environ.get(
     "OPENMATES_CONTROL_PLANE_RUNTIME",
     str(Path(__file__).resolve().parent.parent),
 )
-OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-5.5")
+OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-6-astra")
 OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "xhigh")
 OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
 

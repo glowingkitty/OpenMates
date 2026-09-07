@@ -1,5 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "model": "openai/gpt-6-astra",
   "instructions": [
     "docs/contributing/guides/agent-workflow-core.md"
   ],
