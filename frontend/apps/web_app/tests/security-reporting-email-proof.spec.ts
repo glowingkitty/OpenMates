@@ -41,6 +41,10 @@ test('records synthetic production security email artifacts', async ({ page }, t
   const output = testInfo.outputPath('security-email-artifacts');
   execFileSync('python3', [path.join(ROOT, 'scripts/verify_security_reporting.py'), '--render-proof', '--fixtures', path.join(ROOT, 'scripts/tests/fixtures/security-reporting'), '--output', output], { cwd: ROOT, timeout: 30000 });
   const expectedViewport = DEVICE === 'web-phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 };
+  // The phone proof profile reserves browser chrome in the final 390x844 video.
+  // Match the actual capture viewport so checkpoint pixels attest the recording.
+  expectedViewport.width = Number(process.env.PLAYWRIGHT_VIDEO_WIDTH) || expectedViewport.width;
+  expectedViewport.height = Number(process.env.PLAYWRIGHT_VIDEO_HEIGHT) || expectedViewport.height;
   await page.setViewportSize(expectedViewport);
   const proof = createVideoProofRuntime(CONTRACT, {
     device: DEVICE,
