@@ -1,0 +1,81 @@
+# Isolated GitHub application tests
+
+Implementation status: migration HOLD. The coordinator must not release dependent work until a successful source-bound runner-local pilot and an explicit coverage disposition are recorded. See `docs/plans/isolated-github-tests/plan.yml`.
+
+## Execution and ownership
+
+```mermaid
+flowchart LR
+  W[Preserved Codex worktree] --> U[Local focused unit tests]
+  W --> P[Publish immutable candidate SHA]
+  D[Daily scheduler: exact dev SHA] --> Q[Shared durable CI queue]
+  P --> Q
+  Q --> G[GitHub-hosted VM]
+  G --> H[Versioned CI harness]
+  G --> S[Exact candidate checkout]
+  S --> I[Cached dependency image builds]
+  I --> A[Local API and workers]
+  I --> F[Local web app and browser]
+  A --> DB[Disposable PostgreSQL / CMS / cache / Vault]
+  F --> A
+  A --> T[Fresh real CLI signup and encrypted account state]
+  T --> E[Selected E2E assertions and proof recordings]
+  E --> R[Source-bound result artifact]
+  R --> Q
+  Q --> W
+  E --> X[Delete runtime containers and databases]
+```
+
+The Hetzner host retains source worktrees, focused unit execution, the queue and bounded result artifacts. It does not start candidate Docker stacks. `ci_environment.py` rejects execution outside a GitHub-hosted job before Docker is invoked. Shared dev domains resolve to a rejected loopback endpoint in both the runner and application containers; verification checks the runner's failed HTTPS connection.
+
+The workflow checks out its trusted harness separately from the immutable subject. Old worktrees and reviewed resolved patches may predate CI tooling. The tested subject and harness commits are recorded separately. Image builds and frontend compilation use the subject checkout. Existing build caches accelerate dependencies without substituting stale application source.
+
+## Commands
+
+Focused worktree request, once the migration readiness checkpoint is published:
+
+```sh
+python3 scripts/tests.py run --spec example.spec.ts --session SESSION
+```
+
+A supported old-worktree adoption inserts forwarding before any legacy test preflight. It preserves the existing worktree and dirty source, and saves dispatcher preimages and hashes:
+
+```sh
+python3 scripts/sessions.py ci-adopt --session SESSION
+```
+
+The canonical `ci_dispatch.py` checks `logs/ci-coordinator/cutover.json`; absent readiness fails closed. There is no shared-dev fallback. The retired single-spec workflow also fails explicitly instead of consuming shared accounts or endpoints. Local `--suite pytest` and `--suite vitest` remain available during HOLD.
+
+The implementation pilot uses these lower-level coordinator commands:
+
+```sh
+python3 scripts/sessions.py ci-source --session SESSION
+python3 scripts/ci_coordinator.py submit --session SESSION --source FULL_SHA --spec example.spec.ts
+python3 scripts/ci_coordinator.py status REQUEST_ID
+python3 scripts/ci_coordinator.py result REQUEST_ID
+python3 scripts/ci_coordinator.py health
+```
+
+`status` reads local state only. `result` fetches and validates artifacts once, then returns the cached receipt and GitHub artifact link. Phone and laptop proofs use separate `--proof-video-profile web-phone` / `web-laptop` requests. Review and delivery requirements remain in force; an artifact link alone does not certify a video review.
+
+For a reviewed stale-base patch:
+
+```sh
+python3 scripts/sessions.py ci-source --session SESSION --base REVIEWED_FULL_SHA --resolved-patch REVIEWED_PATCH --patch-sha256 REVIEWED_DIGEST
+```
+
+This publishes a candidate through a temporary index. It does not integrate or deploy the patch to dev, change the original checkout, or solve a separate deploy conflict.
+
+## Queue, cost and retained space
+
+One flocked reconciler dispatches at most four active jobs. Intent is durable before the request; ambiguous dispatches retain their slot and are reconciled rather than resent. Routine status polling is shared at 30 seconds. GitHub request reserve and backoff also apply to artifact retrieval. The coordinator exposes attention states instead of silently rerunning uncertain jobs.
+
+Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub artifact retention is seven days. Local result-cache and candidate-ref retention automation remains pending.
+
+Fresh accounts are created through real CLI signup and security initialization. Generated credentials and client state stay in a private runner directory. The private email verification code is obtained from that account's local cache key; no shared Gmail account is used for account provisioning. This is not a replacement for email-delivery assertions. All-skipped specs cannot pass.
+
+## Coverage and readiness limits
+
+The current portable profile is the self-host edition. It is not equivalent to official-cloud billing, anonymous eligibility or provider-spend enforcement. Cloud-only tests must not silently become self-host tests. Their private-code execution and cost decision is pending. External email, provider, upload and broader worker coverage must be admitted explicitly before complete migration is claimed.
+
+The first pilot failed at concurrent volume initialization; the second completed schema setup but failed at a missing mountpoint beneath a read-only source bind. Both returned honest failure evidence without E2E results. The third pilot repairs the mountpoint. Fresh schema initialization took approximately eight minutes in pilot two; no test-speed improvement is claimed yet.

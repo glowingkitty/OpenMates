@@ -95,6 +95,7 @@ class GitHub:
                     "specs_json": job["specs"],
                     "mode": job["mode"],
                     "dispatch_token": job["token"],
+                    "proof_video_profile": job.get("proof_profile", ""),
                 },
             },
         )
@@ -116,6 +117,17 @@ class Queue:
                     sent REAL, updated REAL NOT NULL, error TEXT);
                 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
             """)
+            columns = {row[1] for row in db.execute("PRAGMA table_info(jobs)")}
+            if "proof_profile" not in columns:
+                try:
+                    db.execute(
+                        "ALTER TABLE jobs ADD COLUMN proof_profile TEXT NOT NULL DEFAULT ''"
+                    )
+                except sqlite3.OperationalError:
+                    if "proof_profile" not in {
+                        row[1] for row in db.execute("PRAGMA table_info(jobs)")
+                    }:
+                        raise
         path.chmod(0o600)
 
     def connect(self):
@@ -124,12 +136,22 @@ class Queue:
         return db
 
     def enqueue(
-        self, owner: str, source: str, specs: list[str], mode="e2e", nonce=""
+        self,
+        owner: str,
+        source: str,
+        specs: list[str],
+        mode="e2e",
+        nonce="",
+        proof_profile="",
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
         if mode not in ("e2e", "pytest", "vitest"):
             raise ValueError("Unknown CI mode")
+        if proof_profile not in ("", "web-phone", "web-laptop") or (
+            proof_profile and mode != "e2e"
+        ):
+            raise ValueError("Invalid proof video profile")
         specs = sorted(set(specs))
         for spec in specs:
             if (
@@ -141,13 +163,14 @@ class Queue:
         if mode == "e2e" and not specs:
             raise ValueError("E2E requests require explicit specs")
         encoded = json.dumps(specs, separators=(",", ":"))
-        key = hashlib.sha256(
-            json.dumps([owner, source, specs, mode, nonce]).encode()
-        ).hexdigest()
+        identity = [owner, source, specs, mode, nonce]
+        if proof_profile:
+            identity.append(proof_profile)
+        key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
             db.execute(
-                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated) VALUES(?,?,?,?,?,?,?, ?,?)",
+                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile) VALUES(?,?,?,?,?,?,?, ?,?,?)",
                 (
                     key,
                     owner,
@@ -158,6 +181,7 @@ class Queue:
                     "queued",
                     now,
                     now,
+                    proof_profile,
                 ),
             )
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone())
@@ -201,7 +225,7 @@ class Queue:
                     )
                 try:
                     budget = github.budget()
-                    if int(budget["remaining"]) < RATE_RESERVE + 3:
+                    if int(budget["remaining"]) < RATE_RESERVE + 5:
                         raise GitHubError(
                             "GitHub request reserve reached", int(budget["reset"]) + 1
                         )
@@ -351,6 +375,9 @@ def main():
     submit.add_argument("--spec", action="append", default=[])
     submit.add_argument("--mode", choices=["e2e", "pytest", "vitest"], default="e2e")
     submit.add_argument("--attempt", default="")
+    submit.add_argument(
+        "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
+    )
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
     result = sub.add_parser("result")
@@ -365,7 +392,12 @@ def main():
         print(
             json.dumps(
                 queue.enqueue(
-                    args.session, args.source, args.spec, args.mode, args.attempt
+                    args.session,
+                    args.source,
+                    args.spec,
+                    args.mode,
+                    args.attempt,
+                    args.proof_video_profile,
                 )
             )
         )

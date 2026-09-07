@@ -47,3 +47,25 @@ def test_selection_reads_immutable_source(tmp_path):
     ) == ["present.spec.ts"]
     with pytest.raises(ValueError, match="Unknown E2E"):
         select_specs(root, SimpleNamespace(spec=["dirty.spec.ts"], daily=False), source)
+
+
+def test_migration_hold_fails_before_source_publication(tmp_path, monkeypatch):
+    from scripts import ci_dispatch
+
+    root = repository(tmp_path)
+    monkeypatch.setattr(
+        ci_dispatch,
+        "ensure_coordinator",
+        lambda *_: pytest.fail("HOLD cannot start a dispatcher"),
+    )
+    with pytest.raises(RuntimeError, match="migration HOLD"):
+        ci_dispatch.run(
+            [
+                "--worktree",
+                str(root),
+                "--session",
+                "fixture",
+                "--spec",
+                "present.spec.ts",
+            ]
+        )

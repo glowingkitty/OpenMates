@@ -17,7 +17,9 @@ import subprocess
 import sys
 
 MIB = 1024**2
-SOURCE = str(Path(__file__).resolve().parent.parent)
+SOURCE = os.environ.get(
+    "OPENMATES_CI_SOURCE_ROOT", str(Path(__file__).resolve().parent.parent)
+)
 QUEUES = "persistence,health_check,server_stats,user_init,user_tasks,email,push"
 VAULT_INITIALIZE = """import os, pathlib, requests
 url='http://vault:8200/v1/'
@@ -316,6 +318,10 @@ def main():
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
         data = compose_profile(source)
+        # Docker cannot create nested mountpoints inside a read-only bind.
+        # These ignored directories contain only runner-local runtime output.
+        for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
+            (Path(SOURCE) / relative).mkdir(parents=True, exist_ok=True)
         COMPOSE_PATH.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         COMPOSE_PATH.write_text(json.dumps(data))
         COMPOSE_PATH.chmod(0o600)
@@ -323,6 +329,7 @@ def main():
             "source_commit": source,
             "run_id": os.environ["GITHUB_RUN_ID"],
             "environment": "github-isolated",
+            "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         }
         (Path(SOURCE) / "test-results/ci-environment.json").write_text(
             json.dumps(evidence)
@@ -376,6 +383,22 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
+            if service in ("api", "core-worker"):
+                mounts = [
+                    mount
+                    for mount in info["Mounts"]
+                    if mount["Destination"] == "/app/backend"
+                ]
+                if (
+                    len(mounts) != 1
+                    or Path(mounts[0]["Source"]).resolve()
+                    != Path(SOURCE, "backend").resolve()
+                    or mounts[0]["RW"]
+                ):
+                    raise RuntimeError(
+                        "Backend must mount the exact candidate source read-only"
+                    )
+                identities[service]["backend_source"] = mounts[0]["Source"]
         evidence.update(
             services=identities,
             api_url="http://localhost:8000",

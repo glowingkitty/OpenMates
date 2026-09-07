@@ -91,6 +91,18 @@ def fetch(github, job: dict, root: Path) -> dict:
         return json.loads(receipt.read_text())
     if not job["run_id"] or job["state"] not in ("success", "failure", "cancelled"):
         raise RuntimeError("CI job has no terminal result yet")
+    run = github.request(f"repos/{github.repo}/actions/runs/{job['run_id']}")
+    runner_jobs = github.request(
+        f"repos/{github.repo}/actions/runs/{job['run_id']}/jobs?per_page=100"
+    )["jobs"]
+    if not runner_jobs or any(
+        "ubuntu-latest" not in entry.get("labels", [])
+        or not entry.get("runner_name", "").startswith("GitHub Actions")
+        for entry in runner_jobs
+    ):
+        raise RuntimeError(
+            "Test evidence did not execute exclusively on GitHub-hosted runners"
+        )
     artifacts = github.request(
         f"repos/{github.repo}/actions/runs/{job['run_id']}/artifacts?per_page=100"
     )["artifacts"]
@@ -127,25 +139,62 @@ def fetch(github, job: dict, root: Path) -> dict:
         candidates = list(extracted.rglob("ci-results.json"))
         environment = list(extracted.rglob("ci-environment.json"))
         report = json.loads(candidates[0].read_text()) if len(candidates) == 1 else None
-        identity = report or (
+        environment_data = (
             json.loads(environment[0].read_text()) if len(environment) == 1 else {}
         )
+        identity = report or environment_data
         if identity.get("source_commit") != job["source"] or str(
             identity.get("run_id")
         ) != str(job["run_id"]):
             raise RuntimeError("CI artifact source/run identity mismatch")
         if job["state"] == "success" and (
-            not report or report.get("success") is not True
+            not report or report.get("success") is not True or not report.get("results")
         ):
             raise RuntimeError(
                 "Green GitHub job lacks passing source-bound test evidence"
             )
+        if report and (
+            report.get("harness_commit") != run["head_sha"]
+            or report.get("proof_profile", "") != job.get("proof_profile", "")
+        ):
+            raise RuntimeError(
+                "CI harness or requested proof profile identity mismatch"
+            )
+        if job["state"] == "success" and job.get("mode") == "e2e":
+            if (
+                environment_data.get("source_commit") != job["source"]
+                or environment_data.get("frontend", {}).get("source_commit")
+                != job["source"]
+                or environment_data.get("shared_dev_https") != "rejected"
+                or not environment_data.get("services")
+            ):
+                raise RuntimeError(
+                    "Green E2E lacks runner-local source and egress evidence"
+                )
+            expected_specs = sorted(json.loads(job["specs"]))
+            if (
+                sorted(result.get("spec", "") for result in report["results"])
+                != expected_specs
+            ):
+                raise RuntimeError(
+                    "Result does not cover the exact requested spec inventory"
+                )
         result = {
             "id": job["id"],
             "source_commit": job["source"],
             "run_id": job["run_id"],
             "state": job["state"],
+            "harness_commit": run["head_sha"],
+            "runner_jobs": [
+                {
+                    "id": entry["id"],
+                    "labels": entry["labels"],
+                    "runner_name": entry["runner_name"],
+                }
+                for entry in runner_jobs
+            ],
             "report": report,
+            "environment": environment_data,
             "artifact_id": artifact["id"],
             "artifact_url": f"{job['url']}/artifacts/{artifact['id']}",
             "directory": str(destination),

@@ -28,7 +28,12 @@ def git(root, *args, env=None, input=None):
 
 def reviewed_paths(root: Path, session_files: list[str]) -> list[str]:
     changed = set(git(root, "diff", "HEAD", "--name-only", "-z").split("\0")) - {""}
-    changed.update(name for name in session_files if (root / name).is_file())
+    tracked = set(git(root, "ls-files", "-z").split("\0"))
+    changed.update(
+        name
+        for name in session_files
+        if name not in tracked and (root / name).is_file()
+    )
     safe = []
     for name in sorted(changed):
         path = source_path(name)

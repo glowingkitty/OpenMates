@@ -23,6 +23,9 @@ on:
       dispatch_token:
         required: true
         type: string
+      proof_video_profile:
+        type: string
+        default: ''
 permissions:
   contents: read
 jobs:
@@ -30,9 +33,15 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: subject
     env:
       CI: 'true'
       OPENMATES_CI_ISOLATED: '1'
+      OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
+      CI_HARNESS_COMMIT: ${{ github.sha }}
+      PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
       OPENMATES_E2E_API_URL: http://localhost:8000
       OPENMATES_API_URL: http://localhost:8000
@@ -46,6 +55,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.checkout_ref }}
+          path: subject
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: tooling
+          sparse-checkout: scripts
           persist-credentials: false
       - name: Verify exact source and isolated endpoints
         env:
@@ -60,10 +76,13 @@ jobs:
           echo "BUILD_COMMIT_SHA=$EXPECTED_SOURCE" >> "$GITHUB_ENV"
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: subject/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
           cache: pnpm
+          cache-dependency-path: subject/pnpm-lock.yaml
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
@@ -74,15 +93,15 @@ jobs:
         if: inputs.mode == 'e2e'
         run: |
           node frontend/packages/ui/scripts/build-translations.js
-          python3 scripts/ci_environment.py prepare
+          python3 ../tooling/scripts/ci_environment.py prepare
       - uses: docker/setup-buildx-action@v3
         if: inputs.mode == 'e2e'
       - name: Build cached API dependencies and current source
         if: inputs.mode == 'e2e'
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: backend/core/api/Dockerfile
+          context: ./subject
+          file: ./subject/backend/core/api/Dockerfile
           load: true
           tags: openmates-ci-api:local
           cache-from: type=gha,scope=ci-api
@@ -91,7 +110,7 @@ jobs:
         if: inputs.mode == 'e2e'
         uses: docker/build-push-action@v6
         with:
-          context: backend/core/directus
+          context: ./subject/backend/core/directus
           load: true
           tags: openmates-ci-cms:local
           cache-from: type=gha,scope=ci-cms
@@ -100,7 +119,7 @@ jobs:
         if: inputs.mode == 'e2e'
         uses: docker/build-push-action@v6
         with:
-          context: backend/core/directus/setup
+          context: ./subject/backend/core/directus/setup
           load: true
           tags: openmates-ci-setup:local
           cache-from: type=gha,scope=ci-setup
@@ -114,34 +133,34 @@ jobs:
       - name: Start isolated backend
         if: inputs.mode == 'e2e'
         run: |
-          python3 scripts/ci_environment.py start
-          python3 scripts/ci_environment.py verify
+          python3 ../tooling/scripts/ci_environment.py start
+          python3 ../tooling/scripts/ci_environment.py verify
       - name: Install browser
         if: inputs.mode == 'e2e'
-        working-directory: frontend/apps/web_app
+        working-directory: subject/frontend/apps/web_app
         run: npx playwright install --with-deps chromium
       - name: Run selected checks
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
-        run: python3 scripts/ci_run_tests.py
+        run: python3 ../tooling/scripts/ci_run_tests.py
       - name: Collect bounded stack diagnostics
         if: always() && inputs.mode == 'e2e'
-        run: python3 scripts/ci_environment.py logs
+        run: python3 ../tooling/scripts/ci_environment.py logs
       - name: Remove disposable containers and databases
         if: always() && inputs.mode == 'e2e'
-        run: python3 scripts/ci_environment.py stop
+        run: python3 ../tooling/scripts/ci_environment.py stop
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: isolated-test-results
           retention-days: 7
           path: |
-            test-results/ci-environment.json
-            test-results/ci-stack.log
-            test-results/ci-results.json
-            test-results/ci-spec-*.json
-            test-results/ci-pytest.json
-            test-results/ci-web.log
-            frontend/apps/web_app/test-results/
+            subject/test-results/ci-environment.json
+            subject/test-results/ci-stack.log
+            subject/test-results/ci-results.json
+            subject/test-results/ci-spec-*.json
+            subject/test-results/ci-pytest.json
+            subject/test-results/ci-web.log
+            subject/frontend/apps/web_app/test-results/
           if-no-files-found: error

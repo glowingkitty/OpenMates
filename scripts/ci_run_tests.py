@@ -9,6 +9,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from pathlib import Path
 import secrets
@@ -151,6 +152,20 @@ def wait_web(child):
         try:
             with urllib.request.urlopen(APP, timeout=2) as response:
                 if response.status == 200:
+                    body = response.read()
+                    built = WEB / "build/index.html"
+                    if body != built.read_bytes():
+                        raise RuntimeError(
+                            "Served frontend differs from the candidate build"
+                        )
+                    evidence_path = RESULTS / "ci-environment.json"
+                    evidence = json.loads(evidence_path.read_text())
+                    evidence["frontend"] = {
+                        "url": APP,
+                        "source_commit": evidence["source_commit"],
+                        "served_index_sha256": hashlib.sha256(body).hexdigest(),
+                    }
+                    evidence_path.write_text(json.dumps(evidence, indent=2))
                     return
         except OSError:
             pass
@@ -328,6 +343,8 @@ def main():
         ).strip(),
         "run_id": os.environ["GITHUB_RUN_ID"],
         "environment": "github-isolated",
+        "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
+        "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),
         "results": results,
         "error": error,
         "success": bool(results)

@@ -66,3 +66,75 @@ def test_download_stall_has_deadline(tmp_path, monkeypatch):
             tmp_path,
             io.BytesIO(),
         )
+
+
+@pytest.mark.parametrize("fault", ["", "source", "harness", "empty", "runner"])
+def test_result_binds_subject_harness_runner_and_execution(
+    tmp_path, monkeypatch, fault
+):
+    import json
+
+    source = "a" * 40
+    harness = "b" * 40
+    report = {
+        "source_commit": "c" * 40 if fault == "source" else source,
+        "run_id": "7",
+        "success": True,
+        "results": [] if fault == "empty" else [{"exit_code": 0}],
+        "harness_commit": "c" * 40 if fault == "harness" else harness,
+    }
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w") as bundle:
+        bundle.writestr("ci-results.json", json.dumps(report))
+    monkeypatch.setattr(
+        ci_results,
+        "download",
+        lambda command, root, output: output.write(archive.getvalue()),
+    )
+    monkeypatch.setattr(ci_results, "RESERVE", 0)
+
+    class Remote:
+        repo = "example/repo"
+
+        def request(self, endpoint):
+            if "/artifacts?" in endpoint:
+                return {
+                    "artifacts": [
+                        {
+                            "name": "isolated-test-results",
+                            "expired": False,
+                            "id": 8,
+                            "size_in_bytes": len(archive.getvalue()),
+                        }
+                    ]
+                }
+            if "/jobs?" in endpoint:
+                return {
+                    "jobs": [
+                        {
+                            "id": 9,
+                            "labels": ["self-hosted"]
+                            if fault == "runner"
+                            else ["ubuntu-latest"],
+                            "runner_name": "GitHub Actions 9",
+                        }
+                    ]
+                }
+            return {"head_sha": harness}
+
+    job = {
+        "id": "request",
+        "source": source,
+        "run_id": 7,
+        "state": "success",
+        "url": "https://example.test/7",
+    }
+    if fault:
+        with pytest.raises(RuntimeError):
+            ci_results.fetch(Remote(), job, tmp_path)
+        assert not (tmp_path / "test-results/ci-runs/request/receipt.json").exists()
+    else:
+        result = ci_results.fetch(Remote(), job, tmp_path)
+        assert result["source_commit"] == source
+        assert result["harness_commit"] == harness
+        assert result["artifact_url"].endswith("/artifacts/8")

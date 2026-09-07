@@ -140,6 +140,9 @@ def run(argv: list[str]) -> int:
     )
     parser.add_argument("--require-exact-commit", action="store_true")
     parser.add_argument("--no-fail-fast", action="store_true")
+    parser.add_argument(
+        "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
+    )
     args = parser.parse_args(argv)
     root = (
         args.worktree.resolve()
@@ -177,6 +180,14 @@ def run(argv: list[str]) -> int:
             return 1
         if args.suite != "all":
             return 0
+    readiness = canonical / "logs/ci-coordinator/cutover.json"
+    if (
+        not readiness.is_file()
+        or json.loads(readiness.read_text()).get("ready") is not True
+    ):
+        raise RuntimeError(
+            "Isolated GitHub CI migration HOLD: runner-local pilot is not verified. Shared-dev and self-hosted-runner fallback are forbidden. Local unit tests remain available."
+        )
     if args.source:
         source = subprocess.check_output(
             ["git", "rev-parse", args.source + "^{commit}"], cwd=root, text=True
@@ -227,7 +238,12 @@ def run(argv: list[str]) -> int:
         for index in range(0, len(specs), BATCH_SIZE):
             jobs.append(
                 queue.enqueue(
-                    owner, source, specs[index : index + BATCH_SIZE], "e2e", attempt
+                    owner,
+                    source,
+                    specs[index : index + BATCH_SIZE],
+                    "e2e",
+                    attempt,
+                    args.proof_video_profile,
                 )
             )
     ensure_coordinator(canonical)

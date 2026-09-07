@@ -123,3 +123,15 @@ def test_result_rate_reserve_and_cached_receipt(tmp_path):
     receipt.write_text(json.dumps({"cached": True}))
     remote.budget = lambda: pytest.fail("Cached evidence must not query GitHub")
     assert q.result(remote, job["id"], tmp_path, None) == {"cached": True}
+
+
+def test_proof_profiles_have_distinct_idempotent_requests(tmp_path):
+    q = Queue(tmp_path / "queue.db")
+    ordinary = q.enqueue("a", "a" * 40, ["x.spec.ts"])
+    phone = q.enqueue("a", "a" * 40, ["x.spec.ts"], proof_profile="web-phone")
+    laptop = q.enqueue("a", "a" * 40, ["x.spec.ts"], proof_profile="web-laptop")
+    assert len({ordinary["id"], phone["id"], laptop["id"]}) == 3
+    assert (
+        q.enqueue("a", "a" * 40, ["x.spec.ts"], proof_profile="web-phone")["id"]
+        == phone["id"]
+    )

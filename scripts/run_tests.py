@@ -39,6 +39,22 @@ Architecture: docs/architecture/test-orchestration.md
 
 from __future__ import annotations
 
+# BEGIN OPENMATES CANONICAL CI DISPATCH
+if __name__ == "__main__":
+    import os as _ci_os
+    import sys as _ci_sys
+    import subprocess as _ci_subprocess
+    from pathlib import Path as _CiPath
+    if True:
+        _ci_checkout = _CiPath(__file__).resolve().parent.parent
+        _ci_common = _ci_subprocess.check_output(["git", "rev-parse", "--git-common-dir"], cwd=_ci_checkout, text=True).strip()
+        _ci_root = (_ci_checkout / _ci_common).resolve().parent
+        _ci_dispatch = _ci_root / "scripts/ci_dispatch.py"
+        if not _ci_dispatch.is_file():
+            raise SystemExit("Canonical isolated CI dispatcher is unavailable; shared-dev fallback is forbidden")
+        _ci_os.execv(_ci_sys.executable, [_ci_sys.executable, str(_ci_dispatch), "--worktree", str(_ci_checkout), *_ci_sys.argv[1:]])
+# END OPENMATES CANONICAL CI DISPATCH
+
 import argparse
 import fcntl
 import asyncio

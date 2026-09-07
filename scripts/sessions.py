@@ -10530,6 +10530,33 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
     print(json.dumps(result, sort_keys=True))
 
 
+def cmd_ci_adopt(args: argparse.Namespace) -> None:
+    """Forward existing worktree dispatchers without replacing their dirty patches."""
+    from ci_entrypoint import install
+
+    sessions = _load_sessions().get("sessions", {})
+    session = sessions.get(args.session)
+    if not session:
+        raise RuntimeError("CI adoption requires an existing session")
+    root = _session_checkout_root(session)
+    if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
+        raise RuntimeError("CI adoption requires the preserved managed worktree")
+    for path in ("scripts/tests.py", "scripts/run_tests.py"):
+        conflict = _manual_write_claim_conflict(path, args.session, sessions)
+        if conflict:
+            raise RuntimeError(conflict)
+    checkpoint = CONTROL_PLANE_ROOT / "logs/ci-coordinator/adoptions" / args.session
+    checkpoint.mkdir(parents=True, exist_ok=True)
+    # Retain exact preimages before the small forwarder insertion.
+    for name in ("tests.py", "run_tests.py"):
+        data = (root / "scripts" / name).read_bytes()
+        digest = hashlib.sha256(data).hexdigest()
+        (checkpoint / f"{name}.{digest}.before").write_bytes(data)
+    result = {"session": args.session, "worktree": str(root), "files": install(root)}
+    (checkpoint / "checkpoint.json").write_text(json.dumps(result, indent=2))
+    print(json.dumps(result, sort_keys=True))
+
+
 def cmd_update(args: argparse.Namespace) -> None:
     """Update a session's task description."""
     data = _load_sessions()
@@ -19129,6 +19156,8 @@ def main() -> None:
     p_ci_source.add_argument("--base", help="Exact reviewed base for a resolved candidate patch")
     p_ci_source.add_argument("--resolved-patch", help="Reviewed patch; applied only to a temporary index")
     p_ci_source.add_argument("--patch-sha256", help="Required exact digest of the reviewed resolved patch")
+    p_ci_adopt = sub.add_parser("ci-adopt", help="Install canonical CI forwarding in an existing session worktree")
+    p_ci_adopt.add_argument("--session", required=True)
 
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
@@ -20104,6 +20133,7 @@ def main() -> None:
         "claim": cmd_claim,
         "release": cmd_release,
         "ci-source": cmd_ci_source,
+        "ci-adopt": cmd_ci_adopt,
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
