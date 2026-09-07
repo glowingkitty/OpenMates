@@ -7,31 +7,36 @@ scope:
   in:
   - Durable Codex identity and reuse of one managed worktree per writing task.
   - Structured on-demand private API/CMS/Postgres/cache/worker environments.
-  - Atomic memory and disk admission; >=30 GiB disk reserve; durable waiting and safe cleanup.
+  - Atomic memory and disk admission; >=30 GiB disk reserve; durable waiting and safe
+    cleanup.
   - Verified routing, environment-bound evidence, reconciliation and staged rollout.
   out:
-  - 'Resuming OpenCode tasks or launching orchestration: owned by the separate daily coordinator.'
+  - 'Resuming OpenCode tasks or launching orchestration: owned by the separate daily
+    coordinator.'
   - 'Product Specifications: user explicitly excludes engineering workflows.'
-  - Production changes, cloning live user databases, automatic deletion of source worktrees.
+  - Production changes, cloning live user databases, automatic deletion of source
+    worktrees.
 authorization:
   source: User confirmed content and instructed implementation on 2026-09-07.
   specification_required: false
   reason: User explicitly limits Specifications to OpenMates product features.
   additional_plan_approval_required: false
 architecture:
-  authority: Extend sessions.py and engineering_control_plane; existing OpenMates server CLI remains lifecycle
-    authority.
-  identity: Codex task + host + repository; child inherits parent binding; explicit existing-session adoption
-    preserves historic metadata.
-  admission: Reserve maximum outstanding growth atomically; recheck on release and periodic reconciliation;
-    no shared-dev fallback.
-  cleanup: Successful lease saves evidence then deletes disposable environment; failure stops containers
-    and retains bounded data, charged against disk. Unknown/live ownership is never pruned.
-  rollout: One environment plus one heavy build; second enabled only after measured concurrent peaks and
-    enforcement proof.
-  verification: Immutable source/build/runtime identity and explicit matching endpoints; no stale epoch
-    evidence.
-  rollback: Disable new admission, drain or retain owned resources, use explicit shared-dev leases.
+  authority: Extend sessions.py and engineering_control_plane; existing OpenMates
+    server CLI remains lifecycle authority.
+  identity: Codex task + host + repository; child inherits parent binding; explicit
+    existing-session adoption preserves historic metadata.
+  admission: Reserve maximum outstanding growth atomically; recheck on release and
+    periodic reconciliation; no shared-dev fallback.
+  cleanup: Successful lease saves evidence then deletes disposable environment; failure
+    stops containers and retains bounded data, charged against disk. Unknown/live
+    ownership is never pruned.
+  rollout: One environment plus one heavy build; second enabled only after measured
+    concurrent peaks and enforcement proof.
+  verification: Immutable source/build/runtime identity and explicit matching endpoints;
+    no stale epoch evidence.
+  rollback: Disable new admission, drain or retain owned resources, use explicit shared-dev
+    leases.
 discovery:
   related_plans:
   - agent-worktree-deploy
@@ -44,61 +49,66 @@ discovery:
   host_findings:
   - ext4 rw,relatime; quota support not enabled/verified
   - Docker overlay2; current task user belongs to docker group
-  - Previous snapshot ~68 GiB disk available and ~20 GiB RAM available; snapshots are not peak guarantees
+  - Previous snapshot ~68 GiB disk available and ~20 GiB RAM available; snapshots
+    are not peak guarantees
   risks:
   - Direct Docker access bypasses hook enforcement.
   - A free-space preflight cannot bound subsequent writes.
   - Shared frontend/test dispatcher currently assumes fixed dev URLs.
-  - Other coordinator owns recovered tasks and may use shared dev; preserve runtime leases.
+  - Other coordinator owns recovered tasks and may use shared dev; preserve runtime
+    leases.
 verification_strategy:
   red_first: true
-  unit: Focused Python orchestration tests and existing CLI tests; no live Docker mutations in fixture
-    tests.
-  runtime: Actual Codex shell/edit/child probes; concurrent request, restart, cleanup and cross-environment
-    tests.
-  capacity: Verify enforced storage budgets and memory caps before isolated admission; test races and
-    outstanding reservation accounting.
-  surfaces: Internal engineering tooling, no new product REST/SDK/web/Apple surface; validate actual server
-    CLI lifecycle where extended.
-  completion: All slices implemented and applicable real runtime checks passed; do not equate disabled
-    admission with completed rollout.
+  unit: Focused Python orchestration tests and existing CLI tests; no live Docker
+    mutations in fixture tests.
+  runtime: Actual Codex shell/edit/child probes; concurrent request, restart, cleanup
+    and cross-environment tests.
+  capacity: Verify enforced storage budgets and memory caps before isolated admission;
+    test races and outstanding reservation accounting.
+  surfaces: Internal engineering tooling, no new product REST/SDK/web/Apple surface;
+    validate actual server CLI lifecycle where extended.
+  completion: All slices implemented and applicable real runtime checks passed; do
+    not equate disabled admission with completed rollout.
   current_evidence:
-    combined_python: 62 passed at d3f5cb4780a18dc01862a72f2018a3a17ad95112; additional stale/retired-owner
-      regressions in progress.
+    combined_python: 62 passed at d3f5cb4780a18dc01862a72f2018a3a17ad95112; additional
+      stale/retired-owner regressions in progress.
     cli_server: 101 passed
-    postgres_capacity: Two concurrent requests admit one; restart preserves ledger; release admits waiter;
-      retry creates no duplicate; temporary schema removed.
-    hook_adapter: Installed Codex shell without workdir and relative apply_patch routed to agent-ecad
-      at d3f5cb4780a18dc01862a72f2018a3a17ad95112; root untouched; synthetic file removed.
-    postgres_handoff: 16 concurrent publications reused one event; response retry and retained expiry
-      reused it; actual retention deletion permitted republication, requiring independent consumer ownership.
-      Disposable schema removed.
+    postgres_capacity: Two concurrent requests admit one; restart preserves ledger;
+      release admits waiter; retry creates no duplicate; temporary schema removed.
+    hook_adapter: Installed Codex shell without workdir and relative apply_patch routed
+      to agent-ecad at d3f5cb4780a18dc01862a72f2018a3a17ad95112; root untouched; synthetic
+      file removed.
+    postgres_handoff: 16 concurrent publications reused one event; response retry
+      and retained expiry reused it; actual retention deletion permitted republication,
+      requiring independent consumer ownership. Disposable schema removed.
 handoff:
   session: ecad
-  next: Complete retired-owner binding guard; private broker/provisioning remains the next runtime stage.
+  next: Complete retired-owner binding guard; private broker/provisioning remains
+    the next runtime stage.
   completed:
   - Removed rejected workflow Specification and uploaded/local PDF.
   - Codex binding and explicit adoption implemented; own ecad binding preserved.
   - Hook routing adapter and shared denial aggregation implemented.
   - Task-owned protected handoff hunks integrated without replacing worker files.
-  - Resource reducer and PostgreSQL adapter implemented; real isolated-schema race/restart/release probe
-    passed.
+  - Resource reducer and PostgreSQL adapter implemented; real isolated-schema race/restart/release
+    probe passed.
   - Task environment CLI target rejects while broker is unavailable.
   pending:
-  - Actual child execution proof when a worker slot is available; installed parent shell/patch passed.
+  - Actual child execution proof when a worker slot is available; installed parent
+    shell/patch passed.
   - Private runtime provisioning and privileged broker/storage enforcement.
   - Environment-bound dispatcher integration and live isolated pilot.
-  - Trusted product eligibility and automatic assignment producer/consumer remain a separate Task dependency;
-    reviewed contract at coordinator checkpoint.
+  - Trusted product eligibility and automatic assignment producer/consumer remain
+    a separate Task dependency; reviewed contract at coordinator checkpoint.
   current_task_id: TASK-1
-  next_action: Deploy final binding hardening and PostgreSQL event probe, then prepare bounded host runtime
-    provisioning.
+  next_action: Deploy final binding hardening and PostgreSQL event probe, then prepare
+    bounded host runtime provisioning.
   command: python3 scripts/sessions.py prepare-deploy --session ecad
-  expected_outcome: Review exact scoped files; preserve Task worker original patches and shared runtime
-    slot.
+  expected_outcome: Review exact scoped files; preserve Task worker original patches
+    and shared runtime slot.
   last_verified_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
-  host_activation_constraint: sudo -n requires a password. No OS changes or shared-dev restart performed;
-    broker activation needs a concrete operator-run setup step.
+  host_activation_constraint: sudo -n requires a password. No OS changes or shared-dev
+    restart performed; broker activation needs a concrete operator-run setup step.
 tasks:
 - id: TASK-1
   title: Codex identity and managed workspace reuse
@@ -218,8 +228,8 @@ scenarios:
   when:
   - Codex identity and managed workspace reuse
   then:
-  - Repeated Codex starts resolve one repository session; explicit adopted worktrees retain unique changes
-    and task metadata.
+  - Repeated Codex starts resolve one repository session; explicit adopted worktrees
+    retain unique changes and task metadata.
 - id: S-2
   title: Durable resource admission and cleanup accounting
   given:
@@ -227,8 +237,8 @@ scenarios:
   when:
   - Durable resource admission and cleanup accounting
   then:
-  - Concurrent admission cannot overcommit RAM or the 30 GiB disk reserve; restart preserves reservations
-    and queue order.
+  - Concurrent admission cannot overcommit RAM or the 30 GiB disk reserve; restart
+    preserves reservations and queue order.
 - id: S-3
   title: Private runtime lifecycle and enforced resource boundaries
   given:
@@ -236,8 +246,8 @@ scenarios:
   when:
   - Private runtime lifecycle and enforced resource boundaries
   then:
-  - Private runtime jobs, rows and files cannot cross environments; unsupported storage or Docker mediation
-    blocks admission.
+  - Private runtime jobs, rows and files cannot cross environments; unsupported storage
+    or Docker mediation blocks admission.
 - id: S-4
   title: Environment-bound verification and interruption recovery
   given:
@@ -245,7 +255,8 @@ scenarios:
   when:
   - Environment-bound verification and interruption recovery
   then:
-  - Mixed endpoints and stale source/runtime epochs reject verification; disconnect preserves live testing.
+  - Mixed endpoints and stale source/runtime epochs reject verification; disconnect
+    preserves live testing.
 - id: S-5
   title: Installed Codex proof, isolated pilot and rollout
   given:
@@ -253,12 +264,13 @@ scenarios:
   when:
   - Installed Codex proof, isolated pilot and rollout
   then:
-  - Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency preserve the reserve.
+  - Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency
+    preserve the reserve.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
-  text: Repeated Codex starts resolve one repository session; explicit adopted worktrees retain unique
-    changes and task metadata.
+  text: Repeated Codex starts resolve one repository session; explicit adopted worktrees
+    retain unique changes and task metadata.
   required: true
   status: pending
   coverage_status: covered
@@ -267,8 +279,8 @@ acceptance_criteria:
   - T-SLICE-1
 - id: AC-2
   scenario: S-2
-  text: Concurrent admission cannot overcommit RAM or the 30 GiB disk reserve; restart preserves reservations
-    and queue order.
+  text: Concurrent admission cannot overcommit RAM or the 30 GiB disk reserve; restart
+    preserves reservations and queue order.
   required: true
   status: pending
   coverage_status: covered
@@ -277,8 +289,8 @@ acceptance_criteria:
   - T-SLICE-2
 - id: AC-3
   scenario: S-3
-  text: Private runtime jobs, rows and files cannot cross environments; unsupported storage or Docker
-    mediation blocks admission.
+  text: Private runtime jobs, rows and files cannot cross environments; unsupported
+    storage or Docker mediation blocks admission.
   required: true
   status: pending
   coverage_status: covered
@@ -287,8 +299,8 @@ acceptance_criteria:
   - T-SLICE-3
 - id: AC-4
   scenario: S-4
-  text: Mixed endpoints and stale source/runtime epochs reject verification; disconnect preserves live
-    testing.
+  text: Mixed endpoints and stale source/runtime epochs reject verification; disconnect
+    preserves live testing.
   required: true
   status: pending
   coverage_status: covered
@@ -297,8 +309,8 @@ acceptance_criteria:
   - T-SLICE-4
 - id: AC-5
   scenario: S-5
-  text: Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency preserve the
-    reserve.
+  text: Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency
+    preserve the reserve.
   required: true
   status: pending
   coverage_status: covered
@@ -311,8 +323,8 @@ tests:
   file: scripts/tests/test_sessions_codex_binding.py
   command: python3 -m pytest scripts/tests/test_sessions_codex_binding.py
   assertions:
-  - Repeated Codex starts resolve one repository session; explicit adopted worktrees retain unique changes
-    and task metadata.
+  - Repeated Codex starts resolve one repository session; explicit adopted worktrees
+    retain unique changes and task metadata.
   covers:
   - AC-1
   red_phase:
@@ -334,14 +346,15 @@ tests:
       run_id: ecad-green-1
       subject_commit: d1d67dd98efeacdd29b62493b6b2766bed01a56e
       timestamp: '2026-09-07T18:52:12.963599+00:00'
-      summary: Focused checks passed on working-tree changes; full rollout criterion remains pending.
+      summary: Focused checks passed on working-tree changes; full rollout criterion
+        remains pending.
 - id: T-SLICE-2
   type: pytest
   file: backend/engineering_control_plane/tests/test_runtime_capacity.py
   command: python3 -m pytest backend/engineering_control_plane/tests/test_runtime_capacity.py
   assertions:
-  - Concurrent admission cannot overcommit RAM or the 30 GiB disk reserve; restart preserves reservations
-    and queue order.
+  - Concurrent admission cannot overcommit RAM or the 30 GiB disk reserve; restart
+    preserves reservations and queue order.
   covers:
   - AC-2
   red_phase:
@@ -363,14 +376,15 @@ tests:
       run_id: ecad-green-2
       subject_commit: d1d67dd98efeacdd29b62493b6b2766bed01a56e
       timestamp: '2026-09-07T18:52:12.963599+00:00'
-      summary: Focused checks passed on working-tree changes; full rollout criterion remains pending.
+      summary: Focused checks passed on working-tree changes; full rollout criterion
+        remains pending.
 - id: T-SLICE-3
   type: manual
   file: frontend/packages/openmates-cli/src/server.test.ts
   command: Run actual CLI/runtime isolation probe and retain sanitized evidence
   assertions:
-  - Private runtime jobs, rows and files cannot cross environments; unsupported storage or Docker mediation
-    blocks admission.
+  - Private runtime jobs, rows and files cannot cross environments; unsupported storage
+    or Docker mediation blocks admission.
   covers:
   - AC-3
   red_phase:
@@ -386,7 +400,8 @@ tests:
   file: scripts/tests/test_sessions_docker_orchestration.py
   command: python3 -m pytest scripts/tests/test_sessions_docker_orchestration.py
   assertions:
-  - Mixed endpoints and stale source/runtime epochs reject verification; disconnect preserves live testing.
+  - Mixed endpoints and stale source/runtime epochs reject verification; disconnect
+    preserves live testing.
   covers:
   - AC-4
   red_phase:
@@ -402,7 +417,8 @@ tests:
   file: scripts/verify_codex_runtime.py
   command: Run actual CLI/runtime isolation probe and retain sanitized evidence
   assertions:
-  - Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency preserve the reserve.
+  - Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency
+    preserve the reserve.
   covers:
   - AC-5
   red_phase:
@@ -418,7 +434,8 @@ implementation_state:
 approvals:
   specification:
     status: not_required
-    reason: 'Explicit user correction: Specifications are product-only, not engineering workflows.'
+    reason: 'Explicit user correction: Specifications are product-only, not engineering
+      workflows.'
   plan:
     status: approved
     approved_at: '2026-09-07'
@@ -438,6 +455,11 @@ attempts:
 - id: A-2
   task_id: TASK-2
   outcome: succeeded
-  approach: Actual PostgreSQL isolated-schema race, process-style repository reopen, release and retry
-    probe. No runtime restart.
+  approach: Actual PostgreSQL isolated-schema race, process-style repository reopen,
+    release and retry probe. No runtime restart.
   recorded_at: '2026-09-07T18:52:12.963599+00:00'
+superseded_runtime_design:
+  date: '2026-09-07'
+  replacement: docs/plans/isolated-github-tests/plan.yml
+  reason: User approved GitHub CI execution instead of Hetzner task stacks; retain
+    identity work.

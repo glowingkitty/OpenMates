@@ -1,0 +1,342 @@
+schema_version: 2
+id: isolated-github-tests
+title: Independent GitHub test environments and coordinated dispatch
+status: implementing
+goal: All E2E web app tests and daily tests run on GitHub CI independently of the
+  dev server. Unit tests for code changes still run locally. Remove redundant local
+  per-worktree Docker environments and coordinate GitHub requests within rate limits.
+authorization:
+  source: User explicitly approved planning and implementation on 2026-09-07.
+  specification_required: false
+  additional_plan_approval_required: false
+scope:
+  in:
+  - One shared CI implementation for focused candidate runs and daily suites.
+  - Exact source identity, isolated web/API/worker/CMS/database/cache and fresh accounts.
+  - Durable deduplicated dispatch, bounded concurrency, shared polling and rate backoff.
+  - Preserve reports, traces and proof artifacts tied to source and run identity.
+  - Remove superseded local runtime broker and capacity code; preserve Codex identity.
+  out:
+  - Hetzner resizing, production changes, resuming other tasks or changing their code.
+architecture:
+  execution: GitHub-hosted Linux runner is the isolation boundary; no nested Docker
+    daemon.
+  source: Immutable Git commit; uncommitted candidates require a reviewed source snapshot
+    transport.
+  dependencies: Reuse cached dependency layers; invalidate on build/dependency changes.
+  accounts: Disposable accounts initialized through real client crypto/auth flows
+    in a fresh database.
+  network: Explicit local endpoints and a fail-closed shared-domain guard; no dev
+    fallback.
+  coordinator: Single durable local queue, four admitted CI jobs, batched status refresh
+    and budget reserve.
+  daily: Same execution workflow with pinned revision and broader test selection;
+    unit suites on GitHub.
+  local: Small unit checks remain local; shared dev is not a test execution dependency.
+  historical_migration: Retain applied SQL migration history; remove callers, not
+    live database data.
+acceptance:
+- Focused candidate E2E executes current frontend/backend on GitHub without Vercel
+  or Hetzner API.
+- Daily path includes unit and E2E suites using the same isolated environment contract.
+- Concurrent requests cannot double-dispatch; uncertain dispatch is reconciled rather
+  than retried blindly.
+- Status requests read coordinator cache; rate exhaustion queues work and respects
+  reset/backoff.
+- Runtime identities and artifacts identify exact source; failures never become successful
+  empty reports.
+- Fresh accounts cannot collide across jobs; auth/encryption flows remain real.
+- No test traffic reaches shared dev; failures save diagnostics before cleanup.
+- Superseded local runtime code removed, existing worktree binding preserved.
+implementation_slices:
+- id: CI-1
+  status: in_progress
+  scope: Remove local runtime experiment and establish portable runner stack.
+- id: CI-2
+  status: pending
+  scope: Fresh account provisioning, local web build, endpoint isolation and evidence.
+- id: CI-3
+  status: pending
+  scope: Durable GitHub coordinator and focused/daily dispatcher integration.
+- id: CI-4
+  status: pending
+  scope: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+verification:
+  tooling: Focused local Python and Node unit tests for queue, transport, profile
+    and routing.
+  live: GitHub runner stack startup, real account/client initialization and representative
+    E2E.
+  daily: GitHub unit suites and representative daily batch with exact source identity.
+  completion: Required live execution and migration checks must pass before claiming
+    completion.
+risks:
+- Existing self-host smoke currently fails image-mode startup; portable startup needs
+  real repair/evidence.
+- Hardcoded dev URLs, live-provider credentials and shared fixture assumptions require
+  explicit migration.
+- Fresh environments add startup time; measure cold/warm startup and total feedback
+  latency.
+- Other tasks are active; hunk integration must preserve their changes and shared
+  runtime leases.
+evidence: []
+handoff:
+  session: ecad
+  next: Portable stack and coordinator implementation; no shared runtime mutation.
+  current_task_id: TASK-1
+  next_action: Implement portable CI stack and coordinator
+  command: python3 scripts/plan_validate.py docs/plans/isolated-github-tests/plan.yml
+  expected_outcome: Validated executable plan
+  last_verified_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
+scenarios:
+- id: S-1
+  title: Remove local runtime experiment and establish portable runner stack.
+  given:
+  - Approved CI migration
+  when:
+  - Remove local runtime experiment and establish portable runner stack.
+  then:
+  - Remove local runtime experiment and establish portable runner stack.
+- id: S-2
+  title: Fresh account provisioning, local web build, endpoint isolation and evidence.
+  given:
+  - Approved CI migration
+  when:
+  - Fresh account provisioning, local web build, endpoint isolation and evidence.
+  then:
+  - Fresh account provisioning, local web build, endpoint isolation and evidence.
+- id: S-3
+  title: Durable GitHub coordinator and focused/daily dispatcher integration.
+  given:
+  - Approved CI migration
+  when:
+  - Durable GitHub coordinator and focused/daily dispatcher integration.
+  then:
+  - Durable GitHub coordinator and focused/daily dispatcher integration.
+- id: S-4
+  title: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+  given:
+  - Approved CI migration
+  when:
+  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+  then:
+  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Remove local runtime experiment and establish portable runner stack.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-1
+- id: AC-2
+  scenario: S-2
+  text: Fresh account provisioning, local web build, endpoint isolation and evidence.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-2
+- id: AC-3
+  scenario: S-3
+  text: Durable GitHub coordinator and focused/daily dispatcher integration.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-3
+- id: AC-4
+  scenario: S-4
+  text: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-4
+tests:
+- id: T-1
+  type: pytest
+  file: scripts/tests/test_ci_coordinator.py
+  command: python3 -m pytest scripts/tests/test_ci_coordinator.py scripts/tests/test_ci_environment.py
+  assertions:
+  - Remove local runtime experiment and establish portable runner stack.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-2
+  type: pytest
+  file: scripts/tests/test_ci_coordinator.py
+  command: python3 -m pytest scripts/tests/test_ci_coordinator.py scripts/tests/test_ci_environment.py
+  assertions:
+  - Fresh account provisioning, local web build, endpoint isolation and evidence.
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-3
+  type: pytest
+  file: scripts/tests/test_ci_coordinator.py
+  command: python3 -m pytest scripts/tests/test_ci_coordinator.py scripts/tests/test_ci_environment.py
+  assertions:
+  - Durable GitHub coordinator and focused/daily dispatcher integration.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-4
+  type: manual
+  file: scripts/ci_coordinator.py
+  command: python3 scripts/ci_coordinator.py verify-pilot
+  assertions:
+  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: fail
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+tasks:
+- id: TASK-1
+  title: Remove local runtime experiment and establish portable runner stack.
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  verification_ids:
+  - T-1
+  dependencies: []
+  expected_files: &id001
+  - scripts/ci_coordinator.py
+  - scripts/ci_environment.py
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    session: ecad
+    files: *id001
+    shared_files: []
+- id: TASK-2
+  title: Fresh account provisioning, local web build, endpoint isolation and evidence.
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    acceptance_criteria:
+    - AC-2
+  verification_ids:
+  - T-2
+  dependencies:
+  - TASK-1
+  expected_files: &id002
+  - scripts/ci_coordinator.py
+  - scripts/ci_environment.py
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    session: ecad
+    files: *id002
+    shared_files: []
+- id: TASK-3
+  title: Durable GitHub coordinator and focused/daily dispatcher integration.
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-3
+    acceptance_criteria:
+    - AC-3
+  verification_ids:
+  - T-3
+  dependencies:
+  - TASK-2
+  expected_files: &id003
+  - scripts/ci_coordinator.py
+  - scripts/ci_environment.py
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    session: ecad
+    files: *id003
+    shared_files: []
+- id: TASK-4
+  title: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
+    audit.
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-4
+    acceptance_criteria:
+    - AC-4
+  verification_ids:
+  - T-4
+  dependencies:
+  - TASK-3
+  expected_files: &id004
+  - scripts/ci_coordinator.py
+  - scripts/ci_environment.py
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    session: ecad
+    files: *id004
+    shared_files: []
+implementation_state:
+  subject_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
+approvals:
+  specification:
+    status: not_required
+    reason: 'Explicit user correction: Specifications are product-only, not engineering
+      workflows.'
+  plan:
+    status: approved
+    approved_at: '2026-09-07'
+    reason: User explicitly approved the reviewed content and instructed implementation.
+decisions:
+- id: D-1
+  status: active
+  decision: Replace local task runtimes with isolated GitHub test execution.
+  reason: Explicit user approval on 2026-09-07
+  decided_at: '2026-09-07'
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Reuse portable image and source contracts; remove host runtime experiment.
+  recorded_at: '2026-09-07'

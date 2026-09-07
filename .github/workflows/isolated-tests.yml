@@ -1,0 +1,138 @@
+# Disposable application tests, independent of the shared dev server.
+# Dispatches come from scripts/ci_coordinator.py and bind an exact source SHA.
+# The same runner contract serves candidate and nightly test batches.
+name: Isolated application tests
+run-name: "Isolated tests ${{ inputs.mode }} ${{ inputs.dispatch_token }}"
+on:
+  workflow_dispatch:
+    inputs:
+      checkout_ref:
+        required: true
+        type: string
+      specs_json:
+        required: true
+        type: string
+        default: '[]'
+      mode:
+        type: choice
+        options: [e2e, pytest, vitest]
+        default: e2e
+      dispatch_token:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      CI: 'true'
+      OPENMATES_CI_ISOLATED: '1'
+      PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
+      OPENMATES_E2E_API_URL: http://localhost:8000
+      OPENMATES_API_URL: http://localhost:8000
+      VITE_API_URL: http://localhost:8000
+      VITE_UPLOAD_URL: http://localhost:8001
+      VITE_ENV: self_hosted
+      E2E_USE_MOCKS: '1'
+      E2E_USE_LIVE_MOCKS: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.checkout_ref }}
+          persist-credentials: false
+      - name: Verify exact source and isolated endpoints
+        env:
+          EXPECTED_SOURCE: ${{ inputs.checkout_ref }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess
+          expected = os.environ['EXPECTED_SOURCE']
+          assert re.fullmatch('[0-9a-f]{40}', expected), 'Full source SHA required'
+          assert subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip() == expected
+          PY
+          echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install workspace dependencies
+        if: inputs.mode != 'pytest'
+        run: pnpm install --frozen-lockfile
+      - name: Prepare isolated stack
+        if: inputs.mode == 'e2e'
+        run: |
+          node frontend/packages/ui/scripts/build-translations.js
+          python3 scripts/ci_environment.py prepare
+      - uses: docker/setup-buildx-action@v3
+        if: inputs.mode == 'e2e'
+      - name: Build cached API dependencies and current source
+        if: inputs.mode == 'e2e'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/core/api/Dockerfile
+          load: true
+          tags: openmates-ci-api:local
+          cache-from: type=gha,scope=ci-api
+          cache-to: type=gha,scope=ci-api,mode=max
+      - name: Build current Directus extensions
+        if: inputs.mode == 'e2e'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus
+          load: true
+          tags: openmates-ci-cms:local
+          cache-from: type=gha,scope=ci-cms
+          cache-to: type=gha,scope=ci-cms,mode=max
+      - name: Build current schema initializer
+        if: inputs.mode == 'e2e'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/core/directus/setup
+          load: true
+          tags: openmates-ci-setup:local
+          cache-from: type=gha,scope=ci-setup
+          cache-to: type=gha,scope=ci-setup,mode=max
+      - name: Build local web app and CLI
+        if: inputs.mode == 'e2e'
+        run: |
+          pnpm --filter openmates build
+          cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
+          pnpm --filter web_app build
+      - name: Start isolated backend
+        if: inputs.mode == 'e2e'
+        run: python3 scripts/ci_environment.py start
+      - name: Install browser
+        if: inputs.mode == 'e2e'
+        working-directory: frontend/apps/web_app
+        run: npx playwright install --with-deps chromium
+      - name: Run selected checks
+        env:
+          CI_TEST_MODE: ${{ inputs.mode }}
+          CI_SPECS_JSON: ${{ inputs.specs_json }}
+        run: python3 scripts/ci_run_tests.py
+      - name: Collect bounded stack diagnostics
+        if: always() && inputs.mode == 'e2e'
+        run: python3 scripts/ci_environment.py logs
+      - name: Remove disposable containers and databases
+        if: always() && inputs.mode == 'e2e'
+        run: python3 scripts/ci_environment.py stop
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-test-results
+          retention-days: 7
+          path: |
+            test-results/ci-environment.json
+            test-results/ci-stack.log
+            test-results/ci-results.json
+            test-results/ci-web.log
+            frontend/apps/web_app/test-results/
+          if-no-files-found: error
