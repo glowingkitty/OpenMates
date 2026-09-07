@@ -71,6 +71,8 @@ def compose_profile(source_hash: str) -> dict:
         "PYTHONDONTWRITEBYTECODE": "1",
         "CMS_URL": "http://cms:8055",
         "DIRECTUS_TOKEN": credentials["directus"],
+        "DATABASE_ADMIN_EMAIL": "runtime@example.com",
+        "DATABASE_ADMIN_PASSWORD": credentials["admin"],
         "DRAGONFLY_URL": "cache:6379",
         "DRAGONFLY_PASSWORD": credentials["cache"],
         "VAULT_URL": "http://vault:8200",

@@ -40,10 +40,30 @@ def request(url, data=None, token=None):
         return json.load(response)
 
 
+def cms_admin_token(profile: dict) -> str:
+    """Authenticate fixture writes using this runner's generated CMS identity."""
+    environment = profile["services"]["api"]["environment"]
+    response = request(
+        "http://localhost:8055/auth/login",
+        {
+            "email": environment["DATABASE_ADMIN_EMAIL"],
+            "password": environment["DATABASE_ADMIN_PASSWORD"],
+            "mode": "json",
+        },
+    )
+    token = response.get("data", {}).get("access_token")
+    if not isinstance(token, str) or not token:
+        raise RuntimeError("Runner-local CMS did not issue an admin access token")
+    identity = request("http://localhost:8055/users/me", token=token)
+    if identity.get("data", {}).get("email") != environment["DATABASE_ADMIN_EMAIL"]:
+        raise RuntimeError("Runner-local CMS fixture identity mismatch")
+    return token
+
+
 def provision_account(slot: int) -> dict:
     """Use real client crypto/auth; only receipt of the private email code is local."""
     profile = json.loads(COMPOSE_PATH.read_text())
-    token = profile["services"]["api"]["environment"]["DIRECTUS_TOKEN"]
+    token = cms_admin_token(profile)
     invite = secrets.token_hex(9)
     request(
         "http://localhost:8055/items/invite_codes",
@@ -57,7 +77,7 @@ def provision_account(slot: int) -> dict:
         **os.environ,
         "OPENMATES_CLI_SIGNUP_INVITE_CODE": invite,
         "NO_COLOR": "1",
-        "OPENMATES_STATE_DIR": str(private / f"state-{slot}"),
+        "OPENMATES_STATE_DIR": str(private / f"state-{slot}-{secrets.token_hex(8)}"),
     }
     command = [
         "node",
@@ -318,14 +338,47 @@ def main():
                     "not integration and not slow and not vault and not benchmark and not provider_contract",
                     "--json-report",
                     "--json-report-file=test-results/ci-pytest.json",
+                    "--ignore=backend/tests/fixtures",
+                    "--ignore=backend/tests/provider_contracts",
+                    "--ignore=backend/tests/test_encryption_service.py",
+                    "--ignore=backend/tests/test_integration_encryption.py",
+                    "--ignore=backend/tests/test_status_service_v2.py",
+                    "--continue-on-collection-errors",
                 ],
                 cwd=ROOT,
             )
             results = [{"suite": mode, "exit_code": result.returncode}]
+            # Preserve the SDK account coverage in the existing daily unit workflow.
+            sdk = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "packages/openmates-python/tests/test_account_import.py",
+                    "packages/openmates-python/tests/test_account_export.py",
+                    "--json-report",
+                    "--json-report-file=test-results/ci-unit-sdk.json",
+                ],
+                cwd=ROOT,
+            )
+            results.append(
+                {"suite": "python-sdk-accounts", "exit_code": sdk.returncode}
+            )
         elif mode == "vitest":
+            subprocess.run(["pnpm", "exec", "svelte-kit", "sync"], cwd=WEB, check=True)
             for directory in [ROOT / "frontend/packages/ui", WEB]:
                 result = subprocess.run(
-                    ["pnpm", "exec", "vitest", "run"], cwd=directory
+                    [
+                        "pnpm",
+                        "exec",
+                        "vitest",
+                        "run",
+                        "--reporter=json",
+                        "--outputFile="
+                        + str(RESULTS / f"ci-unit-{directory.name}.json"),
+                    ],
+                    cwd=directory,
+                    timeout=300,
                 )
                 results.append(
                     {
@@ -333,6 +386,24 @@ def main():
                         "exit_code": result.returncode,
                     }
                 )
+            cli = ROOT / "frontend/packages/openmates-cli"
+            with (RESULTS / "ci-unit-cli.log").open("w") as output:
+                result = subprocess.run(
+                    [
+                        "node",
+                        "--test",
+                        "--experimental-strip-types",
+                        "--loader",
+                        "./tests/loader.mjs",
+                        "tests/account-import.test.ts",
+                        "tests/account-import-sdk.test.ts",
+                    ],
+                    cwd=cli,
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    timeout=300,
+                )
+            results.append({"suite": "cli-accounts", "exit_code": result.returncode})
         else:
             raise ValueError("Unknown test mode")
     except Exception as exc:

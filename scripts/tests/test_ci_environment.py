@@ -105,3 +105,12 @@ def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
     assert (tmp_path / "api.token").read_text() == "scoped-ci-token"
     assert "transit/encrypt/*" in policies["api-encryption"]
     assert "kv/data/providers/*" in policies["api-service"]
+
+
+def test_api_and_worker_receive_the_private_cms_admin_identity():
+    services = compose_profile("a" * 40)["services"]
+    cms = services["cms"]["environment"]
+    for service in ("api", "core-worker", "cms-setup"):
+        environment = services[service]["environment"]
+        assert environment["DATABASE_ADMIN_EMAIL"] == cms["ADMIN_EMAIL"]
+        assert environment["DATABASE_ADMIN_PASSWORD"] == cms["ADMIN_PASSWORD"]
