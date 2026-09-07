@@ -167,3 +167,73 @@ def test_policy_query_accepts_system_root_protection_but_requires_unlink_denial(
     with pytest.raises(SystemExit) as stop:
         exec(m.PROBE_CODE, {})
     assert stop.value.code == expected_exit
+
+
+@pytest.fixture
+def relocation(project):
+    m = helper()
+    name = 'openmates_is_better.mov'
+    src = project / m.MEDIA_ROOTS[1] / name
+    dst = project / m.MEDIA_ROOTS[0] / 'originals' / name
+    src.parent.mkdir(parents=True)
+    dst.parent.mkdir(parents=True)
+    src.write_bytes(b'local fixture, never Mac footage')
+    return project, name, src, dst
+
+
+def test_relocation_preserves_identity_and_exact_paths_with_local_double(relocation, monkeypatch):
+    m = helper()
+    root, name, src, dst = relocation
+    info = m.execute({'action': 'relocation-info', 'repo': str(root), 'file': name})
+    calls = []
+    def rename(source_dir, filename, destination_dir):
+        calls.append(filename)
+        assert not dst.exists()
+        m.os.rename(filename, filename, src_dir_fd=source_dir, dst_dir_fd=destination_dir)
+    monkeypatch.setattr(m, 'rename_exclusive', rename)
+    result = m.execute({'action': 'relocate-original', 'repo': str(root), 'file': name, 'expected': info['identity']})
+    assert calls == [name]
+    assert not src.exists() and dst.exists()
+    assert result['verified_identity'] == info['identity']
+    assert dst.stat().st_ino == info['identity']['inode']
+
+
+@pytest.mark.parametrize('scenario', ['destination', 'symlink', 'mismatch', 'escape', 'cross-device'])
+def test_relocation_rejects_before_rename(relocation, monkeypatch, scenario):
+    from types import SimpleNamespace
+    m = helper()
+    root, name, src, dst = relocation
+    monkeypatch.setattr(m, 'rename_exclusive', lambda *a: pytest.fail('rename dispatched'))
+    request = {'action': 'relocate-original', 'repo': str(root), 'file': name, 'expected': {}}
+    if scenario == 'destination':
+        dst.write_bytes(b'preserve existing')
+    elif scenario == 'symlink':
+        # Rename this Linux fixture aside; no Mac fixture or transport exists.
+        original = src.with_suffix('.retained')
+        src.rename(original)
+        src.symlink_to(original)
+    elif scenario == 'escape':
+        request['file'] = '../' + name
+    elif scenario == 'cross-device':
+        target_inode = dst.parent.stat().st_ino
+        real = m.os.fstat
+        monkeypatch.setattr(m.os, 'fstat', lambda fd: SimpleNamespace(st_dev=real(fd).st_dev + 1) if real(fd).st_ino == target_inode else real(fd))
+    with pytest.raises((m.RequestError, OSError)):
+        m.execute(request)
+    assert src.exists()
+
+
+def test_mac_rename_uses_exclusive_primitive_without_fallback(monkeypatch):
+    from types import SimpleNamespace
+    m = helper()
+    calls = []
+    class Rename:
+        def __call__(self, *args):
+            calls.append(args)
+            return -1
+    monkeypatch.setattr(m.sys, 'platform', 'darwin')
+    monkeypatch.setattr(m.ctypes, 'CDLL', lambda *a, **kw: SimpleNamespace(renameatx_np=Rename()))
+    monkeypatch.setattr(m.ctypes, 'get_errno', lambda: 17)
+    with pytest.raises(FileExistsError):
+        m.rename_exclusive(10, 'openmates_is_better.mov', 11)
+    assert calls == [(10, b'openmates_is_better.mov', 11, b'openmates_is_better.mov', 0x34)]

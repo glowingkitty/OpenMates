@@ -8,6 +8,7 @@ rename. The sandbox probe queries policy only and never attempts deletion.
 """
 from __future__ import annotations
 import fcntl
+import ctypes
 import gzip
 import hashlib
 import json
@@ -21,6 +22,10 @@ import uuid
 MAX_BYTES = 1024 * 1024
 MEDIA_ROOTS = ('input-media/announcement-video', 'renders/mac-local/announcement-video/originals')
 READ_FILES = {'package.json', 'remotion.config.ts', 'tsconfig.json'}
+RELOCATION_FILES = {'gemini_find_doctor_appointments.mov', 'openmates_is_better.mov'}
+RENAME_EXCL = 0x00000004
+RENAME_NOFOLLOW_ANY = 0x00000010
+RENAME_RESOLVE_BENEATH = 0x00000020
 SOURCE_SUFFIXES = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.json', '.txt', '.svg'}
 AUDIT_FILES = (
     'node_modules/@remotion/renderer/package.json',
@@ -218,6 +223,103 @@ def media_path(root, name):
     return path
 
 
+def open_directory(path):
+    current = os.open('/', os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in path.parts[1:]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=current)
+            os.close(current)
+            current = child
+        result = current
+        current = None
+        return result
+    finally:
+        if current is not None:
+            os.close(current)
+
+
+def file_identity(fd):
+    before = os.fstat(fd)
+    if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+        raise RequestError('relocation requires one non-hardlinked regular file')
+    digest = hashlib.sha256()
+    os.lseek(fd, 0, os.SEEK_SET)
+    while True:
+        data = os.read(fd, MAX_BYTES)
+        if not data:
+            break
+        digest.update(data)
+    after = os.fstat(fd)
+    if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
+        raise RequestError('original changed while hashing')
+    return {'device': before.st_dev, 'inode': before.st_ino, 'bytes': before.st_size, 'sha256': digest.hexdigest()}
+
+
+def rename_exclusive(source_dir, name, destination_dir):
+    if sys.platform != 'darwin':
+        raise RequestError('atomic no-overwrite Mac rename unavailable')
+    library = ctypes.CDLL('/usr/lib/libSystem.B.dylib', use_errno=True)
+    rename = getattr(library, 'renameatx_np', None)
+    if rename is None:
+        raise RequestError('renameatx_np unavailable; no fallback allowed')
+    rename.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_char_p, ctypes.c_uint]
+    rename.restype = ctypes.c_int
+    flags = RENAME_EXCL | RENAME_NOFOLLOW_ANY | RENAME_RESOLVE_BENEATH
+    if rename(source_dir, name.encode(), destination_dir, name.encode(), flags) != 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+
+
+def relocate(root, request):
+    name = request.get('file')
+    if name not in RELOCATION_FILES:
+        raise RequestError('only the two explicitly authorized original filenames may relocate')
+    source = MEDIA_ROOTS[1]
+    destination = MEDIA_ROOTS[0] + '/originals'
+    source_dir = open_directory(root / source)
+    try:
+        destination_dir = open_directory(root / destination)
+        try:
+            if os.fstat(source_dir).st_dev != os.fstat(destination_dir).st_dev:
+                raise RequestError('cross-device relocation refused; no copy/unlink fallback')
+            try:
+                os.stat(name, dir_fd=destination_dir, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                raise RequestError('destination exists; never overwrite or delete it')
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=source_dir)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX)
+                before = file_identity(fd)
+                if before['device'] != os.fstat(destination_dir).st_dev:
+                    raise RequestError('cross-device source refused')
+                result = {'source': source + '/' + name, 'destination': destination + '/' + name, 'identity': before}
+                if request['action'] == 'relocation-info':
+                    return result
+                if request.get('expected') != before:
+                    raise RequestError('original identity/hash mismatch; inspect again')
+                linked = os.stat(name, dir_fd=source_dir, follow_symlinks=False)
+                if (linked.st_dev, linked.st_ino) != (before['device'], before['inode']):
+                    raise RequestError('source pathname changed before rename')
+                rename_exclusive(source_dir, name, destination_dir)
+                after_fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=destination_dir)
+                try:
+                    after = file_identity(after_fd)
+                finally:
+                    os.close(after_fd)
+                if after != before:
+                    raise RequestError('post-relocation identity mismatch; no automatic rollback')
+                result.update(status='relocated', verified_identity=after)
+                return result
+            finally:
+                os.close(fd)
+        finally:
+            os.close(destination_dir)
+    finally:
+        os.close(source_dir)
+
+
 def sandbox_query(root, profile=PROBE_PROFILE):
     if sys.platform != 'darwin' or not Path('/usr/bin/sandbox-exec').is_file():
         raise RequestError('macOS sandbox-exec is unavailable; render remains disabled')
@@ -251,9 +353,11 @@ def media_probe(root, request):
 
 
 def execute(request):
-    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read'}:
+    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original'}:
         raise RequestError('unsupported typed operation')
     root = root_path(request.get('repo'))
+    if request['action'] in {'relocation-info', 'relocate-original'}:
+        return relocate(root, request)
     if request['action'] in {'source-read', 'source-put'}:
         return source(root, request)
     if request['action'] == 'inspect':
