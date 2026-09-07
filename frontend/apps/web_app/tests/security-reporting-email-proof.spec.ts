@@ -51,7 +51,11 @@ test('records synthetic production security email artifacts', async ({ page }, t
     const html = readFileSync(path.join(output, `${fixture}.html`), 'utf8');
     await testInfo.attach(`${fixture}.html`, { body: Buffer.from(html), contentType: 'text/html' });
     await testInfo.attach(`${fixture}.eml`, { path: path.join(output, `${fixture}.eml`), contentType: 'message/rfc822' });
+    if (fixture === FIXTURES[0]) {
+      await page.setContent(html, { waitUntil: 'load' });
+    } else {
     await proof.action(`read-${fixture}`, () => page.setContent(html, { waitUntil: 'load' }));
+    }
     await proof.assert(fixture, async () => {
       await expect(page.getByRole('heading', { level: 1 })).toContainText(fixture === 'critical-alert' ? 'Critical security alert' : 'Security report:');
       if (fixture !== 'critical-alert') {
@@ -71,6 +75,9 @@ test('records synthetic production security email artifacts', async ({ page }, t
       }
     });
     await proof.checkpoint(fixture);
+    // Preserve a readable interval in the actual recording for each caption.
+    // This is capture pacing after assertions, not a readiness/test retry wait.
+    await new Promise((resolve) => setTimeout(resolve, CONTRACT.tutorial.maximumHoldMs));
     await testInfo.attach(`${fixture}.sha256`, { body: Buffer.from(createHash('sha256').update(html).digest('hex')), contentType: 'text/plain' });
   }
   await testInfo.attach('security-email-manifest', { path: path.join(output, 'manifest.json'), contentType: 'application/json' });
