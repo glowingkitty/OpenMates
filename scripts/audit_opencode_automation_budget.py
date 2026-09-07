@@ -21,6 +21,38 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 PROMPTS_ROOT = REPO_ROOT / "scripts" / "prompts"
 DIRECT_OPENCODE_RE = re.compile(r"opencode(?:['\"\s,]+)run\b|opencode\s+run\b", re.IGNORECASE)
 RUN_SESSION_RE = re.compile(r"\brun_opencode_session\s*\(")
+# These entry points were removed, not disabled. Manual tools and shared
+# security collectors remain supported; TASK-8338 owns any future replacement.
+RETIRED_AUTOMATION_PATHS = (
+    "scripts/linear-poller.py",
+    "scripts/agent-trigger-watcher.sh",
+    "scripts/agent-trigger-watcher.service",
+    "scripts/_scheduled_review_helper.py",
+    "scripts/_nightly_scanner_helper.py",
+    "scripts/_opencode_daily_meeting.py",
+    "scripts/daily-meeting.sh",
+    "scripts/_audit_helper.py",
+    "scripts/weekly-codebase-audit.sh",
+    "scripts/_issues_checker.py",
+    "scripts/nightly-issues-check.sh",
+    "scripts/_technical_debt_helper.py",
+    "scripts/_contract_audit_review_helper.py",
+    "scripts/nightly-ui-design-review.sh",
+    "scripts/nightly-apple-parity-review.sh",
+    "scripts/nightly-seo-audit.sh",
+    "scripts/nightly-quick-wins.sh",
+    "scripts/nightly-pattern-consistency.sh",
+    "scripts/nightly-code-structure.sh",
+)
+RETIRED_UNIT_NAMES = ("linear-poller.service", "work-life-opencode.service", "work-life-opencode.timer")
+RETAINED_DETERMINISTIC_WRAPPERS = (
+    "scripts/weekly-contract-audits.sh",
+    "scripts/weekly-technical-debt.sh",
+    "scripts/linear-cron-setup.sh",
+    "scripts/run-tests-daily.sh",
+    "scripts/_daily_runner_helper.py",
+    "scripts/_daily_meeting_helper.py",
+)
 RISKY_TERMS = ("auth", "payment", "billing", "encryption", "sync", "privacy", "legal", "migration", "websocket")
 REQUIRED_PROMPT_RULES = (
     "Do not start subagents",
@@ -129,6 +161,24 @@ def audit_paths(paths: list[Path]) -> list[AuditIssue]:
     return issues
 
 
+def audit_retired_automation(root: Path) -> list[AuditIssue]:
+    """Reject restored launchers or wiring while allowing retained scanners."""
+    issues = [
+        AuditIssue(path, "retired automatic OpenCode launcher must remain removed (TASK-8338)")
+        for path in RETIRED_AUTOMATION_PATHS if (root / path).exists()
+    ]
+    for relative in RETAINED_DETERMINISTIC_WRAPPERS:
+        path = root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        if any(name in text for name in (*RETIRED_UNIT_NAMES, *(Path(retired).name for retired in RETIRED_AUTOMATION_PATHS))):
+            issues.append(AuditIssue(relative, "retained scanner/maintenance command registers a retired launcher"))
+        if DIRECT_OPENCODE_RE.search(text) or RUN_SESSION_RE.search(text):
+            issues.append(AuditIssue(relative, "deterministic command must not launch OpenCode"))
+    return issues
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Audit OpenCode automation budget and safety controls.")
     parser.add_argument("paths", nargs="*", help="Specific files to audit. Defaults to staged relevant files.")
@@ -142,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         paths = _staged_paths()
 
-    issues = audit_paths(paths)
+    issues = audit_paths(paths) + audit_retired_automation(REPO_ROOT)
     if issues:
         print("[opencode-automation-budget] Issues found:", file=sys.stderr)
         for issue in issues[:80]:

@@ -103,3 +103,30 @@ timeout 1800 opencode run --dangerously-skip-permissions task
     )
 
     assert issues == []
+
+
+def test_retirement_audit_rejects_restored_launcher_and_registration(tmp_path):
+    audit = load_audit_module()
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "linear-poller.py").write_text("# accidentally restored launcher\n")
+    (scripts / "linear-cron-setup.sh").write_text("systemctl --user enable linear-poller.service\n")
+    issues = audit.audit_retired_automation(tmp_path)
+    assert {issue.path for issue in issues} == {
+        "scripts/linear-poller.py", "scripts/linear-cron-setup.sh",
+    }
+
+
+def test_retirement_audit_preserves_deterministic_scans_and_manual_tools(tmp_path):
+    audit = load_audit_module()
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "weekly-contract-audits.sh").write_text("python3 scripts/run_contract_audits.py\n")
+    (scripts / "linear-cron-setup.sh").write_text("systemctl --user enable linear-archive.timer\n")
+    (scripts / "sessions.py").write_text("# retained routing/deploy and manual chat tooling\n")
+    assert audit.audit_retired_automation(tmp_path) == []
+
+
+def test_retired_launchers_are_absent_from_repository():
+    audit = load_audit_module()
+    assert audit.audit_retired_automation(ROOT) == []

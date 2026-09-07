@@ -403,7 +403,6 @@ def test_server_restart_captures_exact_busy_set_and_never_rebuilds_docker() -> N
 def test_active_automation_never_spawns_claude_cli() -> None:
     automation_paths = (
         "scripts/_daily_meeting_helper.py",
-        "scripts/linear-poller.py",
         "scripts/server-restart.sh",
     )
 
@@ -411,18 +410,6 @@ def test_active_automation_never_spawns_claude_cli() -> None:
         source = (Path(sessions.__file__).parents[1] / relative_path).read_text(encoding="utf-8")
         assert "spawn_claude_session" not in source, relative_path
         assert not re.search(r"\bclaude\s+(?:resume|--resume|--dangerously-skip-permissions|-p)\b", source), relative_path
-
-
-def test_opencode_poller_records_never_use_claude_transcript_fallback() -> None:
-    source = (
-        Path(sessions.__file__).parents[1] / "scripts/linear-poller.py"
-    ).read_text(encoding="utf-8")
-    salvage = source[
-        source.index("def _salvage_abandoned_sessions"):
-        source.index("def main", source.index("def _salvage_abandoned_sessions"))
-    ]
-
-    assert "if claude_session_id\n            else None" in salvage
 
 
 def test_spawn_chat_reads_prompt_file_before_switching_to_canonical_root(tmp_path: Path, monkeypatch) -> None:

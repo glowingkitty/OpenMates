@@ -18,7 +18,6 @@ import sys
 import urllib.error
 import urllib.request
 
-from _opencode_utils import run_opencode_session
 
 # Maximum error snippet length per failed test entry (characters)
 MAX_ERROR_SNIPPET_LEN = 600
@@ -540,112 +539,10 @@ def dispatch_start_email() -> None:
         print(f"[daily-runner] WARNING: could not dispatch start email: {e}", file=sys.stderr)
 
 
-def start_opencode_analysis() -> None:
-    """
-    Start an OpenCode analysis chat for test failures.
-
-    Reads the failed tests from last-failed-tests.json (written by split-results),
-    loads the prompt template from scripts/prompts/test-failure-analysis.md,
-    substitutes placeholders, then runs OpenCode in read-only mode.
-
-    Output convention (for run-tests-daily.sh to capture):
-        Prints "OPENCODE_SESSION_ID:<id>" to stdout when a session ID is found.
-
-    Only called when failed_count > 0. Non-fatal — does not abort the test run.
-    """
-    from datetime import datetime, timezone
-
-    results_dir = os.environ.get("RESULTS_DIR", "test-results")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-
-    # Load failed tests
-    failed_path = os.path.join(results_dir, "last-failed-tests.json")
-    if not os.path.isfile(failed_path):
-        print("[daily-runner] WARNING: last-failed-tests.json not found — skipping OpenCode analysis.", file=sys.stderr)
-        return
-
-    with open(failed_path) as f:
-        failed_data = json.load(f)
-
-    failed_tests = failed_data.get("tests", [])
-    run_id = failed_data.get("run_id", "unknown")
-
-    if not failed_tests:
-        print("[daily-runner] No failed tests in last-failed-tests.json — skipping OpenCode analysis.", file=sys.stderr)
-        return
-
-    # Load last-run.json for git info
-    last_run_path = os.path.join(results_dir, "last-run.json")
-    git_sha = "unknown"
-    git_branch = "unknown"
-    total_count = 0
-    if os.path.isfile(last_run_path):
-        with open(last_run_path) as f:
-            last_run = json.load(f)
-        git_sha = last_run.get("git_sha", "unknown")
-        git_branch = last_run.get("git_branch", "unknown")
-        total_count = last_run.get("summary", {}).get("total", 0)
-
-    failed_count = len(failed_tests)
-    date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-
-    # Load prompt template
-    prompt_template_path = os.path.join(script_dir, "prompts", "test-failure-analysis.md")
-    if not os.path.isfile(prompt_template_path):
-        print(
-            f"[daily-runner] WARNING: prompt template not found at {prompt_template_path} — skipping OpenCode analysis.",
-            file=sys.stderr,
-        )
-        return
-
-    with open(prompt_template_path) as f:
-        prompt_template = f.read()
-
-    # Build a compact JSON representation of failures (cap at 20 to keep prompt size reasonable)
-    MAX_FAILURES_IN_PROMPT = 20
-    truncated = failed_tests[:MAX_FAILURES_IN_PROMPT]
-    failed_tests_json = json.dumps(truncated, indent=2)
-
-    # Substitute placeholders
-    prompt = (
-        prompt_template
-        .replace("{{DATE}}", date_str)
-        .replace("{{RUN_ID}}", run_id)
-        .replace("{{GIT_SHA}}", git_sha)
-        .replace("{{GIT_BRANCH}}", git_branch)
-        .replace("{{FAILED_COUNT}}", str(failed_count))
-        .replace("{{TOTAL_COUNT}}", str(total_count))
-        .replace("{{FAILED_TESTS_JSON}}", failed_tests_json)
-    )
-
-    session_title = f"test-failures {date_str}"
-    print(f"[daily-runner] Running OpenCode analysis for {failed_count} failed test(s)...")
-
-    # Non-fatal: test run email is already sent; this is a best-effort analysis session.
-    try:
-        _, session_id = run_opencode_session(
-            prompt=prompt,
-            session_title=session_title,
-            project_root=project_root,
-            log_prefix="[daily-runner]",
-            agent="plan",
-            timeout=600,
-            job_type="test-analysis",
-            context_summary=f"{failed_count} test(s) failed (run_id={run_id})",
-            linear_task=False,
-        )
-        if session_id:
-            # Emit parseable line for run-tests-daily.sh to capture via grep
-            print(f"OPENCODE_SESSION_ID:{session_id}")
-    except Exception as e:
-        print(f"[daily-runner] WARNING: OpenCode analysis failed: {e} (non-fatal)", file=sys.stderr)
-
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run|start-opencode-analysis>",
+            f"Usage: {sys.argv[0]} <split-results|dispatch-start-email|dispatch-email|dispatch-openobserve-test-run>",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -659,8 +556,6 @@ if __name__ == "__main__":
         dispatch_email()
     elif command == "dispatch-openobserve-test-run":
         dispatch_openobserve_test_run()
-    elif command == "start-opencode-analysis":
-        start_opencode_analysis()
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
         sys.exit(1)

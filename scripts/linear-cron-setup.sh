@@ -2,15 +2,10 @@
 # =============================================================================
 # Linear Integration Systemd Service Installer
 #
-# Installs two systemd user services for the Linear-to-Claude investigation
-# pipeline on the DEV SERVER ONLY. NOT for production use.
-#
-# 1. linear-poller.service — Runs every 30s, polls Linear for issues with
-#    the claude-investigate label and writes trigger files.
-# 2. linear-archive.service + timer — Runs daily, archives old closed issues
-#    to stay within Linear's free plan 250-issue limit.
-#
-# Both scripts run on the HOST with LINEAR_API_KEY sourced from .env.
+# Installs retained Linear archive, artifact cleanup and legacy session cleanup
+# services on the DEV SERVER ONLY. Automatic OpenCode polling was removed.
+# Existing task/session records and Claude compatibility remain intact.
+# Architecture: docs/architecture/infrastructure/linear-auto-processing.md
 #
 # Usage:
 #   bash scripts/linear-cron-setup.sh
@@ -27,27 +22,6 @@ echo "Systemd dir:  $SYSTEMD_DIR"
 echo ""
 
 mkdir -p "$SYSTEMD_DIR"
-
-# --- 1. Linear Poller Service (30s loop) ---
-
-cat > "$SYSTEMD_DIR/linear-poller.service" << EOF
-[Unit]
-Description=OpenMates Linear Issue Poller (30s polling loop)
-After=docker.service
-
-[Service]
-Type=simple
-Restart=always
-RestartSec=10
-WorkingDirectory=$PROJECT_ROOT
-EnvironmentFile=$PROJECT_ROOT/.env
-ExecStart=/bin/bash -c 'while true; do flock -n /tmp/linear-poller.lock python3 $PROJECT_ROOT/scripts/linear-poller.py 2>&1 || true; sleep 30; done'
-
-[Install]
-WantedBy=default.target
-EOF
-
-echo "[OK] Created linear-poller.service"
 
 # --- 2. Linear Archive Service + Timer (daily) ---
 
@@ -139,9 +113,6 @@ echo "[OK] Created linear-cleanup.service + linear-cleanup.timer"
 systemctl --user daemon-reload
 echo "[OK] Systemd daemon reloaded"
 
-systemctl --user enable --now linear-poller.service
-echo "[OK] linear-poller.service enabled and started"
-
 systemctl --user enable --now linear-archive.timer
 echo "[OK] linear-archive.timer enabled and started"
 
@@ -153,9 +124,6 @@ echo "[OK] linear-cleanup.timer enabled and started"
 
 echo ""
 echo "=== Service Status ==="
-echo ""
-echo "--- linear-poller.service ---"
-systemctl --user status linear-poller.service --no-pager || true
 echo ""
 echo "--- linear-archive.timer ---"
 systemctl --user status linear-archive.timer --no-pager || true
