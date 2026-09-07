@@ -74,3 +74,52 @@ test("idle delivery claims durable operation before prompting", () => {
   assert.match(source, /continuationCommand\("ack", sessionID\)/);
   assert.match(source, /continuationCommand\("release", sessionID\)/);
 });
+
+test("monitor discovery stays scoped and recovers persisted idle coordinators", () => {
+  const data = { sessions: {
+    own: { repo_root: "/project", opencode_session_id: "ses_own", orchestration_monitor: { status: "active" } },
+    other: { repo_root: "/other", opencode_session_id: "ses_other", orchestration_monitor: { status: "active" } },
+    stopped: { repo_root: "/project", opencode_session_id: "ses_stop", orchestration_monitor: { status: "stopped" } },
+  } };
+  assert.deepEqual(OpenMatesHooks.test.monitorSessionsForTest(data, "/project"), ["ses_own"]);
+});
+
+test("monitor waits through user questions and busy work, then resumes", () => {
+  const state = { execution: "idle", turn: "completed", pending_permission_ids: [], pending_question_ids: [] };
+  const allowed = OpenMatesHooks.test.monitorDeliveryAllowedForTest;
+  assert.equal(allowed(state, undefined), true);
+  assert.equal(allowed(state, { type: "busy" }), false);
+  assert.equal(allowed(state, { type: "retry" }), false);
+  assert.equal(allowed({ ...state, pending_question_ids: ["q"] }), false);
+  assert.equal(allowed({ ...state, pending_permission_ids: ["p"] }), false);
+  assert.equal(allowed({ ...state, turn: "aborted" }), false);
+  assert.equal(allowed({ ...state, execution: "unknown" }), false);
+  assert.equal(allowed(state, undefined), true);
+});
+
+test("heartbeat uses durable tick before delivery and preserves questions", async () => {
+  const events = [];
+  let current = { execution: "idle", turn: "completed", pending_question_ids: ["q"] };
+  const options = { state: () => current,
+    command: async action => events.push(action), deliver: async () => events.push("deliver") };
+  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", options);
+  assert.deepEqual(events, []);
+  current = { ...current, pending_question_ids: [] };
+  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", options);
+  assert.deepEqual(events, ["tick", "deliver"]);
+  events.length = 0;
+  current = { ...current, turn: "aborted" };
+  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", options);
+  assert.deepEqual(events, ["stop"]);
+});
+
+test("a user turn arriving during tick suppresses delivery", async () => {
+  let current = { execution: "idle", turn: "completed" };
+  let delivered = false;
+  await OpenMatesHooks.test.runMonitorCheckpointForTest("ses_coordinator", {
+    state: () => current,
+    command: async () => { current = { execution: "busy", turn: "streaming" }; },
+    deliver: async () => { delivered = true; },
+  });
+  assert.equal(delivered, false);
+});

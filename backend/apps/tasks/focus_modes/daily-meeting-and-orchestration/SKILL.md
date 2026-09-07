@@ -92,6 +92,10 @@ Record meaningful worker updates in task activities, without heartbeat chatter.
 
 ### Step 5: Monitor and handle changes
 
+- Establish and verify scheduled checks before promising monitoring. Keep the
+  orchestration task in progress while supervising active chats; record blockers
+  on the affected tasks. Answer user questions without cancelling other checks.
+
 - Check each started/resumed chat at **5, 10, 15, and 20 minutes**, then every
   **20 minutes**. Use supported full AI follow-ups for scheduled checks; passive
   reminders cannot inspect work. Preserve schedules across continuations, avoid

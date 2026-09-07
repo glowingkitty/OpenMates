@@ -175,6 +175,7 @@ def test_resume_opencode_session_preserves_captured_model(tmp_path: Path, monkey
 
 
 def test_restart_capture_keeps_only_busy_top_level_sessions(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback({"sessions": {}}))
     responses = {
         "/session/status": {
             "ses_parent": {"type": "busy"},
@@ -236,6 +237,7 @@ def test_opencode_api_requests_are_pinned_to_canonical_project(monkeypatch) -> N
 
 
 def test_restart_resume_is_exactly_once_and_verified(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(sessions, "_mutate_sessions", lambda callback: callback({"sessions": {}}))
     manifest_path = tmp_path / "restart.json"
     manifest_path.write_text(json.dumps({
         "version": 1,

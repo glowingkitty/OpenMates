@@ -85,6 +85,18 @@ work finishes or a user decision is needed.
 
 ## Step 5: Monitor and handle changes
 
+- Establish monitoring before promising checks. For managed chats, register each
+  worker after launch/resume with `python3 scripts/sessions.py monitor register
+  --session <coordinator-id> --worker <chat-id> --started-at <launch-ISO-time>
+  --until <tonight-23:00-ISO-time>`. Use timezone-qualified timestamps. Confirm
+  `monitor status --session <coordinator-id>` shows the schedule. The runtime
+  delivers checkpoints across turns; do not use shell sleeps or fake ready events.
+- Keep the coordinator Task **in progress** while monitoring. A worker's blocker
+  or a user question does not block the coordinator. Answer questions, then retain
+  the other workers' schedules. Remove completed/deliberately paused workers with
+  `monitor remove --session <coordinator-id> --worker <chat-id>`; use `monitor stop
+  --session <coordinator-id>` when orchestration ends or the user stops it.
+
 - Check each launched/resumed chat at **5, 10, 15, and 20 minutes**, then every
   **20 minutes**. New workers start their own cadence. Preserve schedules across
   recovery. Use a supported scheduler or responsive active loop; disclose when

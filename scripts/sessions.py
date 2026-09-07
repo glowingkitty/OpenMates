@@ -82,6 +82,11 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 try:
+    from scripts import _orchestration_monitor as orchestration_monitor
+except ModuleNotFoundError:
+    import _orchestration_monitor as orchestration_monitor
+
+try:
     from scripts.opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
 except ModuleNotFoundError:
     from opencode_presence_store import PresenceStore, PresenceStoreError, TaskClaimConflict
@@ -180,7 +185,7 @@ PRODUCT_RUNTIME_GENERATED_PATHS = frozenset(
 API_HEALTH_DEFAULT_URL = "https://api.dev.openmates.org/health"
 API_HEALTH_INCIDENT_STALE_SECONDS = 5 * 60
 API_HEALTH_PROBE_TIMEOUT_SECONDS = 10
-CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery", "task_ready"}
+CONTINUATION_ALLOWED_TYPES = {"resource_ready", "health_ready", "deployment_ready", "media_delivery", "task_ready", "monitor_ready"}
 CONTINUATION_MAX_DELIVERY_ATTEMPTS = 2
 OPENMATES_TASK_BRIDGE_PROFILE = "opencode-personal"
 OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
@@ -11201,6 +11206,10 @@ def _openmates_task_tool(
     opencode_session_id = _openmates_task_opencode_session_id(data, session_reference)
     if not opencode_session_id:
         raise RuntimeError("Task tool requires a valid top-level OpenCode session")
+    owner_id = _continuation_repository_session_id(data, session_reference)
+    owner = data.get("sessions", {}).get(owner_id, {})
+    if (action in {"block", "done"} or (action == "edit" and input_payload.get("status") in {"blocked", "done"})) and orchestration_monitor.active(owner, _now_iso()):
+        raise RuntimeError("Coordinator monitoring is active. Keep this Task in progress; record individual worker blockers on their own Tasks. If orchestration itself must stop, run sessions.py monitor stop --session <id> first.")
     scope = ["--external-chat", f"opencode:{opencode_session_id}"]
 
     def text_field(name: str, *, required: bool = False, maximum: int = 10000) -> str:
@@ -11404,6 +11413,8 @@ def _reconcile_openmates_tasks(
                 raise RuntimeError("OpenMates Task activation returned an invalid record")
             selected = activated
         continuation = None
+        if decision != "user_stopped" and owner.get("orchestration_monitor"):
+            decision = "monitor_scheduled" if orchestration_monitor.active(owner, _now_iso()) else "monitor_stopped"
         if decision in {"resume_active", "activate_next"} and isinstance(selected, dict):
             operation_key = ":".join([
                 _openmates_task_external_context_hash(opencode_session_id),
@@ -11563,6 +11574,8 @@ def cmd_decision(args: argparse.Namespace) -> None:
 
     def record(current: dict) -> dict:
         owner = current["sessions"][session_id]
+        if args.surface == "task" and args.decision == "stop":
+            orchestration_monitor.stop(owner)
         receipts = owner.setdefault("decisions", [])
         if not receipts or receipts[-1].get("id") != receipt["id"]:
             receipts.append(receipt)
@@ -11633,6 +11646,14 @@ def _claim_session_continuation(session_reference: str) -> dict | None:
             return None
         session = data["sessions"][repository_session_id]
         record = session.get("continuation")
+        if isinstance(record, dict) and record.get("operation_type") == "monitor_ready":
+            if (session.get("orchestration_monitor") or {}).get("restart_manifest"):
+                return None
+            if not orchestration_monitor.active(session, _now_iso()):
+                orchestration_monitor.stop(session, "inactive")
+                return None
+            if record.get("status") == "delivering" and (orchestration_monitor.instant(_now_iso()) - orchestration_monitor.instant(record["updated_at"])).total_seconds() >= 60:
+                record["status"] = "ready"
         if not isinstance(record, dict) or record.get("status") != "ready":
             return None
         scope = record.get("decision_scope")
@@ -11653,7 +11674,8 @@ def _claim_session_continuation(session_reference: str) -> dict | None:
         )
         record["status"] = "delivering"
         record["attempts"] = generation
-        record["message_id"] = _opencode_ascending_message_id(entropy=identity)
+        if record.get("operation_type") != "monitor_ready" or not record.get("message_id"):
+            record["message_id"] = _opencode_ascending_message_id(entropy=identity)
         record["updated_at"] = _now_iso()
         return {**record, "repository_session_id": repository_session_id}
 
@@ -11669,6 +11691,8 @@ def _finish_session_continuation(session_reference: str, *, delivered: bool) -> 
         record = data["sessions"][repository_session_id].get("continuation")
         if not isinstance(record, dict) or record.get("status") != "delivering":
             return dict(record) if isinstance(record, dict) else None
+        if delivered and record.get("operation_type") == "monitor_ready":
+            orchestration_monitor.acknowledge(data["sessions"][repository_session_id], record, _now_iso())
         record["status"] = "delivered" if delivered else "ready"
         record["updated_at"] = _now_iso()
         return dict(record)
@@ -11691,6 +11715,47 @@ def _cancel_session_continuation(session_reference: str) -> bool:
         return True
 
     return bool(_mutate_sessions(mutate))
+
+
+def cmd_monitor(args: argparse.Namespace) -> None:
+    """Manage a coordinator's durable worker cadence in existing session state."""
+    def mutate(data: dict) -> dict:
+        owner_id = _continuation_repository_session_id(data, args.session)
+        if not owner_id:
+            raise RuntimeError("Monitor requires an existing top-level session")
+        owner = data["sessions"][owner_id]
+        if not owner.get("opencode_session_id") or owner.get("opencode_parent_session_id"):
+            raise RuntimeError("Monitor requires a top-level OpenCode coordinator")
+        action = args.monitor_action
+        if action == "register":
+            if args.worker == owner.get("opencode_session_id"):
+                raise RuntimeError("Coordinator cannot monitor itself as a worker")
+            orchestration_monitor.register(owner, args.worker, args.started_at, args.until, _now_iso())
+        elif action == "remove":
+            monitor = owner.get("orchestration_monitor") or {}
+            monitor.get("workers", {}).pop(args.worker, None)
+            pending = owner.get("continuation") or {}
+            if pending.get("operation_type") == "monitor_ready" and pending.get("status") == "ready":
+                pending["status"] = "cancelled"
+            if not monitor.get("workers"):
+                orchestration_monitor.stop(owner, "no_workers")
+        elif action == "stop":
+            orchestration_monitor.stop(owner)
+        elif action == "tick":
+            orchestration_monitor.prepare(owner, _now_iso())
+        return {"monitor": owner.get("orchestration_monitor"), "continuation": owner.get("continuation")}
+    try:
+        if args.monitor_action == "status":
+            data = _load_sessions()
+            owner_id = _continuation_repository_session_id(data, args.session)
+            owner = data.get("sessions", {}).get(owner_id, {})
+            result = {"monitor": owner.get("orchestration_monitor"), "continuation": owner.get("continuation")}
+        else:
+            result = _mutate_sessions(mutate)
+        print(json.dumps(result, sort_keys=True))
+    except RuntimeError as exc:
+        print(f"Monitor error: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 def cmd_continuation(args: argparse.Namespace) -> None:
@@ -18007,6 +18072,11 @@ def capture_opencode_restart_manifest(path: Path) -> dict[str, Any]:
         "sessions": sorted(captured, key=lambda item: item["session_id"]),
     }
     _write_json_atomic(path, manifest)
+    def hold_monitors(data: dict) -> None:
+        for owner in data.get("sessions", {}).values():
+            if orchestration_monitor.active(owner, _now_iso()):
+                owner["orchestration_monitor"]["restart_manifest"] = str(path.resolve())
+    _mutate_sessions(hold_monitors)
     return manifest
 
 
@@ -18085,6 +18155,12 @@ def resume_opencode_restart_manifest(path: Path) -> dict[str, Any]:
     if pending:
         joined = ", ".join(sorted(pending))
         raise RuntimeError(f"Continuation was sent but not verified for: {joined}. Inspect manifest {path}; do not resend blindly.")
+    def release_monitors(data: dict) -> None:
+        for owner in data.get("sessions", {}).values():
+            monitor = owner.get("orchestration_monitor") or {}
+            if monitor.get("restart_manifest") == str(path.resolve()):
+                monitor.pop("restart_manifest")
+    _mutate_sessions(release_monitors)
     return manifest
 
 
@@ -18958,6 +19034,17 @@ def main() -> None:
     p_task_bridge_tool.add_argument("--session", required=True, help="Top-level OpenCode session ID")
     p_task_bridge_tool.add_argument("--json-stdin", action="store_true", required=True)
 
+    p_monitor = sub.add_parser("monitor", help="Schedule durable orchestration checkpoints")
+    p_monitor_sub = p_monitor.add_subparsers(dest="monitor_action", required=True)
+    for action in ("register", "remove", "status", "stop", "tick"):
+        p_monitor_action = p_monitor_sub.add_parser(action)
+        p_monitor_action.add_argument("--session", required=True)
+        if action in {"register", "remove"}:
+            p_monitor_action.add_argument("--worker", required=True)
+        if action == "register":
+            p_monitor_action.add_argument("--started-at", required=True, help="Actual launch/resume ISO timestamp with timezone")
+            p_monitor_action.add_argument("--until", required=True, help="Tonight's shutdown ISO timestamp with timezone")
+
     p_continuation = sub.add_parser("continuation", help="Manage bounded deterministic chat continuations")
     p_continuation_sub = p_continuation.add_subparsers(dest="continuation_action", required=True)
     p_continuation_record = p_continuation_sub.add_parser("record", help="Record one ready allowlisted operation")
@@ -19743,6 +19830,7 @@ def main() -> None:
         "task-bridge": cmd_task_bridge,
         "decision": cmd_decision,
         "continuation": cmd_continuation,
+        "monitor": cmd_monitor,
         "media": cmd_media,
         "docker": cmd_docker,
         "worktree": cmd_worktree,
