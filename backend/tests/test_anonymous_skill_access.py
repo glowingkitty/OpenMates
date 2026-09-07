@@ -389,7 +389,17 @@ async def test_anonymous_sse_does_not_double_finalize_worker_usage(
 
 @pytest.mark.asyncio
 # contract-test: direct surface=rest_api assertions=billing.anonymous.hard-capped-provider-metering
-async def test_anonymous_sse_sanitizes_internal_inference_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("transport", ["stream", "sse_dict", "json"])
+@pytest.mark.parametrize("answer", [
+    None,
+    "",
+    "   ",
+    '```json\n{"type":"app_skill_use","embed_id":"result-1","app_id":"web","skill_id":"search"}\n```\n\n'
+    '```json\n{"type":"app_skill_use","embed_id":"result-2","app_id":"web","skill_id":"search"}\n```\n',
+])
+async def test_anonymous_sse_sanitizes_internal_inference_errors(
+    monkeypatch: pytest.MonkeyPatch, transport: str, answer: str | None,
+) -> None:
     async def accepted_open_request(
         self: AnonymousFreeUsageService,
         *,
@@ -400,8 +410,16 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(monkeypatch: py
         return AnonymousReservationResult(accepted=True, request_id=request_id)
 
     class FailingRegistry:
-        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict:
-            raise RuntimeError("private provider diagnostic")
+        async def dispatch_skill(self, app_id: str, skill_id: str, request_body: dict) -> dict | StreamingResponse:
+            if answer is None:
+                raise RuntimeError("private provider diagnostic")
+            if transport == "stream":
+                async def completed_embed_only_stream():
+                    yield "data: " + json.dumps({"choices": [{"delta": {"content": answer}}]}) + "\n\n"
+                    yield 'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n'
+                    yield 'data: [DONE]\n\n'
+                return StreamingResponse(completed_embed_only_stream(), media_type="text/event-stream")
+            return {"choices": [{"message": {"content": answer}}]}
 
     fake_skill_registry_module = ModuleType("backend.core.api.app.services.skill_registry")
     fake_skill_registry_module.get_global_registry = lambda: FailingRegistry()
@@ -413,8 +431,8 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(monkeypatch: py
         "type": "http",
         "method": "POST",
         "path": "/v1/anonymous/chat/stream",
-        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"text/event-stream")],
-        "client": ("198.51.100.7", 443),
+        "headers": [(b"host", b"api.dev.openmates.org"), (b"accept", b"application/json" if transport == "json" else b"text/event-stream")],
+        "client": ("198.51.100.8", 443),
     })
     payload = AnonymousChatStreamRequest(
         anonymous_id="anon-1",
@@ -423,6 +441,13 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(monkeypatch: py
         plaintext_message="hello",
     )
 
+    if transport == "json":
+        with pytest.raises(HTTPException) as exc_info:
+            await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail["code"] == "anonymous_inference_failed"
+        return
+
     response = await anonymous_chat_stream(request=request, payload=payload, directus_service=FakeDirectus(), cache_service=FakeCache())
     body = ""
     async for chunk in response.body_iterator:
@@ -430,6 +455,13 @@ async def test_anonymous_sse_sanitizes_internal_inference_errors(monkeypatch: py
 
     assert "private provider diagnostic" not in body
     assert "Anonymous inference failed. Please try again." in body
+
+    events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
+    finals = [event for event in events if event.get("is_final_chunk")]
+    assert len(finals) == 1
+    assert finals[0]["rejection_reason"] == "anonymous_inference_failed"
+    assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
+    assert not any(event["type"] == "post_processing_completed" for event in events)
 
 
 @pytest.mark.asyncio

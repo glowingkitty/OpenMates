@@ -149,6 +149,14 @@ def _anonymous_history_content(message: AnonymousHistoryMessage | dict[str, Any]
     return ANONYMOUS_SKILL_DISPLAY_PATTERN.sub(discard_display_reference, content)
 
 
+def _require_anonymous_answer(content: str) -> None:
+    # A worker can close normally after reservation denial with only skill
+    # display fences. Those are progress, not a completed answer. Validate before
+    # the final marker; keep provider accounting in its existing worker lifecycle.
+    if not _anonymous_history_content({"role": "assistant", "content": content}).strip():
+        raise RuntimeError("Anonymous inference ended without answer content")
+
+
 def reject_anonymous_file_payloads(payload: AnonymousChatStreamRequest) -> None:
     if payload.files or payload.embeds:
         raise _signup_required_for_uploads()
@@ -319,6 +327,10 @@ async def anonymous_chat_stream(
                     "learning_mode": learning_mode_context,
                 },
             )
+            choice = (result.get("choices") or [{}])[0] if isinstance(result, dict) else {}
+            message = choice.get("message") or {}
+            assistant = str(message.get("content") or "")
+            _require_anonymous_answer(assistant)
             usage = result.get("usage") if isinstance(result, dict) else None
             actual_credits = _safe_positive_int((usage or {}).get("total_credits"), fallback=0)
         except HTTPException:
@@ -330,9 +342,6 @@ async def anonymous_chat_stream(
                 detail={"code": "anonymous_inference_failed", "message": ANONYMOUS_INFERENCE_ERROR_MESSAGE},
             ) from exc
 
-        choice = (result.get("choices") or [{}])[0] if isinstance(result, dict) else {}
-        message = choice.get("message") or {}
-        assistant = str(message.get("content") or "")
         return AnonymousChatResponse(
             status="completed",
             chatId=payload.client_chat_id,
@@ -420,18 +429,6 @@ async def anonymous_chat_stream(
                 message = choice.get("message") or {}
                 full_content = str(message.get("content") or "")
                 model_name = result.get("model")
-                sequence = 1
-                yield _anonymous_sse_event({
-                    "type": "ai_message_chunk",
-                    "task_id": task_id,
-                    "chat_id": payload.client_chat_id,
-                    "message_id": assistant_message_id,
-                    "user_message_id": payload.client_message_id,
-                    "full_content_so_far": full_content,
-                    "sequence": sequence,
-                    "is_final_chunk": True,
-                    "model_name": model_name,
-                })
             else:
                 async for openai_payload in _iter_openai_sse_payloads(result):
                     if isinstance(openai_payload.get("model"), str):
@@ -466,18 +463,19 @@ async def anonymous_chat_stream(
                                 "is_final_chunk": False,
                                 "model_name": model_name,
                             })
-                sequence += 1
-                yield _anonymous_sse_event({
-                    "type": "ai_message_chunk",
-                    "task_id": task_id,
-                    "chat_id": payload.client_chat_id,
-                    "message_id": assistant_message_id,
-                    "user_message_id": payload.client_message_id,
-                    "full_content_so_far": full_content,
-                    "sequence": sequence,
-                    "is_final_chunk": True,
-                    "model_name": model_name,
-                })
+            _require_anonymous_answer(full_content)
+            sequence += 1
+            yield _anonymous_sse_event({
+                "type": "ai_message_chunk",
+                "task_id": task_id,
+                "chat_id": payload.client_chat_id,
+                "message_id": assistant_message_id,
+                "user_message_id": payload.client_message_id,
+                "full_content_so_far": full_content,
+                "sequence": sequence,
+                "is_final_chunk": True,
+                "model_name": model_name,
+            })
             yield _anonymous_sse_event({
                 "type": "ai_task_ended",
                 "chatId": payload.client_chat_id,

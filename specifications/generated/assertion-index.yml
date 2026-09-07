@@ -15613,17 +15613,17 @@ assertions:
       surface: rest_api
     - &id1751
       path: backend/tests/test_anonymous_skill_access.py
-      line: 392
+      line: 400
       name: test_anonymous_sse_sanitizes_internal_inference_errors
       surface: rest_api
     - &id1753
       path: backend/tests/test_anonymous_skill_access.py
-      line: 509
+      line: 541
       name: test_anonymous_chat_keeps_json_response_for_native_clients
       surface: rest_api
     - &id1754
       path: backend/tests/test_anonymous_skill_access.py
-      line: 565
+      line: 597
       name: test_anonymous_json_does_not_double_finalize_worker_usage
       surface: rest_api
     - &id1755
@@ -15684,7 +15684,7 @@ assertions:
       surface: rest_api
     - &id1752
       path: backend/tests/test_anonymous_skill_access.py
-      line: 437
+      line: 469
       name: test_anonymous_sse_emits_initial_lifecycle_before_budget_reservation
       surface: rest_api
     tests:
