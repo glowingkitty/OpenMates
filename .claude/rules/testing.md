@@ -10,6 +10,24 @@ globs:
 
 @docs/contributing/guides/testing.md
 
+## GitHub isolation cutover (current execution policy)
+
+The approved GitHub migration supersedes shared-dev/Vercel execution instructions
+below for new automated test runs. Focused unit checks remain local; daily units
+and web E2E use the canonical `scripts/tests.py run` dispatcher and GitHub-hosted
+runner-local frontend, API, workers and state. Never work around a migration hold
+by invoking Playwright, old workflow dispatch, Vercel, or the Hetzner API directly.
+Keep existing assertion, real authentication, encryption, budget and proof gates.
+
+Use `scripts/ci_coordinator.py status REQUEST_ID` for cached queue state and
+`result REQUEST_ID` for validated source/harness-bound evidence. Historical
+Directus campaign records are not yet synchronized with these new CI receipts;
+do not interpret their absence as a passing or missing execution to retry.
+Coverage not ported to a verified runtime remains an explicit hold. A core account
+pilot does not certify cloud-only or provider-backed tests. See
+`docs/architecture/isolated-github-tests.md` for supported commands and limits.
+
+
 ## Daily Test Results — Where to Find Them
 
 Directus is the canonical test state and claim store. Use `scripts/tests.py`
