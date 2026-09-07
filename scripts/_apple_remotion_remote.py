@@ -540,6 +540,8 @@ def main():
         print(json.dumps(result))
         if result.get('status') == 'deletion-stopped':
             return 77
+        if result.get('status') == 'render-failed':
+            return 2
         return 0
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
         print(json.dumps({'error': str(exc)}))

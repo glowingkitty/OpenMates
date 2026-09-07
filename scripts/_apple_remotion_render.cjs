@@ -29,7 +29,8 @@ for (const name of ['unlink', 'rm', 'rmdir', 'rename']) {
 const originalSpawn = cp.spawn.bind(cp);
 cp.spawn = (command, args, options = {}) => {
   const compositor = path.join(path.dirname(encoder), 'remotion');
-  if (![browser, encoder, compositor].includes(command)) throw new Error('Unsupported render child: ' + command);
+  const compiler = path.join(root, 'node_modules/@esbuild/darwin-arm64/bin/esbuild');
+  if (![browser, encoder, compositor, compiler].includes(command)) throw new Error('Unsupported render child: ' + command);
   // Native helpers cannot create an unobserved grandchild. Fork denial returns
   // an ordinary failure; inherited unlink denial kills the observed child.
   const nativeProfile = '(version 1)(allow default)(deny process-fork)';
