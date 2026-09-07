@@ -13,7 +13,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 from uuid import uuid4
 
-from backend.engineering_control_plane.coordination import DispatchSpec, SessionEventType, _validate_event_payload
+from backend.engineering_control_plane.coordination import (
+    DispatchSpec,
+    SessionEventType,
+    _validate_event_payload,
+    event_handoff_idempotency_key,
+)
 from backend.engineering_control_plane.database import connect
 
 
@@ -641,7 +646,32 @@ class PostgresCoordinationRepository:
         if target_type not in {"session", "task", "dispatch", "lease", "runtime_operation"}:
             raise ValueError(f"unsupported event target type: {target_type}")
         event_key = f"event-{uuid4().hex}"
+        idempotency_key = event_handoff_idempotency_key(
+            event_type=event_type,
+            target_type=target_type,
+            target_key=target_key,
+            subject_key=subject_key,
+            payload=payload,
+        )
         with connect(self.database_url) as connection:
+            if idempotency_key:
+                lock_key = "\x1f".join(idempotency_key)
+                connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (lock_key,))
+                existing = connection.execute(
+                    """
+                    SELECT event_key FROM control_plane_session_events
+                    WHERE event_type = %s
+                      AND target_type = %s
+                      AND target_key = %s
+                      AND subject_key = %s
+                      AND payload ->> 'handoff_key' = %s
+                    ORDER BY cursor
+                    LIMIT 1
+                    """,
+                    idempotency_key,
+                ).fetchone()
+                if existing is not None:
+                    return self._event_row(connection, existing[0])
             connection.execute(
                 """
                 INSERT INTO control_plane_session_events
@@ -830,3 +860,48 @@ class PostgresCoordinationRepository:
         from psycopg.types.json import Jsonb
 
         return Jsonb(value)
+
+    def runtime_capacity_transition(
+        self, host_key: str, *, action: str, payload: dict[str, Any],
+        owner: str, host_observation: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Apply one host-broker transition under a durable PostgreSQL row lock.
+
+        The broker alone may supply observations and cleanup acknowledgements.
+        Task-facing API code must never forward those fields from task callers.
+        Admission is not enabled merely by creating this ledger.
+        """
+        from backend.engineering_control_plane import runtime_capacity
+
+        if not host_key or len(host_key) > 255 or not owner:
+            raise ValueError("Host and owner identity required")
+        if action not in {"request", "observe", "retain", "release", "reconcile", "status"}:
+            raise ValueError("Unknown capacity action")
+        with connect(self.database_url) as connection:
+            connection.execute(
+                "INSERT INTO control_plane_runtime_capacity (host_key) VALUES (%s) ON CONFLICT DO NOTHING",
+                (host_key,),
+            )
+            state = connection.execute(
+                "SELECT state FROM control_plane_runtime_capacity WHERE host_key = %s FOR UPDATE",
+                (host_key,),
+            ).fetchone()[0]
+            if state.get("version") != 1 or not isinstance(state.get("requests"), list):
+                raise ValueError("Invalid persisted runtime capacity state")
+            if action == "request":
+                runtime_capacity.enqueue(state, {**payload, "owner": owner})
+            elif action == "observe":
+                runtime_capacity.observe(state, **payload)
+            elif action == "retain":
+                runtime_capacity.retain(state, **payload, owner=owner)
+            elif action == "release":
+                runtime_capacity.release(state, **payload, owner=owner)
+            elif payload:
+                raise ValueError("Unexpected capacity action payload")
+            if host_observation is not None:
+                runtime_capacity.reconcile(state, host_observation)
+            connection.execute(
+                "UPDATE control_plane_runtime_capacity SET state = %s, updated_at = now() WHERE host_key = %s",
+                (self._jsonb(state), host_key),
+            )
+            return state

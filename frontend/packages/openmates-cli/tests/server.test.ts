@@ -79,6 +79,7 @@ import {
   resolveRuntimeDeploymentMode,
   shouldAutoInstallRuntimeMonitoringServices,
   OFFICIAL_CLOUD_NO_WEBAPP_COMPOSE_FILE,
+  validateServerEnvironmentTarget,
 } from "../src/serverPlanning.ts";
 import {
   applyRuntimeCheckResults,
@@ -1809,5 +1810,15 @@ describe("runtime notification email", () => {
     ]) {
       assert.match(email.textContent, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     }
+  });
+});
+
+
+describe("isolated environment routing", () => {
+  it("refuses task targets before a broker is installed instead of mutating shared dev", () => {
+    assert.throws(() => validateServerEnvironmentTarget("restart", "task"), /not enabled/);
+    assert.throws(() => validateServerEnvironmentTarget("start", "unknown"), /Unknown/);
+    assert.doesNotThrow(() => validateServerEnvironmentTarget("restart", "shared-dev"));
+    assert.doesNotThrow(() => validateServerEnvironmentTarget("logs", undefined));
   });
 });

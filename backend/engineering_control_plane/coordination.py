@@ -164,6 +164,28 @@ def _validate_event_payload(payload: Mapping[str, Any]) -> None:
                 pending.append(value)
 
 
+def event_handoff_idempotency_key(
+    *,
+    event_type: SessionEventType | str,
+    target_type: str,
+    target_key: str,
+    subject_key: str,
+    payload: Mapping[str, Any],
+) -> tuple[str, str, str, str, str] | None:
+    handoff_key = payload.get("handoff_key")
+    if handoff_key is None:
+        return None
+    # PostgreSQL matches the stored JSON text exactly. Reject noncanonical input
+    # so the reference store and durable store share one idempotency identity.
+    if not isinstance(handoff_key, str) or not handoff_key or handoff_key != handoff_key.strip():
+        raise ValueError("handoff_key must be a nonempty string without surrounding whitespace")
+    if isinstance(event_type, SessionEventType):
+        event_type_value = event_type.value
+    else:
+        event_type_value = str(event_type)
+    return (event_type_value, target_type, target_key, subject_key, handoff_key)
+
+
 class InMemoryCoordinationStore:
     """Thread-safe reference implementation of the coordination contract."""
 
@@ -381,7 +403,24 @@ class InMemoryCoordinationStore:
         _validate_event_payload(payload)
         if target_type not in {"session", "task", "dispatch", "lease", "runtime_operation"}:
             raise ValueError(f"unsupported event target type: {target_type}")
+        idempotency_key = event_handoff_idempotency_key(
+            event_type=event_type,
+            target_type=target_type,
+            target_key=target_key,
+            subject_key=subject_key,
+            payload=payload,
+        )
         with self._lock:
+            if idempotency_key:
+                for event in self._events.values():
+                    if event_handoff_idempotency_key(
+                        event_type=event.event_type,
+                        target_type=event.target_type,
+                        target_key=event.target_key,
+                        subject_key=event.subject_key,
+                        payload=event.payload,
+                    ) == idempotency_key:
+                        return event
             self._cursor += 1
             event = SessionEvent(
                 event_key=f"event-{self._cursor}",

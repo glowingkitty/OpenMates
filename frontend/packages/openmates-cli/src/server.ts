@@ -59,6 +59,7 @@ import {
   unsetEnvValue,
   upsertEnvValue,
   type VaultSecretPresence,
+  validateServerEnvironmentTarget,
 } from "./serverPlanning.js";
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
 import {
@@ -4335,6 +4336,8 @@ export async function handleServer(
     printServerHelp();
     return;
   }
+
+  validateServerEnvironmentTarget(subcommand, flags.environment);
 
   if (shouldPrintServerCommandStart(subcommand, rest, flags)) {
     printServerCommandStart(subcommand, rest, flags);

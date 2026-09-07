@@ -28,6 +28,15 @@ sharing, permissions, sync, AI pipeline, provider integrations, migrations, new
 API routes, app skills, embed types, background jobs, cron jobs, and Directus
 schema changes.
 
+### Product versus engineering workflow scope
+
+Specifications govern OpenMates product features. Engineering workflows (Codex,
+OpenCode, worktrees, hooks, resource admission, test orchestration and deploy
+coordination) use an executable Plan directly, with `approvals.specification`
+marked `not_required`. Do not create or request a product Specification for those
+workflows. Existing explicit approval of the reviewed workflow design authorizes
+its implementation; do not repeat approval merely to transcribe it into a Plan.
+
 ### Step 2: Discover Context And Specifications
 
 Before asking questions or drafting:
@@ -37,7 +46,7 @@ Before asking questions or drafting:
 2. Search `specifications/`, `docs/plans/`, `docs/architecture/`, user guides,
    relevant source directories, and related tests.
 3. Identify the governing approved Specification bundle and record its exact
-   reference and fingerprint. For a new feature or semantic behavior change, run
+   reference and fingerprint. For a new product feature or product semantic behavior change, run
    `define-specification` and wait for approval before creating the Plan.
    Implementation-only work references the current approved Specification.
 4. Read likely related tests so each task and verification maps to real paths.

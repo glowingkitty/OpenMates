@@ -876,3 +876,21 @@ export function planRuntimeMonitoringServices(
 export function shouldAutoInstallRuntimeMonitoringServices(env: Record<string, string | undefined>): boolean {
   return env.OPENMATES_SKIP_RUNTIME_MONITORING !== "1";
 }
+
+/** Refuse unimplemented environment targets before any shared host mutation. */
+export function validateServerEnvironmentTarget(
+  command: string,
+  environment: string | boolean | undefined,
+): void {
+  const environmentCommands = new Set([
+    "start", "stop", "restart", "update", "status", "logs", "verify", "test",
+  ]);
+  if (!environmentCommands.has(command) || environment === undefined) return;
+  if (environment === "shared-dev") return;
+  if (environment === "task") {
+    throw new Error(
+      "Task environments are not enabled: verified storage limits and the runtime broker are required. Shared dev was not changed.",
+    );
+  }
+  throw new Error("Unknown server environment target; use shared-dev or an enabled task environment.");
+}

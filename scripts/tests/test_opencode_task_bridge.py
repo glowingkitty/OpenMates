@@ -302,6 +302,86 @@ def test_stage_and_reconcile_store_no_decrypted_task_text(monkeypatch) -> None:
     assert metadata["last_reconciled_message_id"] == "msg_done"
 
 
+def test_coordinator_handoff_publishes_safe_idempotent_event() -> None:
+    sessions = load_sessions_module()
+    calls: list[tuple[str, str, dict | None]] = []
+    events: list[dict] = []
+
+    def api_request(method: str, path: str, *, data: dict | None = None) -> dict:
+        calls.append((method, path, data))
+        if method == "GET":
+            assert "target_type=session" in path
+            assert "target_key=2fea" in path
+            return {"events": list(events)}
+        if method == "POST":
+            assert data is not None
+            event = {
+                "event_key": "event-1",
+                "event_type": data["event_type"],
+                "target_type": data["target_type"],
+                "target_key": data["target_key"],
+                "subject_key": data["subject_key"],
+                "payload": data["payload"],
+            }
+            events.append(event)
+            return {"event": event}
+        raise AssertionError((method, path))
+
+    first = sessions._publish_openmates_task_coordinator_handoff(
+        coordinator_session="2fea",
+        task_id="uuid-TASK-1",
+        task_version=3,
+        api_request=api_request,
+    )
+    second = sessions._publish_openmates_task_coordinator_handoff(
+        coordinator_session="2fea",
+        task_id="uuid-TASK-1",
+        task_version=3,
+        api_request=api_request,
+    )
+
+    assert first["published"] is True
+    assert second["published"] is False
+    assert second["reused"] is True
+    assert [call[0] for call in calls] == ["GET", "POST", "GET"]
+    published_body = calls[1][2]
+    assert published_body is not None
+    assert published_body["event_type"] == "task.changed"
+    assert published_body["target_type"] == "session"
+    assert published_body["target_key"] == "2fea"
+    assert published_body["subject_key"] == "uuid-TASK-1"
+    payload = published_body["payload"]
+    assert payload == {
+        "state": "ready",
+        "change_type": "external_ai_assignment",
+        "assignee_type": "external_ai",
+        "assignee_identity": "opencode",
+        "task_version": 3,
+        "source_surface": "web",
+        "handoff_key": first["handoff_key"],
+    }
+    forbidden = {"api_key", "content", "cookie", "credentials", "email", "password", "product_content", "secret", "token", "user_id"}
+    assert forbidden.isdisjoint(payload)
+
+
+def test_coordinator_handoff_rejects_non_opencode_assignment() -> None:
+    sessions = load_sessions_module()
+
+    try:
+        sessions._publish_openmates_task_coordinator_handoff(
+            coordinator_session="2fea",
+            task_id="uuid-TASK-1",
+            task_version=1,
+            assignee_type="openmates",
+            assignee_identity="openmates",
+            api_request=lambda *_args, **_kwargs: {},
+        )
+    except RuntimeError as error:
+        assert "external_ai/opencode" in str(error)
+    else:
+        raise AssertionError("Coordinator handoff must be limited to OpenCode assignment")
+
+
 def test_activate_next_mutates_once_and_uses_versioned_continuation_key(monkeypatch) -> None:
     sessions = load_sessions_module()
     data = state()

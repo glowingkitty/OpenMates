@@ -82,6 +82,11 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 try:
+    from scripts import _workflow_decisions as workflow_decisions
+except ModuleNotFoundError:
+    import _workflow_decisions as workflow_decisions
+
+try:
     from scripts import _orchestration_monitor as orchestration_monitor
 except ModuleNotFoundError:
     import _orchestration_monitor as orchestration_monitor
@@ -192,6 +197,7 @@ OPENMATES_TASK_BRIDGE_API_URL = "https://api.dev.openmates.org"
 OPENMATES_TASK_BRIDGE_TIMEOUT_SECONDS = 20
 OPENMATES_TASK_BRIDGE_MAX_JSON_BYTES = 4 * 1024 * 1024
 OPENMATES_TASK_BRIDGE_RETRY_DELAYS_SECONDS = (2,)
+TASK_COORDINATOR_HANDOFF_SOURCE_SURFACES = {"web", "cli", "opencode"}
 OPENMATES_TASK_ACTIVITY_MAX_ENTRIES = 20
 OPENMATES_TASK_ACTIVITY_MAX_CHARACTERS = 12000
 OPENMATES_TASK_ACTIVITY_ENTRY_CHARACTERS = 2000
@@ -8756,6 +8762,77 @@ def repair_worktree_routing(opencode_session_id: str) -> dict:
     return _mutate_sessions(update)
 
 
+def session_for_codex(
+    data: dict, task_id: str, *, host: str = "", repo_id: str = ""
+) -> tuple[str, dict] | None:
+    """Resolve a host-scoped task without borrowing a sibling's session.
+
+    Repository identity owns the workspace independently of mutable task titles.
+    See docs/plans/codex-session-runtime-isolation/plan.yml.
+    """
+    if not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", task_id):
+        raise ValueError("Invalid Codex task ID")
+    host = host or socket.gethostname()
+    matches = [
+        (sid, info) for sid, info in data.get("sessions", {}).items()
+        if info.get("codex_task_id") == task_id
+        and info.get("codex_host") == host
+        and (not repo_id or _session_repo_id(info) == repo_id)
+    ]
+    if len(matches) > 1:
+        raise RuntimeError("Codex task matches multiple repository sessions; use an explicit session")
+    return matches[0] if matches else None
+
+
+def bind_codex_session(
+    session_id: str, task_id: str, *, expected_worktree: str,
+    previous_owner_stopped: bool,
+) -> dict:
+    """Adopt reviewed stopped work without changing its files or historic lineage.
+
+    The caller explicitly attests the previous owner stopped; process discovery
+    alone cannot establish ownership across remote hosts. A conflicting Codex
+    binding is never stolen, even when this attestation is supplied.
+    """
+    if not previous_owner_stopped:
+        raise ValueError("Explicit confirmation that the previous owner stopped is required")
+    expected = Path(expected_worktree).resolve()
+    if not expected.is_dir():
+        raise ValueError("Expected worktree does not exist")
+    host = socket.gethostname()
+
+    def bind(data: dict) -> dict:
+        sid = _resolve_session_id(data, session_id=session_id)
+        record = data["sessions"][sid]
+        current = session_for_codex(data, task_id, host=host, repo_id=_session_repo_id(record))
+        if current and current[0] != sid:
+            raise RuntimeError("Codex task already owns another repository session")
+        if record.get("codex_task_id") and (
+            record["codex_task_id"] != task_id or record.get("codex_host") != host
+        ):
+            raise RuntimeError("Session is already bound to another Codex task")
+        metadata = record.get("worktree") or {}
+        if not metadata.get("path") or Path(metadata["path"]).resolve() != expected:
+            raise RuntimeError("Expected worktree does not match preserved session")
+        record.update(codex_task_id=task_id, codex_host=host, execution_owner_tool="codex")
+        record.setdefault("codex_adopted_at", _now_iso())
+        return {"session_id": sid, "codex_task_id": task_id, "host": host, "worktree": str(expected)}
+
+    return _mutate_sessions(bind)
+
+
+def _session_zellij_owner(opencode_task: str | None, codex_task: str | None) -> str | None:
+    """Shared agent hosts are not a task-owned terminal that end may close."""
+    return None if opencode_task or codex_task else os.environ.get("ZELLIJ_SESSION_NAME")
+
+
+def _codex_task_identity() -> str:
+    """Prefer the durable task ID; session ID supports older Codex launchers."""
+    if os.environ.get("OPENCODE_SESSION_ID"):
+        return ""
+    return os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID") or ""
+
+
 def register_session_record(
     session_record: dict,
     opencode_session_id: str | None = None,
@@ -8765,6 +8842,16 @@ def register_session_record(
         pruned = _prune_stale(data)
         cleared_locks = _prune_stale_locks(data)
         _prune_checkpoint_lock_files(data)
+        codex_task = session_record.get("codex_task_id")
+        if codex_task:
+            existing = session_for_codex(
+                data, codex_task, host=session_record["codex_host"],
+                repo_id=str(session_record.get("repo_id") or ""),
+            )
+            if existing:
+                existing_id, existing_session = existing
+                existing_session["last_active"] = _now_iso()
+                return existing_id, pruned, cleared_locks, data, False
         if opencode_session_id:
             existing = session_for_opencode(
                 data,
@@ -8860,6 +8947,9 @@ def cmd_start(args: argparse.Namespace) -> None:
         opencode_session_id,
         repo_id=repo["repo_id"],
     ) if opencode_session_id else None
+    codex_task_id = "" if opencode_session_id else _codex_task_identity()
+    if codex_task_id:
+        existing = session_for_codex(_load_sessions(), codex_task_id, repo_id=repo["repo_id"])
     # Chat + repository identity owns the worktree; task descriptions are mutable.
     if existing and _session_repo_id(existing[1]) != repo["repo_id"]:
         existing = None
@@ -8868,6 +8958,14 @@ def cmd_start(args: argparse.Namespace) -> None:
         sid, _existing_session = existing
 
         def refresh_existing(data: dict) -> dict:
+            if codex_task_id:
+                current = session_for_codex(data, codex_task_id, repo_id=repo["repo_id"])
+                if current is None or current[0] != sid:
+                    raise RuntimeError("Codex binding changed while starting; retry")
+                current[1].update(last_active=_now_iso(), mode=mode, tags=tags)
+                if args.task:
+                    current[1]["task"] = args.task
+                return data
             return refresh_existing_session_for_start(
                 data,
                 sid,
@@ -8896,9 +8994,11 @@ def cmd_start(args: argparse.Namespace) -> None:
             # OpenCode inherits the zellij name of the shared server host pane,
             # but does not own that zellij session. Recording it here would let
             # `sessions.py end` kill the server and every sibling chat.
-            "zellij_session": None if opencode_session_id else os.environ.get("ZELLIJ_SESSION_NAME"),
+            "zellij_session": _session_zellij_owner(opencode_session_id, codex_task_id),
             "opencode_session_id": None,
             "opencode_top_level_session_id": opencode_session_id,
+            "codex_task_id": codex_task_id or None,
+            "codex_host": socket.gethostname() if codex_task_id else None,
             "binding_mode": (
                 "repo_routed"
                 if opencode_session_id and mode != "question" and repo["repo_kind"] != "control_plane"
@@ -10531,6 +10631,10 @@ def _resolve_session_identity(sessions: dict) -> Optional[str]:
         if len(matches) == 1:
             return matches[0]
         return None
+    codex_task_id = _codex_task_identity()
+    if codex_task_id:
+        matched = session_for_codex({"sessions": sessions}, codex_task_id)
+        return matched[0] if matched else None
     return _resolve_session_from_zellij(sessions)
 
 
@@ -11463,6 +11567,114 @@ def cmd_task_bridge(args: argparse.Namespace) -> None:
     print(json.dumps({"task_bridge": result}, sort_keys=True))
 
 
+def _safe_task_handoff_identifier(value: str, field_name: str, *, max_length: int = 512) -> str:
+    normalized = str(value or "").strip()
+    if not normalized or len(normalized) > max_length or re.search(r"[\x00-\x1f\x7f]", normalized):
+        raise RuntimeError(f"Task handoff requires a safe {field_name}")
+    return normalized
+
+
+def _openmates_task_coordinator_handoff_key(
+    *,
+    coordinator_session: str,
+    task_id: str,
+    task_version: int,
+    assignee_type: str,
+    assignee_identity: str,
+) -> str:
+    subject = {
+        "assignee_identity": assignee_identity,
+        "assignee_type": assignee_type,
+        "coordinator_session": coordinator_session,
+        "task_id": task_id,
+        "task_version": task_version,
+    }
+    encoded = json.dumps(subject, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _publish_openmates_task_coordinator_handoff(
+    *,
+    coordinator_session: str,
+    task_id: str,
+    task_version: int,
+    assignee_type: str = "external_ai",
+    assignee_identity: str = "opencode",
+    source_surface: str = "web",
+    api_request: Callable[..., dict] = control_plane_api_request,
+) -> dict:
+    """Publish one privacy-minimal coordinator event for an OpenCode assignment."""
+    coordinator_session = _safe_task_handoff_identifier(coordinator_session, "coordinator session")
+    task_id = _safe_task_handoff_identifier(task_id, "task id")
+    if task_version < 1:
+        raise RuntimeError("Task handoff requires a positive task version")
+    if assignee_type != "external_ai" or assignee_identity != "opencode":
+        raise RuntimeError("Task handoff only supports external_ai/opencode assignment")
+    if source_surface not in TASK_COORDINATOR_HANDOFF_SOURCE_SURFACES:
+        raise RuntimeError(f"unsupported Task handoff source surface: {source_surface}")
+    handoff_key = _openmates_task_coordinator_handoff_key(
+        coordinator_session=coordinator_session,
+        task_id=task_id,
+        task_version=task_version,
+        assignee_type=assignee_type,
+        assignee_identity=assignee_identity,
+    )
+    query = urllib.parse.urlencode({"target_type": "session", "target_key": coordinator_session, "after_cursor": 0})
+    existing_events = api_request("GET", f"/v1/coordination/events?{query}").get("events") or []
+    for event in existing_events:
+        payload = event.get("payload") if isinstance(event, dict) else None
+        if (
+            isinstance(payload, dict)
+            and event.get("event_type") == "task.changed"
+            and event.get("subject_key") == task_id
+            and payload.get("handoff_key") == handoff_key
+        ):
+            return {"published": False, "reused": True, "handoff_key": handoff_key, "event": event}
+    response = api_request(
+        "POST",
+        "/v1/coordination/events",
+        data={
+            "event_type": "task.changed",
+            "target_type": "session",
+            "target_key": coordinator_session,
+            "subject_key": task_id,
+            "payload": {
+                "state": "ready",
+                "change_type": "external_ai_assignment",
+                "assignee_type": assignee_type,
+                "assignee_identity": assignee_identity,
+                "task_version": task_version,
+                "source_surface": source_surface,
+                "handoff_key": handoff_key,
+            },
+        },
+    )
+    event = response.get("event")
+    if not isinstance(event, dict):
+        raise RuntimeError("Task handoff publish returned an invalid event")
+    return {"published": True, "reused": False, "handoff_key": handoff_key, "event": event}
+
+
+def cmd_task_handoff(args: argparse.Namespace) -> None:
+    """Publish safe Task assignment handoffs to the local coordinator."""
+    try:
+        if args.task_handoff_action == "publish":
+            result = _publish_openmates_task_coordinator_handoff(
+                coordinator_session=args.coordinator_session,
+                task_id=args.task_id,
+                task_version=args.task_version,
+                assignee_type=args.assignee_type,
+                assignee_identity=args.assignee_identity,
+                source_surface=args.source_surface,
+            )
+        else:
+            raise RuntimeError(f"unknown task handoff action: {args.task_handoff_action}")
+    except RuntimeError as exc:
+        print(f"Task handoff error: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps({"task_handoff": result}, sort_keys=True))
+
+
 def _opencode_ascending_message_id(*, timestamp_ms: int | None = None, entropy: str = "") -> str:
     """Create an OpenCode message ID that preserves chronological storage order.
 
@@ -11490,7 +11702,7 @@ def _task_decision_revision(task: dict) -> str:
 
 def _workflow_decision_context(session: dict, task: dict | None) -> list[dict]:
     """Expose only validated scoped decisions for this exact Task version."""
-    from _workflow_decisions import matching_receipt
+    matching_receipt = workflow_decisions.matching_receipt
 
     if not task:
         return []
@@ -11515,7 +11727,7 @@ def _workflow_decision_context(session: dict, task: dict | None) -> list[dict]:
 
 def cmd_decision(args: argparse.Namespace) -> None:
     """Record a scoped instruction in the owning session and optionally its Plan."""
-    from _workflow_decisions import make_receipt
+    make_receipt = workflow_decisions.make_receipt
 
     data = _load_sessions()
     session_id = _continuation_repository_session_id(data, args.session)
@@ -11658,7 +11870,7 @@ def _claim_session_continuation(session_reference: str) -> dict | None:
             return None
         scope = record.get("decision_scope")
         if scope:
-            from _workflow_decisions import matching_receipt
+            matching_receipt = workflow_decisions.matching_receipt
             receipt = matching_receipt(session.get("decisions", []), preserve_stop=True, **scope)
             if receipt:
                 record.update(status="cancelled", decision_id=receipt["id"])
@@ -15653,6 +15865,17 @@ def cmd_deploy(args: argparse.Namespace) -> None:
 
 def cmd_worktree(args: argparse.Namespace) -> None:
     """Manage automatic local session worktrees."""
+    if args.worktree_action == "bind-codex":
+        try:
+            result = bind_codex_session(
+                args.session, args.codex_task, expected_worktree=args.expected_worktree,
+                previous_owner_stopped=args.previous_owner_stopped,
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(result, sort_keys=True))
+        return
     if args.worktree_action == "submit-ready":
         result = submit_ready_worktree(args.session, patch_id=args.patch_id, checkpoint_commit=args.checkpoint_commit)
         print(json.dumps(result, sort_keys=True))
@@ -19030,6 +19253,16 @@ def main() -> None:
     p_decision.add_argument("--decision", choices=["accept", "stop", "waive", "resume"], required=True)
     p_decision.add_argument("--plan", default="", help="Owning worktree Plan path, if applicable")
 
+    p_task_handoff = sub.add_parser("task-handoff", help="Publish privacy-minimal Task assignment handoffs")
+    p_task_handoff_sub = p_task_handoff.add_subparsers(dest="task_handoff_action", required=True)
+    p_task_handoff_publish = p_task_handoff_sub.add_parser("publish", help="Notify a coordinator session about an OpenCode-assigned Task")
+    p_task_handoff_publish.add_argument("--coordinator-session", required=True, help="Coordinator sessions.py or OpenCode session key")
+    p_task_handoff_publish.add_argument("--task-id", required=True, help="Assigned Task id")
+    p_task_handoff_publish.add_argument("--task-version", type=int, required=True, help="Assigned Task optimistic version")
+    p_task_handoff_publish.add_argument("--assignee-type", choices=["external_ai"], default="external_ai")
+    p_task_handoff_publish.add_argument("--assignee-identity", choices=["opencode"], default="opencode")
+    p_task_handoff_publish.add_argument("--source-surface", choices=sorted(TASK_COORDINATOR_HANDOFF_SOURCE_SURFACES), default="web")
+
     p_task_bridge = sub.add_parser("task-bridge", help="Bridge trusted OpenMates Task JSON into OpenCode")
     p_task_bridge_sub = p_task_bridge.add_subparsers(dest="task_bridge_action", required=True)
     p_task_bridge_stage = p_task_bridge_sub.add_parser(
@@ -19149,6 +19382,11 @@ def main() -> None:
 
     p_worktree = sub.add_parser("worktree", help="Manage automatic local session worktrees")
     p_worktree_sub = p_worktree.add_subparsers(dest="worktree_action", required=True)
+    p_codex_bind = p_worktree_sub.add_parser("bind-codex", help="Adopt a reviewed stopped session without replacing its worktree")
+    p_codex_bind.add_argument("--session", required=True)
+    p_codex_bind.add_argument("--codex-task", required=True)
+    p_codex_bind.add_argument("--expected-worktree", required=True)
+    p_codex_bind.add_argument("--previous-owner-stopped", action="store_true", help="Attest the previous execution owner has stopped")
     p_worktree_root_dirty = p_worktree_sub.add_parser(
         "root-dirty", help="List safe dirty files in the canonical root without exposing contents"
     )
@@ -19843,6 +20081,7 @@ def main() -> None:
         "chat": cmd_opencode_chat,
         "presence": cmd_presence,
         "task-bridge": cmd_task_bridge,
+        "task-handoff": cmd_task_handoff,
         "decision": cmd_decision,
         "continuation": cmd_continuation,
         "monitor": cmd_monitor,

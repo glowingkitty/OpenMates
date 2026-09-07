@@ -12,6 +12,25 @@ HOOK_DIR="${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/.claude/hooks"
 INPUT=$(cat)
 CALLER_CWD=$(echo "$INPUT" | jq -r --arg fallback "$PROJECT_ROOT" '.cwd // $fallback')
 
+# Codex child hooks carry the parent identity. Preserve it for shared auto-track
+# and stop hooks rather than relying on a shared terminal or inherited child ID.
+ROUTING_OUTPUT=""
+HOOK_RESULTS=""
+if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
+  CODEX_HOOK_TASK=$(echo "$INPUT" | jq -r '.session_id // empty')
+  if [ -n "$CODEX_HOOK_TASK" ]; then
+    export CODEX_THREAD_ID="$CODEX_HOOK_TASK"
+  fi
+  if [ "$EVENT" = "SessionStart" ] || [ "$EVENT" = "UserPromptSubmit" ] || [ "$EVENT" = "PreToolUse" ]; then
+      ROUTING_OUTPUT=$(printf '%s' "$INPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" "$EVENT")
+      ROUTING_STATUS=$?
+      [ "$ROUTING_STATUS" -eq 0 ] || exit "$ROUTING_STATUS"
+      if [ "$EVENT" = "PreToolUse" ] && [ -n "$ROUTING_OUTPUT" ]; then
+        INPUT=$(printf '%s' "$INPUT" | jq --argjson routed "$ROUTING_OUTPUT"           'if $routed.hookSpecificOutput.updatedInput then .tool_input = $routed.hookSpecificOutput.updatedInput else . end')
+      fi
+  fi
+fi
+
 if [ -z "$EVENT" ]; then
   exit 0
 fi
@@ -67,7 +86,11 @@ run_hook() {
   status=$?
 
   if [ -s "$stdout_file" ]; then
-    cat "$stdout_file"
+    if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
+      HOOK_RESULTS+="$(cat "$stdout_file")"$'\n'
+    else
+      cat "$stdout_file"
+    fi
   fi
 
   if [ -s "$stderr_file" ]; then
@@ -92,7 +115,7 @@ payload_for_file() {
     --arg cwd "$CALLER_CWD" \
     --arg event "$event" \
     --arg file "$file" \
-    '{cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
+    '{session_id: .session_id, cwd: $cwd, hook_event_name: $event, tool_name: (.tool_name // "Edit"), tool_input: ((.tool_input // {}) + {file_path: $file})}'
 }
 
 payload_for_bash() {
@@ -123,12 +146,19 @@ run_for_files() {
   done
 }
 
+emit_codex_result() {
+  if [ -z "${OPENCODE_SESSION_ID:-}" ] && { [ -n "$HOOK_RESULTS" ] || [ -n "$ROUTING_OUTPUT" ]; }; then
+    printf '%s\n%s\n' "$HOOK_RESULTS" "$ROUTING_OUTPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" --merge "$EVENT"
+  fi
+}
+
 case "$EVENT" in
   PreToolUse)
     TOOL=$(tool_name)
     if [ "$TOOL" = "Bash" ] || [ "$TOOL" = "bash" ]; then
       run_hook "bash-guard.sh" "$(payload_for_bash)" true
-      exit 0
+      emit_codex_result
+      exit $?
     fi
 
     case "$TOOL" in
@@ -156,8 +186,9 @@ case "$EVENT" in
     esac
     ;;
   Stop)
-    run_hook "check-uncommitted.sh" '{"cwd":"/home/superdev/projects/OpenMates","hook_event_name":"Stop","stop_hook_active":false}' false
+    run_hook "check-uncommitted.sh" "$(printf '%s' "$INPUT" | jq '. + {hook_event_name: "Stop", stop_hook_active: false}')" false
     ;;
 esac
 
-exit 0
+emit_codex_result
+exit $?
