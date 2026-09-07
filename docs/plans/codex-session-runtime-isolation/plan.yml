@@ -1,7 +1,10 @@
 schema_version: 2
 id: codex-session-runtime-isolation
 title: Codex workspace and resource-gated runtime isolation
-status: implementing
+status: approved
+archived: true
+superseded_by: docs/plans/isolated-github-tests/plan.yml
+archive_reason: User replaced local candidate runtimes with GitHub-hosted isolation; historical checks below are not active completion gates.
 goal: Focus on implementing the updated codex setup.
 scope:
   in:
@@ -414,7 +417,7 @@ tests:
     evidence: {}
 - id: T-SLICE-5
   type: manual
-  file: scripts/verify_codex_runtime.py
+  file: docs/architecture/isolated-github-tests.md
   command: Run actual CLI/runtime isolation probe and retain sanitized evidence
   assertions:
   - Actual Codex tools use the bound workspace; pilot cleanup and measured concurrency

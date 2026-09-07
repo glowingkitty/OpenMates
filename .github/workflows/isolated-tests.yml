@@ -86,6 +86,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            subject/backend/requirements-dev.txt
+            subject/backend/core/api/requirements.txt
+            subject/packages/openmates-python/pyproject.toml
       - name: Install workspace dependencies
         if: inputs.mode != 'pytest'
         run: pnpm install --frozen-lockfile
@@ -161,6 +166,7 @@ jobs:
             subject/test-results/ci-results.json
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
+            subject/test-results/ci-unit-*
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error

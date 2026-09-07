@@ -57,3 +57,35 @@ def test_missing_canonical_dispatcher_fails_closed(tmp_path):
     assert result.returncode != 0
     assert "fallback is forbidden" in result.stderr
     assert not (root / "SHARED_DEV_TOUCHED").exists()
+
+
+def test_shell_launchers_use_canonical_dispatch_and_fail_closed(tmp_path):
+    root = checkout(tmp_path)
+    canonical = tmp_path / "scripts/ci_dispatch.py"
+    canonical.write_text('import sys\nprint("CANONICAL", sys.argv)\n')
+    source = Path(__file__).resolve().parents[2]
+    launchers = {
+        "scripts/run-tests.sh": None,
+        "scripts/run-tests-daily.sh": "--daily",
+        "scripts/ci/trigger_parallel_specs.sh": "--suite",
+    }
+    for name, expected in launchers.items():
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((source / name).read_bytes())
+        result = subprocess.run(
+            ["bash", str(target), "--detach"], cwd=root,
+            capture_output=True, text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "CANONICAL" in result.stdout and str(root) in result.stdout
+        assert "--detach" in result.stdout
+        if expected:
+            assert expected in result.stdout
+    canonical.unlink()
+    for name in launchers:
+        result = subprocess.run(
+            ["bash", str(root / name)], cwd=root, capture_output=True, text=True,
+        )
+        assert result.returncode == 2
+        assert "fallback is forbidden" in result.stderr

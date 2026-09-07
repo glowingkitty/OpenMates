@@ -69,3 +69,22 @@ def test_migration_hold_fails_before_source_publication(tmp_path, monkeypatch):
                 "present.spec.ts",
             ]
         )
+
+
+def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, capsys):
+    from scripts import ci_dispatch
+    from scripts.ci_coordinator import Queue
+
+    root = repository(tmp_path)
+    source = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True
+    ).strip()
+    monkeypatch.setattr(ci_dispatch, "select_specs", lambda *_: ["held.spec.ts"])
+    monkeypatch.setattr(ci_dispatch, "ensure_coordinator", lambda *_: None)
+    result = ci_dispatch.run(
+        ["--worktree", str(root), "--daily", "--expected-commit", source, "--detach"]
+    )
+    assert result == 2
+    assert "held.spec.ts" in capsys.readouterr().out
+    jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
+    assert sorted(job["mode"] for job in jobs) == ["pytest", "vitest"]

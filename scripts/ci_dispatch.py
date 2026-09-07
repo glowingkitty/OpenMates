@@ -181,10 +181,10 @@ def run(argv: list[str]) -> int:
         if args.suite != "all":
             return 0
     readiness = canonical / "logs/ci-coordinator/cutover.json"
-    if (
-        not readiness.is_file()
-        or json.loads(readiness.read_text()).get("ready") is not True
-    ):
+    ready = (
+        readiness.is_file() and json.loads(readiness.read_text()).get("ready") is True
+    )
+    if not ready and not args.daily:
         raise RuntimeError(
             "Isolated GitHub CI migration HOLD: runner-local pilot is not verified. Shared-dev and self-hosted-runner fallback are forbidden. Local unit tests remain available."
         )
@@ -226,6 +226,7 @@ def run(argv: list[str]) -> int:
         else ""
     )
     jobs = []
+    held_specs = []
     if args.daily and args.suite in ("all", "pytest", "vitest"):
         for mode in ("pytest", "vitest") if args.suite == "all" else (args.suite,):
             jobs.append(queue.enqueue(owner, source, [], mode, attempt))
@@ -235,6 +236,8 @@ def run(argv: list[str]) -> int:
             specs = [s for s in specs if s.startswith("cli-")]
         if not specs:
             raise ValueError("No E2E tests selected")
+        if not ready:
+            held_specs, specs = specs, []
         for index in range(0, len(specs), BATCH_SIZE):
             jobs.append(
                 queue.enqueue(
@@ -253,12 +256,18 @@ def run(argv: list[str]) -> int:
                 "source_commit": source,
                 "environment": "github-isolated",
                 "jobs": [j["id"] for j in jobs],
+                "held_specs": held_specs,
+                "hold_reason": "Runner-local E2E cutover is not verified"
+                if held_specs
+                else None,
             }
         ),
         flush=True,
     )
     if args.detach:
-        return 0
+        return 2 if held_specs else 0
+    if not jobs:
+        return 2
     previous = None
     while True:
         current = [queue.status(j["id"])[0] for j in jobs]
@@ -282,11 +291,16 @@ def run(argv: list[str]) -> int:
                         "source_commit": source,
                         "environment": "github-isolated",
                         "jobs": current,
+                        "held_specs": held_specs,
                     },
                     indent=2,
                 )
             )
-            return 0 if all(j["state"] == "success" for j in current) else 1
+            return (
+                0
+                if not held_specs and all(j["state"] == "success" for j in current)
+                else 1
+            )
         time.sleep(5)
 
 
