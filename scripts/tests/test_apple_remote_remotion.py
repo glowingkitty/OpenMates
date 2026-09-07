@@ -99,3 +99,51 @@ def test_typed_transport_keeps_source_as_json_data(monkeypatch, tmp_path):
     assert len(calls) == 1
     assert calls[0][0][-1] == remote.no_delete_guard.remotion_command()
     assert json.loads(calls[0][1]['input'])['file'] == 'src/example.tsx'
+
+
+def test_inventory_is_scoped_and_reads_nested_manifest(project):
+    m = helper()
+    originals = project / m.MEDIA_ROOTS[0] / 'originals'
+    originals.mkdir(parents=True)
+    (originals / 'clip.mov').write_bytes(b'local fixture')
+    (originals.parent / 'media-manifest.json').write_text('{"clips": []}')
+    (originals / 'outside.mov').symlink_to(project / 'src/example.tsx')
+    result = m.inspect(project)
+    assert len(result['assets']) == 2
+    assert result['manifests'][m.MEDIA_ROOTS[0] + '/media-manifest.json'] == {'clips': []}
+
+
+@pytest.mark.parametrize('name', ['../clip.mov', '/tmp/clip.mov', 'src/example.tsx', 'input-media/announcement-video/../clip.mov'])
+def test_media_path_rejects_escape_before_dispatch(project, monkeypatch, name):
+    m = helper()
+    monkeypatch.setattr(m.subprocess, 'run', lambda *a, **k: pytest.fail('remote process dispatched'))
+    with pytest.raises(m.RequestError):
+        m.media_probe(project, {'file': name})
+
+
+def test_media_probe_requires_sandbox_and_fixed_readonly_arguments(project, monkeypatch):
+    m = helper()
+    original = project / m.MEDIA_ROOTS[0] / 'clip.mov'
+    original.parent.mkdir(parents=True)
+    original.write_bytes(b'local fixture')
+    calls = []
+    monkeypatch.setattr(m, 'sandbox_query', lambda root: calls.append('query'))
+    real_is_file = m.Path.is_file
+    monkeypatch.setattr(m.Path, 'is_file', lambda p: True if str(p) == '/opt/homebrew/bin/ffprobe' else real_is_file(p))
+    def run(argv, **kw):
+        calls.append(argv)
+        return m.subprocess.CompletedProcess(argv, 0, '{}', '')
+    monkeypatch.setattr(m.subprocess, 'run', run)
+    m.media_probe(project, {'file': original.relative_to(project).as_posix()})
+    assert calls[0] == 'query'
+    assert calls[1][:4] == ['/usr/bin/sandbox-exec', '-p', m.PROBE_PROFILE, '/opt/homebrew/bin/ffprobe']
+    assert calls[1][-1] == str(original)
+    assert calls[1][calls[1].index('-protocol_whitelist') + 1] == 'file'
+
+
+def test_config_read_rejects_credentials_and_symlinks(project):
+    m = helper()
+    (project / 'package.json').symlink_to(project / 'src/example.tsx')
+    for name in ('.env', 'package.json'):
+        with pytest.raises((m.RequestError, OSError)):
+            m.execute({'action': 'config-read', 'repo': str(project), 'file': name})

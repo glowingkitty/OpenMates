@@ -19,6 +19,8 @@ import sys
 import uuid
 
 MAX_BYTES = 1024 * 1024
+MEDIA_ROOTS = ('input-media/announcement-video', 'renders/mac-local/announcement-video/originals')
+READ_FILES = {'package.json', 'remotion.config.ts', 'tsconfig.json'}
 SOURCE_SUFFIXES = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.json', '.txt', '.svg'}
 AUDIT_FILES = (
     'node_modules/@remotion/renderer/package.json',
@@ -30,6 +32,7 @@ AUDIT_FILES = (
 )
 # A global, unqualified deny: no exceptions for temporary/output/cache files.
 PROBE_PROFILE = '(version 1)(allow default)(deny file-write*)'
+NO_UNLINK_PROFILE = '(version 1)(allow default)(deny file-write-unlink (with send-signal SIGKILL))'
 PROBE_CODE = r'''
 import ctypes,json,os,subprocess,sys
 lib=ctypes.CDLL('/usr/lib/libsandbox.dylib')
@@ -38,8 +41,16 @@ check.restype=ctypes.c_int
 check.argtypes=[ctypes.c_int,ctypes.c_char_p,ctypes.c_int]
 paths=['/','/tmp','/Users','/Volumes',sys.argv[1]]
 rows=[{'path_index':i,'read':check(os.getpid(),b'file-read-data',1,p.encode()),'unlink':check(os.getpid(),b'file-write-unlink',1,p.encode()),'create':check(os.getpid(),b'file-write-create',1,p.encode())} for i,p in enumerate(paths)]
-print(json.dumps(rows))
-sys.exit(0 if all(r['read']==0 and r['unlink']>0 and r['create']>0 for r in rows) else 3)
+expected_create=int(sys.argv[3])
+depth=int(sys.argv[4])
+valid=all(r['read']==0 and r['unlink']>0 and (r['create']>0)==bool(expected_create) for r in rows)
+child=None
+if valid and depth<2:
+    result=subprocess.run([sys.executable,'-I','-B','-c',sys.argv[2],sys.argv[1],sys.argv[2],sys.argv[3],str(depth+1)],capture_output=True,text=True,timeout=10)
+    valid=result.returncode==0
+    child=json.loads(result.stdout) if result.stdout else None
+print(json.dumps({'depth':depth,'checks':rows,'child':child}))
+sys.exit(0 if valid else 3)
 '''
 
 
@@ -153,9 +164,26 @@ def inspect(root):
         if path.is_file() and path.stat().st_size <= MAX_BYTES:
             data = path.read_bytes()
             result['audit'][name] = {'sha256': hashlib.sha256(data).hexdigest(), 'content': data.decode()}
-    assets = root / 'input-media/announcement-video'
-    if assets.is_dir():
-        result['assets'] = [{'name': p.name, 'bytes': p.stat().st_size} for p in assets.iterdir() if p.is_file()]
+    result['manifests'] = {}
+    for location in MEDIA_ROOTS:
+        assets = root / location
+        if not assets.is_dir() or assets.is_symlink():
+            continue
+        pending = [(assets, 0)]
+        while pending:
+            directory, depth = pending.pop()
+            for p in sorted(directory.iterdir()):
+                if p.is_symlink():
+                    continue
+                if p.is_dir() and depth < 3:
+                    pending.append((p, depth + 1))
+                elif p.is_file():
+                    name = p.relative_to(root).as_posix()
+                    result['assets'].append({'file': name, 'bytes': p.stat().st_size})
+                    if p.name == 'media-manifest.json' and p.stat().st_size <= MAX_BYTES:
+                        result['manifests'][name] = json.loads(p.read_text())
+                if len(result['assets']) + len(pending) > 500:
+                    raise RequestError('media inspection exceeds bounded inventory')
     result['sandbox_exec'] = Path('/usr/bin/sandbox-exec').is_file()
     result['sandbox_man'] = None
     for path in [Path('/usr/share/man/man1/sandbox-exec.1'), Path('/usr/share/man/man1/sandbox-exec.1.gz')]:
@@ -166,21 +194,70 @@ def inspect(root):
     return result
 
 
+def media_path(root, name):
+    if not isinstance(name, str):
+        raise RequestError('media file is required')
+    p = PurePosixPath(name)
+    if str(p) != name or p.is_absolute() or '..' in p.parts or not any(name.startswith(prefix + '/') for prefix in MEDIA_ROOTS):
+        raise RequestError('media must be within an approved original-media directory')
+    path = root / name
+    for part in [path, *path.parents]:
+        if part.is_symlink():
+            raise RequestError('symlink media paths are unsupported')
+    if not path.is_file() or path.suffix.lower() not in {'.mov', '.mp4', '.m4v', '.wav', '.mp3'}:
+        raise RequestError('unsupported original media file')
+    return path
+
+
+def sandbox_query(root, profile=PROBE_PROFILE):
+    if sys.platform != 'darwin' or not Path('/usr/bin/sandbox-exec').is_file():
+        raise RequestError('macOS sandbox-exec is unavailable; render remains disabled')
+    command = ['/usr/bin/sandbox-exec', '-p', profile, sys.executable, '-I', '-B', '-c', PROBE_CODE, str(root), PROBE_CODE, '1' if profile == PROBE_PROFILE else '0', '0']
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
+    if result.returncode:
+        raise RequestError('sandbox query failed; render remains disabled: ' + result.stderr[:400])
+    return json.loads(result.stdout)
+
+
+def media_probe(root, request):
+    path = media_path(root, request.get('file'))
+    sandbox_query(root)
+    binary = next((p for p in (Path('/opt/homebrew/bin/ffprobe'), Path('/usr/local/bin/ffprobe')) if p.is_file()), None)
+    if binary is None:
+        raise RequestError('installed ffprobe unavailable; no installation allowed')
+    # ffprobe reads existing media only, with network protocols and all filesystem
+    # writes denied. No renderer, decoder output, report files or cleanup invoked.
+    command = ['/usr/bin/sandbox-exec', '-p', PROBE_PROFILE, str(binary), '-v', 'error',
+               '-protocol_whitelist', 'file', '-show_format', '-show_streams', '-of', 'json', str(path)]
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False,
+                            env={'PATH': '/usr/bin:/bin', 'AV_LOG_FORCE_NOCOLOR': '1'})
+    if result.returncode:
+        raise RequestError('read-only ffprobe failed: ' + result.stderr[:400])
+    return {'file': request['file'], 'metadata': json.loads(result.stdout)}
+
+
 def execute(request):
-    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe'}:
+    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read'}:
         raise RequestError('unsupported typed operation')
     root = root_path(request.get('repo'))
     if request['action'] in {'source-read', 'source-put'}:
         return source(root, request)
     if request['action'] == 'inspect':
         return inspect(root)
-    if sys.platform != 'darwin' or not Path('/usr/bin/sandbox-exec').is_file():
-        raise RequestError('macOS sandbox-exec is unavailable; render remains disabled')
-    command = ['/usr/bin/sandbox-exec', '-p', PROBE_PROFILE, sys.executable, '-I', '-B', '-c', PROBE_CODE, str(root)]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
-    if result.returncode:
-        raise RequestError('sandbox query failed; render remains disabled: ' + result.stderr[:400])
-    return {'status': 'read-only-policy-verified', 'checks': json.loads(result.stdout),
+    if request['action'] == 'config-read':
+        name = request.get('file')
+        if name not in READ_FILES:
+            raise RequestError('unsupported config file')
+        fd = os.open(root / name, os.O_RDONLY | os.O_NOFOLLOW)
+        try:
+            data = read_fd(fd)
+            return {'file': name, 'content': data.decode(), 'sha256': hashlib.sha256(data).hexdigest()}
+        finally:
+            os.close(fd)
+    if request['action'] == 'media-probe':
+        return media_probe(root, request)
+    return {'status': 'read-only-policy-verified', 'checks': sandbox_query(root),
+            'no_unlink_inheritance': sandbox_query(root, NO_UNLINK_PROFILE),
             'render_enabled': False, 'note': 'Policy query is not a retention audit or permission to attempt deletion.'}
 
 

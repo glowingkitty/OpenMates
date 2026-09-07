@@ -15,12 +15,12 @@ credentials. Every SSH/SCP constructor also checks the shared policy, covering
 helpers that previously bypassed `run_remote`. The legacy destructive flag and
 Python keyword cannot bypass it. The substring blacklist has been removed.
 
-Only complete commands `true`, `/usr/bin/true`, `/usr/bin/uname -s`, and
-`/bin/df -h` are allowed. Shell expansion, interpreters, arbitrary argv, pipelines,
+The fixed diagnostics `true`, `/usr/bin/true`, `/usr/bin/uname -s`, and
+`/bin/df -h`, plus the exact reviewed typed helper below, are allowed. Shell expansion, interpreters, arbitrary argv, pipelines,
 redirection and extra arguments are rejected. `status` uses a fixed diagnostic;
 `finalize-proof` is local-only but still honors an existing task stop.
 
-All other helpers are blocked. This intentionally suspends native builds, tests,
+All other legacy helpers are blocked. This intentionally suspends native builds, tests,
 patches, sync, upload/download, signing, installation, cache cleanup and most
 readiness reports until their entire execution paths are proven deletion-free.
 A command being called “read-only” is insufficient: tool startup, credential
@@ -80,7 +80,8 @@ sandbox wrapper cannot enforce the rule against alternate unrestricted access.
 
 ## Verification and test-state isolation
 
-All tests are local. Fake runners prove rejection before remote dispatch;
+Negative tests are local; non-destructive Mac policy queries and typed inspection
+provide separate positive execution evidence. Fake runners prove rejection before remote dispatch;
 subprocess tests reopen temporary SQLite state. Shared autouse fixtures isolate
 every Apple transport test from real agent state. Tests cover indirect deletion,
 legacy overrides, restart/alternate calls, corrupt state, forged confirmations,
@@ -124,3 +125,5 @@ new typed operation and are never automatically cleared.
 Rendering remains unexposed until the installed browser/encoder cleanup paths
 and retained-artifact behavior are verified. The existing stock Remotion entry
 points must not be used as an unguarded alternative.
+
+Scoped inspection also returns nested original-media names/sizes and media manifests from the two approved input roots, bounded to 500 entries and four directory levels. `config-read` accepts only package.json, remotion.config.ts, or tsconfig.json. `media-probe` accepts a MOV/MP4/M4V/WAV/MP3 under either original-media root; installed ffprobe runs under a verified read-only sandbox with only the file protocol. No installation or decoder output is exposed. `sandbox-probe` additionally queries no-unlink policy in parent, child, and grandchild processes; SIGKILL-on-denial profile compilation is checked without triggering a denial. Query evidence does not prove signal delivery or native render compatibility.
