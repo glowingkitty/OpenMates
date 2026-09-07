@@ -110,3 +110,31 @@ def test_missing_filesystem_and_negative_measurement_rejected():
     assert state["requests"][0]["state"] == "blocked"
     with pytest.raises(ValueError):
         capacity.reconcile(state, host(memory_available=-1))
+
+
+@pytest.mark.parametrize(
+    "available,expected", [(50 * G - 1, "queued"), (50 * G, "admitted")]
+)
+def test_disk_floor_includes_build_and_runtime_growth(available, expected):
+    state = capacity.empty_state()
+    capacity.enqueue(state, request("a"))
+    capacity.reconcile(state, host(disk_available={"root": available}))
+    assert state["requests"][0]["state"] == expected
+    if expected == "queued":
+        assert state["requests"][0]["reason"] == "disk_reserve"
+
+
+def test_all_filesystems_preserve_floor_including_reserved_growth():
+    state = capacity.empty_state()
+    for key in ("a", "b"):
+        item = request(key)
+        item["disk_limits"] = {"root": G, "data": 10 * G}
+        capacity.enqueue(state, item)
+    snapshot = host(
+        disk_available={"root": 68 * G, "data": 50 * G - 1},
+        disk_total={"root": 300 * G, "data": 100 * G},
+        build_disk={"root": 10 * G, "data": 0},
+    )
+    capacity.reconcile(state, snapshot)
+    assert [row["state"] for row in state["requests"]] == ["admitted", "queued"]
+    assert state["requests"][1]["reason"] == "disk_reserve"
