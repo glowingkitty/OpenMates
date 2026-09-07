@@ -35,6 +35,23 @@ if [ -z "$EVENT" ]; then
   exit 0
 fi
 
+# Check after tools as well as before: shell rejection must end the current turn.
+# Stop/SessionStart checks preserve the latch across interruptions and suppress
+# the normal uncommitted-work continuation hint while the task is latched.
+if [[ "$EVENT" =~ ^(PreToolUse|PostToolUse|Stop|SessionStart)$ ]]; then
+    # apple-no-delete-guard.sh policy applies to ALL tools, before retryable guards.
+    MAC_STOP=$(printf '%s' "$INPUT" | python3 "${HOOK_DIR%/.claude/hooks}/scripts/apple_no_delete_guard.py" hook)
+    MAC_STATUS=$?
+    if [ "$MAC_STATUS" -ne 0 ]; then
+      printf '%s\n' "$MAC_STOP"
+      if [ "$MAC_STATUS" -eq 77 ]; then
+        exit 0
+      fi
+      printf '%s\n' 'MAC_NO_DELETE_STOP: Safety hook failed. Stop the task.' >&2
+      exit 2
+    fi
+fi
+
 tool_name() {
   echo "$INPUT" | jq -r '.tool_name // empty'
 }
@@ -154,6 +171,7 @@ emit_codex_result() {
 
 case "$EVENT" in
   PreToolUse)
+    # apple-no-delete-guard.sh already ran for every tool above.
     TOOL=$(tool_name)
     if [ "$TOOL" = "Bash" ] || [ "$TOOL" = "bash" ]; then
       run_hook "bash-guard.sh" "$(payload_for_bash)" true

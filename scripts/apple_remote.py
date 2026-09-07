@@ -30,6 +30,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
+import apple_no_delete_guard as no_delete_guard
+
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_CONFIG_PATH = Path.home() / ".config" / "openmates" / "apple-remote.json"
@@ -41,16 +43,6 @@ MIN_TESTFLIGHT_WHATS_NEW_LINES = 5
 # 8 GB RAM, so simulator, macOS, Watch, sync, and recorded proof commands must
 # never start concurrent Xcode workloads.
 SIMULATOR_LOCK_PATH = "/tmp/openmates-apple-xcode.lock"
-DESTRUCTIVE_TOKENS = {
-    "rm",
-    "shutdown",
-    "reboot",
-    "halt",
-    "diskutil",
-    "eraseDisk",
-    "git reset --hard",
-    "git clean",
-}
 TEST_ACCOUNT_ENV_PATTERN = re.compile(
     r"^OPENMATES_TEST_ACCOUNT(?:_\d+)?_(?:EMAIL|PASSWORD|OTP_KEY|API_KEY)$"
 )
@@ -3179,6 +3171,13 @@ CommandRunner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 
 
 def default_runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    # Direct callers cannot smuggle SSH options around the guarded constructor.
+    if command and Path(command[0]).name in {"ssh", "scp", "sftp", "rsync"}:
+        expected_prefix = ["ssh", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={DEFAULT_CONNECT_TIMEOUT_SECONDS}"]
+        if (len(command) != 7 or list(command[:5]) != expected_prefix
+                or not command[5] or command[5].startswith("-")):
+            no_delete_guard.block("Unreviewed remote transport argv is prohibited.")
+        no_delete_guard.require_safe_command(command[-1])
     return subprocess.run(command, capture_output=True, text=True, check=False)
 
 
@@ -3249,6 +3248,9 @@ def resolve_remote_config(
 
 
 def ssh_command(config: RemoteConfig, remote_command: str) -> list[str]:
+    no_delete_guard.require_safe_command(remote_command)
+    if not config.target or config.target.startswith("-"):
+        no_delete_guard.block("SSH target must not introduce command-line options.")
     return [
         "ssh",
         "-o",
@@ -3270,18 +3272,6 @@ def redact_output(text: str, config: RemoteConfig) -> str:
     return redacted
 
 
-def has_destructive_token(command: str) -> bool:
-    normalized = " ".join(command.split())
-    multi_word_tokens = {token for token in DESTRUCTIVE_TOKENS if " " in token}
-    if any(token in normalized for token in multi_word_tokens):
-        return True
-    try:
-        words = shlex.split(normalized)
-    except ValueError:
-        words = normalized.split()
-    return any(word in DESTRUCTIVE_TOKENS for word in words)
-
-
 def run_remote(
     config: RemoteConfig,
     remote_command: str,
@@ -3289,8 +3279,8 @@ def run_remote(
     runner: CommandRunner = default_runner,
     allow_destructive: bool = False,
 ) -> int:
-    if has_destructive_token(remote_command) and not allow_destructive:
-        raise AppleRemoteError("Refusing potentially destructive remote command without --allow-destructive")
+    # Legacy keyword is accepted for callers but can never authorize deletion.
+    no_delete_guard.require_safe_command(remote_command)
     result = runner(ssh_command(config, remote_command))
     stdout = redact_output(result.stdout, config)
     stderr = redact_output(result.stderr, config)
@@ -3304,6 +3294,7 @@ def run_remote(
 
 def reviewed_remote_patch(config: RemoteConfig, args: argparse.Namespace) -> int:
     """Send only a fixed reviewed helper plus bounded JSON data to the Mac."""
+    no_delete_guard.require_safe_operation(args.command)
     request: dict[str, Any] = {"repo": args.repo}
     if args.command == "patch-snapshot":
         request.update(action="snapshot", files=args.file)
@@ -3676,6 +3667,7 @@ def recorded_test_ios_command(
 
 
 def scp_command(config: RemoteConfig, remote_path: str, local_path: Path) -> list[str]:
+    no_delete_guard.require_safe_operation("scp-download")
     return [
         "scp",
         "-q",
@@ -3689,6 +3681,7 @@ def scp_command(config: RemoteConfig, remote_path: str, local_path: Path) -> lis
 
 
 def scp_upload_command(config: RemoteConfig, local_path: Path, remote_path: str) -> list[str]:
+    no_delete_guard.require_safe_operation("scp-upload")
     return [
         "scp",
         "-q",
@@ -3707,6 +3700,7 @@ def proof_broker_recipient_certificate(
     runner: CommandRunner = default_runner,
 ) -> bytes:
     """Create or read the registered Mac recipient and return only its public certificate."""
+    no_delete_guard.require_safe_operation("proof-broker-recipient")
     command = shell_join(["python3", "-c", APPLE_PROOF_BROKER_RECIPIENT_SCRIPT])
     result = runner(ssh_command(config, command))
     if result.returncode != 0:
@@ -3726,6 +3720,7 @@ def proof_broker_relay_public_key(
     runner: CommandRunner = default_runner,
 ) -> bytes:
     """Create the dev-server relay identity and pin only its public key on the Mac."""
+    no_delete_guard.require_safe_operation("proof-broker-relay")
     APPLE_PROOF_BROKER_LOCAL_ROOT.mkdir(parents=True, exist_ok=True, mode=0o700)
     if not APPLE_PROOF_BROKER_RELAY_KEY.is_file():
         creation = runner([
@@ -3837,6 +3832,7 @@ def provision_github_proof_credentials(
     runner: CommandRunner = default_runner,
 ) -> str:
     """Encrypt one repository-secret account to the Mac and materialize it only there."""
+    no_delete_guard.require_safe_operation("proof-broker-provision")
     if config.source != "configured" or not config.repo_path:
         raise AppleRemoteError("GitHub proof credentials may only relay through the configured dev server")
     if not 14 <= slot <= 20:
@@ -4096,6 +4092,7 @@ def run_recorded_ios_test(
         raise AppleRemoteError(f"{profile} proof requires an approved simulator: {approved}")
     if github_secret_broker and not proof:
         raise AppleRemoteError("--github-secret-broker is only supported with --proof")
+    no_delete_guard.require_safe_operation("recorded-ios-test")
     test_account_env: dict[str, str]
     preprovisioned_credentials = False
     if proof:
@@ -4587,7 +4584,7 @@ def print_status(config: RemoteConfig, *, runner: CommandRunner = default_runner
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run redacted remote Apple development commands")
-    parser.add_argument("--allow-destructive", action="store_true", help="Allow explicitly destructive remote commands")
+    parser.add_argument("--allow-destructive", action="store_true", help="Deprecated; never authorizes Mac deletion or bypasses the safety guard")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("status", help="Check redacted SSH reachability")
@@ -4834,6 +4831,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    no_delete_guard.require_safe_operation(args.command)
+    if args.command == "run":
+        no_delete_guard.require_safe_command(shell_join(strip_command_separator(args.remote_command)))
     try:
         if args.command == "finalize-proof":
             return finalize_local_apple_proof(args.run_id, session_id=args.session)
@@ -5120,4 +5120,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except no_delete_guard.MacDeletionStop as exc:
+        print(str(exc), file=sys.stderr)
+        raise SystemExit(no_delete_guard.STOP_EXIT_CODE)

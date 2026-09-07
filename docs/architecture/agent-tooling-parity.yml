@@ -1,4 +1,9 @@
 shared_hooks:
+  - name: apple-no-delete-guard.sh
+    event: PreToolUse
+    matcher: '*'
+    tools: [claude, codex, opencode]
+    opencode_terms: [guardAppleStop, enforceAppleStopForTest, client.session.abort]
   - name: bash-guard.sh
     event: PreToolUse
     matcher: Bash

@@ -1,0 +1,96 @@
+# Mac no-delete safety
+
+TASK-752 applies to **every Mac file**, including generated or temporary files.
+Approval never permits an agent to delete. When deletion is needed, the affected
+task stops immediately and presents the exact manual command and reason to the
+user. Only the user performs deletion. Their fresh response must confirm manual
+execution or that deletion is unwanted; later deletions are independent stops.
+Unknown operations are blocked conservatively, without inventing a deletion
+command for the user to run.
+
+## Implemented boundary
+
+`scripts/apple_remote.py` checks CLI operations before reading configuration or
+credentials. Every SSH/SCP constructor also checks the shared policy, covering
+helpers that previously bypassed `run_remote`. The legacy destructive flag and
+Python keyword cannot bypass it. The substring blacklist has been removed.
+
+Only complete commands `true`, `/usr/bin/true`, `/usr/bin/uname -s`, and
+`/bin/df -h` are allowed. Shell expansion, interpreters, arbitrary argv, pipelines,
+redirection and extra arguments are rejected. `status` uses a fixed diagnostic;
+`finalize-proof` is local-only but still honors an existing task stop.
+
+All other helpers are blocked. This intentionally suspends native builds, tests,
+patches, sync, upload/download, signing, installation, cache cleanup and most
+readiness reports until their entire execution paths are proven deletion-free.
+A command being called “read-only” is insufficient: tool startup, credential
+expiry, package scripts and cleanup handlers can remove files.
+
+A local SQLite ledger at `~/.local/state/openmates/apple-no-delete.sqlite3`
+preserves the first stop, its task identity, reason, request and timestamp.
+Commands may contain private paths; this ledger is local-only and mode 0600.
+Missing identity, corrupt records and unreadable state fail closed. No timeout,
+interrupt, continuation, role=user transcript, matching message, coordinator
+relay, `--confirmed` flag or claimed keyboard source can release a stop. **There
+is no automatic release API.** The existing transcript reader cannot distinguish
+human input from coordinator `turn/start`; it is not reused for this purpose.
+This limits automatic resumption even after a genuine human reply. Operators
+must handle that case explicitly; agents must not edit the ledger to resume a
+real deletion-stopped task. No new platform redesign is required to deploy this
+conservative guard.
+
+The canonical hook returns `continue=false` and denies all subsequent tools.
+Codex/Claude checks run before and after tools. OpenCode checks all tools before
+and after execution, calls `session.abort`, and suppresses queued media and
+continuations. A stop is never wrapped in a “retry another command” instruction.
+The Apple skill tells agents to end the task immediately, including on runtimes
+that do not honor these hook events.
+
+## Deletion-path inventory
+
+| Path | Why blocked |
+| --- | --- |
+| Raw shell, argv, Python, Node, AppleScript | Arbitrary code can delete without a deletion substring |
+| rsync/SCP/upload, cp/mv/install | Destination replacement, temporary-file cleanup or remote helper execution |
+| Git sync/reset/clean/checkout/pull/gc | Checkout replacement, removed paths, locks, hooks and maintenance |
+| Xcode, simulator and device build/test/install | Derived data replacement, uninstall, tooling cleanup and test code |
+| Startup verification and proof recording | Explicit `rmtree`, archive removal, logs and simulator uninstall |
+| Proof credential broker/materialization | Expiry processes and finally-block unlink of credentials and envelopes |
+| Certificates/signing/TestFlight | Temporary certificate/probe removal, replacement and subprocess cleanup |
+| Xcode cache cleaner | Explicit removal of cache directories and files |
+| Package managers/browser teardown | Package removal/replacement, lifecycle scripts and temporary profile cleanup |
+| Reviewed patch helper and doctor/report Python | Arbitrary Python transport is not admitted by the complete-command policy |
+
+## Enforcement limits
+
+This is deterministic wrapper and installed-hook enforcement, not a tamper-proof
+sandbox. An agent with unrestricted shell access can access alternate SSH tools,
+change environment routing hints, modify guard files or alter its own local
+ledger. A subprocess exit cannot itself stop an external inference runtime.
+Codex/Claude hook behavior depends on the host actually supporting and loading
+those events; OpenCode abort behavior depends on the installed plugin version.
+Deployment of source does not hot-reload a running OpenCode server.
+
+The SSH account and its login environment are trusted. A shell startup script
+could have side effects even for a fixed diagnostic. A stronger boundary would
+require an operator-managed restricted account/forced command or read-only
+filesystem policy, and host-owned all-tool dispatch/state controls. None was
+installed or tested on the Mac for this task. A blacklist or a per-command
+sandbox wrapper cannot enforce the rule against alternate unrestricted access.
+
+## Verification and test-state isolation
+
+All tests are local. Fake runners prove rejection before remote dispatch;
+subprocess tests reopen temporary SQLite state. Shared autouse fixtures isolate
+every Apple transport test from real agent state. Tests cover indirect deletion,
+legacy overrides, restart/alternate calls, corrupt state, forged confirmations,
+hook stop output, OpenCode abort and repeated continuation attempts. Positive
+human-provenance resume is not claimed because no reliable reader is available.
+
+An early legacy patch transport test injected only its process runner and
+accidentally latched the implementation chat. The user authorized continuing
+local work without deletion through the coordinator's direct conversation. That
+single identified test record was quarantined under a test identity, retaining
+its original contents. This one-off local test-state repair is not a production
+release mechanism; precise attribution is recorded in the coordinator status
+file, outside committed source.

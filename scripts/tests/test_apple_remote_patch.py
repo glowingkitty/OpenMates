@@ -2,7 +2,7 @@
 
 The fixed helper runs locally here; no Mac, user repository or network is used.
 Tests cover dry runs, stale files, unlisted paths, private paths and media.
-A transport test verifies JSON stdin rather than shell interpolation.
+The transport test verifies pre-dispatch rejection of the Python helper.
 """
 # contract-test-file: tooling
 import json
@@ -91,7 +91,7 @@ def test_delete_and_binary_changes_rejected(repo):
         execute(r)
 
 
-def test_transport_uses_fixed_helper_and_json_stdin(monkeypatch, tmp_path):
+def test_transport_rejects_python_helper_before_dispatch(monkeypatch, tmp_path):
     remote = load_apple_remote()
     patch = tmp_path / 'review.patch'
     patch.write_text('reviewed diff')
@@ -103,7 +103,7 @@ def test_transport_uses_fixed_helper_and_json_stdin(monkeypatch, tmp_path):
         captured.update(command=command, **kwargs)
         return subprocess.CompletedProcess(command, 0, '{"status":"checked"}', '')
     monkeypatch.setattr(remote.subprocess, 'run', run)
-    assert remote.reviewed_remote_patch(remote.RemoteConfig('private-host', '/repo with spaces', 'configured'), args) == 0
-    assert json.loads(captured['input'])['apply'] is False
-    assert 'reviewed diff' not in captured['command'][-1]
-    assert json.loads(captured['input'])['repo'] == '/repo with spaces'
+    with pytest.raises(remote.no_delete_guard.MacDeletionStop):
+        remote.reviewed_remote_patch(remote.RemoteConfig('private-host', '/repo with spaces', 'configured'), args)
+    assert captured == {}
+    assert remote.no_delete_guard.active_stop() is not None

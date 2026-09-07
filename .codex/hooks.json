@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|apply_patch|Edit|Write",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
@@ -27,13 +27,12 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "apply_patch|Edit|Write",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
             "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/claude-hook-bridge.sh\" PostToolUse",
-            "timeout": 120,
-            "statusMessage": "Running OpenMates post-edit hooks"
+            "timeout": 10
           }
         ]
       },

@@ -2750,6 +2750,42 @@ async function sessionsCommandSupportedForTest(command, run = runProcess) {
   return result.status === 0;
 }
 
+// The Mac stop is terminal, including for read/MCP tools and queue resumptions.
+// Keep policy in the canonical Python guard; this adapter owns only task abort.
+async function enforceAppleStopForTest({ check, abort }) {
+  let result;
+  try {
+    result = await check();
+  } catch (error) {
+    result = { continue: false, stopReason: `Mac stop check failed: ${error?.message || error}` };
+  }
+  if (result?.continue === true) return;
+  const reason = result?.stopReason || "MAC_NO_DELETE_STOP: Stop state could not be verified.";
+  try {
+    await abort();
+  } catch (error) {
+    throw new Error(`${reason} Task abort failed: ${error?.message || error}. All tools remain denied.`);
+  }
+  throw new Error(reason);
+}
+
+async function guardAppleStop(client, sessionID, topLevelSessionID = sessionID) {
+  return enforceAppleStopForTest({
+    check: async () => {
+      const result = await runProcess("python3", [`${CURRENT_CONTROL_PLANE_ROOT}/scripts/apple_no_delete_guard.py`, "hook"], {
+        env: { ...process.env, CODEX_THREAD_ID: "", CODEX_SESSION_ID: "", OPENCODE_SESSION_ID: topLevelSessionID },
+        input: "{}",
+      });
+      if (![0, 77].includes(result.status)) throw new Error(result.stderr || "Mac stop hook failed");
+      return JSON.parse(result.stdout);
+    },
+    abort: async () => {
+      const result = await client.session.abort({ path: { id: sessionID } });
+      if (result?.error) throw new Error(result.error.message || "Task abort failed");
+    },
+  });
+}
+
 async function runBridge(event, payload, sessionID, cwd = activeCwd()) {
   const result = await runProcess("bash", [BRIDGE, event], {
     cwd,
@@ -3657,6 +3693,7 @@ export const OpenMatesHooks = async ({
     automaticDeliverySessions.add(sessionID);
     let record = null;
     try {
+      await guardAppleStop(client, sessionID);
       record = await mediaCommand("claim", sessionID);
       if (!record) return false;
       record = await uploadPendingFigmaExport(sessionID, record);
@@ -3692,6 +3729,7 @@ export const OpenMatesHooks = async ({
     automaticDeliverySessions.add(sessionID);
     let record = null;
     try {
+      await guardAppleStop(client, sessionID);
       record = await continuationCommand("claim", sessionID);
       if (!record) return false;
       readyContinuationSessions.delete(sessionID);
@@ -3916,6 +3954,8 @@ export const OpenMatesHooks = async ({
       "tool.execute.before",
       input?.sessionID,
       async () => {
+      const stopRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+      await guardAppleStop(client, input.sessionID, stopRoute.topLevelOpenCodeSessionID || input.sessionID);
       const tool = input.tool || "";
       if (TASK_TOOLS.has(tool)) await guardSubchatDepth(client, input.sessionID);
       const githubMcpGuard = githubMcpGuardDecisionForTest(tool);
@@ -4056,6 +4096,8 @@ export const OpenMatesHooks = async ({
       },
     ),
     "tool.execute.after": async (input, output) => {
+      const stopRoute = await resolveWorktreeRoute(client, input.sessionID, routingData || sessionsData());
+      await guardAppleStop(client, input.sessionID, stopRoute.topLevelOpenCodeSessionID || input.sessionID);
       const tool = input.tool || "";
       if (TASK_TOOLS.has(tool)) {
         await recordTaskChildRole(input, output);
@@ -4161,6 +4203,7 @@ export const OpenMatesHooks = async ({
 };
 
 OpenMatesHooks.test = Object.freeze({
+  enforceAppleStopForTest,
   bindSessionStart,
   childRoleFromAgent,
   childMutationDecisionForTest,
