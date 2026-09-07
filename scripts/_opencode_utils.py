@@ -145,6 +145,18 @@ def _notify_session(
         print(f"{log_prefix} Cron session emails disabled (CRON_SESSION_EMAILS_DISABLED=true)", file=sys.stderr)
         return
 
+    # Security reporting cutover is source-scoped; human titles are not policy.
+    if __package__:
+        from .security_reporting import read_reporting_config
+    else:
+        from security_reporting import read_reporting_config
+    security_jobs = {"dependabot", "eu-vulns", "security", "redteam"}
+    reporting_path = Path(os.environ.get("SECURITY_REPORTING_DIR") or Path(os.environ.get("PROJECT_ROOT", ".")) / "logs/security-reporting")
+    reporting = read_reporting_config(reporting_path)
+    if job_type in security_jobs and reporting.get("enabled") is True and reporting.get("generic_email_suppression") is True:
+        print(f"{log_prefix} Routine security email consolidated into daily digest", file=sys.stderr)
+        return
+
     internal_token = os.environ.get("INTERNAL_API_SHARED_TOKEN", "")
     if not internal_token:
         env_path = Path(__file__).parent.parent / ".env"
@@ -228,6 +240,8 @@ def run_opencode_session(
     capture_output_max_chars: int = 2_000_000,
 ) -> tuple[int, str | None]:
     """Run a persisted OpenCode chat for a scheduled maintenance job."""
+    if os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+        raise RuntimeError("OpenCode launch refused in security collection-only mode")
     del allowed_tools, use_zellij, kill_on_exit
 
     tmp_dir = Path(project_root) / _TMP_DIR_NAME

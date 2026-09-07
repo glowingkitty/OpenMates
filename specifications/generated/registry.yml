@@ -52,6 +52,12 @@ specifications:
     fingerprint: c8df8be00366ef12f96d24f00757d8c840a65397ca918297b3b62dd2023cad0f
     required_applies_to:
     - cli
+  architecture.security-reporting:
+    version: 1
+    status: draft
+    path: architecture/security-reporting
+    fingerprint: c83d857845771131cc1d9278b500e71078b93c3662e2d7cab0cfa543f7221516
+    required_applies_to: []
   architecture.server-management:
     version: 1
     status: approved
@@ -1008,6 +1014,54 @@ assertions:
     fingerprint: e2a962383ea321b9394c87c6b2365835bce5e49949c3143fa0da6f5d4942e6cf
     required_applies_to:
     - cli
+  security-reporting.processing.deterministic:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: invariant
+    fingerprint: b5356beb461780926e078b57074b2108aa21168ef48837a860cabdff86945a00
+    required_applies_to: []
+  security-reporting.notifications.daily-not-per-scan:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: behavior
+    fingerprint: 2c1e1c64e473f6c93f9cfacf192327c9c9ddc37d76c0a4d1e3e8f71ebae742c3
+    required_applies_to: []
+  security-reporting.findings.canonical-lifecycle:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: invariant
+    fingerprint: b7d5287099056a7cae0523efbd63cb6bdc9d907e71bbe0d9bc7ea53e5f224816
+    required_applies_to: []
+  security-reporting.alerts.new-critical-only:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: behavior
+    fingerprint: 9de7424dfbd0839441bf1f51df4fc2aa44c09ec371812a41db2a203f24d8afd0
+    required_applies_to: []
+  security-reporting.coverage.no-false-clean:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: failure
+    fingerprint: 162221ab3c44c8eb906ddac960ead541b3e42724099cae438bfb0b411dfbfdd6
+    required_applies_to: []
+  security-reporting.digest.actionable-content:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: behavior
+    fingerprint: a7a450ee69a6a4547ce369cb6555fc7f563c3d9ceac8660ac38e97eec99d0b0a
+    required_applies_to: []
+  security-reporting.delivery.durable-observable:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: invariant
+    fingerprint: 8a3fc6d1b2ffc35e3da5b26c8807b23ea9acc4c19bb8ec75fdea60e007c471f9
+    required_applies_to: []
+  security-reporting.content.operator-boundary:
+    specification: architecture.security-reporting@1
+    specification_id: architecture.security-reporting
+    type: privacy
+    fingerprint: 89605837637a25a629105e9b182b9f979b7d5021353a932665466b4b561a47b6
+    required_applies_to: []
   server-management.cli.host-control-plane:
     specification: architecture.server-management@1
     specification_id: architecture.server-management

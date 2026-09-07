@@ -1,0 +1,35 @@
+{
+  "environment": "development",
+  "window_start": "2026-09-05T08:30:00Z",
+  "window_end": "2026-09-06T08:30:00Z",
+  "subject_commit": "synthetic-incomplete",
+  "coverage": {
+    "eu_vulns": {
+      "expected": 24,
+      "completed": 23,
+      "missing": 1,
+      "failure_codes": [
+        "osv_batch_failed"
+      ]
+    },
+    "dependabot": {
+      "expected": 0,
+      "completed": 0,
+      "missing": 0,
+      "schedule_status": "disabled"
+    }
+  },
+  "sources": {
+    "eu_vulns": {
+      "status": "unavailable",
+      "observed_at": null
+    }
+  },
+  "new": [],
+  "open": [],
+  "resolved": [],
+  "history": {
+    "status": "partial",
+    "enabled_at": "2026-09-05T09:00:00Z"
+  }
+}

@@ -46,10 +46,12 @@ try:
     from .audit_frontend_dependency_pins import collect_package_versions
     from ._nightly_report import write_nightly_report
     from ._opencode_utils import end_sessions_py, run_opencode_session, start_sessions_py
+    from .security_scan_reporting import report_scan
 except ImportError:
     from audit_frontend_dependency_pins import collect_package_versions
     from _nightly_report import write_nightly_report
     from _opencode_utils import end_sessions_py, run_opencode_session, start_sessions_py
+    from security_scan_reporting import report_scan
 import sys
 from datetime import datetime, timedelta, timezone
 
@@ -64,6 +66,15 @@ SEMVER_PREFIX_RE = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)")
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _current_commit(project_root: str) -> str:
+    try:
+        return subprocess.run(
+            ["git", "-C", project_root, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10,
+        ).stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
 
 
 def _load_tracking(tracking_file: str) -> dict:
@@ -229,6 +240,40 @@ def _deduplicate_by_ghsa(alerts: list[dict]) -> dict[str, dict]:
     return merged
 
 
+def _reportable_alerts(alerts: list[dict]) -> tuple[list[dict], list[str]]:
+    """Normalize all alert records before remediation filtering loses context."""
+    findings, missing = [], []
+    if not isinstance(alerts, list):
+        return [], ["dependabot_payload_not_array"]
+    for index, alert in enumerate(alerts):
+        if not isinstance(alert, dict) or any(not isinstance(alert.get(key) or {}, dict) for key in ("security_advisory", "security_vulnerability", "dependency")):
+            missing.append(f"alert_{index}_malformed")
+            continue
+        if not isinstance((alert.get("dependency") or {}).get("package") or {}, dict):
+            missing.append(f"alert_{index}_package_malformed")
+            continue
+        advisory = alert.get("security_advisory") or {}
+        vulnerability = alert.get("security_vulnerability") or {}
+        package = (alert.get("dependency") or {}).get("package") or {}
+        ghsa_id = advisory.get("ghsa_id")
+        name, ecosystem = package.get("name"), package.get("ecosystem")
+        for key, value in (("ghsa_id", ghsa_id), ("package", name), ("ecosystem", ecosystem)):
+            if not value:
+                missing.append(f"alert_{index}_missing_{key}")
+        severity = advisory.get("severity") or vulnerability.get("severity") or "unknown"
+        if severity not in {"critical", "high", "medium", "low"}:
+            missing.append(f"alert_{index}_severity_unavailable")
+        findings.append({
+            "vuln_id": ghsa_id, "aliases": [value for value in [advisory.get("cve_id")] if value],
+            "severity": str(advisory.get("severity") or vulnerability.get("severity") or "unknown").lower(),
+            "package": name or "unknown", "ecosystem": ecosystem or "unknown",
+            "current_version": "unknown",
+            "affected_version_range": vulnerability.get("vulnerable_version_range"),
+            "remediation": {"dependabot_alert_numbers": [alert.get("number")]},
+        })
+    return findings, missing
+
+
 def _build_alert_summary(alerts_to_dispatch: list[dict]) -> str:
     """
     Build the alert summary section for the claude prompt.
@@ -274,6 +319,7 @@ def process_alerts() -> None:
     project_root = os.environ.get("PROJECT_ROOT", "")
     redispatch_days = int(os.environ.get("REDISPATCH_AFTER_DAYS", "7"))
     dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
+    summary_only = os.environ.get("SUMMARY_ONLY", "false").lower() == "true"
     prompt_template_path = os.environ.get("PROMPT_TEMPLATE_PATH", "")
     today_date = os.environ.get("TODAY_DATE", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
 
@@ -294,6 +340,20 @@ def process_alerts() -> None:
         sys.exit(1)
 
     print(f"[dependabot] Processing {len(raw_alerts)} raw alert(s)...")
+
+    all_findings, missing = _reportable_alerts(raw_alerts)
+    report_scan(
+        project_root=project_root or os.getcwd(), source="dependabot", findings=all_findings,
+        outcome="incomplete" if missing else ("findings" if all_findings else "no_new_findings"),
+        subject_commit=_current_commit(project_root or os.getcwd()),
+        coverage={"expected_and_completed_stages": {"dependabot_alert_payload": [1, 1]}, "sanitized_failure_codes": []},
+        inventory={"raw_alerts": len(raw_alerts), "missing_required_data": missing},
+        dry_run=dry_run, summary_only=summary_only,
+    )
+
+    if missing or summary_only or os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+        print(json.dumps({"source": "dependabot", "total_findings": len(all_findings), "missing_required_data": missing}))
+        return
 
     # Step 1: Deduplicate by GHSA ID and filter by severity
     deduplicated = _deduplicate_by_ghsa(raw_alerts)
@@ -325,10 +385,9 @@ def process_alerts() -> None:
     resolve_count = 0
 
     for ghsa_id, alert in deduplicated.items():
-        # Check if resolved in git
-        commit_sha = _check_ghsa_in_git(ghsa_id, project_root)
-        if not commit_sha and _alert_is_fixed_in_project(alert, project_root):
-            commit_sha = f"dev-version>={alert['fixed_version']}"
+        # Only a complete current inventory may prove a resolution. A git-log
+        # mention is historical context, not evidence that all instances are fixed.
+        commit_sha = f"dev-version>={alert['fixed_version']}" if _alert_is_fixed_in_project(alert, project_root) else None
         if commit_sha:
             print(f"[dependabot] {ghsa_id} resolved in dev via {commit_sha} — marking resolved.")
             # Update or create tracking entry

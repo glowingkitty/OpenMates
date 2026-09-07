@@ -46,6 +46,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _opencode_utils import run_opencode_session
 from _nightly_report import write_nightly_report
+from security_scan_reporting import report_scan, ingest_snapshot
 
 
 # ---------------------------------------------------------------------------
@@ -265,6 +266,11 @@ def run_audit() -> None:
         print("[security] ERROR: PROJECT_ROOT not set.", file=sys.stderr)
         sys.exit(1)
 
+    if os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+        ingest_snapshot(project_root=project_root, source="security_audit",
+                        path=Path(project_root) / "logs/nightly-reports/security-audit.json", dry_run=dry_run)
+        return
+
     state = _load_state(project_root)
     acknowledged = _load_acknowledged(project_root)
     current_sha = _get_current_sha(project_root)
@@ -279,35 +285,12 @@ def run_audit() -> None:
         print(f"[security] No security-relevant files changed since last audit ({last_date}). Skipping.")
         session_id = None
         returncode = 0
-        if not dry_run:
-            prompt = f"""# Security Audit No-Change Summary — {today_date}
-
-The scheduled security audit checked for security-relevant changes since the
-last audit and found none.
-
-## Context
-
-- Current HEAD: {current_sha}
-- Last audit date: {last_date}
-- Result: no security-relevant files changed
-- Full sweep required: no
-
-This is a read-only reporting chat. Summarize the no-change result briefly,
-mention that no code changes are needed, and do not edit files, commit, or
-deploy.
-"""
-            print(f"[security] Starting OpenCode security audit summary chat (HEAD {current_sha})...")
-            returncode, session_id = run_opencode_session(
-                prompt=prompt,
-                session_title=f"security-audit: no relevant changes {today_date}",
-                project_root=project_root,
-                log_prefix="[security]",
-                agent="plan",
-                timeout=600,
-                job_type="security",
-                context_summary="Security audit found no security-relevant changed files.",
-                linear_task=False,
-            )
+        report_scan(
+            project_root=project_root, source="security_audit", findings=[], outcome="incomplete",
+            subject_commit=current_sha,
+            coverage={"expected_and_completed_stages": {"structured_snapshot": [1, 0]}, "sanitized_failure_codes": ["structured_snapshot_unavailable"]},
+            inventory={"missing_required_data": ["structured_snapshot"]}, dry_run=dry_run,
+        )
         # Still update SHA so we don't re-check the same range
         state["last_audit_sha"] = current_sha
         state["last_audit_date"] = today_date
@@ -364,11 +347,6 @@ deploy.
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
         print("-" * 60)
-        state["last_audit_date"] = today_date
-        state["last_audit_sha"] = current_sha
-        if force_full:
-            state["last_full_sweep_date"] = today_date
-        _save_state(project_root, state)
         return
 
     session_title = f"security-audit: top 5 issues {today_date}"
@@ -393,6 +371,15 @@ deploy.
         state["last_full_sweep_date"] = today_date
     _record_run(state, "audit", current_sha, session_id)
     _save_state(project_root, state)
+
+    # Agent prose is not a structured security finding inventory. Record this
+    # explicitly as incomplete rather than deriving findings from chat output.
+    report_scan(
+        project_root=project_root, source="security_audit", findings=[], outcome="incomplete",
+        subject_commit=current_sha,
+        coverage={"expected_and_completed_stages": {"structured_snapshot": [1, 0]}, "sanitized_failure_codes": ["structured_snapshot_unavailable"]},
+        inventory={"missing_required_data": ["structured_snapshot"]},
+    )
 
     # Count findings for report
     findings = state.get("findings", {})
@@ -435,6 +422,11 @@ def run_redteam() -> None:
         print("[redteam] ERROR: PROJECT_ROOT not set.", file=sys.stderr)
         sys.exit(1)
 
+    if os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+        ingest_snapshot(project_root=project_root, source="redteam",
+                        path=Path(project_root) / "logs/nightly-reports/red-teaming.json", dry_run=dry_run)
+        return
+
     state = _load_state(project_root)
     acknowledged = _load_acknowledged(project_root)
     current_sha = _get_current_sha(project_root)
@@ -473,9 +465,6 @@ def run_redteam() -> None:
         print(prompt[:3000])
         print(f"... ({len(prompt)} chars total)")
         print("-" * 60)
-        state["last_redteam_date"] = today_date
-        state["last_redteam_sha"] = current_sha
-        _save_state(project_root, state)
         return
 
     session_title = f"redteam: external probe {today_date}"
@@ -500,6 +489,13 @@ def run_redteam() -> None:
     state["last_redteam_session_id"] = session_id
     _record_run(state, "redteam", current_sha, session_id)
     _save_state(project_root, state)
+
+    report_scan(
+        project_root=project_root, source="redteam", findings=[], outcome="incomplete",
+        subject_commit=current_sha,
+        coverage={"expected_and_completed_stages": {"structured_snapshot": [1, 0]}, "sanitized_failure_codes": ["structured_snapshot_unavailable"]},
+        inventory={"missing_required_data": ["structured_snapshot"]},
+    )
 
     timed_out = returncode == 124
     write_nightly_report(

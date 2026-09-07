@@ -68,6 +68,7 @@ from typing import Any, Dict, List, Optional, Tuple
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from audit_frontend_dependency_pins import collect_package_versions
 from _opencode_utils import run_opencode_session, start_sessions_py, end_sessions_py
+from security_scan_reporting import report_scan
 
 
 # ---------------------------------------------------------------------------
@@ -121,6 +122,15 @@ IGNORED_DEPENDENCY_DIRECTORIES = {
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _current_commit(project_root: str) -> str:
+    try:
+        return subprocess.run(
+            ["git", "-C", project_root, "rev-parse", "HEAD"], capture_output=True, text=True, timeout=10,
+        ).stdout.strip() or "unknown"
+    except Exception:
+        return "unknown"
 
 
 def _load_json_file(path: str, default: Any) -> Any:
@@ -367,12 +377,14 @@ def _collect_all_dependencies(project_root: str) -> List[Dict[str, str]]:
 # OSV API
 # ---------------------------------------------------------------------------
 
-def _query_osv_batch(deps: List[Dict[str, str]]) -> List[Dict]:
+def _query_osv_batch(deps: List[Dict[str, str]]) -> Tuple[List[Dict], Dict[str, Any]]:
     """
     Query the OSV batch API for all dependencies.
     Returns list of (dep, vulns) pairs where vulns is non-empty.
     """
     results = []
+    completed = 0
+    failures = []
 
     # Build batch queries
     queries = []
@@ -396,19 +408,35 @@ def _query_osv_batch(deps: List[Dict[str, str]]) -> List[Dict]:
 
         if not response:
             print("[eu-vulns] ERROR: OSV batch query failed.", file=sys.stderr)
+            failures.append("osv_batch_failed")
             continue
-
-        batch_results = response.get("results", [])
-        for i, result in enumerate(batch_results):
+        batch_results = response.get("results") if isinstance(response, dict) else None
+        if not isinstance(batch_results, list):
+            failures.append("osv_response_malformed")
+            continue
+        if len(batch_results) != len(batch):
+            failures.append("osv_response_length_mismatch")
+        for dep, result in zip(batch_deps, batch_results):
+            if not isinstance(result, dict) or not isinstance(result.get("vulns", []), list):
+                failures.append("osv_entry_malformed")
+                continue
             vulns = result.get("vulns", [])
-            if vulns and i < len(batch_deps):
-                results.append((batch_deps[i], vulns))
+            valid = [vuln for vuln in vulns if isinstance(vuln, dict) and isinstance(vuln.get("id"), str) and vuln["id"]]
+            if len(valid) != len(vulns):
+                failures.append("osv_vulnerability_malformed")
+            else:
+                completed += 1
+            if valid:
+                results.append((dep, valid))
 
     vuln_count = sum(len(vulns) for _, vulns in results)
     pkg_count = len(results)
     print(f"[eu-vulns] OSV: {vuln_count} vulnerability(ies) across {pkg_count} package(s)")
 
-    return results
+    return results, {
+        "expected_and_completed_stages": {"osv_queries": [len(queries), completed]},
+        "sanitized_failure_codes": failures,
+    }
 
 
 def _fetch_osv_vuln_detail(vuln_id: str) -> Optional[Dict]:
@@ -537,31 +565,48 @@ def _process_osv_results(
     osv_results: List[Tuple[Dict, List[Dict]]],
     dependabot_ghsa_ids: set,
     nvd_api_key: Optional[str],
-) -> List[Dict]:
+) -> Tuple[List[Dict], List[Dict]]:
     """
     Process OSV results into a flat list of actionable vulnerability findings.
     Deduplicates against Dependabot, enriches with NVD when possible.
     """
     findings = []
+    remediation_findings = []
     seen_vuln_ids = set()
     nvd_enrichment_count = 0
+    detail_cache: dict[str, dict | None] = {}
 
     nvd_delay = NVD_RATE_LIMIT_DELAY_WITH_KEY if nvd_api_key else NVD_RATE_LIMIT_DELAY
 
     for dep, vulns in osv_results:
         for vuln in vulns:
             vuln_id = vuln.get("id", "")
-            if not vuln_id or vuln_id in seen_vuln_ids:
+            if not vuln_id:
+                findings.append({
+                    "vuln_id": None, "aliases": [], "severity": "unknown", "package": dep["name"],
+                    "ecosystem": dep["ecosystem"], "current_version": dep["version"],
+                    "summary": "OSV response missing vulnerability identifier", "source": "osv",
+                })
                 continue
-            seen_vuln_ids.add(vuln_id)
+            observation_key = (vuln_id, dep["ecosystem"], dep["name"], dep["version"])
+            if observation_key in seen_vuln_ids:
+                continue
+            seen_vuln_ids.add(observation_key)
+
+            classification_failure = None
+            if not any(key in vuln for key in ("database_specific", "severity", "affected")):
+                if vuln_id not in detail_cache:
+                    detail_cache[vuln_id] = _fetch_osv_vuln_detail(vuln_id)
+                detail = detail_cache[vuln_id]
+                if isinstance(detail, dict) and detail.get("id") == vuln_id:
+                    vuln = detail
+                else:
+                    classification_failure = "osv_detail_unavailable"
 
             # Get aliases (CVE IDs, other GHSA IDs)
             aliases = vuln.get("aliases", [])
 
-            # Skip if already tracked by Dependabot
             all_ids = {vuln_id} | set(aliases)
-            if all_ids & dependabot_ghsa_ids:
-                continue
 
             # Extract severity
             severity = _extract_severity(vuln)
@@ -587,10 +632,6 @@ def _process_osv_results(
                     else:
                         severity = "low"
 
-            # Skip low severity and unknown (unless NVD says otherwise)
-            if severity not in PROCESS_SEVERITIES:
-                continue
-
             # Extract fixed version
             fixed_version = _extract_fixed_version(vuln, dep["name"], dep["ecosystem"])
 
@@ -613,6 +654,9 @@ def _process_osv_results(
                 "cvss_vector": nvd_data.get("cvss_vector") if nvd_data else None,
                 "references": (nvd_data.get("references", []) if nvd_data else [])
                     + vuln.get("references", [])[:3],
+                "dependabot_covered": bool(all_ids & dependabot_ghsa_ids),
+                "classification_failure": classification_failure or ("severity_unavailable" if severity == "unknown" else None),
+                "enrichment_failure": "nvd_enrichment_unavailable" if cve_ids and nvd_data is None else None,
             }
 
             # Flatten references (OSV references are dicts with "url" key)
@@ -625,8 +669,10 @@ def _process_osv_results(
             finding["references"] = [r for r in flat_refs if r][:5]
 
             findings.append(finding)
+            if severity in PROCESS_SEVERITIES and not finding["dependabot_covered"]:
+                remediation_findings.append(finding)
 
-    return findings
+    return findings, remediation_findings
 
 
 # ---------------------------------------------------------------------------
@@ -742,7 +788,11 @@ def check_vulns() -> None:
     # Step 1: Collect all dependencies
     all_deps = _collect_all_dependencies(project_root)
     if not all_deps:
-        print("[eu-vulns] No dependencies found — done.")
+        report_scan(project_root=project_root, source="eu_vulns", findings=[], outcome="failed",
+                    subject_commit=_current_commit(project_root),
+                    coverage={"expected_and_completed_stages": {"inventory": [1, 0]}, "sanitized_failure_codes": ["inventory_unavailable"]},
+                    dry_run=dry_run, summary_only=summary_only)
+        print("[eu-vulns] Inventory unavailable; scan failed.", file=sys.stderr)
         return
 
     # Step 2: Load Dependabot state for deduplication
@@ -750,11 +800,31 @@ def check_vulns() -> None:
     print(f"[eu-vulns] Dependabot tracking: {len(dependabot_ghsa_ids)} known GHSA ID(s) to skip")
 
     # Step 3: Query OSV batch API
-    osv_results = _query_osv_batch(all_deps)
+    osv_response = _query_osv_batch(all_deps)
+    if isinstance(osv_response, tuple):
+        osv_results, coverage = osv_response
+    else:  # Compatibility with isolated callers that stub the pre-reporting API.
+        osv_results = osv_response
+        coverage = {"expected_and_completed_stages": {"osv_queries": [len(all_deps), len(all_deps)]}, "sanitized_failure_codes": []}
 
     # Step 4: Process results — dedup against Dependabot, enrich via NVD
-    findings = _process_osv_results(osv_results, dependabot_ghsa_ids, nvd_api_key)
+    all_findings, findings = _process_osv_results(osv_results, dependabot_ghsa_ids, nvd_api_key)
+    malformed = [f"missing_{key}" for finding in all_findings for key in ("vuln_id", "package", "ecosystem") if not finding.get(key)]
+    classification_failures = sorted({finding["classification_failure"] for finding in all_findings if finding.get("classification_failure")})
+    coverage["sanitized_failure_codes"].extend(classification_failures)
+    coverage["optional_enrichment_failures"] = sorted({finding["enrichment_failure"] for finding in all_findings if finding.get("enrichment_failure")})
+    outcome = "incomplete" if coverage["sanitized_failure_codes"] or malformed else ("findings" if all_findings else "no_new_findings")
+    report_scan(
+        project_root=project_root, source="eu_vulns", findings=all_findings, outcome=outcome,
+        subject_commit=_current_commit(project_root), coverage=coverage,
+        inventory={"expected_queries": len(all_deps), "completed_queries": coverage["expected_and_completed_stages"]["osv_queries"][1], "missing_required_data": malformed},
+        dry_run=dry_run, summary_only=summary_only,
+    )
     print(f"[eu-vulns] Actionable findings (after Dependabot dedup): {len(findings)}")
+
+    if os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
+        print(f"[eu-vulns] Collection complete: {len(all_findings)} findings; remediation disabled")
+        return
 
     if not findings:
         print("[eu-vulns] No new vulnerabilities found beyond Dependabot coverage — done.")
@@ -762,41 +832,13 @@ def check_vulns() -> None:
             tracking = _load_json_file(tracking_file, {"last_run": "", "processed": []})
             tracking["last_run"] = _now_iso()
             _save_json_file(tracking_file, tracking)
-        if not summary_only and not dry_run:
-            prompt = f"""# EU/OSV/NVD Vulnerability Check Summary — {today_date}
-
-The scheduled vulnerability checker scanned project dependencies and found no
-new actionable vulnerabilities beyond existing Dependabot coverage.
-
-## Results
-
-- Total unique dependencies scanned: {len(all_deps)}
-- npm dependencies: {sum(1 for dep in all_deps if dep.get('ecosystem') == 'npm')}
-- PyPI dependencies: {sum(1 for dep in all_deps if dep.get('ecosystem') == 'PyPI')}
-- Known Dependabot GHSA IDs skipped: {len(dependabot_ghsa_ids)}
-- New actionable findings: 0
-
-This is a read-only reporting chat. Summarize the run briefly, mention that no
-code changes are needed, and do not edit files, commit, or deploy.
-"""
-            run_opencode_session(
-                prompt=prompt,
-                session_title=f"security: eu-vulns clean {today_date}",
-                project_root=project_root,
-                log_prefix="[eu-vulns]",
-                agent="plan",
-                timeout=600,
-                job_type="eu-vulns",
-                context_summary="EU vulnerability checker found no new actionable vulnerabilities.",
-                linear_task=False,
-            )
         return
 
     # Sort by severity
     findings.sort(key=lambda f: SEVERITY_ORDER.get(f["severity"], 99))
 
     # Summary-only mode: output JSON and exit
-    if summary_only:
+    if summary_only or os.environ.get("SECURITY_REPORTING_COLLECTION_ONLY", "").lower() == "true":
         print(_build_json_summary(findings))
         return
 
@@ -813,26 +855,6 @@ code changes are needed, and do not edit files, commit, or deploy.
 
     for finding in findings:
         vuln_id = finding["vuln_id"]
-
-        # Check if resolved in git (by vuln_id or any CVE alias)
-        ids_to_check = [vuln_id] + [a for a in finding.get("aliases", []) if a.startswith("CVE-")]
-        commit_sha = None
-        for check_id in ids_to_check:
-            commit_sha = _check_vuln_in_git(check_id, project_root)
-            if commit_sha:
-                break
-
-        if commit_sha:
-            print(f"[eu-vulns] {vuln_id} resolved via commit {commit_sha}")
-            processed_map[vuln_id] = {
-                **finding,
-                "first_seen_at": processed_map.get(vuln_id, {}).get("first_seen_at", now_iso),
-                "last_dispatched_at": processed_map.get(vuln_id, {}).get("last_dispatched_at"),
-                "re_dispatch_count": processed_map.get(vuln_id, {}).get("re_dispatch_count", 0),
-                "resolved_via_commit": commit_sha,
-            }
-            resolve_count += 1
-            continue
 
         existing = processed_map.get(vuln_id)
 

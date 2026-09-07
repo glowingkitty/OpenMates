@@ -134,6 +134,23 @@ def test_summary_clean_scan_does_not_persist_eu_vulnerability_tracking(
     assert tracking.read_bytes() == tracking_before
 
 
+# Reporting coverage: security-reporting.coverage.no-false-clean
+# contract-test: infrastructure
+def test_osv_processing_retains_low_unknown_and_dependabot_covered_findings_for_reporting() -> None:
+    dependency = {"name": "example", "version": "1.0.0", "ecosystem": "npm", "source_file": "package.json"}
+    vulnerabilities = [
+        {"id": "GHSA-low", "database_specific": {"severity": "low"}, "aliases": []},
+        {"id": "GHSA-covered", "database_specific": {"severity": "high"}, "aliases": []},
+    ]
+
+    all_findings, remediation = inventory._process_osv_results(
+        [(dependency, vulnerabilities)], {"GHSA-covered"}, None
+    )
+
+    assert {finding["vuln_id"] for finding in all_findings} == {"GHSA-low", "GHSA-covered"}
+    assert remediation == []
+
+
 # contract-test: infrastructure
 def test_hosted_scan_resolves_every_requirements_graph() -> None:
     workflow = (ROOT / ".github" / "workflows" / "dependency-security.yml").read_text()
@@ -143,3 +160,47 @@ def test_hosted_scan_resolves_every_requirements_graph() -> None:
     assert "python -m pip_audit" in workflow
     assert "pnpm install --frozen-lockfile" in workflow
     assert "pnpm audit --audit-level high" in workflow
+
+
+# Reporting coverage: security-reporting.coverage.no-false-clean
+# contract-test: infrastructure
+def test_short_osv_batch_preserves_findings_without_claiming_full_coverage(monkeypatch):
+    monkeypatch.setattr(inventory, "_http_request", lambda *a, **k: {"results": [{"vulns": [{"id": "CVE-2026-1234"}]}]})
+    deps = [{"name": "one", "ecosystem": "npm", "version": "1.0"}, {"name": "two", "ecosystem": "npm", "version": "1.0"}]
+    findings, coverage = inventory._query_osv_batch(deps)
+    assert len(findings) == 1
+    assert coverage["expected_and_completed_stages"]["osv_queries"] == [2, 1]
+    assert "osv_response_length_mismatch" in coverage["sanitized_failure_codes"]
+
+
+# Reporting coverage: security-reporting.coverage.no-false-clean
+# contract-test: infrastructure
+def test_malformed_osv_entry_is_incomplete_not_clean(monkeypatch):
+    monkeypatch.setattr(inventory, "_http_request", lambda *a, **k: {"results": [None]})
+    findings, coverage = inventory._query_osv_batch([{"name": "one", "ecosystem": "npm", "version": "1.0"}])
+    assert not findings
+    assert coverage["expected_and_completed_stages"]["osv_queries"] == [1, 0]
+    assert coverage["sanitized_failure_codes"]
+
+
+# Reporting coverage: security-reporting.coverage.no-false-clean
+# contract-test: infrastructure
+def test_empty_inventory_records_failure_instead_of_silent_clean(tmp_path, monkeypatch):
+    monkeypatch.setenv("PROJECT_ROOT", str(tmp_path))
+    monkeypatch.setenv("TRACKING_FILE_PATH", str(tmp_path / "tracking.json"))
+    monkeypatch.setattr(inventory, "_collect_all_dependencies", lambda root: [])
+    calls = []
+    monkeypatch.setattr(inventory, "report_scan", lambda **kw: calls.append(kw))
+    inventory.check_vulns()
+    assert calls[0]["outcome"] == "failed"
+    assert "inventory_unavailable" in calls[0]["coverage"]["sanitized_failure_codes"]
+
+
+# Reporting coverage: security-reporting.coverage.no-false-clean,security-reporting.alerts.new-critical-only
+# contract-test: infrastructure
+def test_osv_id_only_batch_hydrates_classification_and_preserves_package_instances(monkeypatch):
+    monkeypatch.setattr(inventory, "_fetch_osv_vuln_detail", lambda identifier: {"id":identifier,"database_specific":{"severity":"critical"},"aliases":[]})
+    deps = [{"name":"one","ecosystem":"npm","version":"1","source_file":"package.json"}, {"name":"two","ecosystem":"npm","version":"1","source_file":"package.json"}]
+    findings, _ = inventory._process_osv_results([(dep,[{"id":"GHSA-aaaa-bbbb-cccc"}]) for dep in deps], set(), None)
+    assert len(findings) == 2
+    assert all(item["severity"] == "critical" for item in findings)
