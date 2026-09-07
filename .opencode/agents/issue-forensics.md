@@ -1,9 +1,6 @@
 ---
 description: "Deep read-only investigation of a user-reported issue using the reported-issue control plane, browser/backend evidence, traces, and source history. Use when given an issue ID from development or production."
 mode: subagent
-model: openai/gpt-5.6-sol
-options:
-  reasoningEffort: medium
 steps: 30
 permission:
   read: allow

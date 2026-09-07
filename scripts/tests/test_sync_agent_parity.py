@@ -83,3 +83,14 @@ def test_proof_video_reviewer_is_callable_as_primary_and_subagent(tmp_path: Path
     assert "task: deny" in rendered
     assert "bash: deny" in rendered
     assert "edit: deny" in rendered
+
+
+def test_new_specialist_inherits_central_model_without_route_table(tmp_path: Path) -> None:
+    module = load_module()
+    source = tmp_path / "new-specialist.md"
+    source.write_text("---\nname: new-specialist\ndescription: Inspect code.\ntools: Read\n---\nInspect the code.\n")
+    rendered = module.render_opencode_agent(source)
+    assert "model:" not in rendered
+    assert "reasoningEffort:" not in rendered
+    assert "mode: subagent" in rendered
+    assert "read: allow" in rendered

@@ -1,9 +1,6 @@
 ---
 description: "Independently verify that tests and current evidence genuinely prove an approved OpenMates Specification without implementing product code"
 mode: subagent
-model: openai/gpt-5.6-terra
-options:
-  reasoningEffort: medium
 steps: 24
 permission:
   read: allow

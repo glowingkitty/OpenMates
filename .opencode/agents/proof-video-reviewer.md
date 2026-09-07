@@ -1,9 +1,6 @@
 ---
 description: "Compare an approved proof contract with a bounded frame bundle and return one classified, frame-grounded verdict without viewing the full video."
 mode: all
-model: openai/gpt-5.6-terra
-options:
-  reasoningEffort: medium
 steps: 6
 permission:
   read:

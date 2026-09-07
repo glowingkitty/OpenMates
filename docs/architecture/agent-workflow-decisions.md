@@ -89,3 +89,24 @@ worktree restoration and integration, package tampering, and effective guards.
 These are implementation checks. Fewer corrections, repair loops and handoffs
 remain predicted benefits until comparable real work is available. No automatic
 monitoring is scheduled by this implementation.
+
+## Subchat model selection
+
+OpenCode Task subchats resolve the model from the explicit Task `model`, then
+the selected agent's model, then `opencode.json`'s `subagent.model`, then the
+parent model. OpenMates configures `openai/gpt-6-astra` centrally and generates
+specialists without model pins. Skills load into their caller; skills that
+delegate use the same Task policy.
+
+Reasoning resolves from Task `reasoning_effort`, then the agent variant, then
+`subagent.variant`. The central default is `medium`; `explore` defaults to
+`low`. Choose low for lookups and straightforward edits, medium for substantive
+implementation, debugging, review and verification. Explicit model exceptions
+do not inherit a different model's variant; pass reasoning explicitly when
+needed. Unsupported models or variants fail before creating a child. Resuming
+a Task resolves settings for that invocation, and metadata records the model
+and variant. The parent retains its own reasoning when a background result arrives.
+
+Change policy in tracked configuration, run parity generation and audits, then
+package it with the compatible OpenCode binary as a verified workflow release.
+Editing a project config alone does not update the running release.

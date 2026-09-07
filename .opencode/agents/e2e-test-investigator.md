@@ -1,9 +1,6 @@
 ---
 description: "Investigate a specific failing Playwright E2E spec, correlate current test state, screenshots, logs, specs, and source, then return a bounded root-cause report. Use for one failing spec that needs deeper read-only analysis than test-failure-triager provides."
 mode: subagent
-model: openai/gpt-5.6-terra
-options:
-  reasoningEffort: medium
 steps: 40
 permission:
   read: allow

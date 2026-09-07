@@ -140,6 +140,7 @@ workflow_runtime:
   bridge_source: pinned OPENMATES_CONTROL_PLANE_RUNTIME for OpenCode; canonical root for Codex
   state_owner: scripts/sessions.py
   decision_consumer: scripts/_workflow_decisions.py
+  subchat_model_policy: opencode.json subagent defaults; Task model/reasoning_effort overrides; generated specialists inherit
   tracked_root_mirroring: retired
   subchat_depth: OpenCode Task pre-tool guard allows root -> child -> grandchild only; unknown ancestry blocks spawning
 

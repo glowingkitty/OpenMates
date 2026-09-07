@@ -1,6 +1,6 @@
 ---
 name: opencode-improvement-research
-description: Analyze bounded recent OpenCode chat evidence with GPT-5.6 Luna and research improvements to skills, hooks, agents, instructions, or deterministic guards without editing tracked files.
+description: Analyze bounded recent OpenCode chat evidence and research improvements to skills, hooks, agents, instructions, or deterministic guards without editing tracked files.
 user-invocable: false
 ---
 
@@ -13,8 +13,8 @@ must not edit tracked files, commit, deploy, or start an implementation session.
 ## Workflow
 
 1. Read the full bounded evidence and response schema supplied by the caller.
-2. Confirm the requested model is `openai/gpt-5.6-luna`. If it is not, record
-   the mismatch in the output and stop rather than silently using another model.
+2. Use the model and reasoning selected by the caller. Model selection belongs
+   to the caller or central subchat configuration, not this skill.
 3. Group repeated symptoms across top-level and child sessions. Distinguish
    tool failures, user corrections, abandoned approaches, repeated rereads,
    policy blocks, missing verification, and instruction-following failures.
