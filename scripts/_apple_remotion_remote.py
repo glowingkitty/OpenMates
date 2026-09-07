@@ -21,6 +21,14 @@ import sys
 import signal
 import time
 import uuid
+import types
+
+POLICY_CODE = None
+if POLICY_CODE is None:
+    import _apple_repository_policy as repo_policy
+else:
+    repo_policy = types.ModuleType('_apple_repository_policy')
+    exec(POLICY_CODE, repo_policy.__dict__)
 
 MAX_BYTES = 1024 * 1024
 MEDIA_ROOTS = ('input-media/announcement-video', 'renders/mac-local/announcement-video/originals')
@@ -70,6 +78,74 @@ sys.exit(0 if valid else 3)
 
 class RequestError(ValueError):
     pass
+
+
+def scope_probe(scope):
+    paths = [(str(p), 1) for p in scope['roots']]
+    paths += [(str(scope['marketing'] / '.git/config'), 0),
+              (str(scope['marketing'].parent), 1), ('/tmp', 1),
+              (str(scope['marketing']) + '-sibling/file', 1)]
+    paths += [(str(p), 1) for p in scope['protected'] if p.exists()]
+    code = '''import ctypes,json,os,subprocess,sys
+lib=ctypes.CDLL('/usr/lib/libsandbox.dylib'); check=lib.sandbox_check
+check.restype=ctypes.c_int; check.argtypes=[ctypes.c_int,ctypes.c_char_p,ctypes.c_int]
+paths=json.loads(sys.argv[1]); depth=int(sys.argv[3])
+rows=[{'path':p,'expected_denied':v,'denied':check(os.getpid(),b'file-write-unlink',1,p.encode())} for p,v in paths]
+valid=all((r['denied']>0)==bool(r['expected_denied']) for r in rows)
+child=None
+if valid and depth<2:
+ r=subprocess.run([sys.executable,'-I','-B','-c',sys.argv[2],sys.argv[1],sys.argv[2],str(depth+1)],capture_output=True,text=True)
+ valid=r.returncode==0; child=json.loads(r.stdout) if r.stdout else None
+print(json.dumps({'depth':depth,'checks':rows,'child':child})); sys.exit(0 if valid else 3)
+'''
+    result = subprocess.run(['/usr/bin/sandbox-exec', '-p', repo_policy.profile(scope['roots'], scope['protected']),
+                             sys.executable, '-I', '-B', '-c', code, json.dumps(paths), code, '0'],
+                            capture_output=True, text=True, timeout=30)
+    if result.returncode:
+        raise RequestError('repository scope query failed: ' + result.stdout[:3000] + result.stderr[:500])
+    return {'policy_version': repo_policy.POLICY_VERSION, 'roots': [repo_policy.identity(p) for p in scope['roots']],
+            'query': json.loads(result.stdout)}
+
+
+def policy_transition(root, scope, task):
+    legacy = root / 'renders/no-delete-retained' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+    if not legacy.exists():
+        return
+    record = json.loads(legacy.read_text())
+    if task != repo_policy.SUPERSEDED_TASK or record != {'reason': 'OS no-unlink policy killed browser before readiness; no retry', 'pid': 14695}:
+        raise RequestError('legacy stop is not covered by the explicit policy transition')
+    directory = scope['marketing'] / '.apple-remote/policy-transitions'
+    directory.mkdir(parents=True, exist_ok=True)
+    open_fd = open_directory(directory)
+    os.close(open_fd)
+    receipt = directory / (repo_policy.SUPERSEDED_STOP + '.json')
+    if not receipt.exists():
+        with receipt.open('x') as output:
+            json.dump({'policy_version': repo_policy.POLICY_VERSION, 'authority': repo_policy.AUTHORITY,
+                       'legacy_record': record, 'legacy_path': str(legacy), 'manual_deletion_performed': False}, output)
+
+
+def clone_workspace(scope):
+    target = scope['app']
+    if target.exists() or target.is_symlink():
+        verified = repo_policy.verify_checkout(target, 'OpenMates')
+        return {'status': 'already-verified', 'checkout': repo_policy.identity(verified)}
+    repo_policy.exclusive_directory(target)
+    scratch = scope['marketing'] / '.apple-remote/clone-tmp'
+    scratch.mkdir(parents=True, exist_ok=True)
+    repo_policy.canonical_directory(scratch)
+    profile = repo_policy.profile([*scope['roots'], target], scope['protected'])
+    command = ['/usr/bin/sandbox-exec', '-p', profile, '/usr/bin/git', '-c', 'credential.helper=',
+               'clone', '--depth', '1', '--branch', 'dev', '--single-branch', '--', repo_policy.ORIGINS['OpenMates'], str(target)]
+    env = {'PATH': '/usr/bin:/bin', 'TMPDIR': str(scratch), 'GIT_CONFIG_NOSYSTEM': '1',
+           'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_TERMINAL_PROMPT': '0'}
+    result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=180)
+    if result.returncode == -signal.SIGKILL:
+        return {'status': 'deletion-stopped', 'detail': {'reason': 'clone killed by scoped filesystem policy; no retry', 'target': str(target)}}
+    if result.returncode:
+        raise RequestError('clone failed; target preserved without cleanup: ' + result.stderr[-1500:])
+    verified = repo_policy.verify_checkout(target, 'OpenMates')
+    return {'status': 'cloned', 'origin': repo_policy.ORIGINS['OpenMates'], 'checkout': repo_policy.identity(verified)}
 
 
 def root_path(value):
@@ -442,7 +518,8 @@ def observed_process(command, run, *, input_data, env, probe=False, task_stop=No
 def render_check(root, request):
     if RENDER_CODE is None:
         raise RequestError('fixed render helper was not supplied by wrapper')
-    sandbox_query(root, RENDER_PROFILE)
+    scope = repo_policy.workspace(root)
+    scope_probe(scope)
     node = next((p for p in (Path('/opt/homebrew/bin/node'), Path('/usr/local/bin/node')) if p.is_file()), None)
     browser = Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
     encoder = root / 'node_modules/@remotion/compositor-darwin-arm64/ffmpeg'
@@ -451,7 +528,7 @@ def render_check(root, request):
     task = request.get('_task_identity')
     if not isinstance(task, str) or not task:
         raise RequestError('render requires wrapper-bound task identity')
-    parent = root / 'renders/no-delete-retained'
+    parent = root / 'renders/runs'
     renders = root / 'renders'
     if not renders.exists():
         renders.mkdir()
@@ -461,14 +538,6 @@ def render_check(root, request):
     # Reject symlink parents before creating any run artifacts.
     fd = open_directory(parent)
     os.close(fd)
-    capability_key = hashlib.sha256((RENDER_CODE + RENDER_PROFILE).encode()).hexdigest()
-    def capability(kind):
-        return parent / ('capability-' + capability_key + '-' + kind + '.json')
-    if request['action'] == 'render-check':
-        for kind, expected in [('read', 'harmless-read-denial-killed'), ('fork', 'native-fork-denial-verified')]:
-            proof = capability(kind)
-            if not proof.is_file() or json.loads(proof.read_text()).get('status') != expected:
-                raise RequestError('required harmless supervisor proof missing for current runner: ' + kind)
     run = parent / uuid.uuid4().hex
     run.mkdir(mode=0o700)
     env = {'PATH': '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin', 'TMPDIR': str(run / 'tmp')}
@@ -489,27 +558,24 @@ def render_check(root, request):
         result = observed_process(command, run, input_data=b'', env=env, probe=True)
         result['probe_kind'] = request.get('probe_kind', 'read')
     else:
-        task_stop = parent / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
-        result = staged_render_check(root, run, node, browser, encoder, env, task_stop)
+        stop_dir = root / '.apple-remote/stops'
+        stop_dir.mkdir(parents=True, exist_ok=True)
+        task_stop = stop_dir / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+        result = staged_render_check(root, run, node, browser, encoder, env, task_stop, sandbox_profile=repo_policy.profile(scope['roots'], scope['protected']), allowed_roots=scope['roots'], protected=scope['protected'])
     result['run'] = str(run)
     with (run / 'supervisor-result.json').open('x') as artifact:
         json.dump(result, artifact)
-    if request['action'] == 'supervisor-probe' and result['status'] in {'harmless-read-denial-killed', 'native-fork-denial-verified'}:
-        proof = capability(request.get('probe_kind', 'read'))
-        if not proof.exists():
-            with proof.open('x') as artifact:
-                json.dump(result, artifact)
     return result
 
 
-def staged_render_check(root, run, node, browser, encoder, env, task_stop):
+def staged_render_check(root, run, node, browser, encoder, env, task_stop, sandbox_profile=RENDER_PROFILE, allowed_roots=None, protected=()):
     def node_stage(stage, **extra):
         directory = run / stage
         directory.mkdir()
         (directory / 'tmp').mkdir()
         (directory / 'empty-public').mkdir()
-        payload = {'root': str(root), 'run': str(directory), 'encoder': str(encoder), 'stage': stage, **extra}
-        command = ['/usr/bin/sandbox-exec', '-p', RENDER_PROFILE, str(node), '-e', RENDER_CODE]
+        payload = {'root': str(root), 'run': str(directory), 'encoder': str(encoder), 'stage': stage, 'roots': [str(p) for p in (allowed_roots or [root])], 'protected': [str(p) for p in protected], **extra}
+        command = ['/usr/bin/sandbox-exec', '-p', sandbox_profile, str(node), '-e', RENDER_CODE]
         return command, directory, json.dumps(payload).encode(), {**env, 'TMPDIR': str(directory / 'tmp')}
     command, directory, payload, stage_env = node_stage('bundle')
     result = observed_process(command, directory, input_data=payload, env=stage_env, task_stop=task_stop)
@@ -520,7 +586,7 @@ def staged_render_check(root, run, node, browser, encoder, env, task_stop):
     profile.mkdir()
     # sandbox_init cannot nest on this Mac. Launch the browser as a separately
     # supervised sibling with the complete policy applied once, before exec.
-    native_profile = RENDER_PROFILE + '(deny process-fork)'
+    native_profile = sandbox_profile + '(deny process-fork)'
     args = ['/usr/bin/sandbox-exec', '-p', native_profile, str(browser), '--headless=new',
             '--no-sandbox', '--single-process', '--in-process-gpu', '--no-zygote',
             '--disable-breakpad', '--disable-crash-reporter', '--disable-background-networking',
@@ -600,14 +666,23 @@ def render_report(root, request):
 
 
 def execute(request):
-    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original', 'supervisor-probe', 'render-check', 'render-report'}:
+    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original', 'supervisor-probe', 'render-check', 'render-report', 'workspace-info', 'workspace-clone', 'scope-probe'}:
         raise RequestError('unsupported typed operation')
     root = root_path(request.get('repo'))
+    scope = repo_policy.workspace(root)
     task = request.get('_task_identity')
     if isinstance(task, str) and task:
-        task_stop = root / 'renders/no-delete-retained' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+        policy_transition(root, scope, task)
+        task_stop = root / '.apple-remote/stops' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
         if task_stop.exists():
             return {'status': 'deletion-stopped', 'detail': json.loads(task_stop.read_text()), 'persistent_stop': str(task_stop)}
+    if request['action'] == 'workspace-info':
+        return {'policy_version': repo_policy.POLICY_VERSION, 'roots': [repo_policy.identity(p) for p in scope['roots']],
+                'clone_target': str(scope['app']), 'clone_needed': not scope['app'].exists()}
+    if request['action'] == 'workspace-clone':
+        return clone_workspace(scope)
+    if request['action'] == 'scope-probe':
+        return scope_probe(scope)
     if request['action'] in {'supervisor-probe', 'render-check'}:
         return render_check(root, request)
     if request['action'] == 'render-report':

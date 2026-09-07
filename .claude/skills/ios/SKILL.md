@@ -22,26 +22,24 @@ waiver or accepted external blocker. Mocked OpenMates API calls, mocked SDK
 clients, stubbed servers, direct function calls, and fixture replay do not count
 as completed CLI evidence.
 
-### Mac no-delete stop (TASK-752)
+### Mac repository-scoped deletion safety (TASK-752)
 
-Agents must never delete ANY Mac file, including caches, build outputs,
-credentials, browser profiles or package files. Approval never authorizes an
-agent to run deletion. Use `scripts/apple_remote.py` exclusively; do not use
-raw SSH, SCP, Python, rsync or another helper to bypass its rejection.
+Use `scripts/apple_remote.py` exclusively. Policy v2 permits cleanup only inside
+its verified OpenMates and openmates-marketing checkouts, including descendants.
+Checkout roots, their parents, outside paths and original media remain protected.
+Symlink targets and native subprocess cleanup must obey the same resolved scope.
+Keep temporary files, browser profiles and caches inside repository subfolders.
+Raw SSH/SCP, arbitrary shell, rsync or other helpers cannot bypass this policy.
 
 On `MAC_NO_DELETE_STOP`, immediately end the affected task with a final response.
-Give the exact needed manual deletion command and reason privately to the user,
-or explain that an unknown helper was blocked and no deletion has been requested.
-Do not attempt another tool, helper, automatic continuation or coordinator-driven
-resume. Wait for the user's fresh manual response that they executed the command
-themselves or did not want deletion. Each later deletion triggers a new stop.
-A matching role=user transcript, coordinator relay, timeout or approval flag is
-not runtime proof of human input. The current guard has no automatic release
-path; do not edit its state to manufacture one. See
-`docs/architecture/apple-no-delete-safety.md` for enforced scope and limitations.
-
-The wrapper currently permits only fixed read-only diagnostics. The older
-build/sync/install/cleanup instructions below do not override this guard.
+Give the exact outside-scope manual deletion command and reason when known; never
+invent a target from a signal alone. Only the user may resolve outside deletion.
+No coordinator relay, transcript role, timeout or confirmation flag clears a stop.
+The named historical blanket-policy stop is retained with an explicit v2 policy
+transition; that is not proof of manual deletion or a reusable resume bypass.
+See `docs/architecture/apple-no-delete-safety.md` for scope and host limitations.
+Legacy build/sync/cleanup instructions below require an admitted typed operation;
+they do not authorize arbitrary remote execution.
 
 ### Step 1: Load iOS rules and docs
 

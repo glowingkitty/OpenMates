@@ -4848,7 +4848,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if len(raw) > 2 * 1024 * 1024:
                 raise AppleRemoteError("Remotion request too large")
             request = json.loads(raw)
-            if not isinstance(request, dict) or request.get("action") not in {"inspect", "source-read", "source-put", "sandbox-probe", "media-probe", "config-read", "relocation-info", "relocate-original", "supervisor-probe", "render-check", "render-report"}:
+            if not isinstance(request, dict) or request.get("action") not in {"inspect", "source-read", "source-put", "sandbox-probe", "media-probe", "config-read", "relocation-info", "relocate-original", "supervisor-probe", "render-check", "render-report", "workspace-info", "workspace-clone", "scope-probe"}:
                 raise no_delete_guard.UnsupportedRemoteOperation("Unknown typed Remotion action")
             request["_task_identity"] = no_delete_guard.task_identity()
             result = subprocess.run(ssh_command(config, no_delete_guard.remotion_command()),

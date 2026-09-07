@@ -17,14 +17,27 @@ const requireProject = createRequire(path.join(root, 'package.json'));
 const retained = [];
 const write = fs.writeFileSync.bind(fs);
 const stop = (operation, target) => {
-  write(path.join(run, 'stop.json'), JSON.stringify({operation, target: String(target), reason: 'Unexpected deletion or replacement requested; no retry permitted'}), {flag: 'wx'});
+  write(path.join(run, 'stop.json'), JSON.stringify({operation, target: String(target), reason: 'Outside-repository or protected-media mutation requested; no retry permitted'}), {flag: 'wx'});
   process.kill(-process.pid, 'SIGSTOP');
   process.exit(77);
 };
+const originalRealpath = fs.realpathSync.bind(fs);
+function resolved(candidate) {
+  let p = path.resolve(String(candidate));
+  const suffix = [];
+  while (!fs.existsSync(p)) { suffix.unshift(path.basename(p)); const parent = path.dirname(p); if (parent === p) throw new Error('Unresolvable path'); p = parent; }
+  return path.join(originalRealpath(p), ...suffix);
+}
+function requireScope(candidate) {
+  const target = resolved(candidate);
+  if (!request.roots.some((root) => target !== root && target.startsWith(root + path.sep)) ||
+      request.protected.some((root) => target === root || target.startsWith(root + path.sep))) stop('out-of-scope-file-mutation', target);
+}
 for (const name of ['unlink', 'rm', 'rmdir', 'rename']) {
-  fs[name] = (...args) => stop(name, args[0]);
-  fs[name + 'Sync'] = (...args) => stop(name, args[0]);
-  fs.promises[name] = (...args) => stop(name, args[0]);
+  for (const [object, key] of [[fs, name], [fs, name + 'Sync'], [fs.promises, name]]) {
+    const original = object[key].bind(object);
+    object[key] = (...args) => { requireScope(args[0]); if (name === 'rename') requireScope(args[1]); return original(...args); };
+  }
 }
 const originalSpawn = cp.spawn.bind(cp);
 cp.spawn = (command, args, options = {}) => {
@@ -40,23 +53,9 @@ cp.spawn = (command, args, options = {}) => {
   });
   return child;
 };
-const retain = (target) => {
-  const absolute = path.resolve(target);
-  if (!absolute.startsWith(run + path.sep)) stop('cleanup-outside-retained-run', target);
-  retained.push(absolute);
-};
 async function main() {
   if (requireProject('@remotion/renderer/package.json').version !== '4.0.457') throw new Error('Unaudited renderer version');
   const rendererBase = path.dirname(requireProject.resolve('@remotion/renderer/package.json'));
-  requireProject(path.join(rendererBase, 'dist/delete-directory.js')).deleteDirectory = retain;
-  const maps = requireProject(path.join(rendererBase, 'dist/assets/download-map.js'));
-  const makeMap = maps.makeDownloadMap;
-  maps.makeDownloadMap = (...args) => {
-    const map = makeMap(...args);
-    map.preventCleanup();
-    retained.push(map.assetDir);
-    return map;
-  };
   if (request.stage === 'bundle') {
     const {bundle} = requireProject('@remotion/bundler');
     const entry = path.join(run, 'check.tsx');

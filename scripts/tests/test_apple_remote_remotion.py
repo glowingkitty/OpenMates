@@ -13,8 +13,11 @@ import pytest
 
 @pytest.fixture
 def project(tmp_path):
-    root = tmp_path / 'videos/remotion'
+    root = tmp_path / 'openmates-marketing/videos/remotion'
     (root / 'src').mkdir(parents=True)
+    git = root.parent.parent / '.git'
+    git.mkdir()
+    (git / 'config').write_text('[remote "origin"]\nurl = https://github.com/glowingkitty/openmates-marketing.git')
     (root / 'src/example.tsx').write_text('old source')
     return root
 
@@ -261,7 +264,7 @@ def test_native_stopped_child_persists_stop_and_kills_group(tmp_path, monkeypatc
 def test_remote_stop_blocks_other_typed_operations_after_interruption(project):
     m = helper()
     task = 'isolated-test-task'
-    marker = project / 'renders/no-delete-retained' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+    marker = project / '.apple-remote/stops' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
     marker.parent.mkdir(parents=True)
     marker.write_text('{"reason":"native deletion blocked"}')
     for action in ('inspect', 'source-read', 'render-check', 'relocate-original'):
