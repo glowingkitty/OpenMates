@@ -137,6 +137,8 @@ jobs:
             test-results/ci-environment.json
             test-results/ci-stack.log
             test-results/ci-results.json
+            test-results/ci-spec-*.json
+            test-results/ci-pytest.json
             test-results/ci-web.log
             frontend/apps/web_app/test-results/
           if-no-files-found: error

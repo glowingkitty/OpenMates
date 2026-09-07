@@ -1,0 +1,59 @@
+# contract-test-file: tooling
+"""Run old-worktree dispatch forwarders in isolated temporary repositories.
+
+The historical dispatcher would touch a sentinel standing for shared dev.
+Execution must reach the canonical entry or fail before touching that sentinel.
+This covers executable invocation, not just matching a source-code string.
+See docs/plans/isolated-github-tests/plan.yml.
+"""
+
+from pathlib import Path
+import subprocess
+import sys
+from scripts.ci_entrypoint import install
+
+
+def checkout(tmp_path: Path):
+    subprocess.run(["git", "init", str(tmp_path)], check=True, capture_output=True)
+    root = tmp_path / ".openmates-agent-worktrees/agent-abcd"
+    (root / "scripts").mkdir(parents=True)
+    for name in ("tests.py", "run_tests.py"):
+        (root / "scripts" / name).write_text(
+            'from __future__ import annotations\nfrom pathlib import Path\nPath("SHARED_DEV_TOUCHED").touch()\n'
+        )
+    (tmp_path / "scripts").mkdir()
+    return root
+
+
+def test_old_worktree_routes_without_shared_preflight(tmp_path):
+    root = checkout(tmp_path)
+    (tmp_path / "scripts/ci_dispatch.py").write_text(
+        'import sys\nprint("CANONICAL", sys.argv)\n'
+    )
+    install(root)
+    before = (root / "scripts/tests.py").read_bytes()
+    install(root)
+    assert (root / "scripts/tests.py").read_bytes() == before
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/tests.py"), "run", "--spec", "a.spec.ts"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "CANONICAL" in result.stdout and "--worktree" in result.stdout
+    assert not (root / "SHARED_DEV_TOUCHED").exists()
+
+
+def test_missing_canonical_dispatcher_fails_closed(tmp_path):
+    root = checkout(tmp_path)
+    install(root)
+    result = subprocess.run(
+        [sys.executable, str(root / "scripts/run_tests.py"), "--daily"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "fallback is forbidden" in result.stderr
+    assert not (root / "SHARED_DEV_TOUCHED").exists()

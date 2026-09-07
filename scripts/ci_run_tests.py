@@ -52,7 +52,12 @@ def provision_account(slot: int) -> dict:
     private = COMPOSE_PATH.parent
     artifact = private / f"account-{slot}-{secrets.token_hex(4)}.env"
     email = f"ci-{secrets.token_hex(8)}@example.com"
-    env = {**os.environ, "OPENMATES_CLI_SIGNUP_INVITE_CODE": invite, "NO_COLOR": "1"}
+    env = {
+        **os.environ,
+        "OPENMATES_CLI_SIGNUP_INVITE_CODE": invite,
+        "NO_COLOR": "1",
+        "OPENMATES_STATE_DIR": str(private / f"state-{slot}"),
+    }
     command = [
         "node",
         str(ROOT / "frontend/packages/openmates-cli/dist/cli.js"),
@@ -127,7 +132,15 @@ def provision_account(slot: int) -> dict:
         key.replace(prefix, "OPENMATES_TEST_ACCOUNT_"): value
         for key, value in values.items()
     }
-    mapped["E2E_SIGNUP_INVITE_CODE"] = invite
+    fixture_invite = secrets.token_hex(9)
+    request(
+        "http://localhost:8055/items/invite_codes",
+        {"code": fixture_invite, "remaining_uses": 20, "is_admin": False},
+        token,
+    )
+    mapped["E2E_SIGNUP_INVITE_CODE"] = fixture_invite
+    mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
+    mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
     return mapped
 
 
@@ -224,7 +237,26 @@ def run_e2e(specs: list[str]):
                     env=env,
                     timeout=1200,
                 )
-                results.append({"spec": name, "exit_code": result.returncode})
+                report_path = RESULTS / f"ci-spec-{index}.json"
+                report = (
+                    json.loads(report_path.read_text()) if report_path.is_file() else {}
+                )
+                stats = report.get("stats", {})
+                executed = (
+                    int(stats.get("expected", 0))
+                    + int(stats.get("unexpected", 0))
+                    + int(stats.get("flaky", 0))
+                )
+                results.append(
+                    {
+                        "spec": name,
+                        "exit_code": result.returncode if executed else 1,
+                        "stats": stats,
+                        "error": None
+                        if executed
+                        else "No tests executed; skipped coverage is not a pass",
+                    }
+                )
         finally:
             child.terminate()
             try:

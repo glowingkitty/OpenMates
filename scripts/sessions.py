@@ -10514,6 +10514,22 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     print("== END SESSION DOCTOR ==")
 
 
+def cmd_ci_source(args: argparse.Namespace) -> None:
+    """Publish this session's reviewed source without deploying shared dev."""
+    from ci_source import publish
+
+    session = _load_sessions().get("sessions", {}).get(args.session)
+    if not session:
+        raise RuntimeError("CI source requires an existing session")
+    root = _session_checkout_root(session)
+    if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
+        raise RuntimeError("CI source publication requires the session's managed worktree")
+    result = publish(root, args.session, session.get("modified_files", []),
+                     base=args.base or "", resolved_patch=Path(args.resolved_patch) if args.resolved_patch else None,
+                     patch_sha256=args.patch_sha256 or "")
+    print(json.dumps(result, sort_keys=True))
+
+
 def cmd_update(args: argparse.Namespace) -> None:
     """Update a session's task description."""
     data = _load_sessions()
@@ -19108,6 +19124,12 @@ def main() -> None:
     )
     p_release.add_argument("--file", "-f", help="File path (optional)")
 
+    p_ci_source = sub.add_parser("ci-source", help="Publish immutable source for isolated GitHub CI")
+    p_ci_source.add_argument("--session", required=True)
+    p_ci_source.add_argument("--base", help="Exact reviewed base for a resolved candidate patch")
+    p_ci_source.add_argument("--resolved-patch", help="Reviewed patch; applied only to a temporary index")
+    p_ci_source.add_argument("--patch-sha256", help="Required exact digest of the reviewed resolved patch")
+
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
     p_track.add_argument(
@@ -20081,6 +20103,7 @@ def main() -> None:
         "update": cmd_update,
         "claim": cmd_claim,
         "release": cmd_release,
+        "ci-source": cmd_ci_source,
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,
