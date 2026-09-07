@@ -14,6 +14,19 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 # contract-test: infrastructure
+def test_requirement_annotations_are_not_package_versions(tmp_path: Path) -> None:
+    manifest = tmp_path / "requirements.txt"
+    manifest.write_text(
+        'markdown-it-py==3.0.0 # Markdown rendering\n'
+        'httpx[http2]>=0.28.1,<1; python_version >= "3.10"\n'
+    )
+    dependencies = inventory._parse_requirements_txt(str(manifest))
+    assert [(item["name"], item["version"]) for item in dependencies] == [
+        ("markdown-it-py", "3.0.0"), ("httpx", "0.28.1")
+    ]
+
+
+# contract-test: infrastructure
 def test_discovers_nested_npm_and_python_manifests(tmp_path: Path) -> None:
     (tmp_path / "package.json").write_text('{"dependencies":{"root":"1.0.0"}}')
     nested = tmp_path / "backend" / "worker"

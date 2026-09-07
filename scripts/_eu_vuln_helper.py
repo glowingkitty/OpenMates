@@ -274,8 +274,9 @@ def _parse_requirements_txt(filepath: str) -> List[Dict[str, str]]:
         if not line or line.startswith("#") or line.startswith("-"):
             continue
 
-        # Parse name==version or name>=version patterns
-        match = re.match(r"^([a-zA-Z0-9_.-]+)\[?[^\]]*\]?[=~<>!]+(.+)$", line)
+        # Requirement annotations are metadata, never OSV version input.
+        requirement = re.split(r"\s+#|;", line, maxsplit=1)[0].strip()
+        match = re.match(r"^([a-zA-Z0-9_.-]+)(?:\[[^\]]+\])?[=~<>!]+(.+)$", requirement)
         if match:
             name = match.group(1).strip()
             version = match.group(2).strip().split(",")[0].strip()
