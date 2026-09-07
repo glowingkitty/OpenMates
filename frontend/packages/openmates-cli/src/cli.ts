@@ -9,6 +9,7 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
+import { codexResumeArguments, readCodexThread, resumeCodexTask } from "./codexConnection.js";
 import {
   OpenMatesClient,
   INTEREST_TAG_IDS,
@@ -840,6 +841,32 @@ async function handleTasks(
   const masterKey = client.getMasterKeyBytes();
   const scope = await resolveTaskScope(client, masterKey, flags, taskScopeFromFlags(flags, masterKey));
 
+  if (["connect", "connection", "resume"].includes(subcommand)) {
+    const task = await requiredResolvedTask(client, masterKey, rest[0], scope, subcommand);
+    if (task.source === "workflow_run") throw new Error("Workflow projections cannot connect to external agents.");
+    if (subcommand === "connect") {
+      if (typeof flags.thread !== "string") throw new Error("Usage: openmates tasks connect <task-id> --thread <codex-thread-uuid>");
+      if (task.primaryChatId) throw new Error("This Task has a native chat. Clear that link explicitly before connecting Codex.");
+      const connection = await readCodexThread(flags.thread);
+      const patch = await buildUpdateUserTaskInput(task, masterKey, {
+        assign: "codex", externalChat: { provider: "codex", id: connection.id, title: connection.title },
+      });
+      const updated = await client.updateUserTask(task.taskId, patch);
+      printTaskOutput(await decryptUserTask(updated, masterKey), flags);
+      return;
+    }
+    if (!task.externalChat) throw new Error("This Task has no external connection. Use tasks connect first.");
+    codexResumeArguments(task.externalChat);
+    if (subcommand === "resume") {
+      await resumeCodexTask(task.externalChat);
+      return;
+    }
+    const connection = await readCodexThread(task.externalChat.id);
+    if (flags.json === true) printJson({ task_id: task.taskId, connection });
+    else console.log(`${task.shortId}: Codex ${connection.status} — ${connection.url}`);
+    return;
+  }
+
   if (subcommand === "activity") {
     const action = rest[0] ?? "list";
     const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
@@ -1047,7 +1074,14 @@ async function handleTasks(
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
     }));
-    const created = await client.createUserTask(input);
+    let creator: "codex" | undefined;
+    if (flags["as-assignee"] === true) {
+      const external = externalChatFromFlags(flags);
+      if (!external || external.provider !== "codex") throw new Error("Codex creator attribution requires --external-chat codex:<thread-uuid>.");
+      await readCodexThread(external.id);
+      creator = "codex";
+    }
+    const created = await client.createUserTask(input, { creator });
     printTaskOutput(await decryptUserTask(created, masterKey), flags);
     return;
   }
@@ -1100,6 +1134,7 @@ async function handleTasks(
 
   if (subcommand === "start") {
     const task = await requiredResolvedTask(client, masterKey, rest[0], scope, "start");
+    if (task.assigneeType === "external_ai") throw new Error("Use tasks resume for an explicitly connected Codex Task; tasks start runs OpenMates AI.");
     const started = await client.startUserTaskWithAI(task.taskId, {
       version: task.version,
       primary_chat_id: task.primaryChatId ?? undefined,
@@ -1153,7 +1188,7 @@ async function handleTasks(
   throw new Error(`Unknown tasks command '${subcommand}'. Run 'openmates tasks --help'.`);
 }
 
-function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
+function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: Uint8Array): { status?: UserTaskStatus; chatId?: string; projectId?: string; planId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "opencode"; externalChatLookupHash?: string; priority?: number; teamId?: string | null; personal?: boolean } {
   const externalChat = externalChatFromFlags(flags);
   return {
     status: normalizeTaskStatus(typeof flags.status === "string" ? flags.status : undefined),
@@ -1170,7 +1205,7 @@ function taskScopeFromFlags(flags: Record<string, string | boolean>, masterKey: 
   };
 }
 
-function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "opencode"; id: string; title?: string } | undefined {
+function externalChatFromFlags(flags: Record<string, string | boolean>): { provider: "codex" | "opencode"; id: string; title?: string } | undefined {
   if (typeof flags["external-chat"] !== "string") return undefined;
   const ref = parseExternalChatRef(flags["external-chat"]);
   return {
@@ -13725,18 +13760,21 @@ Examples:
 
 function printTasksHelp(): void {
   console.log(`Tasks commands:
-  openmates tasks list [--status <status>] [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
-  openmates tasks board [--chat <id>|--external-chat opencode:<session-id>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks list [--status <status>] [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
+  openmates tasks board [--chat <id>|--external-chat codex:<thread-uuid>] [--project <id>] [--label <label>] [--priority <level>] [--json]
   openmates tasks show <task-id|short-id> [--json]
   openmates tasks <task-id|short-id> add-to-project <project-id> [--json]
   openmates tasks <task-id|short-id> remove-from-project <project-id> [--json]
   openmates tasks history <task-id|short-id> [--limit <n>] [--json]
   openmates tasks restore <task-id|short-id> --entry <history-entry-id> [--state before|after] [--json]
-  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
-  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat opencode:<session-id> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
+  openmates tasks create --title <title> [--description <text>] [--assign user|openmates|external-ai|unassigned] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--project <id>] [--label <label>] [--priority <level>] [--status <status>] [--due <date>] [--json]
+  openmates tasks edit <task-id|short-id> [--title <title>] [--description <text>] [--chat <id>|--external-chat codex:<thread-uuid> [--external-chat-title <title>]] [--label <label>] [--add-label <label>] [--remove-label <label>] [--priority <level>] [--assign user|openmates|external-ai|unassigned] [--status <status>] [--json]
   openmates tasks delete <task-id|short-id> --confirm [--json]
   openmates tasks start <task-id|short-id> [--json]
   openmates tasks status [<task-id|short-id>] [--json]
+  openmates tasks connect <task-id|short-id> --thread <codex-thread-uuid> [--json]
+  openmates tasks connection <task-id|short-id> [--json]
+  openmates tasks resume <task-id|short-id>
   openmates tasks block <task-id|short-id> --reason-code <code> [--reason-text <private-text>] [--json]
   openmates tasks unblock <task-id|short-id> [--json]
   openmates tasks skip <task-id|short-id> [--json]

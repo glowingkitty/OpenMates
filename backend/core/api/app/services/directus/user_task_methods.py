@@ -20,8 +20,9 @@ from backend.shared.python_utils.encrypted_slug_metadata import (
 logger = logging.getLogger(__name__)
 SHA256_HEX_RE = re.compile(r"^[0-9a-f]{64}$")
 KEY_WRAPPER_TYPES = {"master", "chat", "project", "plan", "team"}
-EXTERNAL_CHAT_PROVIDERS = {"opencode"}
-TASK_ASSIGNEE_IDENTITIES = {"openmates": "openmates", "external_ai": "opencode"}
+EXTERNAL_CHAT_PROVIDERS = {"codex", "opencode"}
+# Retain legacy identity validation without ever treating it as a Codex thread.
+TASK_ASSIGNEE_IDENTITIES = {"openmates": {"openmates"}, "external_ai": {"codex", "opencode"}}
 TASK_ASSIGNEE_TYPES = {"user", "openmates", "external_ai", "unassigned"}
 
 
@@ -72,7 +73,7 @@ def _validate_task_assignment(record: dict[str, Any], *, user_id: str | None = N
         raise ValueError("Task assignee type is not allowed")
     expected_identity = TASK_ASSIGNEE_IDENTITIES.get(assignee_type)
     identity = record.get("assignee_identity")
-    if expected_identity is not None and identity != expected_identity:
+    if expected_identity is not None and identity not in expected_identity:
         raise ValueError(f"Task {assignee_type} assignment requires identity {expected_identity}")
     if expected_identity is None and identity is not None:
         raise ValueError(f"Task {assignee_type} assignment cannot have an AI identity")
@@ -268,6 +269,52 @@ def _validate_wrapper_set(
 class UserTaskMethods:
     def __init__(self, directus_service):
         self.directus_service = directus_service
+
+    async def eligible_external_ai(self, user_id: str) -> list[str]:
+        """Derive eligibility only from owner-scoped creation receipts.
+
+        Legacy OpenCode receipts remain distinct; assignment/relinking cannot
+        produce Codex eligibility. Each provider query is bounded independently.
+        """
+        eligible = []
+        for provider in ("codex", "opencode"):
+            rows = await self.directus_service.get_items("user_task_activity", params={
+                "filter[hashed_user_id][_eq]": hash_id(user_id),
+                "filter[hashed_team_id][_null]": True,
+                "filter[kind][_eq]": "lifecycle_update",
+                "filter[event_type][_eq]": "created",
+                "filter[actor_type][_eq]": "external_ai",
+                "filter[actor_identity][_eq]": provider,
+                "filter[source_surface][_eq]": "cli",
+                "fields": "actor_identity", "limit": 1,
+            }, no_cache=True)
+            if not isinstance(rows, list):
+                raise RuntimeError("Task creator eligibility lookup failed")
+            if any(row.get("actor_identity") == provider for row in rows):
+                eligible.append(provider)
+        return eligible
+
+    async def record_external_creation(self, user_id: str, task: dict[str, Any], creator: str) -> None:
+        """Called only after authenticated CLI actor creation, never a patch."""
+        if creator != "codex" or task.get("external_chat_provider") != creator:
+            raise ValueError("Validated Codex creator context required")
+        rows = await self.directus_service.get_items("user_task_activity", params={
+            "filter[task_id][_eq]": task["task_id"],
+            "filter[hashed_user_id][_eq]": hash_id(user_id),
+            "filter[hashed_team_id][_null]": True,
+            "filter[kind][_eq]": "lifecycle_update",
+            "filter[event_type][_eq]": "created",
+            "fields": "id", "limit": 2,
+        }, no_cache=True)
+        if not isinstance(rows, list) or len(rows) != 1 or not rows[0].get("id"):
+            raise RuntimeError("Task creation lifecycle record is missing or ambiguous")
+        # The database trigger has already emitted exactly one creation entry.
+        # Attribute that entry only during creation, never append a duplicate.
+        updated = await self.directus_service.update_item("user_task_activity", rows[0]["id"], {
+            "actor_type": "external_ai", "actor_identity": creator, "source_surface": "cli",
+        })
+        if not updated:
+            raise RuntimeError("Failed to persist external Task creator provenance")
 
     async def list_tasks(
         self,

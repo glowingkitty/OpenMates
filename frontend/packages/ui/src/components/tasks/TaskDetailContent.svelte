@@ -1,6 +1,6 @@
 <!--
   TaskDetailContent.svelte
-  Shared read-only Task detail presentation used by the board fullscreen and
+  Shared editable Task detail presentation used by the board fullscreen and
   stable /tasks/:task_id route. It resolves linked encrypted workspace names
   client-side while dependency status remains safe server-visible metadata.
   Design reference: Figma Website node 5754:76027.
@@ -9,21 +9,34 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SettingsSectionHeading } from '../settings/elements';
+  import WorkspaceDetailHeader from '../workspace/WorkspaceDetailHeader.svelte';
   import WorkspaceContinueCard from '../workspace/WorkspaceContinueCard.svelte';
   import TaskActivity from './TaskActivity.svelte';
   import { chatDB } from '../../services/db';
   import { listProjects } from '../../services/projectService';
   import {
+    blockUserTask,
+    completeUserTask,
     listUserTaskDependencies,
     listUserTasks,
+    reorderUserTasks,
+    skipUserTask,
+    startUserTaskWithAI,
     taskAssigneeDisplayName,
+    unblockUserTask,
+    updateUserTask,
     type UserTaskDependencyViewModel,
     type UserTaskActivityEntry,
+    type UserTaskStatus,
     type UserTaskViewModel,
   } from '../../services/userTaskService';
   import { listUserPlans } from '../../services/userPlanService';
+  import { notificationStore } from '../../stores/notificationStore';
   import { userProfile } from '../../stores/userProfile';
   import { text } from '../../i18n/translations';
+
+  type TaskAssigneeChoice = 'user' | 'openmates' | 'codex' | 'opencode' | 'unassigned';
+  type TaskPatch = Parameters<typeof updateUserTask>[1];
 
   interface TaskDetailRelatedData {
     projects: Array<{ id: string; title: string; description: string }>;
@@ -36,21 +49,31 @@
     task,
     related,
     showTitle = true,
+    headerEmbedded = false,
     activityEntries,
     teamId,
+    writable = true,
+    canAssignCodex = false,
+    onTaskChange,
   }: {
     task: UserTaskViewModel;
     related?: TaskDetailRelatedData;
     showTitle?: boolean;
+    headerEmbedded?: boolean;
     activityEntries?: UserTaskActivityEntry[];
     teamId?: string;
+    writable?: boolean;
+    canAssignCodex?: boolean;
+    onTaskChange?: (task: UserTaskViewModel) => void;
   } = $props();
 
   let resolvedRelated = $state<TaskDetailRelatedData>({ projects: [], plan: null, chat: null, dependencies: [] });
   let relationLoadFailed = $state(false);
+  let isUpdating = $state(false);
   let creatorName = $derived($userProfile.username.trim() || 'You');
+  let codexAssignable = $derived(canAssignCodex || task.assigneeIdentity === 'codex');
+  let assigneeChoice = $derived(resolveAssigneeChoice(task));
 
-  const priorityLabels = ['No priority', 'Low', 'Medium', 'High', 'Urgent'];
   const blockedReasonKeys: Record<string, string> = {
     needs_user_input: 'tasks.blocked_reason.needs_user_input',
     waiting_for_approval: 'tasks.blocked_reason.waiting_for_approval',
@@ -106,10 +129,6 @@
     return status === 'todo' ? 'To do' : status.replace('_', ' ').replace(/^./, (value) => value.toUpperCase());
   }
 
-  function priorityLabel(priority: number): string {
-    return priorityLabels[Math.max(0, Math.min(priorityLabels.length - 1, priority))];
-  }
-
   function assigneeLabel(): string {
     return taskAssigneeDisplayName(task.assigneeIdentity)
       || (task.assigneeType === 'unassigned' ? 'Unassigned' : creatorName);
@@ -130,22 +149,157 @@
     if (minutes < 60) return `Created ${minutes} minute${minutes === 1 ? '' : 's'} ago`;
     return `Created ${formatDate(task.createdAt)}`;
   }
+
+  function resolveAssigneeChoice(value: UserTaskViewModel): TaskAssigneeChoice {
+    if (value.assigneeType === 'openmates') return 'openmates';
+    if (value.assigneeType === 'external_ai' && value.assigneeIdentity === 'codex') return 'codex';
+    if (value.assigneeType === 'external_ai' && value.assigneeIdentity === 'opencode') return 'opencode';
+    if (value.assigneeType === 'unassigned') return 'unassigned';
+    return 'user';
+  }
+
+  function assignmentPatch(choice: TaskAssigneeChoice): Pick<TaskPatch, 'assigneeType' | 'assigneeIdentity' | 'primaryChatId'> {
+    const clearExternalChat = task.externalChat ? { primaryChatId: task.primaryChatId ?? null } : {};
+    if (choice === 'openmates') return { assigneeType: 'openmates', assigneeIdentity: 'openmates', ...clearExternalChat };
+    if (choice === 'codex') return { assigneeType: 'external_ai', assigneeIdentity: 'codex', ...(task.externalChat?.provider === 'opencode' ? { primaryChatId: null } : {}) };
+    if (choice === 'unassigned') return { assigneeType: 'unassigned', assigneeIdentity: null, ...clearExternalChat };
+    return { assigneeType: 'user', assigneeIdentity: null, ...clearExternalChat };
+  }
+
+  async function persistTaskPatch(patch: TaskPatch, successMessage?: string): Promise<UserTaskViewModel> {
+    isUpdating = true;
+    try {
+      const updated = await updateUserTask(task, patch);
+      onTaskChange?.(updated);
+      if (successMessage) notificationStore.success(successMessage);
+      return updated;
+    } finally {
+      isUpdating = false;
+    }
+  }
+
+  async function persistStatusChange(status: UserTaskStatus): Promise<UserTaskViewModel> {
+    if (status === 'done' && task.status !== 'done') return completeUserTask(task);
+    if (status === 'blocked' && task.status !== 'blocked') return blockUserTask(task);
+    if (task.status === 'blocked' && status !== 'blocked') {
+      const unblocked = await unblockUserTask(task);
+      if (status === 'todo') return unblocked;
+      const [moved] = await reorderUserTasks([{ task: unblocked, status }]);
+      if (!moved) throw new Error('Task reorder returned no task');
+      return moved;
+    }
+    if (status === 'backlog' && task.status !== 'backlog') return skipUserTask(task);
+    const [moved] = await reorderUserTasks([{ task, status }]);
+    if (!moved) throw new Error('Task reorder returned no task');
+    return moved;
+  }
+
+  async function saveTitle(title: string): Promise<void> {
+    await persistTaskPatch({ title });
+  }
+
+  async function saveDescription(description: string): Promise<void> {
+    await persistTaskPatch({ description });
+  }
+
+  async function handleStatusChange(event: Event): Promise<void> {
+    const select = event.currentTarget as HTMLSelectElement;
+    const status = select.value as UserTaskStatus;
+    if (status === task.status || isUpdating) {
+      select.value = task.status;
+      return;
+    }
+    isUpdating = true;
+    try {
+      const updated = await persistStatusChange(status);
+      onTaskChange?.(updated);
+      notificationStore.success('Task status updated');
+    } catch (error) {
+      select.value = task.status;
+      console.error('[TaskDetailContent] Failed to update task status:', error);
+      notificationStore.error('Failed to update task status');
+    } finally {
+      isUpdating = false;
+    }
+  }
+
+  async function handleAssigneeChange(event: Event): Promise<void> {
+    const select = event.currentTarget as HTMLSelectElement;
+    const choice = select.value as TaskAssigneeChoice;
+    if (choice === assigneeChoice || isUpdating) {
+      select.value = assigneeChoice;
+      return;
+    }
+    if (choice === 'opencode') {
+      select.value = assigneeChoice;
+      return; // Existing OpenCode records are readable, not new assignments.
+    }
+    if (choice === 'codex' && !canAssignCodex) {
+      select.value = assigneeChoice;
+      notificationStore.error('Codex must create its first task before it can be assigned work.');
+      return;
+    }
+    try {
+      if (choice === 'openmates') {
+        isUpdating = true;
+        try {
+          const updated = await startUserTaskWithAI(task);
+          onTaskChange?.(updated);
+          notificationStore.success('Task assigned to OpenMates');
+        } finally {
+          isUpdating = false;
+        }
+        return;
+      }
+      await persistTaskPatch(assignmentPatch(choice), choice === 'codex' ? 'Task assigned to Codex' : 'Task assignment updated');
+    } catch (error) {
+      select.value = assigneeChoice;
+      console.error('[TaskDetailContent] Failed to update task assignee:', error);
+      notificationStore.error('Failed to update task assignment');
+    }
+  }
 </script>
 
-<article class="task-detail-content" data-testid="task-detail-content">
+<article class="task-detail-content" class:embedded-header={headerEmbedded} data-testid="task-detail-content">
   {#if showTitle}
-    <header class="route-header">
-      <span class="task-icon" aria-hidden="true"></span>
-      <div>
-        <h1 data-testid="task-detail-title">{task.title || 'Untitled task'}</h1>
-        <p>{createdLabel()} by {creatorName}</p>
-      </div>
-      <div class="header-badges" aria-label="Task status and priority">
-        <span class="priority" data-testid="task-detail-priority">{priorityLabel(task.priority)}</span>
-        <span data-testid="task-detail-status">{statusLabel(task.status)}</span>
-      </div>
-    </header>
+    <WorkspaceDetailHeader
+      title={task.title || 'Untitled task'}
+      description={task.description || 'No description added.'}
+      category="productivity"
+      icon="task"
+      {writable}
+      embedded={headerEmbedded}
+      showIcon={!headerEmbedded}
+      alignment={headerEmbedded ? 'start' : 'center'}
+      onSaveTitle={saveTitle}
+      onSaveDescription={saveDescription}
+      titleTestId="task-detail-title"
+      metadata={`${createdLabel()} by ${creatorName}`}
+    />
   {/if}
+
+  <section class="detail-section wide task-controls" data-testid="task-detail-edit-controls" aria-label="Task edit controls">
+    <div>
+      <label for={`task-status-${task.task_id}`}>Status</label>
+      <select id={`task-status-${task.task_id}`} value={task.status} disabled={!writable || isUpdating} onchange={(event) => void handleStatusChange(event)} data-testid="task-detail-status-select">
+        <option value="backlog">Backlog</option>
+        <option value="todo">To do</option>
+        <option value="in_progress">In progress</option>
+        <option value="blocked">Blocked</option>
+        <option value="done">Done</option>
+      </select>
+    </div>
+    <div>
+      <label for={`task-assignee-${task.task_id}`}>Assigned to</label>
+      <select id={`task-assignee-${task.task_id}`} value={assigneeChoice} disabled={!writable || isUpdating} onchange={(event) => void handleAssigneeChange(event)} data-testid="task-detail-assignee-select">
+        <option value="user">Me</option>
+        <option value="unassigned">Unassigned</option>
+        <option value="openmates">OpenMates</option>
+        {#if task.assigneeIdentity === 'opencode'}<option value="opencode" disabled>OpenCode (legacy)</option>{/if}
+        {#if codexAssignable}<option value="codex" disabled={!canAssignCodex}>Codex</option>{/if}
+      </select>
+    </div>
+  </section>
 
   <section class="detail-section wide" data-testid="task-detail-description">
     <SettingsSectionHeading title="Description" icon="document" />
@@ -217,7 +371,7 @@
       {#if task.externalChat}
         <div class="linked-card compact external" data-testid="task-detail-external-chat">
           <strong>{task.externalChat.title || task.externalChat.id}</strong>
-          <span>OpenCode</span>
+          <span>{task.externalChat.provider === 'codex' ? 'Codex' : 'OpenCode'}</span>
         </div>
       {:else if resolvedRelated.chat}
         <a class="linked-card compact" href={`/#chat-id=${encodeURIComponent(resolvedRelated.chat.id)}`}><strong>{resolvedRelated.chat.title}</strong></a>
@@ -231,15 +385,17 @@
 
 <style>
   .task-detail-content { width: min(980px, calc(100% - 40px)); margin: 0 auto; padding: 40px 0 100px; color: var(--color-font-primary); }
-  .route-header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-bottom: 28px; padding: 26px; border-radius: 24px; background: linear-gradient(135deg, var(--color-app-tasks-start, var(--color-primary-start)), var(--color-app-tasks-end, var(--color-primary-end))); color: var(--color-grey-0); }
-  .task-icon { width: 42px; height: 42px; background: currentColor; mask: var(--icon-url-task) center / contain no-repeat; }
-  h1, p { margin: 0; }
-  h1 { font-size: clamp(1.5rem, 3vw, 2.25rem); line-height: 1.15; }
-  .route-header p { margin-top: 8px; opacity: 0.8; }
-  .header-badges, .tags { display: flex; flex-wrap: wrap; gap: 8px; }
-  .header-badges span, .tags span { padding: 6px 10px; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: 700; }
-  .header-badges span { background: color-mix(in srgb, var(--color-grey-0) 20%, transparent); }
-  .header-badges .priority { background: var(--color-error); color: var(--color-grey-0); }
+  .task-detail-content :global(.workspace-detail-header) { margin-bottom: 28px; border-radius: 24px; }
+  .task-detail-content.embedded-header { padding-top: 28px; }
+  .task-detail-content.embedded-header :global(.workspace-detail-header) { margin-bottom: 22px; padding: 0 8px; border-radius: 0; }
+  p { margin: 0; }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tags span { padding: 6px 10px; border-radius: var(--radius-full); font-size: var(--font-size-xs); font-weight: 700; }
+  .task-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 28px; padding: 18px; border-radius: 22px; background: var(--color-grey-10); border: 1px solid var(--color-grey-20); }
+  .task-controls div { display: grid; gap: 8px; }
+  .task-controls label { color: var(--color-font-secondary); font-size: var(--font-size-xs); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+  .task-controls select { min-height: 46px; border: 1px solid var(--color-grey-25); border-radius: var(--radius-4); background: var(--color-grey-0); color: var(--color-font-primary); padding: 0 14px; font: inherit; font-weight: 700; }
+  .task-controls select:disabled { opacity: 0.62; }
   .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 44px; }
   .detail-section.wide { grid-column: 1 / -1; }
   .detail-section > p { padding: 0 8px; line-height: 1.55; white-space: pre-wrap; }
@@ -260,8 +416,7 @@
   .relation-error { margin-top: 28px; padding: 14px; border-radius: 12px; background: var(--color-error); color: var(--color-grey-0); }
   @media (max-width: 700px) {
     .task-detail-content { width: calc(100% - 32px); padding-top: 28px; }
-    .route-header { grid-template-columns: auto minmax(0, 1fr); padding: 20px; }
-    .header-badges { grid-column: 1 / -1; }
+    .task-controls { grid-template-columns: minmax(0, 1fr); }
     .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
     .detail-section.wide { grid-column: auto; }
     .dependency-list { grid-template-columns: minmax(0, 1fr); }
