@@ -100,10 +100,10 @@ work finishes or a user decision is needed.
   tasks to Urgent merely to bypass the cap. This exception does not waive approval,
   scope, or ownership rules. Normal work waits until the active total is below six.
 
-- Use **GPT-6 Astra** for this coordinator, workers, and coding fallback unless the
+- Use **GPT-6 Astra medium** for this coordinator, workers, and coding fallback unless the
   user explicitly chooses another model. Do not select GPT-5.5 or silently fall
   back to it. Resumed chats can retain an old model: select Astra explicitly with
-  `sessions.py restore <chat-id> --mode execute --model openai/gpt-6-astra`
+  `sessions.py restore <chat-id> --mode execute --model openai/gpt-6-astra --variant medium`
   when resuming approved work. Verify the accepted run's actual model, not just
   the configured default; report a mismatch or unavailable model before continuing.
 

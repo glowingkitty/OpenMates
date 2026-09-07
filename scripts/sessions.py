@@ -18548,6 +18548,8 @@ def cmd_restore(args: argparse.Namespace) -> None:
     if requested_model:
         provider_id, model_id = requested_model.split("/", 1)
         profile.update(provider_id=provider_id, model_id=model_id)
+    if getattr(args, "variant", None):
+        profile["variant"] = args.variant
     success = resume_opencode_session(
         session_name=restore_name,
         opencode_session_id=session_id,
@@ -19737,6 +19739,7 @@ def main() -> None:
         default="plan",
         help="Permission mode for the resumed session (default: plan)",
     )
+    p_restore.add_argument("--variant", help="Explicit reasoning variant for execute resume")
     p_restore.add_argument(
         "--model",
         help="Explicit provider/model for execute resume; otherwise preserve the chat model",

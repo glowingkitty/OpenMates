@@ -94,7 +94,7 @@ def test_spawn_opencode_execute_mode_auto_approves_permissions(tmp_path: Path, m
     assert command[command.index("--title") + 1] == "fix-example"
     assert command[command.index("--agent") + 1] == "build"
     assert command[command.index("--model") + 1] == "openai/gpt-6-astra"
-    assert command[command.index("--variant") + 1] == "xhigh"
+    assert command[command.index("--variant") + 1] == "medium"
     assert "--auto" in command
     assert "--interactive" not in command
 
@@ -537,7 +537,8 @@ def test_restore_explicit_model_replaces_old_chat_profile(monkeypatch):
         "provider_id": "openai", "model_id": "gpt-5.5", "variant": "xhigh"})
     monkeypatch.setattr(_zellij_utils, "resume_opencode_session", lambda **kwargs: captured.update(kwargs) or True)
     sessions.cmd_restore(SimpleNamespace(session_id="ses_existing_long_test_id", list=False,
-        mode="execute", model="openai/gpt-6-astra", prompt="Continue approved work", name=None))
+        mode="execute", model="openai/gpt-6-astra", variant="medium", prompt="Continue approved work", name=None))
     assert captured["model_id"] == "gpt-6-astra"
     assert captured["provider_id"] == "openai"
     assert captured["opencode_session_id"] == "ses_existing_long_test_id"
+    assert captured["variant"] == "medium"

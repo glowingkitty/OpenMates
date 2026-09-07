@@ -35,7 +35,7 @@ OPENCODE_CONTROL_PLANE_RUNTIME = os.environ.get(
     str(Path(__file__).resolve().parent.parent),
 )
 OPENCODE_EXECUTE_MODEL = os.environ.get("OPENCODE_EXECUTE_MODEL", "openai/gpt-6-astra")
-OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "xhigh")
+OPENCODE_EXECUTE_VARIANT = os.environ.get("OPENCODE_EXECUTE_VARIANT", "medium")
 OPENCODE_SPAWN_LOG_TAIL_CHARS = 2_000
 
 # Hard cap on concurrent Zellij sessions to prevent OOM on a 30GB server.
