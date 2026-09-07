@@ -92,6 +92,7 @@ def compose_profile(source_hash: str) -> dict:
         "depends_on": {
             "cms-setup": {"condition": "service_completed_successfully"},
             "vault-init": {"condition": "service_completed_successfully"},
+            "fixture-init": {"condition": "service_completed_successfully"},
         },
         "healthcheck": {
             "test": ["CMD", "curl", "-f", "http://localhost:8000/health"],
@@ -238,6 +239,16 @@ def compose_profile(source_hash: str) -> dict:
             "depends_on": {"vault": {"condition": "service_healthy"}},
         },
     }
+    services["fixture-init"] = {
+        "image": "openmates-ci-api:local",
+        "mem_limit": 128 * MIB,
+        "command": [
+            "sh",
+            "-ec",
+            "cp -a /app/backend/apps/ai/testing/api_cache/. /fixtures/",
+        ],
+        "volumes": ["api-cache:/fixtures"],
+    }
     volumes = {}
     for service in services.values():
         service.update(
@@ -253,9 +264,23 @@ def compose_profile(source_hash: str) -> dict:
                 "options": {"max-size": "5m", "max-file": "2"},
             },
         )
+        mounts = []
         for mount in service.get("volumes", []):
             if not mount.startswith("/"):
-                volumes[mount.split(":")[0]] = {}
+                name, target = mount.split(":", 1)
+                volumes[name] = {}
+                mounts.append(
+                    {
+                        "type": "volume",
+                        "source": name,
+                        "target": target,
+                        "volume": {"nocopy": True},
+                    }
+                )
+            else:
+                mounts.append(mount)
+        if mounts:
+            service["volumes"] = mounts
     return {"name": "openmates-ci", "services": services, "volumes": volumes}
 
 
