@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Fetch Dependabot alerts and report deterministic security observations.
 # Retains collection/reporting and existing manual arguments.
-# Automatic OpenCode launches were removed under TASK-7543.
+# The automatic schedule is off. The legacy helper launch-tail removal is
+# prepared under TASK-7543 but awaiting supported source-base integration.
+# Digest collection explicitly selects SECURITY_REPORTING_COLLECTION_ONLY.
 # Dry runs do not persist security ledger reports. Existing schedules remain off.
 # Future workflow requirements: TASK-8338. No replacement scheduler is installed.
 # Architecture: docs/architecture/infrastructure/cronjobs.md
