@@ -237,3 +237,55 @@ def test_mac_rename_uses_exclusive_primitive_without_fallback(monkeypatch):
     with pytest.raises(FileExistsError):
         m.rename_exclusive(10, 'openmates_is_better.mov', 11)
     assert calls == [(10, b'openmates_is_better.mov', 11, b'openmates_is_better.mov', 0x34)]
+
+
+def test_native_stopped_child_persists_stop_and_kills_group(tmp_path, monkeypatch):
+    import io
+    m = helper()
+    class Child:
+        pid = 1234
+        stdin = io.BytesIO()
+        def wait(self, timeout):
+            return 0
+    monkeypatch.setattr(m.subprocess, 'Popen', lambda *a, **kw: Child())
+    monkeypatch.setattr(m, 'process_group_states', lambda group: [{'pid': 1235, 'state': 'T'}])
+    killed = []
+    monkeypatch.setattr(m.os, 'killpg', lambda *args: killed.append(args))
+    marker = tmp_path / 'task.stop.json'
+    result = m.observed_process(['fake'], tmp_path, input_data=b'{}', env={}, task_stop=marker)
+    assert result['status'] == 'deletion-stopped'
+    assert marker.is_file() and (tmp_path / 'stop.json').is_file()
+    assert killed == [(1234, m.signal.SIGKILL)]
+
+
+def test_remote_stop_blocks_other_typed_operations_after_interruption(project):
+    m = helper()
+    task = 'isolated-test-task'
+    marker = project / 'renders/no-delete-retained' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+    marker.parent.mkdir(parents=True)
+    marker.write_text('{"reason":"native deletion blocked"}')
+    for action in ('inspect', 'source-read', 'render-check', 'relocate-original'):
+        result = m.execute({'action': action, 'repo': str(project), '_task_identity': task,
+                            'confirmed': True, 'human_response': 'I did it'})
+        assert result['status'] == 'deletion-stopped'
+        assert marker.is_file()
+
+
+def test_render_transport_latches_before_alternate_call(monkeypatch, tmp_path):
+    from test_apple_remote_native_debugging import load_apple_remote
+    remote = load_apple_remote()
+    request = tmp_path / 'render-request.json'
+    request.write_text(json.dumps({'action': 'render-check', 'repo': '/example/videos/remotion', '_task_identity': 'forged'}))
+    monkeypatch.setattr(remote, 'load_local_config', lambda: {})
+    monkeypatch.setattr(remote, 'resolve_remote_config', lambda **kw: remote.RemoteConfig('example', None, 'test'))
+    calls = []
+    def run(argv, **kw):
+        calls.append(json.loads(kw['input']))
+        return remote.subprocess.CompletedProcess(argv, 77, '{"status":"deletion-stopped"}', '')
+    monkeypatch.setattr(remote.subprocess, 'run', run)
+    with pytest.raises(remote.no_delete_guard.MacDeletionStop):
+        remote.main(['remotion-op', '--request', str(request)])
+    assert calls[0]['_task_identity'] != 'forged'
+    with pytest.raises(remote.no_delete_guard.MacDeletionStop):
+        remote.main(['status'])
+    assert len(calls) == 1

@@ -17,6 +17,8 @@ from pathlib import Path, PurePosixPath
 import stat
 import subprocess
 import sys
+import signal
+import time
 import uuid
 
 MAX_BYTES = 1024 * 1024
@@ -26,6 +28,8 @@ RELOCATION_FILES = {'gemini_find_doctor_appointments.mov', 'openmates_is_better.
 RENAME_EXCL = 0x00000004
 RENAME_NOFOLLOW_ANY = 0x00000010
 RENAME_RESOLVE_BENEATH = 0x00000020
+RENDER_CODE = None
+RENDER_PROFILE = '(version 1)(allow default)(deny file-write-unlink (with send-signal SIGKILL))'
 SOURCE_SUFFIXES = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.css', '.json', '.txt', '.svg'}
 AUDIT_FILES = (
     'node_modules/@remotion/renderer/package.json',
@@ -352,10 +356,158 @@ def media_probe(root, request):
     return {'file': request['file'], 'metadata': json.loads(result.stdout)}
 
 
+def process_group_states(group):
+    result = subprocess.run(['/bin/ps', '-axo', 'pid=,pgid=,stat='], capture_output=True,
+                            text=True, timeout=5, check=True)
+    rows = []
+    for line in result.stdout.splitlines():
+        fields = line.split()
+        if len(fields) == 3 and fields[1] == str(group):
+            rows.append({'pid': int(fields[0]), 'state': fields[2]})
+    return rows
+
+
+def observed_process(command, run, *, input_data, env, probe=False, task_stop=None):
+    # Retained logs avoid pipe backpressure. All launched descendants inherit
+    # the OS policy; Node additionally prevents detached child groups.
+    with (run / 'stdout.log').open('xb') as output, (run / 'stderr.log').open('xb') as errors:
+        child = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=output, stderr=errors,
+                                 env=env, start_new_session=True)
+        try:
+            child.stdin.write(input_data)
+            child.stdin.close()
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline:
+                states = process_group_states(child.pid)
+                stopped = [row for row in states if 'T' in row['state']]
+                explicit_stop = run / 'stop.json'
+                if explicit_stop.exists():
+                    detail = json.loads(explicit_stop.read_text())
+                    if task_stop is not None and not task_stop.exists():
+                        with task_stop.open('x') as marker:
+                            json.dump(detail, marker)
+                    return {'status': 'deletion-stopped', 'detail': detail}
+                if stopped:
+                    if probe:
+                        return {'status': 'harmless-read-denial-stopped', 'stopped_processes': stopped}
+                    # Only the Node supervisor may intentionally stop after a
+                    # written outcome. A stopped native child is always terminal.
+                    native = [row for row in stopped if row['pid'] != child.pid]
+                    if not native and (run / 'result.json').is_file():
+                        return json.loads((run / 'result.json').read_text())
+                    if not native and (run / 'failure.json').is_file():
+                        return {'status': 'render-failed', **json.loads((run / 'failure.json').read_text())}
+                    detail = {'reason': 'OS no-unlink policy stopped a native render process; no deletion retry',
+                              'stopped_processes': stopped, 'manual_delete_command': None}
+                    with explicit_stop.open('x') as marker:
+                        json.dump(detail, marker)
+                    if task_stop is not None:
+                        with task_stop.open('x') as marker:
+                            json.dump(detail, marker)
+                    return {'status': 'deletion-stopped', 'detail': detail}
+                if child.poll() is not None:
+                    if probe and child.returncode == -signal.SIGKILL:
+                        return {'status': 'harmless-read-denial-killed', 'exit_code': child.returncode}
+                    if probe and child.returncode == 0 and (run / 'stdout.log').read_text().strip() == '{"fork_denied": true, "errno": 1}':
+                        return {'status': 'native-fork-denial-verified', 'exit_code': 0}
+                    if not probe and child.returncode == -signal.SIGKILL:
+                        detail = {'reason': 'OS policy killed render supervisor; no automatic retry', 'exit_code': child.returncode}
+                        with (run / 'stop.json').open('x') as marker:
+                            json.dump(detail, marker)
+                        if task_stop is not None:
+                            with task_stop.open('x') as marker:
+                                json.dump(detail, marker)
+                        return {'status': 'deletion-stopped', 'detail': detail}
+                    return {'status': 'render-failed', 'exit_code': child.returncode,
+                            'stderr': (run / 'stderr.log').read_text(errors='replace')[-3000:]}
+                time.sleep(0.05)
+            return {'status': 'render-failed', 'error': 'bounded render check timed out; artifacts retained'}
+        finally:
+            # SIGKILL avoids native/user-space cleanup handlers. Never unlink
+            # profiles, logs, frames, output or supervisor evidence.
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            child.wait(timeout=10)
+
+
+def render_check(root, request):
+    if RENDER_CODE is None:
+        raise RequestError('fixed render helper was not supplied by wrapper')
+    sandbox_query(root, RENDER_PROFILE)
+    node = next((p for p in (Path('/opt/homebrew/bin/node'), Path('/usr/local/bin/node')) if p.is_file()), None)
+    browser = Path('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+    encoder = root / 'node_modules/@remotion/compositor-darwin-arm64/ffmpeg'
+    if request['action'] != 'supervisor-probe' and (node is None or not browser.is_file() or not encoder.is_file()):
+        raise RequestError('required installed Node/Chrome/compositor encoder unavailable; no downloads')
+    task = request.get('_task_identity')
+    if not isinstance(task, str) or not task:
+        raise RequestError('render requires wrapper-bound task identity')
+    parent = root / 'renders/no-delete-retained'
+    renders = root / 'renders'
+    if not renders.exists():
+        renders.mkdir()
+    fd = open_directory(renders)
+    os.close(fd)
+    parent.mkdir(exist_ok=True)
+    # Reject symlink parents before creating any run artifacts.
+    fd = open_directory(parent)
+    os.close(fd)
+    capability_key = hashlib.sha256((RENDER_CODE + RENDER_PROFILE).encode()).hexdigest()
+    def capability(kind):
+        return parent / ('capability-' + capability_key + '-' + kind + '.json')
+    if request['action'] == 'render-check':
+        for kind, expected in [('read', 'harmless-read-denial-killed'), ('fork', 'native-fork-denial-verified')]:
+            proof = capability(kind)
+            if not proof.is_file() or json.loads(proof.read_text()).get('status') != expected:
+                raise RequestError('required harmless supervisor proof missing for current runner: ' + kind)
+    run = parent / uuid.uuid4().hex
+    run.mkdir(mode=0o700)
+    env = {'PATH': '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin', 'TMPDIR': str(run / 'tmp')}
+    (run / 'tmp').mkdir()
+    (run / 'empty-public').mkdir()
+    if request['action'] == 'supervisor-probe':
+        # Actual denied READ only, no deletion fixture/syscall. This checks the
+        # supervisor's SIGSTOP observation using an existing harmless device.
+        profile = '(version 1)(allow default)(deny file-read-data (with send-signal SIGKILL) (literal "/dev/null"))'
+        code = 'import os; f=os.open("/dev/null",os.O_RDONLY); os.read(f,1)'
+        if request.get('probe_kind', 'read') == 'fork':
+            profile = '(version 1)(allow default)(deny process-fork)'
+            code = 'import os,json\ntry:\n pid=os.fork(); os._exit(3)\nexcept OSError as e:\n print(json.dumps({"fork_denied":e.errno==1,"errno":e.errno}))'
+        elif request.get('probe_kind', 'read') != 'read':
+            raise RequestError('unsupported harmless supervisor probe')
+        command = ['/usr/bin/sandbox-exec', '-p', profile, sys.executable, '-I', '-B', '-c',
+                   code]
+        result = observed_process(command, run, input_data=b'', env=env, probe=True)
+        result['probe_kind'] = request.get('probe_kind', 'read')
+    else:
+        command = ['/usr/bin/sandbox-exec', '-p', RENDER_PROFILE, str(node), '-e', RENDER_CODE]
+        payload = json.dumps({'root': str(root), 'run': str(run), 'browser': str(browser), 'encoder': str(encoder)}).encode()
+        task_stop = parent / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+        result = observed_process(command, run, input_data=payload, env=env, task_stop=task_stop)
+    result['run'] = str(run)
+    with (run / 'supervisor-result.json').open('x') as artifact:
+        json.dump(result, artifact)
+    if request['action'] == 'supervisor-probe' and result['status'] in {'harmless-read-denial-killed', 'native-fork-denial-verified'}:
+        proof = capability(request.get('probe_kind', 'read'))
+        if not proof.exists():
+            with proof.open('x') as artifact:
+                json.dump(result, artifact)
+    return result
+
+
 def execute(request):
-    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original'}:
+    if not isinstance(request, dict) or request.get('action') not in {'inspect', 'source-read', 'source-put', 'sandbox-probe', 'media-probe', 'config-read', 'relocation-info', 'relocate-original', 'supervisor-probe', 'render-check'}:
         raise RequestError('unsupported typed operation')
     root = root_path(request.get('repo'))
+    task = request.get('_task_identity')
+    if isinstance(task, str) and task:
+        task_stop = root / 'renders/no-delete-retained' / ('task-' + hashlib.sha256(task.encode()).hexdigest() + '.stop.json')
+        if task_stop.exists():
+            return {'status': 'deletion-stopped', 'detail': json.loads(task_stop.read_text()), 'persistent_stop': str(task_stop)}
+    if request['action'] in {'supervisor-probe', 'render-check'}:
+        return render_check(root, request)
     if request['action'] in {'relocation-info', 'relocate-original'}:
         return relocate(root, request)
     if request['action'] in {'source-read', 'source-put'}:
@@ -384,7 +536,10 @@ def main():
         raw = sys.stdin.buffer.read(2 * MAX_BYTES + 1)
         if len(raw) > 2 * MAX_BYTES:
             raise RequestError('request exceeds limit')
-        print(json.dumps(execute(json.loads(raw))))
+        result = execute(json.loads(raw))
+        print(json.dumps(result))
+        if result.get('status') == 'deletion-stopped':
+            return 77
         return 0
     except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired) as exc:
         print(json.dumps({'error': str(exc)}))

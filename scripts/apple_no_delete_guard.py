@@ -45,6 +45,8 @@ class UnsupportedRemoteOperation(SystemExit):
 
 def remotion_command():
     helper = Path(__file__).with_name('_apple_remotion_remote.py').read_text()
+    render = Path(__file__).with_name('_apple_remotion_render.cjs').read_text()
+    helper = helper.replace('RENDER_CODE = None', 'RENDER_CODE = ' + repr(render))
     return shlex.join(['/usr/bin/python3', '-I', '-B', '-c', helper])
 
 

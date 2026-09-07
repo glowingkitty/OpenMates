@@ -4848,10 +4848,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             if len(raw) > 2 * 1024 * 1024:
                 raise AppleRemoteError("Remotion request too large")
             request = json.loads(raw)
-            if not isinstance(request, dict) or request.get("action") not in {"inspect", "source-read", "source-put", "sandbox-probe", "media-probe", "config-read", "relocation-info", "relocate-original"}:
+            if not isinstance(request, dict) or request.get("action") not in {"inspect", "source-read", "source-put", "sandbox-probe", "media-probe", "config-read", "relocation-info", "relocate-original", "supervisor-probe", "render-check"}:
                 raise no_delete_guard.UnsupportedRemoteOperation("Unknown typed Remotion action")
+            request["_task_identity"] = no_delete_guard.task_identity()
             result = subprocess.run(ssh_command(config, no_delete_guard.remotion_command()),
-                                    input=raw.decode(), capture_output=True, text=True, timeout=60, check=False)
+                                    input=json.dumps(request), capture_output=True, text=True, timeout=240, check=False)
             if args.output:
                 Path(args.output).write_text(result.stdout)
                 print(f"remotion_response={args.output} exit_code={result.returncode}")
@@ -4859,6 +4860,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(result.stdout)
             if result.stderr:
                 print(redact_output(result.stderr, config), file=sys.stderr)
+            if result.returncode == 77:
+                no_delete_guard.block("Typed Mac operation encountered a deletion stop; retained remote evidence: " + result.stdout[:4000])
             return result.returncode
         api_options = app_store_connect_api_options(args, local_config)
         if args.command == "init-proof-broker-recipient":
