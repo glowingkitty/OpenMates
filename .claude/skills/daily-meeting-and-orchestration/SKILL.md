@@ -49,9 +49,18 @@ work finishes or a user decision is needed.
 - Recommend a disposition for each reviewed chat: resume, replace with a fresh
   chat, defer to todo/backlog, or no further work. Preserve useful findings in
   task activities; suggest code notes only when useful to future maintainers.
-- Specify each assignment's task/chat link, goal, exact next instruction,
-  completion criteria, required checks, scope limits, dependencies, and next
-  meaningful checkpoint. Identify shared-file/runtime conflicts before parallel work.
+- Present suggestions as four compact tables (mark empty groups “None”):
+  - **Chats to resume:** Title/link | Short resume instruction | Checkpoint | Completion criteria.
+  - **New chats:** Title | Short assignment | Checkpoint | Completion criteria.
+  - **Human tasks today:** Title | Action | Due date | Checkpoint | Completion criteria.
+  - **Tasks for another day:** Title | Description summary | Todo/Backlog | Due date | Checkpoint | Completion criteria.
+  Keep cells to short phrases, rank by today's relevance, and avoid repeating rows
+  in prose. Use “—” for an unset due date; distinguish proposed dates from agreed ones.
+  Create deferred tasks through the OpenMates CLI, reusing existing tasks when found.
+- The tables are a concise review surface. Send each worker a separate, detailed
+  instruction with its goal, task link, context, saved work, scope limits,
+  dependencies, required checks, checkpoint, and completion criteria. Do not use
+  the shortened table instruction as the entire worker prompt.
 - Resume existing chats by default. Replace when conflicting context or repeated
   misunderstanding warrants it. Transfer approved requirements, decisions,
   learnings, saved work, and remaining checks; establish one active owner.
@@ -61,6 +70,14 @@ work finishes or a user decision is needed.
   requires user input.
 
 ## Step 4: Launch or resume approved chats
+
+- Run **at most six worker chats concurrently**, across all runtimes and delegated
+  workers; exclude this orchestrator. Count existing work before every start,
+  resume, fallback, or added request. Uncertain/running workers retain their slots.
+  Put overflow tasks in **Todo**. A task with **Urgent priority** may launch beyond
+  six; show the exception explicitly, preserve platform limits, and do not promote
+  tasks to Urgent merely to bypass the cap. This exception does not waive approval,
+  scope, or ownership rules. Normal work waits until the active total is below six.
 
 - Launch independent assignments using supported chat controls. Verify acceptance
   and task identity; reconcile uncertain launches before retrying. Preserve
@@ -85,7 +102,7 @@ work finishes or a user decision is needed.
   others. Report if the worker remains running. Do not cancel it or send further
   continuation instructions while awaiting the decision.
 - Evaluate additional requests against today's focus. If they fit, reuse/create
-  the task and launch within the approved scope. Otherwise capture them in todo
+  the task and launch within the approved scope and six-chat limit. Otherwise capture them in todo
   or backlog. Preserve explicit deadlines; suggest due dates only with a reason.
   Ask before materially changing today's focus.
 

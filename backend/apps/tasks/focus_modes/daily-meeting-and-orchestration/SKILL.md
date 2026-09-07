@@ -58,16 +58,32 @@ empty history.
 
 ### Step 3: Propose assignments and get approval
 
-Recommend which chats to resume, replace, defer to todo/backlog, or stop pursuing.
-For each assignment specify its task, goal, next instruction, completion criteria,
-required checks, scope limits, dependencies, and next checkpoint. Resume by default;
-replace confused chats with a handoff of requirements, decisions, and saved work.
+Recommend which chats to resume, replace, defer, or stop pursuing. Present four
+compact tables (mark empty groups “None”):
+- **Chats to resume:** Title/link | Short resume instruction | Checkpoint | Completion criteria.
+- **New chats:** Title | Short assignment | Checkpoint | Completion criteria.
+- **Human tasks today:** Title | Action | Due date | Checkpoint | Completion criteria.
+- **Tasks for another day:** Title | Description summary | Todo/Backlog | Due date | Checkpoint | Completion criteria.
+
+Use short phrases, rank by today's relevance, and avoid repeating rows in prose.
+Show unset dates as “—” and label proposed dates. Save deferred work in OpenMates
+Tasks, reusing existing entries. Resume by default; replace confused chats with
+a handoff. Send workers detailed instructions with goal, context, task link, saved
+work, scope, dependencies, required checks, checkpoint, and completion criteria;
+the shortened table instruction is not the full assignment.
 
 Get approval before starting work. Distinguish user tasks from tasks assigned to
 OpenMates; execute only the latter. Approval covers in-focus additions and urgent
 corrections within existing permissions and budgets, but not cancellation.
 
 ### Step 4: Start or resume approved work
+
+Run **at most six worker chats concurrently**, including delegated workers but
+excluding this meeting chat. Check existing work before every start/resume or added
+request; uncertain/running workers keep their slots. Put overflow in **Todo**.
+**Urgent-priority tasks may launch beyond six**: show the exception, respect platform
+limits, and never promote a task just to bypass the cap. Approval and ownership
+rules still apply. Normal work waits until fewer than six workers remain.
 
 Use OpenMates subchats for independent assignments and supported controls to resume
 existing chats. Give each worker its assignment and maintain one owner per task.
@@ -88,7 +104,7 @@ Record meaningful worker updates in task activities, without heartbeat chatter.
   narrowing or cancellation with evidence. Pause orchestration of that chat and
   wait for the user's decision; continue monitoring others. Report if it remains
   running. Do not cancel or send further continuation instructions while waiting.
-- Start added requests that fit today's approved focus. Otherwise capture them
+- Start added requests that fit today's approved focus and chat limit. Otherwise capture them
   in todo/backlog. Preserve deadlines; suggest due dates only with a reason.
   Ask before materially changing the day's focus.
 
