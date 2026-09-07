@@ -38,7 +38,7 @@ const DEFAULT_STANDALONE_PREFIX = "TASK";
 const PRIORITY_LEVELS = ["none", "low", "medium", "high", "urgent"] as const;
 const LABEL_INDEX_INFO = "openmates-task-label-index-v1";
 const EXTERNAL_CHAT_INDEX_INFO = "openmates-task-external-chat-index-v1";
-const EXTERNAL_CHAT_PROVIDER = "opencode";
+const EXTERNAL_CHAT_PROVIDERS = ["codex", "opencode"] as const;
 const BLOCKED_REASON_CODES = [
   "needs_user_input",
   "waiting_for_approval",
@@ -58,7 +58,7 @@ export interface TaskLookupScope {
   projectId?: string;
   planId?: string;
   labelHashes?: string[];
-  externalChatProvider?: "opencode";
+  externalChatProvider?: "codex" | "opencode";
   externalChatLookupHash?: string;
   priority?: number;
   teamId?: string | null;
@@ -191,7 +191,7 @@ export interface TaskUpdateOptions {
 }
 
 export interface ExternalChatRef {
-  provider: "opencode";
+  provider: "codex" | "opencode";
   id: string;
 }
 
@@ -206,8 +206,8 @@ export function parseExternalChatRef(value: string): ExternalChatRef {
   const provider = value.slice(0, separator).trim().toLowerCase();
   const id = value.slice(separator + 1).trim();
   if (separator <= 0 || !id) throw new Error("--external-chat requires provider:id.");
-  if (provider !== EXTERNAL_CHAT_PROVIDER) throw new Error(`Unsupported external chat provider '${provider}'. Only opencode is allowed.`);
-  return { provider: EXTERNAL_CHAT_PROVIDER, id };
+  if (!(EXTERNAL_CHAT_PROVIDERS as readonly string[]).includes(provider)) throw new Error(`Unsupported external chat provider '${provider}'. Use codex; opencode is retained for legacy records.`);
+  return { provider: provider as ExternalChatRef["provider"], id };
 }
 
 export function externalChatLookupHash(masterKey: Uint8Array, context: ExternalChatRef): string {
@@ -233,7 +233,8 @@ export function parseAssignee(value: string | undefined): { assigneeType: UserTa
   const normalized = value?.trim().toLowerCase().replace(/-/g, "_");
   if (!normalized || normalized === "user") return { assigneeType: "user", assigneeIdentity: null, assigneeHash: null };
   if (normalized === "openmates") return { assigneeType: "openmates", assigneeIdentity: "openmates", assigneeHash: null };
-  if (normalized === "external_ai" || normalized === "opencode") return { assigneeType: "external_ai", assigneeIdentity: "opencode", assigneeHash: null };
+  if (normalized === "external_ai" || normalized === "codex") return { assigneeType: "external_ai", assigneeIdentity: "codex", assigneeHash: null };
+  if (normalized === "opencode") return { assigneeType: "external_ai", assigneeIdentity: "opencode", assigneeHash: null };
   if (normalized === "unassigned") return { assigneeType: "unassigned", assigneeIdentity: null, assigneeHash: null };
   return { assigneeType: "user", assigneeIdentity: null, assigneeHash: value! };
 }

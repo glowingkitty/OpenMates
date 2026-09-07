@@ -180,3 +180,18 @@ task_surface_parity:
   - id: same-activity-contract
     input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], task: task-1, comment: Waiting on staging}
     expect: {same_encryption_boundary: true, same_tombstone_semantics: true, durable_plaintext_comment: false}
+
+
+codex_connection_compatibility:
+  - id: codex-verified-creator
+    input: {provider: codex, external_chat_id: 00000000-0000-4000-8000-000000000001, cli_actor: assignee, paired_session: true, installed_thread_read: matched}
+    expect: {creator_identity: codex, eligible_external_ai: [codex], encrypted_external_id: true, automatic_turn_start: false}
+  - id: legacy-is-not-codex-eligibility
+    input: {existing_creation_identity: opencode, requested_assignment: codex}
+    expect: {assignment_rejected: true, original_identity: opencode, original_ciphertext_unchanged: true}
+  - id: status-does-not-resume
+    input: {command: tasks_connection, provider: codex, linked_thread_exists: true}
+    expect: {method: thread/read, includeTurns: false, resume_called: false, turn_started: false}
+  - id: legacy-resume-rejected
+    input: {command: tasks_resume, provider: opencode}
+    expect: {runtime_launched: false, original_link_readable: true, explicit_codex_connection_required: true}
