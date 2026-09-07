@@ -6479,6 +6479,10 @@ def _prune_stale(data: dict) -> list[str]:
     pruned = []
     to_remove = []
     for sid, session in data.get("sessions", {}).items():
+        # Disconnects do not retire durable Codex ownership. A missing workspace
+        # needs explicit repair, never a new session allocated by stale pruning.
+        if session.get("codex_task_id"):
+            continue
         worktree = session.get("worktree")
         if (
             isinstance(worktree, dict)
@@ -8423,6 +8427,12 @@ def bind_opencode_session(data: dict, session_id: str, opencode_session_id: str)
     sessions = data.get("sessions", {})
     if session_id not in sessions:
         raise ValueError(f"Unknown repo session ID: {session_id}")
+    if sessions[session_id].get("execution_owner_tool") == "codex" or any(
+        session.get("execution_owner_tool") == "codex"
+        and session.get("opencode_session_id") == opencode_session_id
+        for session in sessions.values()
+    ):
+        raise RuntimeError("Session was adopted by Codex; the retired OpenCode owner cannot resume it")
     for other_id, session in sessions.items():
         if other_id != session_id and session.get("opencode_session_id") == opencode_session_id:
             session["opencode_session_id"] = None

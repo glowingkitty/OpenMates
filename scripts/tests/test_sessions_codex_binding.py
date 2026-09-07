@@ -17,6 +17,30 @@ TASK = "01a07cde-f630-76c3-9a46-66eb7c082d85"
 OTHER = "01a07d05-4f27-7111-91fb-9ef6fa875c9b"
 
 
+def test_disconnected_binding_survives_stale_pruning():
+    data = {
+        "sessions": {
+            "old": {"codex_task_id": TASK, "last_active": "2000-01-01T00:00:00Z"}
+        }
+    }
+    assert sessions._prune_stale(data) == []
+    assert "old" in data["sessions"]
+
+
+def test_retired_opencode_owner_cannot_rebind_adopted_work():
+    original = {
+        "execution_owner_tool": "codex",
+        "codex_task_id": TASK,
+        "opencode_session_id": "ses_original",
+    }
+    data = {"sessions": {"old": original.copy(), "replacement": {}}}
+    for target in ("old", "replacement"):
+        with pytest.raises(RuntimeError, match="adopted by Codex"):
+            sessions.bind_opencode_session(data, target, "ses_original")
+    assert data["sessions"]["old"] == original
+    assert data["sessions"]["replacement"] == {}
+
+
 def test_codex_identity_does_not_fall_back_to_zellij(monkeypatch):
     monkeypatch.delenv("OPENCODE_SESSION_ID", raising=False)
     monkeypatch.setenv("CODEX_THREAD_ID", TASK)

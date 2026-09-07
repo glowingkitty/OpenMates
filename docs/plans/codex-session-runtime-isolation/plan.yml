@@ -63,15 +63,19 @@ verification_strategy:
   completion: All slices implemented and applicable real runtime checks passed; do not equate disabled
     admission with completed rollout.
   current_evidence:
-    combined_python: 55 passed before final additional routing case; rerun after hook finalization.
+    combined_python: 62 passed at d3f5cb4780a18dc01862a72f2018a3a17ad95112; additional stale/retired-owner
+      regressions in progress.
     cli_server: 101 passed
     postgres_capacity: Two concurrent requests admit one; restart preserves ledger; release admits waiter;
       retry creates no duplicate; temporary schema removed.
-    hook_adapter: Direct bridge SessionStart/UserPromptSubmit/Bash smoke passed; installed execution not
-      yet proven.
+    hook_adapter: Installed Codex shell without workdir and relative apply_patch routed to agent-ecad
+      at d3f5cb4780a18dc01862a72f2018a3a17ad95112; root untouched; synthetic file removed.
+    postgres_handoff: 16 concurrent publications reused one event; response retry and retained expiry
+      reused it; actual retention deletion permitted republication, requiring independent consumer ownership.
+      Disposable schema removed.
 handoff:
   session: ecad
-  next: Implement and verify durable Codex binding; other coordinator owns task recovery.
+  next: Complete retired-owner binding guard; private broker/provisioning remains the next runtime stage.
   completed:
   - Removed rejected workflow Specification and uploaded/local PDF.
   - Codex binding and explicit adoption implemented; own ecad binding preserved.
@@ -81,18 +85,18 @@ handoff:
     passed.
   - Task environment CLI target rejects while broker is unavailable.
   pending:
-  - Installed Codex hook proof and child behavior.
+  - Actual child execution proof when a worker slot is available; installed parent shell/patch passed.
   - Private runtime provisioning and privileged broker/storage enforcement.
   - Environment-bound dispatcher integration and live isolated pilot.
   - Trusted product eligibility and automatic assignment producer/consumer remain a separate Task dependency;
     reviewed contract at coordinator checkpoint.
   current_task_id: TASK-1
-  next_action: Scoped verification deployment of binding, hook routing and dormant capacity foundation;
-    then installed hook proof.
+  next_action: Deploy final binding hardening and PostgreSQL event probe, then prepare bounded host runtime
+    provisioning.
   command: python3 scripts/sessions.py prepare-deploy --session ecad
   expected_outcome: Review exact scoped files; preserve Task worker original patches and shared runtime
     slot.
-  last_verified_commit: d1d67dd98efeacdd29b62493b6b2766bed01a56e
+  last_verified_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
   host_activation_constraint: sudo -n requires a password. No OS changes or shared-dev restart performed;
     broker activation needs a concrete operator-run setup step.
 tasks:

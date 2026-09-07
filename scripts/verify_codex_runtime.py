@@ -31,6 +31,9 @@ def capacity_database_probe() -> int:
     migration = (
         ROOT / "backend/engineering_control_plane/migrations/0005_runtime_capacity.sql"
     ).read_text()
+    coordination_migration = (
+        ROOT / "backend/engineering_control_plane/migrations/0001_coordination.sql"
+    ).read_text()
     program = """import concurrent.futures, json, os, sys, types, uuid
 import psycopg
 from psycopg import sql
@@ -54,7 +57,9 @@ try:
         connection.execute(sql.SQL('SET search_path TO {}').format(sql.Identifier(schema)))
         return connection
     repository.connect=isolated_connect
-    with isolated_connect(url) as connection:connection.execute(payload['migration'])
+    with isolated_connect(url) as connection:
+        connection.execute(payload['coordination_migration'])
+        connection.execute(payload['migration'])
     store=repository.PostgresCoordinationRepository(url)
     gib=1024**3
     host=dict(memory_available=14*gib,memory_total=30*gib,disk_available={'root':68*gib},disk_total={'root':300*gib},memory_floor=4*gib,build_memory=4*gib,build_disk={'root':10*gib},max_environments=2,enforcement_verified=True)
@@ -72,6 +77,23 @@ try:
     state=restarted.runtime_capacity_transition('test-host',action='status',owner='probe',payload={})
     assert len(state['requests'])==2
     print(json.dumps({'status':'passed','concurrent_overcommit':False,'restart_preserved':True,'release_admitted_waiter':True,'retry_duplicated':False}))
+    event_type=sys.modules['backend.engineering_control_plane.coordination'].SessionEventType.TASK_CHANGED
+    def publish(_):
+        return restarted.publish_event(event_type=event_type,target_type='session',target_key='synthetic-coordinator',subject_key='synthetic-task',payload={'handoff_key':'synthetic-assignment-1','state':'ready'})
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        events=list(pool.map(publish,range(16)))
+    assert len({event['event_key'] for event in events})==1
+    assert publish(None)['event_key']==events[0]['event_key']
+    with isolated_connect(url) as connection:
+        count=connection.execute('SELECT count(*) FROM control_plane_session_events').fetchone()[0]
+        assert count==1
+        connection.execute("UPDATE control_plane_session_events SET retain_until=now()-interval '1 second'")
+    # Retention expiry alone cannot create duplicate identity before actual cleanup.
+    assert publish(None)['event_key']==events[0]['event_key']
+    with isolated_connect(url) as connection:
+        connection.execute('DELETE FROM control_plane_session_events WHERE retain_until < now()')
+    assert publish(None)['event_key']!=events[0]['event_key']
+    print(json.dumps({'status':'passed','concurrent_event_deduplication':True,'ambiguous_response_retry_reused_event':True,'expired_retained_event_reused':True,'deleted_event_republished':True,'worker_launch_proven':False}))
 finally:
     if created:
         with psycopg.connect(url) as connection:
@@ -81,7 +103,14 @@ finally:
     # The script itself is supplied as argv; stdin carries source, never secrets.
     result = subprocess.run(
         ["docker", "exec", "-i", CONTAINER, "python", "-c", program],
-        input=json.dumps({"sources": sources, "migration": migration}) + "\n",
+        input=json.dumps(
+            {
+                "sources": sources,
+                "migration": migration,
+                "coordination_migration": coordination_migration,
+            }
+        )
+        + "\n",
         text=True,
         capture_output=True,
         timeout=60,

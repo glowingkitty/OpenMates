@@ -83,6 +83,44 @@ storage/isolation/capability checks. A database schema migration needs new revie
 
 ## Evidence and limits
 
+### Codex adoption checkpoint (2026-09-07)
+
+The approved workflow Plan is `docs/plans/codex-session-runtime-isolation/plan.yml`;
+engineering workflows do not require product Specifications. Codex task UUID,
+host and repository now resolve the existing managed session. To adopt a stopped
+OpenCode owner, call the canonical root `scripts/sessions.py worktree bind-codex`
+with the original `--session`, new `--codex-task`, exact `--expected-worktree`, and
+`--previous-owner-stopped`. The last flag is an explicit owner attestation. It
+preserves physical files and historical Task/OpenCode metadata. Do not call an
+old worktree's `start` command to adopt it. A retired owner cannot rebind through
+the new coordinator; old script copies are not an enforcement boundary.
+
+The shared hook bridge anchors supported Codex shell/patch inputs to the binding,
+including the parent task identity supplied by child hooks. Existing guard
+denials win over routing output. Installed shell and relative patch routing were
+verified on `d3f5cb4780a18dc01862a72f2018a3a17ad95112`; actual child execution still
+needs an available worker slot. Hooks do not mediate arbitrary Docker access.
+
+Private runtime admission is **disabled**. The dormant PostgreSQL reducer locks
+one host row, accounts outstanding reserved growth, preserves FIFO waiting and
+requires at least 30 GiB on each accounted filesystem. The disposable-schema
+probe verifies concurrent admission, reopen, release and event deduplication.
+It does not verify real resource enforcement or worker launch. Event retention
+can delete an idempotency record; consumers must independently reconcile durable
+assignment ownership before launching work.
+
+The next runtime stage needs a trusted host broker, bounded storage for all
+runtime/build/artifact writes, memory caps, private synthetic data and endpoint/
+source/epoch validation. Current ext4 quotas are not verified and the task user
+has direct Docker access; neither a hook nor `df` can guarantee a permanent disk
+floor. `openmates server --environment task` fails explicitly until that stage
+is ready. Continue today's shared-dev work through the existing coordinator
+lease; never silently redirect a private-runtime request to shared dev.
+
+Rollback keeps durable bindings and reservations. Revert source changes through
+the scoped deploy workflow, preserve adopted worktrees, and explicitly select
+shared-dev verification. Do not restore an old session-state snapshot.
+
 Focused Python and Node tooling fixtures cover receipt scope, provenance,
 continuation cancellation, checkpoints, stale generations, duplicate processes,
 worktree restoration and integration, package tampering, and effective guards.
