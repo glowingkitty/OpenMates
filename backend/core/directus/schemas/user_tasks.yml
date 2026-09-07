@@ -36,7 +36,7 @@ user_tasks:
     assignee_identity:
       type: string
       nullable: true
-      note: "Allowlisted safe identity key for OpenMates or an external AI, such as openmates or opencode."
+      note: "Allowlisted safe identity key for OpenMates or an external AI, openmates or codex; legacy opencode remains readable."
 
     assignee_hash:
       type: string
