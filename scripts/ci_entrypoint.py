@@ -13,6 +13,30 @@ import hashlib
 
 START = "# BEGIN OPENMATES CANONICAL CI DISPATCH\n"
 END = "# END OPENMATES CANONICAL CI DISPATCH\n"
+SHELL_ENTRIES = {
+    "scripts/run-tests.sh": ("..", ""),
+    "scripts/run-tests-daily.sh": ("..", "--daily"),
+    "scripts/ci/trigger_parallel_specs.sh": ("../..", "--suite playwright"),
+}
+
+
+def entrypoints(root: Path) -> list[str]:
+    return ["scripts/tests.py", "scripts/run_tests.py", *(
+        name for name in SHELL_ENTRIES if (root / name).is_file()
+    )]
+
+
+def shell_forwarder(relative: str, arguments: str) -> str:
+    return START + f'''CI_WORKTREE="$(cd "$(dirname "${{BASH_SOURCE[0]}}")/{relative}" && pwd)" || exit 2
+CI_COMMON="$(git -C "$CI_WORKTREE" rev-parse --path-format=absolute --git-common-dir)" || exit 2
+CI_CANONICAL="$(dirname "$CI_COMMON")"
+if [[ ! -f "$CI_CANONICAL/scripts/ci_dispatch.py" ]]; then
+  echo 'Canonical isolated CI dispatcher unavailable; shared-dev fallback is forbidden.' >&2
+  exit 2
+fi
+exec python3 "$CI_CANONICAL/scripts/ci_dispatch.py" --worktree "$CI_WORKTREE" {arguments} "$@"
+exit 2
+''' + END
 
 
 def forwarder(entry: str) -> str:
@@ -65,4 +89,22 @@ def install(root: Path) -> list[dict]:
                 "after": hashlib.sha256(updated.encode()).hexdigest(),
             }
         )
+    for name, (relative, arguments) in SHELL_ENTRIES.items():
+        path = root / name
+        if not path.is_file():
+            continue
+        source = path.read_text()
+        before = hashlib.sha256(source.encode()).hexdigest()
+        if START in source:
+            first, rest = source.split(START, 1)
+            _, last = rest.split(END, 1)
+            source = first + last
+        if not source.startswith("#!/") or "\n" not in source:
+            raise RuntimeError(f"Cannot safely install shell CI forwarder into {path}")
+        first, rest = source.split("\n", 1)
+        updated = first + "\n" + shell_forwarder(relative, arguments) + rest
+        if updated != path.read_text():
+            path.write_text(updated)
+        result.append({"path": str(path), "before": before,
+                       "after": hashlib.sha256(updated.encode()).hexdigest()})
     return result

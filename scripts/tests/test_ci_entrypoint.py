@@ -89,3 +89,27 @@ def test_shell_launchers_use_canonical_dispatch_and_fail_closed(tmp_path):
         )
         assert result.returncode == 2
         assert "fallback is forbidden" in result.stderr
+
+
+def test_adopted_old_shells_never_reach_shared_preflight(tmp_path):
+    from scripts.ci_entrypoint import SHELL_ENTRIES
+
+    root = checkout(tmp_path)
+    canonical = tmp_path / "scripts/ci_dispatch.py"
+    canonical.write_text('import sys\nprint("CANONICAL", sys.argv)\n')
+    for name in SHELL_ENTRIES:
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text('#!/usr/bin/env bash\ntouch SHARED_DEV_TOUCHED\n')
+    install(root)
+    before = {name: (root / name).read_bytes() for name in SHELL_ENTRIES}
+    install(root)
+    assert before == {name: (root / name).read_bytes() for name in SHELL_ENTRIES}
+    for name in SHELL_ENTRIES:
+        result = subprocess.run(["bash", str(root / name)], cwd=root, capture_output=True, text=True)
+        assert result.returncode == 0 and "CANONICAL" in result.stdout
+    canonical.unlink()
+    for name in SHELL_ENTRIES:
+        result = subprocess.run(["bash", str(root / name)], cwd=root, capture_output=True, text=True)
+        assert result.returncode == 2 and "fallback is forbidden" in result.stderr
+    assert not (root / "SHARED_DEV_TOUCHED").exists()

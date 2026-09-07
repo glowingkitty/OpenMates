@@ -10531,7 +10531,7 @@ def cmd_ci_source(args: argparse.Namespace) -> None:
 
 def cmd_ci_adopt(args: argparse.Namespace) -> None:
     """Forward existing worktree dispatchers without replacing their dirty patches."""
-    from ci_entrypoint import install
+    from ci_entrypoint import install, entrypoints
 
     sessions = _load_sessions().get("sessions", {})
     session = sessions.get(args.session)
@@ -10540,17 +10540,18 @@ def cmd_ci_adopt(args: argparse.Namespace) -> None:
     root = _session_checkout_root(session)
     if root == CONTROL_PLANE_ROOT or not is_valid_managed_worktree_path(root):
         raise RuntimeError("CI adoption requires the preserved managed worktree")
-    for path in ("scripts/tests.py", "scripts/run_tests.py"):
+    for path in entrypoints(root):
         conflict = _manual_write_claim_conflict(path, args.session, sessions)
         if conflict:
             raise RuntimeError(conflict)
     checkpoint = CONTROL_PLANE_ROOT / "logs/ci-coordinator/adoptions" / args.session
     checkpoint.mkdir(parents=True, exist_ok=True)
     # Retain exact preimages before the small forwarder insertion.
-    for name in ("tests.py", "run_tests.py"):
-        data = (root / "scripts" / name).read_bytes()
+    for name in entrypoints(root):
+        data = (root / name).read_bytes()
         digest = hashlib.sha256(data).hexdigest()
-        (checkpoint / f"{name}.{digest}.before").write_bytes(data)
+        backup_name = name.replace("/", "_")
+        (checkpoint / f"{backup_name}.{digest}.before").write_bytes(data)
     result = {"session": args.session, "worktree": str(root), "files": install(root)}
     (checkpoint / "checkpoint.json").write_text(json.dumps(result, indent=2))
     print(json.dumps(result, sort_keys=True))
