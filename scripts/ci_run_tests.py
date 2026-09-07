@@ -208,15 +208,9 @@ def run_e2e(specs: list[str]):
     with (RESULTS / "ci-web.log").open("w") as log:
         child = subprocess.Popen(
             [
-                "pnpm",
-                "exec",
-                "vite",
-                "preview",
-                "--host",
-                "127.0.0.1",
-                "--port",
-                "5173",
-                "--strictPort",
+                sys.executable,
+                str(Path(__file__).with_name("ci_static_web.py")),
+                str(WEB / "build"),
             ],
             cwd=WEB,
             stdout=log,
