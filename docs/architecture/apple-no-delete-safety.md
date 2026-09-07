@@ -94,3 +94,33 @@ single identified test record was quarantined under a test identity, retaining
 its original contents. This one-off local test-state repair is not a production
 release mechanism; precise attribution is recorded in the coordinator status
 file, outside committed source.
+
+
+## Typed Remotion source/inspection path (TASK-752 follow-up)
+
+`apple_remote.py remotion-op --request request.json --output response.json`
+accepts JSON data for the fixed `_apple_remotion_remote.py` helper. It does not
+admit caller shell/Python code. Request `repo` is the explicit Mac project
+ending in `videos/remotion`.
+
+- `action: inspect`: bounded installed renderer code/package audit and existing
+  announcement asset names/sizes; no rendering or package execution.
+- `action: source-read`, `file`: read a specific UTF-8 file in `src/` or
+  `public/announcement-assets/`; response includes content and SHA-256.
+- `action: source-put`, `file`, `content`, `expected_sha256`: null hash means
+  exclusive creation. An existing file needs its exact hash; backup bytes are
+  retained alongside it, and the existing inode is updated in place. No Git
+  apply, rename, replacement, unlink, or cleanup is used. Symlinks and hardlinks
+  are rejected. Parent directories may be exclusively created and retained.
+- `action: sandbox-probe`: launch only a fixed read-only policy-query helper
+  under macOS sandbox-exec. It asks sandbox_check about permissions; it never
+  executes unlink. A passing query is not render-retention proof.
+
+Unknown capabilities now return `UNSUPPORTED_REMOTE_OPERATION` without creating
+an artificial human deletion request. Explicit removal commands and known
+removal helpers still create terminal stops. Existing stops also block every
+new typed operation and are never automatically cleared.
+
+Rendering remains unexposed until the installed browser/encoder cleanup paths
+and retained-artifact behavior are verified. The existing stock Remotion entry
+points must not be used as an unguarded alternative.

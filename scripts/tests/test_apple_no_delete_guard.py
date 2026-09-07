@@ -45,11 +45,11 @@ def guard(tmp_path, monkeypatch):
 def test_unsafe_remote_command_never_dispatches(guard, command):
     remote = load_apple_remote()
     calls = []
-    with pytest.raises(guard.MacDeletionStop):
+    with pytest.raises((guard.MacDeletionStop, guard.UnsupportedRemoteOperation)):
         remote.run_remote(remote.RemoteConfig('example', '/repo', 'test'), command,
                           runner=lambda argv: calls.append(argv), allow_destructive=True)
     assert calls == []
-    assert guard.active_stop() is not None
+    assert bool(guard.active_stop()) == guard.explicit_deletion(command)
 
 
 def test_restart_and_alternate_safe_dispatch_stay_blocked(guard):
@@ -104,7 +104,7 @@ def test_preflight_blocks_helper_before_config_credentials_or_dispatch(guard, mo
     remote = load_apple_remote()
     calls = []
     monkeypatch.setattr(remote, 'load_local_config', lambda: calls.append('config'))
-    with pytest.raises(guard.MacDeletionStop):
+    with pytest.raises((guard.MacDeletionStop, guard.UnsupportedRemoteOperation)):
         remote.main(['test-ios'])
     assert calls == []
 
@@ -177,10 +177,10 @@ def test_all_registered_helpers_have_explicit_fail_closed_classification(guard):
     remote = load_apple_remote()
     action = next(a for a in remote.build_parser()._actions if isinstance(a, argparse._SubParsersAction))
     for name in action.choices:
-        if name in {'status', 'run', 'finalize-proof'}:
+        if name in {'status', 'run', 'finalize-proof', 'remotion-op'}:
             continue
         # Each independently selected helper is rejected, including future ones.
-        with pytest.raises(guard.MacDeletionStop):
+        with pytest.raises((guard.MacDeletionStop, guard.UnsupportedRemoteOperation)):
             guard.require_safe_operation(name)
 
 
@@ -192,11 +192,11 @@ def test_all_registered_helpers_have_explicit_fail_closed_classification(guard):
 def test_direct_default_runner_transport_cannot_bypass_policy(guard, monkeypatch, argv):
     remote = load_apple_remote()
     monkeypatch.setattr(remote.subprocess, 'run', lambda *a, **kw: pytest.fail('must not dispatch'))
-    with pytest.raises(guard.MacDeletionStop):
+    with pytest.raises((guard.MacDeletionStop, guard.UnsupportedRemoteOperation)):
         remote.default_runner(argv)
 
 
 def test_ssh_target_cannot_inject_proxy_command(guard):
     remote = load_apple_remote()
-    with pytest.raises(guard.MacDeletionStop):
+    with pytest.raises((guard.MacDeletionStop, guard.UnsupportedRemoteOperation)):
         remote.ssh_command(remote.RemoteConfig('-oProxyCommand=example', '/repo', 'test'), 'true')

@@ -358,11 +358,11 @@ def test_proof_broker_helpers_stop_before_credentials_or_dispatch() -> None:
     config = module.RemoteConfig(target="macos-peer", repo_path="/repo", source="test")
     def runner(_command):
         pytest.fail("broker must stop before any process or credential operation")
-    with pytest.raises(module.no_delete_guard.MacDeletionStop):
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
         module.proof_broker_recipient_certificate(config, runner=runner)
-    with pytest.raises(module.no_delete_guard.MacDeletionStop):
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
         module.proof_broker_relay_public_key(config, runner=runner)
-    with pytest.raises(module.no_delete_guard.MacDeletionStop):
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
         module.provision_github_proof_credentials(config, slot=14, expected_commit="a" * 40, runner=runner)
 
 
@@ -370,7 +370,7 @@ def test_broker_recording_stops_before_provisioning_or_cleanup(monkeypatch) -> N
     module = load_module()
     monkeypatch.setattr(module, "local_test_account_env", lambda: pytest.fail("must not load credentials"))
     monkeypatch.setattr(module, "provision_github_proof_credentials", lambda *a, **kw: pytest.fail("must not provision credentials"))
-    with pytest.raises(module.no_delete_guard.MacDeletionStop):
+    with pytest.raises(module.no_delete_guard.UnsupportedRemoteOperation):
         module.run_recorded_ios_test(
             module.RemoteConfig(target="macos-peer", repo_path="/repo", source="configured"),
             simulator="iPhone 15 Pro", only_testing="OpenMatesUITests/Proof",

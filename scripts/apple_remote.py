@@ -3176,7 +3176,7 @@ def default_runner(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
         expected_prefix = ["ssh", "-o", "BatchMode=yes", "-o", f"ConnectTimeout={DEFAULT_CONNECT_TIMEOUT_SECONDS}"]
         if (len(command) != 7 or list(command[:5]) != expected_prefix
                 or not command[5] or command[5].startswith("-")):
-            no_delete_guard.block("Unreviewed remote transport argv is prohibited.")
+            raise no_delete_guard.UnsupportedRemoteOperation("Unreviewed remote transport argv is prohibited.")
         no_delete_guard.require_safe_command(command[-1])
     return subprocess.run(command, capture_output=True, text=True, check=False)
 
@@ -3250,7 +3250,7 @@ def resolve_remote_config(
 def ssh_command(config: RemoteConfig, remote_command: str) -> list[str]:
     no_delete_guard.require_safe_command(remote_command)
     if not config.target or config.target.startswith("-"):
-        no_delete_guard.block("SSH target must not introduce command-line options.")
+        raise no_delete_guard.UnsupportedRemoteOperation("SSH target must not introduce command-line options.")
     return [
         "ssh",
         "-o",
@@ -4825,6 +4825,10 @@ def build_parser() -> argparse.ArgumentParser:
     cache_clean_parser = subparsers.add_parser("xcode-cache-clean", help="Remove selected Xcode caches on the Mac")
     cache_clean_parser.add_argument("targets", nargs="+", choices=sorted(XCODE_CACHE_TARGETS))
 
+    remotion = subparsers.add_parser("remotion-op", help="Typed source/metadata/sandbox operations; no arbitrary render command")
+    remotion.add_argument("--request", required=True, help="Local JSON request file")
+    remotion.add_argument("--output", help="Local response JSON file (may contain private source paths)")
+
     return parser
 
 
@@ -4839,6 +4843,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             return finalize_local_apple_proof(args.run_id, session_id=args.session)
         local_config = load_local_config()
         config = resolve_remote_config(local_config=local_config)
+        if args.command == "remotion-op":
+            raw = Path(args.request).read_bytes()
+            if len(raw) > 2 * 1024 * 1024:
+                raise AppleRemoteError("Remotion request too large")
+            request = json.loads(raw)
+            if not isinstance(request, dict) or request.get("action") not in {"inspect", "source-read", "source-put", "sandbox-probe"}:
+                raise no_delete_guard.UnsupportedRemoteOperation("Unknown typed Remotion action")
+            result = subprocess.run(ssh_command(config, no_delete_guard.remotion_command()),
+                                    input=raw.decode(), capture_output=True, text=True, timeout=60, check=False)
+            if args.output:
+                Path(args.output).write_text(result.stdout)
+                print(f"remotion_response={args.output} exit_code={result.returncode}")
+            elif result.stdout:
+                print(result.stdout)
+            if result.stderr:
+                print(redact_output(result.stderr, config), file=sys.stderr)
+            return result.returncode
         api_options = app_store_connect_api_options(args, local_config)
         if args.command == "init-proof-broker-recipient":
             certificate = proof_broker_recipient_certificate(config)
@@ -5122,6 +5143,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except no_delete_guard.MacDeletionStop as exc:
+    except (no_delete_guard.MacDeletionStop, no_delete_guard.UnsupportedRemoteOperation) as exc:
         print(str(exc), file=sys.stderr)
-        raise SystemExit(no_delete_guard.STOP_EXIT_CODE)
+        raise SystemExit(exc.code)

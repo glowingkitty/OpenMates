@@ -12,6 +12,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 import json
 import os
+import shlex
 from pathlib import Path
 import sqlite3
 import sys
@@ -31,6 +32,35 @@ STOP_MESSAGE = (
     'human-input verifier; the gate remains closed. Coordinator messages, '
     'role=user transcripts, flags and timeouts cannot clear it.'
 )
+
+
+class UnsupportedRemoteOperation(SystemExit):
+    """An unavailable capability is not a request for the user to delete files."""
+    def __init__(self, detail):
+        self.detail = 'UNSUPPORTED_REMOTE_OPERATION: ' + detail
+        super().__init__(2)
+    def __str__(self):
+        return self.detail
+
+
+def remotion_command():
+    helper = Path(__file__).with_name('_apple_remotion_remote.py').read_text()
+    return shlex.join(['/usr/bin/python3', '-I', '-B', '-c', helper])
+
+
+def explicit_deletion(command):
+    # Classification only, NEVER admission: every unknown command is rejected.
+    # A bare removal request stops the task; arbitrary code is unsupported.
+    try:
+        words = shlex.split(command)
+    except ValueError:
+        return False
+    if not words:
+        return False
+    name = Path(words[0]).name
+    return (name in {'rm', 'rmdir', 'unlink'}
+            or (name == 'find' and '-delete' in words)
+            or (name == 'git' and ('clean' in words or '--hard' in words)))
 
 
 class MacDeletionStop(SystemExit):
@@ -127,16 +157,20 @@ def require_safe_command(command: str):
     # Exact complete commands only. Never tokenize/expand user shell strings or
     # consider the absence of deletion substrings evidence of safety. No Python,
     # shell, git, package-manager, browser, Xcode or arbitrary executable entry.
-    if command not in SAFE_COMMANDS:
-        block('Remote execution is outside the fixed read-only diagnostic allowlist; '
-              'deletion or indirect cleanup cannot be excluded.', command)
+    if command in SAFE_COMMANDS or command == remotion_command():
+        return
+    if explicit_deletion(command):
+        block('Explicit remote file removal is prohibited.', command)
+    raise UnsupportedRemoteOperation('Command has no audited deletion-free implementation; no command was dispatched.')
 
 
 def require_safe_operation(operation: str):
     require_unlatched()
-    if operation not in {'status', 'run', 'finalize-proof'}:
-        block(f'Apple helper {operation!r} is not approved as deletion-free. '
-              'Its entire workflow is blocked before credentials or remote dispatch.')
+    if operation in {'status', 'run', 'finalize-proof', 'remotion-op'}:
+        return
+    if operation in {'xcode-cache-clean', 'sync-repo'}:
+        block(f'Apple helper {operation!r} includes file deletion.')
+    raise UnsupportedRemoteOperation(f'Apple helper {operation!r} is not admitted; no deletion requested.')
 
 
 def hook_result():

@@ -103,7 +103,7 @@ def test_transport_rejects_python_helper_before_dispatch(monkeypatch, tmp_path):
         captured.update(command=command, **kwargs)
         return subprocess.CompletedProcess(command, 0, '{"status":"checked"}', '')
     monkeypatch.setattr(remote.subprocess, 'run', run)
-    with pytest.raises(remote.no_delete_guard.MacDeletionStop):
+    with pytest.raises(remote.no_delete_guard.UnsupportedRemoteOperation):
         remote.reviewed_remote_patch(remote.RemoteConfig('private-host', '/repo with spaces', 'configured'), args)
     assert captured == {}
-    assert remote.no_delete_guard.active_stop() is not None
+    assert remote.no_delete_guard.active_stop() is None
