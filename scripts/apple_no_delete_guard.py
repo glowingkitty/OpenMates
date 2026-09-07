@@ -53,6 +53,20 @@ def remotion_command():
     return shlex.join(['/usr/bin/python3', '-I', '-B', '-c', helper])
 
 
+def diagnostic_command():
+    helper = Path(__file__).with_name('_apple_render_diagnostic.py').read_text()
+    return shlex.join(['/usr/bin/sandbox-exec', '-p', '(version 1)(allow default)(deny file-write*)',
+                       '/usr/bin/python3', '-I', '-B', '-c', helper])
+
+
+def require_diagnostic_authorization():
+    # Named diagnosis authorization, NOT a human-confirmation API or stop reset.
+    # No other remote operation is admitted while this record remains active.
+    record = active_stop()
+    if task_identity() != SUPERSEDED_TASK or not record or record.get('id') != '0ba26b6a94cd43c3a189c2150e52430c':
+        raise MacDeletionStop('This fixed diagnostic is authorized only for the named Chrome failure.')
+
+
 def explicit_deletion(command):
     # Classification only, NEVER admission: every unknown command is rejected.
     # A bare removal request stops the task; arbitrary code is unsupported.
@@ -171,6 +185,9 @@ def block(reason: str, command: str | None = None):
 
 
 def require_safe_command(command: str):
+    if command == diagnostic_command():
+        require_diagnostic_authorization()
+        return
     require_unlatched()
     # Exact complete commands only. Never tokenize/expand user shell strings or
     # consider the absence of deletion substrings evidence of safety. No Python,
@@ -183,6 +200,9 @@ def require_safe_command(command: str):
 
 
 def require_safe_operation(operation: str):
+    if operation == 'render-diagnostic':
+        require_diagnostic_authorization()
+        return
     require_unlatched()
     if operation in {'status', 'run', 'finalize-proof', 'remotion-op'}:
         return

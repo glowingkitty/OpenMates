@@ -100,3 +100,20 @@ def test_other_legacy_stops_not_implicitly_cleared(tmp_path):
     with store.connect() as db:
         db.execute('INSERT INTO stops VALUES (?, ?)', ('other-task', json.dumps(old)))
     assert store.active('other-task') == old
+
+
+def test_named_diagnostic_reads_without_clearing_or_admitting_render(monkeypatch):
+    import apple_no_delete_guard as guard
+    record = {'id': '0ba26b6a94cd43c3a189c2150e52430c', 'reason': 'unexplained native signal'}
+    monkeypatch.setattr(guard, 'active_stop', lambda: record)
+    monkeypatch.setattr(guard, 'task_identity', lambda: policy.SUPERSEDED_TASK)
+    guard.require_safe_operation('render-diagnostic')
+    guard.require_safe_command(guard.diagnostic_command())
+    assert '(deny file-write*)' in guard.diagnostic_command()
+    with pytest.raises(guard.MacDeletionStop):
+        guard.require_safe_command(guard.remotion_command())
+    with pytest.raises(guard.MacDeletionStop):
+        guard.require_safe_command(guard.diagnostic_command() + ' extra')
+    record['id'] = 'another-stop'
+    with pytest.raises(guard.MacDeletionStop):
+        guard.require_safe_operation('render-diagnostic')

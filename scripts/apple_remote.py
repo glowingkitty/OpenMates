@@ -4829,6 +4829,9 @@ def build_parser() -> argparse.ArgumentParser:
     remotion.add_argument("--request", required=True, help="Local JSON request file")
     remotion.add_argument("--output", help="Local response JSON file (may contain private source paths)")
 
+    diagnostic = subparsers.add_parser("render-diagnostic", help="Read-only evidence for the named authorized Chrome failure; does not clear its stop")
+    diagnostic.add_argument("--output", required=True, help="Local diagnostic JSON output")
+
     return parser
 
 
@@ -4843,6 +4846,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             return finalize_local_apple_proof(args.run_id, session_id=args.session)
         local_config = load_local_config()
         config = resolve_remote_config(local_config=local_config)
+        if args.command == "render-diagnostic":
+            result = subprocess.run(ssh_command(config, no_delete_guard.diagnostic_command()),
+                                    capture_output=True, text=True, timeout=60, check=False)
+            Path(args.output).write_text(result.stdout)
+            if result.stderr:
+                print(redact_output(result.stderr, config), file=sys.stderr)
+            return result.returncode
         if args.command == "remotion-op":
             raw = Path(args.request).read_bytes()
             if len(raw) > 2 * 1024 * 1024:
