@@ -387,6 +387,9 @@ def test_server_restart_captures_exact_busy_set_and_never_rebuilds_docker() -> N
     resume_index = source.index("opencode-restart resume")
 
     assert capture_index < stop_index < resume_index
+    guard_index = source.index('run --start-suspended --name opencode-restart-guard')
+    cleanup_index = source.index('close-pane --pane-id "$guard_pane"')
+    assert capture_index < guard_index < stop_index < resume_index < cleanup_index
     assert "command -v jq" in source
     assert "docker compose" not in source
     assert "tmux" not in source

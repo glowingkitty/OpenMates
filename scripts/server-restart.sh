@@ -61,6 +61,13 @@ if [ "${#server_panes[@]}" -ne 1 ]; then
 fi
 
 server_pane="${server_panes[0]}"
+# A close-on-exit server may be the last pane. Keep the same Zellij session
+# alive until its replacement is healthy; retain the guard on failure for recovery.
+guard_pane="$(zellij --session "$ZELLIJ_SESSION" run --start-suspended --name opencode-restart-guard --cwd "$PROJECT_DIR" -- /bin/bash)"
+if [[ ! "$guard_pane" =~ ^terminal_[0-9]+$ ]]; then
+    echo "Error: could not establish restart guard pane; server not stopped." >&2
+    exit 1
+fi
 echo "Stopping OpenCode server in $ZELLIJ_SESSION/$server_pane..."
 zellij --session "$ZELLIJ_SESSION" action send-keys --pane-id "$server_pane" "Ctrl c"
 
@@ -96,4 +103,5 @@ if ! curl -fsS --max-time 2 "$SERVER_URL/session/status" >/dev/null; then
 fi
 
 python3 "$SCRIPT_CHECKOUT/scripts/sessions.py" opencode-restart resume --manifest "$MANIFEST"
+zellij --session "$ZELLIJ_SESSION" action close-pane --pane-id "$guard_pane"
 echo "OpenCode restart completed without abandoning the captured busy chat set."
