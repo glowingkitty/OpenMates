@@ -4120,7 +4120,11 @@ def _enforce_no_integration_deletion_amplification(
     source_head = _worktree_head(source_path)
     if not source_head:
         raise RuntimeError("Could not resolve the source worktree HEAD for deletion safety")
-    source_deletions = _numstat_deletions(source_path, source_head, files)
+    review = source_metadata.get("reviewed_deploy")
+    source_deletions = (
+        review["deletions"] if review
+        else _numstat_deletions(source_path, source_head, files)
+    )
     integrated_deletions = _numstat_deletions(
         checkout_root,
         prepared_base,
@@ -14966,8 +14970,17 @@ def _deploy_native_worktree(
     commit_hash_full = ""
     source_sync_warning = ""
 
+    review = worktree_metadata.get("reviewed_deploy")
+    if review:
+        try:
+            from scripts import reviewed_deploy
+        except ModuleNotFoundError:
+            import reviewed_deploy
     try:
         prepared_base = _fetch_origin_dev_commit()
+        if review:
+            reviewed_deploy.verify_current_base(CONTROL_PLANE_ROOT, review, prepared_base)
+            reviewed_deploy.verify_source(Path(worktree_metadata["path"]), review)
         _enforce_control_plane_deploy_protocol_compatible(prepared_base)
         prepare_args = (
             sid,
@@ -14976,7 +14989,7 @@ def _deploy_native_worktree(
             patch_id,
             prepared_base,
         )
-        checkpoint_commit = str(getattr(args, "expected_checkpoint_commit", "") or "")
+        checkpoint_commit = review["candidate"] if review else str(getattr(args, "expected_checkpoint_commit", "") or "")
         if not checkpoint_commit:
             checkpoint_commit = _create_worktree_checkpoint_commit(
                 sid,
@@ -15013,6 +15026,9 @@ def _deploy_native_worktree(
             deploy_lock_held = True
             final_base = _fetch_origin_dev_commit()
             _enforce_control_plane_deploy_protocol_compatible(final_base)
+            if review:
+                reviewed_deploy.verify_current_base(CONTROL_PLANE_ROOT, review, final_base)
+                reviewed_deploy.verify_source(Path(worktree_metadata["path"]), review)
             if final_base != integration["prepared_base"]:
                 _release_session_lock("vercel_deploy", released_by=sid)
                 deploy_lock_held = False
@@ -15039,6 +15055,8 @@ def _deploy_native_worktree(
             ):
                 raise RuntimeError("Integration staged-file validation failed")
 
+            if review:
+                reviewed_deploy.verify_staged(checkout_root, review)
             commit_message = _preflight_deploy_commit_message(args, session, commit_files)
             commit_cmd = ["git", "commit", "-m", commit_message]
             if no_verify:
@@ -15069,7 +15087,7 @@ def _deploy_native_worktree(
                 raise RuntimeError(f"git push failed: {stderr}")
             print("Fast-forwarding local dev checkout to the deployed commit...")
             _fast_forward_control_plane(commit_hash_full)
-            source_sync_warning = _sync_deployed_files_to_source(
+            source_sync_warning = "" if review else _sync_deployed_files_to_source(
                 worktree_metadata,
                 checkout_root,
                 commit_files,
@@ -15342,6 +15360,30 @@ def cmd_deploy(args: argparse.Namespace) -> None:
     is_control_plane_repo = _session_is_control_plane_repo(session)
     worktree_metadata = session.get("worktree") if is_control_plane_repo and isinstance(session.get("worktree"), dict) else None
     checkout_root = _session_checkout_root(session)
+
+    reviewed_candidate = str(getattr(args, "reviewed_candidate", "") or "")
+    reviewed_base = str(getattr(args, "reviewed_base", "") or "")
+    if reviewed_candidate or reviewed_base:
+        try:
+            from scripts import reviewed_deploy
+        except ModuleNotFoundError:
+            import reviewed_deploy
+        if (not worktree_metadata or args.exclude or getattr(args, "use_staged", False)
+                or getattr(args, "no_verify", False) or getattr(args, "end_session", False)
+                or getattr(args, "expected_manifest_id", None)):
+            raise RuntimeError("Reviewed deployment requires an existing worktree, exact --only paths and normal gates; source finalization is forbidden")
+        validate_worktree_binding_mode(session)
+        review = reviewed_deploy.validate(
+            checkout_root, sid, reviewed_candidate, reviewed_base,
+            list(getattr(args, "only", None) or []),
+        )
+        validate_product_session_deploy_paths(review["paths"], session=session)
+        _preflight_deploy_commit_message(args, session, review["paths"])
+        metadata = {**worktree_metadata, "base_commit": reviewed_base,
+                    "merged_commit": reviewed_base, "reviewed_deploy": review}
+        print(json.dumps({"reviewed_deploy": review}, sort_keys=True))
+        _deploy_native_worktree(args, session, metadata, review["paths"], review["patch_id"])
+        return
 
     use_staged = bool(getattr(args, "use_staged", False))
     dirty_files = _get_dirty_files(checkout_root=checkout_root)
@@ -19620,6 +19662,8 @@ def main() -> None:
     p_deploy = sub.add_parser(
         "deploy", help="Execute lint + commit + push"
     )
+    p_deploy.add_argument("--reviewed-candidate", help="Exact session CI candidate to deploy without changing its source worktree")
+    p_deploy.add_argument("--reviewed-base", help="Exact reviewed candidate parent; selected upstream drift blocks deployment")
     p_deploy.add_argument(
         "--session", "-s", required=True, help="Session ID"
     )
