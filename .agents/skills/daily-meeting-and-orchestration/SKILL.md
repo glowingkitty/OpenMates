@@ -1,6 +1,6 @@
 ---
 name: daily-meeting-and-orchestration
-description: Clarify daily priorities, review the last working day's chats and tasks, approve assignments, and coordinate chats through completion.
+description: Clarify daily priorities, review the last working day's chats and tasks, approve assignments, and coordinate chats through completion, including fallback during chat-service outages.
 ---
 
 # Daily Meeting & Chat Orchestration
@@ -111,7 +111,30 @@ work finishes or a user decision is needed.
   do not resume work that night automatically. Reassess it at the next meeting.
   This step can interrupt any earlier step; do not wait for every chat to finish.
 
+## Chat-service fallback
+
+- If the web UI is down, check the local OpenCode server separately. Use its
+  API and the repository chat commands to inspect/manage existing chats when
+  healthy; a browser or proxy failure does not mean workers stopped.
+- If the server is unavailable, read local transcripts and task activities.
+  Distinguish stale history from live status. Do not restart the service or
+  resume nightly-stopped chats merely because the UI is unavailable.
+- If spawning fails, reconcile the response, session list, and worker state.
+  Retry once only for a confirmed transient failure with no accepted worker.
+  Then use Codex for the approved assignment rather than repeatedly spawning.
+- Use a Codex subagent when available, or a tracked `codex exec` session. Pass
+  the same goal, scope, approvals, task link, saved work, and remaining checks.
+  Keep one owner: unresolved OpenCode execution status blocks a duplicate
+  takeover, but independent work can proceed. Record the fallback in task activity.
+- Apply the same monitoring and completion rules to Codex workers. Keep their
+  session IDs and outputs; do not switch ownership back automatically when the
+  service recovers. Never bypass permissions to make a fallback work.
+
 ## Repository tools
+
+Resolve the repository root before running commands, even when invoked from a
+home-directory chat. Follow its instructions and load sibling skills by their
+repository path when they are not globally listed.
 
 - Tasks: use `openmates_task` when available; otherwise consult
   `docs/user-guide/cli/tasks.md` and `openmates tasks --help`.
@@ -124,3 +147,13 @@ work finishes or a user decision is needed.
   `python3 scripts/sessions.py spawn-chat --help`; pass the complete assignment
   through `--prompt-file` in the approved mode. Use supported runtime controls
   for resumption and existing repository coordination for shared resources.
+- UI-independent control: use the configured `OPENCODE_SERVER_URL` (default
+  `http://127.0.0.1:4096`) for a bounded health/status check. Resume an approved
+  existing chat with `python3 scripts/sessions.py restore <id> --mode <plan|execute>
+  --prompt "<next instruction>"`; inspect its result before retrying.
+- Codex fallback: check `codex exec --help`, then use
+  `codex exec --cd <assigned-workspace> --json - < <assignment-file>` with the
+  appropriate existing permission settings. Track the process and returned thread
+  ID; resume that ID with `codex exec resume <thread-id> - < <instruction-file>`.
+  Workers follow repository session/worktree rules and use OpenMates CLI task
+  activity commands. Do not assume the injected `openmates_task` tool is available.
