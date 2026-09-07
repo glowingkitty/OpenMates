@@ -19566,7 +19566,7 @@ assertions:
       surface: rest_api
     - &id2250
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 40
+      line: 53
       name: completes the reported prompt with authoritative model attribution
       surface: gui.web
     supporting_tests:
@@ -20043,7 +20043,7 @@ assertions:
       surface: gui.apple
     - &id2325
       path: frontend/apps/web_app/tests/anonymous-production-repair.spec.ts
-      line: 40
+      line: 53
       name: completes the reported prompt with authoritative model attribution
       surface: gui.web
     - &id2326

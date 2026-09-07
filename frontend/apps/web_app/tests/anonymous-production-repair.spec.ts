@@ -16,11 +16,24 @@ const REPORTED_PROMPT =
 const PROCESSING_ERROR = 'The AI service encountered an error while processing your request.';
 
 async function startAnonymousChat(page: any): Promise<void> {
-	await page.goto(getE2EDebugUrl('/#chat-id=demo-for-everyone'), { waitUntil: 'domcontentloaded' });
+	await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
 	await page.waitForLoadState('networkidle');
-	const newChatCta = page.getByTestId('new-chat-cta-fullwidth');
-	await expect(newChatCta).toBeVisible({ timeout: 15_000 });
-	await newChatCta.click();
+	const skipInterests = page.getByTestId('guest-interest-skip');
+	if (await skipInterests.isVisible({ timeout: 5_000 }).catch(() => false)) {
+		await skipInterests.click();
+	}
+	const newChatButton = page
+		.locator('[data-testid="new-chat-cta-fullwidth"], [data-testid="new-chat-button"]')
+		.first();
+	if (!(await newChatButton.isVisible({ timeout: 1_000 }).catch(() => false))) {
+		const introCard = page
+			.locator('[data-testid="resume-chat-large-card"], [data-testid="resume-chat-card"]')
+			.first();
+		await expect(introCard).toBeVisible({ timeout: 10_000 });
+		await introCard.click();
+	}
+	await expect(newChatButton).toBeVisible({ timeout: 15_000 });
+	await newChatButton.click();
 	await expect(page.getByTestId('message-editor').locator('[contenteditable="true"]').first()).toBeVisible({
 		timeout: 10_000
 	});
