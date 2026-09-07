@@ -23,9 +23,9 @@ try:
 except Exception:  # pragma: no cover
     AsyncGroq = None  # type: ignore
 
-# Global state for Groq client
+# Process-wide configuration only; transports belong to individual async calls.
 _groq_client_initialized: bool = False
-_groq_direct_client: Optional["AsyncGroq"] = None
+_groq_base_url: Optional[str] = None
 _groq_api_key: Optional[str] = None
 
 # Groq API base URL (default, can be overridden)
@@ -35,12 +35,12 @@ GROQ_REASONING_EFFORTS = {"low", "medium", "high"}
 
 async def initialize_groq_client(secrets_manager: SecretsManager) -> None:
     """
-    Initialize AsyncGroq client from Vault secrets.
+    Load Groq configuration from Vault without retaining an async transport.
     
     Args:
         secrets_manager: SecretsManager instance for accessing Vault
     """
-    global _groq_client_initialized, _groq_direct_client, _groq_api_key
+    global _groq_client_initialized, _groq_base_url, _groq_api_key
 
     if _groq_client_initialized:
         logger.debug("Groq client already initialized.")
@@ -54,25 +54,19 @@ async def initialize_groq_client(secrets_manager: SecretsManager) -> None:
     secret_path = "kv/data/providers/groq"
     try:
         _groq_api_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key="api_key")
-        base_url = await secrets_manager.get_secret(secret_path=secret_path, secret_key="base_url")
+        _groq_base_url = await secrets_manager.get_secret(secret_path=secret_path, secret_key="base_url")
 
         if not _groq_api_key:
             logger.error("Groq API key not found in Vault; direct API disabled.")
             _groq_client_initialized = False
             return
 
-        # Initialize AsyncGroq client
-        # Groq SDK uses base_url parameter, but defaults to their API
-        _groq_direct_client = AsyncGroq(
-            api_key=_groq_api_key,
-            base_url=base_url or None,  # Use custom base_url if provided, otherwise use Groq default
-        )
         _groq_client_initialized = True
         logger.info("Groq direct client initialized successfully.")
     except Exception as exc:
         logger.error("Failed to initialize Groq client: %s", exc, exc_info=True)
         _groq_client_initialized = False
-        _groq_direct_client = None
+        _groq_base_url = None
 
 
 def _parse_tool_calls_from_choice(choice: Dict[str, Any]) -> Optional[List[ParsedOpenAIToolCall]]:
@@ -152,7 +146,7 @@ async def _invoke_groq_direct_api(
     if reasoning_effort is not None and reasoning_effort not in GROQ_REASONING_EFFORTS:
         raise ValueError("reasoning_effort must be one of: low, medium, high")
 
-    if not _groq_direct_client:
+    if not _groq_api_key or AsyncGroq is None:
         error_msg = "Groq client not initialized"
         logger.error(f"[{task_id}] {error_msg}")
         if stream:
@@ -161,7 +155,13 @@ async def _invoke_groq_direct_api(
 
     log_prefix = f"[{task_id}] Groq Client ({model_id}):"
     logger.info(f"{log_prefix} Attempting chat completion. Stream: {stream}. Tools: {'Yes' if tools else 'No'}. Tool choice: {tool_choice}")
-    request_client = _groq_direct_client.with_options(max_retries=max_retries) if max_retries is not None else _groq_direct_client
+    # Celery closes its event loop after each task. A cached SDK connection pool
+    # can therefore target a closed loop on the next task's safety scan. Own and
+    # close each transport in the call/stream that uses it, with unchanged retries.
+    client_options: Dict[str, Any] = {"api_key": _groq_api_key, "base_url": _groq_base_url or None}
+    if max_retries is not None:
+        client_options["max_retries"] = max_retries
+    request_client = AsyncGroq(**client_options)
 
     try:
         # Prepare request parameters
@@ -316,6 +316,8 @@ async def _invoke_groq_direct_api(
                 except Exception as e:
                     logger.error(f"{log_prefix} Error during streaming: {e}", exc_info=True)
                     raise
+                finally:
+                    await request_client.close()
             
             return _stream_response()
         else:
@@ -393,8 +395,12 @@ async def _invoke_groq_direct_api(
         error_msg = f"Groq API error: {str(exc)}"
         logger.error(f"{log_prefix} {error_msg}", exc_info=True)
         if stream:
+            await request_client.close()
             raise
         return UnifiedOpenAIResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+    finally:
+        if not stream:
+            await request_client.close()
 
 
 async def invoke_groq_chat_completions(
