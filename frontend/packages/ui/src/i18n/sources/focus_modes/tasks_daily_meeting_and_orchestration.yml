@@ -1,129 +1,34 @@
-name_translation_key: tasks
-description_translation_key: tasks.description
-icon_image: task.svg
-category: productivity
-last_updated: "2026-07-15"
-settings_and_memories: []
-embed_types:
-  - id: create
-    category: app-skill-use
-    skill_id: create
-    frontend_type: app-skill-use
-    backend_type: app_skill_use
-    has_children: true
-    child_type: task
-    child_frontend_type: tasks-task
-    groupable: true
-    preview_component: tasks/TaskCreateEmbedPreview.svelte
-    fullscreen_component: tasks/TaskCreateEmbedFullscreen.svelte
-    child_preview_component: tasks/TaskEmbedPreview.svelte
-    child_fullscreen_component: tasks/TaskEmbedFullscreen.svelte
-    icon: task
-    gradient_var: "--color-app-tasks"
-    i18n_namespace: embeds.tasks.create
-  - id: search
-    category: app-skill-use
-    skill_id: search
-    frontend_type: app-skill-use
-    backend_type: app_skill_use
-    has_children: true
-    child_type: task
-    child_frontend_type: tasks-task
-    groupable: true
-    preview_component: tasks/TaskSearchEmbedPreview.svelte
-    fullscreen_component: tasks/TaskSearchEmbedFullscreen.svelte
-    child_preview_component: tasks/TaskEmbedPreview.svelte
-    child_fullscreen_component: tasks/TaskEmbedFullscreen.svelte
-    icon: search
-    gradient_var: "--color-app-tasks"
-    i18n_namespace: embeds.tasks.search
-instructions:
-  - instruction: |
-      **Task Skills**
-      - Use Tasks create when the user asks to create, capture, or break down trackable work.
-      - If the user does not clearly assign execution to OpenMates, create tasks assigned to the user.
-      - Only work on tasks assigned to OpenMates.
-      - Use Tasks search when the user asks to find existing tasks; private task search requires a connected capable client.
-skills:
-  - id: create
-    name_translation_key: tasks.skills.create
-    description_translation_key: tasks.skills.create.description
-    icon_image: task.svg
-    preprocessor_hint: >
-      Create one or more user-visible tasks. Use this for planning, task capture,
-      or breaking a request into trackable work. Default unclear assignees to the user.
-    providers:
-      - name: OpenMates
-        no_api_key: true
-    class_path: backend.apps.tasks.skills.create_skill.CreateSkill
-    tool_schema:
-      type: object
-      properties:
-        tasks:
-          type: array
-          items:
-            type: object
-            properties:
-              title:
-                type: string
-              description:
-                type: string
-              assignee:
-                type: string
-                enum:
-                  - user
-                  - openmates
-              status:
-                type: string
-                enum:
-                  - backlog
-                  - todo
-                  - in_progress
-                  - blocked
-        title:
-          type: string
-          description: Single-task title when not using tasks[].
-        description:
-          type: string
-        assignee:
-          type: string
-          enum:
-            - user
-            - openmates
-      required: []
+tasks_daily_meeting_and_orchestration:
+  context: Focus mode name
+  en: Daily meeting & orchestration
+  verified_by_human: []
+description:
+  context: Focus mode description
+  en: Choose today's priorities and coordinate project tasks and chats through completion.
+  verified_by_human: []
+process:
+  context: Focus mode steps
+  en: '- Clarify your weekly priorities and today''s focus, one question at a time
 
-  - id: search
-    name_translation_key: tasks.skills.search
-    description_translation_key: tasks.skills.search.description
-    icon_image: search.svg
-    preprocessor_hint: >
-      Search the user's encrypted tasks through a connected capable client. Do
-      not use server-visible metadata as a private task-content search fallback.
-    providers:
-      - name: OpenMates
-        no_api_key: true
-    class_path: backend.apps.tasks.skills.search_skill.SearchSkill
-    tool_schema:
-      type: object
-      properties:
-        query:
-          type: string
-          description: Private task text to search for on a connected client.
-      required:
-        - query
+    - Review the last working day''s chats, progress, and remaining tasks
 
-focuses:
-- id: daily_meeting_and_orchestration
-  name_translation_key: tasks.daily_meeting_and_orchestration
-  description_translation_key: tasks.daily_meeting_and_orchestration.description
-  process_translation_key: focus_modes.tasks_daily_meeting_and_orchestration.process
-  systemprompt_translation_key: focus_modes.tasks_daily_meeting_and_orchestration.systemprompt
-  preprocessor_hint: 'Select when the user wants a daily meeting, to plan today''s project work, review
-    the last working day''s progress, or coordinate several tasks and chats. Do not select for a single
-    task lookup or a simple reminder.
+    - Agree on goals and completion criteria before starting work
 
-    '
-  systemprompt: 'Help the user choose today''s outcomes and coordinate work on their own projects.
+    - Coordinate project subchats, check progress, and resolve shared blockers
+
+    - Summarize results and suggest the most relevant tasks to work on next'
+  verified_by_human: []
+how_to_use:
+  context: Focus mode examples
+  en: '- Let''s have a **daily meeting** for my shop launch and decide what matters today.
+
+    - **Coordinate today''s work** on my research project after reviewing our previous chats.
+
+    - All our chats are finished. **What should we work on next** toward today''s goal?'
+  verified_by_human: []
+systemprompt:
+  context: Focus mode instructions
+  en: 'Help the user choose today''s outcomes and coordinate work on their own projects.
 
     Ask one question per message, include **Recommendation:** with a brief reason and
 
@@ -309,3 +214,4 @@ focuses:
     neither done nor cancelled. At the next daily meeting, reassess it against the new
 
     priorities before resuming.'
+  verified_by_human: []

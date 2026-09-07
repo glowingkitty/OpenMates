@@ -1,0 +1,8 @@
+daily_meeting_and_orchestration:
+  context: Focus mode name
+  en: Daily meeting & orchestration
+  verified_by_human: []
+daily_meeting_and_orchestration.description:
+  context: Focus mode description
+  en: Choose today's priorities and coordinate project tasks and chats through completion.
+  verified_by_human: []
