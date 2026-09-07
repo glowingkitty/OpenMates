@@ -147,3 +147,23 @@ def test_config_read_rejects_credentials_and_symlinks(project):
     for name in ('.env', 'package.json'):
         with pytest.raises((m.RequestError, OSError)):
             m.execute({'action': 'config-read', 'repo': str(project), 'file': name})
+
+
+@pytest.mark.parametrize('unlink_denied,expected_exit', [(True, 0), (False, 3)])
+def test_policy_query_accepts_system_root_protection_but_requires_unlink_denial(project, monkeypatch, unlink_denied, expected_exit):
+    import ctypes
+    import sys
+    from types import SimpleNamespace
+    m = helper()
+    class Check:
+        def __call__(self, pid, operation, flags, path):
+            if operation == b'file-read-data':
+                return 0
+            if operation == b'file-write-unlink':
+                return int(unlink_denied)
+            return int(path in (b'/', b'/Users'))
+    monkeypatch.setattr(ctypes, 'CDLL', lambda name: SimpleNamespace(sandbox_check=Check()))
+    monkeypatch.setattr(sys, 'argv', ['-c', str(project), m.PROBE_CODE, '0', '2'])
+    with pytest.raises(SystemExit) as stop:
+        exec(m.PROBE_CODE, {})
+    assert stop.value.code == expected_exit

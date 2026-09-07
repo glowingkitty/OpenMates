@@ -29,6 +29,10 @@ AUDIT_FILES = (
     'node_modules/@remotion/renderer/dist/render-media.js',
     'node_modules/@remotion/renderer/dist/combine-video-streams.js',
     'node_modules/@remotion/renderer/dist/combine-audio.js',
+    'node_modules/@remotion/renderer/dist/open-browser.js',
+    'node_modules/@remotion/renderer/dist/render-frames.js',
+    'node_modules/@remotion/renderer/dist/prepare-server.js',
+    'node_modules/@remotion/bundler/dist/bundle.js',
 )
 # A global, unqualified deny: no exceptions for temporary/output/cache files.
 PROBE_PROFILE = '(version 1)(allow default)(deny file-write*)'
@@ -43,7 +47,7 @@ paths=['/','/tmp','/Users','/Volumes',sys.argv[1]]
 rows=[{'path_index':i,'read':check(os.getpid(),b'file-read-data',1,p.encode()),'unlink':check(os.getpid(),b'file-write-unlink',1,p.encode()),'create':check(os.getpid(),b'file-write-create',1,p.encode())} for i,p in enumerate(paths)]
 expected_create=int(sys.argv[3])
 depth=int(sys.argv[4])
-valid=all(r['read']==0 and r['unlink']>0 and (r['create']>0)==bool(expected_create) for r in rows)
+valid=all(r['read']==0 and r['unlink']>0 and (r['create']>0 if expected_create else (r['create']==0 if r['path_index'] in (1,4) else True)) for r in rows)
 child=None
 if valid and depth<2:
     result=subprocess.run([sys.executable,'-I','-B','-c',sys.argv[2],sys.argv[1],sys.argv[2],sys.argv[3],str(depth+1)],capture_output=True,text=True,timeout=10)
@@ -185,6 +189,11 @@ def inspect(root):
                 if len(result['assets']) + len(pending) > 500:
                     raise RequestError('media inspection exceeds bounded inventory')
     result['sandbox_exec'] = Path('/usr/bin/sandbox-exec').is_file()
+    result['installed_tools'] = {}
+    for relative in ('node_modules/@remotion/compositor-darwin-arm64', 'node_modules/@remotion/compositor-darwin-x64', 'node_modules/.remotion'):
+        base = root / relative
+        if base.is_dir() and not base.is_symlink():
+            result['installed_tools'][relative] = sorted(p.name for p in base.iterdir())[:50]
     result['sandbox_man'] = None
     for path in [Path('/usr/share/man/man1/sandbox-exec.1'), Path('/usr/share/man/man1/sandbox-exec.1.gz')]:
         if path.is_file():
@@ -215,21 +224,26 @@ def sandbox_query(root, profile=PROBE_PROFILE):
     command = ['/usr/bin/sandbox-exec', '-p', profile, sys.executable, '-I', '-B', '-c', PROBE_CODE, str(root), PROBE_CODE, '1' if profile == PROBE_PROFILE else '0', '0']
     result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False)
     if result.returncode:
-        raise RequestError('sandbox query failed; render remains disabled: ' + result.stderr[:400])
+        raise RequestError('sandbox query failed; render remains disabled: '
+                           + json.dumps({'profile': 'read-only' if profile == PROBE_PROFILE else 'no-unlink',
+                                         'exit_code': result.returncode, 'stderr': result.stderr[:400],
+                                         'query_output': result.stdout[:5000]}))
     return json.loads(result.stdout)
 
 
 def media_probe(root, request):
     path = media_path(root, request.get('file'))
     sandbox_query(root)
-    binary = next((p for p in (Path('/opt/homebrew/bin/ffprobe'), Path('/usr/local/bin/ffprobe')) if p.is_file()), None)
+    binary = next((p for p in (Path('/opt/homebrew/bin/ffprobe'), Path('/usr/local/bin/ffprobe'),
+                              root / 'node_modules/@remotion/compositor-darwin-arm64/ffprobe',
+                              root / 'node_modules/@remotion/compositor-darwin-x64/ffprobe') if p.is_file()), None)
     if binary is None:
         raise RequestError('installed ffprobe unavailable; no installation allowed')
     # ffprobe reads existing media only, with network protocols and all filesystem
     # writes denied. No renderer, decoder output, report files or cleanup invoked.
     command = ['/usr/bin/sandbox-exec', '-p', PROBE_PROFILE, str(binary), '-v', 'error',
                '-protocol_whitelist', 'file', '-show_format', '-show_streams', '-of', 'json', str(path)]
-    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False,
+    result = subprocess.run(command, capture_output=True, text=True, timeout=30, check=False, cwd=str(binary.parent),
                             env={'PATH': '/usr/bin:/bin', 'AV_LOG_FORCE_NOCOLOR': '1'})
     if result.returncode:
         raise RequestError('read-only ffprobe failed: ' + result.stderr[:400])
