@@ -140,7 +140,7 @@ def pace_signup():
     _last_signup_started = time.monotonic()
 
 
-def provision_account(slot: int) -> dict:
+def provision_account(slot: int, *, identity_index: int) -> dict:
     """Use real client crypto/auth; only receipt of the private email code is local."""
     pace_signup()
     profile = json.loads(COMPOSE_PATH.read_text())
@@ -153,7 +153,7 @@ def provision_account(slot: int) -> dict:
     )
     private = COMPOSE_PATH.parent
     artifact = private / f"account-{slot}-{secrets.token_hex(4)}.env"
-    email = f"ci-{secrets.token_hex(8)}@example.com"
+    email = profile["services"]["api"]["environment"][f"OPENMATES_TEST_ACCOUNT_CI_{identity_index}_EMAIL"]
     env = {
         **os.environ,
         "OPENMATES_CLI_SIGNUP_INVITE_CODE": invite,
@@ -341,10 +341,10 @@ def run_e2e(specs: list[str], *, artifact=False, results=None):
                     in source
                 )
                 if not account_free:
-                    primary = provision_account(14)
+                    primary = provision_account(14, identity_index=2 * index)
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source:
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
-                    secondary = provision_account(15)
+                    secondary = provision_account(15, identity_index=2 * index + 1)
                     env.update(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
                     env["OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"] = str(reserved_account_slot(name))

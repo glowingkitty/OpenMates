@@ -102,9 +102,6 @@
         "cli-workflows-schedule-real.spec.ts",
         "cli-workflows-search-controls-real.spec.ts",
         "docs-screenshot-generator.spec.ts",
-        "example-chat-speech.spec.ts",
-        "proof-audio-speech-example.spec.ts",
-        "proof-video-architecture.spec.ts",
         "proof-video-cli.spec.ts",
         "report-issue-flow.spec.ts",
         "shared-chat-embed-assets.spec.ts",
@@ -252,7 +249,10 @@
         "composer-model-routing.spec.ts",
         "example-chat-settings-usage.spec.ts",
         "unauthenticated-app-load.spec.ts",
-        "task-workflow-example-chats.spec.ts"
+        "task-workflow-example-chats.spec.ts",
+        "example-chat-speech.spec.ts",
+        "proof-audio-speech-example.spec.ts",
+        "proof-video-architecture.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -324,7 +324,6 @@
       "specs": [
         "application-preview-share.spec.ts",
         "audio-recording-and-speech.spec.ts",
-        "copy-message-flow.spec.ts",
         "hpfsl-acknowledgement-timing.spec.ts",
         "models3d-search.spec.ts",
         "skill-code-docs.spec.ts",
@@ -336,7 +335,6 @@
         "skill-home-search.spec.ts",
         "skill-images-search.spec.ts",
         "skill-maps-search.spec.ts",
-        "skill-math-calculate.spec.ts",
         "skill-music-generate.spec.ts",
         "skill-news-search.spec.ts",
         "skill-reminder-set.spec.ts",
@@ -347,9 +345,17 @@
         "skill-travel-train-connections.spec.ts",
         "skill-videos-search.spec.ts",
         "skill-videos-transcript.spec.ts",
-        "skill-weather-forecast.spec.ts",
+        "skill-weather-forecast.spec.ts"
+      ]
+    },
+    "ai_cached_pipeline": {
+      "execution": "e2e",
+      "enabling_work": "Execute original signed cached-pipeline requests on the internal-network AI worker with fresh explicitly allowlisted users. Preserve real API/CLI/browser assertions; cache misses and provider configuration failures fail visibly, no recording, paid keys or external fallback.",
+      "specs": [
+        "copy-message-flow.spec.ts",
+        "skill-web-search.spec.ts",
         "skill-web-read.spec.ts",
-        "skill-web-search.spec.ts"
+        "skill-math-calculate.spec.ts"
       ]
     }
   }

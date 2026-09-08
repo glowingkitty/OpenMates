@@ -158,3 +158,27 @@ def test_fixture_network_only_exposes_uncredentialed_tcp_gateway():
     assert services["runner-gateway"]["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
     assert services["runner-gateway"]["environment"] == {"OPENMATES_CI_GATEWAY": "github-isolated"}
     assert all("ingress" not in service.get("networks", []) for name, service in services.items() if name != "runner-gateway")
+
+
+def test_replay_allowlist_contains_only_this_runs_new_identities(monkeypatch):
+    from backend.shared.python_utils.e2e_user_detection import is_configured_test_account_profile
+    import hashlib
+    import base64
+    import os
+    monkeypatch.setenv("OPENMATES_TEST_ACCOUNT_1_EMAIL", "legacy@example.net")
+    fresh = ["ci-first@example.com", "ci-second@example.com"]
+    profile = compose_profile("a" * 40, ai_fixtures=True, account_emails=fresh)
+    env = profile["services"]["api"]["environment"]
+    assert "OPENMATES_TEST_ACCOUNT_1_EMAIL" not in env
+    for key in list(os.environ):
+        if key.startswith("OPENMATES_TEST_ACCOUNT"):
+            monkeypatch.delenv(key)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    def hashed(email):
+        return base64.b64encode(hashlib.sha256(email.encode()).digest()).decode()
+    assert is_configured_test_account_profile({"hashed_email": hashed(fresh[0])})
+    assert not is_configured_test_account_profile({"hashed_email": hashed("legacy@example.net")})
+    assert not is_configured_test_account_profile({"hashed_email": hashed("ci-other-run@example.com")})
+    with pytest.raises(ValueError, match="unique generated"):
+        compose_profile("a" * 40, account_emails=[fresh[0], fresh[0]])
