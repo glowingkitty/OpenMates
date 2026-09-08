@@ -44,6 +44,18 @@ test.describe('Public example assistant speech', () => {
 	// contract-test: direct surface=gui.web assertions=assistant-speech.public-example.reviewed-fixture-playback,public-example-chats.speech.reviewed-public-playback
 	test('plays reviewed immutable fixtures while logged out', async ({ page, context }: { page: any; context: any }, testInfo: any) => {
 		await context.clearCookies();
+		// The queue creates detached Audio elements, so a DOM locator cannot prove
+		// playback. Observe the real media instances without replacing their audio,
+		// network requests, playback promise, or browser autoplay policy.
+		await page.addInitScript(() => {
+			const observedMedia: HTMLMediaElement[] = [];
+			(window as any).__exampleSpeechObservedMedia = observedMedia;
+			const originalPlay = HTMLMediaElement.prototype.play;
+			HTMLMediaElement.prototype.play = function () {
+				if (!observedMedia.includes(this)) observedMedia.push(this);
+				return originalPlay.call(this);
+			};
+		});
 		const sentWebSocketFrames: string[] = [];
 		page.on('websocket', (socket: any) => socket.on('framesent', (event: { payload: string | Buffer }) => {
 			sentWebSocketFrames.push(String(event.payload));
@@ -75,6 +87,20 @@ test.describe('Public example assistant speech', () => {
 		await expect(player.getByTestId('assistant-speech-region')).toHaveCount(2);
 		await expect.poll(() => audioResponses.length, { timeout: 30_000 }).toBeGreaterThan(0);
 		for (const response of audioResponses) expect(response.ok()).toBe(true);
+		await expect.poll(() => page.evaluate((audioHost: string) => {
+			const observedMedia = (window as any).__exampleSpeechObservedMedia as HTMLMediaElement[];
+			return observedMedia.some((media) => {
+				if (!media.currentSrc) return false;
+				const url = new URL(media.currentSrc);
+				return url.hostname === audioHost
+					&& url.pathname.startsWith('/assistant-speech/sha256-')
+					&& media.error === null
+					&& media.currentTime > 0.25;
+			});
+		}, EXPECTED_PUBLIC_AUDIO_HOST), {
+			message: 'Public speech must decode and advance its playback clock, not merely download',
+			timeout: 30_000,
+		}).toBe(true);
 		expect(sentWebSocketFrames.some((frame) => frame.includes('"type":"assistant_speech"'))).toBe(false);
 
 		if (proof) {
