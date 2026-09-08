@@ -326,8 +326,6 @@
         "skill-images-search.spec.ts",
         "skill-maps-search.spec.ts",
         "skill-music-generate.spec.ts",
-        "skill-news-search.spec.ts",
-        "skill-reminder-set.spec.ts",
         "skill-shopping-search.spec.ts",
         "skill-social-media.spec.ts",
         "skill-travel-connections.spec.ts",
@@ -347,6 +345,8 @@
         "models3d-search.spec.ts",
         "skill-code-docs.spec.ts",
         "skill-math-calculate.spec.ts",
+        "skill-news-search.spec.ts",
+        "skill-reminder-set.spec.ts",
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts"
       ]
@@ -874,9 +874,9 @@
       "source_environment_names": []
     },
     "shared-chat-embed-assets.spec.ts": {
-      "dependency": "isolated_object_storage_upload",
-      "next_action": "Add a real runner-local S3-compatible store and configurable SDK/public URL endpoints for shared chat loads uploaded PDF, image, and audio recording assets while logged out; add the original upload/ClamAV service when used. Seed only synthetic runner Vault credentials. Preserve encryption, screenshot persistence, shared asset download, and scan assertions; real audio/provider subcases remain separately gated.",
-      "user_input_required": false,
+      "dependency": "original_live_multimodal_generation_and_transcription",
+      "next_action": "Runner-local S3/upload/ClamAV capability is implemented and awaiting live proof. This original spec also calls unmarked CLI chats new with real PDF/image/audio attachments and waits for finished transcription; authorize dedicated inference/transcription credentials and hard per-run caps before those original paid steps. Do not replace them with transcript mocks or a replay marker. Preserve logged-out decryption/download assertions.",
+      "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
@@ -1073,32 +1073,6 @@
       "committed_cache_files": {
         "music_generate_cli": 0,
         "music_generate_web": 0
-      }
-    },
-    "skill-news-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-news-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: news_search_cli=2, news_search_web=2.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "news_search_cli": 2,
-        "news_search_web": 2
-      }
-    },
-    "skill-reminder-set.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-reminder-set.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: reminder_set_cli=2, reminder_set_web=8.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "reminder_set_cli": 2,
-        "reminder_set_web": 8
       }
     },
     "skill-shopping-search.spec.ts": {
