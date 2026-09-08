@@ -90,7 +90,8 @@ def provision_api_key(account: dict) -> str:
     require_runner()
     sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
     program = """
-const { OpenMatesClient } = await import(process.argv[1]);
+const { OpenMatesClient, OpenMates } = await import(process.argv[1]);
+const { platform, arch } = await import("node:os");
 const client = new OpenMatesClient({apiUrl: process.argv[2]});
 if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
 const FIXTURE_CREDIT_LIMIT = 1000;
@@ -100,6 +101,19 @@ const result = await client.createApiKey({
   creditLimit: {period: 'lifetime', credits: FIXTURE_CREDIT_LIMIT},
   expiresAt: new Date(Date.now() + FIXTURE_KEY_LIFETIME_MS).toISOString()
 });
+// Register the actual CLI device with a read-only request, then approve only
+// that device through its fresh owner's authenticated first-party session.
+const deviceId = "cli:" + platform() + ":" + arch();
+const api = new OpenMates({apiKey: result.api_key, apiUrl: process.argv[2], sdkName: "cli", deviceId});
+try { await api.chats.list({limit: 1}); }
+catch (error) { if (error.status !== 403) throw error; }
+const devices = await client.settingsGet("api-key-devices");
+const owned = devices.devices.filter(d => d.api_key_id === result.key.id && d.machine_identifier === deviceId);
+if (owned.length !== 1) throw new Error("Fresh CLI device registration was not unique");
+if (!owned[0].approved_at) await client.settingsPost("api-key-devices/" + owned[0].id + "/approve", {});
+const verified = await client.settingsGet("api-key-devices");
+if (!verified.devices.some(d => d.id === owned[0].id && d.approved_at)) throw new Error("Fresh CLI device approval failed");
+await api.chats.list({limit: 1});
 process.stdout.write(JSON.stringify({api_key: result.api_key}));
 """
     result = subprocess.run(

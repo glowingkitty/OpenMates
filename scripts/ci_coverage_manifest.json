@@ -68,7 +68,10 @@
         "workflows-definition-history.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
-        "workspace-sidebar.spec.ts"
+        "workspace-sidebar.spec.ts",
+        "settings-translation-coverage.spec.ts",
+        "cli-memories.spec.ts",
+        "cli-pair-login.spec.ts"
       ]
     },
     "external_integration": {
@@ -77,8 +80,6 @@
       "specs": [
         "account-recovery-flow.spec.ts",
         "apple-proof-credential-broker.spec.ts",
-        "cli-memories.spec.ts",
-        "cli-pair-login.spec.ts",
         "cli-provision-auth-accounts.spec.ts",
         "connected-account-calendar-live-oauth.spec.ts",
         "dev-smoke/dev-smoke-reachability.spec.ts",
@@ -100,9 +101,7 @@
         "berlin-mitte-maps-example.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "cli-workflows-search-controls-real.spec.ts",
-        "composer-model-routing.spec.ts",
         "docs-screenshot-generator.spec.ts",
-        "example-chat-settings-usage.spec.ts",
         "example-chat-speech.spec.ts",
         "proof-audio-speech-example.spec.ts",
         "proof-video-architecture.spec.ts",
@@ -112,7 +111,6 @@
         "task-activity.spec.ts",
         "task-blocked-reason.spec.ts",
         "task-detail-fullscreen.spec.ts",
-        "unauthenticated-app-load.spec.ts",
         "workflows-ready-run-tasks.spec.ts"
       ]
     },
@@ -191,7 +189,6 @@
         "settings-buy-credits-stripe-managed.spec.ts",
         "settings-gift-card-redemption.spec.ts",
         "settings-support-stripe.spec.ts",
-        "settings-translation-coverage.spec.ts",
         "signup-flow-bank-transfer.spec.ts",
         "signup-flow-stripe-eu.spec.ts",
         "signup-flow-stripe-managed.spec.ts",
@@ -252,7 +249,10 @@
         "status-page.spec.ts",
         "task-workflow-app-skill-embeds.spec.ts",
         "unauthenticated-chat-navigation.spec.ts",
-        "workflow-template-sharing.spec.ts"
+        "workflow-template-sharing.spec.ts",
+        "composer-model-routing.spec.ts",
+        "example-chat-settings-usage.spec.ts",
+        "unauthenticated-app-load.spec.ts"
       ]
     },
     "synthetic_artifact": {
