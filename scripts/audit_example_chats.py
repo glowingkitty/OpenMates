@@ -10,10 +10,13 @@ quality; quality review belongs to the CLI regeneration workflow.
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import json
 import re
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, unquote
 
@@ -877,7 +880,76 @@ def audit() -> list[str]:
     return issues
 
 
+REVIEW_CHECKS = ("cli_content", "phone", "laptop", "guest_speech")
+
+
+def audit_review_record(record: dict, expected_commit: str, root: Path = REPO_ROOT) -> list[str]:
+    """Fail closed on incomplete/stale admission receipts, not editorial judgments."""
+    issues = []
+    if not re.fullmatch(r"[0-9a-f]{40}", expected_commit):
+        issues.append("expected commit must be a full SHA")
+    if record.get("deployed_commit") != expected_commit:
+        issues.append("review does not match the expected deployed commit")
+    for field in ("slug", "source_chat_id"):
+        if not isinstance(record.get(field), str) or not record[field].strip():
+            issues.append(f"missing {field}")
+    try:
+        timestamp = datetime.fromisoformat(record.get("reviewed_at", "").replace("Z", "+00:00"))
+        if timestamp.tzinfo is None:
+            raise ValueError("timezone required")
+    except (ValueError, TypeError, AttributeError):
+        issues.append("reviewed_at must be an ISO timestamp with timezone")
+    if record.get("verdict") != "keep" or record.get("open_defects") != []:
+        issues.append("admission requires keep verdict and no open defects")
+    checks = record.get("checks", {})
+    for name in REVIEW_CHECKS:
+        check = checks.get(name, {}) if isinstance(checks, dict) else {}
+        if not isinstance(check, dict) or check.get("status") != "passed" or not isinstance(check.get("evidence"), str) or not check["evidence"].strip():
+            issues.append(f"{name} requires passed status and evidence")
+    files = record.get("files", {})
+    if not isinstance(files, dict) or not files:
+        return issues + ["files must contain current source fingerprints"]
+    required_prefixes = (
+        "frontend/packages/ui/src/demo_chats/data/example_chats/",
+        "frontend/packages/ui/src/i18n/sources/example_chats/",
+    )
+    for prefix in required_prefixes:
+        if not any(isinstance(path, str) and path.startswith(prefix) for path in files):
+            issues.append(f"missing fingerprint under {prefix}")
+    for relative, fingerprint in files.items():
+        path = (root / relative).resolve()
+        if Path(relative).is_absolute() or not path.is_relative_to(root.resolve()):
+            issues.append(f"file is outside repository: {relative}")
+            continue
+        if not path.is_file():
+            issues.append(f"reviewed file missing: {relative}")
+        elif hashlib.sha256(path.read_bytes()).hexdigest() != fingerprint:
+            issues.append(f"review is stale for {relative}")
+    return issues
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--review-record", type=Path, help="Validate a rendered-chat admission JSON record")
+    parser.add_argument("--expected-commit", help="Full deployed SHA independently obtained from deployment evidence")
+    args = parser.parse_args()
+    if args.review_record:
+        if not args.expected_commit:
+            parser.error("--review-record requires --expected-commit")
+        try:
+            record = json.loads(args.review_record.read_text())
+            if not isinstance(record, dict):
+                raise ValueError("record must be an object")
+            issues = audit_review_record(record, args.expected_commit)
+        except (OSError, ValueError) as exc:
+            print(f"Review record error: {exc}", file=sys.stderr)
+            return 1
+        for issue in issues:
+            print(f"- {issue}")
+        print("Review record rejected." if issues else "Review record complete; browser observations remain reviewer evidence.")
+        return int(bool(issues))
+    if args.expected_commit:
+        parser.error("--expected-commit requires --review-record")
     issues = audit()
     usage_coverage = example_usage_coverage()
     usage_summary = (
