@@ -122,7 +122,10 @@ def test_result_rate_reserve_and_cached_receipt(tmp_path):
     receipt.parent.mkdir(parents=True)
     receipt.write_text(json.dumps({"cached": True}))
     remote.budget = lambda: pytest.fail("Cached evidence must not query GitHub")
-    assert q.result(remote, job["id"], tmp_path, None) == {"cached": True}
+    def validate_cached(github, selected, root):
+        assert selected["id"] == job["id"]
+        return {**json.loads(receipt.read_text()), "validated": True}
+    assert q.result(remote, job["id"], tmp_path, validate_cached) == {"cached": True, "validated": True}
 
 
 def test_proof_profiles_have_distinct_idempotent_requests(tmp_path):
