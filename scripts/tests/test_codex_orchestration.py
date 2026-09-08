@@ -178,3 +178,19 @@ def test_external_job_completion_rearms_only_affected_parked_worker(tmp_path):
     w = next(iter(json.loads(path.read_text())["workers"].values()))
     assert not w["parked"] and w["progress_at"] == 2700
     assert rpc.calls == []  # Only the external cache was read while parked.
+
+
+def test_wakeup_is_tool_output_not_a_synthetic_user_instruction(tmp_path):
+    import json
+
+    path = state_file(tmp_path)
+    rpc = RPC()
+    with co.transaction(path) as state:
+        co.queue_review(state, 1, {"event": "completed"})
+    co.deliver(path, rpc)
+    params = next(p for method, p in rpc.calls if method == "turn/start")
+    assert params["input"] == []
+    assert params["toolOutput"]["name"] == "orchestration_checkpoint"
+    output = json.loads(params["toolOutput"]["output"])
+    assert output["delivery_id"] == params["clientUserMessageId"]
+    assert "not a human instruction or approval" in output["checkpoint"]

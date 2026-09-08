@@ -416,7 +416,14 @@ def deliver(path, rpc):
                 "threadId": owner,
                 "clientUserMessageId": message_id,
                 "turnTrigger": "openmates_orchestration",
-                "input": [{"type": "text", "text": message}],
+                "input": [],
+                "toolOutput": {
+                    "name": "orchestration_checkpoint",
+                    "namespace": "openmates",
+                    "output": json.dumps(
+                        {"delivery_id": message_id, "checkpoint": message}
+                    ),
+                },
             },
         )
     except (RuntimeError, TimeoutError, OSError):

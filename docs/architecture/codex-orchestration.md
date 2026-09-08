@@ -134,12 +134,13 @@ submission remains uncertain and is never automatically resent. Use `reconcile
 --message-id <id> --turn-id <id>` only when supported thread history contains both
 identities. Otherwise leave it uncertain for inspection.
 
-Capability limit: the installed `turn/start` supports steering an active turn;
-there is no atomic idle-only start field. The observer checks that the coordinator
-is idle first, but a concurrent human turn can race that check. Automated content
-is explicitly marked as data, not human instruction or approval. There are no
-automatic worker starts. Do not claim strict no-steering admission until the
-runtime offers an atomic primitive. Live unattended activation remains separate
+Wakeups use `turn/start.toolOutput` with empty user input, preserving observer
+results as tool output instead of user messages. The supported runtime queues
+that output if a regular turn becomes active. The observer checks coordinator
+idle status first, but no atomic idle-only start field exists: a concurrent human
+turn can receive the queued data. This cannot grant new human approval authority.
+See [official App Server documentation](https://learn.chatgpt.com/docs/app-server).
+There are no automatic worker starts. Live unattended activation remains separate
 from deploying these tested tools.
 
 `stop` disables future orchestration deliveries and cancels pending records;

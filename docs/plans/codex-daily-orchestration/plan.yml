@@ -24,11 +24,11 @@ handoff:
   state: Implementation verified with isolated regressions and read-only live metadata.
     No live monitor was activated.
   current_task_id: TASK-86
-  next_action: Scoped dev deployment; unattended activation and notification cutover
-    remain excluded.
+  next_action: Source implementation verified. Live unattended activation and notification
+    cutover remain explicitly excluded.
   runtime_limitations:
-  - No atomic idle-only Codex turn/start primitive; possible coordinator steering
-    race.
+  - No atomic idle-only start; observer tool output can queue into a concurrently
+    active coordinator turn, without becoming a human message.
   - No per-commentary output hook; final format correction is bounded to one per turn.
   - Generic render event subscriptions and unattended service activation require explicit
     integration.
@@ -44,10 +44,10 @@ verifications:
       scripts/tests/test_codex_evidence.py scripts/tests/test_codex_hook_context.py
       scripts/tests/test_ci_results.py scripts/tests/test_ci_dispatch.py scripts/tests/test_cli_video_capture.py
       -q
-    result: 74 passed
+    result: 75 passed
     timestamp: '2026-09-08'
-    subject_commit: 7bf8f5aa3b5ff48436cab02167b98648db1eb66e + session ad0b worktree
-      changes
+    subject_commit: 64044ecd29b080b3c08feccbf72f92fe7b616461 + tool-output origin
+      correction
 - id: V-2
   kind: deterministic_check
   phase: final
