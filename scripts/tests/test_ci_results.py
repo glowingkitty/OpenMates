@@ -145,7 +145,7 @@ def test_result_binds_subject_harness_runner_and_execution(
 
 
 @pytest.mark.parametrize("mode", ["e2e", "selfhost"])
-@pytest.mark.parametrize("fault", ["", "missing", "run", "harness", "containers", "volumes", "accounts"])
+@pytest.mark.parametrize("fault", ["", "missing", "run", "harness", "containers", "volumes", "accounts", "reported_error"])
 def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault, mode):
     import json
     data = {"run_id": "7", "harness_commit": "harness", "containers_remaining": 0,
@@ -158,6 +158,8 @@ def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault, mode):
         data["containers_remaining"] = 1
     if fault == "volumes":
         data["volumes_remaining"] = 1
+    if fault == "reported_error":
+        data["errors"] = ["installer path cleanup failed"]
     if fault == "accounts":
         data["private_account_files_removed"] = False
     if fault != "missing":
