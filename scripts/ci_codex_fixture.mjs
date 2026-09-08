@@ -26,7 +26,7 @@ const called = [];
 const env = { PATH: process.env.PATH, HOME: process.env.HOME, CODEX_HOME: codexHome,
   XDG_RUNTIME_DIR: path.join(directory, 'runtime'), LANG: 'C.UTF-8', RUST_LOG: 'error' };
 function cli(...args) {
-  return execFileSync('codex', args, { env, cwd: workspace, encoding: 'utf8', timeout: 30000, maxBuffer: 65536 });
+  return execFileSync(path.join(directory, 'bin/codex'), args, { env, cwd: workspace, encoding: 'utf8', timeout: 30000, maxBuffer: 65536 });
 }
 function metadata() { return JSON.parse(cli('app-server', 'daemon', 'version')); }
 function rpc(socketPath, action, params) {
@@ -58,7 +58,15 @@ if (action === 'start') {
   if (existsSync(directory)) throw new Error('Codex fixture directory already exists; do not reuse thread state');
   for (const location of [codexHome, workspace, env.XDG_RUNTIME_DIR]) mkdirSync(location, { recursive: true, mode: 0o700 });
   writeFileSync(path.join(codexHome, 'config.toml'), '[analytics]\nenabled = false\n', { mode: 0o600 });
+  const installer = path.join(directory, 'install.sh');
+  execFileSync('curl', ['-fsSL', 'https://chatgpt.com/codex/install.sh', '-o', installer], { env, timeout: 60000 });
+  execFileSync('sh', [installer, '--release', '0.153.4'], {
+    env: { ...env, CODEX_INSTALL_DIR: path.join(directory, 'bin'), CODEX_NON_INTERACTIVE: '1' },
+    encoding: 'utf8', timeout: 120000, maxBuffer: 65536
+  });
+  appendFileSync(process.env.GITHUB_PATH, path.join(directory, 'bin') + '\n');
   cli('app-server', 'daemon', 'start');
+  writeFileSync(path.join(directory, 'daemon-started'), 'owned');
   let owned = false;
   try {
     const daemon = metadata();
@@ -79,7 +87,7 @@ if (action === 'start') {
     console.log(JSON.stringify({ status: 'ready', inference_requested: false }));
   } catch (error) { if (owned) cli('app-server', 'daemon', 'stop'); throw error; }
 } else if (action === 'stop') {
-  if (existsSync(directory)) {
+  if (existsSync(path.join(directory, 'daemon-started'))) {
     const daemon = metadata();
     if (!daemon.socketPath?.startsWith(directory + path.sep)) throw new Error('Refusing to stop a daemon outside the private fixture');
     cli('app-server', 'daemon', 'stop');

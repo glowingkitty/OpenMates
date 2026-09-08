@@ -147,11 +147,6 @@ jobs:
         if: inputs.mode == 'e2e' || inputs.mode == 'artifact'
         working-directory: subject/frontend/apps/web_app
         run: npx playwright install --with-deps chromium
-      - name: Install isolated Codex metadata runtime
-        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
-        run: |
-          npm install --prefix "$RUNNER_TEMP/openmates-codex-cli" --no-audit --no-fund @openai/codex@0.153.4
-          echo "$RUNNER_TEMP/openmates-codex-cli/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Provision empty runner-local Codex thread
         if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
         run: node ../tooling/scripts/ci_codex_fixture.mjs start

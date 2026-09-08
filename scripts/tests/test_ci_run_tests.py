@@ -126,3 +126,12 @@ def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path,
     monkeypatch.setattr(runner, "ROOT", tmp_path)
     assert runner.reserved_account_slot("security.spec.ts") == 18
     assert runner.reserved_account_slot("ordinary.spec.ts") == 1
+
+
+def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):
+    import pytest
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    monkeypatch.setenv("TEST_ACCOUNT1", "synthetic-forbidden")
+    with pytest.raises(RuntimeError, match="Inherited test credentials"):
+        runner.reject_inherited_accounts()
