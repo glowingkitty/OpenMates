@@ -384,10 +384,13 @@ def verify_artifact_profile(specs: list[str]):
         raise RuntimeError("Shared-dev HTTPS reachable during artifact proof")
 
 
-def run_e2e(specs: list[str], *, artifact=False, results=None):
+def run_e2e(specs: list[str], *, artifact=False, visual_smoke=False, results=None):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
-    for name in specs:
+    if visual_smoke:
+        from ci_visual_smoke import validate_targets
+        validate_targets(specs)
+    for name in ([] if visual_smoke else specs):
         path = (WEB / "tests" / name).resolve()
         if (
             not path.is_relative_to(WEB / "tests")
@@ -418,6 +421,10 @@ def run_e2e(specs: list[str], *, artifact=False, results=None):
         try:
             if child is not None:
                 wait_web(child)
+            if visual_smoke:
+                from ci_visual_smoke import capture
+                results.extend(capture(specs, WEB, RESULTS))
+                return results
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
@@ -539,9 +546,13 @@ def main():
     proof_dimensions = None
     try:
         proof_dimensions = configure_proof_dimensions()
-        if mode in ("e2e", "artifact"):
+        if mode in ("e2e", "artifact", "visual-smoke"):
             reject_inherited_accounts()
-            results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact", results=results)
+            selection = json.loads(os.environ["CI_SPECS_JSON"])
+            if mode == "visual-smoke":
+                results = run_e2e(selection, visual_smoke=True, results=results)
+            else:
+                results = run_e2e(selection, artifact=mode == "artifact", results=results)
         elif mode == "selfhost":
             reject_inherited_accounts()
             from ci_selfhost import run

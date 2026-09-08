@@ -146,14 +146,20 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("e2e", "artifact", "codex", "pytest", "vitest", "selfhost"):
+        if mode not in ("e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("e2e", "artifact")
         ):
             raise ValueError("Invalid proof video profile")
         specs = sorted(set(specs))
-        for spec in specs:
+        if mode == "visual-smoke":
+            try:
+                from scripts.ci_visual_smoke import validate_targets
+            except ModuleNotFoundError:
+                from ci_visual_smoke import validate_targets
+            validate_targets(specs)
+        for spec in ([] if mode == "visual-smoke" else specs):
             if (
                 not re.fullmatch(r"[A-Za-z0-9_./-]+\.spec\.ts", spec)
                 or ".." in spec
@@ -401,7 +407,8 @@ def main():
     submit.add_argument("--session", required=True)
     submit.add_argument("--source", required=True)
     submit.add_argument("--spec", action="append", default=[])
-    submit.add_argument("--mode", choices=["e2e", "artifact", "codex", "pytest", "vitest", "selfhost"], default="e2e")
+    submit.add_argument("--preview-url", action="append", default=[])
+    submit.add_argument("--mode", choices=["e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
@@ -424,6 +431,12 @@ def main():
     root = canonical_root(Path(__file__).resolve().parent.parent)
     queue = Queue(root / "logs/ci-coordinator/queue.sqlite3")
     if args.action == "submit":
+        if args.mode == "visual-smoke":
+            if args.spec:
+                parser.error("Use --preview-url for visual-smoke")
+            args.spec = args.preview_url
+        elif args.preview_url:
+            parser.error("--preview-url requires visual-smoke")
         if args.mode in ("e2e", "artifact", "selfhost"):
             try:
                 from scripts.ci_coverage import partition, execution_mode
