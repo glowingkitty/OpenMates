@@ -89,11 +89,11 @@ app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, public_provider: bool = False, workflows: bool = False, account_emails: list[str] | None = None) -> dict:
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, public_provider: bool = False, workflows: bool = False, account_emails: list[str] | None = None, offline_preview: bool = False) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     ai_fixtures = ai_fixtures or public_provider
     object_storage = object_storage or uploads
-    isolate_backend = ai_fixtures or object_storage
+    isolate_backend = ai_fixtures or object_storage or offline_preview
     if workflows and isolate_backend:
         raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
@@ -475,7 +475,11 @@ def main():
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
             raise RuntimeError("Candidate lacks committed development feature configuration")
-        account_emails = [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(2 * len(selected))]
+        offline_preview = os.environ.get("CI_TEST_MODE") == "visual-smoke"
+        if offline_preview:
+            from ci_visual_smoke import validate_targets
+            validate_targets(selected)
+        account_emails = [] if offline_preview else [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(2 * len(selected))]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         needs_uploads = bool(upload_specs.intersection(selected))
@@ -490,7 +494,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails, offline_preview=offline_preview)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")

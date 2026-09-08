@@ -91,8 +91,17 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     were removed. Failed jobs retain absent/failed teardown as visible evidence
     instead of hiding their original assertion report.
     """
-    if job.get("mode") not in ("e2e", "selfhost"):
+    if job.get("mode") not in ("e2e", "selfhost", "visual-smoke"):
         return result
+    if job.get("mode") == "visual-smoke" and job["state"] == "success":
+        try:
+            from scripts.ci_visual_smoke import verify_capture
+        except ModuleNotFoundError:
+            from ci_visual_smoke import verify_capture
+        captures = list(directory.rglob("ci-visual-smoke/receipt.json"))
+        if len(captures) != 1:
+            raise RuntimeError("Expected exactly one visual-smoke capture receipt")
+        result["visual_smoke"] = verify_capture(captures[0].parent, json.loads(job["specs"]))
     paths = list(directory.rglob("ci-cleanup.json"))
     cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else None
     valid = bool(cleanup and str(cleanup.get("run_id")) == str(job["run_id"])
@@ -183,7 +192,7 @@ def fetch(github, job: dict, root: Path) -> dict:
             raise RuntimeError(
                 "CI harness or requested proof profile identity mismatch"
             )
-        if job["state"] == "success" and job.get("mode") == "e2e":
+        if job["state"] == "success" and job.get("mode") in ("e2e", "visual-smoke"):
             if (
                 environment_data.get("source_commit") != job["source"]
                 or environment_data.get("frontend", {}).get("source_commit")

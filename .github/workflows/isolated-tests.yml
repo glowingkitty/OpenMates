@@ -18,7 +18,7 @@ on:
         default: '[]'
       mode:
         type: choice
-        options: [e2e, artifact, codex, pytest, vitest, selfhost]
+        options: [e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
         default: e2e
       dispatch_token:
         required: true
@@ -37,6 +37,7 @@ jobs:
       run:
         working-directory: subject
     env:
+      CI_TEST_MODE: ${{ inputs.mode }}
       CI: 'true'
       OPENMATES_CI_ISOLATED: '1'
       OPENMATES_CI_SOURCE_ROOT: ${{ github.workspace }}/subject
@@ -98,14 +99,14 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Prepare isolated stack
         id: runtime
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         run: |
           node frontend/packages/ui/scripts/build-translations.js
           python3 ../tooling/scripts/ci_environment.py prepare
       - uses: docker/setup-buildx-action@v3
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
       - name: Build cached API dependencies and current source
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         uses: docker/build-push-action@v6
         with:
           context: ./subject
@@ -125,7 +126,7 @@ jobs:
           cache-from: type=gha,scope=ci-upload
           cache-to: type=gha,scope=ci-upload,mode=max
       - name: Build current Directus extensions
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         uses: docker/build-push-action@v6
         with:
           context: ./subject/backend/core/directus
@@ -134,7 +135,7 @@ jobs:
           cache-from: type=gha,scope=ci-cms
           cache-to: type=gha,scope=ci-cms,mode=max
       - name: Build current schema initializer
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         uses: docker/build-push-action@v6
         with:
           context: ./subject/backend/core/directus/setup
@@ -143,18 +144,18 @@ jobs:
           cache-from: type=gha,scope=ci-setup
           cache-to: type=gha,scope=ci-setup,mode=max
       - name: Build local web app and CLI
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         run: |
           pnpm --filter openmates build
           cp frontend/apps/web_app/svelte.config.docker.js frontend/apps/web_app/svelte.config.js
           pnpm --filter web_app build
       - name: Start isolated backend
-        if: inputs.mode == 'e2e'
+        if: inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
       - name: Install browser
-        if: inputs.mode == 'e2e' || inputs.mode == 'artifact'
+        if: inputs.mode == 'e2e' || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
         run: |
           npx playwright install --with-deps chromium
@@ -177,10 +178,10 @@ jobs:
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
-        if: always() && inputs.mode == 'e2e'
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
         run: python3 ../tooling/scripts/ci_environment.py logs
       - name: Remove disposable containers and databases
-        if: always() && inputs.mode == 'e2e'
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
         run: python3 ../tooling/scripts/ci_environment.py stop
       - uses: actions/upload-artifact@v4
         if: always()
@@ -198,6 +199,7 @@ jobs:
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
+            subject/test-results/ci-visual-smoke/
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
