@@ -84,3 +84,11 @@ Updated Codex delivery rule applied: ran scripts/codex_evidence.py --upload for 
 Task connection to actual thread succeeded; all meaningful implementation and measured-playback milestone posts were acknowledged. Latest deployed-proof request activity delivery ID: 494a9728b767ea6937887b9ab1d3783b09e511c9a226d93936aadd38fccb1f5c. No uncertain activity to recreate.
 
 Process finding checked against existing audit_playwright_proof_metadata.py: it checks runtime/contract fields but not final attach(), allowing a passing run without a timeline. Smallest future improvement is a deterministic audit/test for required finalization, not new prompt prose.
+
+## Recording review, 15:05 UTC
+
+Canonical receipts for GH 34238192461 and 34238375743 succeeded on 5bb0b335644ab8c095179ad4d4c980c00af61568. Concrete currentTime: laptop 0.635731, phone 0.313027; both paused=false, readyState=4, error=null. Raw media delivered visibly. Preliminary bounded review confirms playback controls but rejects the shared caption claiming both chapter labels visible on phone. Source intentionally hides adjacent labels below 730px; caption now describes actual playback control/current chapter, retaining the exact clock assertion and two-region count.
+
+Reviewer flags phone title illustration occlusion. Approved assistant-response-speech contract explicitly pins an overlay over chat history and prioritizes current chapter on mobile; title-art treatment is not specified. No product layout changed. Escalate exact delivered frame to coordinator for ownership/design disposition; contrast remains an unclear warning, not an automatic fix.
+
+Capture hold fix deployed at 803b0db587023725230e725147d4f8467614aef0. No test dispatched for that intermediate commit; combine corrected caption with required real 7-second recording before device captures. PII handoff request acknowledged as c83c73f184f9b437142b5f575a9f668a8006425838f2fdffe8f3518ea602b5cc; no approved candidate or audio generation.

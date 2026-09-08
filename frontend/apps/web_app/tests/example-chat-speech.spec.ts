@@ -14,7 +14,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 const EXAMPLE_ID = 'example-openmates-workspace-welcome';
 const EXAMPLE_PATH = `/#chat-id=${EXAMPLE_ID}`;
 const EXPECTED_PUBLIC_AUDIO_HOST = 'dev-openmates-public-examples.nbg1.your-objectstorage.com';
-// Keep the 17-word caption's 6.8 seconds of reading time in real source video.
+// Keep caption reading time inside the real source recording, without synthetic holds.
 const PROOF_READING_HOLD_MS = 7_000;
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
@@ -27,14 +27,14 @@ const PROOF_CONTRACT = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [{
 		id: 'logged-out-public-playback',
-		text: 'A logged-out visitor starts the reviewed welcome response and sees both paragraph tracks in the voice player.',
+		text: 'A logged-out visitor starts the reviewed welcome response using the voice player.',
 		checkpoint: 'logged-out-public-playback',
 		devices: ['web-laptop', 'web-phone']
 	}],
 	assertions: [{
 		id: 'logged-out-public-playback',
 		checkpoint: 'logged-out-public-playback',
-		visual: 'The featured welcome example remains readable while the two-region voice response player is visible.',
+		visual: 'The voice response player shows its playback control and current chapter for the logged-out welcome example.',
 		devices: ['web-laptop', 'web-phone']
 	}],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: PROOF_READING_HOLD_MS }
