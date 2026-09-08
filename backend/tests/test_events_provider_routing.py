@@ -349,3 +349,71 @@ async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypat
 
     assert response.error is None
     assert response.results[0]["results"][0]["provider"] == "39c3"
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.surface-parity
+async def test_bracket_timezone_window_excludes_outside_events() -> None:
+    events = [
+        {"title": "This week", "date_start": "2026-09-08T19:00:00+02:00"},
+        {"title": "Next week", "date_start": "2026-09-14T19:00:00+02:00"},
+        {"title": "Following week", "date_start": "2026-09-21T00:00:00+02:00"},
+    ]
+    results, metadata = SearchSkill._apply_quality_filters(
+        events, event_type=None, query="pottery workshop",
+        start_date="2026-09-14T00:00:00+02:00[Europe/Berlin]",
+        end_date="2026-09-21T00:00:00+02:00[Europe/Berlin]",
+    )
+    assert [event["title"] for event in results] == ["Next week"]
+    assert "date_window" in metadata["applied_filters"]
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated,events-search.surface-parity
+async def test_date_bounds_normalized_before_provider_dispatch() -> None:
+    valid, invalid, error = _make_skill()._validate_event_requests([
+        {"id": "valid", "query": "pottery", "location": "Berlin",
+         "start_date": "2026-09-14T00:00:00+02:00[Europe/Berlin]",
+         "end_date": "2026-09-21T00:00:00+02:00[Europe/Berlin]"},
+        {"id": "bad", "query": "pottery", "location": "Berlin", "start_date": "not-a-date"},
+    ])
+    assert error is None
+    assert len(valid) == 1
+    assert valid[0]["start_date"] == "2026-09-14T00:00:00+02:00"
+    assert valid[0]["end_date"] == "2026-09-21T00:00:00+02:00"
+    assert invalid[0]["id"] == "bad"
+    assert "start_date" in invalid[0]["error"]
+
+
+# contract-test: direct surface=rest_api assertions=events-search.request.validated
+@pytest.mark.parametrize("bounds", [
+    {"start_date": ""},
+    {"end_date": "tomorrow"},
+    {"start_date": "2026-09-14T00:00:00+02:00[Unknown/Zone]"},
+    {"start_date": "2026-09-14T00:00:00+01:00[Europe/Berlin]"},
+    {"start_date": "2026-09-21", "end_date": "2026-09-14"},
+    {"start_date": "2026-09-14", "end_date": "2026-09-14"},
+])
+async def test_invalid_date_window_is_visible_and_does_not_broaden(bounds: dict[str, str]) -> None:
+    valid, invalid, error = _make_skill()._validate_event_requests([
+        {"id": "bad", "query": "pottery", "location": "Berlin", **bounds},
+        {"id": "good", "query": "drawing", "location": "Berlin"},
+    ])
+    assert error is None
+    assert [item["id"] for item in valid] == ["good"]
+    assert invalid[0]["id"] == "bad"
+    assert invalid[0]["error"].startswith("Invalid")
+
+
+# contract-test: direct surface=rest_api assertions=events-search.surface-parity
+@pytest.mark.parametrize("start,end", [
+    ("2026-10-19T00:00:00+02:00[Europe/Berlin]", "2026-10-26T00:00:00+01:00[Europe/Berlin]"),
+    ("2026-09-14T00:00:00Z", "2026-09-21T00:00:00Z"),
+    ("2026-09-14", "2026-09-21"),
+])
+async def test_valid_date_formats_and_dst_windows_are_preserved(start: str, end: str) -> None:
+    valid, invalid, error = _make_skill()._validate_event_requests([
+        {"id": "valid", "query": "pottery", "location": "Berlin", "start_date": start, "end_date": end},
+    ])
+    assert error is None
+    assert invalid == []
+    assert SearchSkill._parse_event_datetime(valid[0]["start_date"]) == SearchSkill._parse_event_datetime(start)
+    assert SearchSkill._parse_event_datetime(valid[0]["end_date"]) == SearchSkill._parse_event_datetime(end)
