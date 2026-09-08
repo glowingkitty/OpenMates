@@ -68,7 +68,7 @@ def test_download_stall_has_deadline(tmp_path, monkeypatch):
         )
 
 
-@pytest.mark.parametrize("fault", ["", "source", "harness", "empty", "runner"])
+@pytest.mark.parametrize("fault", ["", "source", "harness", "empty", "runner", "profile", "egress", "inventory"])
 def test_result_binds_subject_harness_runner_and_execution(
     tmp_path, monkeypatch, fault
 ):
@@ -80,7 +80,9 @@ def test_result_binds_subject_harness_runner_and_execution(
         "source_commit": "c" * 40 if fault == "source" else source,
         "run_id": "7",
         "success": True,
-        "results": [] if fault == "empty" else [{"exit_code": 0}],
+        "results": [] if fault == "empty" else [{"exit_code": 0, "spec": "wrong.spec.ts" if fault == "inventory" else "security-reporting-email-proof.spec.ts"}],
+        "runtime_profile": "e2e" if fault == "profile" else "artifact",
+        "artifact_shared_dev_rejected": fault != "egress",
         "harness_commit": "c" * 40 if fault == "harness" else harness,
     }
     archive = io.BytesIO()
@@ -124,6 +126,8 @@ def test_result_binds_subject_harness_runner_and_execution(
 
     job = {
         "id": "request",
+        "mode": "artifact",
+        "specs": json.dumps(["security-reporting-email-proof.spec.ts"]),
         "source": source,
         "run_id": 7,
         "state": "success",

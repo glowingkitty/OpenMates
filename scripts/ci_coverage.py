@@ -7,6 +7,13 @@ See docs/architecture/isolated-github-tests.md.
 """
 
 CORE_SPECS = frozenset({
+    # Reviewed ordinary suites use core auth/state only; assertion failures are results.
+    "a11y-keyboard-nav.spec.ts",
+    "a11y-modal-dialogs.spec.ts",
+    "a11y-pages.spec.ts",
+    "account-interests-settings.spec.ts",
+    "language-auto-detect.spec.ts",
+
     "test-account-preflight.spec.ts",
     "tasks-flow.spec.ts",
     "task-detail-fullscreen.spec.ts",
