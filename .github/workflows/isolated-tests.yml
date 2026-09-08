@@ -175,6 +175,7 @@ jobs:
             subject/test-results/ci-stack.log
             subject/test-results/ci-results.json
             subject/test-results/ci-codex.json
+            subject/test-results/ci-cleanup.json
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
