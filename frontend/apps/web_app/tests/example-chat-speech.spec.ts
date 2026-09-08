@@ -14,6 +14,8 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 const EXAMPLE_ID = 'example-openmates-workspace-welcome';
 const EXAMPLE_PATH = `/#chat-id=${EXAMPLE_ID}`;
 const EXPECTED_PUBLIC_AUDIO_HOST = 'dev-openmates-public-examples.nbg1.your-objectstorage.com';
+// Keep the 17-word caption's 6.8 seconds of reading time in real source video.
+const PROOF_READING_HOLD_MS = 7_000;
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_DEVICE = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10) === 390 ? 'web-phone' : 'web-laptop';
 
@@ -35,7 +37,7 @@ const PROOF_CONTRACT = defineVideoProof({
 		visual: 'The featured welcome example remains readable while the two-region voice response player is visible.',
 		devices: ['web-laptop', 'web-phone']
 	}],
-	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: PROOF_READING_HOLD_MS }
 });
 
 test.describe('Public example assistant speech', () => {
@@ -123,7 +125,7 @@ test.describe('Public example assistant speech', () => {
 				await expect(player.getByTestId('assistant-speech-waveform-region')).toHaveCount(2);
 			});
 			await proof.checkpoint('logged-out-public-playback');
-			await page.waitForTimeout(3_000);
+			await page.waitForTimeout(PROOF_READING_HOLD_MS);
 			await proof.attach();
 		}
 	});

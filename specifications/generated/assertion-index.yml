@@ -14130,7 +14130,7 @@ assertions:
     direct_tests:
     - &id1547
       path: frontend/apps/web_app/tests/example-chat-speech.spec.ts
-      line: 45
+      line: 47
       name: plays reviewed immutable fixtures while logged out
       surface: gui.web
     supporting_tests: []
@@ -25616,7 +25616,7 @@ assertions:
     direct_tests:
     - &id2876
       path: frontend/apps/web_app/tests/example-chat-speech.spec.ts
-      line: 45
+      line: 47
       name: plays reviewed immutable fixtures while logged out
       surface: gui.web
     supporting_tests: []

@@ -51,3 +51,36 @@ Both existing requests reached terminal failure; no replacement test submitted.
 Next actionable verification repair: update obsolete region-count checks to the component's existing current/next chapter assertions while preserving c6ec's exact real-play observer and media-clock check; coordinate ownership before a new run. Retrieve strengthened artifacts through canonical coordinator when available. No product player changes justified by baseline evidence. Candidate must still be explicitly content-approved before the one narration generation.
 
 Artifact discovery correction: `rg --files` omitted ignored nested test-results; `rg --files --hidden --no-ignore <exact-artifact-directory>` revealed existing reports/screenshots without another download. Existing E2E investigator instructions require direct report/screenshot discovery; avoid claiming missing artifacts from ignore-aware searches. No source/test/asset reruns or audio generation performed in this continuation.
+
+## Parked for coordinator wake 2026-09-08T14:34:34.384340+00:00
+
+User cost-control instruction: end when only waiting; preserve all jobs. Continue Astra LOW, session 08ef, same worktree. No new audio generation; no approved pilot yet.
+
+Implemented and deployed:
+- 7c4b796fe716c32857c5a53f2a76027f61fefbc2: preserve c6ec exact media clock assertion, replace removed region selector with actual waveform-region selector, attach measured playback JSON.
+- 5bb0b335644ab8c095179ad4d4c980c00af61568: call proof.attach() after checkpoint; missing call prevented timeline import despite passing playback. Lint and Specification gates passed.
+
+Playback established from validated CI attachments: initial corrected run 34233513231 currentTime=0.341824; deployed laptop 34234504912 currentTime=0.504076; deployed phone 34234565706 currentTime=0.443132. All paused=false, readyState=4, errorCode=null. No speech-generation WebSocket frames. No product player code changed.
+
+Final pending proof jobs (both running at last reconciliation):
+- laptop request c72164289ad76046af9b10b7e36df78165e6c8adaf64fb1faee428fd591ec47e; GitHub run 34238192461
+- phone request f9dacbd66ba3caeec5197e5912314d30b2a0cdceeb11b73cb6d6b163e7d00096; GitHub run 34238375743
+- tested commit for both: 5bb0b335644ab8c095179ad4d4c980c00af61568
+
+Next commands in this worktree:
+```bash
+python3 scripts/ci_coordinator.py status c72164289ad76046af9b10b7e36df78165e6c8adaf64fb1faee428fd591ec47e
+python3 scripts/ci_coordinator.py status f9dacbd66ba3caeec5197e5912314d30b2a0cdceeb11b73cb6d6b163e7d00096
+# Once terminal, fetch each existing request; do not resubmit.
+python3 scripts/ci_coordinator.py result c72164289ad76046af9b10b7e36df78165e6c8adaf64fb1faee428fd591ec47e
+python3 scripts/ci_coordinator.py result f9dacbd66ba3caeec5197e5912314d30b2a0cdceeb11b73cb6d6b163e7d00096
+python3 scripts/proof_video_workflow.py start --current --spec example-chat-speech.spec.ts --run-id 34238192461
+python3 scripts/proof_video_workflow.py start --current --spec example-chat-speech.spec.ts --run-id 34238375743
+```
+Inspect actual media JSON, timeline, bounded frames; finish caption/render/review/publish workflow. If result download times out, prior bounded 180-second ci_results.DOWNLOAD_SECONDS override through the same Queue.result locking/validation succeeded; do not rerun tests for transport failure.
+
+Updated Codex delivery rule applied: ran scripts/codex_evidence.py --upload for all five completed request directories d28e842..., f0bbf68..., 9866bfab..., edd1e6fe..., ecb5403a.... Explicit links for all 7 recordings and 7 images were posted in the visible commentary table after the compute-setting interruption. These are raw recording deliveries, not completed captioned proof reviews. Machine delivery receipts remain pending because actual assistant message ID was not exposed; never fabricate an ID. Resume by using actual delivered message ID if available, then codex_evidence.py --ack for only those posted records. New final runs need their own returned codex_evidence_command, links and acknowledgement.
+
+Task connection to actual thread succeeded; all meaningful implementation and measured-playback milestone posts were acknowledged. Latest deployed-proof request activity delivery ID: 494a9728b767ea6937887b9ab1d3783b09e511c9a226d93936aadd38fccb1f5c. No uncertain activity to recreate.
+
+Process finding checked against existing audit_playwright_proof_metadata.py: it checks runtime/contract fields but not final attach(), allowing a passing run without a timeline. Smallest future improvement is a deterministic audit/test for required finalization, not new prompt prose.
