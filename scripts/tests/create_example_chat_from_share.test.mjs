@@ -1,5 +1,41 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+// Tooling contract: landing conversion must not silently publish an example
+// without the real source conversation's follow-up suggestions.
+test('landing conversion requires source follow-ups without rejecting legacy conversion', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'example-followups-'));
+  const fixture = path.join(directory, 'chat.json');
+  const chat = {
+    chat_id: 'source-chat', title: 'Follow-up fixture',
+    messages: [{ message_id: 'assistant-1', role: 'assistant', content: 'Hello.' }],
+    embeds: [],
+  };
+  const run = (requireFollowUps = true) => spawnSync(process.execPath, [
+    new URL('../create-example-chat-from-share.mjs', import.meta.url).pathname,
+    '--from-json', fixture, '--slug', 'followup-validation-fixture', '--dry-run',
+    ...(requireFollowUps ? ['--require-follow-ups'] : []),
+  ], { encoding: 'utf8', env: { ...process.env, OPENMATES_API_KEY: '' } });
+  try {
+    for (const followUps of [undefined, [], [''], ['   '], ['Useful?', null]]) {
+      writeFileSync(fixture, JSON.stringify({ ...chat, follow_up_suggestions: followUps }));
+      const result = run();
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /source follow-up suggestions/i);
+    }
+    writeFileSync(fixture, JSON.stringify(chat));
+    assert.equal(run(false).status, 0);
+    writeFileSync(fixture, JSON.stringify({ ...chat, follow_up_suggestions: ['Can you explain more?'] }));
+    const valid = run();
+    assert.equal(valid.status, 0, valid.stderr);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 import {
   annotateChatWithUsage,

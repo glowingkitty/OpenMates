@@ -156,6 +156,7 @@ Options:
   --app-focus-mode-example <app.focus>  App-store focus mode example key; repeat or comma-separate
   --active-focus-id <id>   Cleartext active focus id for public example chats
   --featured <true|false>  Whether the example is featured (default: true)
+  --require-follow-ups    Reject landing candidates missing usable source follow-up suggestions
   --dry-run                Print planned changes without writing files
   --force                  Overwrite existing generated files
 `);
@@ -179,6 +180,7 @@ function parseArgs(argv) {
     appFocusModeExamples: [],
     activeFocusId: null,
     featured: true,
+    requireFollowUps: false,
     dryRun: false,
     force: false,
   };
@@ -192,6 +194,9 @@ function parseArgs(argv) {
     switch (arg) {
       case '--from-json':
         args.fromJson = argv[++i];
+        break;
+      case '--require-follow-ups':
+        args.requireFollowUps = true;
         break;
       case '--usage-json':
         args.usageJson = argv[++i];
@@ -1287,6 +1292,16 @@ async function main() {
     );
   }
   validateExtractedChat(chat);
+
+  // Landing candidates must preserve real post-processing output. Do not invent
+  // suggestions here, or make older catalog fixtures fail this opt-in review gate.
+  if (args.requireFollowUps && (
+    !Array.isArray(chat.follow_up_suggestions) ||
+    chat.follow_up_suggestions.length === 0 ||
+    chat.follow_up_suggestions.some((suggestion) => typeof suggestion !== 'string' || !suggestion.trim())
+  )) {
+    throw new Error('Landing candidate requires non-empty source follow-up suggestions. Wait for post-processing and re-extract the real conversation; investigate missing suggestions before publication.');
+  }
 
   const slug = args.slug;
   const existingMetadata = readExistingMetadata(slug);
