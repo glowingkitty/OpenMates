@@ -44,12 +44,13 @@ def test_static_build_is_byte_exact_and_routes_fall_back(tmp_path):
         worker.join()
 
 
-def test_same_origin_api_preserves_real_request_and_error_response(tmp_path):
+@pytest.mark.parametrize("route, target", [("/v1/settings/user/language", "prod"), ("/v1/upload/file", "dev")])
+def test_same_origin_api_preserves_real_request_and_error_response(tmp_path, route, target):
     from http.server import BaseHTTPRequestHandler
     observed = {}
     class Api(BaseHTTPRequestHandler):
         def do_POST(self):
-            observed.update(path=self.path, cookie=self.headers.get('Cookie'),
+            observed.update(path=self.path, cookie=self.headers.get('Cookie'), target=self.headers.get('X-Target-Env'),
                             body=self.rfile.read(int(self.headers['Content-Length'])))
             self.send_response(409)
             self.send_header('Content-Type', 'application/json')
@@ -58,18 +59,19 @@ def test_same_origin_api_preserves_real_request_and_error_response(tmp_path):
     api = ThreadingHTTPServer(('127.0.0.1', 0), Api)
     class Frontend(StaticAppHandler):
         api_port = api.server_port
+        upload_port = api.server_port
     web = ThreadingHTTPServer(('127.0.0.1', 0), partial(Frontend, directory=str(tmp_path)))
     workers = [threading.Thread(target=server.serve_forever, daemon=True) for server in (api, web)]
     for worker in workers:
         worker.start()
     try:
-        request = urllib.request.Request(f'http://127.0.0.1:{web.server_port}/v1/settings/user/language',
-                                         data=b'{"language":"de"}', headers={'Cookie':'synthetic-session=1'})
+        request = urllib.request.Request(f'http://127.0.0.1:{web.server_port}{route}',
+                                         data=b'{"language":"de"}', headers={'Cookie':'synthetic-session=1', 'X-Target-Env':'prod'})
         with pytest.raises(urllib.error.HTTPError) as error:
             urllib.request.urlopen(request)
         assert error.value.code == 409
         assert error.value.read() == b'{"error":"version_conflict"}'
-        assert observed == {'path':'/v1/settings/user/language', 'cookie':'synthetic-session=1', 'body':b'{"language":"de"}'}
+        assert observed == {'path':route, 'target':target, 'cookie':'synthetic-session=1', 'body':b'{"language":"de"}'}
     finally:
         for server in (web, api):
             server.shutdown()

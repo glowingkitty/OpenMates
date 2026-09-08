@@ -47,7 +47,7 @@ jobs:
       OPENMATES_E2E_API_URL: http://localhost:8000
       OPENMATES_API_URL: http://localhost:8000
       VITE_API_URL: http://localhost:8000
-      VITE_UPLOAD_URL: http://localhost:8001
+      VITE_UPLOAD_URL: http://localhost:5173
       VITE_ENV: self_hosted
       E2E_USE_MOCKS: '1'
       E2E_USE_LIVE_MOCKS: '1'
@@ -97,6 +97,7 @@ jobs:
         if: inputs.mode != 'pytest'
         run: pnpm install --frozen-lockfile
       - name: Prepare isolated stack
+        id: runtime
         if: inputs.mode == 'e2e'
         run: |
           node frontend/packages/ui/scripts/build-translations.js
@@ -113,6 +114,16 @@ jobs:
           tags: openmates-ci-api:local
           cache-from: type=gha,scope=ci-api
           cache-to: type=gha,scope=ci-api,mode=max
+      - name: Build cached upload dependencies and current source
+        if: inputs.mode == 'e2e' && steps.runtime.outputs.uploads == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./subject
+          file: ./subject/backend/upload/Dockerfile
+          load: true
+          tags: openmates-ci-upload:local
+          cache-from: type=gha,scope=ci-upload
+          cache-to: type=gha,scope=ci-upload,mode=max
       - name: Build current Directus extensions
         if: inputs.mode == 'e2e'
         uses: docker/build-push-action@v6
@@ -189,3 +200,10 @@ jobs:
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
+      - name: Retain original documentation screenshot output
+        if: always() && contains(inputs.specs_json, 'docs-screenshot-generator.spec.ts')
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-screenshots
+          retention-days: 7
+          path: subject/docs/images/user-guide/apps/**/*.jpg

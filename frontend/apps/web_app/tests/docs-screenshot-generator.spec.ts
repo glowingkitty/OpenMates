@@ -109,7 +109,7 @@ for (const [app, skills] of Object.entries(SCREENSHOT_APPS)) {
 			await page.setViewportSize({ width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT });
 
 			// Navigate to the embed showcase page
-			const response = await page.goto(`/dev/preview/embeds/${app}`, {
+			const response = await page.goto(`/dev/preview/embeds/${app}?chrome=0`, {
 				waitUntil: 'networkidle'
 			});
 			expect(response?.status()).toBe(200);
