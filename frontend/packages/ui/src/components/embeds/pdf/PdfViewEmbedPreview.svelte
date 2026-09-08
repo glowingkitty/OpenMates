@@ -310,7 +310,7 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileSnippet })}
-    <div class="pdf-view-preview" class:mobile={isMobileSnippet} bind:this={containerRef}>
+    <div class="pdf-view-preview" data-testid="pdf-view-details" class:mobile={isMobileSnippet} bind:this={containerRef}>
       {#if hasImage}
         <!--
           Page-1 screenshot: full-bleed image, same as PDFEmbedPreview finished state.
@@ -344,7 +344,7 @@
           No screenshot: centered view (eye) icon while loading or on error.
         -->
         <div class="icon-center">
-          <div class="icon_rounded visible"></div>
+          <div class="icon_rounded view" data-testid="pdf-view-fallback-icon"></div>
         </div>
       {/if}
     </div>
