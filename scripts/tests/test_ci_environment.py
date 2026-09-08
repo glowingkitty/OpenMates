@@ -215,3 +215,22 @@ def test_upload_profile_requires_real_scanner_and_isolated_api_targets():
     assert profile["networks"]["default"]["internal"] is True
     assert services["runner-gateway"]["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
     assert services["clamav"]["networks"] == ["default", "ingress"]
+
+
+def test_workflow_scheduler_keeps_only_original_workflow_scan(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+    from scripts.ci_environment import WORKFLOW_SCHEDULER
+
+    calls = []
+    entry = {"task": "workflows.scan_due_triggers", "schedule": 60}
+    app = SimpleNamespace(conf=SimpleNamespace(beat_schedule={"workflow":entry, "dangerous":{"task":"user_tasks.process_due_ai_tasks"}}), start=calls.append)
+    monkeypatch.setitem(sys.modules, "backend.core.api.app.tasks.celery_config", SimpleNamespace(app=app))
+    exec(WORKFLOW_SCHEDULER, {})
+    assert app.conf.beat_schedule == {"workflow":entry}
+    assert calls[0][0] == "beat"
+    profile = compose_profile("a" * 40, workflows=True)
+    assert profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    assert profile["services"]["workflow-scheduler"]["command"] == ["python", "-c", WORKFLOW_SCHEDULER]
+    with pytest.raises(ValueError, match="separate batch"):
+        compose_profile("a" * 40, workflows=True, ai_fixtures=True)

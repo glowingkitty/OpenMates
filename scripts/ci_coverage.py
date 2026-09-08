@@ -98,3 +98,23 @@ def verify_pilot(receipt: dict) -> dict:
         "all_e2e_migrated": False,
         "held_coverage": HOLD_REASONS,
     }
+
+
+def runtime_batches(specs: list[str], batch_size: int) -> list[list[str]]:
+    """Keep credential-free live weather separate from offline replay/storage.
+
+    Daily selection must not accidentally put a real weather request behind
+    the offline fixture network or permit provider egress for a replay batch.
+    This is one reusable capability group, not a per-spec runtime.
+    """
+    if batch_size < 1:
+        raise ValueError("Batch size must be positive")
+    manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+    weather = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
+    groups = ([spec for spec in specs if spec not in weather], [spec for spec in specs if spec in weather])
+    return [group[index:index + batch_size] for group in groups for index in range(0, len(group), batch_size)]
+
+
+def validate_runtime_batch(specs: list[str]) -> None:
+    if len(runtime_batches(specs, max(1, len(specs)))) > 1:
+        raise ValueError("Credential-free Workflow weather tests require a separate batch; use the canonical daily/test dispatcher to partition automatically")

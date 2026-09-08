@@ -243,12 +243,12 @@ def run(argv: list[str]) -> int:
             from scripts.ci_coverage import partition
             specs, held_reasons = partition(specs)
             held_specs = list(held_reasons)
-        from scripts.ci_coverage import execution_mode
+        from scripts.ci_coverage import execution_mode, runtime_batches
         for mode in ("e2e", "artifact", "selfhost"):
             selected = [spec for spec in specs if execution_mode(spec) == mode]
-            for index in range(0, len(selected), BATCH_SIZE):
+            for batch in runtime_batches(selected, BATCH_SIZE):
                 jobs.append(queue.enqueue(
-                    owner, source, selected[index:index + BATCH_SIZE], mode,
+                    owner, source, batch, mode,
                     attempt, args.proof_video_profile,
                 ))
     ensure_coordinator(canonical)

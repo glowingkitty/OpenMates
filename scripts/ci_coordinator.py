@@ -164,6 +164,12 @@ class Queue:
             raise ValueError("E2E requests require explicit specs")
         if mode == "selfhost" and specs != ["selfhost-smoke.spec.ts"]:
             raise ValueError("Installer runtime requires exactly its original smoke spec")
+        if mode == "e2e":
+            try:
+                from scripts.ci_coverage import validate_runtime_batch
+            except ModuleNotFoundError:
+                from ci_coverage import validate_runtime_batch
+            validate_runtime_batch(specs)
         encoded = json.dumps(specs, separators=(",", ":"))
         identity = [owner, source, specs, mode, nonce]
         if proof_profile:
