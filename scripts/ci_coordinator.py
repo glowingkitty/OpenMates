@@ -241,7 +241,9 @@ class Queue:
                 raise ValueError("Unknown CI request")
             receipt = root / "test-results/ci-runs" / key / "receipt.json"
             if receipt.is_file():
-                return json.loads(receipt.read_text())
+                # The reader upgrades and validates cached evidence locally.
+                # Do not bypass new receipt invariants or spend network budget.
+                return fetch(github, jobs[0], root)
             with self.connect() as db:
                 now = time.time()
                 if now < float(self.metadata(db, "network_retry_at")):
