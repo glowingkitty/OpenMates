@@ -107,3 +107,26 @@ matching denial line (no deletion is requested):
 The target path is needed to identify an appropriate in-repository cache/temp
 configuration. No outside-root permission is inferred, and the render gate
 remains closed while this confirmed denial is unresolved.
+
+### Bounded launch-path audit (2026-09-08)
+
+The runner now sets both `TMPDIR` and `MAC_CHROMIUM_TMPDIR` to each exclusive
+run/stage's `tmp` directory. Chromium's [Mac GetTempDir implementation](https://raw.githubusercontent.com/chromium/chromium/main/base/files/file_util_apple.mm)
+explicitly checks the latter before `NSTemporaryDirectory`; its [singleton socket](https://chromium.googlesource.com/chromium/src/+/main/chrome/browser/process_singleton_posix.cc)
+uses `CreateUniqueTempDir`. This repairs a missing explicit override, not proof
+that it was the PID15585 violation. No Chrome retry accompanies this change.
+
+| Path family | Finding / remaining boundary |
+| --- | --- |
+| Temp/socket | Both Mac-specific and generic temp variables point inside repository runs. |
+| Profile/cache | `--user-data-dir` already points to run/browser-profile. [Mac cache derivation](https://raw.githubusercontent.com/chromium/chromium/main/chrome/common/chrome_paths_mac.mm) keeps cache with a profile outside the normal Application Support tree. |
+| HOME/XDG | Not inherited in the explicit subprocess environment. Cocoa uses NSHomeDirectory/native directory APIs; adding Linux XDG variables would not prove confinement. |
+| Crashpad | [DIR_CRASH_DUMPS](https://raw.githubusercontent.com/chromium/chromium/main/chrome/common/chrome_paths.cc) uses the default user-data directory, explicitly not necessarily the command-line profile. Existing disable flags did not prevent a Crashpad fork attempt. This remains unresolved; no guessed flag added. |
+| Downloads | Mac native Downloads default is not relocated. The capability fixture initiates no download, but full rendering must not assume every path is confined. |
+| Native enforcement | Outside-root deletion remains denied independently of all environment settings. |
+
+`render-diagnostic` additionally reads the failed run's singleton link targets
+without following them, and Chrome's installed version plist. It cannot recover
+the kernel's unlink argument. The exact remaining human input is still the
+PID15585 denial line from the read-only operator command above. The persistent
+stop is unchanged, and the full production render interface is not ready.

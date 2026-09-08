@@ -8,6 +8,8 @@ It neither clears stop state nor retries the browser or any render operation.
 import json
 import os
 from pathlib import Path
+import plistlib
+import stat
 
 RUN = Path('/Users/kitty/openmates-marketing/videos/remotion/renders/runs/4ee1ce49a798445794ac296af9bbed23')
 
@@ -36,6 +38,21 @@ def crash_summary(text):
 
 def main():
     evidence = {'classification': 'unexplained_SIGKILL_not_proven_deletion', 'pid': 15585, 'files': {}}
+    evidence['launch_path_metadata'] = {}
+    # Inspect names/links only. Never traverse a socket/profile symlink or read
+    # the user's default browser data. This can reveal where the failed launch
+    # placed its singleton socket without starting Chrome or deleting fixtures.
+    for path in (RUN / 'tmp', RUN / 'browser-profile',
+                 *(RUN / 'browser-profile' / name for name in ('SingletonSocket', 'SingletonCookie', 'SingletonLock', 'Crashpad'))):
+        try:
+            info = path.lstat()
+            evidence['launch_path_metadata'][str(path)] = {
+                'mode': stat.S_IFMT(info.st_mode),
+                'link_target': os.readlink(path) if stat.S_ISLNK(info.st_mode) else None}
+        except FileNotFoundError:
+            evidence['launch_path_metadata'][str(path)] = {'exists': False}
+    with open('/Applications/Google Chrome.app/Contents/Info.plist', 'rb') as file:
+        evidence['chrome_version'] = plistlib.load(file).get('CFBundleShortVersionString')
     for name in ('browser.log', 'supervisor-result.json', 'bundle/stderr.log', 'bundle/result.json'):
         path = RUN / name
         if any(p.is_symlink() for p in (path, *path.parents)):

@@ -321,3 +321,19 @@ def test_render_report_rejects_path_escape(project):
     m = helper()
     with pytest.raises(m.RequestError):
         m.render_report(project, {'run': '../another-run'})
+
+
+def test_render_environment_scopes_chromium_temp_without_dispatch(project, monkeypatch):
+    m = helper()
+    monkeypatch.setattr(m, 'RENDER_CODE', 'fixed-test-double')
+    monkeypatch.setattr(m, 'scope_probe', lambda scope: {})
+    captured = []
+    def observe(command, run, **kwargs):
+        captured.append((run, kwargs['env']))
+        return {'status': 'probe-passed'}
+    monkeypatch.setattr(m, 'observed_process', observe)
+    m.render_check(project, {'action': 'supervisor-probe', '_task_identity': 'local-test'})
+    run, env = captured[0]
+    assert env['MAC_CHROMIUM_TMPDIR'] == env['TMPDIR'] == str(run / 'tmp')
+    assert (run / 'tmp').is_dir()
+    assert run.is_relative_to(project)

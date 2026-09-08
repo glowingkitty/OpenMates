@@ -540,7 +540,11 @@ def render_check(root, request):
     os.close(fd)
     run = parent / uuid.uuid4().hex
     run.mkdir(mode=0o700)
-    env = {'PATH': '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin', 'TMPDIR': str(run / 'tmp')}
+    # Chromium on Mac checks MAC_CHROMIUM_TMPDIR before NSTemporaryDirectory;
+    # TMPDIR alone is not its explicit hermetic override. See the path audit in
+    # docs/architecture/apple-no-delete-safety.md. Scope socket/temp cleanup too.
+    env = {'PATH': '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin',
+           'TMPDIR': str(run / 'tmp'), 'MAC_CHROMIUM_TMPDIR': str(run / 'tmp')}
     (run / 'tmp').mkdir()
     (run / 'empty-public').mkdir()
     if request['action'] == 'supervisor-probe':
@@ -576,7 +580,8 @@ def staged_render_check(root, run, node, browser, encoder, env, task_stop, sandb
         (directory / 'empty-public').mkdir()
         payload = {'root': str(root), 'run': str(directory), 'encoder': str(encoder), 'stage': stage, 'roots': [str(p) for p in (allowed_roots or [root])], 'protected': [str(p) for p in protected], **extra}
         command = ['/usr/bin/sandbox-exec', '-p', sandbox_profile, str(node), '-e', RENDER_CODE]
-        return command, directory, json.dumps(payload).encode(), {**env, 'TMPDIR': str(directory / 'tmp')}
+        return command, directory, json.dumps(payload).encode(), {
+            **env, 'TMPDIR': str(directory / 'tmp'), 'MAC_CHROMIUM_TMPDIR': str(directory / 'tmp')}
     command, directory, payload, stage_env = node_stage('bundle')
     result = observed_process(command, directory, input_data=payload, env=stage_env, task_stop=task_stop)
     if result.get('status') != 'bundle-ready':
