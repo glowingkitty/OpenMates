@@ -597,7 +597,7 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account receipt {action_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account receipt {action_id}")
-                    elif event_type == "focus_mode_activated":
+                    elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
                         # metadata (e.g., context menu focus indicator) in real-time.
@@ -612,10 +612,11 @@ async def listen_for_cache_events(app: FastAPI):
                                     try:
                                         await manager.send_personal_message(
                                             {
-                                                "type": "focus_mode_activated",
+                                                "type": event_type,
                                                 "payload": {
                                                     "chat_id": chat_id,
                                                     "focus_id": focus_id,
+                                                    **({"embed_id": payload.get("embed_id"), "expires_at": payload.get("expires_at")} if event_type == "focus_mode_pending" else {}),
                                                 }
                                             },
                                             user_id,

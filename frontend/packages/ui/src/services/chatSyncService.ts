@@ -1292,6 +1292,16 @@ export class ChatSynchronizationService extends EventTarget {
       );
     });
 
+    // Only this live server event authorizes a cancellable countdown. Sync/history
+    // embed delivery never populates the transient activation store.
+    webSocketService.on("focus_mode_pending", async (payload) => {
+      const event = payload as { chat_id: string; focus_id: string; embed_id: string; expires_at: number };
+      const { pendingFocusActivationStore } = await import("../stores/pendingFocusActivationStore");
+      pendingFocusActivationStore.set(event.embed_id, {
+        chatId: event.chat_id, focusId: event.focus_id, expiresAt: event.expires_at * 1000,
+      });
+    });
+
     // Handle focus mode activated events (sent after auto-confirm task fires)
     // Updates the local chatMetadataCache so the context menu shows the focus indicator
     // in real-time without requiring a page refresh.
