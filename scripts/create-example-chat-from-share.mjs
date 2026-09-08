@@ -1037,6 +1037,7 @@ function formatEmbeds(embeds) {
     content: sanitizeEmbedContent(embed.content),
     parent_embed_id: embed.parent_embed_id ?? null,
     embed_ids: embed.embed_ids ?? null,
+    pii_mappings: embed.pii_mappings || undefined,
   }));
 }
 
