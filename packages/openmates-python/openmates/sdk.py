@@ -40,6 +40,8 @@ from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
 DEFAULT_API_URL = "https://api.openmates.org"
 DEFAULT_TIMEOUT_SECONDS = 60
+# Match the existing CLI lookup within the server Task-list bound.
+TASK_LOOKUP_LIMIT = 500
 DEFAULT_RECOVERY_POLL_INTERVAL_SECONDS = 0.5
 DEFAULT_RECOVERY_TIMEOUT_SECONDS = 60.0
 SKILL_TASK_POLL_INTERVAL_SECONDS = 2.0
@@ -4281,6 +4283,7 @@ class OpenMatesTasks:
         return self._client._get(
             _with_query(
                 "/v1/user-tasks",
+                limit=TASK_LOOKUP_LIMIT,
                 status=status,
                 chat_id=resolved_chat_id,
                 project_id=resolved_project_id,

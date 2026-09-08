@@ -359,7 +359,7 @@ def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
 
     def fake_get(url, *, headers, timeout):
         assert headers["Authorization"] == f"Bearer {api_key}"
-        assert url.endswith("/v1/user-tasks")
+        assert url.endswith("/v1/user-tasks?limit=500")
         return FakeResponse()
 
     monkeypatch.setattr("openmates.sdk.requests.get", fake_get)
