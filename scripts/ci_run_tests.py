@@ -30,6 +30,7 @@ API = "http://localhost:8000"
 APP = "http://localhost:5173"
 # Real signup endpoint permits five email requests per minute per runner IP.
 SIGNUP_INTERVAL_SECONDS = 15
+FIXTURE_CREDITS = 1000
 _last_signup_started = None
 
 
@@ -159,6 +160,42 @@ process.stdout.write(JSON.stringify({api_key: result.api_key}));
     return key
 
 
+def accept_fixture_credits(account: dict) -> int:
+    """Accept the new invite gift through genuine first-party authentication.
+
+    Credits exist only in the disposable database. They enable original chat
+    controls while provider credentials and outbound replay restrictions remain
+    unchanged. Never patch encrypted balances or bypass the product gift flow.
+    """
+    require_runner()
+    sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
+    program = """
+const { OpenMatesClient } = await import(process.argv[1]);
+const client = new OpenMatesClient({apiUrl: process.argv[2]});
+if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
+const cookie = Object.entries(client.getSession().cookies).map(([k,v]) => k + '=' + v).join('; ');
+const response = await fetch(process.argv[2] + '/v1/auth/accept-gift', {
+  method: 'POST', headers: {Cookie: cookie, Origin: 'http://localhost:5173'}
+});
+if (!response.ok) throw new Error('Fresh signup gift acceptance failed: ' + response.status);
+const result = await response.json();
+if (result.success !== true || result.current_credits !== Number(process.argv[3]))
+  throw new Error('Fresh signup credit balance differs from the bounded fixture');
+process.stdout.write(JSON.stringify({credits: result.current_credits}));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program, sdk, API, str(FIXTURE_CREDITS)],
+        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
+        capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode:
+        raise RuntimeError("Fresh-account signup gift acceptance failed; no balance bypass")
+    credits = json.loads(result.stdout).get("credits")
+    if credits != FIXTURE_CREDITS:
+        raise RuntimeError("Fresh-account credit fixture balance mismatch")
+    return credits
+
+
 def pace_signup():
     """Respect the real shared-IP limit without disabling product rate limits."""
     global _last_signup_started
@@ -178,7 +215,7 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
     invite = secrets.token_hex(9)
     request(
         "http://localhost:8055/items/invite_codes",
-        {"code": invite, "remaining_uses": 1, "is_admin": False},
+        {"code": invite, "remaining_uses": 1, "is_admin": False, "gifted_credits": FIXTURE_CREDITS},
         token,
     )
     private = COMPOSE_PATH.parent
@@ -273,6 +310,7 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
     mapped["E2E_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
+    accept_fixture_credits(mapped)
     return mapped
 
 

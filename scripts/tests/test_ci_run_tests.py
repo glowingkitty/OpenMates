@@ -229,3 +229,25 @@ def test_proof_dimensions_reject_unknown_profile(monkeypatch):
     monkeypatch.setenv("PLAYWRIGHT_PROOF_VIDEO_PROFILE", "unknown")
     with pytest.raises(ValueError, match="Unsupported"):
         runner.configure_proof_dimensions()
+
+
+def test_fresh_credit_fixture_uses_real_gift_and_rejects_wrong_balance(tmp_path, monkeypatch):
+    import pytest
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    calls = []
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout=json.dumps({"credits": runner.FIXTURE_CREDITS}))
+    monkeypatch.setattr(runner.subprocess, "run", run)
+    assert runner.accept_fixture_credits({"OPENMATES_STATE_DIR": "/private/fresh"}) == 1000
+    command, kwargs = calls[0]
+    assert "/v1/auth/accept-gift" in command[3]
+    assert "client.getSession().cookies" in command[3]
+    assert kwargs["env"]["OPENMATES_STATE_DIR"] == "/private/fresh"
+    assert kwargs["capture_output"] is True
+    monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout='{"credits": 0}'))
+    with pytest.raises(RuntimeError, match="balance mismatch"):
+        runner.accept_fixture_credits({"OPENMATES_STATE_DIR": "/private/fresh"})
