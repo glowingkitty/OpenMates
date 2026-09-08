@@ -1,0 +1,36 @@
+/**
+ * Mindmap normal-view source visibility regression.
+ * Uses public component data without a provider, upload or account dependency.
+ * Supports public-example safe rendering and the TASK-18 no-JSON acceptance.
+ * Invalid-source recovery and canonical download remain separately asserted.
+ * See docs/architecture/mindmap-fullscreen-design-proposal.md.
+ */
+import { expect, test } from '../helpers/cookie-audit';
+
+// playwright-account: not_required reason=isolated_component_preview
+const PREVIEW = '/dev/preview/embeds/mindmaps/MindMapEmbedFullscreen?chrome=0';
+const SOURCE_MARKER = '"openmatesType"';
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('normal fullscreen renders the map without exposing source JSON', async ({ page }) => {
+  await page.goto(PREVIEW);
+  const overlay = page.getByTestId('embed-fullscreen-overlay');
+  await expect(overlay.getByTestId('mindmap-fullscreen-canvas')).toBeVisible();
+  await expect(overlay.getByTestId('mindmap-node').first()).toContainText('Customer Interviews');
+  await expect(overlay).not.toContainText(SOURCE_MARKER);
+  const download = overlay.getByTestId('embed-download-button');
+  await expect(download).toHaveAttribute('download', /launch-plan.*\.ommindmap$/);
+  const exported = await download.evaluate(async (element: HTMLAnchorElement) =>
+    (await fetch(element.href)).json());
+  expect(exported).toMatchObject({ openmatesType: 'mindmap', title: 'Launch Plan' });
+});
+
+// Existing mindmap Plan S-4 / AC-4 preserves invalid-source recovery.
+// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+test('invalid fullscreen retains a visible error and copyable original source', async ({ page }) => {
+  await page.goto(`${PREVIEW}&variant=invalidSource`);
+  const overlay = page.getByTestId('embed-fullscreen-overlay');
+  await expect(overlay).toContainText('Invalid mind map JSON');
+  await expect(overlay).toContainText('This is not a valid mindmap document');
+  await expect(overlay.getByTestId('mindmap-fullscreen-canvas')).toHaveCount(0);
+});
