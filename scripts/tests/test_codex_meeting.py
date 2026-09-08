@@ -139,3 +139,153 @@ def test_reruns_keep_latest_counts_and_partial_overlap_never_sums(
     assert result["case_counts"] is None and result["overlapping_reruns"]
     assert result["rerun_batches"] == 1 and result["selected_unique_specs"] == 2
     assert result["batches"]["failure"] == 3
+
+
+def test_today_keeps_running_and_finished_candidates_without_changing_yesterday(
+    tmp_path,
+):
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    write(
+        a,
+        [
+            ("2026-09-07T10:00:00Z", "Previous work"),
+            ("2026-09-08T10:00:00Z", "Completed verification"),
+        ],
+    )
+    write(b, [])
+    result = meeting.review_history(
+        [
+            {"id": "a", "path": str(a), "status": {"type": "idle"}},
+            {"id": "b", "path": str(b), "status": {"type": "active"}},
+        ],
+        datetime(2026, 9, 8, 12, tzinfo=timezone.utc),
+        "UTC",
+    )
+    assert result["review_day"] == "2026-09-07"
+    assert {t["thread"] for t in result["today_tasks"]} == {"a", "b"}
+    assert (
+        next(t for t in result["today_tasks"] if t["thread"] == "a")["last_message"][
+            "excerpt"
+        ]
+        == "Completed verification"
+    )
+
+
+def test_research_requires_priorities_before_any_source_is_read(tmp_path):
+    import pytest
+
+    class NeverRead:
+        def call(self, *args):
+            raise AssertionError("Research happened before priorities")
+
+    with pytest.raises(ValueError, match="priorities"):
+        meeting.collect(tmp_path, datetime.now(timezone.utc), "UTC", NeverRead())
+
+
+def test_daily_records_preserve_yesterday_and_require_four_distinct_answers(tmp_path):
+    import pytest
+
+    tid = "00000000-0000-0000-0000-000000000001"
+    first = meeting.save_meeting_step(
+        tmp_path, "2026-09-07", tid, "priorities", "Ship signup", "human-1", "UTC"
+    )
+    meeting.save_meeting_step(
+        tmp_path, "2026-09-08", tid, "priorities", "Finish billing", "human-2", "UTC"
+    )
+    assert (
+        meeting.previous_priorities(tmp_path, "2026-09-08")["calendar_yesterday"][
+            "meetings"
+        ][tid]["priorities"]
+        == "Ship signup"
+    )
+    with pytest.raises(ValueError, match="four"):
+        meeting.save_meeting_step(
+            tmp_path, "2026-09-08", tid, "proposal", "Today focus", "", "UTC"
+        )
+    for i in range(4):
+        meeting.save_meeting_step(
+            tmp_path, "2026-09-08", tid, "answer", f"Answer {i}", f"reply-{i}", "UTC"
+        )
+    meeting.save_meeting_step(
+        tmp_path, "2026-09-08", tid, "answer", "Answer 3", "reply-3", "UTC"
+    )
+    record = meeting.save_meeting_step(
+        tmp_path, "2026-09-08", tid, "proposal", "Today focus", "", "UTC"
+    )
+    assert len(record["answers"]) == 4 and record["phase"] == "proposed"
+    assert first["phase"] == "research"
+
+
+def test_cli_tasks_include_all_statuses_and_surface_failed_reads(tmp_path):
+    calls = []
+
+    def read(root, args):
+        calls.append(args)
+        status = args[-1]
+        if status == "blocked":
+            raise OSError("Offline")
+        return {
+            "tasks": [
+                {
+                    "task_id": status,
+                    "short_id": "TASK-1",
+                    "title": status,
+                    "status": status,
+                }
+            ]
+        }
+
+    result = meeting.openmates_tasks(tmp_path, read)
+    assert {call[-1] for call in calls} == {
+        "backlog",
+        "todo",
+        "in_progress",
+        "blocked",
+        "done",
+    }
+    assert (
+        result["coverage"] == "incomplete"
+        and result["errors"][0]["status"] == "blocked"
+    )
+    assert any(t["status"] == "done" for t in result["tasks"])
+
+
+def test_priority_revisions_and_legacy_decisions_are_not_lost(tmp_path):
+    tid = "00000000-0000-0000-0000-000000000001"
+    meeting.save_meeting_step(
+        tmp_path, "2026-09-07", tid, "priorities", "Old focus", "first", "UTC"
+    )
+    meeting.save_meeting_step(
+        tmp_path, "2026-09-07", tid, "priorities", "Corrected focus", "second", "UTC"
+    )
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts/.daily-meeting-state.json").write_text(
+        json.dumps({"date": "2026-09-06", "priorities": ["Earlier focus"]})
+    )
+    previous = meeting.previous_priorities(tmp_path, "2026-09-08")
+    assert previous["calendar_yesterday"]["revisions"][0]["priorities"] == "Old focus"
+    assert (
+        previous["calendar_yesterday"]["meetings"][tid]["priorities"]
+        == "Corrected focus"
+    )
+    assert previous["legacy_state"]["priorities"] == ["Earlier focus"]
+    assert meeting.meeting_path(tmp_path, "2026-09-07").stat().st_mode & 0o777 == 0o600
+
+
+def test_legacy_entry_point_asks_priorities_without_research(monkeypatch, tmp_path):
+    import sys
+    from scripts import codex_orchestration, codex_rpc, _daily_meeting_helper as helper
+
+    monkeypatch.setitem(sys.modules, "codex_meeting", meeting)
+    monkeypatch.setitem(sys.modules, "codex_orchestration", codex_orchestration)
+    monkeypatch.setitem(sys.modules, "codex_rpc", codex_rpc)
+    monkeypatch.setattr(codex_orchestration, "canonical_root", lambda _: tmp_path)
+    monkeypatch.setattr(
+        codex_rpc,
+        "CodexRPC",
+        lambda: (_ for _ in ()).throw(AssertionError("Research started")),
+    )
+    data = helper.gather_all_data(str(tmp_path), "2026-09-07")
+    assert data["needs_priorities"]
+    assert "FIRST ask" in helper.build_meeting_prompt(data, "2026-09-08", "2026-09-07")

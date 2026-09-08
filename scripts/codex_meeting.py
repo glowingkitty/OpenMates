@@ -15,6 +15,7 @@ import json
 from pathlib import Path
 import sqlite3
 import subprocess
+import uuid
 from zoneinfo import ZoneInfo
 
 MAX_PAGES = 100
@@ -111,11 +112,32 @@ def review_history(threads, now, timezone_name, max_days=30):
     today = now.astimezone(tz).replace(hour=0, minute=0, second=0, microsecond=0)
     earliest = today - timedelta(days=max_days)
     by_day, errors, seen = {}, [], set()
+    today_key = today.date().isoformat()
+
+    def task_row(thread):
+        return {
+            "thread": thread["id"],
+            "link": f"codex://threads/{thread['id']}",
+            "title": thread.get("name") or thread.get("preview", "Untitled")[:100],
+            "parent": thread.get("forkedFromId"),
+            "archived": thread.get("archived", False),
+            "runtime_status": thread.get("status", {}).get("type", "unknown"),
+            "status_checked_at": now.isoformat(),
+            "messages": 0,
+            "last_message": None,
+            "completion": "Review outcome evidence; idle is not completed",
+        }
+
     # Prefer parent history so fork copies do not count as a second achievement.
     ordered = sorted(threads, key=lambda t: bool(t.get("forkedFromId")))
     for thread in ordered:
+        if (
+            thread.get("status", {}).get("type") == "active"
+            or thread.get("updatedAt", 0) >= today.timestamp()
+        ):
+            by_day.setdefault(today_key, {}).setdefault(thread["id"], task_row(thread))
         try:
-            rows = messages(thread["path"], earliest, today)
+            rows = messages(thread["path"], earliest, now)
         except (OSError, ValueError, KeyError) as exc:
             errors.append({"thread": thread["id"], "error": type(exc).__name__})
             continue
@@ -126,26 +148,20 @@ def review_history(threads, now, timezone_name, max_days=30):
             day = stamp(row["timestamp"]).astimezone(tz).date().isoformat()
             task = by_day.setdefault(day, {}).setdefault(
                 thread["id"],
-                {
-                    "thread": thread["id"],
-                    "link": f"codex://threads/{thread['id']}",
-                    "title": thread.get("name")
-                    or thread.get("preview", "Untitled")[:100],
-                    "parent": thread.get("forkedFromId"),
-                    "archived": thread.get("archived", False),
-                    "messages": 0,
-                    "last_message": None,
-                },
+                task_row(thread),
             )
             task["messages"] += 1
             task["last_message"] = row
-    selected = max(by_day) if by_day else None
+    previous_days = [day for day in by_day if day < today_key]
+    selected = max(previous_days) if previous_days else None
     return {
         "calendar_yesterday": (today - timedelta(days=1)).date().isoformat(),
         "review_day": selected,
         "timezone": timezone_name,
         "searched_days": max_days,
         "tasks": list(by_day.get(selected, {}).values()),
+        "today_tasks": list(by_day.get(today_key, {}).values()),
+        "today": today_key,
         "history_errors": errors,
         "coverage": "incomplete" if errors else "complete",
     }
@@ -352,7 +368,152 @@ def nightly_snapshot(root, since, until):
     }
 
 
-def collect(root, now, timezone_name, rpc):
+def meeting_path(root, day):
+    if datetime.fromisoformat(day).date().isoformat() != day:
+        raise ValueError("Meeting date must be YYYY-MM-DD")
+    return root / "logs/daily-meetings" / (day + ".json")
+
+
+def load_meeting(root, day, thread):
+    path = meeting_path(root, day)
+    return (
+        json.loads(path.read_text()).get("meetings", {}).get(thread, {})
+        if path.exists()
+        else {}
+    )
+
+
+def save_meeting_step(root, day, thread, step, text, message_id, timezone_name):
+    """Private dated text records: intent and approval remain distinct."""
+    uuid.UUID(thread)
+    ZoneInfo(timezone_name)
+    if not text.strip() or len(text) > 12000:
+        raise ValueError("Meeting text must contain 1–12000 characters")
+    if step in {"priorities", "answer", "approve"} and not message_id:
+        raise ValueError("Record the actual human reply message ID")
+    try:
+        from scripts.codex_orchestration import transaction
+    except ModuleNotFoundError:
+        from codex_orchestration import transaction
+    with transaction(meeting_path(root, day)) as archive:
+        record = archive.setdefault("meetings", {}).setdefault(thread, {})
+        if step == "priorities":
+            if record.get("priorities_message_id") == message_id:
+                return record
+            if record:
+                archive.setdefault("revisions", []).append({"thread": thread, **record})
+            record.clear()
+            record.update(
+                priorities=text,
+                priorities_message_id=message_id,
+                answers=[],
+                phase="research",
+                timezone=timezone_name,
+                date=day,
+                link=f"codex://threads/{thread}",
+            )
+        elif not record.get("priorities"):
+            raise ValueError(
+                "Ask for today's priorities before research or clarification"
+            )
+        elif step == "answer":
+            if any(a["message_id"] == message_id for a in record["answers"]):
+                return record
+            if len(record["answers"]) >= 4:
+                raise ValueError("The four clarification rounds are already recorded")
+            record["answers"].append({"message_id": message_id, "text": text})
+            record["phase"] = "clarifying"
+        elif step == "proposal":
+            if len(record["answers"]) != 4:
+                raise ValueError(
+                    "Record four answered clarification rounds before proposing today's focus"
+                )
+            record.update(proposal=text, phase="proposed")
+            record.pop("approval", None)
+        elif step == "approve":
+            if record.get("phase") != "proposed":
+                raise ValueError("Present the proposal before recording approval")
+            record.update(
+                approval={"message_id": message_id, "text": text}, phase="approved"
+            )
+        else:
+            raise ValueError("Unknown meeting step")
+        record["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return record
+
+
+def previous_priorities(root, day):
+    yesterday = (datetime.fromisoformat(day) - timedelta(days=1)).date().isoformat()
+
+    def read(date):
+        path = meeting_path(root, date)
+        return json.loads(path.read_text()) if path.exists() else None
+
+    previous = read(yesterday)
+    latest = None
+    for age in range(1, 31):
+        date = (datetime.fromisoformat(day) - timedelta(days=age)).date().isoformat()
+        value = read(date)
+        if value:
+            latest = {"date": date, "record": value}
+            break
+    # Preserve pre-migration meeting decisions as explicitly dated legacy evidence.
+    legacy_path = root / "scripts/.daily-meeting-state.json"
+    legacy = json.loads(legacy_path.read_text()) if legacy_path.exists() else None
+    return {
+        "calendar_yesterday": previous,
+        "last_recorded_day": latest,
+        "legacy_state": legacy,
+        "status": "recorded" if previous else "no_record_for_yesterday",
+    }
+
+
+def openmates_tasks(root, reader=None):
+    if reader is None:
+        try:
+            from scripts.codex_task_context import cli as reader
+        except ModuleNotFoundError:
+            from codex_task_context import cli as reader
+    tasks, errors = {}, []
+    for status in ("backlog", "todo", "in_progress", "blocked", "done"):
+        try:
+            result = reader(root, ["list", "--status", status])
+            rows = result["tasks"]
+            if not isinstance(rows, list):
+                raise ValueError("Invalid CLI task response")
+            for task in rows:
+                tasks[task["task_id"]] = {
+                    k: task.get(k)
+                    for k in (
+                        "task_id",
+                        "short_id",
+                        "title",
+                        "description",
+                        "status",
+                        "priority",
+                        "due_at",
+                        "blocked_reason_code",
+                        "latest_instruction",
+                        "external_chat",
+                    )
+                }
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+            errors.append({"status": status, "error": type(exc).__name__})
+    return {
+        "tasks": list(tasks.values()),
+        "errors": errors,
+        "coverage": "incomplete"
+        if errors
+        else "CLI snapshot; server pagination completeness unverified",
+        "activity_instruction": "Read relevant tasks' activities with the CLI before prioritization; list data is not their full history.",
+    }
+
+
+def collect(root, now, timezone_name, rpc, meeting=None):
+    if not meeting or not meeting.get("priorities"):
+        raise ValueError(
+            "Ask and record today's priorities before collecting research inputs"
+        )
     threads, errors = inventory(rpc, root)
     history = review_history(threads, now, timezone_name)
     history["inventory_errors"] = errors
@@ -363,10 +524,14 @@ def collect(root, now, timezone_name, rpc):
     )
     return {
         "collected_at": now.isoformat(),
+        "meeting": meeting,
+        "previous_priorities": previous_priorities(root, midnight.date().isoformat()),
+        "openmates_tasks": openmates_tasks(root),
         "history": history,
         "commits": commits(
             root, history["review_day"] or history["calendar_yesterday"], timezone_name
         ),
+        "today_commits": commits(root, midnight.date().isoformat(), timezone_name),
         "nightly": nightly_snapshot(
             root, (midnight - timedelta(days=1)).timestamp(), now.timestamp()
         ),
@@ -376,14 +541,37 @@ def collect(root, now, timezone_name, rpc):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--timezone", required=True)
+    p.add_argument("--meeting-thread", required=True)
     p.add_argument("--output", type=Path)
+    p.add_argument("--record", choices=["priorities", "answer", "proposal", "approve"])
+    p.add_argument("--text-file", type=Path)
+    p.add_argument("--message-id", default="")
     args = p.parse_args()
     from codex_orchestration import canonical_root
-    from codex_rpc import CodexRPC
 
     root = canonical_root(Path(__file__).resolve().parent.parent)
-    with CodexRPC() as rpc:
-        result = collect(root, datetime.now(timezone.utc), args.timezone, rpc)
+    now = datetime.now(timezone.utc)
+    day = now.astimezone(ZoneInfo(args.timezone)).date().isoformat()
+    if args.record:
+        if not args.text_file:
+            p.error("--record requires --text-file")
+        result = save_meeting_step(
+            root,
+            day,
+            args.meeting_thread,
+            args.record,
+            args.text_file.read_text(),
+            args.message_id,
+            args.timezone,
+        )
+    else:
+        record = load_meeting(root, day, args.meeting_thread)
+        if not record.get("priorities"):
+            p.error("Ask and record today's priorities first; no research was started")
+        from codex_rpc import CodexRPC
+
+        with CodexRPC() as rpc:
+            result = collect(root, now, args.timezone, rpc, record)
     text = json.dumps(result, indent=2)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

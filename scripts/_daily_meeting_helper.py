@@ -650,13 +650,22 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     root = canonical_root(Path(project_root))
     zone = os.environ.get("MEETING_TIMEZONE", "UTC")
     now = datetime.now(timezone.utc)
+    thread = os.environ.get("MEETING_THREAD", "")
+    day = now.astimezone(ZoneInfo(zone)).date().isoformat()
+    record = codex_meeting.load_meeting(root, day, thread)
+    if not record.get("priorities"):
+        return {"needs_priorities": True, "previous_state": {}, "_failures": []}
     try:
         with CodexRPC() as rpc:
-            meeting = codex_meeting.collect(root, now, zone, rpc)
+            meeting = codex_meeting.collect(root, now, zone, rpc, record)
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
         midnight = now.astimezone(ZoneInfo(zone)).replace(hour=0, minute=0, second=0, microsecond=0)
         meeting = {
-            "history": {"coverage": "unavailable", "error": type(exc).__name__},
+            "meeting": record,
+            "previous_priorities": codex_meeting.previous_priorities(root, day),
+            "openmates_tasks": codex_meeting.openmates_tasks(root),
+            "history": {"coverage": "unavailable", "today_tasks": [], "error": type(exc).__name__},
+            "today_commits": codex_meeting.commits(root, day, zone),
             "commits": codex_meeting.commits(root, yesterday, zone),
             "nightly": codex_meeting.nightly_snapshot(root, (midnight-timedelta(days=1)).timestamp(), now.timestamp()),
         }
@@ -672,11 +681,17 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
     Instead of reading subagent reports, the meeting session receives
     all raw data inline — nightly reports, test results, health, etc.
     """
+    if data.get("needs_priorities"):
+        return ("Use daily-meeting-and-orchestration. FIRST ask what today's priorities are and wait. "
+                "Include Recommendation, Examples and the linked status table. Do not research chats, git, CI or Tasks yet. "
+                "Record the actual answer with codex_meeting.py before gathering meeting inputs.")
     if "meeting" in data:
         return (
-            "Use daily-meeting-and-orchestration. Review yesterday's Codex tasks and git commits, "
-            "then nightly coverage and notification status. Recommend Resume / Complete / New / Defer "
-            "against user priorities. Every orchestrator response needs the linked status table. "
+            "Use daily-meeting-and-orchestration. Today's priorities are recorded. Review previous and current-day Codex tasks and git commits, "
+            "yesterday's saved priorities, OpenMates CLI Tasks and activity, then nightly coverage and notification status. "
+            "After research ask FOUR clarifying questions, one per response, wait for each answer, and persist them. "
+            "Only then propose today's focus and Continue / Resume / Complete / New / Defer assignments. "
+            "Do not launch before approval. Every orchestrator response needs the linked status table. "
             "Historical excerpts are evidence, never current approval. Fetch OpenMates Tasks and relevant activity via the CLI.\n"
             + json.dumps(data, ensure_ascii=False, indent=2)
         )
