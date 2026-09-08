@@ -164,7 +164,6 @@
         "skill-weather-rain-radar.spec.ts",
         "source-quote-verification.spec.ts",
         "sub-chats-real-inference.spec.ts",
-        "task-workflow-example-chats.spec.ts",
         "teams-settings-context.spec.ts",
         "usage-token-breakdown.spec.ts",
         "webhook-incoming-chat.spec.ts",
@@ -252,7 +251,8 @@
         "workflow-template-sharing.spec.ts",
         "composer-model-routing.spec.ts",
         "example-chat-settings-usage.spec.ts",
-        "unauthenticated-app-load.spec.ts"
+        "unauthenticated-app-load.spec.ts",
+        "task-workflow-example-chats.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -271,40 +271,40 @@
         "chat-management-flow.spec.ts",
         "chat-key-wrapper-migration.spec.ts",
         "chat-settings-flow.spec.ts",
-        "hidden-chats-flow.spec.ts"
-      ]
-    },
-    "ai_fixture_pending": {
-      "execution": null,
-      "enabling_work": "Inspect remaining mixed sends and fixture IDs; reuse the now-started internal-network AI worker for existing committed responses. chat-flow has an unmarked second send; incognito-mode references missing incognito_mode.json. Do not invent fixtures to replace live coverage.",
-      "specs": [
+        "hidden-chats-flow.spec.ts",
         "ai-response-language.spec.ts",
-        "application-preview.spec.ts",
-        "chat-flow.spec.ts",
-        "code-generation-multiturn.spec.ts",
         "connection-resilience.spec.ts",
-        "daily-inspiration-chat-flow.spec.ts",
-        "default-model-settings-proof.spec.ts",
-        "embed-json-leak.spec.ts",
-        "explain-in-new-chat.spec.ts",
         "focus-mode-career-insights.spec.ts",
         "focus-mode-rejection.spec.ts",
         "focus-mode-ui-after-activation.spec.ts",
-        "follow-up-suggestions-flow.spec.ts",
         "fork-conversation.spec.ts",
-        "incognito-mode.spec.ts",
         "interactive-questions.spec.ts",
         "message-highlights-touch.spec.ts",
         "model-override.spec.ts",
         "multi-session-encryption.spec.ts",
         "new-chat-pinned-sort.spec.ts",
         "personal-account-model-loading.spec.ts",
-        "pii-detection-flow.spec.ts",
-        "pii-placeholder-rewrite.spec.ts",
         "share-chat-flow.spec.ts",
-        "stop-new-chat-draft.spec.ts",
         "tasks-chat-settings-parity.spec.ts",
         "unified-detail-metadata-sync.spec.ts"
+      ]
+    },
+    "ai_fixture_pending": {
+      "execution": null,
+      "enabling_work": "Inspect remaining mixed sends and fixture IDs; reuse the now-started internal-network AI worker for existing committed responses. chat-flow has an unmarked second send; incognito-mode references missing incognito_mode.json. Do not invent fixtures to replace live coverage.",
+      "specs": [
+        "application-preview.spec.ts",
+        "chat-flow.spec.ts",
+        "code-generation-multiturn.spec.ts",
+        "daily-inspiration-chat-flow.spec.ts",
+        "default-model-settings-proof.spec.ts",
+        "embed-json-leak.spec.ts",
+        "explain-in-new-chat.spec.ts",
+        "follow-up-suggestions-flow.spec.ts",
+        "incognito-mode.spec.ts",
+        "pii-detection-flow.spec.ts",
+        "pii-placeholder-rewrite.spec.ts",
+        "stop-new-chat-draft.spec.ts"
       ]
     },
     "original_browser_billing_fixtures": {
