@@ -588,6 +588,10 @@ def _validate_encrypted_fork_payload(
         raise HTTPException(status_code=400, detail={"error": "encrypted_history_required", "missing": ["encrypted_chat_key"]})
     if len(request_body.encrypted_messages) != copied_count:
         raise HTTPException(status_code=400, detail={"error": "encrypted_history_required", "expected_message_count": copied_count})
+    # Fork clients may omit the version while supplying an encrypted title.
+    # Initialize the title version as the web fork does, without touching ciphertext.
+    if metadata.get("title_v") is None:
+        metadata["title_v"] = 1 if metadata.get("encrypted_title") else 0
     metadata.update({"id": request_body.new_chat_id, "hashed_user_id": hashed_user_id, "hashed_team_id": None, "messages_v": copied_count})
     return metadata
 

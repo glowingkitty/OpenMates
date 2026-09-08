@@ -17,6 +17,8 @@ scope:
     Specification addition is approved.
   - Reserve remaining preprocessing time for each configured fallback without changing
     total cap or retry-disable semantics.
+  - Repair null title versions in encrypted fork creation and subsequent message dispatch
+    under existing chats.fork.non-destructive-boundary contract.
   out:
   - Change answer model selection, encryption protocols, charging, or sub-chat continuation
     identity.
@@ -29,6 +31,7 @@ references:
   assertions:
   - chats.completion.recovery-takeover
   - chats.persistence.client-encrypted
+  - chats.fork.non-destructive-boundary
 implementation:
   session: 00b4
   files:
@@ -64,6 +67,18 @@ verification:
     source_commit: 2418c1bf4de88a77881f8b799625f731c66fab80
     patch_sha256: 2a8ca4ec7f38ed5aec8d3ccb8838981272932af37e1a2a20852b47577689d55e
     live_result: Pending coordinated runtime load; no conversation retry.
+  fork_red:
+    metadata_run: 'exec-77529: two expected failures for missing/null title_v'
+    dispatch_run: 'exec-60816: exact NoneType > int crash at message_received_handler.py:682'
+  fork_green:
+    run_id: exec-17826
+    result: 39 passed; ruff passed; SDK/CLI parity89 commands4templates passed
+    recorded_at: '2026-09-08T14:23:04.431156+00:00'
+    command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_native_chats_api.py
+      backend/tests/test_sdk_chat_fork_rewind.py backend/tests/test_message_received_active_chat.py
+      -q
+    baseline_note: Chat-list expected encrypted_auto_speak_response field was stale
+      after existing565162b78; baseline asyncio reproduced, expectation updated only.
 title: Recover missing preprocessing output and seal error completion
 implementation_state:
   subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
@@ -207,6 +222,20 @@ decisions:
     healthy third provider remains reachable.
   - A retry-disabled caller retains its single up-to-25-second attempt and never dispatches
     a fallback.
+- id: D-3
+  status: active
+  decision: Initialize absent/null fork title_v from encrypted title presence and
+    tolerate legacy null versions during message dispatch, without rewriting stored
+    ciphertext.
+  reason: User assigned the newly observed fork crash; existing first-party encrypted
+    fork behavior requires usable independent saved chats. No access/auth/encryption
+    policy change.
+  decided_at: '2026-09-08T14:21:34.520720+00:00'
+  examples:
+  - A new encrypted fork with an encrypted title and omitted version starts at title_v
+    1; explicit numeric versions remain unchanged.
+  - An existing fork with null title_v can send a follow-up without replacing its
+    stored encrypted title or source messages.
 attempts:
 - id: A-1
   task_id: TASK-1
@@ -215,9 +244,8 @@ attempts:
   recorded_at: '2026-09-08T13:26:45.735680+00:00'
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy tested source fix; coordinator combines runtime update with
-    Astra adapter work. No runtime mutation or conversation retry by this worker before
-    coordinated verification.
+  next_action: Deploy tested fork metadata repair; request coordinator lease for existing
+    https://api.dev.openmates.org runtime before real CLI fork verification.
   command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_llm_utils_preprocessing_retries.py
     backend/tests/test_llm_utils_stream_fallback.py -q
   expected_outcome: Green focused regression tests

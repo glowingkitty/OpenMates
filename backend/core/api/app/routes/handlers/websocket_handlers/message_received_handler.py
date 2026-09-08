@@ -679,7 +679,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # the client state is stale (e.g., inspiration chats created before the title_v: 1 fix).
         # Trust the server's title_v over the client flag to prevent overwriting existing titles.
         # This protects against any future client-side bug causing the same mismatch.
-        if chat_metadata_from_db and chat_metadata_from_db.get("title_v", 0) > 0 and not chat_has_title_from_client:
+        # Older CLI forks persisted a null version alongside their encrypted title.
+        # Treat its presence as an initialized title; do not rewrite persisted metadata.
+        chat_title_v = (chat_metadata_from_db or {}).get("title_v")
+        if chat_title_v is None:
+            chat_title_v = 1 if (chat_metadata_from_db or {}).get("encrypted_title") else 0
+        if chat_title_v > 0 and not chat_has_title_from_client:
             logger.info(
                 f"Chat {chat_id} has title_v={chat_metadata_from_db.get('title_v')} in DB "
                 f"but client sent chat_has_title=False. Overriding to True to preserve existing title."
