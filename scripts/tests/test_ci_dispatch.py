@@ -113,3 +113,14 @@ def test_partial_cutover_queues_core_and_reports_cloud_hold(tmp_path, monkeypatc
     jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
     assert len(jobs) == 1
     assert json.loads(jobs[0]["specs"]) == ["tasks-flow.spec.ts"]
+
+
+def test_daily_discovery_includes_nested_component_specs(tmp_path, monkeypatch):
+    from scripts import ci_dispatch, daily_ai_test_policy
+    folder = tmp_path / "frontend/apps/web_app/tests/components"
+    folder.mkdir(parents=True)
+    (folder / "nested.spec.ts").write_text("// isolated component")
+    monkeypatch.setattr(daily_ai_test_policy, "load_manifest", lambda *_: {})
+    monkeypatch.setattr(daily_ai_test_policy, "discover_specs", lambda names, **kwargs: list(names))
+    monkeypatch.setattr(daily_ai_test_policy, "daily_plan", lambda *args, **kwargs: SimpleNamespace(selected=[]))
+    assert ci_dispatch.select_snapshot_specs(tmp_path, SimpleNamespace(spec=[], daily=True)) == ["components/nested.spec.ts"]
