@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Orchestrate focused, bounded OpenCode proof-video preparation.
+"""Orchestrate focused, bounded proof-video preparation.
 
 This module resolves existing session/test evidence and computes canonical proof
 contracts, marker trims, simple pacing, cache keys, review bundles, and defect
@@ -19,13 +19,9 @@ import os
 from pathlib import Path
 import shlex
 import subprocess
-import time
+import uuid
 from typing import Any
 
-try:
-    from scripts._zellij_utils import _resolve_opencode_bin
-except ModuleNotFoundError:
-    from _zellij_utils import _resolve_opencode_bin
 
 
 def _resolve_control_plane_root(checkout_root: Path) -> Path:
@@ -67,9 +63,6 @@ MAX_CUMULATIVE_SUBMITTED_FRAMES = 48
 REVIEW_RESERVATION_LEASE_SECONDS = 900
 MAX_AUTOMATIC_CORRECTION_ROUNDS = 2
 MAX_PRODUCT_CODE_CORRECTION_ROUNDS = 1
-REVIEWER_TIMEOUT_SECONDS = int(os.environ.get("OPENMATES_PROOF_REVIEW_TIMEOUT_SECONDS", "600"))
-REVIEWER_PROGRESS_INTERVAL_SECONDS = 30
-REVIEWER_ATTACH_URL = os.environ.get("OPENMATES_OPENCODE_SERVER_URL", "http://127.0.0.1:4096").strip()
 MIN_PLAYBACK_RATE = 0.75
 MAX_PLAYBACK_RATE = 4.0
 READING_WORDS_PER_SECOND = 2.5
@@ -1345,27 +1338,8 @@ def approve_visual_intent(
     return {"status": "passed", "approval": approval, "manifest": manifest, "budget": budget}
 
 
-def _parse_reviewer_output(output: str) -> dict[str, Any]:
-    candidates: list[str] = []
-    for line in output.splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        part = event.get("part") if isinstance(event, dict) else None
-        text = part.get("text") if isinstance(part, dict) else None
-        if event.get("type") == "text" and isinstance(text, str):
-            candidates.append(text.strip())
-    for candidate in reversed(candidates):
-        if candidate.startswith("```"):
-            candidate = candidate.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        try:
-            parsed = json.loads(candidate)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(parsed, dict):
-            return parsed
-    raise WorkflowError("proof-video reviewer did not return one valid JSON object")
+def _review_result_path(run_dir: Path, correction_round: int) -> Path:
+    return run_dir / f"review-result-round-{correction_round}.json"
 
 
 def _default_reviewer_runner(
@@ -1374,103 +1348,30 @@ def _default_reviewer_runner(
     run_dir: Path,
     correction_round: int,
 ) -> tuple[dict[str, Any], str]:
-    run_dir = run_dir.resolve()
-    prompt_path = prompt_path.resolve()
-    output_path = run_dir / f"review-output-round-{correction_round}.jsonl"
-    opencode_bin = _resolve_opencode_bin()
-    if not opencode_bin:
-        raise WorkflowError("proof-video reviewer requires OPENCODE_BIN or an installed OpenCode executable")
+    """Consume an explicit Codex review without starting or messaging an agent.
+
+    The existing review pipeline still validates every frame, assertion and
+    publication receipt. New reviews identify the real Codex conversation;
+    historical cached receipts keep their original provider identity.
+    """
+    result_path = _review_result_path(run_dir, correction_round)
+    receipt = _load_json(result_path)
+    session_url = str(receipt.get("reviewer_session_id") or "")
+    prefix = "codex://threads/"
     try:
-        prompt_path.relative_to(run_dir)
+        if not session_url.startswith(prefix):
+            raise ValueError("missing Codex thread URL")
+        uuid.UUID(session_url.removeprefix(prefix))
     except ValueError as exc:
-        raise WorkflowError("proof-video reviewer prompt must be inside the proof run directory") from exc
-    reviewer_root = next(
-        (
-            root.resolve()
-            for root in (CONTROL_PLANE_ROOT, REPO_ROOT, OPENCODE_RUNTIME_ROOT)
-            if run_dir.is_relative_to(root.resolve())
-        ),
-        None,
-    )
-    if reviewer_root is None:
-        raise WorkflowError("proof-video run directory must be inside the control-plane or active checkout")
-    reviewer_prompt_path = prompt_path.relative_to(reviewer_root)
-    prompt_payload = _load_json(prompt_path)
-    review_request = prompt_payload.get("review_request") if isinstance(prompt_payload.get("review_request"), dict) else {}
-    frames = review_request.get("frames") if isinstance(review_request.get("frames"), list) else []
-    attachment_paths = [prompt_path]
-    for frame in frames:
-        if isinstance(frame, dict) and frame.get("path"):
-            frame["read_path"] = str(reviewer_prompt_path.parent / str(frame["path"]))
-            attachment_paths.append((run_dir / str(frame["path"])).resolve())
-    prompt_path.write_text(json.dumps(prompt_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    command = [
-        opencode_bin,
-        "run",
-        "--title",
-        f"Review proof frames round {correction_round}",
-        "--format",
-        "json",
-        "--agent",
-        "proof-video-reviewer",
-        *(argument for path in attachment_paths for argument in ("--file", str(path))),
-        *(["--attach", REVIEWER_ATTACH_URL] if REVIEWER_ATTACH_URL else ["--pure"]),
-        "--dir",
-        str(reviewer_root),
-        "Review the attached proof prompt and every attached frame, then return only the required JSON review receipt.",
-    ]
-    started_at = time.monotonic()
-    print(
-        f"Proof reviewer round {correction_round} started"
-        + (f" via {REVIEWER_ATTACH_URL}" if REVIEWER_ATTACH_URL else " in standalone pure mode")
-        + f"; timeout={REVIEWER_TIMEOUT_SECONDS}s.",
-        flush=True,
-    )
-    with output_path.open("w+", encoding="utf-8") as output_file:
-        output_path.chmod(0o600)
-        process = subprocess.Popen(  # noqa: S603 - resolved internal OpenCode binary and fixed arguments
-            command,
-            cwd=run_dir,
-            text=True,
-            stdout=output_file,
-            stderr=subprocess.STDOUT,
-        )
-        while True:
-            elapsed = time.monotonic() - started_at
-            remaining = REVIEWER_TIMEOUT_SECONDS - elapsed
-            if remaining <= 0:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=5)
-                raise WorkflowError(
-                    f"proof-video reviewer timed out after {REVIEWER_TIMEOUT_SECONDS}s; partial output: {output_path}"
-                )
-            try:
-                returncode = process.wait(timeout=min(REVIEWER_PROGRESS_INTERVAL_SECONDS, remaining))
-                break
-            except subprocess.TimeoutExpired:
-                print(
-                    f"Proof reviewer round {correction_round} still running ({int(time.monotonic() - started_at)}s elapsed).",
-                    flush=True,
-                )
-        output_file.flush()
-        output_file.seek(0)
-        output = output_file.read().strip()
-    if returncode != 0:
-        raise WorkflowError(f"proof-video reviewer failed with exit code {returncode}; output: {output_path}")
-    session_id = ""
-    for line in output.splitlines():
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if event.get("sessionID"):
-            session_id = str(event["sessionID"])
-            break
-    return _parse_reviewer_output(output), session_id
+        raise WorkflowError("reviewer_session_id must be the actual codex://threads/<uuid> URL") from exc
+    prompt = _load_json(prompt_path)
+    try:
+        from scripts.spec_demo import review_request_hash
+    except ModuleNotFoundError:
+        from spec_demo import review_request_hash
+    if receipt.get("review_request_hash") != review_request_hash(prompt["review_request"]):
+        raise WorkflowError("Codex review result does not match the prepared review request")
+    return receipt, session_url
 
 
 def review_run(
@@ -1582,17 +1483,6 @@ def review_run(
         return cached
     if recovered_cache:
         raise WorkflowError("persisted review cache recovery did not produce reusable evidence")
-    budget = reserve_persisted_review_budget(
-        budget_path,
-        proof_identity=proof_identity,
-        device=device,
-        frame_count=len(frames),
-        correction_round=correction_round,
-        correction_kind=correction_kind,
-        frame_index_hash=frame_hash,
-        source_artifact_hash=source_hash,
-        caption_artifact_hash=caption_hash,
-    )
 
     prompt = {
         "instructions": (
@@ -1612,6 +1502,8 @@ def review_run(
             "in the JSON response."
         ),
         "required_output": {
+            "reviewer_session_id": "actual codex://threads/<uuid> URL",
+            "review_request_hash": review_request_hash(prompt_request),
             "status": "passed|capture_defect|render_defect|product_defect|uncertain",
             "confidence": "number from 0 to 1",
             "frame_index_hash": request.get("frame_index_hash"),
@@ -1633,6 +1525,26 @@ def review_run(
     prompt_path = run_dir / f"review-prompt-round-{correction_round}.json"
     prompt_path.write_text(json.dumps(prompt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     prompt_path.chmod(0o600)
+    result_path = _review_result_path(run_dir, correction_round)
+    if reviewer_runner is _default_reviewer_runner and not result_path.is_file():
+        return {
+            "status": "awaiting_review",
+            "prompt_path": str(prompt_path),
+            "result_path": str(result_path),
+            "next_action": "Review every prepared frame and caption in an existing Codex conversation, write the required JSON result, then rerun review. No agent was launched.",
+        }
+    budget = reserve_persisted_review_budget(
+        budget_path,
+        proof_identity=proof_identity,
+        device=device,
+        frame_count=len(frames),
+        correction_round=correction_round,
+        correction_kind=correction_kind,
+        frame_index_hash=frame_hash,
+        source_artifact_hash=source_hash,
+        caption_artifact_hash=caption_hash,
+    )
+
     receipt, reviewer_session_id = reviewer_runner(prompt_path, run_dir=run_dir, correction_round=correction_round)
     require_user_intent_for_subjective_visual_findings(receipt)
     if receipt.get("frame_index_hash") != request.get("frame_index_hash"):
@@ -1876,7 +1788,7 @@ def main(argv: list[str] | None = None) -> int:
     approve.add_argument("--session", required=True)
     approve.add_argument("--spec", required=True)
     approve.add_argument("--contract", type=Path, required=True)
-    review = subparsers.add_parser("review", help="Run the bounded AI frame review and persist its receipt.")
+    review = subparsers.add_parser("review", help="Prepare or validate an explicit bounded Codex frame review.")
     review.add_argument("--run-dir", type=Path, required=True)
     review.add_argument("--correction-round", type=int, choices=range(MAX_AUTOMATIC_CORRECTION_ROUNDS + 1), default=0)
     review.add_argument(

@@ -2466,154 +2466,28 @@ def test_review_run_rejects_mismatched_cached_request_provenance(
         workflow.review_run(run_dir=second_dir, correction_round=0, correction_kind="none", reviewer_runner=reviewer)
 
 
-def test_default_reviewer_reuses_canonical_project_instance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    run_dir = repo_root / "test-results" / "proof-videos" / "run"
-    run_dir.mkdir(parents=True)
-    (run_dir / "frames").mkdir()
-    prompt = run_dir / "review-prompt-round-0.json"
-    prompt.write_text("{}\n", encoding="utf-8")
-    observed: dict[str, object] = {}
-
-    class Process:
-        returncode = 0
-
-        def __init__(self, command: list[str], **kwargs: object) -> None:
-            observed.update({"command": command, **kwargs})
-            kwargs["stdout"].write('{"type":"text","part":{"text":"{}"}}\n')
-
-        def wait(self, timeout: float) -> int:
-            return self.returncode
-
-    def popen(command: list[str], **kwargs: object):
-        return Process(command, **kwargs)
-
-    monkeypatch.setattr(workflow.subprocess, "Popen", popen)
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
-    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", repo_root)
-    monkeypatch.chdir(repo_root)
-    relative_run_dir = Path("test-results") / "proof-videos" / "run"
-    workflow._default_reviewer_runner(
-        relative_run_dir / "review-prompt-round-0.json",
-        run_dir=relative_run_dir,
-        correction_round=0,
-    )
-
-    assert observed["cwd"] == run_dir
-    assert observed["command"][0] == "/test/opencode"
-    assert "--dir" in observed["command"]
-    assert observed["command"][observed["command"].index("--attach") + 1] == workflow.REVIEWER_ATTACH_URL
-    assert observed["command"][observed["command"].index("--dir") + 1] == str(repo_root)
-    attached_files = [
-        observed["command"][index + 1]
-        for index, value in enumerate(observed["command"])
-        if value == "--file"
-    ]
-    assert attached_files == [str(prompt.resolve())]
-    assert not (repo_root / "review-prompt-round-0.json").exists()
-    assert not (repo_root / "frames").exists()
-
-
-def test_default_reviewer_uses_checkout_containing_runtime_proof(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    control_plane_root = tmp_path / "control-plane"
-    runtime_root = tmp_path / "runtime"
-    control_plane_root.mkdir()
-    run_dir = runtime_root / "test-results" / "proof-videos" / "run"
-    run_dir.mkdir(parents=True)
-    frame_path = run_dir / "frames" / "frame-0000.png"
-    frame_path.parent.mkdir()
-    frame_path.write_bytes(b"frame")
-    prompt = run_dir / "review-prompt-round-0.json"
-    prompt.write_text(
-        json.dumps({"review_request": {"frames": [{"path": "frames/frame-0000.png"}]}}),
-        encoding="utf-8",
-    )
-    observed: dict[str, object] = {}
-
-    class Process:
-        returncode = 0
-
-        def __init__(self, command: list[str], **kwargs: object) -> None:
-            observed["command"] = command
-            kwargs["stdout"].write('{"type":"text","part":{"text":"{}"}}\n')
-
-        def wait(self, timeout: float) -> int:
-            return self.returncode
-
-    monkeypatch.setattr(workflow.subprocess, "Popen", lambda command, **kwargs: Process(command, **kwargs))
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", control_plane_root)
-    monkeypatch.setattr(workflow, "REPO_ROOT", runtime_root)
-
-    workflow._default_reviewer_runner(prompt, run_dir=run_dir, correction_round=0)
-
-    command = observed["command"]
-    assert isinstance(command, list)
-    assert command[command.index("--dir") + 1] == str(runtime_root)
-    attached_files = [command[index + 1] for index, value in enumerate(command) if value == "--file"]
-    assert attached_files == [str(prompt), str(frame_path)]
-    prompt_payload = json.loads(prompt.read_text(encoding="utf-8"))
-    assert prompt_payload["review_request"]["frames"][0]["read_path"] == (
-        "test-results/proof-videos/run/frames/frame-0000.png"
-    )
-
-
-def test_default_reviewer_requires_resolvable_opencode_binary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_reviewer_accepts_only_codex_request_bound_result(tmp_path: Path):
+    from scripts.spec_demo import review_request_hash
     prompt = tmp_path / "review-prompt-round-0.json"
-    prompt.write_text("{}\n", encoding="utf-8")
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: None)
-
-    with pytest.raises(workflow.WorkflowError, match="OPENCODE_BIN"):
+    request = {"frame_index_hash": "synthetic-frames"}
+    prompt.write_text(json.dumps({"review_request": request}))
+    result_path = tmp_path / "review-result-round-0.json"
+    result = {
+        "reviewer_session_id": "codex://threads/11111111-1111-4111-8111-111111111111",
+        "review_request_hash": review_request_hash(request),
+    }
+    result_path.write_text(json.dumps(result))
+    receipt, session = workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
+    assert receipt == result
+    assert session == result["reviewer_session_id"]
+    result["review_request_hash"] = "changed-request"
+    result_path.write_text(json.dumps(result))
+    with pytest.raises(workflow.WorkflowError, match="does not match"):
         workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
-
-
-def test_default_reviewer_reports_progress_and_terminates_at_timeout(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    run_dir = repo_root / "test-results" / "proof-videos" / "run"
-    run_dir.mkdir(parents=True)
-    (run_dir / "frames").mkdir()
-    prompt = run_dir / "review-prompt-round-0.json"
-    prompt.write_text("{}\n", encoding="utf-8")
-
-    class Process:
-        terminated = False
-
-        def wait(self, timeout: float) -> int:
-            if self.terminated:
-                return -15
-            raise workflow.subprocess.TimeoutExpired("opencode", timeout)
-
-        def terminate(self) -> None:
-            self.terminated = True
-
-        def kill(self) -> None:
-            self.terminated = True
-
-    process = Process()
-    monotonic_values = iter([0.0, 0.0, 31.0, 601.0])
-    monkeypatch.setattr(workflow.subprocess, "Popen", lambda *_args, **_kwargs: process)
-    monkeypatch.setattr(workflow.time, "monotonic", lambda: next(monotonic_values))
-    monkeypatch.setattr(workflow, "_resolve_opencode_bin", lambda: "/test/opencode")
-    monkeypatch.setattr(workflow, "REPO_ROOT", repo_root)
-    with pytest.raises(workflow.WorkflowError, match="timed out after 600s"):
-        workflow._default_reviewer_runner(
-            prompt,
-            run_dir=run_dir,
-            correction_round=0,
-        )
-
-    output = capsys.readouterr().out
-    assert "still running (31s elapsed)" in output
-    assert process.terminated is True
-    assert not (repo_root / "review-prompt-round-0.json").exists()
-    assert not (repo_root / "frames").exists()
+    result["reviewer_session_id"] = "ses_legacy"
+    result_path.write_text(json.dumps(result))
+    with pytest.raises(workflow.WorkflowError, match="actual codex"):
+        workflow._default_reviewer_runner(prompt, run_dir=tmp_path, correction_round=0)
 
 
 def test_review_run_rejects_reviewer_frame_hash_replacement(
@@ -2676,3 +2550,17 @@ def test_review_run_rejects_frame_path_escape_before_inference(
 def test_proof_session_resolution_rejects_missing_ambiguous_or_wrong_provider(records, kwargs):
     with pytest.raises(workflow.WorkflowError):
         workflow.resolve_current_session({"sessions": records}, **kwargs)
+
+
+def test_review_prepares_request_without_launching_agent(tmp_path, monkeypatch):
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(workflow, "REVIEW_BUDGETS_DIR", tmp_path / "budgets")
+    run_dir, _request = _write_review_run(tmp_path / "proof-videos" / "run")
+    def forbidden(*args, **kwargs):
+        raise AssertionError("review preparation must not launch an agent")
+    monkeypatch.setattr(workflow.subprocess, "Popen", forbidden)
+    result = workflow.review_run(run_dir=run_dir, correction_round=0, correction_kind="none")
+    assert result["status"] == "awaiting_review"
+    assert Path(result["prompt_path"]).is_file()
+    assert not Path(result["result_path"]).exists()
+    assert not (run_dir / "review-receipt.json").exists()
