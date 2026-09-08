@@ -5628,6 +5628,7 @@ async def handle_main_processing(
                         # --- Store pending activation context in Redis ---
                         # This context is consumed by either the auto-confirm task (happy path)
                         # or the rejection WebSocket handler (user rejects)
+                        pending_context_stored = False
                         if cache_service:
                             try:
                                 pending_context = {
@@ -5664,7 +5665,7 @@ async def handle_main_processing(
                                     "team_workspace_type": request_data.team_workspace_type,
                                     "team_object_id_hash": request_data.team_object_id_hash,
                                 }
-                                await cache_service.store_pending_focus_activation(
+                                pending_context_stored = await cache_service.store_pending_focus_activation(
                                     chat_id=request_data.chat_id,
                                     context=pending_context,
                                 )
@@ -5688,6 +5689,20 @@ async def handle_main_processing(
                                 queue='app_ai',
                                 countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
                             )
+                            # Positive live eligibility is a transient event, never embed metadata.
+                            # Expiry is display-only; auto-confirm remains the state authority.
+                            if cache_service and pending_context_stored:
+                                redis_client = await cache_service.client
+                                if redis_client:
+                                    await redis_client.publish(
+                                        f"user_cache_events:{request_data.user_id}",
+                                        json.dumps({"event_type": "focus_mode_pending", "payload": {
+                                            "chat_id": request_data.chat_id,
+                                            "focus_id": focus_id,
+                                            "embed_id": fm_embed_id,
+                                            "expires_at": time.time() + FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN - 1,
+                                        }}),
+                                    )
                             logger.info(
                                 f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
                                 f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"

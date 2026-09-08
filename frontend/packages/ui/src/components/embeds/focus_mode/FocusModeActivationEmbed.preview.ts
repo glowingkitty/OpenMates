@@ -23,5 +23,6 @@ export const variants = {
     ...defaultProps,
     id: "preview-focus-mode-countdown",
     alreadyActive: false,
+    pendingUntil: Date.now() + 4000,
   },
 };
