@@ -42,6 +42,7 @@ import os
 import re
 import yaml
 from typing import Any, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from celery import Celery  # For type hinting only
 from pydantic import BaseModel, Field
@@ -179,7 +180,7 @@ class SearchRequestItem(BaseModel):
     )
     start_date: Optional[str] = Field(
         default=None,
-        description="Start of date range in ISO 8601 format. Defaults to now if omitted.",
+        description="Start of date range in ISO 8601 format with optional matching IANA timezone annotation. Defaults to now if omitted.",
     )
     end_date: Optional[str] = Field(
         default=None,
@@ -438,8 +439,19 @@ class SearchSkill(BaseSkill):
         if not value or not isinstance(value, str):
             return None
         try:
-            return datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-        except ValueError:
+            timestamp, separator, zone_suffix = value.strip().partition("[")
+            parsed = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+            if separator:
+                if not zone_suffix.endswith("]"):
+                    raise ValueError("Unclosed timezone annotation")
+                zone = ZoneInfo(zone_suffix[:-1])
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=zone)
+                elif parsed.astimezone(zone).utcoffset() != parsed.utcoffset():
+                    raise ValueError("Timezone annotation conflicts with UTC offset")
+            return parsed
+        except (ValueError, ZoneInfoNotFoundError):
+            logger.warning("[events:search] Invalid event datetime")
             return None
 
     @staticmethod
@@ -676,7 +688,33 @@ class SearchSkill(BaseSkill):
                 })
                 continue
 
-            valid_requests.append(req)
+            # Normalize before provider dispatch: providers accept ISO offsets, while
+            # the tool schema also permits an IANA timezone annotation.
+            normalized = dict(req)
+            bounds: Dict[str, datetime] = {}
+            date_error = None
+            for field in ("start_date", "end_date"):
+                if req.get(field) is None:
+                    continue
+                parsed = self._parse_event_datetime(req[field])
+                if parsed is None:
+                    date_error = f"Invalid {field}: expected an ISO 8601 datetime"
+                    break
+                bounds[field] = parsed
+                normalized[field] = parsed.isoformat()
+            if not date_error and len(bounds) == 2:
+                start = bounds["start_date"]
+                end = self._align_event_datetime(bounds["end_date"], start)
+                if end <= start:
+                    date_error = "Invalid date range: end_date must be after start_date"
+            if date_error:
+                logger.warning("[events:search] Request %s: %s", request_id, date_error)
+                invalid_results.append({
+                    "id": request_id, "results": [], "error": date_error,
+                    "total_available": 0,
+                })
+                continue
+            valid_requests.append(normalized)
 
         if not valid_requests:
             return [], invalid_results, invalid_results[0]["error"] if invalid_results else None

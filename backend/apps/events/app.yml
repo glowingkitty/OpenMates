@@ -212,7 +212,7 @@ skills:
                 description: "Longitude of search center (decimal degrees). Overrides location string if provided."
               start_date:
                 type: string
-                description: "Start of date range in ISO 8601 format. Include timezone if known (e.g. '2026-03-01T00:00:00+01:00[Europe/Berlin]'). If omitted, defaults to now."
+                description: "Start of date range in ISO 8601 format. Include UTC offset if known (e.g. '2026-03-01T00:00:00+01:00'). An optional matching IANA annotation such as [Europe/Berlin] is accepted. Preserve the user's requested date range. If omitted, defaults to now."
               end_date:
                 type: string
                 description: "End of date range in ISO 8601 format (same format as start_date). If omitted, no upper bound is applied."
