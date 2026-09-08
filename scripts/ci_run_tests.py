@@ -33,6 +33,36 @@ SIGNUP_INTERVAL_SECONDS = 15
 _last_signup_started = None
 
 
+
+def configure_proof_dimensions():
+    """Use canonical full-frame dimensions, never legacy browser-chrome insets.
+
+    Read only literal dimensions from the trusted harness profile definitions;
+    importing the media tool would require unrelated rendering dependencies.
+    Playwright uses these same values for viewport and recording size.
+    """
+    profile = os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", "")
+    if not profile:
+        return None
+    if profile not in ("web-phone", "web-laptop"):
+        raise ValueError("Unsupported isolated proof profile")
+    tree = ast.parse(Path(__file__).with_name("spec_demo.py").read_text())
+    assignment = next(
+        node for node in tree.body if isinstance(node, ast.Assign)
+        and any(isinstance(target, ast.Name) and target.id == "DEVICE_PROFILES" for target in node.targets)
+    )
+    definition = next(value for key, value in zip(assignment.value.keys, assignment.value.values)
+                      if ast.literal_eval(key) == profile)
+    dimensions = {ast.literal_eval(key): ast.literal_eval(value)
+                  for key, value in zip(definition.keys, definition.values)
+                  if ast.literal_eval(key) in ("width", "height")}
+    if set(dimensions) != {"width", "height"} or any(type(value) is not int or value <= 0 for value in dimensions.values()):
+        raise ValueError("Invalid canonical proof dimensions")
+    for axis, value in dimensions.items():
+        os.environ[f"PLAYWRIGHT_VIDEO_{axis.upper()}"] = str(value)
+    return dimensions
+
+
 def reject_inherited_accounts():
     """Cold jobs must provision identities, never inherit a shared account pool."""
     prefixes = ("TEST_ACCOUNT", "OPENMATES_TEST_ACCOUNT_", "E2E_SIGNUP_INVITE_CODE", "OPENMATES_CLI_SIGNUP_")
@@ -431,7 +461,9 @@ def main():
     mode = os.environ["CI_TEST_MODE"]
     results = []
     error = None
+    proof_dimensions = None
     try:
+        proof_dimensions = configure_proof_dimensions()
         if mode in ("e2e", "artifact"):
             reject_inherited_accounts()
             results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact", results=results)
@@ -551,6 +583,7 @@ def main():
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         "runtime_profile": mode,
         "artifact_shared_dev_rejected": mode == "artifact" and not error,
+        "proof_dimensions": proof_dimensions,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),
         "results": results,
         "error": error,
