@@ -25685,7 +25685,7 @@ assertions:
       surface: gui.web
     - &id2902
       path: frontend/apps/web_app/tests/tasks-flow.spec.ts
-      line: 18
+      line: 17
       name: persists title and description edits and a Kanban status move
       surface: gui.web
     - &id2903
@@ -26038,7 +26038,7 @@ assertions:
       surface: gui.web
     - &id2975
       path: frontend/apps/web_app/tests/tasks-flow.spec.ts
-      line: 18
+      line: 17
       name: persists title and description edits and a Kanban status move
       surface: gui.web
     - &id2976
@@ -26516,7 +26516,7 @@ assertions:
       surface: rest_api
     - &id3009
       path: frontend/apps/web_app/tests/tasks-flow.spec.ts
-      line: 18
+      line: 17
       name: persists title and description edits and a Kanban status move
       surface: gui.web
     - &id3011
@@ -28492,7 +28492,7 @@ assertions:
       surface: gui.web
     - &id3261
       path: frontend/apps/web_app/tests/tasks-flow.spec.ts
-      line: 18
+      line: 17
       name: persists title and description edits and a Kanban status move
       surface: gui.web
     - &id3262
