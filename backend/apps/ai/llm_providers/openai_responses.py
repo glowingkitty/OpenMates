@@ -86,7 +86,12 @@ async def invoke_responses(*, client: Any, task_id: str, model_id: str, messages
             async for event in events:
                 event = _dict(event)
                 kind = event.get("type")
-                if kind == "response.output_text.delta":
+                if kind in {"response.created", "response.in_progress", "response.output_item.added", "response.output_item.done", "response.function_call_arguments.delta", "response.function_call_arguments.done"}:
+                    # Forward actual provider activity to the timeout wrapper.
+                    # Empty text is ignored by the product stream consumer; never
+                    # fabricate heartbeat timers or expose opaque reasoning.
+                    yield ""
+                elif kind == "response.output_text.delta":
                     yield event["delta"]
                 elif kind == "response.refusal.delta":
                     yield event["delta"]

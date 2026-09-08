@@ -78,6 +78,7 @@ def test_stream_text_multiple_calls_and_cleanup():
     class Events:
         def __aiter__(self):
             async def values():
+                yield {"type": "response.created"}
                 yield {"type": "response.output_text.delta", "delta": "Checking"}
                 yield {"type": "response.completed", "response": response}
             return values()
@@ -89,8 +90,8 @@ def test_stream_text_multiple_calls_and_cleanup():
         result = await invoke_responses(client=SimpleNamespace(responses=SimpleNamespace(create=create)), task_id="test", model_id="gpt-6-astra", messages=[], reasoning_effort="xhigh", stream=True)
         return [chunk async for chunk in result]
     chunks = asyncio.run(run())
-    assert chunks[0] == "Checking"
+    assert chunks[:2] == ["", "Checking"]
     assert [c.tool_call_id for c in chunks if isinstance(c, ParsedOpenAIToolCall)] == ["first", "second"]
-    assert chunks[1].provider_transport_state == response["output"]
-    assert chunks[2].provider_transport_state is None
+    assert chunks[2].provider_transport_state == response["output"]
+    assert chunks[3].provider_transport_state is None
     assert closed == [True]
