@@ -318,7 +318,6 @@
         "audio-recording-and-speech.spec.ts",
         "hpfsl-acknowledgement-timing.spec.ts",
         "skill-code-search-repos.spec.ts",
-        "skill-electronics-search-components.spec.ts",
         "skill-events-search.spec.ts",
         "skill-fitness-urban-sports.spec.ts",
         "skill-health-appointments.spec.ts",
@@ -380,6 +379,13 @@
         "cli-workflows-schedule-real.spec.ts",
         "workflows-ready-run-tasks.spec.ts",
         "workflows-ui-contract.spec.ts"
+      ]
+    },
+    "ai_cached_public_provider": {
+      "execution": "e2e",
+      "enabling_work": "Preserve committed signed chat replay plus original direct CLI credential-free TI WEBENCH calls. API/AI stay on internal network; fixed HTTPS CONNECT allowlist admits only webench.ti.com, with end-to-end TLS and no paid-provider credentials.",
+      "specs": [
+        "skill-electronics-search-components.spec.ts"
       ]
     }
   },
@@ -955,18 +961,6 @@
       "committed_cache_files": {
         "code_search_repos_cli": 0,
         "code_search_repos_web": 3
-      }
-    },
-    "skill-electronics-search-components.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-electronics-search-components.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: electronics_search_web=20.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "OPENMATES_TEST_ACCOUNT_API_KEY",
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ],
-      "committed_cache_files": {
-        "electronics_search_web": 20
       }
     },
     "skill-events-search.spec.ts": {
