@@ -60,6 +60,7 @@
         "settings-translation-coverage.spec.ts",
         "share-embed-flow.spec.ts",
         "show-more-chats-flow.spec.ts",
+        "skill-mail-search.spec.ts",
         "startup-sync-contract.spec.ts",
         "sub-chats-flow.spec.ts",
         "tasks-flow.spec.ts",
@@ -154,8 +155,6 @@
         "skill-audio-generate-speak.spec.ts",
         "skill-images-generate-safety-upload.spec.ts",
         "skill-images-generate-safety.spec.ts",
-        "skill-mail-search.spec.ts",
-        "skill-weather-rain-radar.spec.ts",
         "sub-chats-real-inference.spec.ts",
         "teams-settings-context.spec.ts",
         "usage-token-breakdown.spec.ts",
@@ -244,6 +243,7 @@
         "share-password-flow.spec.ts",
         "signup-2fa-reconnect-preview.spec.ts",
         "skill-provider-icons.spec.ts",
+        "skill-weather-rain-radar.spec.ts",
         "status-page.spec.ts",
         "task-workflow-app-skill-embeds.spec.ts",
         "task-workflow-example-chats.spec.ts",
@@ -279,6 +279,7 @@
         "focus-mode-ui-after-activation.spec.ts",
         "fork-conversation.spec.ts",
         "hidden-chats-flow.spec.ts",
+        "incognito-mode.spec.ts",
         "interactive-questions.spec.ts",
         "message-highlights-touch.spec.ts",
         "model-override.spec.ts",
@@ -296,14 +297,13 @@
     },
     "ai_fixture_pending": {
       "execution": null,
-      "enabling_work": "Inspect remaining mixed sends and fixture IDs; reuse the now-started internal-network AI worker for existing committed responses. chat-flow has an unmarked second send; incognito-mode references missing incognito_mode.json. Do not invent fixtures to replace live coverage.",
+      "enabling_work": "Mixed live sends or actual application execution remain: chat-flow sends an unmarked second request; explain-in-new-chat and follow-up-suggestions trigger unmarked continuation requests; application-preview and code-generation-multiturn require real preview/E2B execution. Preserve those original behaviors and provision approved dedicated provider/runtime capabilities.",
       "specs": [
         "application-preview.spec.ts",
         "chat-flow.spec.ts",
         "code-generation-multiturn.spec.ts",
         "explain-in-new-chat.spec.ts",
-        "follow-up-suggestions-flow.spec.ts",
-        "incognito-mode.spec.ts"
+        "follow-up-suggestions-flow.spec.ts"
       ]
     },
     "original_browser_billing_fixtures": {
@@ -324,8 +324,6 @@
         "application-preview-share.spec.ts",
         "audio-recording-and-speech.spec.ts",
         "hpfsl-acknowledgement-timing.spec.ts",
-        "models3d-search.spec.ts",
-        "skill-code-docs.spec.ts",
         "skill-code-search-repos.spec.ts",
         "skill-electronics-search-components.spec.ts",
         "skill-events-search.spec.ts",
@@ -352,6 +350,8 @@
       "enabling_work": "Execute original signed cached-pipeline requests on the internal-network AI worker with fresh explicitly allowlisted users. Preserve real API/CLI/browser assertions; cache misses and provider configuration failures fail visibly, no recording, paid keys or external fallback.",
       "specs": [
         "copy-message-flow.spec.ts",
+        "models3d-search.spec.ts",
+        "skill-code-docs.spec.ts",
         "skill-math-calculate.spec.ts",
         "skill-web-read.spec.ts",
         "skill-web-search.spec.ts"
