@@ -23954,7 +23954,7 @@ assertions:
       surface: gui.web
     - &id2706
       path: frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
-      line: 43
+      line: 45
       name: ${profile.device} protects approved fictional plumber contacts
       surface: gui.web
     tests:
@@ -23983,7 +23983,7 @@ assertions:
     supporting_tests:
     - &id2708
       path: frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
-      line: 43
+      line: 45
       name: ${profile.device} protects approved fictional plumber contacts
       surface: gui.web
     tests:
@@ -25556,7 +25556,7 @@ assertions:
       surface: gui.web
     - &id2882
       path: frontend/apps/web_app/tests/plumber-privacy-example.spec.ts
-      line: 43
+      line: 45
       name: ${profile.device} protects approved fictional plumber contacts
       surface: gui.web
     - &id2884

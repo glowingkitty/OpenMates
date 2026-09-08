@@ -38,12 +38,16 @@ const contract = defineVideoProof({
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1200, maximumHoldMs: 6000 }
 });
 
-for (const profile of PROFILES) {
+// The isolated proof adapter binds one declared device to each runner receipt.
+const proofProfile = process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE;
+for (const profile of PROFILES.filter((item) => !proofProfile || item.device === proofProfile)) {
 	// contract-test: supporting surface=gui.web assertions=pii.message.owner-local-reveal,pii.embed.owner-local-reveal-sync,public-example-chats.transcript.safe-rendering
 	test(`${profile.device} protects approved fictional plumber contacts`, async ({ browser, baseURL }, testInfo) => {
 		test.setTimeout(90000);
 		const context = await browser.newContext({
 			baseURL, viewport: { width: profile.width, height: profile.height },
+			...(proofProfile ? { colorScheme: profile.device === 'web-phone' ? 'dark' : 'light' } : {}),
+			...(proofProfile === 'web-phone' ? { isMobile: true, hasTouch: true } : {}),
 			recordVideo: { dir: 'test-results/proof-video-source/plumber-privacy-example', size: { width: profile.width, height: profile.height } }
 		});
 		const page = await context.newPage();
@@ -100,7 +104,7 @@ for (const profile of PROFILES) {
 		} finally {
 			const video = page.video();
 			await context.close();
-			if (video) await testInfo.attach(`plumber-privacy-${profile.device}`, { path: await video.path(), contentType: 'video/webm' });
+			if (video) await testInfo.attach('video', { path: await video.path(), contentType: 'video/webm' });
 		}
 	});
 }
