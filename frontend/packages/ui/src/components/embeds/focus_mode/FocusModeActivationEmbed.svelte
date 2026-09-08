@@ -11,31 +11,18 @@
   - Click-to-reject during countdown (adds system message and deactivates)
   - Click/tap/Enter/Space on activated embed opens the context menu (stop/details)
   
-  CRITICAL: The countdown should only run ONCE per embed ID. When the component
-  is remounted (scroll, tab switch, etc.), it should show the activated state
-  immediately if the countdown already completed for this embed.
-  
+  Countdown eligibility comes only from a live server event bound to this chat/embed.
+  Historical rendering and timer expiry never mutate active focus metadata.
+  The server activation event remains authoritative.
+
   This component is mounted by FocusModeActivationRenderer inside the chat message.
 -->
-
-<script lang="ts" module>
-  /**
-   * Module-level set tracking which embed IDs have already completed activation.
-   * This persists across component remounts (scroll in/out, tab switches) to ensure
-   * the countdown animation only plays once per embed, ever.
-   */
-  const activatedEmbedIds = new Set<string>();
-  
-  /**
-   * Module-level set tracking which embed IDs have been rejected.
-   * Rejected embeds should remain hidden on remount.
-   */
-  const rejectedEmbedIds = new Set<string>();
-</script>
 
 <script lang="ts">
   import { onMount } from 'svelte';
   import { text } from '@repo/ui';
+  import { pendingFocusActivationStore } from '../../../stores/pendingFocusActivationStore';
+  import { activeChatFocusStore } from '../../../stores/activeChatFocusStore';
 
   /**
    * Props for the focus mode activation embed
@@ -56,6 +43,10 @@
      * every time the user revisits a chat where a focus mode was previously activated.
      */
     alreadyActive?: boolean;
+    /** Originating chat, never inferred again by timer callbacks. */
+    chatId?: string;
+    /** Preview-only explicit live deadline; production uses transient server events. */
+    pendingUntil?: number;
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
     /** Callback when the countdown completes and the focus mode becomes active */
@@ -78,8 +69,10 @@
     appId,
     focusModeName,
     alreadyActive = false,
+    chatId = "",
+    pendingUntil = 0,
     onReject,
-    onActivate,
+    onActivate: _onActivate,
     onDeactivate: _onDeactivate,
     onDetails: _onDetails,
     onContextMenu: _onContextMenu,
@@ -87,14 +80,17 @@
 
   // These props are used by the renderer for context menu dispatch;
   // not directly referenced in this component's template.
-  $effect(() => { void _onDeactivate; void _onDetails; });
+  $effect(() => { void _onDeactivate; void _onDetails; void _onActivate; });
 
   // Countdown duration in seconds
   const COUNTDOWN_SECONDS = 4;
 
   // State
   let countdownValue = $state(COUNTDOWN_SECONDS);
-  let isActivated = $state(false);
+  let isActivated = $derived(alreadyActive || (!!chatId && $activeChatFocusStore[chatId] === focusId));
+  let now = $state(Date.now());
+  let deadline = $derived(pendingUntil || ($pendingFocusActivationStore[id]?.chatId === chatId && $pendingFocusActivationStore[id]?.focusId === focusId ? $pendingFocusActivationStore[id].expiresAt : 0));
+  let isPending = $derived(!isActivated && !isRejected && deadline > now);
   let isRejected = $state(false);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -125,8 +121,8 @@
     if (isRejected) {
       return '';
     }
-    if (isActivated) {
-      return $text('embeds.focus_mode.activated');
+    if (!isPending) {
+      return isActivated ? $text('embeds.focus_mode.activated') : '';
     }
     return $text('embeds.focus_mode.activating', {
       values: { seconds: String(countdownValue) }
@@ -135,37 +131,17 @@
 
   // Progress percentage for the progress bar (100% -> 0%)
   let progressPercent = $derived(
-    isActivated ? 0 : (countdownValue / COUNTDOWN_SECONDS) * 100
+    isPending ? Math.min(100, (countdownValue / COUNTDOWN_SECONDS) * 100) : 0
   );
 
   // App gradient style for the icon circle
   let appGradientStyle = $derived(`background: var(--color-app-${appId});`);
 
   /**
-   * Start the countdown timer (only if not already activated)
-   */
-  function startCountdown() {
-    if (isActivated || isRejected) return;
-    
-    countdownValue = COUNTDOWN_SECONDS;
-    countdownInterval = setInterval(() => {
-      countdownValue -= 1;
-      if (countdownValue <= 0) {
-        // Countdown complete - activate
-        clearInterval(countdownInterval!);
-        countdownInterval = null;
-        isActivated = true;
-        activatedEmbedIds.add(id);
-        onActivate?.(focusId);
-      }
-    }, 1000);
-  }
-
-  /**
    * Handle click during countdown to reject the focus mode
    */
   function handleRejectClick() {
-    if (isActivated || isRejected) return;
+    if (!isPending) return;
 
     // Stop the countdown
     if (countdownInterval) {
@@ -174,7 +150,7 @@
     }
 
     isRejected = true;
-    rejectedEmbedIds.add(id);
+    pendingFocusActivationStore.clear(id);
 
     // Notify parent/renderer about the rejection
     onReject?.(focusId, focusModeName);
@@ -186,10 +162,11 @@
    * - After activation: opens the context menu (same as right-click).
    */
   function handleClick(event: MouseEvent) {
-    if (!isActivated) {
+    if (isPending) {
       handleRejectClick();
     } else {
-      // Activated state — show context menu via regular click
+      if (!isActivated) { _onDetails?.(focusId, appId); return; }
+      // Active state exposes controls; historical state only opens details.
       event.preventDefault();
       event.stopPropagation();
       _onContextMenu?.(event, { isActivated, isRejected });
@@ -204,9 +181,10 @@
   function handleKeyPress(e: KeyboardEvent) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      if (!isActivated) {
+      if (isPending) {
         handleRejectClick();
       } else {
+        if (!isActivated) { _onDetails?.(focusId, appId); return; }
         // Create a synthetic position based on the element for the context menu
         const target = e.currentTarget as HTMLElement;
         const rect = target.getBoundingClientRect();
@@ -227,6 +205,7 @@
   function handleContextMenu(event: MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
+    if (!isPending && !isActivated) { _onDetails?.(focusId, appId); return; }
     _onContextMenu?.(event, { isActivated, isRejected });
   }
 
@@ -254,6 +233,7 @@
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
+      if (!isPending && !isActivated) { _onDetails?.(focusId, appId); return; }
       _onContextMenu?.(event, { isActivated, isRejected });
     }, LONG_PRESS_DURATION);
   }
@@ -283,31 +263,26 @@
    * Handle global ESC key to reject focus mode during countdown
    */
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && !isActivated && !isRejected) {
+    if (event.key === 'Escape' && isPending) {
       event.preventDefault();
       handleRejectClick();
     }
   }
 
   onMount(() => {
-    // alreadyActive=true means the server/IndexedDB state confirms this focus mode
-    // is active on the chat, so we skip the countdown entirely when revisiting a chat.
-    const wasAlreadyActivated = alreadyActive || activatedEmbedIds.has(id);
-    const wasAlreadyRejected = !alreadyActive && rejectedEmbedIds.has(id);
-    countdownValue = wasAlreadyActivated ? 0 : COUNTDOWN_SECONDS;
-    isActivated = wasAlreadyActivated;
-    isRejected = wasAlreadyRejected;
-
-    // Only start countdown if not already activated/rejected
-    if (!wasAlreadyActivated && !wasAlreadyRejected) {
-      startCountdown();
-    }
+    // A clock only renders an authoritative live deadline. Expiry never activates
+    // or persists focus: the server activation event owns that transition.
+    countdownInterval = setInterval(() => {
+      now = Date.now();
+      countdownValue = Math.max(0, Math.ceil((deadline - now) / 1000));
+    }, 100);
 
     // Listen for ESC key globally (not just when element is focused)
     document.addEventListener('keydown', handleKeydown);
 
     return () => {
       document.removeEventListener('keydown', handleKeydown);
+      clearTouchTimer();
       if (countdownInterval) {
         clearInterval(countdownInterval);
       }
@@ -319,7 +294,7 @@
   <div
     class="focus-mode-bar"
     class:activated={isActivated}
-    class:counting={!isActivated}
+    class:counting={isPending}
     data-testid="focus-mode-bar"
     data-focus-id={focusId}
     data-app-id={appId}
@@ -348,7 +323,7 @@
     </div>
 
     <!-- Progress bar (only during countdown, overlaid at bottom) -->
-    {#if !isActivated}
+    {#if isPending}
       <div class="progress-bar-container" data-testid="focus-progress-bar">
         <div
           class="progress-bar"
@@ -359,7 +334,7 @@
   </div>
 
   <!-- Helper text below the bar during countdown -->
-  {#if !isActivated}
+  {#if isPending}
     <div class="reject-hint" data-testid="focus-reject-hint">
       {$text('embeds.focus_mode.reject_hint', {
         default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
