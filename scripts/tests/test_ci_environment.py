@@ -114,3 +114,13 @@ def test_api_and_worker_receive_the_private_cms_admin_identity():
         environment = services[service]["environment"]
         assert environment["DATABASE_ADMIN_EMAIL"] == cms["ADMIN_EMAIL"]
         assert environment["DATABASE_ADMIN_PASSWORD"] == cms["ADMIN_PASSWORD"]
+
+
+def test_committed_ai_fixtures_have_worker_and_no_external_network():
+    profile = compose_profile("a" * 40, ai_fixtures=True)
+    assert profile["networks"]["default"]["internal"] is True
+    worker = profile["services"]["ai-worker"]
+    assert worker["environment"]["CELERY_QUEUES"] == "app_ai"
+    assert "--queues=app_ai" in worker["command"]
+    assert worker["image"] == profile["services"]["api"]["image"]
+    assert "ai-worker" not in compose_profile("a" * 40)["services"]

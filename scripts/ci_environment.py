@@ -51,7 +51,7 @@ pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
 """
 
 
-def compose_profile(source_hash: str) -> dict:
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     credentials = {
         name: secrets.token_hex(24)
@@ -260,6 +260,15 @@ def compose_profile(source_hash: str) -> dict:
             "depends_on": {"vault": {"condition": "service_healthy"}},
         },
     }
+    if ai_fixtures:
+        # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
+        # The internal network prevents paid providers or shared-server egress.
+        ai_worker = deepcopy(worker)
+        ai_worker["environment"]["CELERY_QUEUES"] = "app_ai"
+        ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai") for part in worker["command"]]
+        ai_worker["mem_limit"] = 1536 * MIB
+        services["ai-worker"] = ai_worker
+
     services["fixture-init"] = {
         "image": "openmates-ci-api:local",
         "mem_limit": 128 * MIB,
@@ -302,7 +311,10 @@ def compose_profile(source_hash: str) -> dict:
                 mounts.append(mount)
         if mounts:
             service["volumes"] = mounts
-    return {"name": "openmates-ci", "services": services, "volumes": volumes}
+    profile = {"name": "openmates-ci", "services": services, "volumes": volumes}
+    if ai_fixtures:
+        profile["networks"] = {"default": {"internal": True}}
+    return profile
 
 
 COMPOSE_PATH = Path(SOURCE) / "test-results/ci-private/compose.json"
@@ -335,7 +347,10 @@ def main():
         source = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
-        data = compose_profile(source)
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+        fixture_specs = set(manifest["groups"].get("ai_committed_fixtures", {}).get("specs", []))
+        selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)))
         # Docker cannot create nested mountpoints inside a read-only bind.
         # These ignored directories contain only runner-local runtime output.
         for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
@@ -383,7 +398,15 @@ def main():
             if response.status != 200:
                 raise RuntimeError("Runner-local API is not healthy")
         identities = {}
-        for service in ("api", "core-worker", "cms", "cms-database", "cache", "vault"):
+        profile = json.loads(COMPOSE_PATH.read_text())
+        required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if "ai-worker" in profile["services"]:
+            required.append("ai-worker")
+            network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
+            if network.get("Internal") is not True:
+                raise RuntimeError("Fixture AI profile must reject external network access")
+            evidence["provider_egress"] = "rejected-internal-network"
+        for service in required:
             container = compose("ps", "-q", service, capture=True).stdout.strip()
             if not container:
                 raise RuntimeError("Required private service is missing: " + service)
@@ -401,7 +424,7 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
-            if service in ("api", "core-worker"):
+            if service in ("api", "core-worker", "ai-worker"):
                 mounts = [
                     mount
                     for mount in info["Mounts"]
