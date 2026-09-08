@@ -82,6 +82,36 @@ def reserved_account_slot(name: str) -> int:
     raise RuntimeError("Candidate lacks reserved account policy; refusing shared-account fallback")
 
 
+def provision_api_key(account: dict) -> str:
+    """Issue an expiring key through the real SDK using the new CLI session."""
+    require_runner()
+    sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
+    program = """
+const { OpenMatesClient } = await import(process.argv[1]);
+const client = new OpenMatesClient({apiUrl: process.argv[2]});
+if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
+const FIXTURE_CREDIT_LIMIT = 1000;
+const FIXTURE_KEY_LIFETIME_MS = 60 * 60 * 1000;
+const result = await client.createApiKey({
+  name: 'Disposable CI fixture', fullAccess: true,
+  creditLimit: {period: 'lifetime', credits: FIXTURE_CREDIT_LIMIT},
+  expiresAt: new Date(Date.now() + FIXTURE_KEY_LIFETIME_MS).toISOString()
+});
+process.stdout.write(JSON.stringify({api_key: result.api_key}));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program, sdk, API],
+        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
+        capture_output=True, text=True, timeout=60,
+    )
+    if result.returncode:
+        raise RuntimeError("Fresh-account SDK API key issuance failed; no shared-key fallback")
+    key = json.loads(result.stdout).get("api_key")
+    if not isinstance(key, str) or not key.startswith("sk-api-"):
+        raise RuntimeError("Fresh-account SDK returned no API key")
+    return key
+
+
 def provision_account(slot: int) -> dict:
     """Use real client crypto/auth; only receipt of the private email code is local."""
     profile = json.loads(COMPOSE_PATH.read_text())
@@ -282,6 +312,8 @@ def run_e2e(specs: list[str], *, artifact=False):
                 )
                 if not account_free:
                     primary = provision_account(14)
+                    if "OPENMATES_TEST_ACCOUNT_API_KEY" in source:
+                        primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15)
                     env.update(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
@@ -310,6 +342,7 @@ def run_e2e(specs: list[str], *, artifact=False):
                     if len(set(identities)) != 2:
                         raise RuntimeError("Isolated batch received duplicate account identities")
                     account_evidence["identity_hashes"] = identities
+                    account_evidence["api_key_provisioned"] = "OPENMATES_TEST_ACCOUNT_API_KEY" in primary
                 env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(
                     RESULTS / f"ci-spec-{index}.json"
                 )

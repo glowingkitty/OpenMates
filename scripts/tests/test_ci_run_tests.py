@@ -143,3 +143,24 @@ def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):
     monkeypatch.setenv("TEST_ACCOUNT1", "synthetic-forbidden")
     with pytest.raises(RuntimeError, match="Inherited test credentials"):
         runner.reject_inherited_accounts()
+
+
+def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    import pytest
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    calls = []
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout='{"api_key":"sk-api-synthetic"}')
+    monkeypatch.setattr(runner.subprocess, "run", run)
+    assert runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"}) == "sk-api-synthetic"
+    command, kwargs = calls[0]
+    assert kwargs["env"]["OPENMATES_STATE_DIR"] == "/private/fresh"
+    assert "client.createApiKey" in command[3]
+    assert "FIXTURE_CREDIT_LIMIT = 1000" in command[3] and "expiresAt:" in command[3]
+    assert kwargs["capture_output"] is True
+    monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=1))
+    with pytest.raises(RuntimeError, match="no shared-key fallback"):
+        runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"})
