@@ -134,8 +134,6 @@
         "audio-recording-deferred-send.spec.ts",
         "background-chat-notification.spec.ts",
         "chat-flow.spec.ts",
-        "chat-key-wrapper-migration.spec.ts",
-        "chat-management-flow.spec.ts",
         "chat-response-processing-ui.spec.ts",
         "chat-scroll-streaming.spec.ts",
         "chat-settings-flow.spec.ts",
@@ -157,9 +155,7 @@
         "deep-research-real-inference.spec.ts",
         "deeplink-webhook-message.spec.ts",
         "deepseek-model-override.spec.ts",
-        "default-model-cli.spec.ts",
         "default-model-settings-proof.spec.ts",
-        "default-model-settings.spec.ts",
         "embed-diff-editing.spec.ts",
         "embed-json-leak.spec.ts",
         "example-chat-clone.spec.ts",
@@ -326,6 +322,16 @@
       "enabling_work": "Verified artifact browser profile; no application backend or accounts required. Visual approval remains separate.",
       "specs": [
         "security-reporting-email-proof.spec.ts"
+      ]
+    },
+    "ai_committed_fixtures": {
+      "execution": "e2e",
+      "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed.",
+      "specs": [
+        "default-model-cli.spec.ts",
+        "default-model-settings.spec.ts",
+        "chat-management-flow.spec.ts",
+        "chat-key-wrapper-migration.spec.ts"
       ]
     }
   }
