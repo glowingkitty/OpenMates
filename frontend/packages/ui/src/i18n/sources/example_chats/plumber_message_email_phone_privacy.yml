@@ -1,7 +1,7 @@
 title:
   context: "Title of example chat: Write a plumber message with protected contact details"
   en: "Write a plumber message with protected contact details"
-  de: "Write a plumber message with protected contact details"
+  de: "Eine Nachricht an einen Klempner mit geschützten Kontaktdaten schreiben"
   zh: "Write a plumber message with protected contact details"
   es: "Write a plumber message with protected contact details"
   fr: "Write a plumber message with protected contact details"
@@ -26,7 +26,7 @@ title:
 summary:
   context: "Summary of example chat: Write a plumber message with protected contact details"
   en: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
-  de: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
+  de: "Eine Reparaturanfrage für die Küchenspüle verfassen und dabei eine fiktive E-Mail-Adresse und Telefonnummer schützen."
   zh: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
   es: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
   fr: "Draft a kitchen sink repair request while protecting a fictional email and phone number."
@@ -51,7 +51,7 @@ summary:
 message_1:
   context: "user message 1 in example chat: Write a plumber message with protected contact details. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
   en: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
-  de: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
+  de: "Hilf mir, eine Nachricht an einen Klempner zu schreiben. Meine Küchenspüle ist seit gestern undicht, und ich habe morgen Nachmittag Zeit. Bitte ihn, mich unter [EMAIL_1_com] oder [PHONE_1_147] zu kontaktieren, um einen Besuch zu vereinbaren."
   zh: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
   es: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
   fr: "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit."
@@ -83,14 +83,7 @@ message_2:
     ```
 
     Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
-  de: |
-    Here is a polite and direct message you can send to your plumber:
-
-    ```json
-    {"type": "mail", "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f"}
-    ```
-
-    Would you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?
+  de: "Hier ist eine höfliche und direkte Nachricht, die du deinem Klempner schicken kannst:\n\n```json\n{\"type\": \"mail\", \"embed_id\": \"aa8bee97-be75-43c8-b96c-779c4c36624f\"}\n```\n\n\n\nSoll ich dir helfen, örtliche Sanitärdienste zu finden, oder brauchst du noch Unterstützung bei etwas anderem?"
   zh: |
     Here is a polite and direct message you can send to your plumber:
 
@@ -248,7 +241,7 @@ message_2:
 follow_up_1:
   context: "Follow-up suggestion 1"
   en: "Find local emergency plumbers near me"
-  de: "Find local emergency plumbers near me"
+  de: "Finde Sanitärnotdienste in meiner Nähe"
   zh: "Find local emergency plumbers near me"
   es: "Find local emergency plumbers near me"
   fr: "Find local emergency plumbers near me"
@@ -273,7 +266,7 @@ follow_up_1:
 follow_up_2:
   context: "Follow-up suggestion 2"
   en: "Explain how to prepare for a plumber’s visit"
-  de: "Explain how to prepare for a plumber’s visit"
+  de: "Erkläre, wie ich mich auf den Besuch eines Klempners vorbereiten kann"
   zh: "Explain how to prepare for a plumber’s visit"
   es: "Explain how to prepare for a plumber’s visit"
   fr: "Explain how to prepare for a plumber’s visit"
@@ -298,7 +291,7 @@ follow_up_2:
 follow_up_3:
   context: "Follow-up suggestion 3"
   en: "Search for plumbers with same-day availability"
-  de: "Search for plumbers with same-day availability"
+  de: "Suche nach Klempnern mit verfügbaren Terminen am selben Tag"
   zh: "Search for plumbers with same-day availability"
   es: "Search for plumbers with same-day availability"
   fr: "Search for plumbers with same-day availability"
@@ -323,7 +316,7 @@ follow_up_3:
 follow_up_4:
   context: "Follow-up suggestion 4"
   en: "List questions to ask a plumber before hiring"
-  de: "List questions to ask a plumber before hiring"
+  de: "Liste Fragen auf, die ich einem Klempner vor der Beauftragung stellen sollte"
   zh: "List questions to ask a plumber before hiring"
   es: "List questions to ask a plumber before hiring"
   fr: "List questions to ask a plumber before hiring"
@@ -348,7 +341,7 @@ follow_up_4:
 follow_up_5:
   context: "Follow-up suggestion 5"
   en: "Compare reviews for top-rated plumbers in my area"
-  de: "Compare reviews for top-rated plumbers in my area"
+  de: "Vergleiche Bewertungen der am besten bewerteten Klempner in meiner Umgebung"
   zh: "Compare reviews for top-rated plumbers in my area"
   es: "Compare reviews for top-rated plumbers in my area"
   fr: "Compare reviews for top-rated plumbers in my area"
@@ -373,7 +366,7 @@ follow_up_5:
 follow_up_6:
   context: "Follow-up suggestion 6"
   en: "Describe signs of water damage to check before the visit"
-  de: "Describe signs of water damage to check before the visit"
+  de: "Beschreibe Anzeichen für Wasserschäden, auf die ich vor dem Besuch achten sollte"
   zh: "Describe signs of water damage to check before the visit"
   es: "Describe signs of water damage to check before the visit"
   fr: "Describe signs of water damage to check before the visit"
