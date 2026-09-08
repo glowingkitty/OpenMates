@@ -72,6 +72,7 @@ def test_migration_hold_fails_before_source_publication(tmp_path, monkeypatch):
 
 
 def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, capsys):
+    import json
     from scripts import ci_dispatch
     from scripts.ci_coordinator import Queue
 
@@ -85,6 +86,10 @@ def test_daily_units_queue_while_e2e_hold_is_reported(tmp_path, monkeypatch, cap
         ["--worktree", str(root), "--daily", "--expected-commit", source, "--detach"]
     )
     assert result == 2
+    manifests = list((root / "test-results/daily-runs").glob("*.json"))
+    assert len(manifests) == 1
+    manifest = json.loads(manifests[0].read_text())
+    assert manifest["notifications"] == "not_wired" and manifest["held_specs"]
     assert "held.spec.ts" in capsys.readouterr().out
     jobs = Queue(root / "logs/ci-coordinator/queue.sqlite3").status()
     assert sorted(job["mode"] for job in jobs) == ["pytest", "vitest"]

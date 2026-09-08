@@ -90,6 +90,13 @@ For each observed preventable process problem or inefficiency, check the relevan
 - Create user-requested notes in that vault, using existing folders such as `Resources/research/`, `Areas/`, or `Projects/` when appropriate.
 - Put PDFs, images, and other attachments in `vaults/memory/assets/` unless the user asks for a different location.
 
+## Codex Response Media and Orchestration
+
+- In Codex, always post explicit presigned S3 Markdown links for image/video evidence using the existing `scripts/opencode_response_media.py` transport. Include the video filename and the exact deployed component preview URL when applicable. Optional inline embeds are additional; raw HTML players and local paths do not satisfy Codex delivery. This Codex-specific rule supersedes the OpenCode `<video>` embedding requirements below without changing OpenCode behavior.
+- Every completed browser `.spec.ts` run and actual OpenMates CLI product E2E run, pass or fail, must deliver all available recordings per spec/attempt/profile and blocker/failure images. CI result retrieval returns `codex_evidence_command`; run it, post its links, and acknowledge only actual delivery. Keep test, recording, upload and delivery outcomes separate. Missing capture stays explicit; retry an upload without rerunning its test. Routine scripts, unit tests and ordinary CLI use do not require terminal recordings. Existing privacy and proof-review requirements still apply.
+- Daily meetings review the last working day's Codex tasks **and git commits**, then nightly source-bound test coverage and notification receipts. Job batches are not test counts. Follow `daily-meeting-and-orchestration` and `docs/architecture/codex-orchestration.md`.
+- Only the orchestrator must include a linked status table in every response, with exact attributed blocker quotes and next actions. Workers retain their normal output. There is no orchestration-imposed worker cap or nightly cutoff; 30 minutes without relevant outcome evidence parks orchestration of that worker, without cancelling its execution.
+
 ## OpenCode Response Media
 
 - To embed generated images, videos, or PDFs in an OpenCode assistant response, run `python3 scripts/opencode_response_media.py <path> --alt "Description"` and paste the returned Markdown or HTML snippet.

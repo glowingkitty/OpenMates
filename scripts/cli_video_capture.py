@@ -271,9 +271,16 @@ def capture_cli_video(
         terminal = subprocess.Popen(plan.terminal_argv, env=process_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         try:
             exit_status = terminal.wait(timeout=timeout_seconds)
-        except subprocess.TimeoutExpired as exc:
+        except subprocess.TimeoutExpired:
             terminal.terminate()
-            raise CliCaptureError(f"OpenMates CLI terminal capture timed out after {timeout_seconds:g} seconds") from exc
+            try:
+                terminal.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                terminal.kill()
+                terminal.wait(timeout=2)
+            # Finalize the recording even on timeout so the failing E2E remains
+            # visually inspectable. 124 preserves the timeout verdict.
+            exit_status = 124
         time.sleep(0.35)
         ffmpeg.send_signal(signal.SIGINT)
         ffmpeg.wait(timeout=10)

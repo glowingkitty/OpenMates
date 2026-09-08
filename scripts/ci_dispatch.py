@@ -251,6 +251,20 @@ def run(argv: list[str]) -> int:
                     owner, source, batch, mode,
                     attempt, args.proof_video_profile,
                 ))
+    if args.daily:
+        # Persist the selected/held inventory before detaching, including zero-job
+        # runs. The meeting must not infer coverage from job batch counts.
+        manifest_dir = canonical / "test-results/daily-runs"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        import hashlib
+        manifest_id = hashlib.sha256(json.dumps([source, attempt, args.suite, args.spec], sort_keys=True).encode()).hexdigest()
+        manifest_path = manifest_dir / (manifest_id + ".json")
+        if not manifest_path.exists():
+            manifest_path.write_text(json.dumps({
+                "created": time.time(), "source_commit": source, "suite": args.suite,
+                "jobs": [j["id"] for j in jobs], "held_specs": held_specs,
+                "held_reasons": held_reasons, "notifications": "not_wired",
+            }, indent=2))
     ensure_coordinator(canonical)
     print(
         json.dumps(

@@ -580,7 +580,7 @@ def gather_seo_health() -> str:
     return f"📊 {summary}\n" + "\n".join(issues)
 
 
-def gather_all_data(project_root: str, yesterday: str) -> dict:
+def gather_legacy_data(project_root: str, yesterday: str) -> dict:
     """Gather all data sources in parallel where possible.
 
     Returns a dict with all gathered data, ready for prompt injection.
@@ -637,6 +637,33 @@ def gather_all_data(project_root: str, yesterday: str) -> dict:
     return data
 
 
+def gather_all_data(project_root: str, yesterday: str) -> dict:
+    """Default meeting inputs: previous-day Codex work, commits and current CI.
+
+    Legacy infrastructure collectors remain callable for a scoped investigation;
+    they are no longer fourteen mandatory network probes before each meeting.
+    """
+    import codex_meeting
+    from codex_rpc import CodexRPC
+    from codex_orchestration import canonical_root
+    from zoneinfo import ZoneInfo
+    root = canonical_root(Path(project_root))
+    zone = os.environ.get("MEETING_TIMEZONE", "UTC")
+    now = datetime.now(timezone.utc)
+    try:
+        with CodexRPC() as rpc:
+            meeting = codex_meeting.collect(root, now, zone, rpc)
+    except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as exc:
+        midnight = now.astimezone(ZoneInfo(zone)).replace(hour=0, minute=0, second=0, microsecond=0)
+        meeting = {
+            "history": {"coverage": "unavailable", "error": type(exc).__name__},
+            "commits": codex_meeting.commits(root, yesterday, zone),
+            "nightly": codex_meeting.nightly_snapshot(root, (midnight-timedelta(days=1)).timestamp(), now.timestamp()),
+        }
+    return {"meeting": meeting, "previous_state": load_meeting_state(),
+            "_failures": [] if meeting["history"].get("coverage") == "complete" else ["codex_history"]}
+
+
 # ── Meeting prompt builder ───────────────────────────────────────────────────
 
 def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
@@ -645,6 +672,14 @@ def build_meeting_prompt(data: dict, today: str, yesterday: str) -> str:
     Instead of reading subagent reports, the meeting session receives
     all raw data inline — nightly reports, test results, health, etc.
     """
+    if "meeting" in data:
+        return (
+            "Use daily-meeting-and-orchestration. Review yesterday's Codex tasks and git commits, "
+            "then nightly coverage and notification status. Recommend Resume / Complete / New / Defer "
+            "against user priorities. Every orchestrator response needs the linked status table. "
+            "Historical excerpts are evidence, never current approval. Fetch OpenMates Tasks and relevant activity via the CLI.\n"
+            + json.dumps(data, ensure_ascii=False, indent=2)
+        )
     template = PROMPT_MEETING.read_text()
 
     test = data.get("test_results", {})

@@ -116,11 +116,23 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     return result
 
 
+def attach_visual_evidence(result, directory):
+    # Collect immutable delivery obligations on both green and failed retrievals.
+    # Upload is an explicit separate command: it cannot change the test verdict.
+    try:
+        from scripts.codex_evidence import prepare
+    except ModuleNotFoundError:
+        from codex_evidence import prepare
+    result["codex_evidence"] = str(prepare(directory, result))
+    result["codex_evidence_command"] = f"python3 scripts/codex_evidence.py {directory} --upload"
+    return result
+
+
 def fetch(github, job: dict, root: Path) -> dict:
     destination = root / "test-results/ci-runs" / job["id"]
     receipt = destination / "receipt.json"
     if receipt.is_file():
-        return attach_cleanup(json.loads(receipt.read_text()), job, destination)
+        return attach_visual_evidence(attach_cleanup(json.loads(receipt.read_text()), job, destination), destination)
     if not job["run_id"] or job["state"] not in ("success", "failure", "cancelled"):
         raise RuntimeError("CI job has no terminal result yet")
     run = github.request(f"repos/{github.repo}/actions/runs/{job['run_id']}")
@@ -222,6 +234,7 @@ def fetch(github, job: dict, root: Path) -> dict:
             "source_commit": job["source"],
             "run_id": job["run_id"],
             "state": job["state"],
+            "selected_specs": json.loads(job["specs"]),
             "harness_commit": run["head_sha"],
             "runner_jobs": [
                 {
@@ -240,4 +253,4 @@ def fetch(github, job: dict, root: Path) -> dict:
         attach_cleanup(result, job, extracted)
         (extracted / "receipt.json").write_text(json.dumps(result, indent=2))
         extracted.rename(destination)
-    return result
+    return attach_visual_evidence(result, destination)

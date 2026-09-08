@@ -21,7 +21,7 @@ if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
   if [ -n "$CODEX_HOOK_TASK" ]; then
     export CODEX_THREAD_ID="$CODEX_HOOK_TASK"
   fi
-  if [ "$EVENT" = "SessionStart" ] || [ "$EVENT" = "UserPromptSubmit" ] || [ "$EVENT" = "PreToolUse" ]; then
+  if [ "$EVENT" = "SessionStart" ] || [ "$EVENT" = "UserPromptSubmit" ] || [ "$EVENT" = "PreToolUse" ] || [ "$EVENT" = "Stop" ]; then
       ROUTING_OUTPUT=$(printf '%s' "$INPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" "$EVENT")
       ROUTING_STATUS=$?
       [ "$ROUTING_STATUS" -eq 0 ] || exit "$ROUTING_STATUS"

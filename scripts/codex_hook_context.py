@@ -164,6 +164,26 @@ def main() -> int:
                 "Bound Codex workspace is missing; reconcile it before writing"
             )
         result = route(event, payload, workspace, sid)
+        from codex_task_context import task_context
+        from codex_orchestration import (
+            canonical_root,
+            context as orchestration_context,
+            output_guard,
+        )
+
+        root = canonical_root(workspace)
+        extra = task_context(
+            root,
+            task_id,
+            refresh=event in {"SessionStart", "UserPromptSubmit"},
+            activities=event == "SessionStart",
+        )
+        role = orchestration_context(root, sid, task_id)
+        result["hookSpecificOutput"]["additionalContext"] += (
+            "\n" + extra + ("\n" + role if role else "")
+        )
+        if event == "Stop" and role:
+            result.update(output_guard(root, sid, task_id, payload))
         if payload.get("tool_name") == "apply_patch" and event == "PreToolUse":
             patch = result["hookSpecificOutput"]["updatedInput"]["command"]
             prefixes = (

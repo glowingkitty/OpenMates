@@ -98,3 +98,25 @@ def test_merge_preserves_guard_denial_over_routing_allow():
     assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
     assert "updatedInput" not in result["hookSpecificOutput"]
     assert "shared guard" in result["hookSpecificOutput"]["additionalContext"]
+
+
+def test_task_context_is_bounded_cached_and_preserves_activity(tmp_path):
+    from scripts.codex_task_context import task_context
+
+    calls = []
+
+    def reader(root, args):
+        calls.append(args)
+        if args[0] == "activity":
+            return {"entries": [{"message": "Required check remains"}]}
+        return {
+            "tasks": [
+                {"short_id": "TASK-1", "title": "Assigned goal", "status": "in_progress"}
+            ]
+        }
+
+    tid = "00000000-0000-0000-0000-000000000001"
+    first = task_context(tmp_path, tid, True, 100, reader, activities=True)
+    second = task_context(tmp_path, tid, False, 101, reader)
+    assert len(calls) == 2 and "Required check remains" in second
+    assert "TASK-1" in first and "stable-sha256" in first

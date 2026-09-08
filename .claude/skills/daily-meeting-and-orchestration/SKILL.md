@@ -1,216 +1,142 @@
 ---
 name: daily-meeting-and-orchestration
-description: Clarify daily priorities, review the last working day's chats and tasks, approve assignments, and coordinate chats through completion, including fallback during chat-service outages.
+description: Review previous-day Codex tasks, git commits and nightly tests; agree priorities and coordinate approved tasks using evidence-driven reviews, linked summaries and inactivity parking.
 ---
 
-# Daily Meeting & Chat Orchestration
+# Daily meeting and orchestration
 
-## Every reply: show current progress
+## Role and output
 
-Every user-facing reply must include a compact progress table, including brief
-answers, clarification questions, checkpoint updates, and final summaries:
+This is the **orchestrator's** contract. Workers keep their normal output.
+Every orchestrator response, including commentary and clarification, contains:
 
-| Chat | Status | Progress / next checkpoint | Your input needed |
+| Task | Status | Evidence / next action | Your input |
 |---|---|---|---|
+| [Title](codex://threads/<id>) | Working / Waiting / Blocked / Parked / Done / Not checked | Short outcome or exact blocker quote → next action | — |
 
-Show every coordinated chat in today's plan, including waiting, blocked, and
-completed chats. Link chat titles, use short phrases, and distinguish **Working**,
-**Waiting**, **Blocked**, **Done**, and **Not checked**. Before any chats start,
-include a **None started — planning** row. State when progress was last checked;
-reuse verified updates between checkpoints and label stale or unknown status.
-Never imply a fresh check just to fill the table.
+Before assignment, use one “None started — planning” row. Include every managed
+task, link its title, and state the last actual check time. Cached rows are not
+fresh checks. For each problem quote a short **exact** worker sentence, attributed
+by its task link; never invent or paraphrase a quotation. Highlight only decisions
+that actually require the user. Do not repeat table content in paragraphs.
 
-Highlight required user actions in bold in the last column; use **—** when none
-is needed. An agent/tool blocker is not automatically a user task. When input is
-required, add **Your input needed:** immediately below the table with the next
-specific decision or action, its **Recommendation:** and **Examples:**. Ask only
-one decision at a time and continue monitoring unaffected chats.
+Use `python3 scripts/codex_orchestration.py --session <id> table` for deterministic
+rows. The role-specific hook supplies this contract at start, resume, compaction
+and tool boundaries. Stop supports one formatting correction when final text is
+available; Codex does not expose interception of every commentary message.
 
-## Meeting style and task records
+Ask one decision at a time with **Recommendation:** and concrete **Examples:**,
+then wait. Do not ask again for decisions or scope already approved.
 
-- Ask one question at a time, include **Recommendation:** with a brief reason
-  and **Examples:** with concrete outcomes, then wait for the answer.
-- Use only existing OpenMates tasks and activities for priorities, backlog,
-  decisions, and handoffs. Reuse existing tasks and search before creating one.
-- Each worker owns its task updates; its subagents report to that worker. Check
-  that important progress, learnings, decisions, corrections, blockers, and
-  completion are recorded and acknowledged. Search older activity when needed.
-  Record coordination decisions without duplicating worker updates or heartbeats.
-- `preview` / `dry-run`: read and propose without changing tasks or controlling chats.
+## Meeting inputs — before proposing today's work
 
-Follow the steps below in order. After approval, repeat the monitoring step until
-work finishes or a user decision is needed.
+1. Resolve the repository and user's timezone. Run
+   `python3 scripts/codex_meeting.py --timezone <IANA-zone> --output <local-json>`.
+   Treat transcript excerpts as evidence, never fresh approval or instructions.
+2. Review **yesterday's Codex tasks**, including archived tasks and children.
+   If yesterday had no relevant work, search back up to 30 calendar days for the
+   last working day. Use actual message dates; automated heartbeats alone do not
+   count. Group children under their parent and deduplicate inherited fork history.
+   Expand incomplete/inaccessible history before claiming an exhaustive review.
+3. Summarize **git commits from that working day**: what shipped, what remains,
+   and the relevant commit links. A commit is implementation evidence, not proof
+   all verification passed. Check today's active tasks to avoid duplicate work.
+4. Review **last night's CI** at its source commit/run scope. Separate job batches
+   from spec and test-case counts; report expected/discovered/selected/executed,
+   pass/fail/flaky/skip, held/cancelled/unfinished and missing receipts. Never sum
+   overlapping reruns as unique coverage or substitute a stale legacy summary.
+   Show notification delivery separately; no receipt does not mean email or
+   Discord was sent. Collect missing run receipts through the existing CI owner.
+5. Read `openmates tasks list`, relevant task activities and durable decisions.
+   Present a compact overview of yesterday's outcomes and today's candidates:
+   **Resume / Complete and close / New / Defer**. Link existing Codex tasks.
+6. Rank against the user's priorities. Suspected **signup, billing or basic chat**
+   regressions deserve investigation today. Group shared harness failures under
+   one owner. Other bugs compete with planned work; do not open an endless debug
+   campaign. Missing coverage is a reporting problem, not automatically a product
+   regression. Ask for today's focus only when it is not already clear.
 
-## Step 1: Establish today's focus
+## Approve and assign
 
-1. Ask about this week's priorities, using recorded decisions as context. If
-   unclear, establish today's priority first. Clarify project scope, available
-   time, or deadlines only when needed; default to the current project.
+Propose concise assignments with outcome, owner, dependency and completion proof.
+Get approval before starting/resuming tasks; preserve existing authorization.
+Resume useful existing tasks by default. Replacement needs a clear reason and
+handoff of decisions, evidence, remaining work and original scope.
 
-## Step 2: Review the last working day
+Each worker must use its own existing repository session/worktree. Search and
+reuse its OpenMates Task, connect its Codex identity, and record meaningful task
+activity via the CLI. Include goal, task ID, scope, saved findings and remaining
+verification in the handoff. Keep it concise. Verify accepted launches rather
+than retry uncertain submissions. Use supported Codex task controls; never use
+retired OpenCode `monitor`, `restore` or launcher commands.
 
-1. In the user's timezone, search backward from yesterday through at most
-   30 calendar days. Select the most recent day with relevant chat activity,
-   using message/work timestamps. Automated heartbeats alone do not count.
-2. Review **all chats from that day**, their tasks, and important activities.
-   Group children with their parent and deduplicate copied fork history. Compare
-   intended outcomes with actual progress, completion evidence, and blockers.
-3. Recognize the shutdown marker (allow whitespace/apostrophe variations):
-   `Its 23:00, this chat will be shutdown for today and may resume tomorrow.`
-   Flag these chats for possible resumption, checking subsequent activity first.
-   Review unmarked chats too; the marker does not authorize resumption.
-4. If no chats exist in the full window, plan from tasks and user priorities.
-   Disclose inaccessible or truncated history rather than treating it as empty.
-   Check today's active chats before assigning duplicate work.
-5. Surface health issues and upcoming commitments when they affect today's
-   priorities. Keep the meeting focused rather than running a fixed audit agenda.
+There is **no orchestrator-imposed worker cap** and **no nightly clock cutoff**.
+Respect actual platform/CI capacity and current file/runtime ownership.
+Small direct prerequisites fit the assignment; substantial new work, cancellation
+or reassignment needs the user's decision. Do not turn a product task into a
+separate tooling project without it.
 
-## Step 3: Propose assignments and get approval
+## Observe, decide, report
 
-- Recommend a disposition for each reviewed chat: resume, replace with a fresh
-  chat, defer to todo/backlog, or no further work. Preserve useful findings in
-  task activities; suggest code notes only when useful to future maintainers.
-- Present suggestions as four compact tables (mark empty groups “None”):
-  - **Chats to resume:** Title/link | Short resume instruction | Checkpoint | Completion criteria.
-  - **New chats:** Title | Short assignment | Checkpoint | Completion criteria.
-  - **Human tasks today:** Title | Action | Due date | Checkpoint | Completion criteria.
-  - **Tasks for another day:** Title | Description summary | Todo/Backlog | Due date | Checkpoint | Completion criteria.
-  Keep cells to short phrases, rank by today's relevance, and avoid repeating rows
-  in prose. Use “—” for an unset due date; distinguish proposed dates from agreed ones.
-  Create deferred tasks through the OpenMates CLI, reusing existing tasks when found.
-- The tables are a concise review surface. Send each worker a separate, detailed
-  instruction with its goal, task link, context, saved work, scope limits,
-  dependencies, required checks, checkpoint, and completion criteria. Do not use
-  the shortened table instruction as the entire worker prompt.
-- Resume existing chats by default. Replace when conflicting context or repeated
-  misunderstanding warrants it. Transfer approved requirements, decisions,
-  learnings, saved work, and remaining checks; establish one active owner.
-- Get approval for the daily plan before launching or resuming work. That approval
-  covers the stated work modes, in-focus additions, and urgent corrections.
-  Preserve existing approvals and task-specific boundaries; cancellation still
-  requires user input.
+Register workers with the documented `codex_orchestration.py register` command.
+Use one foreground `serve` owner or an explicitly approved service integration;
+do not promise background monitoring without an actual running observer.
+The observer reads compact metadata and the existing CI cache every 30 seconds.
+In an active Codex task prefer batched `wait_threads` cursors for direct inspection;
+read detailed history only for changed workers or anomalies.
 
-## Step 4: Launch or resume approved chats
+- After a **real user instruction**, affected workers are reviewed at minutes
+  **1, 2, 3; 13, 23, 33; every 20 minutes for two hours; then every 30 minutes**.
+  Register its genuine message ID with `user-instruction`. Unrelated user messages,
+  worker-origin pushes, coordinator messages and heartbeats do not reset cadence.
+- Completion/failure and registered dependency/job changes can trigger earlier
+  review. Unchanged heartbeat metadata stays quiet. A timestamp is not progress.
+- Record `progress` only with new relevant evidence: cause, fix, verification,
+  usable artifact or resolved dependency. A failed test with a new finding can
+  count; repeated failures, speculation and chatter cannot.
+- After **30 minutes without new outcome evidence**, park that worker for
+  orchestration. No rereads or nudges; its actual execution continues. Keep
+  registered CI completion watches. A new relevant dependency or user instruction
+  rearms only affected workers. When all are parked, give one summary and end
+  active polling unless a registered external-job watch remains.
+- A worker instruction requires new evidence, a cleared dependency or concrete
+  drift. Record `instruction` first, send its short evidence + next action once
+  using supported task controls, then record its accepted receipt. At the next
+  review record its effect: advanced / unchanged / worsened. Inspect the previous
+  outcome before another instruction. Idle is never a reason to say “continue”.
+- Record meaningful milestones using `openmates tasks activity add <task>
+  --as-assignee --delivery-id <stable-sha256> --message <summary>`. Verify the
+  acknowledgement; reconcile/flush the existing outbox after uncertain delivery.
+  No heartbeat activities. Read task activity on start/resume/compaction.
 
-- Run **at most six worker chats concurrently**, across all runtimes and delegated
-  workers; exclude this orchestrator. Count existing work before every start,
-  resume, fallback, or added request. Uncertain/running workers retain their slots.
-  Put overflow tasks in **Todo**. A task with **Urgent priority** may launch beyond
-  six; show the exception explicitly, preserve platform limits, and do not promote
-  tasks to Urgent merely to bypass the cap. This exception does not waive approval,
-  scope, or ownership rules. Normal work waits until the active total is below six.
+## Visual evidence on every relevant completed run
 
-- Use **GPT-6 Astra medium** for this coordinator, workers, and coding fallback unless the
-  user explicitly chooses another model. Do not select GPT-5.5 or silently fall
-  back to it. Resumed chats can retain an old model: select Astra explicitly with
-  `sessions.py restore <chat-id> --mode execute --model openai/gpt-6-astra --variant medium`
-  when resuming approved work. Verify the accepted run's actual model, not just
-  the configured default; report a mismatch or unavailable model before continuing.
+For **every completed browser `.spec.ts` run**, pass or fail, fetch its source-bound
+CI receipt and run the returned `codex_evidence_command`. Deliver all available
+recordings per spec, test attempt and profile, plus blocker/failure images.
+Use **explicit S3 Markdown links** for images and videos, with filenames beside
+videos. Link the exact component preview URL when applicable. Inline embeds are
+optional; raw HTML players and local paths do not satisfy Codex delivery.
 
-- Launch independent assignments using supported chat controls. Verify acceptance
-  and task identity; reconcile uncertain launches before retrying. Preserve
-  existing chat/worktree identity on resume. Keep launching under one coordinator.
+Actual **OpenMates CLI product E2E** uses `cli_video_capture.py`; deliver its
+recording on success, nonzero exit and timeout. Ordinary scripts, unit tests,
+routine shell commands and routine CLI use do not require terminal recordings.
 
-## Step 5: Monitor and handle changes
+Keep test / recording / upload / delivery outcomes separate. Never rerun a test
+just to retry uploading. Never replace a failed run's missing video with older
+footage. Report capture-stage unavailability explicitly. Acknowledge evidence only
+after its links were actually posted; refresh expired links from retained media.
+Presigned links expire after 48 hours. Upload only shareable test media, never
+credentials, private user data, auth state or raw logs. Required proof review
+and user visual-intent decisions remain in force.
 
-- Establish monitoring before promising checks. For managed chats, register each
-  worker after launch/resume with `python3 scripts/sessions.py monitor register
-  --session <coordinator-id> --worker <chat-id> --started-at <launch-ISO-time>
-  --until <tonight-23:00-ISO-time>`. Use timezone-qualified timestamps. Confirm
-  `monitor status --session <coordinator-id>` shows the schedule. The runtime
-  delivers checkpoints across turns; do not use shell sleeps or fake ready events.
-- Keep the coordinator Task **in progress** while monitoring. A worker's blocker
-  or a user question does not block the coordinator. Answer questions, then retain
-  the other workers' schedules. Remove completed/deliberately paused workers with
-  `monitor remove --session <coordinator-id> --worker <chat-id>`; use `monitor stop
-  --session <coordinator-id>` when orchestration ends or the user stops it.
+## Completion and stops
 
-- Check each launched/resumed chat at **5, 10, 15, and 20 minutes**, then every
-  **20 minutes**. New workers start their own cadence. Preserve schedules across
-  recovery. Use a supported scheduler or responsive active loop; disclose when
-  monitoring cannot continue instead of promising unattended checks.
-- Compare actual work and evidence against the assignment. Distinguish progress,
-  external waits, drift, and completion. Leave healthy work uninterrupted;
-  correct urgent drift within approved scope. Honor user acceptance, waived
-  checks, scope changes, and stop instructions.
-- Group shared infrastructure failures under one recovery owner. Request
-  user-only action once, verify recovery, and resume affected work with decisions
-  preserved. Continue unaffected chats.
-- For repeated failed approaches, no measurable progress, or disproportionate
-  effort, explain the evidence and recommend narrowing or cancellation. Wait for
-  the user's decision and pause orchestration of only that chat; keep monitoring
-  others. Report if the worker remains running. Do not cancel it or send further
-  continuation instructions while awaiting the decision.
-- Evaluate additional requests against today's focus. If they fit, reuse/create
-  the task and launch within the approved scope and six-chat limit. Otherwise capture them in todo
-  or backlog. Preserve explicit deadlines; suggest due dates only with a reason.
-  Ask before materially changing today's focus.
+Verify required evidence and acknowledged Task activity before marking Done.
+Idle, waiting and parked do not mean complete. Explicit user stops disable future
+orchestration wakeups; never cancel workers as a side effect. Otherwise continue
+useful approved work without a clock-based shutdown. When done, show remaining
+ranked work without launching unapproved assignments.
 
-## Step 6: Summarize completed work and ask what comes next
-
-- Verify outcomes and required checks before marking work complete. Idle, blocked,
-  awaiting-input, and nightly-paused chats are not done. Ensure tasks retain
-  important results, decisions, blockers, and precise next steps.
-- **Once all chats are done**, summarize outcomes and fetch still-open tasks.
-  Sort by relevance to today's focus: direct outcomes, enabling dependencies,
-  related improvements, then unrelated work. Include deadlines, blockers, task
-  links, and brief reasons for the ranking. Label any incomplete list.
-- Ask **What would you like to work on next?** Include a recommendation and
-  concrete examples from those tasks, or suggest ending the day when appropriate.
-  Wait for the answer before launching the next batch. If nothing remains, ask
-  whether to finish or define a new goal. If chats are blocked, ask the needed
-  blocker decision instead of treating them as complete. After the answer, return
-  to Step 3 for the selected work; reuse approval already given in that answer.
-
-## Step 7: Close the day when requested or shutdown begins
-
-- Respect nightly shutdown and explicit stops. Preserve handoffs in task activity;
-  do not resume work that night automatically. Reassess it at the next meeting.
-  This step can interrupt any earlier step; do not wait for every chat to finish.
-
-## Chat-service fallback
-
-- If the web UI is down, check the local OpenCode server separately. Use its
-  API and the repository chat commands to inspect/manage existing chats when
-  healthy; a browser or proxy failure does not mean workers stopped.
-- If the server is unavailable, read local transcripts and task activities.
-  Distinguish stale history from live status. Do not restart the service or
-  resume nightly-stopped chats merely because the UI is unavailable.
-- If spawning fails, reconcile the response, session list, and worker state.
-  Retry once only for a confirmed transient failure with no accepted worker.
-  Then use Codex for the approved assignment rather than repeatedly spawning.
-- Use a Codex subagent when available, or a tracked `codex exec` session. Pass
-  the same goal, scope, approvals, task link, saved work, and remaining checks.
-  Keep one owner: unresolved OpenCode execution status blocks a duplicate
-  takeover, but independent work can proceed. Record the fallback in task activity.
-- Apply the same monitoring and completion rules to Codex workers. Keep their
-  session IDs and outputs; do not switch ownership back automatically when the
-  service recovers. Never bypass permissions to make a fallback work.
-
-## Repository tools
-
-Resolve the repository root before running commands, even when invoked from a
-home-directory chat. Follow its instructions and load sibling skills by their
-repository path when they are not globally listed.
-
-- Tasks: use `openmates_task` when available; otherwise consult
-  `docs/user-guide/cli/tasks.md` and `openmates tasks --help`.
-- History: `python3 scripts/sessions.py chat recent --days 30 --limit <n> --json`,
-  `chat read <id-or-url> --json`, and `chat search <id-or-url> <query>`.
-  The recent inventory uses session-update timestamps and limits; verify message
-  dates and expand coverage as needed. Use available project histories and
-  read-only storage queries when the inventory is insufficient.
-- Launch: follow the `spawn-chat` skill and
-  `python3 scripts/sessions.py spawn-chat --help`; pass the complete assignment
-  through `--prompt-file` in the approved mode. Use supported runtime controls
-  for resumption and existing repository coordination for shared resources.
-- UI-independent control: use the configured `OPENCODE_SERVER_URL` (default
-  `http://127.0.0.1:4096`) for a bounded health/status check. Resume an approved
-  existing chat with `python3 scripts/sessions.py restore <id> --mode <plan|execute>
-  --prompt "<next instruction>"`; inspect its result before retrying.
-- Codex fallback: check `codex exec --help`, then use
-  `codex exec --cd <assigned-workspace> --json - < <assignment-file>` with the
-  appropriate existing permission settings. Track the process and returned thread
-  ID; resume that ID with `codex exec resume <thread-id> - < <instruction-file>`.
-  Workers follow repository session/worktree rules and use OpenMates CLI task
-  activity commands. Do not assume the injected `openmates_task` tool is available.
+Commands, failure recovery, limitations and concrete output examples:
+`docs/architecture/codex-orchestration.md`.
