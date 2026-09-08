@@ -1144,6 +1144,7 @@
     onSuggestionClick = undefined,
     onChatNavigate = undefined,
     onSpeakMessage = undefined,
+    canSpeakMessage = undefined,
     canAnnotate = true,
   }: {
     disablePointerEvents?: boolean;
@@ -1218,6 +1219,7 @@
     onSuggestionClick?: (suggestion: string) => void;
     onChatNavigate?: (chatId: string) => Promise<void> | void;
     onSpeakMessage?: (messageId: string, content: string) => Promise<void> | void;
+    canSpeakMessage?: (messageId: string) => boolean;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
@@ -2920,7 +2922,7 @@
                         {onChatNavigate}
                         {canAnnotate}
                         isForgottenMessage={isForgottenMessage(msg)}
-                        onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent
+                        onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent && (canSpeakMessage?.(msg.id) ?? true)
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
                     />

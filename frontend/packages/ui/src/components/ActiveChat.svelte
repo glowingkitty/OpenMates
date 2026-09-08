@@ -5509,6 +5509,16 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         }
       }
 
+      function canSpeakAssistantMessage(messageId: string): boolean {
+        const chatId = currentChat?.chat_id;
+        if (!chatId || currentChat?.is_incognito) return false;
+        if (!isPublicChat(chatId)) return true;
+        // Public chats cannot generate speech: only published message fixtures
+        // can back the action, so an empty manifest must not expose a dead button.
+        const fixtures = currentChat?.public_speech?.[messageId] ?? [];
+        return fixtures.length > 0 && fixtures.every((fixture) => Boolean(fixture.public_url?.trim()));
+      }
+
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
         const chatId = currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito) return;
@@ -13825,6 +13835,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           onResend={handleResendAfterCreditsRestored}
                             onChatNavigate={handleChatNavigate}
                             onSpeakMessage={speakAssistantMessage}
+                            canSpeakMessage={canSpeakAssistantMessage}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}

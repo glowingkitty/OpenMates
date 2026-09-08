@@ -13599,6 +13599,14 @@ assertions:
         - *id1492
         supporting_tests: []
     current_direct_proof: false
+  assistant-speech.projection.mail-authored-prose:
+    specification: feature.assistant-response-speech@5
+    fingerprint: 69c5a12f14b2657d107d655a90c488f0d60441ff852694c3d8fc623afde63b11
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
   assistant-speech.projection.no-cleanup-inference:
     specification: feature.assistant-response-speech@5
     fingerprint: aa329031468d7d007a10ab1d8f2a35a7026df8635a54c339fcb5c02941399294
@@ -14694,7 +14702,7 @@ assertions:
     current_direct_proof: false
   assistant-speech.surface.semantic-parity:
     specification: feature.assistant-response-speech@5
-    fingerprint: 4b83268db305e6138fea05295b8ab19ef386a15b296b71d9be424e8e993f7e48
+    fingerprint: 7f213aae5ff521180b75e3a328027a6ce39f3054dc906c71504c2deece9f6d61
     direct_tests: []
     supporting_tests: []
     tests: []
