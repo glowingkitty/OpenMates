@@ -84,6 +84,9 @@ test.describe('Task detail fullscreen component', () => {
 			captureFrame: () => page.screenshot({ type: 'png' })
 		});
 		await openTaskDetailPreview(page);
+		const close = page.getByTestId('task-detail-minimize');
+		// Initial dialog focus is checked before editor clicks intentionally move it.
+		await expect(close).toBeFocused();
 
 		const detail = page.getByTestId('task-detail-content');
 		await expect(page.getByTestId('embed-header-title')).toContainText('Design 3D model');
@@ -128,9 +131,7 @@ test.describe('Task detail fullscreen component', () => {
 		await proof.checkpoint('linked-context');
 		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
-		const close = page.getByTestId('task-detail-minimize');
 		await proof.action('return-to-fullscreen-controls', () => close.scrollIntoViewIfNeeded());
-		await expect(close).toBeFocused();
 		await proof.assert('bare-component', async () => {
 			await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible();
 			await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
