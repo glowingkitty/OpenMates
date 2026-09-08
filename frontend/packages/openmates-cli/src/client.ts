@@ -38,6 +38,7 @@ import {
   type ChatCompletionRecoveryEnvelope,
   type SignupCryptoMaterial,
 } from "./crypto.js";
+import { buildMemoryRequestMessage, coalesceMemoryRequestMessages } from "../../ui/src/utils/appMemoryRequests.js";
 import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
 import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
 import {
@@ -1536,48 +1537,7 @@ function normalizeStringArray(value: unknown): string[] {
   return Array.from(new Set(value.map((item) => String(item).trim()).filter(Boolean)));
 }
 
-function categoryFromMemoryKey(key: string): { appId: string; itemType: string } | null {
-  const separator = key.indexOf("-");
-  if (separator <= 0 || separator === key.length - 1) return null;
-  return {
-    appId: key.slice(0, separator),
-    itemType: key.slice(separator + 1),
-  };
-}
-
-export function buildAppSettingsMemoryRequestSystemMessage(params: {
-  userMessageId: string;
-  requestId: string;
-  requestedKeys: string[];
-  createdAt: number;
-}): AppSettingsMemorySystemMessage {
-  const seen = new Set<string>();
-  const categories: Array<{ appId: string; itemType: string; entryCount: number }> = [];
-  for (const key of params.requestedKeys) {
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const parsed = categoryFromMemoryKey(key);
-    if (!parsed) continue;
-    categories.push({
-      ...parsed,
-      entryCount: 0,
-    });
-  }
-
-  return {
-    message_id: params.requestId,
-    role: "system",
-    content: JSON.stringify({
-      type: "app_settings_memories_request",
-      user_message_id: params.userMessageId,
-      request_id: params.requestId,
-      requested_keys: params.requestedKeys,
-      categories,
-    }),
-    created_at: params.createdAt,
-    user_message_id: params.userMessageId,
-  };
-}
+export const buildAppSettingsMemoryRequestSystemMessage = buildMemoryRequestMessage;
 
 export function buildAppSettingsMemoryResponseSystemMessage(params: {
   userMessageId: string;
@@ -5451,7 +5411,7 @@ export class OpenMatesClient {
       });
     }
     messages.sort((a, b) => a.createdAt - b.createdAt);
-    return messages;
+    return coalesceMemoryRequestMessages(messages);
   }
 
   private async resolveCachedChatForQuery(
@@ -6427,10 +6387,12 @@ export class OpenMatesClient {
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
     let availableMemories: DecryptedMemoryEntry[] = [];
+    let memoryCountsLoaded = false;
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
         availableMemories = await this.listMemories({ teamId });
+        memoryCountsLoaded = true;
         memoryMetadataKeys = [
           ...new Set(
             availableMemories
@@ -6979,6 +6941,7 @@ export class OpenMatesClient {
         userMessageId: messageId,
         requestId,
         requestedKeys: event.requestedKeys,
+        entryCounts: memoryCountsLoaded ? new Map(event.requestedKeys.map(key => [key, availableMemories.filter(memory => `${memory.app_id}-${memory.item_type}` === key).length])) : undefined,
         createdAt: Math.floor(Date.now() / 1000),
       }));
     };

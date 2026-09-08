@@ -13,6 +13,7 @@
  * The request is stored in chat history so users can respond hours/days later.
  */
 
+import { buildMemoryRequestMessage, type MemoryRequestContent } from "../utils/appMemoryRequests";
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { notificationStore } from "../stores/notificationStore";
 import { activeChatStore } from "../stores/activeChatStore";
@@ -111,7 +112,7 @@ export interface AppSettingsMemoriesCategory {
   appId: string; // App ID (e.g., "code")
   itemType: string; // Category/item type (e.g., "preferred_technologies")
   displayName: string; // Human-readable name
-  entryCount: number; // Number of entries in this category
+  entryCount: number | null; // Null means the entry count has not been loaded
   iconGradient?: string; // Optional CSS gradient for the icon background
   selected: boolean; // Whether this category is selected for sharing
   entries?: AppSettingsMemoriesEntryInfo[]; // Individual entries for entry-level selection (loaded on expand)
@@ -794,7 +795,7 @@ export async function handlePermissionDialogConfirm(
           selectedCategories.map((cat) => ({
             appId: cat.appId,
             itemType: cat.itemType,
-            entryCount: cat.entryCount,
+            entryCount: appSettingsMemories.filter(memory => memory.app_id === cat.appId && memory.item_key === cat.itemType).length,
           }));
 
         await saveAppSettingsMemoriesResponseMessage(
@@ -1007,7 +1008,7 @@ export async function handlePermissionDialogLocalDismiss(
 export interface AppSettingsMemoriesRequestCategory {
   appId: string; // e.g., "code"
   itemType: string; // e.g., "preferred_technologies" (without app prefix)
-  entryCount: number; // Number of entries in this category
+  entryCount: number | null; // Null means this client's count is unavailable
 }
 
 /**
@@ -1018,13 +1019,7 @@ export interface AppSettingsMemoriesRequestCategory {
  * cross-device sync, and browser refreshes. ChatHistory.svelte can then detect
  * "unpaired" requests (no matching response system message) to re-show the dialog.
  */
-export interface AppSettingsMemoriesRequestContent {
-  type: "app_settings_memories_request";
-  user_message_id: string; // The user message that triggered this request
-  request_id: string; // Server-assigned request ID (for WebSocket confirm/reject)
-  requested_keys: string[]; // Array of "app_id-item_type" format (e.g., "code-preferred_technologies")
-  categories: AppSettingsMemoriesRequestCategory[]; // Parsed category metadata for dialog display
-}
+export type AppSettingsMemoriesRequestContent = MemoryRequestContent;
 
 /**
  * Category metadata for app settings/memories response.
@@ -1220,7 +1215,7 @@ async function saveAppSettingsMemoriesResponseMessage(
  * @param requestedKeys - Array of "app_id-item_type" format keys
  * @param categories - Parsed category metadata for dialog display
  */
-async function saveAppSettingsMemoriesRequestMessage(
+export async function saveAppSettingsMemoriesRequestMessage(
   serviceInstance: ChatSynchronizationService,
   chatId: string,
   userMessageId: string,
@@ -1228,30 +1223,16 @@ async function saveAppSettingsMemoriesRequestMessage(
   requestedKeys: string[],
   categories: AppSettingsMemoriesRequestCategory[],
 ): Promise<void> {
-  // Import required utilities
-  const { generateUUID } = await import("../message_parsing/utils");
   const { webSocketService } = await import("./websocketService");
-
-  // Generate unique message ID (format: last 10 chars of chat_id + uuid)
-  const chatIdSuffix = chatId.slice(-10);
-  const messageId = `${chatIdSuffix}-${generateUUID()}`;
-
-  // Create system message content with request metadata
-  // Categories are stored with minimal metadata (appId, itemType, entryCount)
-  // Display name and icon gradient are loaded client-side based on appId and itemType
-  const requestContent: AppSettingsMemoriesRequestContent = {
-    type: "app_settings_memories_request",
-    user_message_id: userMessageId,
-    request_id: requestId,
-    requested_keys: requestedKeys,
-    categories: categories.map((cat) => ({
-      appId: cat.appId,
-      itemType: cat.itemType,
-      entryCount: cat.entryCount,
-    })),
-  };
-
-  const contentString = JSON.stringify(requestContent);
+  const requestMessage = buildMemoryRequestMessage({
+    requestId,
+    userMessageId,
+    requestedKeys,
+    createdAt: Math.floor(Date.now() / 1000),
+    entryCounts: new Map(categories.map(category => [`${category.appId}-${category.itemType}`, category.entryCount])),
+  });
+  const messageId = requestMessage.message_id;
+  const contentString = requestMessage.content;
 
   // Get chat key for encryption (zero-knowledge architecture)
   const chatKey = await chatKeyManager.getKey(chatId);

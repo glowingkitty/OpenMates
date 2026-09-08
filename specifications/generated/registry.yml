@@ -129,7 +129,7 @@ specifications:
     version: 1
     status: draft
     path: features/app-memories
-    fingerprint: 925cb4b1fc1df8a51c2dbc892db842d17cc98d6e65e7ec50b382ac76096a80c6
+    fingerprint: 278c09756fdcbea75f367a73951e2a08f60cb76f64507d27f9459e30a33a959f
     required_applies_to:
     - rest_api
     - cli
@@ -1749,7 +1749,19 @@ assertions:
     specification: feature.app-memories@1
     specification_id: feature.app-memories
     type: behavior
-    fingerprint: 9c2405675a097f2d73a4a250afd4a300512f16fe96e1f3a1f2d27897b12368d1
+    fingerprint: 3c00b0659349a2f84f908626c2168891e551ee2e3999469f0afcb7d9b67314d6
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-memories.conversation.request-convergence:
+    specification: feature.app-memories@1
+    specification_id: feature.app-memories
+    type: invariant
+    fingerprint: 616da63ccf4745192d684832054ddef232b972f50083e855049e5d6fd506edef
     required_applies_to:
     - rest_api
     - cli
@@ -1761,7 +1773,7 @@ assertions:
     specification: feature.app-memories@1
     specification_id: feature.app-memories
     type: parity
-    fingerprint: ffc299f41d62ae82f3dfee2cf7ecd4ec5f29518c2e0141e96a6b89a9a6a5d391
+    fingerprint: be8be8da04d9d0f76e17500b5d022bea5c26900da03f234868f9e8b884ce9d7f
     required_applies_to:
     - rest_api
     - cli

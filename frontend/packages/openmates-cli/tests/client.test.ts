@@ -1568,7 +1568,60 @@ describe("connected account payload builders", () => {
   });
 });
 
+import { coalesceMemoryRequestMessages, parseMemoryRequest, mergeMemoryRequests } from "../../ui/src/utils/appMemoryRequests.js";
+
 describe("memory request system messages", () => {
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("records actual available counts without implying consent", () => {
+    const message = buildAppSettingsMemoryRequestSystemMessage({
+      userMessageId: "user-message-id",
+      requestId: "request-id",
+      requestedKeys: ["mail-writing_styles"],
+      createdAt: 1780000000,
+      entryCounts: new Map([["mail-writing_styles", 1]]),
+    });
+    assert.equal(message.message_id, "request-id");
+    const payload = JSON.parse(message.content);
+    assert.equal(payload.categories[0].entryCount, 1);
+    assert.equal(payload.action, undefined);
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("represents an unavailable count as unknown rather than empty", () => {
+    const message = buildAppSettingsMemoryRequestSystemMessage({
+      userMessageId: "user-message-id",
+      requestId: "request-id",
+      requestedKeys: ["mail-writing_styles"],
+      createdAt: 1780000000,
+    });
+    assert.equal(JSON.parse(message.content).categories[0].entryCount, null);
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("converges legacy CLI/web duplicates in both orders without altering consent", () => {
+    const base = { type: "app_settings_memories_request", request_id: "request-id", user_message_id: "user-id", requested_keys: ["mail-writing_styles"] };
+    const legacyCli = { role: "system", clientMessageId: "request-id", content: JSON.stringify({ ...base, categories: [{ appId: "mail", itemType: "writing_styles", entryCount: 0 }] }) };
+    const legacyWeb = { role: "system", clientMessageId: "web-random-id", content: JSON.stringify({ ...base, categories: [{ appId: "mail", itemType: "writing_styles", entryCount: 1 }] }) };
+    const decision = { role: "system", clientMessageId: "decision-id", content: JSON.stringify({ type: "app_settings_memories_response", action: "rejected", user_message_id: "user-id" }) };
+    for (const pair of [[legacyCli, legacyWeb], [legacyWeb, legacyCli]]) {
+      const result = coalesceMemoryRequestMessages([...pair, decision]);
+      assert.equal(result.length, 2);
+      assert.equal(JSON.parse(result[0].content).categories[0].entryCount, 1);
+      assert.equal(result[1], decision);
+      assert.equal(JSON.parse(legacyCli.content).categories[0].entryCount, 0);
+    }
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.conversation.request-convergence
+  it("keeps measured zero and distinct request identities separate", () => {
+    const first = buildAppSettingsMemoryRequestSystemMessage({ userMessageId: "user-id", requestId: "a", requestedKeys: ["mail-writing_styles"], entryCounts: new Map([["mail-writing_styles", 0]]), createdAt: 1 });
+    const second = buildAppSettingsMemoryRequestSystemMessage({ userMessageId: "user-id", requestId: "b", requestedKeys: ["mail-writing_styles"], createdAt: 2 });
+    assert.equal(parseMemoryRequest(first.content, "a")?.categories[0].entryCount, 0);
+    assert.equal(coalesceMemoryRequestMessages([first, second]).length, 2);
+    assert.throws(() => mergeMemoryRequests(JSON.parse(first.content), JSON.parse(second.content)), /distinct/);
+    assert.equal(parseMemoryRequest('{"type":"app_settings_memories_request","request_id":"a","user_message_id":"u","requested_keys":[],"categories":[null]}'), null);
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("builds the request artifact without approving memory content", () => {
     const message = buildAppSettingsMemoryRequestSystemMessage({
@@ -1589,7 +1642,7 @@ describe("memory request system messages", () => {
     assert.equal(payload.request_id, "request-id");
     assert.deepEqual(payload.requested_keys, ["books-currently_reading"]);
     assert.deepEqual(payload.categories, [
-      { appId: "books", itemType: "currently_reading", entryCount: 0 },
+      { appId: "books", itemType: "currently_reading", entryCount: null },
     ]);
     assert.notEqual(payload.type, "app_settings_memories_response");
     assert.equal(payload.action, undefined);
