@@ -2776,6 +2776,9 @@ if (${installSucceeds} && spec === 'openmates@99.0.0-alpha.5') {
 
   it("lists update and upgrade aliases in global help", () => {
     const output = runCli(["help"]);
+    assert.ok(output.startsWith(`OpenMates CLI ${CLI_PACKAGE_VERSION}\n`));
+    assert.ok(output.includes(`Release branch: ${CLI_PACKAGE_VERSION.includes("-") ? "dev" : "main"}`));
+    assert.match(output, /--version, -v, -version/);
     assert.match(output, /openmates version\s+Show CLI version and update availability/);
     assert.match(output, /openmates update\s+Update the installed OpenMates CLI package/);
     assert.match(output, /openmates upgrade\s+Alias for openmates update/);
@@ -2831,9 +2834,11 @@ if (${installSucceeds} && spec === 'openmates@99.0.0-alpha.5') {
     assert.match(commandOutput, /Update available: 99\.0\.0/);
     assert.match(commandOutput, /Run: openmates upgrade/);
 
-    const flagOutput = runCli(["--version"], { OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION });
-    assert.match(flagOutput, new RegExp(`OpenMates CLI ${CLI_PACKAGE_VERSION.replace(/\./g, "\\.")}`));
-    assert.match(flagOutput, /OpenMates CLI is up to date\./);
+    for (const flag of ["--version", "-v", "-version"]) {
+      const flagOutput = runCli([flag], { OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION });
+      assert.match(flagOutput, new RegExp(`OpenMates CLI ${CLI_PACKAGE_VERSION.replace(/\./g, "\\.")}`));
+      assert.match(flagOutput, /OpenMates CLI is up to date\./);
+    }
   });
 });
 

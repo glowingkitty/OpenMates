@@ -54,6 +54,21 @@ openmates whoami --json
 The CLI displays a QR code or pair PIN. Approve it in the OpenMates web app.
 During login, the CLI never asks for your account password.
 
+Switch to a dev account using an isolated profile; upgrading to an alpha release
+preserves your existing login and does not change the API server:
+
+```bash
+openmates --profile dev --api-url https://api.dev.openmates.org login
+export OPENMATES_PROFILE=dev
+openmates whoami
+```
+
+Approve pairing in the dev web app with your dev account. The profile saves the
+API URL. Run `unset OPENMATES_PROFILE` to return to the default profile, keeping
+its existing production login. Without an environment selection, pass
+`--profile dev` on each dev command. Release/update channels and login profiles
+are independent.
+
 Create a new account from the terminal:
 
 ```bash

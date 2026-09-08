@@ -157,7 +157,7 @@ import {
 } from "./remoteAccess.js";
 import { buildProtonWriteWarning, runProtonBridgeConnector } from "./protonBridgeConnector.js";
 import { ProjectRequesterError, requestProjectRemoteOperation } from "./projectRequester.js";
-import { buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, pinSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
+import { getCliPackageVersion, buildSelfUpdatePlan, checkSelfUpdateStatus, persistSelfUpdateChannel, pinSelfUpdatePlan, runSelfUpdate } from "./selfUpdate.js";
 import { renderOpenMatesAsciiLogo } from "./branding.js";
 import {
   buildCreateUserTaskInput,
@@ -10656,7 +10656,8 @@ function parseArgs(argv: string[]): CliArgs {
   const flags: Record<string, string | boolean> = {};
 
   for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
+    // Preserve the legacy version spellings through the canonical flag parser.
+    const arg = ["-v", "-version"].includes(argv[i]) ? "--version" : argv[i];
     if (!arg.startsWith("--")) {
       positionals.push(arg);
       continue;
@@ -13383,7 +13384,11 @@ Use @mentions in chat messages:
 }
 
 function printHelp(): void {
-  console.log(`OpenMates CLI
+  const version = getCliPackageVersion();
+  // npm prereleases come from dev; stable packages come from main (publish-cli.yml).
+  const releaseBranch = version === "unknown" ? "unknown" : version.includes("-") ? "dev" : "main";
+  console.log(`OpenMates CLI ${version}
+Release branch: ${releaseBranch}
 
 Commands:
   openmates login                            Pair-auth login
@@ -13426,7 +13431,7 @@ Flags:
   --json          Output raw JSON instead of formatted output
   --profile <name>        Use an isolated login profile (also OPENMATES_PROFILE)\n  --api-url <url> Override API base URL (default: installed self-host server, then https://api.openmates.org)
   --api-key <key> Optional API key override (or set OPENMATES_API_KEY)
-  --version       Show CLI version and update availability
+  --version, -v, -version  Show CLI version and update availability
   --help          Show contextual help for any command`);
 }
 
@@ -13434,6 +13439,8 @@ function printVersionHelp(): void {
   console.log(`OpenMates CLI version command:
   openmates version [--json]
   openmates --version [--json]
+  openmates -v [--json]
+  openmates -version [--json]
 
 Prints the installed CLI version, checks the latest npm version, and shows the
 upgrade command when an update is available.
