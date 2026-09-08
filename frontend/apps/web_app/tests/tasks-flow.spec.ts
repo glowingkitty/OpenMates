@@ -19,8 +19,9 @@ test.describe('Tasks V1 flow', () => {
 		expect(getTestAccount().email, 'Runner test account credentials are required').toBeTruthy();
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
 
-		const taskTitle = `E2E task ${Date.now()}`;
-		const taskDescription = 'Created by the Tasks V1 Playwright flow';
+		const taskTitle = `Create a new task to verify encrypted title and description editing ${Date.now()}`;
+		// The workspace composer retains a detailed request as its initial description.
+		const taskDescription = taskTitle;
 		const codexPrompt = `Create a new task ${taskTitle} Codex follow-up and assign it to Codex`;
 
         // Pairing performs the single real browser login before creating a receipt.
@@ -35,9 +36,9 @@ test.describe('Tasks V1 flow', () => {
             'Run the approved real CLI creator gate for this account before web proof').toContain('codex');
 		await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 30000 });
 
-		await page.getByTestId('task-title-input').fill(taskTitle);
-		await page.getByTestId('task-description-input').fill(taskDescription);
-		await page.getByTestId('task-create-button').click();
+		// /tasks uses the workspace composer; the separate form belongs to compact project views.
+		await page.getByTestId('task-workspace-input').fill(taskTitle);
+		await page.getByTestId('task-workspace-submit').click();
 
 		const todoColumn = page.getByTestId('task-column-todo');
 		const initialCard = todoColumn.getByTestId('task-card').filter({ hasText: taskTitle });

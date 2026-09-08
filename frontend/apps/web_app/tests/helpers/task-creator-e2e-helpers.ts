@@ -10,6 +10,7 @@ export {};
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { randomUUID } = require('node:crypto');
 const { CLI_DIST } = require('./cli-test-helpers');
 const {
 	createWorkflowCliHome, removeWorkflowCliHome,
@@ -33,7 +34,8 @@ async function createRunnerCodexEligibility(page: import('@playwright/test').Pag
 	try {
 		await loginWorkflowCliViaPair(page, 'http://localhost:8000', cliHome, 'TASK_CREATOR');
 		const result = await runWorkflowCli('http://localhost:8000', cliHome, [
-			'tasks', 'create', '--title', 'Runner Codex eligibility fixture',
+			// Retries use the same real account; each creation must have its own slug.
+			'tasks', 'create', '--title', `Runner Codex eligibility fixture ${randomUUID()}`,
 			'--as-assignee', '--external-chat', `codex:${thread}`, '--json'
 		]);
 		// Do not emit decrypted CLI output or account/session material in artifacts.
