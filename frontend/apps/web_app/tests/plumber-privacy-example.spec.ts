@@ -91,9 +91,11 @@ for (const profile of PROFILES) {
 			await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 30000 });
 			const suggestion = page.getByTestId('follow-up-suggestion-item').first();
 			await expect(suggestion).toBeVisible();
-			const text = await suggestion.innerText();
+			// Public follow-ups open signup for guests; they do not create a draft.
+			// See ActiveChat.handleFollowUpSuggestionClick and the review checklist.
 			await suggestion.click();
-			await expect(page.getByTestId('message-editor')).toContainText(text.trim());
+			await expect(page.getByRole('button', { name: 'Sign up', exact: true })).toBeVisible();
+			await expect(page.getByRole('button', { name: /^Continue with v/ })).toBeVisible();
 			await proof.attach();
 		} finally {
 			const video = page.video();
