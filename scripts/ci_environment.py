@@ -270,6 +270,17 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False) -> dict:
         ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
+        api.pop("ports")
+        services["cms"].pop("ports")
+        services["runner-gateway"] = {
+            "image": "openmates-ci-api:local",
+            "command": ["python", "/ci_tcp_gateway.py"],
+            "environment": {"OPENMATES_CI_GATEWAY": "github-isolated"},
+            "volumes": [str(Path(__file__).with_name("ci_tcp_gateway.py").resolve()) + ":/ci_tcp_gateway.py:ro"],
+            "ports": ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"],
+            "networks": ["default", "ingress"],
+            "mem_limit": 64 * MIB,
+        }
 
     services["fixture-init"] = {
         "image": "openmates-ci-api:local",
@@ -315,7 +326,7 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False) -> dict:
             service["volumes"] = mounts
     profile = {"name": "openmates-ci", "services": services, "volumes": volumes}
     if ai_fixtures:
-        profile["networks"] = {"default": {"internal": True}}
+        profile["networks"] = {"default": {"internal": True}, "ingress": {}}
     return profile
 
 
@@ -405,7 +416,7 @@ def main():
         profile = json.loads(COMPOSE_PATH.read_text())
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
         if "ai-worker" in profile["services"]:
-            required.append("ai-worker")
+            required.extend(["ai-worker", "runner-gateway"])
             network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
             if network.get("Internal") is not True:
                 raise RuntimeError("Fixture AI profile must reject external network access")

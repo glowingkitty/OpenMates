@@ -149,3 +149,12 @@ def test_runtime_uses_candidate_development_feature_configuration():
     profile = compose_profile("a" * 40, ai_fixtures=True)
     for service in ("api", "core-worker", "ai-worker"):
         assert profile["services"][service]["environment"]["BACKEND_CONFIG_FILE"] == "/app/backend/config/backend_config.dev.yml"
+
+
+def test_fixture_network_only_exposes_uncredentialed_tcp_gateway():
+    profile = compose_profile("a" * 40, ai_fixtures=True)
+    services = profile["services"]
+    assert "ports" not in services["api"] and "ports" not in services["cms"]
+    assert services["runner-gateway"]["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
+    assert services["runner-gateway"]["environment"] == {"OPENMATES_CI_GATEWAY": "github-isolated"}
+    assert all("ingress" not in service.get("networks", []) for name, service in services.items() if name != "runner-gateway")
