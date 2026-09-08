@@ -133,3 +133,53 @@ responsive_history:
   - id: regular-wide-history
     given: {web_viewport: [1440, 900], chat_container_width_above: 500}
     expect: {assistant_identity_beside_content: true, content_centered: true, content_max_width: 1000, horizontal_clipping: false}
+
+# TASK-16: two concrete examples per added rendering requirement.
+literal_dollar_markdown:
+  - id: literal-runes-in-prose-and-code
+    input:
+      markdown: |-
+        Use $state and $derived for reactivity. Inline: `$state(0)` and `$derived(count * 2)`.
+
+        ```js
+        const count = $state(0);
+        const twice = $derived(count * 2);
+        ```
+      presentation_states: [streaming, finished, reopened]
+    expect:
+      prose_text: Use $state and $derived for reactivity.
+      inline_code_text: ["$state(0)", "$derived(count * 2)"]
+      fenced_code_text: |-
+        const count = $state(0);
+        const twice = $derived(count * 2);
+      math_nodes: 0
+  - id: currency-escaped-dollar-and-valid-math
+    input:
+      markdown: 'Budget $20 and $30. Literal \$state. Formula: $x^2 + y^2 = z^2$.'
+      presentation_states: [streaming, finished, reopened]
+    expect:
+      literal_text: ['Budget $20 and $30.', 'Literal $state.']
+      math_nodes: 1
+      math_latex: x^2 + y^2 = z^2
+
+failed_image_slots:
+  - id: mixed-results-and-replacement-source
+    input:
+      result_sources: [failed-image, successful-image]
+      transition: failed-image-replaced-with-successful-source
+    expect:
+      failed_image_card_or_thumbnail_visible: false
+      reserved_failed_media_space: false
+      successful_result_usable: true
+      source_result_count: 2
+      replacement_image_visible: true
+  - id: all-search-thumbnails-fail
+    input:
+      query: city parks
+      result_sources: [failed-image-one, failed-image-two]
+    expect:
+      query_text: city parks
+      result_opening_control_usable: true
+      empty_thumbnail_strip_visible: false
+      broken_image_icons_visible: false
+      source_result_count: 2
