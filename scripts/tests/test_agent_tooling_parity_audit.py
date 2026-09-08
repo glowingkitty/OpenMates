@@ -1,3 +1,4 @@
+# contract-test-file: tooling
 """Tests for Claude Code, Codex, and OpenCode tooling parity audits.
 
 Purpose: make shared safety hook coverage reproducible from tracked files rather
@@ -42,25 +43,20 @@ shared_hooks:
   - name: bash-guard.sh
     event: PreToolUse
     matcher: Bash
-    tools: [claude, codex, opencode]
-    opencode_terms: [guardBash]
+    tools: [claude, codex]
   - name: e2e-encryption-guard.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: pii-logger-guard.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
     tools: [claude, codex]
     exceptions:
-      opencode: OpenCode delegates this through the Codex bridge for edit tools.
 quickstart:
   path: docs/contributing/guides/agent-workflow-quickstart.md
   required_terms:
     - sync_agent_parity.py --check
-    - audit_opencode_output_quality.py
     - audit_agent_tooling_parity.py
     - sessions.py worktree ensure
     - sessions.py edit-lease
@@ -90,13 +86,12 @@ quickstart:
     ;;
 """.strip(),
     )
-    write_file(root / ".opencode/plugins/openmates-hooks.js", "function guardBash() {}\nrunBridge(\"PreToolUse\")\n")
     write_file(
         root / "docs/contributing/guides/agent-workflow-quickstart.md",
         """
 # Agent Workflow Quickstart
 
-Run sync_agent_parity.py --check, audit_opencode_output_quality.py, and
+Run sync_agent_parity.py --check and
 audit_agent_tooling_parity.py. Use sessions.py worktree ensure before edits,
 sessions.py edit-lease for overlapping execute edits, and sessions.py deploy for commits.
 """.strip(),
@@ -160,39 +155,11 @@ def test_codex_bridge_narrowed_matcher_fails(tmp_path: Path) -> None:
     assert any("Codex bridge missing shared hook: e2e-encryption-guard.sh" in issue.message for issue in issues)
 
 
-def test_tool_specific_exception_with_reason_passes(tmp_path: Path) -> None:
+def test_no_opencode_setup_required(tmp_path: Path) -> None:
     audit = load_audit_module()
     write_valid_fixture(tmp_path)
-    plugin = tmp_path / ".opencode/plugins/openmates-hooks.js"
-    plugin.write_text("function guardBash() {}\n", encoding="utf-8")
-
-    issues = audit.audit(tmp_path)
-
-    assert not any("pii-logger-guard.sh" in issue.message and "OpenCode" in issue.message for issue in issues)
-
-
-def test_opencode_delegated_hook_requires_codex_bridge_hook(tmp_path: Path) -> None:
-    audit = load_audit_module()
-    write_valid_fixture(tmp_path)
-    manifest = tmp_path / "docs/architecture/agent-tooling-parity.yml"
-    manifest.write_text(
-        manifest.read_text(encoding="utf-8").replace(
-            "\nquickstart:",
-            """
-  - name: delegated-guard.sh
-    event: PreToolUse
-    matcher: apply_patch|Edit|Write
-    tools: [opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
-quickstart:""",
-        ),
-        encoding="utf-8",
-    )
-
-    issues = audit.audit(tmp_path)
-
-    assert any("OpenCode delegated hook missing from Codex bridge" in issue.message for issue in issues)
+    assert not (tmp_path / ".opencode").exists()
+    assert audit.audit(tmp_path) == []
 
 
 def test_quickstart_missing_required_links_fails(tmp_path: Path) -> None:

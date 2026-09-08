@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit Claude Code, Codex, and OpenCode tooling parity.
+"""Audit Claude Code and Codex tooling parity.
 
 Claude Code remains the canonical authoring format for OpenMates skills,
 agents, and hook scripts. This audit makes the shared hook/config baseline
@@ -25,8 +25,6 @@ MANIFEST = Path("docs/architecture/agent-tooling-parity.yml")
 CLAUDE_SETTINGS = Path(".claude/settings.json")
 CODEX_BRIDGE = Path(".codex/hooks/claude-hook-bridge.sh")
 CODEX_HOOKS_JSON = Path(".codex/hooks.json")
-OPENCODE_PLUGIN = Path(".opencode/plugins/openmates-hooks.js")
-OPENCODE_PLUGIN_IMPLEMENTATION = Path(".opencode/runtime/openmates-hooks-runtime.js")
 
 
 @dataclass(frozen=True)
@@ -184,19 +182,8 @@ def _audit_shared_hook(root: Path, hook: dict[str, Any], texts: dict[str, str]) 
                     issues.append(AuditIssue(str(CODEX_HOOKS_JSON), f"Codex hooks missing shared hook term for {name}: {term}"))
         elif not _codex_bridge_has_hook(texts["codex"], event=event, matcher=matcher, hook_name=name):
             issues.append(AuditIssue(str(CODEX_BRIDGE), f"Codex bridge missing shared hook: {name}"))
-    if "opencode" in tools:
-        terms = [str(term) for term in hook.get("opencode_terms") or [name]]
-        for term in terms:
-            if term not in texts["opencode"]:
-                issues.append(AuditIssue(str(OPENCODE_PLUGIN), f"OpenCode plugin missing shared hook term for {name}: {term}"))
-        if hook.get("opencode_delegates_to_codex_bridge") is True and not _codex_bridge_has_hook(texts["codex"], event=event, matcher=matcher, hook_name=name):
-            issues.append(AuditIssue(str(CODEX_BRIDGE), f"OpenCode delegated hook missing from Codex bridge: {name}"))
-    elif _exception_reason(hook, "opencode") == "" and {"claude", "codex"} <= tools:
-        issues.append(AuditIssue(str(MANIFEST), f"OpenCode exception for shared hook {name} needs a reason"))
-
-    for tool in {"claude", "codex", "opencode"} - tools:
-        reason = _exception_reason(hook, tool)
-        if reason == "" and tool in {"claude", "codex"}:
+    for tool in {"claude", "codex"} - tools:
+        if _exception_reason(hook, tool) == "":
             issues.append(AuditIssue(str(MANIFEST), f"{tool} exception for shared hook {name} needs a reason"))
     return issues
 
@@ -228,9 +215,6 @@ def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
         "claude": _read(root / CLAUDE_SETTINGS),
         "codex": _read(root / CODEX_BRIDGE),
         "codex_hooks_json": _read(root / CODEX_HOOKS_JSON),
-        "opencode": _read(
-            root / (OPENCODE_PLUGIN_IMPLEMENTATION if (root / OPENCODE_PLUGIN_IMPLEMENTATION).is_file() else OPENCODE_PLUGIN)
-        ),
     }
     issues: list[AuditIssue] = []
     shared_hooks = manifest.get("shared_hooks") or []
@@ -255,7 +239,7 @@ def audit(root: Path = REPO_ROOT) -> list[AuditIssue]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Audit Claude Code, Codex, and OpenCode tooling parity.")
+    parser = argparse.ArgumentParser(description="Audit Claude Code and Codex tooling parity.")
     parser.add_argument("--json", action="store_true", help="Print issues as JSON.")
     args = parser.parse_args(argv)
 

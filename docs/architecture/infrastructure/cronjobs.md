@@ -6,7 +6,6 @@ key_files:
 - pnpm-workspace.yaml
 - scripts/_dependabot_helper.py
 - scripts/run_tests.py
-- scripts/auto_fix_failed_tests.py
 - scripts/nightly-dead-code-removal.sh
 - scripts/stale_code_daily.py
 - scripts/stale-code-cron-setup.sh
@@ -19,7 +18,6 @@ key_files:
 - scripts/prompts/contract-audit-review.md
 - scripts/update_obsidian_daily_note.py
 - scripts/_daily_meeting_helper.py
-- scripts/_opencode_utils.py
 - scripts/release-intelligence-cron.sh
 - scripts/release_intelligence.py
 claims:
@@ -31,7 +29,6 @@ claims:
   - pnpm-workspace.yaml
   - scripts/_dependabot_helper.py
   - scripts/run_tests.py
-  - scripts/auto_fix_failed_tests.py
   test:
     file: scripts/tests/test_architecture_behavioral_claims.py
     command: python3 -m pytest scripts/tests/test_architecture_behavioral_claims.py
@@ -87,7 +84,7 @@ The `sessions.py monitor` command, cadence helper, `monitor_ready` operation and
 
 The Vercel failure-to-repair launcher, deep AI security review and legal/compliance AI review launchers are removed; their prompt/folder requirements and historical findings remain for TASK-8338.
 
-The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner. EU vulnerability entry points retain deterministic collection and reporting, without remediation chats or legacy dispatch tracking. The Dependabot launcher-tail removal remains prepared but held by the shared-worktree integration guard; its automatic schedule stays off and deterministic digest collection stays intact. Security audit/red-team entry points ingest existing snapshots through the digest adapter, which retains missing/stale snapshot checks; they do not create a fresh AI review.
+The Linear label poller, host trigger watcher, weekday meeting launcher, nightly issue review, codebase audit, nightly quick-win/pattern/code-structure/UI/Apple/SEO launchers and weekly AI recommendation helpers are retired. Their historical reports, original task/worktree records and prompt requirements remain available. Removing a launcher does not remove its deterministic scanner. EU vulnerability entry points retain deterministic collection and reporting, without remediation chats or legacy dispatch tracking. The Dependabot launcher tail is removed; its automatic schedule stays off and deterministic digest collection stays intact. Security audit/red-team entry points ingest existing snapshots through the digest adapter, which retains missing/stale snapshot checks; they do not create a fresh AI review.
 
 OpenCode-only runtime registrations are narrowly removed after inspecting their actual definitions and dependencies. Recoverable local unit/crontab copies are in `logs/codex-orchestration/2026-09-07-6989/scheduler-registration-backup/`. No product service or shared work-life `allowed` guard is part of this removal.
 
@@ -112,3 +109,12 @@ Historical cadence for migration review, **not active installation instructions*
 | Contract recommendations | Monday 05:15 UTC |
 
 Read the real current runtime definitions before changing any retained schedule. Historical cron documentation is not proof that a job is installed or authorized to run.
+
+## Retained worktree maintenance
+
+The independent `worktree-reconciliation-setup.sh` service retains its existing
+`sessions.py worktree expire --max-age-hours 72` and
+`sessions.py worktree reconcile --target origin/dev --idle-hours 48 --apply-safe`
+operations. It preserves source-free manifests for 30 days. This shared
+repository maintenance is outside OpenCode scheduler retirement; no registration
+or runtime state is changed by this removal.

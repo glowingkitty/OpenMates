@@ -112,7 +112,7 @@ def initialize_collection(directory: Path, *, now: str | None = None) -> dict[st
 
 
 ADAPTER_FILES = tuple(Path(__file__).parent / name for name in (
-    "_dependabot_helper.py", "_eu_vuln_helper.py", "_security_helper.py", "_opencode_utils.py",
+    "_dependabot_helper.py", "_eu_vuln_helper.py", "_security_helper.py",
     "security_scan_reporting.py", "security_reporting_runner.py", "security_reporting.py",
     "tests/test_security_scan_reporting.py",
 ))
