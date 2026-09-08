@@ -1774,6 +1774,16 @@ async def create_sdk_chat(
 
     from backend.core.api.app.services.skill_registry import get_global_registry
 
+    from backend.shared.python_utils.rest_test_replay import prepare_rest_replay_messages
+
+    try:
+        payload["messages"] = await prepare_rest_replay_messages(
+            payload["messages"], str(api_key_info["user_id"]),
+            request.app.state.cache_service, request.app.state.directus_service,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Invalid or unauthorized REST replay marker") from exc
+
     result = await get_global_registry().dispatch_skill("ai", "ask", payload)
     if hasattr(result, "body_iterator"):
         return {"persistent": request_body.save_to_account, "stream": True}
