@@ -9,6 +9,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import json
+import ast
 import hashlib
 import os
 from pathlib import Path
@@ -59,6 +60,18 @@ def cms_admin_token(profile: dict) -> str:
     if identity.get("data", {}).get("email") != environment["DATABASE_ADMIN_EMAIL"]:
         raise RuntimeError("Runner-local CMS fixture identity mismatch")
     return token
+
+
+def reserved_account_slot(name: str) -> int:
+    """Read the existing candidate account policy without importing its old runner."""
+    tree = ast.parse((ROOT / "scripts/run_tests.py").read_text())
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id == "RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC"
+            for target in node.targets
+        ):
+            return int(ast.literal_eval(node.value).get(name, 1))
+    raise RuntimeError("Candidate lacks reserved account policy; refusing shared-account fallback")
 
 
 def provision_account(slot: int) -> dict:
@@ -248,6 +261,8 @@ def run_e2e(specs: list[str], *, artifact=False):
                     primary = provision_account(14)
                     secondary = provision_account(15)
                     env.update(primary)
+                    env["PLAYWRIGHT_WORKER_SLOT"] = "1"
+                    env["OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"] = str(reserved_account_slot(name))
                     env.update(
                         {
                             k.replace(

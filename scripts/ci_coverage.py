@@ -13,6 +13,14 @@ CORE_SPECS = frozenset({
     "a11y-pages.spec.ts",
     "account-interests-settings.spec.ts",
     "language-auto-detect.spec.ts",
+    "interface-font-settings.spec.ts",
+    "language-settings-flow.spec.ts",
+    "debug-logging-settings.spec.ts",
+    "model-toggle-settings.spec.ts",
+    "backup-code-login-flow.spec.ts",
+    "backup-codes-settings.spec.ts",
+    "recovery-key-settings.spec.ts",
+
 
     "test-account-preflight.spec.ts",
     "tasks-flow.spec.ts",

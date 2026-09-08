@@ -113,3 +113,16 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     monkeypatch.setattr(runner.subprocess, "run", browser)
     result = runner.run_e2e([spec], artifact=True)
     assert result[0]["exit_code"] == 0
+
+
+def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts/run_tests.py").write_text(
+        "raise RuntimeError('old dispatcher must not execute')\n"
+        "RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {'security.spec.ts': 18}\n"
+    )
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    assert runner.reserved_account_slot("security.spec.ts") == 18
+    assert runner.reserved_account_slot("ordinary.spec.ts") == 1
