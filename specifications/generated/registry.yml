@@ -267,7 +267,7 @@ specifications:
     version: 5
     status: draft
     path: features/assistant-response-speech
-    fingerprint: 3f66240297ca59d6a809d4e849b1a7487fa699e555402266e5f3d40af4b24184
+    fingerprint: 2ffdeda5156cebfc17d927da83f1fa8989a356493af99ab0e8b0f74079e57843
     required_applies_to:
     - rest_api
     - cli
@@ -3149,6 +3149,16 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  assistant-speech.projection.mail-authored-prose:
+    specification: feature.assistant-response-speech@5
+    specification_id: feature.assistant-response-speech
+    type: privacy
+    fingerprint: 69c5a12f14b2657d107d655a90c488f0d60441ff852694c3d8fc623afde63b11
+    required_applies_to:
+    - rest_api
+    - cli
+    - gui.web
+    - gui.apple
   assistant-speech.projection.no-cleanup-inference:
     specification: feature.assistant-response-speech@5
     specification_id: feature.assistant-response-speech
@@ -3343,7 +3353,7 @@ assertions:
     specification: feature.assistant-response-speech@5
     specification_id: feature.assistant-response-speech
     type: parity
-    fingerprint: 4b83268db305e6138fea05295b8ab19ef386a15b296b71d9be424e8e993f7e48
+    fingerprint: 7f213aae5ff521180b75e3a328027a6ce39f3054dc906c71504c2deece9f6d61
     required_applies_to:
     - rest_api
     - cli

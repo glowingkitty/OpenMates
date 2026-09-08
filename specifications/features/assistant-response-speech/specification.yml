@@ -379,6 +379,20 @@ assertions:
       speech summaries or localized factual fallback announcements rather than
       raw payloads.
     depends_on: [models.SpeechSegment.kind, models.SpeechSegment.speakable_text, examples.projection]
+  - id: assistant-speech.projection.mail-authored-prose
+    type: privacy
+    must: >
+      A referenced mail embed is classified as mail, never as a code example.
+      For owner-authorized resolved mail content, deterministic speech projection
+      includes its authored subject and body in response order as semantic mail
+      prose, without rewriting or reading raw JSON, routing metadata, or embed IDs.
+      Privacy placeholders remain unchanged; projection never restores their
+      original values from PII mappings or display reveal state. Unresolved mail
+      uses a factual mail-available announcement without invented content.
+      Actual code fences retain code-summary behavior. Web and CLI use the same
+      projection, and a changed mail subject or body invalidates affected speech
+      segments under the existing immutable-source rule.
+    depends_on: [models.SpeechSegment.speakable_text, examples.mail_projection]
   - id: assistant-speech.projection.no-cleanup-inference
     type: privacy
     must: Assistant-response speech adds no general-purpose LLM rewrite, correction, compression, or coherence pass; any semantic summary is created by the original response or skill producer, while the speech path performs deterministic projection and a non-rewriting safety decision only.

@@ -43,6 +43,16 @@ const PROOF_CONTRACT = defineVideoProof({
 test.describe('Public example assistant speech', () => {
 	test.setTimeout(90_000);
 
+	// contract-test: direct surface=gui.web assertions=public-example-chats.speech.reviewed-public-playback
+	test('hides speech for a public response without reviewed audio', async ({ page, context }: { page: any; context: any }) => {
+		await context.clearCookies();
+		await page.goto(getE2EDebugUrl('/#chat-id=example-plumber-message-email-phone'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15_000 });
+		await expect(page.getByTestId('assistant-identity-row')).toBeVisible();
+		await expect(page.getByTestId('assistant-message-speak')).toHaveCount(0);
+	});
+
+
 	// contract-test: direct surface=gui.web assertions=assistant-speech.public-example.reviewed-fixture-playback,public-example-chats.speech.reviewed-public-playback
 	test('plays reviewed immutable fixtures while logged out', async ({ page, context }: { page: any; context: any }, testInfo: any) => {
 		await context.clearCookies();

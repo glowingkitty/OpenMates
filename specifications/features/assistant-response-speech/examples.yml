@@ -264,3 +264,26 @@ lifecycle:
     given: {stored_profile_version: 1, current_profile_version: 2, source_text_unchanged: true}
     action: select_speak
     expect: {old_files_not_presented_as_current: true, segments_regenerated_with_version_2: true, old_files_lifecycle_cleanup_required: true}
+
+mail_projection:
+  - id: plumber-mail-body-with-protected-contact-details
+    given:
+      assistant_message_id: 2ff95403-8a44-59b4-8aec-d53546370d00
+      assistant_prose: Here is a polite and direct message you can send to your plumber.
+      referenced_embed_type: mail
+      subject: Kitchen sink leak repair needed - available tomorrow afternoon
+      body: "Hello,\n\nMy kitchen sink has been leaking since yesterday, and I need to get it fixed as soon as possible. I am available tomorrow afternoon for a visit.\n\nPlease contact me at [EMAIL_1_com] or [PHONE_1_147] so we can arrange a time.\n\nBest regards,\n[Your Name]"
+      display_pii_revealed: true
+    action: project_response_speech_on_web_and_cli
+    expect:
+      authored_subject_and_body_included: true
+      privacy_placeholders_preserved: ['[EMAIL_1_com]', '[PHONE_1_147]']
+      originals_restored_from_pii_mappings: false
+      code_example_announcement: absent
+      raw_embed_metadata_spoken: false
+      cleanup_inference_calls: 0
+      changed_body_invalidates_affected_segments: true
+  - id: unavailable-mail-and-real-code-remain-distinct
+    given: {referenced_embed_type: mail, resolved_content: absent, adjacent_real_code_fence: true}
+    action: project_response_speech_on_web_and_cli
+    expect: {mail_fallback: A mail draft is available., invented_mail_body: false, actual_code_uses_code_summary: true}
