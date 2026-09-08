@@ -344,7 +344,7 @@
           No screenshot: centered view (eye) icon while loading or on error.
         -->
         <div class="icon-center">
-          <div class="icon_rounded visible"></div>
+          <div class="icon_rounded view" data-testid="pdf-view-fallback-icon"></div>
         </div>
       {/if}
     </div>
