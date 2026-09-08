@@ -13,6 +13,7 @@ import hashlib
 import os
 from pathlib import Path
 import secrets
+import socket
 import subprocess
 import sys
 import time
@@ -193,7 +194,22 @@ def wait_web(child):
     raise RuntimeError("Local web app did not become ready")
 
 
-def run_e2e(specs: list[str]):
+def verify_artifact_profile(specs: list[str]):
+    from ci_coverage import ARTIFACT_SPECS
+    if not specs or not set(specs).issubset(ARTIFACT_SPECS):
+        raise ValueError("Artifact-only mode cannot run application specs")
+    for host in ("api.dev.openmates.org", "app.dev.openmates.org"):
+        if set(socket.gethostbyname_ex(host)[2]) != {"127.0.0.2"}:
+            raise RuntimeError("Shared-dev DNS was not rejected for artifact proof")
+        try:
+            connection = socket.create_connection((host, 443), timeout=2)
+        except OSError:
+            continue
+        connection.close()
+        raise RuntimeError("Shared-dev HTTPS reachable during artifact proof")
+
+
+def run_e2e(specs: list[str], *, artifact=False):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
     for name in specs:
@@ -204,9 +220,11 @@ def run_e2e(specs: list[str]):
             or not name.endswith(".spec.ts")
         ):
             raise ValueError("Invalid spec selection")
+    if artifact:
+        verify_artifact_profile(specs)
     results = []
     with (RESULTS / "ci-web.log").open("w") as log:
-        child = subprocess.Popen(
+        child = None if artifact else subprocess.Popen(
             [
                 sys.executable,
                 str(Path(__file__).with_name("ci_static_web.py")),
@@ -217,11 +235,12 @@ def run_e2e(specs: list[str]):
             stderr=log,
         )
         try:
-            wait_web(child)
+            if child is not None:
+                wait_web(child)
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
                 env = dict(os.environ)
-                account_free = (
+                account_free = artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
@@ -287,12 +306,13 @@ def run_e2e(specs: list[str]):
                     }
                 )
         finally:
-            child.terminate()
-            try:
-                child.wait(timeout=15)
-            except subprocess.TimeoutExpired:
-                child.kill()
-                child.wait()
+            if child is not None:
+                child.terminate()
+                try:
+                    child.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    child.kill()
+                    child.wait()
     return results
 
 
@@ -303,8 +323,8 @@ def main():
     results = []
     error = None
     try:
-        if mode == "e2e":
-            results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]))
+        if mode in ("e2e", "artifact"):
+            results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact")
         elif mode == "pytest":
             subprocess.run(
                 [
@@ -409,6 +429,8 @@ def main():
         "run_id": os.environ["GITHUB_RUN_ID"],
         "environment": "github-isolated",
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
+        "runtime_profile": mode,
+        "artifact_shared_dev_rejected": mode == "artifact" and not error,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),
         "results": results,
         "error": error,

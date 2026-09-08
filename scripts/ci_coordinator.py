@@ -146,10 +146,10 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("e2e", "pytest", "vitest"):
+        if mode not in ("e2e", "artifact", "pytest", "vitest"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
-            proof_profile and mode != "e2e"
+            proof_profile and mode not in ("e2e", "artifact")
         ):
             raise ValueError("Invalid proof video profile")
         specs = sorted(set(specs))
@@ -160,7 +160,7 @@ class Queue:
                 or spec.startswith("/")
             ):
                 raise ValueError("Invalid spec path")
-        if mode == "e2e" and not specs:
+        if mode in ("e2e", "artifact") and not specs:
             raise ValueError("E2E requests require explicit specs")
         encoded = json.dumps(specs, separators=(",", ":"))
         identity = [owner, source, specs, mode, nonce]
@@ -373,7 +373,7 @@ def main():
     submit.add_argument("--session", required=True)
     submit.add_argument("--source", required=True)
     submit.add_argument("--spec", action="append", default=[])
-    submit.add_argument("--mode", choices=["e2e", "pytest", "vitest"], default="e2e")
+    submit.add_argument("--mode", choices=["e2e", "artifact", "pytest", "vitest"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
@@ -392,12 +392,14 @@ def main():
     root = canonical_root(Path(__file__).resolve().parent.parent)
     queue = Queue(root / "logs/ci-coordinator/queue.sqlite3")
     if args.action == "submit":
-        if args.mode == "e2e":
+        if args.mode in ("e2e", "artifact"):
             try:
-                from scripts.ci_coverage import partition
+                from scripts.ci_coverage import partition, execution_mode
             except ModuleNotFoundError:
-                from ci_coverage import partition
+                from ci_coverage import partition, execution_mode
             _, held = partition(args.spec)
+            if any(execution_mode(spec) != args.mode for spec in args.spec):
+                raise RuntimeError("Selected specs require a different isolated runtime mode")
             if held:
                 raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
         print(

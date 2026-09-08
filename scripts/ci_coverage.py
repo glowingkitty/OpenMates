@@ -13,11 +13,17 @@ CORE_SPECS = frozenset({
     "task-blocked-reason.spec.ts",
     "task-activity.spec.ts",
 })
+ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts"})
+
+
+def execution_mode(spec: str) -> str:
+    return "artifact" if spec in ARTIFACT_SPECS else "e2e"
+
+
 HOLD_REASONS = {
     "anonymous-production-repair.spec.ts": "Requires official-cloud eligibility, inference and budget isolation",
     "anonymous-free-chat.spec.ts": "Browser mock coverage must retain its separate official-cloud contract; profile review pending",
     "chat-scroll-streaming.spec.ts": "Requires the AI worker/provider profile and preserved inference budget controls",
-    "security-reporting-email-proof.spec.ts": "Requires isolated synthetic artifact renderer dependencies; no email resend. Existing visual approval remains a separate completion gate",
 }
 
 
@@ -25,7 +31,7 @@ def partition(specs: list[str]) -> tuple[list[str], dict[str, str]]:
     supported = []
     held = {}
     for spec in specs:
-        if spec in CORE_SPECS:
+        if spec in CORE_SPECS or spec in ARTIFACT_SPECS:
             supported.append(spec)
         else:
             held[spec] = HOLD_REASONS.get(

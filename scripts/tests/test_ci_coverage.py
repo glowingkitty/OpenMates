@@ -48,3 +48,11 @@ def test_verified_core_profile_does_not_claim_all_e2e_complete():
     assert verified["ready"] is True
     assert verified["all_e2e_migrated"] is False
     assert "anonymous-production-repair.spec.ts" in verified["held_coverage"]
+
+
+def test_synthetic_artifacts_use_distinct_account_free_runtime():
+    from scripts.ci_coverage import execution_mode
+    allowed, held = partition(["security-reporting-email-proof.spec.ts"])
+    assert not held
+    assert execution_mode(allowed[0]) == "artifact"
+    assert execution_mode("tasks-flow.spec.ts") == "e2e"

@@ -179,6 +179,12 @@ def fetch(github, job: dict, root: Path) -> dict:
                 raise RuntimeError(
                     "Result does not cover the exact requested spec inventory"
                 )
+        if job["state"] == "success" and job.get("mode") == "artifact":
+            if (report.get("runtime_profile") != "artifact"
+                    or report.get("artifact_shared_dev_rejected") is not True
+                    or sorted(item.get("spec", "") for item in report["results"])
+                    != sorted(json.loads(job["specs"]))):
+                raise RuntimeError("Artifact proof lacks exact inventory or isolated runtime evidence")
         result = {
             "id": job["id"],
             "source_commit": job["source"],
