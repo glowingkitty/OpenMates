@@ -6459,6 +6459,7 @@ export class OpenMatesClient {
     // Saved chats must resolve their immutable raw key before constructing the
     // inference request because preflight commits the matching encrypted row.
     let chatKeyBytes: Uint8Array | null = null;
+    let activeFocusId: string | null = null;
     let encryptedChatKey: string | null = null;
     let chatSlugLookupKey: Uint8Array | null = null;
     let baselineMessagesV = 0;
@@ -6501,6 +6502,14 @@ export class OpenMatesClient {
           if (encKey) {
             chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
             encryptedChatKey = encKey;
+            if (!chatKeyBytes) throw new Error("Could not decrypt the saved chat key.");
+            const encryptedFocusId = chat.details.encrypted_active_focus_id;
+            if (typeof encryptedFocusId === "string" && encryptedFocusId) {
+              activeFocusId = await decryptWithAesGcmCombined(encryptedFocusId, chatKeyBytes);
+              if (!activeFocusId) {
+                throw new Error("Could not decrypt the chat's active focus. Sync before sending again.");
+              }
+            }
           }
         }
         if (!chatKeyBytes || !encryptedChatKey) {
@@ -6508,6 +6517,22 @@ export class OpenMatesClient {
         }
       }
     }
+
+    // Persist authoritative live focus activation with the chat key, as the web
+    // client does. The next request restores this field; history is not authority.
+    let focusPersistence = Promise.resolve();
+    let focusPersistenceError: unknown = null;
+    ws.onMessageType<{ chat_id?: string; focus_id?: string }>("focus_mode_activated", (event) => {
+      if (event.chat_id !== chatId || !event.focus_id || !chatKeyBytes || params.incognito) return;
+      const focusId = event.focus_id;
+      const key = chatKeyBytes;
+      focusPersistence = focusPersistence.then(async () => {
+        const encryptedFocusId = await encryptWithAesGcmCombined(focusId, key);
+        await ws.sendAsync("update_encrypted_active_focus_id", {
+          chat_id: chatId, encrypted_active_focus_id: encryptedFocusId,
+        });
+      }).catch((error: unknown) => { focusPersistenceError = error; });
+    });
 
     // ── Inference request ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
@@ -6517,6 +6542,8 @@ export class OpenMatesClient {
       chat_id: chatId,
       ...(teamId ? { team_id: teamId } : {}),
       client_capabilities: clientCapabilities,
+      // Only decrypted current metadata restores focus; history is never authority.
+      active_focus_id: activeFocusId,
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,
@@ -7387,7 +7414,9 @@ export class OpenMatesClient {
           clearSyncCache(teamId);
         }
       } finally {
+        await focusPersistence;
         ws.close();
+        if (focusPersistenceError) throw focusPersistenceError;
       }
     }
 

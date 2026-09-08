@@ -2320,7 +2320,9 @@ describe("CLI saved-chat recovery preflight", () => {
   }
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  it("lazily registers epoch-1 recovery material for an old saved chat", async () => {
+  // contract-test: supporting surface=cli assertions=focus-modes.full-instruction,focus-modes.restoration
+  for (const restoredFocus of ["jobs-career_insights", null]) {
+  it(`lazily registers epoch-1 recovery material for an old saved chat (${restoredFocus ?? "off"})`, async () => {
     const chatId = "11111111-1111-4111-8111-111111111111";
     const ownerId = "22222222-2222-4222-8222-222222222222";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
@@ -2332,7 +2334,8 @@ describe("CLI saved-chat recovery preflight", () => {
       totalChatCount: 1,
       loadedChatCount: 1,
       chats: [{
-        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7 },
+        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7,
+          encrypted_active_focus_id: restoredFocus ? await encryptWithAesGcmCombined(restoredFocus, rawChatKey) : null },
         messages: [],
       }],
       embeds: [],
@@ -2343,6 +2346,7 @@ describe("CLI saved-chat recovery preflight", () => {
       preflightPayload?: Record<string, unknown>;
       messagePayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
+      focusUpdate?: Record<string, unknown>;
       frameTypes: string[];
     } = { frameTypes: [] };
     let sealedPayloadForTest: string | null = null;
@@ -2401,7 +2405,9 @@ describe("CLI saved-chat recovery preflight", () => {
               payload: { preflight_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", turn_id: frame.payload.turn_id },
             }));
           }
+          if (frame.type === "update_encrypted_active_focus_id") captured.focusUpdate = frame.payload;
           if (frame.type === "chat_message_added") {
+            ws.send(JSON.stringify({ type: "focus_mode_activated", payload: { chat_id: chatId, focus_id: "jobs-career_insights" } }));
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
@@ -2471,8 +2477,12 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      await client.sendMessage({ message: "Continue this old chat", chatId });
+      // This fixture tests request/recovery metadata; it has no phased-sync history server.
+      await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
 
+      assert.equal(captured.messagePayload?.active_focus_id, restoredFocus);
+      assert.equal(captured.focusUpdate?.chat_id, chatId);
+      assert.equal(await decryptWithAesGcmCombined(String(captured.focusUpdate?.encrypted_active_focus_id), rawChatKey), "jobs-career_insights");
       assert.ok(captured.preflightPayload);
       assert.equal(captured.preflightPayload.expected_messages_v, 7);
       assert.equal(captured.preflightPayload.encrypted_chat_key, encryptedChatKey);
@@ -2496,6 +2506,7 @@ describe("CLI saved-chat recovery preflight", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+  }
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("returns after confirmation for saved team messages that do not mention OpenMates", async () => {
