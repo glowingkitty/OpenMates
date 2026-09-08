@@ -989,14 +989,14 @@ async function handleTasks(
       return;
     }
     const tasks = await loadTasks(client, masterKey, scope);
-    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson), complete: true });
     else console.log(renderTaskList(tasks));
     return;
   }
 
   if (subcommand === "board") {
     const tasks = await loadTasks(client, masterKey, scope);
-    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson) });
+    if (flags.json === true) printJson({ tasks: tasks.map(taskToJson), complete: true });
     else console.log(renderTaskBoard(tasks));
     return;
   }
@@ -1270,6 +1270,7 @@ async function loadTasks(
 ): Promise<DecryptedUserTask[]> {
   const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, externalChatProvider: scope.externalChatProvider, externalChatLookupHash: scope.externalChatLookupHash, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
   const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
+  if (tasks.length !== records.length) throw new Error("TASK_LIST_INCOMPLETE: one or more records could not be decrypted.");
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
 
