@@ -189,3 +189,10 @@ is not published on the host. Private DNS answers, paid-provider authorities and
 shared-dev destinations are rejected before upstream connection. TLS remains
 end-to-end with normal client certificate validation. Original provider requests
 and assertions remain unchanged; no provider credentials are provisioned.
+
+The shared-chat viewer receives a newly encrypted synthetic archived transcript,
+not a historical shared-dev link. The fixture reuses candidate CLI crypto, seeds
+only encrypted rows in the runner CMS, and performs actual authenticated client
+sync and share creation before the original logged-out viewer assertions. It
+does not claim audio generation/transcription-provider coverage. Missing fixture
+setup fails explicitly; no external shared-chat URL is used as fallback.

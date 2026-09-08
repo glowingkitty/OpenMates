@@ -104,7 +104,7 @@ test('stale shared chat link shows invalid-link error instead of decrypted dummy
 	// the share page must reject that payload instead of importing dummy messages
 	// that later render "[Content decryption failed]".
 	const sharedChatUrl =
-		'https://app.dev.openmates.org/share/chat/87f1da2f-1814-4a36-a375-c718fa946922#key=X4Tz9wamfp_uPngBF3Z_imlm7t9eelWvSwPauIpcAy8z8qHi9A0Nu4uS-ZhfKBdF2462Qc0gJQZFHINe0L_iqwCUfvtjsY7eDrAAVsEuQUaCmUo-KZK1PslohdOMfg_xRvKUbGW-lh1mi6NrCz7pOur8ojLhxuT-lfsHIoHMEQPHuFb6AsDW5s-ZGSdHcTsQp3ue&messageid=ffcc180d-a0aa-4fc0-9c44-be39064122b8';
+		'/share/chat/87f1da2f-1814-4a36-a375-c718fa946922#key=X4Tz9wamfp_uPngBF3Z_imlm7t9eelWvSwPauIpcAy8z8qHi9A0Nu4uS-ZhfKBdF2462Qc0gJQZFHINe0L_iqwCUfvtjsY7eDrAAVsEuQUaCmUo-KZK1PslohdOMfg_xRvKUbGW-lh1mi6NrCz7pOur8ojLhxuT-lfsHIoHMEQPHuFb6AsDW5s-ZGSdHcTsQp3ue&messageid=ffcc180d-a0aa-4fc0-9c44-be39064122b8';
 	const expectedChatId = '87f1da2f-1814-4a36-a375-c718fa946922';
 
 	logCheckpoint('Starting shared chat test', { chatId: expectedChatId });
@@ -140,7 +140,10 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 	test.slow();
 	test.setTimeout(120000);
 
-	const sharedChatUrl = 'https://app.dev.openmates.org/s/zuygP79v#BUw56h';
+	// A fresh encrypted archive is seeded in the runner database and shared
+	// through the real authenticated CLI. No external account or stored link.
+	const sharedChatUrl = process.env.OPENMATES_CI_SHARED_CHAT_URL;
+	if (!sharedChatUrl) throw new Error('Fresh shared-chat archive fixture is required');
 
 	await page.goto(sharedChatUrl);
 	await expect(page).toHaveURL(/#chat-id=/, { timeout: 45000 });
