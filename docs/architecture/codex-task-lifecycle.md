@@ -33,3 +33,26 @@ The global stable 0.18.0 build can compare newer than a current dev prerelease.
 The supported explicit channel repair is `openmates update --channel dev
 --allow-downgrade`; verify installed command capabilities afterward. Normal dev
 publication remains the existing Publish CLI workflow and npm alpha channel.
+
+
+## Shared API admission and deferred delivery
+
+All hook/lifecycle global CLI requests share a nonblocking advisory lock beneath
+canonical `logs/codex-task-context/`. The lock covers the subprocess, so concurrent
+chats cannot create a request burst. Duplicate list reads within one short-lived
+hook process reuse the same response; mutations invalidate that response. No
+cross-account Task response cache is introduced and CLI auth environment is inherited.
+
+HTTP429 establishes one shared cooldown: Retry-After seconds when present in CLI
+stderr, otherwise120 seconds with exponential backoff up to1800 seconds. The
+currently installed CLI does not expose the response headers, so the conservative
+fallback applies. Timeouts establish30 seconds of cooldown. Other chats do not
+invoke the CLI while the request slot is busy or cooldown is active. This gate
+covers hook/helper requests, not manually invoked global CLI commands.
+
+Pending lifecycle intent is saved before delivery and retains its delivery ID.
+Rate limiting never acknowledges completion. A deferred Stop emits a visible
+system warning and `continue:false`, avoiding an automatic retry loop; its
+existing pending intent is reconciled at a later start/resume after cooldown.
+No background retry scheduler or daemon restart is required. A final response
+must disclose unacknowledged delivery instead of asserting persisted completion.

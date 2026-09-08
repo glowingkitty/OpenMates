@@ -31,6 +31,8 @@ def test_global_only_preserves_auth_context(monkeypatch, tmp_path):
         "codex_task_context.subprocess.run",
         lambda *a, **k: SimpleNamespace(returncode=1, stderr="Only opencode allowed"),
     )
+    from codex_task_context import _INVOCATION_READS
+    _INVOCATION_READS.clear()
     with pytest.raises(RuntimeError, match="Only opencode allowed"):
         cli(tmp_path, ["list"])
 
@@ -225,3 +227,65 @@ def test_hook_rejects_source_cli_but_allows_global_and_unit_tests(tmp_path):
             tmp_path,
             "ecad",
         )
+
+
+def test_shared_429_stops_other_chats_and_honors_retry_after(monkeypatch, tmp_path):
+    import codex_task_context as context
+    calls = []
+    clock = [1000]
+    monkeypatch.setattr(context.time, "time", lambda: clock[0])
+    def run(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=1, stderr="HTTP429 Retry-After: 300")
+    monkeypatch.setattr(context.subprocess, "run", run)
+    for i in range(16):
+        with pytest.raises(context.TaskDeliveryDeferred):
+            context.cli(tmp_path, ["list", "--external-chat", f"codex:{i}"])
+    assert len(calls) == 1
+    clock[0] = 1299
+    with pytest.raises(context.TaskDeliveryDeferred):
+        context.cli(tmp_path, ["show", "owned-task"])
+    assert len(calls) == 1
+    clock[0] = 1301
+    with pytest.raises(context.TaskDeliveryDeferred):
+        context.cli(tmp_path, ["show", "owned-task"])
+    assert len(calls) == 2
+
+
+def test_global_slot_defers_parallel_chat_without_network(monkeypatch, tmp_path):
+    import fcntl
+    import codex_task_context as context
+    directory = tmp_path / "logs/codex-task-context"
+    directory.mkdir(parents=True)
+    monkeypatch.setattr(context.subprocess, "run", lambda *a, **k: pytest.fail("network during another chat request"))
+    with (directory / "request.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        with pytest.raises(context.TaskDeliveryDeferred, match="another chat"):
+            context.cli(tmp_path, ["list"])
+
+
+def test_same_hook_discovery_reused_but_mutation_invalidates(monkeypatch, tmp_path):
+    import codex_task_context as context
+    calls = []
+    def run(command, **kwargs):
+        calls.append(command)
+        return SimpleNamespace(returncode=0, stdout='{"complete":true,"tasks":[]}')
+    monkeypatch.setattr(context.subprocess, "run", run)
+    context.cli(tmp_path, ["list"])
+    context.cli(tmp_path, ["list"])
+    assert len(calls) == 1
+    context.cli(tmp_path, ["edit", "t", "--status", "in_progress"])
+    context.cli(tmp_path, ["list"])
+    assert len(calls) == 3
+
+
+def test_pending_outcome_survives_shared_cooldown():
+    import codex_task_context as context
+    pending = {"task_id": "t", "delivery_id": "stable"}
+    state = {"sessions": {"ecad": {"task_bridge": {"codex_pending_outcome": pending}}}}
+    sessions = SimpleNamespace(_load_sessions=lambda: state)
+    def reader(*args):
+        raise context.TaskDeliveryDeferred("cooldown")
+    with pytest.raises(context.TaskDeliveryDeferred):
+        hook(None, "ecad", "thread", "Stop", {}, sessions, reader)
+    assert state["sessions"]["ecad"]["task_bridge"]["codex_pending_outcome"] == pending
