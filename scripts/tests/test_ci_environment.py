@@ -182,3 +182,19 @@ def test_replay_allowlist_contains_only_this_runs_new_identities(monkeypatch):
     assert not is_configured_test_account_profile({"hashed_email": hashed("ci-other-run@example.com")})
     with pytest.raises(ValueError, match="unique generated"):
         compose_profile("a" * 40, account_emails=[fresh[0], fresh[0]])
+
+
+def test_object_storage_uses_fresh_local_credentials_and_real_pinned_server():
+    a = compose_profile("a" * 40, object_storage=True)
+    b = compose_profile("a" * 40, object_storage=True)
+    services = a["services"]
+    store = services["object-storage"]
+    assert "@sha256:" in store["image"]
+    assert store["ports"] == ["127.0.0.1:9000:9000"]
+    assert store["environment"] != b["services"]["object-storage"]["environment"]
+    for name in ("api", "core-worker"):
+        assert services[name]["environment"]["S3_ENDPOINT_URL"] == "http://storage.ci.test:9000"
+        assert services[name]["environment"]["S3_REGIONS"] == "nbg1"
+        assert services[name]["depends_on"]["object-storage"]["condition"] == "service_healthy"
+    assert services["vault-init"]["environment"]["CI_STORAGE_ACCESS_KEY"] == store["environment"]["AWS_ACCESS_KEY_ID"]
+    assert "object-storage" not in compose_profile("a" * 40)["services"]

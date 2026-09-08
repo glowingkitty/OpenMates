@@ -34,6 +34,10 @@ for mount,body in [('kv',{'type':'kv','options':{'version':'2'}}),('transit',{'t
 data={'admin_log_api_key':os.environ['INTERNAL_API_SHARED_TOKEN']}
 response=requests.post(url+'kv/data/providers/core_server',headers=headers,json={'data':data},timeout=15)
 response.raise_for_status()
+if os.environ.get('CI_STORAGE_ACCESS_KEY'):
+    data={'s3_access_key':os.environ['CI_STORAGE_ACCESS_KEY'],'s3_secret_key':os.environ['CI_STORAGE_SECRET_KEY'],'s3_region_name':'nbg1'}
+    response=requests.post(url+'kv/data/providers/hetzner',headers=headers,json={'data':data},timeout=15)
+    response.raise_for_status()
 class Client:
     async def vault_request(self, method, path, data):
         response=requests.request(method, url+path, headers=headers, json=data, timeout=15)
@@ -52,7 +56,29 @@ pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, account_emails: list[str] | None = None) -> dict:
+STORAGE_VERIFY = """import os, pathlib, requests, boto3
+from botocore.config import Config
+token=pathlib.Path('/vault-data/api.token').read_text().strip()
+response=requests.get('http://vault:8200/v1/kv/data/providers/hetzner',headers={'X-Vault-Token':token},timeout=10)
+response.raise_for_status()
+keys=response.json()['data']['data']
+client=boto3.client('s3',endpoint_url=os.environ['S3_ENDPOINT_URL'],region_name='nbg1',aws_access_key_id=keys['s3_access_key'],aws_secret_access_key=keys['s3_secret_key'],config=Config(signature_version='s3v4',s3={'addressing_style':'path'},connect_timeout=5,read_timeout=10))
+bucket='ci-probe'; key='protocol-proof'; content=b'isolated-s3-roundtrip'
+try:
+    client.put_object(Bucket=bucket,Key=key,Body=content)
+    assert client.get_object(Bucket=bucket,Key=key)['Body'].read()==content
+    client.put_bucket_cors(Bucket=bucket,CORSConfiguration={'CORSRules':[{'AllowedOrigins':['http://localhost:5173'],'AllowedMethods':['GET'],'AllowedHeaders':['*']}]})
+    assert client.get_bucket_cors(Bucket=bucket)['CORSRules'][0]['AllowedOrigins']==['http://localhost:5173']
+    signed=client.generate_presigned_url('get_object',Params={'Bucket':bucket,'Key':key},ExpiresIn=60)
+    assert requests.get(signed,timeout=10).content==content
+    assert requests.get(os.environ['S3_ENDPOINT_URL']+'/'+bucket+'/'+key,timeout=10).status_code==403
+finally:
+    client.delete_object(Bucket=bucket,Key=key)
+print('authenticated-roundtrip-cors-presigned-and-private-access-passed')
+"""
+
+
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, account_emails: list[str] | None = None) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     credentials = {
         name: secrets.token_hex(24)
@@ -64,6 +90,8 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, account_emai
             "internal",
             "admin",
             "vault",
+            "storage_key",
+            "storage_secret",
         )
     }
     fresh_emails = account_emails or []
@@ -96,6 +124,8 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, account_emai
         "E2E_TEST_PROD_ENABLED": "false",
         "CELERY_AUTOSCALE_MAX": "1",
     }
+    if object_storage:
+        common.update(S3_ENDPOINT_URL="http://storage.ci.test:9000", S3_REGIONS="nbg1")
     source_mounts = [
         f"{SOURCE}/backend:/app/backend:ro",
         f"{SOURCE}/shared:/shared:ro",
@@ -266,6 +296,21 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, account_emai
             "depends_on": {"vault": {"condition": "service_healthy"}},
         },
     }
+    if object_storage:
+        # Real S3 SDK operations hit a disposable store, never shared buckets.
+        services["object-storage"] = {
+            "image": "chrislusf/seaweedfs@sha256:0a94aac557ead0a6b3350df86b2d4fea0a5793590e1fbf5f35d41cac0dc22b40",
+            "command": ["mini", "-dir=/data", "-s3.port=9000"],
+            "environment": {"AWS_ACCESS_KEY_ID": credentials["storage_key"], "AWS_SECRET_ACCESS_KEY": credentials["storage_secret"], "S3_BUCKET": "ci-probe"},
+            "volumes": ["object-storage:/data"],
+            "ports": ["127.0.0.1:9000:9000"],
+            "networks": {"default": {"aliases": ["storage.ci.test"]}},
+            "mem_limit": 512 * MIB,
+            "healthcheck": {"test": ["CMD-SHELL", "curl -sS -o /dev/null -w '%{http_code}' http://localhost:9000/ | grep -q '^403$'"], "interval": "3s", "timeout": "3s", "retries": 30},
+        }
+        for name in ("api", "core-worker"):
+            services[name]["depends_on"]["object-storage"] = {"condition": "service_healthy"}
+        services["vault-init"]["environment"].update(CI_STORAGE_ACCESS_KEY=credentials["storage_key"], CI_STORAGE_SECRET_KEY=credentials["storage_secret"])
     if ai_fixtures:
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
@@ -329,6 +374,8 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, account_emai
         if mounts:
             service["volumes"] = mounts
     profile = {"name": "openmates-ci", "services": services, "volumes": volumes}
+    if ai_fixtures and object_storage:
+        services["object-storage"]["networks"]["ingress"] = {}
     if ai_fixtures:
         profile["networks"] = {"default": {"internal": True}, "ingress": {}}
     return profile
@@ -370,7 +417,8 @@ def main():
         if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
             raise RuntimeError("Candidate lacks committed development feature configuration")
         account_emails = [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(2 * len(selected))]
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), account_emails=account_emails)
+        storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=bool(storage_specs.intersection(selected)), account_emails=account_emails)
         # Docker cannot create nested mountpoints inside a read-only bind.
         # These ignored directories contain only runner-local runtime output.
         for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
@@ -420,6 +468,8 @@ def main():
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if "object-storage" in profile["services"]:
+            required.append("object-storage")
         if "ai-worker" in profile["services"]:
             required.extend(["ai-worker", "runner-gateway"])
             network = json.loads(subprocess.check_output(["docker", "network", "inspect", "openmates-ci_default"], text=True))[0]
@@ -460,6 +510,11 @@ def main():
                         "Backend must mount the exact candidate source read-only"
                     )
                 identities[service]["backend_source"] = mounts[0]["Source"]
+        if "object-storage" in profile["services"]:
+            if socket.gethostbyname("storage.ci.test") != "127.0.0.1":
+                raise RuntimeError("Object storage must resolve on this runner")
+            compose("exec", "-T", "api", "python", "-c", STORAGE_VERIFY, capture=True, timeout=60)
+            evidence["object_storage"] = {"endpoint": "http://storage.ci.test:9000", "provider": "SeaweedFS", "protocol_probe": "authenticated-roundtrip-cors-presigned-and-private-access-passed", "region_scope": "single disposable region; Hetzner failover not covered"}
         evidence.update(
             services=identities,
             api_url="http://localhost:8000",

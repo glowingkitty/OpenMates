@@ -138,9 +138,11 @@ class UploadsS3Service:
         self.region_name = region or "nbg1"
         configured_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
         self.configured_regions = configured_regions
+        if os.getenv("S3_ENDPOINT_URL") and len(configured_regions) != 1:
+            raise ValueError("An explicit S3 endpoint requires exactly one S3_REGIONS entry")
         if self.region_name not in configured_regions:
             raise ValueError("Active S3 region must be present in S3_REGIONS")
-        self.endpoint_url = endpoint_for_region(self.region_name)
+        self.endpoint_url = endpoint_for_region(self.region_name, endpoint_override=os.getenv("S3_ENDPOINT_URL"))
 
         from urllib.parse import urlparse
         self.base_domain = urlparse(self.endpoint_url).netloc
@@ -162,7 +164,7 @@ class UploadsS3Service:
         self.region_clients = {
             configured_region: boto3.client(
                 "s3",
-                endpoint_url=endpoint_for_region(configured_region),
+                endpoint_url=endpoint_for_region(configured_region, endpoint_override=os.getenv("S3_ENDPOINT_URL")),
                 region_name=configured_region,
                 aws_access_key_id=access_key,
                 aws_secret_access_key=secret_key,
@@ -698,8 +700,10 @@ class UploadsS3Service:
         """
         selected_region = region or self.region_name
         bucket = self.get_bucket_for_env(target_env, region=selected_region)
-        base_domain = urlparse(endpoint_for_region(selected_region)).netloc
-        return f"https://{bucket}.{base_domain}"
+        endpoint = endpoint_for_region(selected_region, endpoint_override=os.getenv("S3_ENDPOINT_URL"))
+        if os.getenv("S3_ENDPOINT_URL"):
+            return f"{endpoint}/{bucket}"
+        return f"https://{bucket}.{urlparse(endpoint).netloc}"
 
     def get_profile_private_bucket_for_env(self, target_env: str = "prod", *, region: str | None = None) -> str:
         """
