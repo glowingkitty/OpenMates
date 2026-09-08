@@ -22,6 +22,12 @@ import pytest
 from scripts import proof_video_workflow as workflow
 
 
+@pytest.fixture(autouse=True)
+def isolate_agent_identity(monkeypatch):
+    for variable in ("CODEX_THREAD_ID", "CODEX_SESSION_ID", "OPENCODE_SESSION_ID"):
+        monkeypatch.delenv(variable, raising=False)
+
+
 def frame_quality_review(frame: str, **overrides: str) -> dict[str, object]:
     checks = {
         "layout": "pass",
@@ -126,7 +132,9 @@ def test_proof_sources_use_shared_control_plane_results() -> None:
     assert workflow.PROOF_SOURCE_DIR == workflow.CONTROL_PLANE_ROOT / "test-results" / "proof-video-sources"
 
 
+@pytest.mark.parametrize("provider", ["opencode", "codex", "explicit"])
 def test_start_current_uses_deployed_session_commit_from_linked_worktree(
+    provider: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -140,7 +148,7 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
             {
                 "sessions": {
                     "abcd": {
-                        "opencode_session_id": "ses_current",
+                        ("codex_task_id" if provider == "codex" else "opencode_session_id"): "ses_current",
                         "worktree": {"merged_commit": deployed_commit},
                     }
                 }
@@ -162,7 +170,10 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
         ),
         encoding="utf-8",
     )
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "ses_current")
+    for variable in ("OPENCODE_SESSION_ID", "CODEX_THREAD_ID", "CODEX_SESSION_ID"):
+        monkeypatch.delenv(variable, raising=False)
+    if provider != "explicit":
+        monkeypatch.setenv("CODEX_THREAD_ID" if provider == "codex" else "OPENCODE_SESSION_ID", "ses_current")
     monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
     monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
     monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "worktree" / "test-results")
@@ -170,7 +181,7 @@ def test_start_current_uses_deployed_session_commit_from_linked_worktree(
     monkeypatch.setattr(workflow, "_tracked_worktree_changes", lambda: ["frontend/dirty.svelte"])
     monkeypatch.setattr(workflow, "_current_git_sha", lambda: "b" * 40)
 
-    result = workflow.start_current("example.spec.ts")
+    result = workflow.start_current("example.spec.ts", session_id="abcd" if provider == "explicit" else "")
 
     assert result["context"]["session_id"] == "abcd"
     assert result["context"]["subject_commit"] == deployed_commit
@@ -2654,3 +2665,14 @@ def test_review_run_rejects_frame_path_escape_before_inference(
             reviewer_runner=reviewer,
         )
     assert invoked is False
+
+
+@pytest.mark.parametrize("records, kwargs", [
+    ({"abcd": {}}, {}),
+    ({"abcd": {}}, {"repository_session_id": "missing"}),
+    ({"abcd": {"opencode_session_id": "thread"}}, {"codex_task_id": "thread"}),
+    ({"abcd": {"codex_task_id": "thread"}, "ef01": {"codex_task_id": "thread"}}, {"codex_task_id": "thread"}),
+])
+def test_proof_session_resolution_rejects_missing_ambiguous_or_wrong_provider(records, kwargs):
+    with pytest.raises(workflow.WorkflowError):
+        workflow.resolve_current_session({"sessions": records}, **kwargs)

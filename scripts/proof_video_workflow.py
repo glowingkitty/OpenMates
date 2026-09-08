@@ -143,12 +143,14 @@ def _commit_matches(candidate: str, expected: str) -> bool:
 def resolve_current_context(
     sessions: dict[str, Any],
     *,
-    opencode_session_id: str,
+    opencode_session_id: str = "",
+    codex_task_id: str = "",
+    repository_session_id: str = "",
     subject_commit: str,
     spec_name: str,
     test_runs: list[dict[str, Any]],
 ) -> ProofContext:
-    session_id, _session = resolve_current_session(sessions, opencode_session_id=opencode_session_id)
+    session_id, _session = resolve_current_session(sessions, opencode_session_id=opencode_session_id, codex_task_id=codex_task_id, repository_session_id=repository_session_id)
     passing_runs = [
         record
         for record in test_runs
@@ -173,14 +175,26 @@ def resolve_current_context(
     return ProofContext(session_id, subject_commit, str(passing_runs[0].get("source_run_id") or passing_runs[0]["run_id"]), spec_name)
 
 
-def resolve_current_session(sessions: dict[str, Any], *, opencode_session_id: str) -> tuple[str, dict[str, Any]]:
+def resolve_current_session(
+    sessions: dict[str, Any], *, opencode_session_id: str = "",
+    codex_task_id: str = "", repository_session_id: str = "",
+) -> tuple[str, dict[str, Any]]:
+    """Resolve one real repository record without translating provider identities."""
+    records = sessions.get("sessions") or {}
+    if repository_session_id:
+        record = records.get(repository_session_id)
+        if not isinstance(record, dict):
+            raise WorkflowError(f"unknown repository session {repository_session_id}; run sessions.py status")
+        return repository_session_id, record
+    identity_field = "codex_task_id" if codex_task_id else "opencode_session_id"
+    identity = codex_task_id or opencode_session_id
     matches = [
         (session_id, record)
-        for session_id, record in (sessions.get("sessions") or {}).items()
-        if isinstance(record, dict) and record.get("opencode_session_id") == opencode_session_id
+        for session_id, record in records.items()
+        if isinstance(record, dict) and identity and record.get(identity_field) == identity
     ]
     if len(matches) != 1:
-        raise WorkflowError(f"current OpenCode session matches {len(matches)} repository sessions; run sessions.py status")
+        raise WorkflowError(f"current agent identity matches {len(matches)} repository sessions; use --session with an existing repository session")
     return matches[0]
 
 
@@ -1791,12 +1805,11 @@ def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
             path.write_bytes(content)
 
 
-def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
+def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> dict[str, Any]:
     opencode_session_id = os.environ.get("OPENCODE_SESSION_ID", "")
-    if not opencode_session_id:
-        raise WorkflowError("OPENCODE_SESSION_ID is not set; run inside the active OpenCode chat")
+    codex_task_id = os.environ.get("CODEX_THREAD_ID") or os.environ.get("CODEX_SESSION_ID", "")
     sessions = _load_json(SESSIONS_FILE)
-    _session_id, session = resolve_current_session(sessions, opencode_session_id=opencode_session_id)
+    _session_id, session = resolve_current_session(sessions, opencode_session_id=opencode_session_id, codex_task_id=codex_task_id, repository_session_id=session_id)
     subject_commit = deployed_subject_commit(session)
     if not subject_commit:
         require_clean_worktree()
@@ -1810,7 +1823,7 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
         ]
     context = resolve_current_context(
         sessions,
-        opencode_session_id=opencode_session_id,
+        repository_session_id=_session_id,
         subject_commit=subject_commit,
         spec_name=Path(spec_name).name,
         test_runs=runs,
@@ -1826,10 +1839,11 @@ def start_current(spec_name: str, *, run_id: str = "") -> dict[str, Any]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Prepare a focused, bounded OpenCode proof-video workflow.")
+    parser = argparse.ArgumentParser(description="Prepare a focused, bounded proof-video workflow.")
     subparsers = parser.add_subparsers(dest="command", required=True)
     start = subparsers.add_parser("start", help="Resolve current proof context and prepare the contract boundary.")
-    start.add_argument("--current", action="store_true", help="Infer the current sessions.py session from OPENCODE_SESSION_ID.")
+    start.add_argument("--current", action="store_true", help="Infer the repository session from the current Codex or legacy agent identity.")
+    start.add_argument("--session", default="", help="Use an existing repository session ID explicitly.")
     start.add_argument("--spec", required=True, help="Passing Playwright spec filename.")
     start.add_argument("--run-id", default="", help="Disambiguate matching passing runs when necessary.")
     approve = subparsers.add_parser("approve", help="Persist the canonical proof contract authorization.")
@@ -1852,9 +1866,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "start":
-            if not args.current:
-                raise WorkflowError("start currently requires --current")
-            print(json.dumps(start_current(args.spec, run_id=args.run_id), indent=2, sort_keys=True))
+            if not args.current and not args.session:
+                raise WorkflowError("start requires --current or --session")
+            print(json.dumps(start_current(args.spec, run_id=args.run_id, session_id=args.session), indent=2, sort_keys=True))
             return 0
         if args.command == "approve":
             print(json.dumps(record_contract_authorization(session_id=args.session, spec_name=args.spec, contract_path=args.contract), indent=2, sort_keys=True))
