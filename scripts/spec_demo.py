@@ -135,23 +135,15 @@ PROOF_PRIVACY_SCAN_DISABLED = {
     "reason": "proof_video_pii_detection_disabled",
 }
 PROOF_PRIVACY_ACCEPTED_STATUSES = {"passed", "not_applicable"}
-WEB_PHONE_SAFARI_CHROME = {
-    "kind": "iphone13-pro-safari",
-    "tabGroupLabel": "Personal",
-    "topInset": 128,
-    "bottomInset": 86,
-    "devicePixelRatio": 3,
-}
 DEVICE_PROFILES = {
     "cli-terminal": {"width": 1280, "height": 720, "surface": "cli", "label": "CLI terminal"},
     "web-phone": {
         "width": 390,
         "height": 844,
         "source_width": 390,
-        "source_height": 630,
+        "source_height": 844,
         "surface": "web",
         "label": "phone web",
-        "browser_chrome": WEB_PHONE_SAFARI_CHROME,
     },
     "web-laptop": {"width": 1440, "height": 900, "surface": "web", "label": "laptop web"},
     "apple-iphone-portrait": {"width": 393, "height": 852, "surface": "apple", "label": "iPhone portrait"},
@@ -472,6 +464,7 @@ def assert_source_device_profile_dimensions(metadata: dict[str, Any], profile: d
 def _proof_renderer_hash() -> str:
     renderer_root = REPO_ROOT / "tooling/proof-video-remotion/src"
     renderer_files = [
+        Path(__file__),
         *sorted(path for path in renderer_root.iterdir() if path.suffix in {".ts", ".tsx", ".mjs"}),
         REPO_ROOT / "tooling/proof-video-remotion/package.json",
         REPO_ROOT / "pnpm-lock.yaml",
@@ -728,6 +721,22 @@ def build_browser_tutorial_plan(
                 raise DemonstrationError(f"Browser tutorial stable evidence interval is empty: {claim_id}")
             claim_anchor_times[claim_id] = evidence_start
             claim_evidence_intervals[claim_id] = [[evidence_start, evidence_end]]
+        # Captions must be readable while their actual asserted state remains on
+        # screen. Never synthesize a hold or truncate the original transcript.
+        required_ms = max(minimum_hold_ms, math.ceil(len(str(cue.get("text") or "").split()) / words_per_second * 1000))
+        if required_ms > maximum_hold_ms:
+            raise DemonstrationError(
+                f"Browser tutorial checkpoint {checkpoint_id} needs {required_ms}ms reading time, "
+                f"exceeding maximumHoldMs={maximum_hold_ms}; update the authored capture policy"
+            )
+        stable_start_ms = max(stable_assertion_times[claim_id] for claim_id in claim_ids)
+        available_ms = source_cue_end_ms - max(source_cue_start_ms, stable_start_ms)
+        if available_ms < required_ms:
+            raise DemonstrationError(
+                f"Browser tutorial checkpoint {checkpoint_id} has {available_ms}ms of stable source, "
+                f"requires {required_ms}ms at {words_per_second:g} words/second; "
+                "capture the real state for the remaining reading interval before the next action or teardown"
+            )
         caption_segments.append(
             {
                 "id": f"CAP-{index + 1}",
@@ -750,19 +759,10 @@ def build_browser_tutorial_plan(
     ]
     renderer_hash = _proof_renderer_hash()
     source_width, source_height = source_device_profile_dimensions(profile)
-    browser_chrome = dict(profile.get("browser_chrome")) if isinstance(profile.get("browser_chrome"), dict) else {"kind": "desktop-browser"}
-    if browser_chrome.get("kind") == "iphone13-pro-safari":
-        background_color = source_edge_color or sample_video_edge_color(
-            source_video,
-            timestamp_seconds=source_start_ms / 1000,
-        )
-        if not re.fullmatch(r"#[0-9a-fA-F]{6}", background_color):
-            raise DemonstrationError("Browser tutorial sampled Safari background color must be a CSS hex color")
-        browser_chrome["backgroundColor"] = background_color.lower()
     request = {
         "schemaVersion": 1,
-        "renderer": "openmates-remotion-browser-v1",
-        "presentationMode": "browser-frame-scaled-full-viewport",
+        "renderer": "openmates-clean-browser-v1",
+        "presentationMode": "clean-full-viewport",
         "sourceVideo": str(source_video.resolve()),
         "sourceHash": sha256_file(source_video),
         "sourceFrameRate": source_frame_rate,
@@ -770,7 +770,6 @@ def build_browser_tutorial_plan(
         "domain": str(contract["domain"]),
         "deviceProfile": str(profile["id"]),
         "viewport": {"width": source_width, "height": source_height},
-        "browserChrome": browser_chrome,
         "output": {"width": int(profile["width"]), "height": int(profile["height"]), "fps": 30},
         "segments": segments,
         "contractHash": contract_hash,
@@ -793,30 +792,28 @@ def build_browser_tutorial_plan(
 
 
 def render_browser_tutorial(request: dict[str, Any], output_path: Path) -> None:
-    """Render one canonical browser tutorial through the repository Remotion package."""
+    """Render the attested continuous interval without framing or resized pixels."""
     source_path = Path(str(request.get("sourceVideo") or ""))
     if not source_path.is_file() or sha256_file(source_path) != request.get("sourceHash"):
         raise DemonstrationError("Browser tutorial source video is missing or changed after planning")
     for segment in request.get("segments") if isinstance(request.get("segments"), list) else []:
         if not isinstance(segment, dict) or segment.get("kind") != "video":
             raise DemonstrationError("Browser tutorial rendering accepts only real source-video segments")
-    request_path = output_path.with_suffix(".remotion.json")
-    _write_private(request_path, json.dumps(request, indent=2, sort_keys=True) + "\n")
-    result = subprocess.run(
-        [
-            "node",
-            str(REPO_ROOT / "tooling/proof-video-remotion/src/render.mjs"),
-            str(request_path),
-            str(output_path),
-        ],
-        cwd=REPO_ROOT,
-        text=True,
-        capture_output=True,
-        timeout=600,
-        check=False,
-    )
-    if result.returncode != 0 or not output_path.is_file():
-        raise DemonstrationError(f"Remotion browser tutorial render failed: {(result.stderr or result.stdout).strip()[-1000:]}")
+    if request.get("presentationMode") != "clean-full-viewport":
+        raise DemonstrationError("Browser tutorial requires clean full-viewport presentation")
+    segments = request.get("segments") or []
+    if len(segments) != 1:
+        raise DemonstrationError("Browser tutorial requires one continuous source interval")
+    segment = segments[0]
+    start_seconds = float(segment["source_from_ms"]) / 1000
+    end_seconds = float(segment["source_to_ms"]) / 1000
+    if abs((end_seconds - start_seconds) * 1000 - float(segment["duration_ms"])) > 0.001:
+        raise DemonstrationError("Browser tutorial cannot synthesize source timing")
+    profile = resolve_device_profile(str(request.get("deviceProfile") or ""))
+    assert_source_device_profile_dimensions(video_metadata(source_path), profile)
+    _write_private(output_path.with_suffix(".render.json"), json.dumps(request, indent=2, sort_keys=True) + "\n")
+    render_clean_video(source_path, None, output_path,
+                       source_start_seconds=start_seconds, source_end_seconds=end_seconds)
 
 
 def _black_bar_probe_times(duration_seconds: float) -> list[float]:
@@ -1062,6 +1059,8 @@ def render_clean_video(
     playback_rate: float = 1.0,
     hold_last_frame_seconds: float = 0.0,
     demo_audio_path: Path | None = None,
+    source_start_seconds: float = 0.0,
+    source_end_seconds: float | None = None,
 ) -> None:
     """Retime a recording without shrinking it or adding tutorial overlays."""
     optional_paths = (demo_audio_path,) if demo_audio_path else ()
@@ -1078,10 +1077,17 @@ def render_clean_video(
         raise DemonstrationError("Product audio requires explicit narration audio with retained provenance")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     source_duration = media_duration_seconds(source_path)
+    source_end = source_duration if source_end_seconds is None else source_end_seconds
+    if not 0 <= source_start_seconds < source_end <= source_duration:
+        raise DemonstrationError("Clean-video source interval must remain within the original recording")
+    source_duration = source_end - source_start_seconds
     output_duration = round((source_duration / playback_rate) + hold_last_frame_seconds, 3)
     if output_duration > MAX_PROOF_OUTPUT_SECONDS:
         raise DemonstrationError("Proof-video output must not exceed 35 seconds")
     video_filters = [f"setpts=PTS/{playback_rate:g}"]
+    if source_start_seconds or source_end_seconds is not None:
+        video_filters = [f"trim=start={source_start_seconds:g}:end={source_end:g}",
+                         f"setpts=(PTS-STARTPTS)/{playback_rate:g}"]
     if hold_last_frame_seconds:
         video_filters.append(f"tpad=stop_mode=clone:stop_duration={hold_last_frame_seconds:g}")
     audio_inputs: list[str] = []
