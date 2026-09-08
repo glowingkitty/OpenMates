@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Playwright helpers expose CommonJS exports. */
 /**
- * Focused component coverage for the read-only Task detail fullscreen.
+ * Focused component coverage for the editable Task detail fullscreen.
  *
  * Uses the deterministic component preview to verify the Figma-aligned content,
  * responsive layout, keyboard close behavior, and visible linked-work context.
@@ -18,20 +18,20 @@ const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
 
 const TASK_DETAIL_PROOF = defineVideoProof({
 	id: 'task-detail-fullscreen',
-	title: 'Read-only task fullscreen',
+	title: 'Editable task fullscreen',
 	surface: 'web',
 	devices: ['web-laptop', 'web-phone'],
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
 			id: 'core-metadata',
-			text: 'The task fullscreen presents its description, status, priority, creator, assignee, and due date with shared settings headings.',
+			text: 'The task fullscreen presents editable title and description controls plus status, priority, creator, assignee, and due date with shared settings headings.',
 			checkpoint: 'core-metadata',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'linked-context',
-			text: 'Scrolling reveals the linked project, Plan, chat, tags, and task dependencies in the same read-only view.',
+			text: 'Scrolling reveals the linked project, Plan, chat, tags, and task dependencies in the same editable view.',
 			checkpoint: 'linked-context',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -52,7 +52,7 @@ const TASK_DETAIL_PROOF = defineVideoProof({
 		{
 			id: 'linked-context',
 			checkpoint: 'linked-context',
-			visual: 'Linked workspace context, tags, and dependencies are visible without edit controls.',
+			visual: 'Linked workspace context, tags, dependencies, and edit controls are visible without preview chrome.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -77,7 +77,7 @@ async function openTaskDetailPreview(page: any): Promise<void> {
 
 test.describe('Task detail fullscreen component', () => {
 	// contract-test: direct surface=gui.web assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
-	test('renders complete read-only task context and closes from the keyboard', async ({ page }: { page: Page }, testInfo: TestInfo) => {
+	test('renders complete editable task context and closes from the keyboard', async ({ page }: { page: Page }, testInfo: TestInfo) => {
 		const proof = createVideoProofRuntime(TASK_DETAIL_PROOF, {
 			device: PROOF_DEVICE,
 			attach: testInfo.attach.bind(testInfo),
@@ -87,6 +87,10 @@ test.describe('Task detail fullscreen component', () => {
 
 		const detail = page.getByTestId('task-detail-content');
 		await expect(page.getByTestId('embed-header-title')).toContainText('Design 3D model');
+		await expect(detail.getByTestId('task-detail-title')).toContainText('Design 3D model');
+		await expect(detail.getByTestId('workspace-detail-description')).toContainText('fits 2-3 people');
+		await expect(detail.getByTestId('task-detail-status-select')).toHaveValue('blocked');
+		await expect(detail.getByTestId('task-detail-assignee-select')).toHaveValue('opencode');
 		await expect(detail.getByTestId('task-detail-description')).toContainText('fits 2-3 people');
 		await expect(page.getByTestId('task-detail-status')).toContainText('Blocked');
 		await expect(page.getByTestId('task-detail-priority')).toContainText('Urgent');
@@ -102,6 +106,12 @@ test.describe('Task detail fullscreen component', () => {
 		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute('href', '/projects/preview-project');
 		await expect(detail.getByTestId('task-detail-plan-card')).toHaveAttribute('href', '/plans/preview-plan');
 		await proof.assert('canonical-headings', async () => {
+			await detail.getByTestId('task-detail-title').click();
+			await expect(detail.getByTestId('workspace-detail-title-input')).toBeVisible();
+			await detail.getByTestId('workspace-detail-title-undo').click();
+			await detail.getByTestId('workspace-detail-description').click();
+			await expect(detail.getByTestId('workspace-detail-description-input')).toBeVisible();
+			await detail.getByTestId('workspace-detail-description-undo').click();
 			for (const heading of ['Description', 'Assigned to', 'Due', 'Connected project', 'Connected plan', 'Blockers and dependencies', 'Tags', 'Connected chat']) {
 				await expect(detail.getByRole('heading', { level: 3, name: heading })).toBeVisible();
 			}
