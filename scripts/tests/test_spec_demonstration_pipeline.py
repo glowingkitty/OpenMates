@@ -1533,3 +1533,19 @@ def test_cli_production_preserves_captured_argv_before_review(
     assert result["status"] == "review_ready"
     assert secret in json.dumps(observed["source"])
     assert secret in (tmp_path / "transcript.txt").read_text(encoding="utf-8")
+
+
+def test_tutorial_narration_accepts_task_editing_controls() -> None:
+    module = load_module()
+    # Exact spec-owned transcript from corrected Task detail phone proof.
+    module.assert_realistic_tutorial_narration('The task fullscreen presents editable title and description controls plus status, priority, creator, assignee, and due date with shared settings headings. Scrolling reveals the linked project, Plan, chat, tags, and task dependencies in the same editable view. The clean component capture keeps the task fullscreen and minimize control reachable without preview controls.')
+
+
+@pytest.mark.parametrize("text", [
+    "The feature works correctly with controls. Everything is ready for the next step in this workflow. This is a successful outcome for all involved.",
+    "The process proceeds through each required stage. Everything is ready for the next step in this workflow. This is a successful outcome for all involved.",
+])
+def test_tutorial_narration_still_rejects_generic_long_claims(text) -> None:
+    module = load_module()
+    with pytest.raises(module.DemonstrationError, match="too generic|mention visible"):
+        module.assert_realistic_tutorial_narration(text)

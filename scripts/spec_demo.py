@@ -189,7 +189,7 @@ GENERIC_NARRATION_RE = re.compile(
     re.IGNORECASE,
 )
 VISIBLE_NARRATION_RE = re.compile(
-    r"\b(?:screen|page|card|button|menu|field|terminal|command|result|message|audio|play|player|caption|visible|shows?|opens?|lists?|renders?)\b",
+    r"\b(?:screen|fullscreen|controls?|page|card|button|menu|field|terminal|command|result|message|audio|play|player|caption|visible|shows?|opens?|lists?|renders?)\b",
     re.IGNORECASE,
 )
 
