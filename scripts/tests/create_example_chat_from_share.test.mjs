@@ -439,3 +439,31 @@ test('serializes full usage entries into generated example chat data', () => {
   assert.match(source, /"input_tokens": 10/);
   assert.doesNotMatch(source, /private-api-key-hash|private-device-hash|directus-usage-id/);
 });
+
+// Explicit public fixtures carry only reviewed fictional mapping sidecars.
+// Conversion must preserve both supported locations without inventing mappings.
+test('preserves explicit public PII mappings on messages and embeds', () => {
+  const mappings = [
+    { placeholder: '[EMAIL_1_com]', original: 'lena.hoffmann@example.com', type: 'EMAIL' },
+    { placeholder: '[PHONE_1_147]', original: '+1 202-555-0147', type: 'PHONE' },
+  ];
+  const source = formatTs({
+    chat_id: 'source-fictional-contacts',
+    messages: [{ message_id: 'user-1', role: 'user', content: '[EMAIL_1_com] [PHONE_1_147]', pii_mappings: mappings }],
+    embeds: [
+      { embed_id: 'mail-1', type: 'mail', content: 'content: Contact [EMAIL_1_com] or [PHONE_1_147]', pii_mappings: mappings },
+      { embed_id: 'mail-2', type: 'mail', content: 'content: No contact details' },
+    ],
+  }, {
+    slug: 'fictional-contacts', snake: 'fictional_contacts', chatId: 'example-fictional-contacts',
+    title: 'Fictional contacts', icon: 'mail', category: 'general_knowledge', keywords: [],
+    followUps: [], featured: false, order: 1, appSkillExamples: [], appFocusModeExamples: [],
+    appSettingsMemoryExamples: [], contentEmbedExamples: [],
+  });
+  const messages = JSON.parse(source.split('messages: ')[1].split(',\n  embeds:')[0]);
+  const embeds = JSON.parse(source.split('embeds: ')[1].split(',\n  metadata:')[0]);
+  assert.deepEqual(messages[0].pii_mappings, mappings);
+  assert.deepEqual(embeds[0].pii_mappings, mappings);
+  assert.equal(Object.hasOwn(embeds[1], 'pii_mappings'), false);
+  assert.equal(embeds[0].content, 'content: Contact [EMAIL_1_com] or [PHONE_1_147]');
+});

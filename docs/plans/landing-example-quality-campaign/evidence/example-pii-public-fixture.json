@@ -1,0 +1,73 @@
+{
+  "chat_id": "5d90fb1c-2fa0-421b-96c4-5772c93e74fe",
+  "title": "Ask plumber to fix leaking kitchen sink",
+  "summary": "User drafted a message to schedule a plumber for a leaking kitchen sink and requested help finding local plumbing services.",
+  "icon": "wrench",
+  "category": "maker_prototyping",
+  "follow_up_suggestions": [
+    "Find local emergency plumbers near me",
+    "Explain how to prepare for a plumber’s visit",
+    "Search for plumbers with same-day availability",
+    "List questions to ask a plumber before hiring",
+    "Compare reviews for top-rated plumbers in my area",
+    "Describe signs of water damage to check before the visit"
+  ],
+  "messages": [
+    {
+      "message_id": "b3d03742-54e2-4a8f-96b4-85d37efc807f",
+      "role": "user",
+      "content": "Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available tomorrow afternoon. Ask them to contact me at [EMAIL_1_com] or [PHONE_1_147] to arrange a visit.",
+      "sender_name": "User",
+      "category": null,
+      "model_name": null,
+      "created_at": 1788871019,
+      "user_message_id": null,
+      "pii_mappings": [
+        {
+          "placeholder": "[EMAIL_1_com]",
+          "original": "lena.hoffmann@example.com",
+          "type": "EMAIL"
+        },
+        {
+          "placeholder": "[PHONE_1_147]",
+          "original": "+1 202-555-0147",
+          "type": "PHONE"
+        }
+      ]
+    },
+    {
+      "message_id": "2ff95403-8a44-59b4-8aec-d53546370d00",
+      "role": "assistant",
+      "content": "Here is a polite and direct message you can send to your plumber:\n\n```json\n{\"type\": \"mail\", \"embed_id\": \"aa8bee97-be75-43c8-b96c-779c4c36624f\"}\n```\n\n\n\nWould you like me to help you find local plumbing services in your area, or is there anything else you need assistance with?",
+      "sender_name": null,
+      "category": "maker_prototyping",
+      "model_name": "Gemini 3.5 Flash-Lite",
+      "created_at": 1788871025,
+      "user_message_id": null
+    }
+  ],
+  "embeds": [
+    {
+      "embed_id": "aa8bee97-be75-43c8-b96c-779c4c36624f",
+      "type": "mail",
+      "content": "type: mail\napp_id: mail\nskill_id: email\nreceiver: Plumber\nsubject: Kitchen sink leak repair needed - available tomorrow afternoon\ncontent: \"Hello,\\n\\nMy kitchen sink has been leaking since yesterday, and I need to get it fixed as soon as possible. I am available tomorrow afternoon for a visit. \\n\\nPlease contact me at [EMAIL_1_com] or [PHONE_1_147] so we can arrange a time.\\n\\nBest regards,\\n[Your Name]\"\nfooter: \"\"\nembed_ref: kitchen-sink-leak-repair-needed-available-tomorr-aa8bee\nstatus: finished",
+      "status": "finished",
+      "parent_embed_id": null,
+      "embed_ids": null,
+      "pii_mappings": [
+        {
+          "placeholder": "[EMAIL_1_com]",
+          "original": "lena.hoffmann@example.com",
+          "type": "EMAIL"
+        },
+        {
+          "placeholder": "[PHONE_1_147]",
+          "original": "+1 202-555-0147",
+          "type": "PHONE"
+        }
+      ]
+    }
+  ],
+  "compression_checkpoints": [],
+  "sub_chats": []
+}
