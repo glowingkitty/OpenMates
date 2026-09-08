@@ -6222,7 +6222,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         
         // The accepted-turn selection is composer-only. Once exact typing metadata
         // arrives, it replaces selection there even while centered step cards remain.
-        if (processingFeedbackTurn?.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
+        // Require an accepted turn: two missing chat IDs also compare equal on the landing page.
+        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
             return [$text('enter_message.status.selecting_mate_and_model')];
         }
 
@@ -6313,7 +6314,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         if (typingStatusIsTerminal) return null;
         
         
-        if (processingFeedbackTurn?.chatId === currentChat?.chat_id) {
+        if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id) {
             return typingStatusMatchesProcessingFeedback ? 'typing' : 'processing';
         }
 
