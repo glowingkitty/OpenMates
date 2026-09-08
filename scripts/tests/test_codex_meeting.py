@@ -217,38 +217,23 @@ def test_daily_records_preserve_yesterday_and_require_four_distinct_answers(tmp_
     assert first["phase"] == "research"
 
 
-def test_cli_tasks_include_all_statuses_and_surface_failed_reads(tmp_path):
+def test_cli_tasks_require_complete_global_response(tmp_path):
     calls = []
 
     def read(root, args):
         calls.append(args)
-        status = args[-1]
-        if status == "blocked":
-            raise OSError("Offline")
         return {
-            "tasks": [
-                {
-                    "task_id": status,
-                    "short_id": "TASK-1",
-                    "title": status,
-                    "status": status,
-                }
-            ]
+            "tasks": [{"task_id": str(i), "status": "todo"} for i in range(185)],
+            "complete": True,
         }
 
     result = meeting.openmates_tasks(tmp_path, read)
-    assert {call[-1] for call in calls} == {
-        "backlog",
-        "todo",
-        "in_progress",
-        "blocked",
-        "done",
-    }
-    assert (
-        result["coverage"] == "incomplete"
-        and result["errors"][0]["status"] == "blocked"
-    )
-    assert any(t["status"] == "done" for t in result["tasks"])
+    assert calls == [["list"]]
+    assert len(result["tasks"]) == 185
+    assert result["coverage"] == "complete CLI snapshot"
+    incomplete = meeting.openmates_tasks(tmp_path, lambda *a: {"tasks": []})
+    assert incomplete["coverage"] == "incomplete"
+    assert incomplete["errors"]
 
 
 def test_priority_revisions_and_legacy_decisions_are_not_lost(tmp_path):
