@@ -29,6 +29,13 @@ API = "http://localhost:8000"
 APP = "http://localhost:5173"
 
 
+def reject_inherited_accounts():
+    """Cold jobs must provision identities, never inherit a shared account pool."""
+    prefixes = ("TEST_ACCOUNT", "OPENMATES_TEST_ACCOUNT_", "E2E_SIGNUP_INVITE_CODE", "OPENMATES_CLI_SIGNUP_")
+    if any(key.startswith(prefixes) for key in os.environ):
+        raise RuntimeError("Inherited test credentials are forbidden; provision fresh runner accounts")
+
+
 def request(url, data=None, token=None):
     headers = {"Content-Type": "application/json"}
     if token:
@@ -281,6 +288,12 @@ def run_e2e(specs: list[str], *, artifact=False):
                             if k.startswith("OPENMATES_TEST_ACCOUNT_")
                         }
                     )
+                account_evidence = {"legacy_credentials_absent": True, "provisioning": "none" if account_free else "real-cli-signup-crypto-totp", "identity_hashes": []}
+                if not account_free:
+                    identities = [hashlib.sha256(item["OPENMATES_TEST_ACCOUNT_EMAIL"].encode()).hexdigest() for item in (primary, secondary)]
+                    if len(set(identities)) != 2:
+                        raise RuntimeError("Isolated batch received duplicate account identities")
+                    account_evidence["identity_hashes"] = identities
                 env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(
                     RESULTS / f"ci-spec-{index}.json"
                 )
@@ -313,6 +326,7 @@ def run_e2e(specs: list[str], *, artifact=False):
                 results.append(
                     {
                         "spec": name,
+                        "accounts": account_evidence,
                         "exit_code": result.returncode if executed else 1,
                         "stats": stats,
                         "error": None
@@ -339,6 +353,7 @@ def main():
     error = None
     try:
         if mode in ("e2e", "artifact"):
+            reject_inherited_accounts()
             results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact")
         elif mode == "codex":
             result = subprocess.run(["node", str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
