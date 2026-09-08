@@ -314,7 +314,14 @@ async def test_turn_token_ref_creation_rejects_actions_outside_app_provider_regi
         )
 
 
-def test_token_broker_route_rejects_connected_account_provider_mismatch() -> None:
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable,calendar.connection.scopes
+@pytest.mark.parametrize("stored_provider,expected_status", [
+    ("google", 200), ("google_calendar", 200), ("calendar", 200),
+    ("revolut_business", 403),
+])
+def test_token_broker_route_validates_current_and_legacy_provider_identity(
+    stored_provider: str, expected_status: int,
+) -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
@@ -329,7 +336,7 @@ def test_token_broker_route_rejects_connected_account_provider_mismatch() -> Non
                 {
                     "id": "acct-1",
                     "hashed_user_id": hash_id("user-1"),
-                    "provider_type_hash": hash_id("revolut_business"),
+                    "provider_type_hash": hash_id(stored_provider),
                 }
             ]
 
@@ -362,5 +369,8 @@ def test_token_broker_route_rejects_connected_account_provider_mismatch() -> Non
         },
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Connected account provider mismatch"
+    assert response.status_code == expected_status
+    if expected_status == 403:
+        assert response.json()["detail"] == "Connected account provider mismatch"
+    else:
+        assert len(response.json()["refs"]) == 1

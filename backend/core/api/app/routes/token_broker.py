@@ -171,6 +171,11 @@ async def _assert_connected_account_context(
         hash_id(str(provider_id or "")),
         hash_id(app_id),
     }
+    # Existing encrypted Google connections used google_calendar as their provider
+    # identity. Accept that shipped identity without changing their capabilities;
+    # owner scoping and the action registry below still authorize each request.
+    if normalized_provider == "google":
+        acceptable_provider_hashes.add(hash_id("google_calendar"))
     if provider_hash and provider_hash not in acceptable_provider_hashes:
         raise HTTPException(status_code=403, detail="Connected account provider mismatch")
     invalid_actions = [
