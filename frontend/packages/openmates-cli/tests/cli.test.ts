@@ -2665,7 +2665,46 @@ describe("CLI server command startup feedback", () => {
 });
 
 describe("CLI named authentication profiles", () => {
+  it("renders a useful account summary without protocol fields", async () => {
+    const { printWhoAmI } = await import("../dist/cli.js");
+    const output: string[] = [];
+    const originalWrite = process.stdout.write;
+    process.stdout.write = ((chunk: unknown) => { output.push(String(chunk)); return true; }) as typeof process.stdout.write;
+    try {
+      await printWhoAmI({ username: "demo", credits: 12345, tfa_enabled: true,
+        last_opened: "12345678-1234-1234-1234-123456789abc", encrypted_key: "PRIVATE_CIPHERTEXT",
+        consent_mates_default_settings: true, is_admin: false }, {
+        apiUrl: "https://api.dev.openmates.org",
+        getActiveTeamId: () => null,
+        searchChats: async () => [{ id: "12345678-1234-1234-1234-123456789abc", title: "Plan a weekend trip" }],
+      } as never);
+    } finally { process.stdout.write = originalWrite; }
+    const text = output.join("");
+    assert.match(text, /Connection/);
+    assert.match(text, /12,345/);
+    assert.match(text, /Plan a weekend trip/);
+    assert.match(text, /chats send --chat 12345678-1234-1234-1234-123456789abc/);
+    assert.doesNotMatch(text, /PRIVATE_CIPHERTEXT|consent_mates|encrypted_key|Admin.*false/);
+  });
   // contract-test: tooling — profile-selection, trusted-profile-boundary
+  it("keeps unavailable last chats actionable and skips lookup for new-chat routes", async () => {
+    const { printWhoAmI } = await import("../dist/cli.js");
+    for (const lastOpened of ["/chat/new", "12345678-1234-1234-1234-123456789abc"]) {
+      const output: string[] = [];
+      let lookups = 0;
+      const originalWrite = process.stdout.write;
+      process.stdout.write = ((chunk: unknown) => { output.push(String(chunk)); return true; }) as typeof process.stdout.write;
+      try {
+        await printWhoAmI({ username: "demo", credits: 0, last_opened: lastOpened }, {
+          apiUrl: "https://api.dev.openmates.org", getActiveTeamId: () => null,
+          searchChats: async () => { lookups++; return []; },
+        } as never);
+      } finally { process.stdout.write = originalWrite; }
+      assert.equal(lookups, lastOpened === "/chat/new" ? 0 : 1);
+      assert.match(output.join(""), /chats list/);
+      assert.doesNotMatch(output.join(""), /chats send --chat|12345678/);
+    }
+  });
   it("uses the selected profile in its login recovery command", () => {
     const result = runCliWithoutSessionResult(["--profile", "regression-profile", "whoami"]);
     assert.notEqual(result.status, 0);

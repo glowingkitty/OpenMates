@@ -9596,7 +9596,7 @@ assertions:
       surface: gui.web
     - &id1081
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2918
+      line: 2957
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     supporting_tests:
@@ -9657,7 +9657,7 @@ assertions:
       surface: rest_api
     - &id1082
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3022
+      line: 3061
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id1083
@@ -9899,7 +9899,7 @@ assertions:
       surface: rest_api
     - &id1107
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2896
+      line: 2935
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1108
@@ -10353,12 +10353,12 @@ assertions:
       surface: gui.web
     - &id1159
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2896
+      line: 2935
       name: prints direct-run output and artifact download metadata in human mode
       surface: cli
     - &id1160
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 2918
+      line: 2957
       name: returns a failing process status when the sandbox execution fails
       surface: cli
     - &id1164
@@ -10903,7 +10903,7 @@ assertions:
       surface: rest_api
     - &id1212
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3047
+      line: 3086
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -11047,7 +11047,7 @@ assertions:
     supporting_tests:
     - &id1221
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3047
+      line: 3086
       name: maps pass-aware train flags into the app-skill request
       surface: cli
     tests:
@@ -32855,7 +32855,7 @@ assertions:
     supporting_tests:
     - &id3741
       path: frontend/packages/openmates-cli/tests/cli.test.ts
-      line: 3022
+      line: 3061
       name: retrieves Code Run completion through polling when streaming is unavailable
       surface: cli
     - &id3742

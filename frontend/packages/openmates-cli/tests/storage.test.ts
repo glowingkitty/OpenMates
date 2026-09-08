@@ -344,8 +344,11 @@ describe("keychain-aware session storage", () => {
     clearSession();
   });
 
-  it("saves session with masterKeyStorage field on disk", () => {
+  it("saves session with masterKeyStorage field on disk", (t) => {
+    const output: string[] = [];
+    t.mock.method(process.stderr, "write", (chunk: unknown) => { output.push(String(chunk)); return true; });
     saveSession(SAMPLE_SESSION);
+    assert.doesNotMatch(output.join(""), /Decrypting data/);
     const filePath = join(STATE_DIR, "session.json");
     const onDisk = JSON.parse(readFileSync(filePath, "utf-8"));
     assert.ok(

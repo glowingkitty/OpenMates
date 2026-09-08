@@ -284,9 +284,6 @@ function writeSession(session: OpenMatesSession): void {
     renameSync(temporary, filePath);
   } finally { rmSync(temporary, { force: true }); }
 
-  if (result.type !== "plaintext") {
-    process.stderr.write("Decrypting data...\n");
-  }
 }
 
 /**

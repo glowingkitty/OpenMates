@@ -517,7 +517,7 @@ async function main(): Promise<void> {
     if (parsed.flags.json === true) {
       printJson(user);
     } else {
-      printWhoAmI(user as Record<string, unknown>);
+      await printWhoAmI(user as Record<string, unknown>, client);
     }
     return;
   }
@@ -9739,7 +9739,7 @@ async function handleSettings(
     if (flags.json === true) {
       printJson(user);
     } else {
-      printWhoAmI(user as Record<string, unknown>);
+      await printWhoAmI(user as Record<string, unknown>, client);
     }
     return;
   }
@@ -12669,32 +12669,52 @@ function formatEventPrice(item: Record<string, unknown>): string | null {
 
 // ---------------------------------------------------------------------------
 
-function printWhoAmI(user: Record<string, unknown>): void {
-  header("Account\n");
-  const show = (k: string, label?: string) => {
-    const v = user[k];
-    if (v !== undefined && v !== null && v !== "") kv(label ?? k, String(v));
-  };
-  show("username", "Username");
-  show("id", "User ID");
-  show("is_admin", "Admin");
-  show("credits", "Credits");
-  show("language", "Language");
-  show("subscription_status", "Subscription");
-  // Any remaining keys
-  const shown = new Set([
-    "username",
-    "id",
-    "is_admin",
-    "credits",
-    "language",
-    "subscription_status",
-  ]);
-  for (const [k, v] of Object.entries(user)) {
-    if (!shown.has(k) && v !== null && v !== undefined && v !== "") {
-      kv(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+/** Keep account output curated; complete API fields remain available with --json. */
+export async function printWhoAmI(
+  user: Record<string, unknown>,
+  client: Pick<OpenMatesClient, "apiUrl" | "getActiveTeamId" | "searchChats">,
+): Promise<void> {
+  const profile = process.env.OPENMATES_PROFILE?.trim();
+  const command = profile ? `openmates --profile ${profile}` : "openmates";
+  header("Account");
+  kv("Username", String(user.username ?? "Unknown"));
+  if (typeof user.credits === "number") kv("Credits", user.credits.toLocaleString("en-US"));
+  if (user.subscription_status) kv("Subscription", String(user.subscription_status));
+  if (typeof user.tfa_enabled === "boolean") kv("Two-factor auth", user.tfa_enabled ? "Enabled" : "Disabled");
+  if (user.language) kv("Language", String(user.language));
+  if (user.is_admin === true) kv("Role", "Administrator");
+
+  header("\nConnection");
+  kv("Profile", profile || "default");
+  kv("Server", client.apiUrl);
+  kv("Context", client.getActiveTeamId() ? "Team" : "Personal");
+
+  header("\nLast chat");
+  // Current profiles store a UUID; older profiles can store a chat route.
+  // Never interpret signup/settings routes or the new-chat screen as a saved chat.
+  const lastOpened = typeof user.last_opened === "string" ? user.last_opened : "";
+  const chatId = /^(?:(?:\/chat\/)|(?:#chat-id=))?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.exec(lastOpened)?.[1];
+  if (chatId) {
+    try {
+      const chats = await client.searchChats(chatId);
+      const chat = chats.find((item) => item.id === chatId);
+      if (chat) {
+        kv("Title", chat.title?.trim() || "Untitled chat");
+        kv("Read", `${command} chats show ${chatId}`);
+        kv("Resume", `${command} chats send --chat ${chatId} "Your message"`);
+      } else {
+        console.log("  Last chat is unavailable in the current context.");
+        kv("Browse", `${command} chats list`);
+      }
+    } catch (error) {
+      console.error(`Could not load last chat: ${error instanceof Error ? error.message : String(error)}`);
+      kv("Retry", `${command} whoami`);
     }
+  } else {
+    console.log("  No saved chat to resume.");
+    kv("Browse", `${command} chats list`);
   }
+  console.log(`\nFull account details: ${command} whoami --json`);
 }
 
 /**
