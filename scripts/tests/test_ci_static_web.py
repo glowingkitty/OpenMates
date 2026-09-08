@@ -76,3 +76,33 @@ def test_same_origin_api_preserves_real_request_and_error_response(tmp_path):
             server.server_close()
         for worker in workers:
             worker.join()
+
+
+def test_sveltekit_upstream_redirect_is_not_replaced_with_spa_html(tmp_path):
+    from http.server import BaseHTTPRequestHandler
+    class Framework(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header('Location', '/#settings/privacy/pii')
+            self.end_headers()
+    upstream = ThreadingHTTPServer(('127.0.0.1', 0), Framework)
+    class Frontend(StaticAppHandler):
+        web_port = upstream.server_port
+    proxy = ThreadingHTTPServer(('127.0.0.1', 0), partial(Frontend, directory=str(tmp_path)))
+    workers = [threading.Thread(target=server.serve_forever, daemon=True) for server in (upstream, proxy)]
+    for worker in workers:
+        worker.start()
+    try:
+        from http.client import HTTPConnection
+        connection = HTTPConnection('127.0.0.1', proxy.server_port)
+        connection.request('GET', '/privacy/pii')
+        response = connection.getresponse()
+        assert response.status == 302
+        assert response.getheader('Location') == '/#settings/privacy/pii'
+        connection.close()
+    finally:
+        for server in (proxy, upstream):
+            server.shutdown()
+            server.server_close()
+        for worker in workers:
+            worker.join()

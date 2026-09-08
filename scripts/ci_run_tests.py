@@ -9,6 +9,7 @@ See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import json
+import re
 import ast
 import hashlib
 import os
@@ -194,16 +195,26 @@ def wait_web(child):
             with urllib.request.urlopen(APP, timeout=2) as response:
                 if response.status == 200:
                     body = response.read()
-                    built = WEB / "build/index.html"
-                    if body != built.read_bytes():
-                        raise RuntimeError(
-                            "Served frontend differs from the candidate build"
-                        )
+                    # SvelteKit server routes are real; bind their client entries
+                    # to immutable built bytes instead of expecting static SPA HTML.
+                    assets = set(re.findall(r"_app/immutable/entry/[A-Za-z0-9_.-]+\.js", body.decode()))
+                    if not assets:
+                        raise RuntimeError("Frontend HTML lacks candidate entry assets")
+                    asset_hashes = {}
+                    for asset in sorted(assets):
+                        built = WEB / "build" / asset
+                        with urllib.request.urlopen(APP + "/" + asset, timeout=5) as asset_response:
+                            data = asset_response.read()
+                        if not built.is_file() or data != built.read_bytes():
+                            raise RuntimeError("Served frontend entry differs from candidate build")
+                        asset_hashes[asset] = hashlib.sha256(data).hexdigest()
                     evidence_path = RESULTS / "ci-environment.json"
                     evidence = json.loads(evidence_path.read_text())
                     evidence["frontend"] = {
                         "url": APP,
                         "source_commit": evidence["source_commit"],
+                        "renderer": "sveltekit-preview",
+                        "entry_asset_sha256": asset_hashes,
                         "served_index_sha256": hashlib.sha256(body).hexdigest(),
                     }
                     evidence_path.write_text(json.dumps(evidence, indent=2))
@@ -244,11 +255,16 @@ def run_e2e(specs: list[str], *, artifact=False):
         verify_artifact_profile(specs)
     results = []
     with (RESULTS / "ci-web.log").open("w") as log:
+        app_server = None if artifact else subprocess.Popen(
+            ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
+            cwd=WEB, stdout=log, stderr=log,
+        )
         child = None if artifact else subprocess.Popen(
             [
                 sys.executable,
                 str(Path(__file__).with_name("ci_static_web.py")),
                 str(WEB / "build"),
+                "--sveltekit",
             ],
             cwd=WEB,
             stdout=log,
@@ -335,13 +351,14 @@ def run_e2e(specs: list[str], *, artifact=False):
                     }
                 )
         finally:
-            if child is not None:
-                child.terminate()
-                try:
-                    child.wait(timeout=15)
-                except subprocess.TimeoutExpired:
-                    child.kill()
-                    child.wait()
+            for process in (child, app_server):
+                if process is not None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=15)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
     return results
 
 
