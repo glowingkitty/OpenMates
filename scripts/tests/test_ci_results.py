@@ -144,8 +144,9 @@ def test_result_binds_subject_harness_runner_and_execution(
         assert result["artifact_url"].endswith("/artifacts/8")
 
 
+@pytest.mark.parametrize("mode", ["e2e", "selfhost"])
 @pytest.mark.parametrize("fault", ["", "missing", "run", "harness", "containers", "volumes", "accounts"])
-def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault):
+def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault, mode):
     import json
     data = {"run_id": "7", "harness_commit": "harness", "containers_remaining": 0,
             "volumes_remaining": 0, "private_account_files_removed": True}
@@ -161,7 +162,7 @@ def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault):
         data["private_account_files_removed"] = False
     if fault != "missing":
         (tmp_path / "ci-cleanup.json").write_text(json.dumps(data))
-    job = {"mode": "e2e", "state": "success", "run_id": 7}
+    job = {"mode": mode, "state": "success", "run_id": 7}
     result = {"harness_commit": "harness", "report": {"results": ["original assertion"]}}
     if fault:
         with pytest.raises(RuntimeError, match="cleanup"):
