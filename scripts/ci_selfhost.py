@@ -142,6 +142,7 @@ def run(source: Path, results: list):
                 cleanup_failures.append(kind)
         shutil.rmtree(private)
         (output / "ci-cleanup.json").write_text(json.dumps({"run_id": os.environ["GITHUB_RUN_ID"],
+            "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
             "containers_remaining": 0 if "containers" not in cleanup_failures else "nonzero",
             "volumes_remaining": 0 if "volumes" not in cleanup_failures else "nonzero",
             "private_account_files_removed": True, "errors": cleanup_failures}))

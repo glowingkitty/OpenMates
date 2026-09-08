@@ -91,7 +91,7 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     were removed. Failed jobs retain absent/failed teardown as visible evidence
     instead of hiding their original assertion report.
     """
-    if job.get("mode") != "e2e":
+    if job.get("mode") not in ("e2e", "selfhost"):
         return result
     paths = list(directory.rglob("ci-cleanup.json"))
     cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else None
