@@ -14,6 +14,17 @@
 
 set -e  # Exit on error
 
+# Narrow live-only removal intentionally exits before environment loading,
+# dependency installation, support-file setup, and restart fallback.
+# Review: --remove-live-host HOST
+# Apply:  --remove-live-host HOST --apply --expected-config-sha256 HASH --backup PATH
+if [ "${1:-}" = "--remove-live-host" ]; then
+    shift
+    route_host="${1:?Expected exact host}"
+    shift
+    exec python3 "$(dirname "$0")/../scripts/caddy_remove_live_route.py" --host "$route_host" "$@"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
