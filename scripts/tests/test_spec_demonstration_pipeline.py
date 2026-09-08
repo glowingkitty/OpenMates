@@ -140,8 +140,10 @@ def test_playwright_source_rejects_missing_required_provenance(tmp_path: Path) -
         )
 
 
-def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: Path) -> None:
+def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
+    # Synthetic metadata isolates caption arithmetic; real decoded trimming has its own regression.
+    monkeypatch.setattr(module, "first_retained_video_frame_ms", lambda _source, *, start_ms, end_ms: start_ms)
     source = tmp_path / "source.webm"
     source.write_bytes(b"video")
     first = tmp_path / "first.png"
@@ -279,8 +281,10 @@ def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: P
         )
 
 
-def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_path: Path) -> None:
+def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
+    # Synthetic metadata isolates caption arithmetic; real decoded trimming has its own regression.
+    monkeypatch.setattr(module, "first_retained_video_frame_ms", lambda _source, *, start_ms, end_ms: start_ms)
     source_dir = tmp_path / "recording" / "videos"
     source_dir.mkdir(parents=True)
     source = source_dir / "source.webm"
@@ -338,8 +342,10 @@ def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_pat
     assert plan["claim_evidence_intervals"]["second.visible"] == [[2.95, 6.15]]
 
 
-def test_web_phone_tutorial_plan_preserves_clean_full_viewport(tmp_path: Path) -> None:
+def test_web_phone_tutorial_plan_preserves_clean_full_viewport(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
+    # Synthetic metadata isolates caption arithmetic; real decoded trimming has its own regression.
+    monkeypatch.setattr(module, "first_retained_video_frame_ms", lambda _source, *, start_ms, end_ms: start_ms)
     source = tmp_path / "source.webm"
     frame = tmp_path / "ready.png"
     source.write_bytes(b"video")
@@ -1586,3 +1592,33 @@ def test_clean_browser_render_preserves_full_dimensions_and_real_interval(tmp_pa
     request["segments"][0]["duration_ms"] = 2000
     with pytest.raises(module.DemonstrationError, match="cannot synthesize source timing"):
         module.render_browser_tutorial(request, output)
+
+
+def test_browser_plan_uses_actual_first_retained_frame_for_all_mapping(tmp_path):
+    """A 1.089s trim in 25fps media begins at the genuine 1.120s frame."""
+    module = load_module()
+    source = tmp_path / "quantized.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                    "testsrc2=size=390x844:rate=25:duration=4", "-c:v", "libx264", str(source)], check=True)
+    frame = tmp_path / "checkpoint.png"
+    module.extract_frame(source, timestamp_seconds=1.28, output_path=frame)
+    timeline = {
+        "contract": {"surface": "web", "domain": "app.example.org", "devices": ["web-phone"],
+            "tutorial": {"readingWordsPerSecond": 2, "minimumHoldMs": 1000, "maximumHoldMs": 3000},
+            "transcript": [{"id": "ready", "text": "Task controls remain visible.", "checkpoint": "ready", "devices": ["web-phone"]}],
+            "assertions": [{"id": "visible", "checkpoint": "ready", "devices": ["web-phone"]}]},
+        "events": [{"kind": "checkpoint", "id": "ready", "at_ms": 1280}],
+        "assertion_results": [{"id": "visible", "status": "passed", "at_ms": 1239}],
+        "checkpoint_frames": [{"checkpoint": "ready", "path": str(frame), "sha256": module.sha256_file(frame)}],
+    }
+    plan = module.build_browser_tutorial_plan(timeline, source_video=source, source_end_seconds=4,
+        source_metadata=module.video_metadata(source), device_profile_name="web-phone",
+        contract_hash="contract", timeline_hash="timeline", narration_id="NARR-1")
+    output = tmp_path / "render.mp4"
+    module.render_browser_tutorial(plan["request"], output)
+    assert plan["request"]["segments"][0]["source_from_ms"] == 1120
+    assert plan["duration_seconds"] == module.video_metadata(output)["duration_seconds"] == 2.88
+    assert plan["claim_anchor_times"]["visible"] == 0.119
+    assert plan["claim_evidence_intervals"]["visible"][-1][-1] == 2.88
+    assert plan["caption_segments"][0]["end"] == 2.88
+    assert timeline["assertion_results"][0]["at_ms"] == 1239

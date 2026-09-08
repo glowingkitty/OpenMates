@@ -540,6 +540,23 @@ def estimate_video_clock_offset_ms(
     return offset_ms
 
 
+def first_retained_video_frame_ms(source_video: Path, *, start_ms: float, end_ms: float) -> float:
+    """Measure the same decoded trim origin used by clean rendering's STARTPTS."""
+    result = subprocess.run(
+        ["ffmpeg", "-hide_banner", "-i", str(source_video), "-vf",
+         f"trim=start={start_ms / 1000:g}:end={end_ms / 1000:g},showinfo",
+         "-frames:v", "1", "-an", "-f", "null", "-"],
+        capture_output=True, text=True, check=False,
+    )
+    match = SHOWINFO_PTS_RE.search(result.stderr)
+    if result.returncode != 0 or match is None:
+        raise DemonstrationError("Cannot determine the first decoded frame in the source trim")
+    retained_ms = float(match.group(1)) * 1000
+    if not start_ms <= retained_ms < end_ms:
+        raise DemonstrationError("Decoded trim origin lies outside the requested source interval")
+    return retained_ms
+
+
 def build_browser_tutorial_plan(
     timeline: dict[str, Any],
     *,
@@ -693,6 +710,13 @@ def build_browser_tutorial_plan(
     source_start_ms = max(0, first_stable_ms - round(CAPTURE_READY_TRIM_LEAD_SECONDS * 1000))
     if source_start_ms >= source_end_ms:
         raise DemonstrationError("Browser tutorial stable source interval is empty")
+    requested_start_ms = source_start_ms
+    # FFmpeg trim retains the first frame at/after the requested time, then
+    # STARTPTS resets that actual frame to zero. Map every cue/claim from the
+    # same decoded origin, rather than from a between-frame millisecond value.
+    source_start_ms = first_retained_video_frame_ms(
+        source_video, start_ms=requested_start_ms, end_ms=source_end_ms,
+    )
     output_duration_ms = source_end_ms - source_start_ms
     output_duration_seconds = output_duration_ms / 1000
     caption_segments: list[dict[str, Any]] = []
@@ -767,10 +791,11 @@ def build_browser_tutorial_plan(
         "sourceHash": sha256_file(source_video),
         "sourceFrameRate": source_frame_rate,
         "sourceClockOffsetMs": source_clock_offset_ms,
+        "sourceRequestedStartMs": requested_start_ms,
         "domain": str(contract["domain"]),
         "deviceProfile": str(profile["id"]),
         "viewport": {"width": source_width, "height": source_height},
-        "output": {"width": int(profile["width"]), "height": int(profile["height"]), "fps": 30},
+        "output": {"width": int(profile["width"]), "height": int(profile["height"]), "fps": source_frame_rate},
         "segments": segments,
         "contractHash": contract_hash,
         "timelineHash": timeline_hash,
