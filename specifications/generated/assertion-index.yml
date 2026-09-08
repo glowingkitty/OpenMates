@@ -27328,7 +27328,7 @@ assertions:
     supporting_tests:
     - &id3095
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 147
+      line: 148
       name: keeps every detail section reachable on a phone viewport
       surface: gui.web
     - &id3097
