@@ -436,3 +436,19 @@ def test_search_rejects_boolean_lookahead():
 def test_general_consultation_excludes_preventive_exam():
     assert not skill._matches_motive_category("Vorsorgeuntersuchung", "general")
     assert skill._matches_motive_category("Vorsorgeuntersuchung", "checkup")
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.input.validated
+@pytest.mark.parametrize("request_id", [None, 7, "caller-id"])
+def test_request_validation_preserves_base_skill_generated_ids(request_id):
+    instance = skill.SearchAppointmentsSkill(None, "health", "search_appointments", "Search", "Search appointments")
+    requests, invalid, errors, error = instance._partition_requests_by_required_fields(
+        requests=[{"id": request_id, "speciality": "orthopädie", "city": "Berlin"}],
+        required_fields=["speciality", "city"],
+        field_display_names={},
+        empty_error_message="No requests",
+        logger=skill.logger,
+    )
+    assert not invalid and not errors and not error
+    result = skill.SearchAppointmentsRequestItem.model_validate(requests[0])
+    assert result.id == (1 if request_id is None else request_id)

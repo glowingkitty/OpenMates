@@ -876,7 +876,7 @@ def _cities_match(address_city: str, requested_city_slug: str) -> bool:
 class SearchAppointmentsRequestItem(BaseModel):
     """A single appointment search request."""
 
-    id: Optional[str] = None
+    id: Optional[str | int] = None
     max_doctors: int = Field(default=DEFAULT_MAX_DOCTORS, gt=0, le=FILTERED_SEARCH_MAX_DOCTORS, strict=True)
 
     speciality: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
