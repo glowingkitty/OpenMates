@@ -105,8 +105,13 @@ class GitHub:
 
 
 class Queue:
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, read_only=False):
         self.path = path
+        self.read_only = read_only
+        if read_only:
+            if not path.is_file():
+                raise ValueError("Queue does not exist")
+            return
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         with self.connect() as db:
             db.executescript("""
@@ -131,7 +136,10 @@ class Queue:
         path.chmod(0o600)
 
     def connect(self):
-        db = sqlite3.connect(self.path, timeout=30)
+        db = sqlite3.connect(
+            self.path.resolve().as_uri() + "?mode=ro" if self.read_only else self.path,
+            timeout=30, uri=self.read_only,
+        )
         db.row_factory = sqlite3.Row
         return db
 
@@ -196,7 +204,7 @@ class Queue:
 
     def status(self, key=None):
         with self.connect() as db:
-            return [
+            jobs = [
                 dict(row)
                 for row in db.execute(
                     "SELECT * FROM jobs"
@@ -204,6 +212,11 @@ class Queue:
                     (key,) if key else (),
                 )
             ]
+            for job in jobs:
+                history = self.metadata(db, "queued_review:" + job["id"], "[]")
+                if history != "[]":
+                    job["review_history"] = json.loads(history)
+            return jobs
 
     def metadata(self, db, key, default="0"):
         row = db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
@@ -231,6 +244,89 @@ class Queue:
             self.set_meta(db, "prerequisite_request", key)
             self.set_meta(db, "prerequisite_reason", reason.strip())
             return {"id": key, "reason": reason.strip(), "max_active": MAX_ACTIVE}
+
+    def review_queued(self, manifest, owner, *, apply=False):
+        """Inspect or atomically hold/supersede exact never-dispatched requests."""
+        from collections import Counter
+
+        action = manifest.get("action")
+        entries = manifest.get("entries")
+        reason = manifest.get("reason", "").strip()
+        if (manifest.get("version") != 1 or action not in ("hold", "supersede")
+                or not owner or not reason or not isinstance(entries, list) or not entries):
+            raise ValueError("Review requires version 1, action, owner, reason and exact entries")
+        if apply and self.read_only:
+            raise ValueError("Read-only inspection cannot apply changes")
+        fingerprint = hashlib.sha256(json.dumps(manifest, sort_keys=True).encode()).hexdigest()
+        target_state = "held" if action == "hold" else "superseded"
+        # Match tick/result serialization; never race its cached dispatch list.
+        with self.path.with_suffix(".lock").open("a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise RuntimeError("Coordinator busy; inspect again after current operation") from None
+            with self.connect() as db:
+                db.execute("BEGIN IMMEDIATE" if apply else "BEGIN")
+                reports = []
+                seen = set()
+                for entry in entries:
+                    key = entry.get("id", "")
+                    if not re.fullmatch(r"[0-9a-f]{64}", key) or key in seen:
+                        raise ValueError("Exact unique request IDs are required")
+                    seen.add(key)
+                    job = db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone()
+                    if not job or job["owner"] != owner or job["source"] != entry.get("source"):
+                        raise ValueError("Request owner/source mismatch: " + key)
+                    allowed = ("queued",) if action == "hold" else ("queued", "held")
+                    if job["state"] not in allowed or job["sent"] is not None or job["run_id"] is not None or job["url"] is not None:
+                        raise ValueError("Only never-dispatched queued/held requests may change: " + key)
+                    if self.metadata(db, "prerequisite_request", "") == key:
+                        raise ValueError("Current Task/prerequisite priority is protected: " + key)
+                    specs = json.loads(job["specs"])
+                    affected = entry.get("affected_specs", specs)
+                    if not isinstance(affected, list) or not set(affected).issubset(specs):
+                        raise ValueError("Affected specs must belong to original request")
+                    replacements = entry.get("replacement_ids", [])
+                    if not isinstance(replacements, list) or len(set(replacements)) != len(replacements):
+                        raise ValueError("Replacement IDs must be unique")
+                    if action == "hold" and replacements:
+                        raise ValueError("Hold cannot attach replacements")
+                    replacement_specs = []
+                    for replacement_id in replacements:
+                        replacement = db.execute("SELECT * FROM jobs WHERE id=?", (replacement_id,)).fetchone()
+                        if (not replacement or replacement_id == key
+                                or replacement["owner"] != owner
+                                or replacement["source"] == job["source"]
+                                or replacement["mode"] != job["mode"]
+                                or replacement["proof_profile"] != job["proof_profile"]
+                                or replacement["state"] not in ("queued", "dispatching", "submitted", "running", "success", "failure")):
+                            raise ValueError("Replacement must retain owner/mode/profile with new immutable source")
+                        replacement_specs.extend(json.loads(replacement["specs"]))
+                    if action == "supersede" and Counter(replacement_specs) != Counter(specs):
+                        raise ValueError("Replacements must cover EVERY original spec exactly once, including unaffected siblings")
+                    reports.append({"id": key, "owner": owner, "source": job["source"],
+                                    "from_state": job["state"], "to_state": target_state,
+                                    "specs": specs, "affected_specs": affected,
+                                    "preserved_other_specs": sorted(set(specs) - set(affected)),
+                                    "replacement_ids": replacements})
+                # Never supersede a replacement within this same transaction.
+                if seen.intersection(r for item in reports for r in item["replacement_ids"]):
+                    raise ValueError("Reviewed requests cannot replace one another")
+                if apply:
+                    now = time.time()
+                    for report in reports:
+                        cursor = db.execute(
+                            "UPDATE jobs SET state=?,updated=? WHERE id=? AND owner=? AND source=? AND state=? AND sent IS NULL AND run_id IS NULL AND url IS NULL",
+                            (target_state, now, report["id"], owner, report["source"], report["from_state"]),
+                        )
+                        if cursor.rowcount != 1:
+                            raise RuntimeError("Request changed during review; transaction aborted")
+                        audit_key = "queued_review:" + report["id"]
+                        history = json.loads(self.metadata(db, audit_key, "[]"))
+                        history.append({**report, "reason": reason, "manifest_sha256": fingerprint, "at": now})
+                        self.set_meta(db, audit_key, json.dumps(history))
+                return {"applied": apply, "manifest_sha256": fingerprint, "reason": reason,
+                        "requests": reports, "max_active": MAX_ACTIVE}
 
     def result(self, github, key, root, fetch):
         """Use the same serialized rate budget for evidence and dispatch traffic."""
@@ -278,7 +374,7 @@ class Queue:
                 jobs = [
                     dict(row)
                     for row in db.execute(
-                        "SELECT * FROM jobs WHERE state NOT IN ('success','failure','cancelled') ORDER BY (id=?) DESC, created",
+                        "SELECT * FROM jobs WHERE state IN ('queued','dispatching','submitted','running','attention') ORDER BY (id=?) DESC, created",
                         (self.metadata(db, "prerequisite_request", ""),)
                     )
                 ]
@@ -410,6 +506,10 @@ def main():
     priority.add_argument("id")
     priority.add_argument("--session", required=True)
     priority.add_argument("--reason", required=True)
+    review = sub.add_parser("review-queued", help="Dry-run exact queued hold/supersede; --apply requires explicit approval")
+    review.add_argument("--manifest", type=Path, required=True)
+    review.add_argument("--session", required=True)
+    review.add_argument("--apply", action="store_true")
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
     result = sub.add_parser("result")
@@ -422,7 +522,8 @@ def main():
     sub.add_parser("tick")
     args = parser.parse_args()
     root = canonical_root(Path(__file__).resolve().parent.parent)
-    queue = Queue(root / "logs/ci-coordinator/queue.sqlite3")
+    queue = Queue(root / "logs/ci-coordinator/queue.sqlite3",
+                  read_only=args.action == "review-queued" and not args.apply)
     if args.action == "submit":
         if args.mode in ("e2e", "artifact", "selfhost"):
             try:
@@ -446,6 +547,8 @@ def main():
                 )
             )
         )
+    elif args.action == "review-queued":
+        print(json.dumps(queue.review_queued(json.loads(args.manifest.read_text()), args.session, apply=args.apply)))
     elif args.action == "prioritize":
         print(json.dumps(queue.prioritize(args.id, args.session, args.reason)))
     elif args.action == "status":

@@ -196,3 +196,30 @@ only encrypted rows in the runner CMS, and performs actual authenticated client
 sync and share creation before the original logged-out viewer assertions. It
 does not claim audio generation/transcription-provider coverage. Missing fixture
 setup fails explicitly; no external shared-chat URL is used as fallback.
+
+
+### Review queued requests without changing historical subjects
+
+The existing coordinator supports `review-queued --manifest <path> --session <owner>`
+as a read-only dry-run. A version-1 manifest names `action: hold|supersede`, an
+explicit `reason`, and exact `entries` containing `id`, expected full `source`,
+optional `affected_specs`, and (for supersede) `replacement_ids`. `--apply` is a
+separate explicit operation; inspection never enables it. This extends the
+approved `docs/plans/isolated-github-tests/plan.yml` queue/evidence scope.
+
+Both operations take the existing dispatch flock; apply also uses an immediate
+SQLite transaction and conditional updates. The owner and source must match.
+Only never-dispatched queued requests can be held; a queued or already-held
+request can be superseded. Sent timestamps, run IDs, URLs, active/terminal states,
+and the current priority request all prevent mutation. An ineligible entry aborts
+the entire operation; inspect again if dispatch won the race. `held` and
+`superseded` are scheduling dispositions, never passing test evidence.
+
+Source, specs, token, owner, created time and receipts remain unchanged. Audit
+history records the manifest hash, reason, transition, time and replacement links;
+`status <id>` returns that history. Supersede attaches already-existing requests;
+it neither submits replacements nor cancels runs. Replacements must retain owner,
+mode and proof profile, use a new immutable source, and cover every original spec
+exactly once. This permits splitting affected and unaffected specs without dropping
+siblings. A hold pauses the entire original batch until that complete replacement
+coverage exists. Four-job admission and Task priority metadata remain unchanged.
