@@ -2,6 +2,7 @@
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
+  import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
@@ -593,21 +594,6 @@
    * Parse system message content to check if it's an app_settings_memories_request.
    * Returns the parsed content or null if not a valid request.
    */
-  function parseAppSettingsMemoriesRequest(content: unknown): AppSettingsMemoriesRequestContent | null {
-    if (typeof content !== 'string') {
-      console.warn(`[ChatHistory][parseRequest] content is not a string, got: ${typeof content}`, content);
-      return null;
-    }
-    try {
-      const parsed = JSON.parse(content);
-      if (parsed.type === 'app_settings_memories_request') {
-        return parsed as AppSettingsMemoriesRequestContent;
-      }
-    } catch {
-      // Not valid JSON, ignore
-    }
-    return null;
-  }
 
   /**
    * Helper to read thinking entries from the map with a stable signature.
@@ -635,9 +621,11 @@
     
     for (const msg of messages) {
       if (msg.role === 'system') {
-        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        const request = parseMemoryRequest(msg.original_message?.content, msg.original_message?.message_id ?? msg.id);
         if (request) {
-          map.set(request.user_message_id, request);
+          const previous = map.get(request.user_message_id);
+          map.set(request.user_message_id, previous?.request_id === request.request_id
+            ? mergeMemoryRequests(previous, request) : request);
         }
       }
     }
@@ -818,7 +806,7 @@
         if (response?.type === 'app_settings_memories_response') {
           return false;
         }
-        const request = parseAppSettingsMemoriesRequest(msg.original_message?.content);
+        const request = parseMemoryRequest(msg.original_message?.content, msg.original_message?.message_id ?? msg.id);
         // Filter out app_settings_memories_request system messages
         if (request?.type === 'app_settings_memories_request') {
           return false;

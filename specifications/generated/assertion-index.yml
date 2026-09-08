@@ -8247,7 +8247,15 @@ assertions:
     current_direct_proof: false
   app-memories.conversation.explicit-approval:
     specification: feature.app-memories@1
-    fingerprint: 9c2405675a097f2d73a4a250afd4a300512f16fe96e1f3a1f2d27897b12368d1
+    fingerprint: 3c00b0659349a2f84f908626c2168891e551ee2e3999469f0afcb7d9b67314d6
+    direct_tests: []
+    supporting_tests: []
+    tests: []
+    surfaces: {}
+    current_direct_proof: false
+  app-memories.conversation.request-convergence:
+    specification: feature.app-memories@1
+    fingerprint: 616da63ccf4745192d684832054ddef232b972f50083e855049e5d6fd506edef
     direct_tests: []
     supporting_tests: []
     tests: []
@@ -8255,7 +8263,7 @@ assertions:
     current_direct_proof: false
   app-memories.surface.semantic-parity:
     specification: feature.app-memories@1
-    fingerprint: ffc299f41d62ae82f3dfee2cf7ecd4ec5f29518c2e0141e96a6b89a9a6a5d391
+    fingerprint: be8be8da04d9d0f76e17500b5d022bea5c26900da03f234868f9e8b884ce9d7f
     direct_tests:
     - &id941
       path: frontend/apps/web_app/tests/cli-memories.spec.ts

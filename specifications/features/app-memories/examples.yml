@@ -64,6 +64,20 @@ conversation_approval:
     when: {user_rejects: true}
     expect: {memory_plaintext_supplied: false, conversation_continues_without_memory: true}
 
+conversation_request_convergence:
+  - id: concurrent-cli-and-web-request
+    given: {conversation: chat-a, request_id: request-a, authorized_clients: [cli, web], requested_types: [mail/writing_styles], available_entries: 1}
+    when: {same_request_delivered_to_both_clients: true, delivery_retried: true}
+    expect: {logical_request_count: 1, durable_request_message_count: 1, shared_stable_message_identity: true, known_entry_count: 1, approval_automatic: false, request_content_persisted_as: client_ciphertext}
+  - id: unknown-count-is-not-empty
+    given: {request_id: request-a, requested_types: [mail/writing_styles], local_entry_count_unavailable: true}
+    when: {request_metadata_recorded: true}
+    expect: {entry_count: explicitly_unknown, falsely_reported_zero: false, approval_automatic: false}
+  - id: legacy-duplicate-request-history
+    given: {conversation: chat-a, same_request_id: request-a, historical_request_message_count: 2, counts: [unknown, 1]}
+    when: {history_loaded_in_either_order: true}
+    expect: {presented_request_count: 1, displayed_known_entry_count: 1, approval_decision_changed: false, approved_entries_expanded: false, history_rewritten_on_server: false}
+
 removed_owner:
   - id: removed-ai-owner
     given: {app_id: ai, former_item_type: communication_style}

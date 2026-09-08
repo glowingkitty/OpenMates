@@ -49,7 +49,7 @@
         key: string;
         appId: string;
         displayName: string;
-        entryCount: number;
+        entryCount: number | null;
         selected: boolean;
         entries?: PermissionPreviewEntry[];
     }
@@ -148,7 +148,7 @@
      * 
      * IMPORTANT: This function must be reactive to changes in category.entries[].selected
      */
-    function getSelectedEntryCount(category: { entries?: { selected: boolean }[]; entryCount: number }): number {
+    function getSelectedEntryCount(category: { entries?: { selected: boolean }[]; entryCount: number | null }): number | null {
         // If no individual entries are available (shouldn't happen after async population), assume all selected
         if (!category.entries) {
             console.warn('[PermissionDialog] Category has no entries array:', category);
@@ -206,11 +206,13 @@
                         
                         <div class="category-info">
                             <span class="category-name" data-testid={previewMode ? 'landing-memory-category-name' : undefined}>{category.displayName}</span>
+                            {#if category.entryCount !== null}
                             <span class="category-count">
                                 {getSelectedEntryCount(category)}/{category.entryCount} {category.entryCount === 1 
                                     ? $text('chat.permissions.entry_singular') 
                                     : $text('chat.permissions.entry_plural')}
                             </span>
+                            {/if}
                         </div>
 
                         <!-- Expand button to show individual entries -->

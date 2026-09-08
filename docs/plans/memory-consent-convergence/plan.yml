@@ -1,0 +1,45 @@
+id: memory-consent-convergence
+title: Prevent duplicate memory-consent records
+goal: Prevent duplicate memory-consent records and conflicting counts, verify the fix against real dev, then resume the approved writing-memory example.
+status: implementing
+approval:
+  user_approved: true
+  scope: User explicitly approved shared blocker fix and exact app-memories artifact.
+specification_refs:
+  - specification: feature.app-memories@1
+    path: specifications/features/app-memories
+    fingerprint: 278c09756fdcbea75f367a73951e2a08f60cb76f64507d27f9459e30a33a959f
+    assertions: [app-memories.conversation.request-convergence, app-memories.conversation.explicit-approval, app-memories.privacy.client-encrypted]
+scope:
+  includes: [Stable cross-client request message identity, accurate available-entry counts, deterministic legacy request presentation, writing-memory candidate]
+  excludes: [Travel preferences, automatic consent, server plaintext, account-wide memory cleanup, speech before pilot approval]
+scenarios:
+  - id: S-1
+    title: CLI and web receive the same writing-memory request
+    expected: One persisted request identity with one available entry; no approval until explicitly supplied.
+  - id: S-2
+    title: Read legacy duplicate request history
+    expected: One logical request; known counts win over unknown counts in either order without rewriting server history.
+acceptance_criteria:
+  - id: AC-1
+    description: Stable identity and accurate or explicitly unknown counts preserve encryption and consent.
+  - id: AC-2
+    description: Legacy history converges without changing any approval or unrelated memory.
+tasks:
+  - id: T-1
+    title: Extend regression coverage, record red, implement shared request builder and history convergence
+    status: in_progress
+  - id: T-2
+    title: Verify authenticated dev persistence, CLI and SDK paths before web verification
+    status: pending
+  - id: T-3
+    title: Verify web consent history, then resume natural candidate and campaign proof
+    status: pending
+boundaries:
+  access: Existing authenticated first-party encrypted chat REST/WebSocket surfaces; no new endpoints.
+  auth_limits: Existing owner checks, rate limits and credit policies retained; read-only history and memory CRUD do not invoke inference.
+  encryption: Request content encrypted with chat key by clients; backend stores opaque ciphertext.
+verification_order: [focused regression red, implementation, focused regression green, real dev REST/WebSocket, real CLI, npm SDK, pip SDK, web, visual proof, example]
+evidence:
+  reproduction: docs/plans/landing-example-quality-campaign/evidence/example-work-memory.md
+  approval_artifact: /tmp/opencode/specification-approvals/feature.app-memories-278c09756fdcbea7.approval.json
