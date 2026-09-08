@@ -136,3 +136,22 @@ account material are excluded. The standalone legacy installer schedule must be
 disabled at repository level after this routing is deployed, so all test jobs
 share the coordinator's four-job cap. Admission still requires a real hosted run
 before installer coverage can be marked verified.
+
+
+### Disposable object storage
+
+The `object_storage` capability adds a digest-pinned SeaweedFS S3 server,
+loopback-only port9000, fresh runner credentials in the private Vault, and an
+empty named volume removed with the batch. API/upload clients accept an explicit
+`S3_ENDPOINT_URL` origin only with one configured `S3_REGIONS` entry. Default
+Hetzner endpoints and region naming are unchanged. Both Docker DNS and runner
+DNS resolve `storage.ci.test` to this disposable server; no shared bucket is read.
+
+Startup verifies actual authenticated put/get/delete, per-bucket CORS,
+presigned download and unsigned-access rejection. The selected original specs
+then verify application persistence. This provides S3 protocol/application
+coverage, not Hetzner multi-region failover or external email-delivery proof.
+SeaweedFS is used because the application requires per-bucket CORS; the MinIO
+community edition does not implement that API. See the upstream
+[SeaweedFS quickstart](https://github.com/seaweedfs/seaweedfs/blob/master/README.md)
+and [MinIO API limits](https://github.com/minio/minio/blob/master/docs/minio-limits.md).

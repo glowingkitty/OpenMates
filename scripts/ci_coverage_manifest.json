@@ -104,7 +104,6 @@
         "cli-workflows-search-controls-real.spec.ts",
         "docs-screenshot-generator.spec.ts",
         "proof-video-cli.spec.ts",
-        "report-issue-flow.spec.ts",
         "shared-chat-embed-assets.spec.ts",
         "task-activity.spec.ts",
         "task-blocked-reason.spec.ts",
@@ -362,6 +361,13 @@
       "enabling_work": "Run original source-mode and image-mode installation checks, fresh signup and admin promotion on the GitHub runner, inside the same four-job queue. No provider keys or shared accounts. Verify cleanup and exact image/source evidence.",
       "specs": [
         "selfhost-smoke.spec.ts"
+      ]
+    },
+    "object_storage": {
+      "execution": "e2e",
+      "enabling_work": "Use genuine disposable S3-compatible storage with fresh Vault credentials and preserved original persistence/auth assertions; no real mail delivery or Hetzner region failover claim.",
+      "specs": [
+        "report-issue-flow.spec.ts"
       ]
     }
   },
@@ -836,14 +842,6 @@
       "next_action": "Original natural-language request invokes AI -> videos.create -> actual E2B render -> source/playback. Add videos worker/storage and obtain dedicated AI/E2B keys with explicit render/inference caps. A local Remotion render alone cannot replace its E2B pipeline assertions.",
       "user_input_required": true,
       "source_environment_names": []
-    },
-    "report-issue-flow.spec.ts": {
-      "dependency": "isolated_object_storage_upload",
-      "next_action": "Add a real runner-local S3-compatible store and configurable SDK/public URL endpoints for Guest report issue form hides admin automation controls; add the original upload/ClamAV service when used. Seed only synthetic runner Vault credentials. Preserve encryption, screenshot persistence, shared asset download, and scan assertions; real audio/provider subcases remain separately gated.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "PLAYWRIGHT_TEST_BASE_URL"
-      ]
     },
     "saved-payment-invoice-flow.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
