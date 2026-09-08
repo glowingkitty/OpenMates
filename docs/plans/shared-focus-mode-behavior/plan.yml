@@ -1,0 +1,185 @@
+schema_version: 2
+id: shared-focus-mode-behavior
+title: Implement approved shared focus behavior
+status: implementing
+goal: Every active-focus message request includes full focus instructions; off excludes them; retain instruction-free
+  transition history; fix historical countdown and lift Career insights banner approximately 10px.
+specifications:
+- id: feature.focus-modes
+  version: 1
+  fingerprint: 0822c5e38cb671c398ec2fa4679f5b8516eaad127e07117ff79c35247eaca6cd
+  path: specifications/features/focus-modes
+authorization:
+  implementation: User explicitly approved exact Specification and instructed implementation/full scoped verification;
+    planning approval already supplied by coordinator assignment.
+  individual_specs: Not approved; no career/research/video policy changes.
+discovery:
+  existing_plans:
+  - docs/plans/focus-mode-processing-reliability/plan.yml
+  - docs/plans/focus-mode-example-chat-rendering/plan.yml
+  career_handoff: agent-e54d/docs/plans/landing-example-quality-campaign/evidence/example-career-e54d.md
+  issues:
+  - TASK-2879
+  - TASK-5745
+  findings:
+  - Active prompt lookup ignores translation-only definitions.
+  - AI deactivation retains already-built prompt.
+  - Historical renderer infers pending from missing current metadata.
+access_model:
+  surface: Existing first-party authenticated inference/WebSocket only; no new endpoint.
+  limits: Preserve existing authentication, rate limits, credits/budgets.
+  data: Decrypted instruction in transient inference; durable chat/focus remains client encrypted.
+tasks:
+- id: TASK-1
+  title: Reproduce and fix full-instruction, off and history semantics
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-scoped exact leased paths
+  verification_ids:
+  - T-FOCUS
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-scoped exact leased paths
+    shared_files: []
+- id: TASK-2
+  title: Reproduce and fix historical UI/countdown with chat-bound live state and banner offset
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-scoped exact leased paths
+  verification_ids:
+  - T-FOCUS
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-scoped exact leased paths
+    shared_files: []
+- id: TASK-3
+  title: Verify real REST/WebSocket, CLI, npm/pip SDK, then browser component/flow, visual review and Apple
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - Task-scoped exact leased paths
+  verification_ids:
+  - T-FOCUS
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-scoped exact leased paths
+    shared_files: []
+verification_order:
+- Focused local red/green unit regression (supporting evidence only).
+- Real first-party REST/WebSocket at dev after coordinator runtime lease.
+- Real OpenMates CLI then npm/pip SDK at dev.
+- Canonical dispatcher browser component and broader flow; deliver each available recording.
+- Reviewed laptop/phone visual proof; user confirmation before Apple.
+- Apple remote status and targeted build/test.
+runtime:
+  target: api.dev.openmates.org local dev-stack
+  services:
+  - api
+  - app-ai-worker
+  lease: Requested next slot from coordinator; current owner Sonnet 00b4; no mutation permitted yet.
+evidence: []
+scope:
+  in:
+  - Approved shared focus semantics and scoped verification
+  out:
+  - Individual focus content/policies and production deploys
+scenarios:
+- id: S-1
+  title: Active/off history and rendering
+  given:
+  - A chat with pending, active or historical focus state
+  when:
+  - Send, deactivate, reload or inspect history
+  then:
+  - Approved focus-modes guarantees hold
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Full active instruction, off exclusion, instruction-free events, historical display and banner behavior
+    match feature.focus-modes@1.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-FOCUS
+tests:
+- id: T-FOCUS
+  type: pytest
+  file: backend/tests/test_focus_mode_routing.py
+  command: python3 -m pytest backend/tests/test_focus_mode_routing.py -q
+  covers:
+  - AC-1
+  assertions:
+  - Translation-only full instruction on every active request
+  - Off excludes instructions before next inference
+  red_phase:
+    required: true
+    expected: fail
+    evidence:
+      status: failed_as_expected
+      command: python3 -m pytest backend/tests/test_focus_mode_routing.py -q
+      run_id: local-focus-red-32ef
+      subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+      timestamp: '2026-09-08T13:56:04.043005+00:00'
+      summary: 2 expected assertion failures; 13 passed.
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+implementation_state:
+  subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-08T13:56:04.043005+00:00'
+  plan:
+    status: not_required
+    reason: User explicitly authorized implementation and scoped verification after exact Specification approval;
+      this records the already-authorized work.
+decisions:
+- id: D-1
+  status: active
+  decision: Preserve app instruction wording and tactics; implement shared observable guarantees.
+  reason: Explicit user design-boundary approval.
+  decided_at: '2026-09-08T13:56:04.043005+00:00'
+attempts:
+- id: ATTEMPT-1
+  task_id: TASK-1
+  outcome: failed_as_expected
+  approach: Execute production prompt assembly and AI-deactivation branches in focused regression tests.
+  recorded_at: '2026-09-08T13:56:04.043005+00:00'
+handoff:
+  current_task_id: TASK-1
+  next_action: Implement red prompt defects; continue history/UI reproduction.
+  command: python3 -m pytest backend/tests/test_focus_mode_routing.py -q
+  expected_outcome: Prompt regression tests pass after focused fix.
+  last_verified_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
+  blocker: null

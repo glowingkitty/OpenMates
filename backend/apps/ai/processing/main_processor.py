@@ -3205,6 +3205,8 @@ async def handle_main_processing(
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
 
     active_focus_prompt_text: Optional[str] = None
+    active_focus_prompt_section: Optional[str] = None
+    translation_service = TranslationService()
     if request_data.active_focus_id:
         try:
             # Parse focus mode ID (format: "app_id-focus_id" using hyphen for consistency with tool names)
@@ -3214,13 +3216,30 @@ async def handle_main_processing(
                 for focus_def in app_metadata_for_focus.focuses:
                     if focus_def.id == focus_id_in_app:
                         active_focus_prompt_text = focus_def.system_prompt
+                        # Translation-backed focuses must be resolved on every request,
+                        # not only when proposing activation. See apps/focus-modes-implementation.md.
+                        if not active_focus_prompt_text and focus_def.systemprompt_translation_key:
+                            language = getattr(preprocessing_results, "output_language", None) or "en"
+                            translation_key = focus_def.systemprompt_translation_key
+                            for candidate_language in dict.fromkeys((language, "en")):
+                                translated = translation_service.get_nested_translation(
+                                    translation_key, lang=candidate_language
+                                )
+                                if translated and translated != translation_key and not translated.startswith("[T:"):
+                                    active_focus_prompt_text = translated
+                                    break
                         break
         except Exception as e:
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)
+            raise
+        if not active_focus_prompt_text:
+            logger.error("%s Active focus has no resolvable instruction: %s", log_prefix, request_data.active_focus_id)
+            raise ValueError("Active focus instructions are unavailable")
     if active_focus_prompt_text:
         if request_data.active_focus_id == "web-research" and chat_depth > 0:
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
-        prompt_parts.insert(0, f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---")
+        active_focus_prompt_section = f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---"
+        prompt_parts.insert(0, active_focus_prompt_section)
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
     if not follow_up_suggestions_enabled:
@@ -3294,9 +3313,7 @@ async def handle_main_processing(
         task_app_skill_mentions,
     )
     
-    # Initialize TranslationService to resolve skill descriptions from translation keys
-    # TranslationService caches translations internally, so it's safe to create a new instance
-    translation_service = TranslationService()
+    # Reuse the translation service used to resolve active focus instructions.
     
     available_tools_for_llm = generate_tools_from_apps(
         discovered_apps_metadata=discovered_apps_metadata,
@@ -5726,9 +5743,11 @@ async def handle_main_processing(
                         }
                         current_message_history.append(tool_response_message)
                         
-                        # Remove focus mode from system prompt by rebuilding without it
-                        # For simplicity, we'll continue with the current prompt
-                        # The focus mode instructions will no longer apply to this response
+                        # Remove the exact instruction section before the next inference
+                        # iteration, while retaining the transition in message history.
+                        if active_focus_prompt_section in prompt_parts:
+                            prompt_parts.remove(active_focus_prompt_section)
+                        full_system_prompt = "\n\n".join(filter(None, prompt_parts))
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
                         continue
 

@@ -128,3 +128,86 @@ def test_parent_continuation_ai_reservation_is_guarded_before_orchestration_call
     orchestration_call = function_source.index("SubChatOrchestrationService(directus_service).execute")
 
     assert continuation_guard < orchestration_call
+
+
+def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en", inline=None, translation_available=True):
+    """Execute the production prompt-assembly slice without importing providers.
+
+    This is supporting unit evidence only; real authenticated inference tests
+    remain required to establish the public behavior across requests.
+    """
+    import ast
+    import logging
+    from types import SimpleNamespace
+    from typing import Optional
+    from backend.apps.ai.processing import focus_mode_routing
+
+    source = Path("backend/apps/ai/processing/main_processor.py").read_text()
+    tree = ast.parse(source)
+    function = next(n for n in tree.body if isinstance(n, ast.AsyncFunctionDef) and n.name == "handle_main_processing")
+    start = next(i for i, n in enumerate(function.body) if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.target.id == "active_focus_prompt_text")
+    end = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "follow_up_suggestions_enabled" for t in n.targets))
+    instruction = "Full focus instruction: ask about constraints.\nPreserve all configured details."
+    translator = SimpleNamespace(get_nested_translation=lambda key, lang="en": instruction if lang == "en" and translation_available else None)
+    scope = dict(vars(focus_mode_routing))
+    scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
+    exec(compile(ast.Module(body=function.body[start:end], type_ignores=[]), "production-focus-prompt", "exec"), scope)
+    return scope, instruction
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_translation_only_focus_instruction_on_each_active_request():
+    for _ in range(3):
+        scope, instruction = _focus_prompt_scope()
+        assert instruction in "\n".join(scope["prompt_parts"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.off-instruction
+def test_off_focus_excludes_instruction():
+    scope, instruction = _focus_prompt_scope(None)
+    assert instruction not in "\n".join(scope["prompt_parts"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.off-instruction
+def test_ai_deactivation_removes_instruction_before_next_inference():
+    import ast
+    import asyncio
+    import json
+    import logging
+    from types import SimpleNamespace
+    from backend.apps.ai.processing import focus_mode_routing
+
+    tree = ast.parse(Path("backend/apps/ai/processing/main_processor.py").read_text())
+    branch = next(n for n in ast.walk(tree) if isinstance(n, ast.If) and isinstance(n.test, ast.Compare) and isinstance(n.test.left, ast.Name) and n.test.left.id == "skill_id" and any(isinstance(v, ast.Constant) and v.value == "deactivate_focus_mode" for v in n.test.comparators))
+    body = [n for n in branch.body if not isinstance(n, ast.Continue)]
+    function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
+    module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
+    instruction = "Full focus instruction"
+    focus_part = f"--- Active Focus: jobs-career_insights ---\n{instruction}\n--- End Active Focus ---"
+    scope = dict(vars(focus_mode_routing))
+    scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights"), cache_service=None, current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
+    exec(compile(module, "production-focus-deactivate", "exec"), scope)
+    result = asyncio.run(scope["run_branch"]())
+    assert scope["request_data"].active_focus_id is None
+    assert instruction not in result.get("full_system_prompt", scope["full_system_prompt"])
+
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_active_focus_language_fallback_keeps_full_instruction():
+    scope, instruction = _focus_prompt_scope(language="xx")
+    assert instruction in "\n".join(scope["prompt_parts"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_inline_focus_instruction_preserves_precedence():
+    scope, translated = _focus_prompt_scope(inline="Full inline instruction")
+    assert "Full inline instruction" in "\n".join(scope["prompt_parts"])
+    assert translated not in "\n".join(scope["prompt_parts"])
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_missing_active_focus_instruction_does_not_silently_answer_unfocused():
+    import pytest
+    with pytest.raises(ValueError, match="Active focus instructions are unavailable"):
+        _focus_prompt_scope(translation_available=False)

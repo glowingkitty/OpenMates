@@ -1,0 +1,104 @@
+schema_version: 1
+specification: feature.focus-modes@1
+activation:
+- id: career-proposal
+  given: Career insights is suggested for a retail career-change question; activation is still pending.
+  action: Render the proposal before confirmation.
+  expect: State remains pending and the Career insights instruction is absent from ordinary inference.
+- id: accept-or-reject
+  given: A live Deep research activation awaits the existing confirmation window.
+  action: Allow confirmation, or reject before confirmation.
+  expect: Confirmation continues with Deep research active; rejection continues without its instruction and cannot
+    later auto-activate the same consumed request.
+full_instruction:
+- id: career-follow-ups
+  given: Career insights is active with full instruction P configured in the app for these requests.
+  action: Send the activation continuation, then ask which skills transfer, then ask for a weekly plan.
+  expect: Each of the three inference system prompts contains all of P, not just the first request or an abbreviated
+    reminder.
+- id: reopened-active-chat
+  given: Deep research remains active in a saved conversation after reopening.
+  action: Send another research question.
+  expect: The new inference system prompt contains the full currently configured Deep research instruction even
+    if activation is outside retained model history; the specification does not pin an older wording.
+off_instruction:
+- id: user-off
+  given: Career insights is active and its instruction is P.
+  action: Use the off control, then send a new message.
+  expect: The next system prompt excludes P; prior activation and deactivation events remain in history.
+- id: ai-off-continuation
+  given: An inference started with Deep research active and the AI deactivates it.
+  action: Continue processing after successful deactivation.
+  expect: The next inference call uses a rebuilt system prompt without the Deep research instruction, including
+    within the same message request.
+history_events:
+- id: career-event-pair
+  given: Career insights is activated and later deactivated.
+  action: Inspect retained system history.
+  expect: Both transitions identify Career insights; neither contains its full instruction text.
+- id: history-after-off
+  given: A saved chat contains an activation followed by deactivation.
+  action: Reload and submit a follow-up.
+  expect: Both events remain readable; neither causes the focus instruction to enter the new system prompt.
+countdown:
+- id: live-cancellation
+  given: The current chat has a confirmed live pending cancellable activation.
+  action: Render it and cancel using the existing card or Escape interaction.
+  expect: A countdown is visible before cancellation; cancellation consumes only that pending activation.
+- id: history-matrix
+  given: A completed chat, public shared chat, example, or unconfirmed historical record contains an activation
+    embed.
+  action: Open, remount, and reload each history view.
+  expect: No countdown or cancellation affordance appears, including when local active-focus metadata is absent.
+history_side_effects:
+- id: example-read-only
+  given: An example Career insights activation has no private chat metadata.
+  action: Open its transcript and activation details.
+  expect: No activation, rejection, cancellation, or focus metadata write occurs.
+- id: navigate-during-pending
+  given: Chat A has a pending activation and the user navigates to chat B.
+  action: An activation callback for A arrives while B is displayed.
+  expect: It does not activate, cancel, or write focus state for B; rendering A later does not manufacture a new
+    countdown.
+controls:
+- id: career-banner-off
+  given: Career insights is currently active.
+  action: Open its details, return, then switch it off.
+  expect: Details leave activation state unchanged; switching off removes the active indication and the next request
+    excludes the instruction.
+- id: historical-details
+  given: A historical activation record remains after the focus was stopped.
+  action: Inspect the record and open its details.
+  expect: The record does not claim the focus is currently on and details do not reactivate it.
+restoration:
+- id: restore-active-and-off
+  given: Saved chat A has Career insights active; saved chat B has it switched off.
+  action: Reload each chat and send a message.
+  expect: A includes the full instruction; B excludes it, using each chat own restored state.
+- id: shared-chat-isolation
+  given: The user reads a shared Deep research history while their private chat has no active focus.
+  action: Return to the private chat and send a message.
+  expect: The private chat stays off; reading the shared record did not persist or inject Deep research state.
+banner_placement:
+- id: phone-banner
+  given: Career insights is active at phone width.
+  action: Render the composer.
+  expect: Its active banner is approximately 10 CSS pixels higher than the pre-fix baseline; label and off control
+    remain visible and unobstructed.
+- id: laptop-banner
+  given: Career insights is active at laptop width; unrelated composer pills are also available.
+  action: Compare focus and unrelated pill layouts with the pre-fix baseline.
+  expect: Only the active focus banner receives the requested lift; controls remain usable without overlap.
+specializations:
+- id: career-contract
+  given: The Career insights specification guarantees useful career guidance with concrete examples and references
+    feature.focus-modes@1.
+  action: Revise the app instruction wording or questioning tactics while retaining those observable guarantees.
+  expect: Exact wording and tactics remain in app instructions; the individual specification defines the observable
+    guarantees, and the shared contract still requires complete instruction delivery on every active request.
+- id: research-contract
+  given: A Deep research specification defines observable evidence-backed research guarantees and concrete examples,
+    referencing feature.focus-modes@1.
+  action: Adjust research prompting tactics without changing the promised evidence-backed behavior.
+  expect: Tactics remain implementation details; shared full-instruction, off, historical-countdown, and interaction
+    guarantees still apply, while any changed observable guarantee requires specification review.
