@@ -71,3 +71,45 @@ def test_fixture_cms_auth_uses_generated_credentials_and_checks_identity(monkeyp
 
     with pytest.raises(RuntimeError, match="did not issue"):
         runner.cms_admin_token(profile)
+
+
+def test_artifact_profile_rejects_application_specs_and_shared_dev(monkeypatch):
+    import pytest
+    from scripts import ci_coverage
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    monkeypatch.setitem(sys.modules, "ci_coverage", ci_coverage)
+    from scripts import ci_run_tests as runner
+    with pytest.raises(ValueError, match="cannot run application"):
+        runner.verify_artifact_profile(["tasks-flow.spec.ts"])
+    monkeypatch.setattr(runner.socket, "gethostbyname_ex", lambda host: (host, [], ["192.0.2.1"]))
+    with pytest.raises(RuntimeError, match="DNS"):
+        runner.verify_artifact_profile(["security-reporting-email-proof.spec.ts"])
+    monkeypatch.setattr(runner.socket, "gethostbyname_ex", lambda host: (host, [], ["127.0.0.2"]))
+    monkeypatch.setattr(runner.socket, "create_connection", lambda *args, **kwargs: SimpleNamespace(close=lambda: None))
+    with pytest.raises(RuntimeError, match="HTTPS"):
+        runner.verify_artifact_profile(["security-reporting-email-proof.spec.ts"])
+
+
+def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypatch):
+    import pytest
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    web = tmp_path / "web"
+    (web / "tests").mkdir(parents=True)
+    spec = "security-reporting-email-proof.spec.ts"
+    (web / "tests" / spec).write_text("// synthetic artifact")
+    results = tmp_path / "results"
+    results.mkdir()
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "RESULTS", results)
+    monkeypatch.setattr(runner, "verify_artifact_profile", lambda specs: None)
+    monkeypatch.setattr(runner, "provision_account", lambda *args: pytest.fail("Artifact proof must not provision accounts"))
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("Artifact proof must not launch an app server"))
+    def browser(command, **kwargs):
+        assert command[:4] == ["pnpm", "exec", "playwright", "test"]
+        Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(json.dumps({"stats": {"expected": 1}}))
+        return SimpleNamespace(returncode=0)
+    from pathlib import Path
+    monkeypatch.setattr(runner.subprocess, "run", browser)
+    result = runner.run_e2e([spec], artifact=True)
+    assert result[0]["exit_code"] == 0
