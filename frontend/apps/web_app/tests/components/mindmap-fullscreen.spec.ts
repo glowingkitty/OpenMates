@@ -10,6 +10,7 @@ import { expect, test } from '../helpers/cookie-audit';
 // playwright-account: not_required reason=isolated_component_preview
 const PREVIEW = '/dev/preview/embeds/mindmaps/MindMapEmbedFullscreen?chrome=0';
 const SOURCE_MARKER = '"openmatesType"';
+const MAX_ZOOM_CONTROL_HEIGHT = 64;
 
 // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('normal fullscreen renders the map without exposing source JSON', async ({ page }) => {
@@ -18,6 +19,10 @@ test('normal fullscreen renders the map without exposing source JSON', async ({ 
   await expect(overlay.getByTestId('mindmap-fullscreen-canvas')).toBeVisible();
   await expect(overlay.getByTestId('mindmap-node').first()).toContainText('Customer Interviews');
   await expect(overlay).not.toContainText(SOURCE_MARKER);
+  const zoomBarHeight = await overlay.getByTestId('mindmap-zoom-reset').evaluate(
+    (button: HTMLElement) => button.parentElement!.getBoundingClientRect().height
+  );
+  expect(zoomBarHeight).toBeLessThanOrEqual(MAX_ZOOM_CONTROL_HEIGHT);
   const download = overlay.getByTestId('embed-download-button');
   await expect(download).toHaveAttribute('download', /launch-plan.*\.ommindmap$/);
   const exported = await download.evaluate(async (element: HTMLAnchorElement) =>

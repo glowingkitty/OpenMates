@@ -303,6 +303,8 @@
 <style>
   .mindmap-fullscreen {
     display: grid;
+    /* Removing the source panel must not stretch the floating controls row. */
+    align-content: start;
     gap: var(--spacing-8, 16px);
     padding: var(--spacing-8, 16px);
     min-height: 100%;

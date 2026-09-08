@@ -24756,12 +24756,12 @@ assertions:
       surface: gui.web
     - &id2790
       path: frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
-      line: 15
+      line: 16
       name: normal fullscreen renders the map without exposing source JSON
       surface: gui.web
     - &id2791
       path: frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
-      line: 30
+      line: 35
       name: invalid fullscreen retains a visible error and copyable original source
       surface: gui.web
     - &id2793
