@@ -233,6 +233,7 @@ async def test_persist_rejects_assistant_row_identity_mismatch(monkeypatch):
 
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
 async def test_create_dispatches_only_canonical_inference_values_with_stable_auth_identity(monkeypatch):
     registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"task_id": TASK_ID}))
     registry_module = ModuleType("backend.core.api.app.services.skill_registry")
@@ -255,7 +256,7 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
     inference_request = {
         "messages": [{"role": "user", "content": "canonical"}],
         "model": "canonical-model",
-        "focus_mode": {"focus_mode_id": "canonical-focus"},
+        "focus_mode": {"app_id": "jobs", "focus_mode_id": "career_insights"},
         "memory_ids": ["canonical-memory"],
     }
 
@@ -299,7 +300,7 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
     dispatch = registry.dispatch_skill.await_args.args[2]
     assert dispatch["current_user_content"] == "canonical"
     assert dispatch["user_preferences"]["model"] == "canonical-model"
-    assert dispatch["active_focus_id"] == "canonical-focus"
+    assert dispatch["active_focus_id"] == "jobs-career_insights"
     assert dispatch["memory_ids"] == ["canonical-memory"]
     assert dispatch["user_id"] == USER_ID
     assert dispatch["_api_key_hash"] == "key-hash"
@@ -594,3 +595,19 @@ async def test_sdk_chat_route_converts_connected_account_inputs_to_safe_token_re
     assert payload["connected_account_token_refs"][0]["provider_id"] == "revolut_business"
     assert payload["connected_account_token_refs"][0]["turn_token_ref"].startswith("tref_")
     assert "refresh-secret" not in str(payload)
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+@pytest.mark.asyncio
+async def test_stateless_sdk_focus_selection_uses_full_instruction_id(monkeypatch):
+    registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"response": {"content": "ok"}}))
+    registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    registry_module.get_global_registry = lambda: registry
+    monkeypatch.setitem(sys.modules, registry_module.__name__, registry_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    await sdk.create_sdk_chat(
+        _connected_account_request(),
+        sdk.SdkChatCreateRequest(message="Which skills transfer?", save_to_account=False,
+                                 focus_mode={"app_id": "jobs", "focus_mode_id": "career_insights"}),
+    )
+    assert registry.dispatch_skill.await_args.args[2]["focus_mode"] == "jobs-career_insights"

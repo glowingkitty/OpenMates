@@ -1,0 +1,135 @@
+schema_version: 1
+id: feature.focus-modes
+version: 1
+status: draft
+title: Focus Modes — Shared Operation and Display
+summary: Shared lifecycle, full system instruction application, system history, controls, restoration and historical
+  display for all focus modes.
+scope:
+  includes:
+  - Shared focus activation, cancellation, deactivation, per-request system prompts and historical events.
+  - Current-state restoration and historical rendering across supported first-party surfaces.
+  - Web focus activation display, details/off interactions and Career insights banner placement.
+  - Composition with individual focus-mode specifications.
+  excludes:
+  - Exact focus prompt wording, conversational tactics, and instruction authoring; these belong to app instruction
+    implementation.
+  - Changes to individual focus instruction content, career guidance/disclaimer policy, or model and mate selection.
+  - New endpoints, altered authentication, rate or credit limits, and changes to encryption protocol.
+assertions:
+- id: focus-modes.activation
+  type: behavior
+  must: A suggested or relevant focus is not active merely because it was discovered or an activation embed finished
+    rendering. A pending activation becomes active only through its accepted activation transition; rejecting a
+    genuinely pending request resumes without applying its instructions.
+  depends_on:
+  - examples.activation
+- id: focus-modes.full-instruction
+  type: invariant
+  must: EVERY message request while a focus is active must include the FULL currently configured focus system instruction
+    in the inference system prompt, including activation continuation and every later follow-up or resumed active
+    chat. A focus identifier, summary, earlier transcript entry, or previous request is never a substitute. This
+    guarantees complete instruction delivery; it does not prescribe or freeze the instruction wording or tactics,
+    which remain in app instruction implementation.
+  depends_on:
+  - examples.full_instruction
+- id: focus-modes.off-instruction
+  type: invariant
+  must: After a focus is switched off, its focus instruction must be excluded from all subsequent inference system
+    prompts, including any continuation after AI-initiated deactivation. Clear effective prompt state as well as
+    active metadata; historical activation events must not reintroduce the instruction.
+  depends_on:
+  - examples.off_instruction
+- id: focus-modes.history-events
+  type: invariant
+  must: Activation and deactivation must remain as system history events identifying the focus and transition, WITHOUT
+    the full focus instruction text. Events are historical facts, not current-state authority or a mechanism for
+    persisting/replaying the instruction.
+  depends_on:
+  - examples.history_events
+- id: focus-modes.countdown
+  type: behavior
+  must: Show countdown and cancellation controls only for a positively established live pending cancellable activation
+    in the current conversation. Completed, shared, example, unknown, and historical records must not start or replay
+    a countdown on render, remount, or reload. Render completion alone does not establish activation completion.
+  depends_on:
+  - examples.countdown
+- id: focus-modes.history-side-effects
+  type: invariant
+  must: Rendering historical focus content must not activate or reject a focus, write current chat focus metadata,
+    or dispatch cancellation. Asynchronous live activation callbacks must remain bound to their originating chat
+    and request rather than whichever chat is currently displayed.
+  depends_on:
+  - examples.history_side_effects
+- id: focus-modes.controls
+  type: behavior
+  must: Current active focus state drives the named active banner and off control. Details show focus information
+    without activating it. Deactivation by the existing banner or context-menu interaction updates current state
+    and removes active-only controls; historical records remain distinguishable from a currently active focus.
+  depends_on:
+  - examples.controls
+- id: focus-modes.restoration
+  type: privacy
+  must: Current focus state belongs to its chat and uses existing first-party authenticated and client-encrypted
+    persistence/sync boundaries. Reopening an active chat restores its active focus for subsequent requests; reopening
+    an off chat keeps it off. Reading shared/example history cannot assign active focus to another conversation.
+    No new public endpoint or plaintext durable focus storage is authorized.
+  depends_on:
+  - examples.restoration
+- id: focus-modes.banner-placement
+  type: behavior
+  must: On web, position the Career insights active banner approximately 10 CSS pixels above its pre-fix composer
+    position, with readable label and usable controls and no overlap on phone and laptop. Apply the lift to the
+    active focus banner without shifting unrelated incognito or IdeaBucket pills.
+  depends_on:
+  - examples.banner_placement
+- id: focus-modes.specializations
+  type: invariant
+  must: Individual focus specifications coexist with and reference feature.focus-modes@1 for shared operation, prompt
+    inclusion/exclusion, history, display, and interactions. They define observable focus-specific agent/product
+    guarantees with concrete examples, without duplicating or weakening the shared lifecycle contract. Exact prompt
+    wording and tactics remain in app instruction implementation. This shared contract does not change career guidance,
+    disclaimer wording, or model/mate selection policies.
+  depends_on:
+  - examples.specializations
+applies_to:
+  rest_api:
+    required: true
+    role: Existing first-party authenticated inference and WebSocket paths only, retaining current rate/credit/budget
+      limits and encrypted durable material; decrypted instructions are transient inference context. No new access
+      surface.
+  cli:
+    required: true
+    parity: semantic
+    role: Verify active/off prompts and history through supported real chat commands; browser countdown/pixel geometry
+      is not a terminal UI requirement.
+  sdks:
+    required: true
+    parity: semantic
+    implementations:
+      npm:
+        required: true
+      pip:
+        required: true
+  gui:
+    required: true
+    parity: semantic
+    implementations:
+      web:
+        required: true
+      apple:
+        required: true
+        role: Shared operation, prompt, history and state semantics; web-specific 10px banner offset is excluded.
+examples:
+  file: examples.yml
+  required_groups:
+  - activation
+  - full_instruction
+  - off_instruction
+  - history_events
+  - countdown
+  - history_side_effects
+  - controls
+  - restoration
+  - banner_placement
+  - specializations
