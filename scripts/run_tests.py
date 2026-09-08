@@ -9300,7 +9300,7 @@ class TestOrchestrator:
             shutil.copy2(str(last_run), str(archive))
             _log(f"Archived to {archive.name}")
         if _problem_count(result.summary) > 0:
-            _log("Daily auto-fix disabled; use scripts/auto_fix_failed_tests.py manually if needed")
+            _log("Automatic agent fixes are retired; investigate failures in the current task.")
 
     def _print_summary(self, result: RunResult) -> None:
         """Print a formatted summary."""

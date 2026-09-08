@@ -1151,139 +1151,12 @@ def test_commit_prefix_matching_requires_unambiguous_length(tmp_path, monkeypatc
     assert control._matches_commit_prefix("abc", "abcdef1234567890") is False
 
 
-def test_parallel_dispatch_leases_and_spawns_three_visible_workers(tmp_path, monkeypatch):
-    control = load_tests_control(tmp_path, monkeypatch)
-    campaign_key, _groups = create_parallel_campaign(control, group_count=3)
-    launches = []
-
-    def capture_run(command, **_kwargs):
-        launches.append(command)
-        index = len(launches)
-        return CompletedProcess(
-            command,
-            0,
-            stdout=(
-                f"OpenCode chat spawned: worker-{index}\n"
-                f"OpenCode session: ses_worker_{index}\n"
-                f"Web chat: https://code.dev.openmates.org/root/session/ses_worker_{index}\n"
-            ),
-            stderr="",
-        )
-
-    monkeypatch.setattr(control.subprocess, "run", capture_run)
-    monkeypatch.setattr(control, "current_git_sha", lambda: "base111")
-    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
-
-    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=3)
-
-    assert len(result["spawned"]) == 3
-    assert len(launches) == 3
-    assert all("spawn-chat" in command and "--mode" in command and "execute" in command for command in launches)
-    assert all("--no-deploy-instructions" in command for command in launches)
-    assert all("claude" not in " ".join(command).lower() for command in launches)
-    assert all(item["opencode_session_id"].startswith("ses_worker_") for item in result["spawned"])
-    assert all(item["inspect_command"].startswith("python3 scripts/sessions.py chat read ses_worker_") for item in result["spawned"])
-    assert all("attach_command" not in item for item in result["spawned"])
-    status = control.debug_campaign_status(campaign_key)
-    assert len(status["workers"]) == 3
-    assert {worker["worker_id"] for worker in status["workers"]} == {
-        item["chat_name"] for item in result["spawned"]
-    }
-    assert {worker["session_id"] for worker in status["workers"]} == {
-        item["opencode_session_id"] for item in result["spawned"]
-    }
-    for claim in control.load_leases()["leases"]:
-        assert "launch_status" not in claim
-        assert "web_chat" not in claim
-        assert (claim["entry"].get("launch") or {}).get("status") == "spawned"
 
 
-def test_parallel_dispatch_records_pending_launch_metadata(tmp_path, monkeypatch):
-    control = load_tests_control(tmp_path, monkeypatch)
-    campaign_key, _groups = create_parallel_campaign(control, group_count=1)
-
-    def pending_run(command, **_kwargs):
-        return CompletedProcess(
-            command,
-            0,
-            stdout=(
-                "OpenCode chat spawned: worker-1\n"
-                "OpenCode session: pending\n"
-                "Web chat: https://code.dev.openmates.org/root/session/pending\n"
-            ),
-            stderr="",
-        )
-
-    monkeypatch.setattr(control.subprocess, "run", pending_run)
-    monkeypatch.setattr(control, "current_git_sha", lambda: "base111")
-    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
-
-    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=1)
-
-    assert result["spawned"][0]["opencode_session_id"] is None
-    claim = control.load_leases()["leases"][0]
-    assert (claim["entry"].get("launch") or {}).get("status") == "pending"
-    assert "launch_status" not in claim
 
 
-def test_parallel_dispatch_records_failed_launch_metadata_before_release(tmp_path, monkeypatch):
-    control = load_tests_control(tmp_path, monkeypatch)
-    campaign_key, _groups = create_parallel_campaign(control, group_count=1)
-
-    def failed_run(_command, **_kwargs):
-        raise OSError("opencode unavailable")
-
-    monkeypatch.setattr(control.subprocess, "run", failed_run)
-    monkeypatch.setattr(control, "current_git_sha", lambda: "base111")
-    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
-
-    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=1)
-
-    assert result["spawned"] == []
-    claim = control.load_leases()["leases"][0]
-    assert claim["status"] == "released"
-    assert (claim["entry"].get("launch") or {}).get("status") == "failed"
-    assert "launch_status" not in claim
 
 
-def test_parallel_dispatch_skips_blocked_group_and_spawns_unblocked_workers(tmp_path, monkeypatch):
-    control = load_tests_control(tmp_path, monkeypatch)
-    campaign_key, groups = create_parallel_campaign(control, group_count=3)
-    launches = []
-
-    def capture_run(command, **_kwargs):
-        launches.append(command)
-        index = len(launches)
-        return CompletedProcess(
-            command,
-            0,
-            stdout=(
-                f"OpenCode chat spawned: worker-{index}\n"
-                f"OpenCode session: ses_worker_{index}\n"
-                f"Web chat: https://code.dev.openmates.org/root/session/ses_worker_{index}\n"
-            ),
-            stderr="",
-        )
-
-    monkeypatch.setattr(control.subprocess, "run", capture_run)
-    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
-    control.block_debug_group(
-        groups[0]["group_key"],
-        reason="This group needs user input.",
-        question="Which product behavior should this group assert?",
-        next_action="Resolve the blocked group, then verify it separately.",
-    )
-
-    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=2)
-
-    assert len(result["spawned"]) == 2
-    assert [item["group_key"] for item in result["selected"]] == [groups[1]["group_key"], groups[2]["group_key"]]
-    assert result["skipped"][groups[0]["group_key"]] == "group is completed, blocked, or already leased"
-    assert len(launches) == 2
 
 
 def test_lease_required_binds_pending_worker_session(tmp_path, monkeypatch):
@@ -1353,19 +1226,6 @@ def test_debug_worker_lease_release_and_complete_require_owner_or_coordinator(tm
     assert control.complete_lease(second["lease_id"], commit="base111")["status"] == "completed"
 
 
-def test_parallel_worker_prompt_uses_bash_gate_safe_intent_command(tmp_path, monkeypatch):
-    control = load_tests_control(tmp_path, monkeypatch)
-    campaign_key, groups = create_parallel_campaign(control, group_count=1)
-    group = {**groups[0], "parallel_linked_files": ["frontend/test-1.test.ts"]}
-    lease = {"lease_id": "lease-1"}
-
-    prompt = control._parallel_debug_prompt(campaign_key, group, lease, "worker-one")
-
-    assert "$(git rev-parse HEAD)" not in prompt
-    assert "--write-file <path>" not in prompt
-    assert "python3 scripts/tests.py campaign intent" in prompt
-    assert "--base-commit base111" in prompt
-    assert "--write-file frontend/test-1.test.ts" in prompt
 
 
 def test_worker_intent_records_write_set_before_edit_and_rejects_unlisted_files(tmp_path, monkeypatch):
@@ -2306,25 +2166,6 @@ def test_finish_worker_fails_closed_when_checkout_commit_unavailable(tmp_path, m
         )
 
 
-def test_dispatch_dry_run_explains_without_leasing_or_spawning(tmp_path, monkeypatch):
-    control = load_tests_control(tmp_path, monkeypatch)
-    campaign_key, _groups = create_parallel_campaign(control, group_count=2)
-    launches = []
-    monkeypatch.setattr(control.subprocess, "run", lambda command, **_kwargs: launches.append(command))
-    monkeypatch.setattr(control, "build_triage", lambda: {"groups": []})
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "unrelated-chat")
-
-    with pytest.raises(RuntimeError, match="mismatch"):
-        control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=1, dry_run=True)
-    monkeypatch.setenv("OPENCODE_SESSION_ID", "coordinator")
-
-    result = control.dispatch_parallel_debug_chats(campaign_key, "coordinator", max_workers=1, dry_run=True)
-
-    assert launches == []
-    assert len(result["selected"]) == 1
-    assert result["spawned"] == []
-    assert result["dry_run"] is True
-    assert control.debug_campaign_status(campaign_key)["workers"] == []
 
 
 def test_campaign_run_options_are_control_plane_only(tmp_path, monkeypatch):
@@ -2416,3 +2257,12 @@ def test_unit_campaign_selection_passes_exact_targets_to_runner(tmp_path, monkey
     assert pytest_targets == ["backend/tests/test_x.py::test_x"]
     assert vitest_args == ["--suite", "vitest"]
     assert vitest_targets == ["frontend/packages/ui/src/example.test.ts"]
+
+
+def test_retired_agent_dispatch_does_not_remove_campaign_or_github_execution(tmp_path, monkeypatch):
+    control = load_tests_control(tmp_path, monkeypatch)
+    assert not hasattr(control, "dispatch_parallel_debug_chats")
+    assert callable(control.start_debug_campaign)
+    assert callable(control.claim_debug_group)
+    assert callable(control.select_parallel_debug_groups)
+    assert callable(control.command_run)
