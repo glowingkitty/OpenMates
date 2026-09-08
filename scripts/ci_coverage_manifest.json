@@ -13,6 +13,7 @@
         "ai-settings-breadcrumb.spec.ts",
         "api-keys-flow.spec.ts",
         "apple-chat-ui-contracts.spec.ts",
+        "apple-proof-credential-broker.spec.ts",
         "apple-settings-ui-contracts.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
@@ -24,6 +25,8 @@
         "chat-search-flow.spec.ts",
         "chat-sync-empty-indexeddb-recovery.spec.ts",
         "cli-created-account-login.spec.ts",
+        "cli-memories.spec.ts",
+        "cli-pair-login.spec.ts",
         "code-notebook-flow.spec.ts",
         "connected-account-calendar-settings.spec.ts",
         "content-embed-settings.spec.ts",
@@ -54,6 +57,7 @@
         "recovery-key-settings.spec.ts",
         "session-revoke-flow.spec.ts",
         "settings-privacy-pii-deep-link.spec.ts",
+        "settings-translation-coverage.spec.ts",
         "share-embed-flow.spec.ts",
         "show-more-chats-flow.spec.ts",
         "startup-sync-contract.spec.ts",
@@ -68,10 +72,7 @@
         "workflows-definition-history.spec.ts",
         "workflows-editor.spec.ts",
         "workflows-input.spec.ts",
-        "workspace-sidebar.spec.ts",
-        "settings-translation-coverage.spec.ts",
-        "cli-memories.spec.ts",
-        "cli-pair-login.spec.ts"
+        "workspace-sidebar.spec.ts"
       ]
     },
     "external_integration": {
@@ -79,7 +80,6 @@
       "enabling_work": "Real mail delivery/reader, OAuth/Proton/device credentials, or production-origin monitoring contract. Supply isolated real service and dedicated account; production-origin checks require explicit coverage disposition, not a localhost success claim.",
       "specs": [
         "account-recovery-flow.spec.ts",
-        "apple-proof-credential-broker.spec.ts",
         "cli-provision-auth-accounts.spec.ts",
         "connected-account-calendar-live-oauth.spec.ts",
         "dev-smoke/dev-smoke-reachability.spec.ts",
@@ -98,7 +98,6 @@
       "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
       "specs": [
         "apple-ui-contracts.spec.ts",
-        "berlin-mitte-maps-example.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "cli-workflows-search-controls-real.spec.ts",
         "docs-screenshot-generator.spec.ts",
@@ -118,8 +117,6 @@
         "apple-cross-client-chat.spec.ts",
         "audio-recording-deferred-send.spec.ts",
         "background-chat-notification.spec.ts",
-        "chat-response-processing-ui.spec.ts",
-        "chat-scroll-streaming.spec.ts",
         "cli-embed-diff-versions.spec.ts",
         "cli-file-upload.spec.ts",
         "cli-images.spec.ts",
@@ -159,7 +156,6 @@
         "skill-images-generate-safety.spec.ts",
         "skill-mail-search.spec.ts",
         "skill-weather-rain-radar.spec.ts",
-        "source-quote-verification.spec.ts",
         "sub-chats-real-inference.spec.ts",
         "teams-settings-context.spec.ts",
         "usage-token-breakdown.spec.ts",
@@ -201,13 +197,16 @@
         "assistant-speech-player.spec.ts",
         "audio-recording.spec.ts",
         "auth-back-to-demo.spec.ts",
+        "berlin-mitte-maps-example.spec.ts",
         "business-company-financials-example.spec.ts",
         "business-company-financials.spec.ts",
         "chat-replay-demo-mode.spec.ts",
+        "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",
         "cli-tui-workflows.spec.ts",
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
+        "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",
         "dev-preview.spec.ts",
         "docs-links.spec.ts",
@@ -215,6 +214,8 @@
         "embeds-map-view-examples.spec.ts",
         "embeds-map-view.spec.ts",
         "example-chat-logout-preserve.spec.ts",
+        "example-chat-settings-usage.spec.ts",
+        "example-chat-speech.spec.ts",
         "example-chats-load.spec.ts",
         "feature-availability.spec.ts",
         "finance-check-accounts.spec.ts",
@@ -234,6 +235,8 @@
         "page-load-performance.spec.ts",
         "paste-classification.spec.ts",
         "preview-error.spec.ts",
+        "proof-audio-speech-example.spec.ts",
+        "proof-video-architecture.spec.ts",
         "report-issue-email-fallback.spec.ts",
         "search-parent-preview-stress.spec.ts",
         "seo-demo-chat.spec.ts",
@@ -243,15 +246,10 @@
         "skill-provider-icons.spec.ts",
         "status-page.spec.ts",
         "task-workflow-app-skill-embeds.spec.ts",
-        "unauthenticated-chat-navigation.spec.ts",
-        "workflow-template-sharing.spec.ts",
-        "composer-model-routing.spec.ts",
-        "example-chat-settings-usage.spec.ts",
-        "unauthenticated-app-load.spec.ts",
         "task-workflow-example-chats.spec.ts",
-        "example-chat-speech.spec.ts",
-        "proof-audio-speech-example.spec.ts",
-        "proof-video-architecture.spec.ts"
+        "unauthenticated-app-load.spec.ts",
+        "unauthenticated-chat-navigation.spec.ts",
+        "workflow-template-sharing.spec.ts"
       ]
     },
     "synthetic_artifact": {
@@ -265,25 +263,33 @@
       "execution": "e2e",
       "enabling_work": "Original committed TEST_MOCK fixtures on genuine runner API/AI worker; internal Docker network rejects provider egress. No live inference coverage claimed.",
       "specs": [
-        "default-model-cli.spec.ts",
-        "default-model-settings.spec.ts",
-        "chat-management-flow.spec.ts",
-        "chat-key-wrapper-migration.spec.ts",
-        "chat-settings-flow.spec.ts",
-        "hidden-chats-flow.spec.ts",
         "ai-response-language.spec.ts",
+        "chat-key-wrapper-migration.spec.ts",
+        "chat-management-flow.spec.ts",
+        "chat-scroll-streaming.spec.ts",
+        "chat-settings-flow.spec.ts",
         "connection-resilience.spec.ts",
+        "daily-inspiration-chat-flow.spec.ts",
+        "default-model-cli.spec.ts",
+        "default-model-settings-proof.spec.ts",
+        "default-model-settings.spec.ts",
+        "embed-json-leak.spec.ts",
         "focus-mode-career-insights.spec.ts",
         "focus-mode-rejection.spec.ts",
         "focus-mode-ui-after-activation.spec.ts",
         "fork-conversation.spec.ts",
+        "hidden-chats-flow.spec.ts",
         "interactive-questions.spec.ts",
         "message-highlights-touch.spec.ts",
         "model-override.spec.ts",
         "multi-session-encryption.spec.ts",
         "new-chat-pinned-sort.spec.ts",
         "personal-account-model-loading.spec.ts",
+        "pii-detection-flow.spec.ts",
+        "pii-placeholder-rewrite.spec.ts",
         "share-chat-flow.spec.ts",
+        "source-quote-verification.spec.ts",
+        "stop-new-chat-draft.spec.ts",
         "tasks-chat-settings-parity.spec.ts",
         "unified-detail-metadata-sync.spec.ts"
       ]
@@ -295,26 +301,20 @@
         "application-preview.spec.ts",
         "chat-flow.spec.ts",
         "code-generation-multiturn.spec.ts",
-        "daily-inspiration-chat-flow.spec.ts",
-        "default-model-settings-proof.spec.ts",
-        "embed-json-leak.spec.ts",
         "explain-in-new-chat.spec.ts",
         "follow-up-suggestions-flow.spec.ts",
-        "incognito-mode.spec.ts",
-        "pii-detection-flow.spec.ts",
-        "pii-placeholder-rewrite.spec.ts",
-        "stop-new-chat-draft.spec.ts"
+        "incognito-mode.spec.ts"
       ]
     },
     "original_browser_billing_fixtures": {
       "execution": "e2e",
       "enabling_work": "Preserve the existing browser payment/admin endpoint fixtures and genuine newly provisioned login. This is browser-only coverage, not real private billing/eligibility/provider verification; unmocked runtime dependencies must still fail visibly.",
       "specs": [
+        "server-anonymous-free-usage-budget.spec.ts",
+        "server-free-testing-budget.spec.ts",
         "settings-buy-credits-bank-transfer.spec.ts",
         "settings-gift-card-bank-transfer.spec.ts",
-        "settings-support-bank-transfer.spec.ts",
-        "server-anonymous-free-usage-budget.spec.ts",
-        "server-free-testing-budget.spec.ts"
+        "settings-support-bank-transfer.spec.ts"
       ]
     },
     "ai_cached_pipeline_pending": {
@@ -352,9 +352,9 @@
       "enabling_work": "Execute original signed cached-pipeline requests on the internal-network AI worker with fresh explicitly allowlisted users. Preserve real API/CLI/browser assertions; cache misses and provider configuration failures fail visibly, no recording, paid keys or external fallback.",
       "specs": [
         "copy-message-flow.spec.ts",
-        "skill-web-search.spec.ts",
+        "skill-math-calculate.spec.ts",
         "skill-web-read.spec.ts",
-        "skill-math-calculate.spec.ts"
+        "skill-web-search.spec.ts"
       ]
     },
     "selfhost_installer": {

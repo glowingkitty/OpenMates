@@ -52,7 +52,6 @@ def execution_mode(spec: str) -> str:
 HOLD_REASONS = {
     "anonymous-production-repair.spec.ts": "Requires official-cloud eligibility, inference and budget isolation",
     "anonymous-free-chat.spec.ts": "Browser mock coverage must retain its separate official-cloud contract; profile review pending",
-    "chat-scroll-streaming.spec.ts": "Requires the AI worker/provider profile and preserved inference budget controls",
 }
 
 
