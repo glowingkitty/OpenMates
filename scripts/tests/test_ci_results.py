@@ -142,3 +142,33 @@ def test_result_binds_subject_harness_runner_and_execution(
         assert result["source_commit"] == source
         assert result["harness_commit"] == harness
         assert result["artifact_url"].endswith("/artifacts/8")
+
+
+@pytest.mark.parametrize("fault", ["", "missing", "run", "harness", "containers", "volumes", "accounts"])
+def test_green_e2e_requires_run_bound_cleanup(tmp_path, fault):
+    import json
+    data = {"run_id": "7", "harness_commit": "harness", "containers_remaining": 0,
+            "volumes_remaining": 0, "private_account_files_removed": True}
+    if fault == "run":
+        data["run_id"] = "8"
+    if fault == "harness":
+        data["harness_commit"] = "other"
+    if fault == "containers":
+        data["containers_remaining"] = 1
+    if fault == "volumes":
+        data["volumes_remaining"] = 1
+    if fault == "accounts":
+        data["private_account_files_removed"] = False
+    if fault != "missing":
+        (tmp_path / "ci-cleanup.json").write_text(json.dumps(data))
+    job = {"mode": "e2e", "state": "success", "run_id": 7}
+    result = {"harness_commit": "harness", "report": {"results": ["original assertion"]}}
+    if fault:
+        with pytest.raises(RuntimeError, match="cleanup"):
+            ci_results.attach_cleanup(result, job, tmp_path)
+        job["state"] = "failure"
+        retained = ci_results.attach_cleanup(result, job, tmp_path)
+        assert retained["cleanup_verified"] is False
+        assert retained["report"]["results"] == ["original assertion"]
+    else:
+        assert ci_results.attach_cleanup(result, job, tmp_path)["cleanup_verified"] is True

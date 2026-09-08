@@ -84,11 +84,33 @@ def extract(archive: Path, destination: Path):
         bundle.extractall(destination)
 
 
+def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
+    """Expose run-bound teardown evidence, including cached historical receipts.
+
+    A passing browser result alone cannot prove disposable accounts/databases
+    were removed. Failed jobs retain absent/failed teardown as visible evidence
+    instead of hiding their original assertion report.
+    """
+    if job.get("mode") != "e2e":
+        return result
+    paths = list(directory.rglob("ci-cleanup.json"))
+    cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else None
+    valid = bool(cleanup and str(cleanup.get("run_id")) == str(job["run_id"])
+                 and cleanup.get("harness_commit") == result.get("harness_commit")
+                 and cleanup.get("containers_remaining") == 0
+                 and cleanup.get("volumes_remaining") == 0
+                 and cleanup.get("private_account_files_removed") is True)
+    result.update(cleanup=cleanup, cleanup_verified=valid)
+    if job["state"] == "success" and not valid:
+        raise RuntimeError("Green E2E lacks verified run-bound account/container/volume cleanup")
+    return result
+
+
 def fetch(github, job: dict, root: Path) -> dict:
     destination = root / "test-results/ci-runs" / job["id"]
     receipt = destination / "receipt.json"
     if receipt.is_file():
-        return json.loads(receipt.read_text())
+        return attach_cleanup(json.loads(receipt.read_text()), job, destination)
     if not job["run_id"] or job["state"] not in ("success", "failure", "cancelled"):
         raise RuntimeError("CI job has no terminal result yet")
     run = github.request(f"repos/{github.repo}/actions/runs/{job['run_id']}")
@@ -205,6 +227,7 @@ def fetch(github, job: dict, root: Path) -> dict:
             "artifact_url": f"{job['url']}/artifacts/{artifact['id']}",
             "directory": str(destination),
         }
+        attach_cleanup(result, job, extracted)
         (extracted / "receipt.json").write_text(json.dumps(result, indent=2))
         extracted.rename(destination)
     return result
