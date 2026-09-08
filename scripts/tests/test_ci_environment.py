@@ -249,3 +249,16 @@ def test_public_replay_keeps_workers_internal_and_proxy_unpublished():
         assert 'ingress' not in service.get('networks', ['default'])
     ordinary = compose_profile('a' * 40, ai_fixtures=True)
     assert 'HTTPS_PROXY' not in ordinary['services']['api']['environment']
+
+
+def test_only_isolated_ai_profile_advertises_fixture_model_readiness():
+    ordinary = compose_profile('a' * 40)
+    assert 'OPENMATES_CI_AI_FIXTURES' not in ordinary['services']['api']['environment']
+    replay = compose_profile('a' * 40, ai_fixtures=True)
+    environment = replay['services']['api']['environment']
+    assert environment['CI'] == 'true'
+    assert environment['OPENMATES_CI_ISOLATED'] == '1'
+    assert environment['OPENMATES_CI_AI_FIXTURES'] == '1'
+    assert replay['networks']['default']['internal'] is True
+    assert 'ai-worker' in replay['services']
+    assert not any(key.startswith('SECRET__') for key in environment)

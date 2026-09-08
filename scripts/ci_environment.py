@@ -344,6 +344,11 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"], "interval": "5s", "timeout": "5s", "retries": 30},
         }
     if ai_fixtures:
+        # The real status API must advertise the installed replay engine; no
+        # fake provider key or browser response interception is needed.
+        api["environment"].update(
+            CI="true", OPENMATES_CI_ISOLATED="1", OPENMATES_CI_AI_FIXTURES="1"
+        )
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
         ai_worker = deepcopy(worker)
