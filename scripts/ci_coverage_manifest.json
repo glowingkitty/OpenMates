@@ -191,6 +191,7 @@
         "berlin-mitte-maps-example.spec.ts",
         "business-company-financials-example.spec.ts",
         "business-company-financials.spec.ts",
+        "components/pdf-view-preview.spec.ts",
         "chat-replay-demo-mode.spec.ts",
         "chat-response-processing-ui.spec.ts",
         "chat-streaming-render-performance.spec.ts",
