@@ -105,8 +105,10 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     monkeypatch.setattr(runner, "verify_artifact_profile", lambda specs: None)
     monkeypatch.setattr(runner, "provision_account", lambda *args: pytest.fail("Artifact proof must not provision accounts"))
     monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("Artifact proof must not launch an app server"))
+    monkeypatch.setenv("PLAYWRIGHT_TEST_API_URL", "https://shared.invalid")
     def browser(command, **kwargs):
         assert command[:4] == ["pnpm", "exec", "playwright", "test"]
+        assert kwargs["env"]["PLAYWRIGHT_TEST_API_URL"] == "http://localhost:8000"
         Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(json.dumps({"stats": {"expected": 1}}))
         return SimpleNamespace(returncode=0)
     from pathlib import Path

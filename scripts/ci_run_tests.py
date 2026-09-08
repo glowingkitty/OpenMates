@@ -335,7 +335,7 @@ def run_e2e(specs: list[str], *, artifact=False, results=None):
                 wait_web(child)
             for index, name in enumerate(specs):
                 source = (WEB / "tests" / name).read_text()
-                env = dict(os.environ)
+                env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
                 account_free = artifact or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
