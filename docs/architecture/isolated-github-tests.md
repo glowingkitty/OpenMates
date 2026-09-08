@@ -155,3 +155,14 @@ SeaweedFS is used because the application requires per-bucket CORS; the MinIO
 community edition does not implement that API. See the upstream
 [SeaweedFS quickstart](https://github.com/seaweedfs/seaweedfs/blob/master/README.md)
 and [MinIO API limits](https://github.com/minio/minio/blob/master/docs/minio-limits.md).
+
+
+The `uploads` capability adds the exact candidate upload image and a pinned
+ClamAV daemon with genuine signature updates and mandatory healthy scanning.
+The browser sends uploads through the runner's same-origin proxy; it forwards
+unaltered multipart bytes and cookies to port8001 and sets `X-Target-Env: dev`.
+Both internal target configurations point only to this runner's API. The upload
+image builds only for batches that require it. This preserves scan/encryption
+and persistence behavior; official cross-origin gateway policy and credentialed
+SightEngine/transcription behavior are not claimed by this profile. Documentation
+capture retains its original assertions and JPEG outputs in a separate artifact.

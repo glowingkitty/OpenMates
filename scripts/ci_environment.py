@@ -78,8 +78,10 @@ print('authenticated-roundtrip-cors-presigned-and-private-access-passed')
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, account_emails: list[str] | None = None) -> dict:
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, account_emails: list[str] | None = None) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    object_storage = object_storage or uploads
+    isolate_backend = ai_fixtures or object_storage
     credentials = {
         name: secrets.token_hex(24)
         for name in (
@@ -311,6 +313,22 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
         for name in ("api", "core-worker"):
             services[name]["depends_on"]["object-storage"] = {"condition": "service_healthy"}
         services["vault-init"]["environment"].update(CI_STORAGE_ACCESS_KEY=credentials["storage_key"], CI_STORAGE_SECRET_KEY=credentials["storage_secret"])
+    if uploads:
+        services["clamav"] = {
+            "image": "clamav/clamav-debian@sha256:5037bae34bf7566052d18f30be1e351155bfce845a583f0c08027f9fcaa44b5d",
+            "environment": {"CLAMAV_NO_FRESHCLAMD": "false", "CLAMAV_NO_CLAMD": "false", "CLAMAV_NO_MILTERD": "true"},
+            "volumes": ["clamav-db:/var/lib/clamav"], "mem_limit": 2048 * MIB,
+            "healthcheck": {"test": ["CMD", "/usr/local/bin/clamdcheck.sh"], "interval": "10s", "timeout": "10s", "retries": 30, "start_period": "120s"},
+        }
+        services["uploads"] = {
+            "image": "openmates-ci-upload:local",
+            "build": {"context": SOURCE, "dockerfile": "backend/upload/Dockerfile"},
+            "environment": {**common, "CLAMAV_HOST": "clamav", "CLAMAV_PORT": "3310", "UPLOADS_APP_INTERNAL_PORT": "8000", "DEV_CORE_API_URL": "http://api:8000", "PROD_CORE_API_URL": "http://api:8000", "DEV_INTERNAL_API_SHARED_TOKEN": credentials["internal"], "PROD_INTERNAL_API_SHARED_TOKEN": credentials["internal"]},
+            "volumes": [f"{SOURCE}/backend:/app/backend:ro", {"type": "volume", "source": "vault-tokens", "target": "/vault-data", "read_only": True, "volume": {"nocopy": True}}],
+            "ports": ["127.0.0.1:8001:8000"], "mem_limit": 1024 * MIB,
+            "depends_on": {"clamav": {"condition": "service_healthy"}, "object-storage": {"condition": "service_healthy"}, "vault-init": {"condition": "service_completed_successfully"}, "api": {"condition": "service_healthy"}},
+            "healthcheck": {"test": ["CMD", "curl", "-f", "http://localhost:8000/health"], "interval": "5s", "timeout": "5s", "retries": 30},
+        }
     if ai_fixtures:
         # Existing committed TEST_MOCK fixtures still traverse the real API/worker.
         # The internal network prevents paid providers or shared-server egress.
@@ -319,6 +337,7 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
         ai_worker["command"] = [part.replace(f"--queues={QUEUES}", "--queues=app_ai") for part in worker["command"]]
         ai_worker["mem_limit"] = 1536 * MIB
         services["ai-worker"] = ai_worker
+    if isolate_backend:
         api.pop("ports")
         services["cms"].pop("ports")
         services["runner-gateway"] = {
@@ -358,7 +377,10 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
         )
         mounts = []
         for mount in service.get("volumes", []):
-            if not mount.startswith("/"):
+            if isinstance(mount, dict):
+                volumes[mount["source"]] = {}
+                mounts.append(mount)
+            elif not mount.startswith("/"):
                 name, target = mount.split(":", 1)
                 volumes[name] = {}
                 mounts.append(
@@ -374,9 +396,12 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
         if mounts:
             service["volumes"] = mounts
     profile = {"name": "openmates-ci", "services": services, "volumes": volumes}
-    if ai_fixtures and object_storage:
+    if isolate_backend and object_storage:
         services["object-storage"]["networks"]["ingress"] = {}
-    if ai_fixtures:
+    if isolate_backend and uploads:
+        for name in ("uploads", "clamav"):
+            services[name]["networks"] = ["default", "ingress"]
+    if isolate_backend:
         profile["networks"] = {"default": {"internal": True}, "ingress": {}}
     return profile
 
@@ -418,7 +443,17 @@ def main():
             raise RuntimeError("Candidate lacks committed development feature configuration")
         account_emails = [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(2 * len(selected))]
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=bool(storage_specs.intersection(selected)), account_emails=account_emails)
+        upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
+        needs_uploads = bool(upload_specs.intersection(selected))
+        needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads
+        if needs_storage:
+            for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
+                if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
+                    raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, account_emails=account_emails)
+        if os.environ.get("GITHUB_OUTPUT"):
+            with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
+                output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
         # Docker cannot create nested mountpoints inside a read-only bind.
         # These ignored directories contain only runner-local runtime output.
         for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
@@ -468,6 +503,8 @@ def main():
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if "uploads" in profile["services"]:
+            required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:
             required.append("object-storage")
         if "ai-worker" in profile["services"]:
@@ -494,7 +531,7 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
-            if service in ("api", "core-worker", "ai-worker"):
+            if service in ("api", "core-worker", "ai-worker", "uploads"):
                 mounts = [
                     mount
                     for mount in info["Mounts"]

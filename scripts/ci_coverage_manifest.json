@@ -99,10 +99,8 @@
       "execution": null,
       "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
       "specs": [
-        "apple-ui-contracts.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "cli-workflows-search-controls-real.spec.ts",
-        "docs-screenshot-generator.spec.ts",
         "proof-video-cli.spec.ts",
         "shared-chat-embed-assets.spec.ts",
         "task-activity.spec.ts",
@@ -207,6 +205,7 @@
         "design-search-icons.spec.ts",
         "dev-preview.spec.ts",
         "docs-links.spec.ts",
+        "docs-screenshot-generator.spec.ts",
         "embed-showcase.spec.ts",
         "embeds-map-view-examples.spec.ts",
         "embeds-map-view.spec.ts",
@@ -369,6 +368,13 @@
       "specs": [
         "report-issue-flow.spec.ts"
       ]
+    },
+    "uploads": {
+      "execution": "e2e",
+      "enabling_work": "Use real runner-local upload service, ClamAV, S3, Vault and fresh authenticated users. AI detection/transcription/provider assertions remain separately gated; no scan or upload mocks.",
+      "specs": [
+        "apple-ui-contracts.spec.ts"
+      ]
     }
   },
   "holds": {
@@ -402,12 +408,6 @@
         "APPLE_CROSS_CLIENT_ARTIFACT_DIR",
         "APPLE_CROSS_CLIENT_RUN_ID"
       ]
-    },
-    "apple-ui-contracts.spec.ts": {
-      "dependency": "isolated_object_storage_upload",
-      "next_action": "Add a real runner-local S3-compatible store and configurable SDK/public URL endpoints for captures message input web UI contract for Apple parity; add the original upload/ClamAV service when used. Seed only synthetic runner Vault credentials. Preserve encryption, screenshot persistence, shared asset download, and scan assertions; real audio/provider subcases remain separately gated.",
-      "user_input_required": false,
-      "source_environment_names": []
     },
     "application-preview-share.spec.ts": {
       "dependency": "real_e2b_preview_sharing",
@@ -638,12 +638,6 @@
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
-    },
-    "docs-screenshot-generator.spec.ts": {
-      "dependency": "preview_catalogue_capture",
-      "next_action": "Review the existing screenshot catalogue against runner-local built preview routes, encode chrome=0 in capture URLs, retain all original catalogue assertions, then admit the generator through the existing browser profile.",
-      "user_input_required": false,
-      "source_environment_names": []
     },
     "example-chat-clone.spec.ts": {
       "dependency": "original_live_inference",

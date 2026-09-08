@@ -15,8 +15,9 @@ from urllib.parse import urlsplit
 
 class StaticAppHandler(SimpleHTTPRequestHandler):
     api_port = 8000
+    upload_port = 8001
     web_port = None
-    max_request_bytes = 32 * 1024 * 1024
+    max_request_bytes = 128 * 1024 * 1024
     hop_headers = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
                    "te", "trailer", "transfer-encoding", "upgrade"}
 
@@ -32,6 +33,12 @@ class StaticAppHandler(SimpleHTTPRequestHandler):
         body = self.rfile.read(size) if size else None
         headers = {key: value for key, value in self.headers.items()
                    if key.lower() not in self.hop_headers | {"host"}}
+        if port is None and urlsplit(self.path).path.startswith("/v1/upload/"):
+            port = self.upload_port
+            # Same reverse-proxy environment selection as the deployed upload
+            # gateway, fixed to this disposable development database.
+            headers = {key: value for key, value in headers.items() if key.lower() != "x-target-env"}
+            headers["X-Target-Env"] = "dev"
         if port == self.web_port and port is not None:
             headers["Host"] = self.headers.get("Host", "localhost:5173")
         connection = HTTPConnection("127.0.0.1", port or self.api_port, timeout=60)

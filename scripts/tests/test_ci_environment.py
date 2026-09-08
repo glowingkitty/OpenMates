@@ -198,3 +198,20 @@ def test_object_storage_uses_fresh_local_credentials_and_real_pinned_server():
         assert services[name]["depends_on"]["object-storage"]["condition"] == "service_healthy"
     assert services["vault-init"]["environment"]["CI_STORAGE_ACCESS_KEY"] == store["environment"]["AWS_ACCESS_KEY_ID"]
     assert "object-storage" not in compose_profile("a" * 40)["services"]
+
+
+def test_upload_profile_requires_real_scanner_and_isolated_api_targets():
+    profile = compose_profile("a" * 40, uploads=True)
+    services = profile["services"]
+    upload = services["uploads"]
+    assert upload["depends_on"]["clamav"] == {"condition": "service_healthy"}
+    assert services["clamav"]["healthcheck"]["test"] == ["CMD", "/usr/local/bin/clamdcheck.sh"]
+    assert "@sha256:" in services["clamav"]["image"]
+    assert upload["environment"]["DEV_CORE_API_URL"] == upload["environment"]["PROD_CORE_API_URL"] == "http://api:8000"
+    assert upload["environment"]["S3_ENDPOINT_URL"] == "http://storage.ci.test:9000"
+    assert upload["ports"] == ["127.0.0.1:8001:8000"]
+    assert upload["volumes"][1]["read_only"] is True
+    assert "object-storage" in services
+    assert profile["networks"]["default"]["internal"] is True
+    assert services["runner-gateway"]["ports"] == ["127.0.0.1:8000:8000", "127.0.0.1:8055:8055"]
+    assert services["clamav"]["networks"] == ["default", "ingress"]
