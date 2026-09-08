@@ -307,7 +307,9 @@
         "server-free-testing-budget.spec.ts",
         "settings-buy-credits-bank-transfer.spec.ts",
         "settings-gift-card-bank-transfer.spec.ts",
-        "settings-support-bank-transfer.spec.ts"
+        "settings-support-bank-transfer.spec.ts",
+        "signup-flow-bank-transfer.spec.ts",
+        "signup-free-testing-credits.spec.ts"
       ]
     },
     "ai_cached_pipeline_pending": {
@@ -887,12 +889,6 @@
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
     },
-    "signup-flow-bank-transfer.spec.ts": {
-      "dependency": "official_cloud_eligibility_and_billing",
-      "next_action": "Provision the real private cloud services and dedicated sandbox fixtures for signup flow: bank transfer option available at payment step, Continue to app works; public self-host behavior does not establish this assertion. Private source transfer and any real payment/inference credentials require explicit approval and per-run caps.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
     "signup-flow-passkey.spec.ts": {
       "dependency": "real_brevo_delivery_and_gmail_reader",
       "next_action": "For signup-flow-passkey.spec.ts, provision dedicated approved Brevo delivery and Gmail inbox-reader credentials plus fresh per-run aliases. The current provider sends Brevo HTTP, so adding SMTP Mailpit alone does not preserve the original real delivery assertions. Core signup Redis verification is not email-delivery proof.",
@@ -916,12 +912,6 @@
       "source_environment_names": [
         "SIGNUP_TEST_EMAIL_DOMAINS"
       ]
-    },
-    "signup-free-testing-credits.spec.ts": {
-      "dependency": "official_cloud_eligibility_and_billing",
-      "next_action": "Provision the real private cloud services and dedicated sandbox fixtures for signup basics shows Free credits for testing while promotion is active; public self-host behavior does not establish this assertion. Private source transfer and any real payment/inference credentials require explicit approval and per-run caps.",
-      "user_input_required": true,
-      "source_environment_names": []
     },
     "signup-skip-2fa-flow.spec.ts": {
       "dependency": "real_brevo_delivery_and_gmail_reader",

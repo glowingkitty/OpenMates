@@ -251,3 +251,16 @@ def test_fresh_credit_fixture_uses_real_gift_and_rejects_wrong_balance(tmp_path,
     monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=0, stdout='{"credits": 0}'))
     with pytest.raises(RuntimeError, match="balance mismatch"):
         runner.accept_fixture_credits({"OPENMATES_STATE_DIR": "/private/fresh"})
+
+
+def test_failure_diagnostics_are_separate_and_do_not_run_an_application(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    calls = []
+    monkeypatch.setattr(runner.subprocess, "run", lambda command, **kw: calls.append((command, kw)) or SimpleNamespace(returncode=0))
+    runner.capture_failed_spec_diagnostics(2)
+    command, options = calls[0]
+    assert command[-1] == "logs"
+    assert options["env"]["CI_DIAGNOSTIC_LABEL"] == "spec-2"
+    assert options["timeout"] == 90
+    assert options["capture_output"] is True

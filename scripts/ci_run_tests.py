@@ -502,6 +502,11 @@ def run_e2e(specs: list[str], *, artifact=False, results=None):
                                   else None if executed else "No tests executed; skipped coverage is not a pass"),
                     }
                 )
+                if results[-1]["exit_code"] and not artifact:
+                    try:
+                        capture_failed_spec_diagnostics(index)
+                    except (RuntimeError, subprocess.TimeoutExpired) as exc:
+                        results[-1]["diagnostic_error"] = str(exc)
         finally:
             for process in (child, app_server):
                 if process is not None:
@@ -512,6 +517,17 @@ def run_e2e(specs: list[str], *, artifact=False, results=None):
                         process.kill()
                         process.wait()
     return results
+
+
+def capture_failed_spec_diagnostics(index):
+    """Keep the failure's server evidence before the next fresh login replaces it."""
+    env = {**os.environ, "CI_DIAGNOSTIC_LABEL": f"spec-{index}"}
+    result = subprocess.run(
+        [sys.executable, str(Path(__file__).with_name("ci_environment.py")), "logs"],
+        env=env, capture_output=True, timeout=90,
+    )
+    if result.returncode:
+        raise RuntimeError("Failed to retain bounded per-spec stack diagnostics")
 
 
 def main():
