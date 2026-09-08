@@ -68,6 +68,7 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False) -> dict:
     }
     common = {
         "PYTHONPATH": "/app",
+        "BACKEND_CONFIG_FILE": "/app/backend/config/backend_config.dev.yml",
         "BUILD_COMMIT_SHA": source_hash,
         "PYTHONDONTWRITEBYTECODE": "1",
         "CMS_URL": "http://cms:8055",
@@ -351,6 +352,8 @@ def main():
         manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
         fixture_specs = set(manifest["groups"].get("ai_committed_fixtures", {}).get("specs", []))
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
+        if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
+            raise RuntimeError("Candidate lacks committed development feature configuration")
         data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)))
         # Docker cannot create nested mountpoints inside a read-only bind.
         # These ignored directories contain only runner-local runtime output.

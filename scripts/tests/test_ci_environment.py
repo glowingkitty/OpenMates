@@ -143,3 +143,9 @@ def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path,
     runtime.main()
     assert not private.exists()
     assert json.loads((tmp_path / "test-results/ci-cleanup.json").read_text())["private_account_files_removed"] is True
+
+
+def test_runtime_uses_candidate_development_feature_configuration():
+    profile = compose_profile("a" * 40, ai_fixtures=True)
+    for service in ("api", "core-worker", "ai-worker"):
+        assert profile["services"][service]["environment"]["BACKEND_CONFIG_FILE"] == "/app/backend/config/backend_config.dev.yml"

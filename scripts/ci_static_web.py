@@ -15,11 +15,12 @@ from urllib.parse import urlsplit
 
 class StaticAppHandler(SimpleHTTPRequestHandler):
     api_port = 8000
+    web_port = None
     max_request_bytes = 32 * 1024 * 1024
     hop_headers = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
                    "te", "trailer", "transfer-encoding", "upgrade"}
 
-    def api_request(self):
+    def api_request(self, port=None):
         """Preserve same-origin /v1 requests against the real runner-local API."""
         if self.headers.get("Transfer-Encoding") or self.headers.get("Upgrade"):
             self.send_error(501, "Use the direct runner API for streaming uploads or WebSockets")
@@ -31,7 +32,9 @@ class StaticAppHandler(SimpleHTTPRequestHandler):
         body = self.rfile.read(size) if size else None
         headers = {key: value for key, value in self.headers.items()
                    if key.lower() not in self.hop_headers | {"host"}}
-        connection = HTTPConnection("127.0.0.1", self.api_port, timeout=60)
+        if port == self.web_port and port is not None:
+            headers["Host"] = self.headers.get("Host", "localhost:5173")
+        connection = HTTPConnection("127.0.0.1", port or self.api_port, timeout=60)
         sent_headers = False
         try:
             connection.request(self.command, self.path, body, headers)
@@ -61,18 +64,24 @@ class StaticAppHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.is_api():
             self.api_request()
+        elif self.web_port:
+            self.api_request(self.web_port)
         else:
             super().do_GET()
 
     def do_HEAD(self):
         if self.is_api():
             self.api_request()
+        elif self.web_port:
+            self.api_request(self.web_port)
         else:
             super().do_HEAD()
 
     def do_POST(self):
         if self.is_api():
             self.api_request()
+        elif self.web_port:
+            self.api_request(self.web_port)
         else:
             self.send_error(405)
 
@@ -104,6 +113,8 @@ def main():
     directory = Path(sys.argv[1]).resolve()
     if not (directory / "index.html").is_file():
         raise RuntimeError("Candidate static web build is missing")
+    if "--sveltekit" in sys.argv[2:]:
+        StaticAppHandler.web_port = 5174
     server = ThreadingHTTPServer(
         ("127.0.0.1", 5173),
         lambda *args, **kwargs: StaticAppHandler(*args, directory=str(directory), **kwargs),
