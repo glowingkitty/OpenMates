@@ -8,7 +8,6 @@
  */
 
 const { expect, test } = require('./helpers/cookie-audit');
-const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { createRunnerCodexEligibility } = require('./helpers/task-creator-e2e-helpers');
@@ -20,18 +19,12 @@ test.describe('Tasks V1 flow', () => {
 		expect(getTestAccount().email, 'Runner test account credentials are required').toBeTruthy();
 		await skipIfFeaturesDisabled(test, page, ['platform:tasks']);
 
-		const log = (message: string, metadata: Record<string, unknown> = {}) => {
-			console.log(`[TASKS_E2E] ${message} ${JSON.stringify(metadata)}`);
-		};
-		const screenshot = async () => {};
 		const taskTitle = `E2E task ${Date.now()}`;
 		const taskDescription = 'Created by the Tasks V1 Playwright flow';
 		const codexPrompt = `Create a new task ${taskTitle} Codex follow-up and assign it to Codex`;
 
-		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
-		await loginToTestAccount(page, log, screenshot);
-
-        // Real candidate CLI pairs with this account and creates its own receipt.
+        // Pairing performs the single real browser login before creating a receipt.
+        // Logging in here first would make pairing wait for an already-hidden Login button.
         // A browser-created Task or copied shared-dev receipt cannot unlock it.
         await createRunnerCodexEligibility(page);
         const eligibilityResponse = page.waitForResponse((response) =>
