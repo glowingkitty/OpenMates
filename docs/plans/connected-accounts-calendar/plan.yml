@@ -76,7 +76,7 @@ apple_impact:
   verification: [No native completion claim in this Plan; native implementation follows verified shared and web delivery.]
   intentional_native_differences: [Temporary delivery staging only.]
 implementation_state:
-  subject_commit: 35c1acdc0d6cdab32d277816a0df7312e60619c8
+  subject_commit: 74a508e072483277c6601ddfd8abd12916632978
 approvals:
   specification:
     status: approved
@@ -140,7 +140,8 @@ attempts:
       green: 82 focused backend tests passed in the preserved Calendar virtualenv; supporting unit evidence only.
       command: /tmp/opencode/calendar-1523-venv/bin/python -m pytest backend/tests/test_token_broker_refs.py backend/tests/test_sdk_chat_recovery.py backend/tests/test_connected_account_execution.py backend/tests/test_calendar_app_contract.py backend/tests/test_google_calendar_oauth_adapter.py backend/tests/test_calendar_permission_broker.py backend/tests/test_calendar_discovery.py -q
       run_id: calendar-a667-auth-green
-      candidate_note: Working candidate; live Google acceptance remains pending.
+      subject_commit: 74a508e072483277c6601ddfd8abd12916632978
+      candidate_note: Integrated to dev with passing lint, Specification checks and the six-file deployment pytest gate; live Google acceptance remains pending.
   - id: ATTEMPT-5
     task_id: TASK-1
     approach: Dispatch existing browser permission baseline and check current live OAuth coverage admission through the canonical test dispatcher.
@@ -152,14 +153,16 @@ attempts:
       limitation: Browser fixture coverage is not live provider acceptance. Current isolated GitHub policy forbids shared-dev fallback.
 handoff:
   current_task_id: TASK-1
-  next_action: Integrate the authorization regression fixes, retrieve the browser baseline, and provision the approved isolated Google test setup before direct live API acceptance and dependent Calendar/CLI/SDK/workflow phases.
+  next_action: Retrieve the browser baseline and provision the approved isolated Google test setup before direct live API acceptance and dependent Calendar/CLI/SDK/workflow phases.
   command: 'python3 scripts/ci_coordinator.py result cb0fe50d6c4bad1aa0fed7025e66c8b17f8669892b85fc070bd06d630191e917'
   expected_outcome: Current source-bound browser evidence and an admitted dedicated provider runtime; full Calendar and workflow acceptance remains pending.
   blocker:
+    task_id: TASK-1
+    requires_user_input: true
     reason: Live Google OAuth coverage is held pending a dedicated approved account/client and isolated callback origin.
     question: Which dedicated Google test setup should this task use?
     next_action: Provision the user-selected isolated Google consent setup and admit the provider runtime before live acceptance.
-  last_verified_commit: 94d55af655a97e77cdf677294f05fbf04469b93e
+  last_verified_commit: 74a508e072483277c6601ddfd8abd12916632978
 scenarios:
   - id: S-1
     title: Connect and authorize without leaking credentials
