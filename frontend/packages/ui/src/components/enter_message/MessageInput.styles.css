@@ -1006,6 +1006,9 @@
 /* Mic permission hint reuses the queued-message-indicator pill style but with a
    neutral background (not the yellow warning color used for queued messages). */
 .queued-message-indicator.mic-permission-hint {
+  /* Keep complete permission guidance inside the existing pill on narrow screens. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   background-color: var(--color-grey-30, rgba(128, 128, 128, 0.3));
   color: var(--color-text-primary, #000);
 }

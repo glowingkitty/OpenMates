@@ -14,6 +14,7 @@ const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-p
 
 const PROOF_VIDEO_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
 const PROOF_DEVICE = PROOF_VIDEO_WIDTH === 390 ? 'web-phone' : 'web-laptop';
+const VIEWPORT_EDGE_TOLERANCE_PX = 1;
 
 const MESSAGE_INPUT_PROOF = defineVideoProof({
 	id: 'message-input-component-states',
@@ -30,7 +31,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 		},
 		{
 			id: 'expanded-state',
-			text: 'Focusing expands the composer and reveals its controls.',
+			text: 'Focusing expands the composer and keeps its controls and microphone guidance in view.',
 			checkpoint: 'expanded',
 			devices: ['web-laptop', 'web-phone']
 		},
@@ -79,6 +80,12 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
+			id: 'message-input.layout.responsive-parity',
+			checkpoint: 'expanded',
+			visual: 'The complete microphone permission warning stays within the viewport beside the expanded composer.',
+			devices: ['web-laptop', 'web-phone']
+		},
+		{
 			id: 'assistant-speech.preference.chat-scoped-default-off',
 			checkpoint: 'speech-toggle-off',
 			visual: 'The off state renders one visible mute glyph on a transparent icon button.',
@@ -113,7 +120,7 @@ const MESSAGE_INPUT_PROOF = defineVideoProof({
 });
 
 test.describe('MessageInput component preview', () => {
-	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
+	// contract-test: direct surface=gui.web assertions=message-input.actions.visibility,message-input.layout.responsive-parity,assistant-speech.preference.chat-scoped-default-off,ai-model-routing.composer.mention-to-exact-selection,ai-model-routing.composer.responsive-actions
 	test('moves from minimized to expanded interactive states', async ({ page }, testInfo) => {
 		const proof = createVideoProofRuntime(MESSAGE_INPUT_PROOF, {
 			device: PROOF_DEVICE,
@@ -149,6 +156,21 @@ test.describe('MessageInput component preview', () => {
 			await expect(page.getByTestId('record-audio-button')).toBeVisible();
 			await expect(page.getByTestId('guest-cta-mic-button')).toHaveCount(0);
 			await expect(page.getByTestId('composer-model-selector')).toBeVisible();
+		});
+		await proof.assert('message-input.layout.responsive-parity', async () => {
+			const warning = page.getByText('Microphone blocked - enable it in browser settings', { exact: true });
+			await expect(warning).toBeVisible();
+			// Measure the text as well as the pill: a max-width pill can still let
+			// non-wrapping text paint outside the viewport.
+			const bounds = await warning.evaluate((element) => {
+				const range = document.createRange();
+				range.selectNodeContents(element);
+				const text = range.getBoundingClientRect();
+				const pill = element.getBoundingClientRect();
+				return { left: Math.min(text.left, pill.left), right: Math.max(text.right, pill.right), viewport: window.innerWidth };
+			});
+			expect(bounds.left, 'Microphone guidance must not overflow the left viewport edge').toBeGreaterThanOrEqual(-VIEWPORT_EDGE_TOLERANCE_PX);
+			expect(bounds.right, 'Complete microphone guidance must fit within the right viewport edge').toBeLessThanOrEqual(bounds.viewport + VIEWPORT_EDGE_TOLERANCE_PX);
 		});
 		await proof.checkpoint('expanded');
 

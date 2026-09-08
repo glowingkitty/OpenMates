@@ -348,13 +348,37 @@ run_frontend_contract_guards() {
   done
 }
 
-# Combine for ESLint (TS, Svelte, CSS only)
+# Combine the file types covered by the flat ESLint configuration.
 # HTML files are intentionally excluded because our flat ESLint config does not
 # include an HTML processor and reports ignored-file warnings as lint failures.
 declare -a js_files=()
 ${check_ts} && js_files+=("${ts_files[@]}")
 ${check_svelte} && js_files+=("${svelte_files[@]}")
-${check_css} && js_files+=("${css_files[@]}")
+
+run_css_lint() {
+  if (( ${#css_files[@]} == 0 )); then
+    return 0
+  fi
+
+  local prettier_bin="${repo_root}/node_modules/prettier/bin/prettier.cjs"
+  if ! command -v node >/dev/null 2>&1 || [[ ! -f "${prettier_bin}" ]]; then
+    echo "CSS: install the frozen frontend dependencies to provide the CSS parser." >&2
+    overall_status=1
+    return 0
+  fi
+
+  # CSS has no ESLint configuration. Parse it with the existing Prettier
+  # dependency without rewriting files or imposing unrelated formatting changes.
+  local file
+  for file in "${css_files[@]}"; do
+    if node "${prettier_bin}" "${repo_root}/${file}" --parser css >/dev/null; then
+      echo "CSS: ok ${file}"
+    else
+      echo "CSS: error ${file}" >&2
+      overall_status=1
+    fi
+  done
+}
 
 run_yaml_lint() {
   if (( ${#yml_files[@]} == 0 )); then
@@ -1001,13 +1025,13 @@ run_js_lint() {
     case "${file}" in
       *.svelte) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "Svelte" ;;
       *.ts|*.tsx) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "TS" ;;
-      *.css) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "CSS" ;;
       *.html) run_eslint_file "${pnpm_cmd}" "${pkg}" "${rel_in_pkg}" "HTML" ;;
     esac
   done
 }
 
 run_yaml_lint
+run_css_lint
 run_python_lint
 run_swift_lint
 run_frontend_contract_guards
