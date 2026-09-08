@@ -13,10 +13,14 @@ argument-hint: "<test path or Plan cluster>"
    metadata, REST/CLI/SDK/GUI surfaces, and relevant code to identify the feature.
 3. If approved assertions apply, add per-test `specification-test` metadata with
    proof strength and surface, then regenerate the assertion index.
-4. If no approved Specification defines the intended behavior, extract stable
+4. If no approved assertion defines the intended behavior, first extend the
+   existing Specification for the owning feature or app skill. Create a bundle
+   only when no existing contract fits. Extract stable
    truth from the whole feature or Plan cluster, not only one test. Separate
    historical implementation choices from durable behavior.
-5. Invoke `define-specification`, present the complete compact Specification, and
+5. Invoke `define-specification`, including its requirement for one or two
+   concrete, assertion-mapped examples for each added or changed requirement.
+   Present the complete compact Specification, and
    wait for approval before mapping the test or changing implementation behavior.
 6. Update the existing Plan with Specification references and evidence locations;
    do not replace its discovery, tasks, attempts, handoff, or evidence ledger.

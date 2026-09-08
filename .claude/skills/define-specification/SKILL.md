@@ -9,10 +9,19 @@ argument-hint: "<feature or existing specification ID>"
 
 1. Search `specifications/generated/registry.yml`, existing Specifications,
    semantic pages, Plans, tests, source surfaces, and tracker context before
-   drafting. Reuse shared models and architecture assertions rather than copying.
+   drafting. Prefer extending an existing Specification for the owning feature,
+   app skill, or shared behavior before creating a separate bundle. Record the
+   closest existing contracts and why they cannot cover the behavior when a new
+   bundle is necessary. Reuse shared models and architecture assertions rather
+   than copying; individual focus-mode contracts reference the shared lifecycle.
 2. Create or edit `specification.yml` plus `examples.yml` only in the active
    session worktree. Keep `specification.yml` compact; examples remain separate
-   and are loaded for ambiguity and test derivation.
+   and are loaded for ambiguity and test derivation. Every new or changed
+   requirement/assertion must have one or two concrete examples in `examples.yml`
+   with an explicit assertion ID mapping, realistic inputs or state, the action,
+   and observable expected behavior. Reuse and update suitable examples where
+   possible. Check coverage against the changed assertions before validation;
+   an unrelated example elsewhere in the bundle does not satisfy this rule.
 3. Validate with `python3 scripts/specifications.py validate <bundle>`, then run
    `python3 scripts/specifications.py generate`.
 4. Generate and privately upload the exact-fingerprint approval document:
@@ -43,6 +52,10 @@ argument-hint: "<feature or existing specification ID>"
 ## Rules
 
 - Specifications define durable truth; never modify one merely to match code or tests.
+- Describe observable agent behavior in the owning product contract when it is a
+  promised outcome; keep prompt wording and implementation tactics in the app's
+  instruction sources. Backfilling documents current behavior without treating
+  known defects as approved truth.
 - New features and semantic changes require approval. Implementation-only work
   references an existing approved Specification and refreshes evidence.
 - Canonical surfaces are REST API, CLI, SDKs (npm/pip), and GUI (web/Apple).
