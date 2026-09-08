@@ -46,3 +46,13 @@ evidence:
   cli_unit:
     command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/generatedFiles.test.ts
     result: 3 supporting tests passed, plus 9 adjacent Code Run command tests passed.
+  real_cli:
+    command: node /tmp/openmates-e89e/cli-live.mjs
+    subject_commit: e6676605ef19e0e891fc3ca148d1ec4a9cd3e09f
+    passed: [json_url_only, default_cwd, explicit_overwrite, json_explicit_music_download, image_download, video_download]
+    transient_failures: Two audio storage availability probes timed out before generation; explicit diagnostic retries passed.
+    discovered_issue: Code Run WebSocket authentication was rejected; add visible completion polling without resubmitting the execution.
+  sdk_parity:
+    command: python3 scripts/audit_sdk_cli_parity.py
+    result: 89 command entries and 4 workflow template transport entries checked successfully.
+    live_sdk_status: Not run; no SDK API key configured in the test environment. CLI session authentication is available.

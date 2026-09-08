@@ -1819,6 +1819,7 @@ async function withEmbedVersionsMockApi<T>(
 
 async function withCodeRunStreamingMockApi<T>(
   run: (params: { apiUrl: string; tempHome: string; getStats: () => { rejected: number; accepted: number } }) => T | Promise<T>,
+  rejectStreams = false,
 ): Promise<T> {
   const tempHome = join(tmpdir(), `openmates-cli-stream-${Date.now()}`);
   const stateDir = join(tempHome, ".openmates");
@@ -1877,7 +1878,7 @@ async function withCodeRunStreamingMockApi<T>(
   server.on("upgrade", (request, socket, head) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
     const token = url.searchParams.get("token");
-    if (token !== refreshToken) {
+    if (rejectStreams || token !== refreshToken) {
       stats.rejected += 1;
       socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
       socket.destroy();
@@ -3010,6 +3011,16 @@ describe("apps code run command variants", () => {
       assert.equal(body.requests[0].target_embed_id, "embed-1");
       assert.deepEqual(body.requests[0].files, []);
     });
+  });
+
+  // contract-test: supporting surface=cli assertions=cli.generated-files.safe-visible,code-run.execution.stream-status-visible
+  it("retrieves Code Run completion through polling when streaming is unavailable", async () => {
+    await withCodeRunStreamingMockApi(async ({apiUrl, tempHome, getStats}) => {
+      const output = await runCliAsync(["apps", "code", "run", "--api-url", apiUrl,
+        "--language", "python", "--code", "print('hello')", "--json"], {HOME: tempHome});
+      assert.equal(JSON.parse(output).final.status, "finished");
+      assert.deepEqual(getStats(), {rejected: 2, accepted: 0});
+    }, true);
   });
 
   it("retries Code Run streaming with the refresh token when ws_token auth is rejected", async () => {

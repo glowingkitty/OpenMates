@@ -7776,19 +7776,28 @@ async function handleCodeRun(
     try {
       finalStatus = await streamCodeRunToTerminal(url, flags.json === true);
     } catch (err) {
-      if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
-      const fallbackUrl = buildCodeRunStreamUrl({
-        apiUrl: client.apiUrl,
-        executionId: result.execution_id,
-        sessionId: streamAuth.sessionId,
-        token: streamAuth.fallbackToken,
-      });
-      finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
+      try {
+        if (!streamAuth.fallbackToken || streamAuth.fallbackToken === streamAuth.token) throw err;
+        const fallbackUrl = buildCodeRunStreamUrl({
+          apiUrl: client.apiUrl,
+          executionId: result.execution_id,
+          sessionId: streamAuth.sessionId,
+          token: streamAuth.fallbackToken,
+        });
+        finalStatus = await streamCodeRunToTerminal(fallbackUrl, flags.json === true);
+      } catch {
+        // Recover the existing job through the independently authenticated status route.
+        usedStream = false;
+        process.stderr.write(`Code Run live stream unavailable; polling execution ${result.execution_id}. No new run started.\n`);
+        finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
+      }
     }
   } else {
     finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
   }
 
+  // Stream updates may omit signed artifact URLs; retrieve the complete owner-authorized result.
+  if (usedStream) finalStatus = await client.getCodeRunStatus(result.status_path, apiKey);
   const localFiles = finalStatus.status === "finished" && finalStatus.exit_code === 0
     ? await downloadGeneratedFiles(finalStatus, downloadOptions) : [];
   if (flags.json === true) {

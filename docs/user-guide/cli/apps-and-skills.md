@@ -262,3 +262,7 @@ names the generated output artifact. For example:
 ```bash
 openmates apps code run --language python --source-filename main.py --code 'open("result.csv", "w").write("value\n42\n")' --filename result.csv
 ```
+
+If Code Run live streaming is unavailable, the CLI reports that it is polling
+the existing execution for its final status and generated artifacts. This does
+not start a second run.
