@@ -56,3 +56,20 @@ def test_synthetic_artifacts_use_distinct_account_free_runtime():
     assert not held
     assert execution_mode(allowed[0]) == "artifact"
     assert execution_mode("tasks-flow.spec.ts") == "e2e"
+
+
+def test_all_existing_holds_have_concrete_dependency_and_next_action():
+    import json
+    from pathlib import Path
+    from scripts.ci_coverage import partition
+
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    specs = [spec for group in manifest["groups"].values() for spec in group["specs"]]
+    _, held = partition(specs)
+    assert set(manifest["holds"]) == set(held)
+    for spec in held:
+        entry = manifest["holds"][spec]
+        assert entry["dependency"]
+        assert len(entry["next_action"]) > 50
+        assert type(entry["user_input_required"]) is bool
+        assert "requirements have not been ported" not in entry["next_action"].lower()
