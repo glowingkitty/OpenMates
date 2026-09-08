@@ -343,11 +343,11 @@ def run_e2e(specs: list[str], *, artifact=False):
                     {
                         "spec": name,
                         "accounts": account_evidence,
-                        "exit_code": result.returncode if executed else 1,
+                        "exit_code": result.returncode if executed and not stats.get("skipped", 0) else 1,
+                        "coverage_complete": bool(executed) and not stats.get("skipped", 0),
                         "stats": stats,
-                        "error": None
-                        if executed
-                        else "No tests executed; skipped coverage is not a pass",
+                        "error": ("Selected cases were skipped; coverage is incomplete" if stats.get("skipped", 0)
+                                  else None if executed else "No tests executed; skipped coverage is not a pass"),
                     }
                 )
         finally:

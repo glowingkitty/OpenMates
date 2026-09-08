@@ -113,6 +113,14 @@ def test_artifact_browser_never_starts_stack_web_or_accounts(tmp_path, monkeypat
     monkeypatch.setattr(runner.subprocess, "run", browser)
     result = runner.run_e2e([spec], artifact=True)
     assert result[0]["exit_code"] == 0
+    def partial_browser(command, **kwargs):
+        Path(kwargs["env"]["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(json.dumps({"stats": {"expected": 1, "skipped": 1}}))
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(runner.subprocess, "run", partial_browser)
+    incomplete = runner.run_e2e([spec], artifact=True)[0]
+    assert incomplete["exit_code"] == 1
+    assert incomplete["coverage_complete"] is False
+    assert "incomplete" in incomplete["error"]
 
 
 def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path, monkeypatch):
