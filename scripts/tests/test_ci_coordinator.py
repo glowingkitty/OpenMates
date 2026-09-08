@@ -135,3 +135,19 @@ def test_proof_profiles_have_distinct_idempotent_requests(tmp_path):
         q.enqueue("a", "a" * 40, ["x.spec.ts"], proof_profile="web-phone")["id"]
         == phone["id"]
     )
+
+
+def test_owned_prerequisite_runs_first_without_exceeding_four_slots(tmp_path):
+    import pytest
+    queue = Queue(tmp_path / "queue.db")
+    jobs = [queue.enqueue("owner", "a" * 40, [f"{n}.spec.ts"]) for n in range(6)]
+    with pytest.raises(ValueError, match="owned queued"):
+        queue.prioritize(jobs[-1]["id"], "other", "repair")
+    queue.prioritize(jobs[-1]["id"], "owner", "verify framework repair")
+    with pytest.raises(ValueError, match="still pending"):
+        queue.prioritize(jobs[-2]["id"], "owner", "another repair")
+    remote = Remote()
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 4
+    assert remote.sent[0]["id"] == jobs[-1]["id"]
+    assert queue.status(jobs[-1]["id"])[0]["source"] == "a" * 40
