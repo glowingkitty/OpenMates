@@ -70,7 +70,9 @@ def test_gpt6_astra_uses_max_reasoning_on_openai() -> None:
     astra = models_by_id["gpt-6-astra"]
 
     assert astra["capability_level"] == "max"
-    assert astra["reasoning_effort"] == "max"
+    # The live OpenAI endpoint rejects max for Astra; xhigh is its highest
+    # supported effort. Product capability remains independently rated max.
+    assert astra["reasoning_effort"] == "xhigh"
     assert astra["default_server"] == "openai"
     assert astra["servers"] == [
         {
