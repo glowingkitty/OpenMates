@@ -7609,7 +7609,7 @@ assertions:
       surface: gui.web
     - &id875
       path: backend/tests/test_openai_gpt56_models.py
-      line: 379
+      line: 378
       name: test_gpt56_payload_uses_catalog_upstream_model_and_reasoning_effort
       surface: gui.web
     - &id879

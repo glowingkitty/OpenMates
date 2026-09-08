@@ -796,6 +796,11 @@ def _format_tool_call_for_history(tool_call: Any) -> Dict[str, Any]:
             "arguments": arguments,
         },
         **(
+            {"provider_transport_state": tool_call.provider_transport_state}
+            if getattr(tool_call, "provider_transport_state", None)
+            else {}
+        ),
+        **(
             {"thought_signature": tool_call.thought_signature}
             if hasattr(tool_call, "thought_signature") and tool_call.thought_signature
             else {}
@@ -3694,7 +3699,8 @@ async def handle_main_processing(
     DEBUG_MSG_HISTORY_HEAD = 1  # First message (usually system context or first user message)
     DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
     if len(current_message_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
-        debug_message_history = current_message_history
+        # Snapshot before the tool loop appends provider-only transport state.
+        debug_message_history = list(current_message_history)
     else:
         debug_message_history = (
             current_message_history[:DEBUG_MSG_HISTORY_HEAD]

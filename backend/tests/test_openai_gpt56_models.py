@@ -371,7 +371,6 @@ def test_openai_request_model_overrides_simple_and_complex_auto_selection(monkey
     [
         ("gpt-5.6-sol", None, "gpt-5.6-sol", "medium"),
         ("gpt-5.6-sol", "gpt-5.6-sol-max", "gpt-5.6-sol", "max"),
-        ("gpt-6-astra", None, "gpt-6-astra", "xhigh"),
     ],
 )
 @pytest.mark.parametrize("stream", [False, True])

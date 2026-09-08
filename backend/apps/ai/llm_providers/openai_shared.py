@@ -3,7 +3,7 @@
 
 import logging
 from typing import Dict, Any, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +185,8 @@ class ParsedOpenAIToolCall(BaseModel):
     function_arguments_raw: str
     function_arguments_parsed: Dict[str, Any]
     parsing_error: Optional[str] = None
+    # Opaque provider output replayed in the in-flight tool loop, never displayed.
+    provider_transport_state: Optional[List[Dict[str, Any]]] = Field(default=None, repr=False, exclude=True)
 
 class UnifiedOpenAIResponse(BaseModel):
     """
