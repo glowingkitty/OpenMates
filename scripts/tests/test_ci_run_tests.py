@@ -161,6 +161,9 @@ def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
     assert "client.createApiKey" in command[3]
     assert "FIXTURE_CREDIT_LIMIT = 1000" in command[3] and "expiresAt:" in command[3]
     assert kwargs["capture_output"] is True
+    assert "d.api_key_id === result.key.id && d.machine_identifier === deviceId" in command[3]
+    assert "api.chats.list({limit: 1})" in command[3]
+    assert "chats.send" not in command[3]
     monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=1))
     with pytest.raises(RuntimeError, match="no shared-key fallback"):
         runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"})
