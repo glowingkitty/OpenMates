@@ -26,6 +26,18 @@ const FIXTURE_PATH = path.resolve(
 const FIXTURE = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8')).cases[0];
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
+test.describe('Idle chat processing feedback', () => {
+	// contract-test: direct surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance,chat-processing-feedback.turn-lifecycle
+	test('does not select a mate before a guest sends a message, including after reload', async ({ page }: { page: any }) => {
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-editor')).toBeVisible();
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-editor')).toBeVisible();
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0);
+	});
+});
+
 async function installLifecycleSocketHarness(page: any, fixtureChatId: string): Promise<void> {
 	await page.context().addInitScript(({ chatId }) => {
 		const NativeWebSocket = window.WebSocket;
