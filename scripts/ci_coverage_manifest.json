@@ -197,6 +197,7 @@
         "cli-tui-workflows.spec.ts",
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
+        "components/mindmap-fullscreen.spec.ts",
         "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",
         "dev-preview.spec.ts",
