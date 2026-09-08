@@ -309,7 +309,7 @@ specifications:
     version: 2
     status: draft
     path: features/chats
-    fingerprint: 13d258a587aad182838e9f6eef2e09ae6a4a7f9f51dd6f7fbb8ec59c26ba336b
+    fingerprint: 43daf9ddea432473f4438980cb74934aba51816796e879c89cb1bd3004e4ac01
     required_applies_to:
     - cli
     - gui.web
@@ -3624,6 +3624,24 @@ assertions:
     - cli
     - gui.web
     - gui.apple
+  chats.rendering.literal-dollar-markdown:
+    specification: feature.chats@2
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: bceef193bd5b988d54267222ee59c3fb315d504e351a638f2066cefb0f6f4d4a
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
+  chats.rendering.failed-image-slots:
+    specification: feature.chats@2
+    specification_id: feature.chats
+    type: behavior
+    fingerprint: cdf29756216b265e2eb35edc3a6287119ad347e50ff8ba3a057f80b775ca6c0c
+    required_applies_to:
+    - cli
+    - gui.web
+    - gui.apple
   chats.rendering.inline-entity-interaction:
     specification: feature.chats@2
     specification_id: feature.chats
@@ -3646,7 +3664,7 @@ assertions:
     specification: feature.chats@2
     specification_id: feature.chats
     type: parity
-    fingerprint: ccc55614f7c8d2944bf5bdc3b55ebb436fbc506224346766ba4b7f234bdb9549
+    fingerprint: aaf2d6f40acd321eaac7c49acbe15577f39a07b6257996f8016272a68139a302
     required_applies_to:
     - cli
     - gui.web
