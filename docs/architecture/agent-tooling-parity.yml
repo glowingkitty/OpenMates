@@ -2,67 +2,47 @@ shared_hooks:
   - name: apple-no-delete-guard.sh
     event: PreToolUse
     matcher: '*'
-    tools: [claude, codex, opencode]
-    opencode_terms: [guardAppleStop, enforceAppleStopForTest, client.session.abort]
+    tools: [claude, codex]
   - name: bash-guard.sh
     event: PreToolUse
     matcher: Bash
-    tools: [claude, codex, opencode]
-    opencode_terms: [guardBash]
+    tools: [claude, codex]
   - name: e2e-encryption-guard.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: pre-edit-guard.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: pii-logger-guard.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: css-selector-in-specs.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: svelte5-legacy-syntax.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: native-ios-control-guard.sh
     event: PreToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PreToolUse"']
+    tools: [claude, codex]
   - name: auto-track.sh
     event: PostToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PostToolUse"']
+    tools: [claude, codex]
   - name: skill-embed-registry-guard.sh
     event: PostToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PostToolUse"']
+    tools: [claude, codex]
   - name: specification-test-impact.sh
     event: PostToolUse
     matcher: apply_patch|Edit|Write
-    tools: [claude, codex, opencode]
-    opencode_delegates_to_codex_bridge: true
-    opencode_terms: ['runBridge("PostToolUse"']
+    tools: [claude, codex]
   - name: lint-design-tokens.sh
     event: PostToolUse
     matcher: apply_patch|Edit|Write
@@ -130,33 +110,19 @@ quickstart:
   path: docs/contributing/guides/agent-workflow-quickstart.md
   required_terms:
     - sync_agent_parity.py --check
-    - audit_opencode_output_quality.py
     - audit_agent_tooling_parity.py
     - sessions.py worktree ensure
     - sessions.py edit-lease
     - sessions.py deploy
 
-workflow_runtime:
-  architecture: docs/architecture/agent-workflow-decisions.md
-  package_builder: scripts/sync_opencode_runtime_hook.py
-  release_validator: scripts/opencode_runtime_release.py
-  effective_probe: scripts/probe_opencode_workflow.mjs
-  loader: release-owned OPENCODE_CONFIG_DIR; project discovery disabled
-  bridge_source: pinned OPENMATES_CONTROL_PLANE_RUNTIME for OpenCode; canonical root for Codex
+retained_support:
   state_owner: scripts/sessions.py
   decision_consumer: scripts/_workflow_decisions.py
-  subchat_model_policy: opencode.json subagent defaults; Task model/reasoning_effort overrides; generated specialists inherit
-  tracked_root_mirroring: retired
-  subchat_depth: OpenCode Task pre-tool guard allows root -> child -> grandchild only; unknown ancestry blocks spawning
-
   task_activity:
-    context_owner: OpenCode hook single-flight cache, 60-second active refresh with backoff
-    cli_owner: sessions.py task-bridge via isolated opencode-personal profile
     history_limit: 20 entries, 12000 message characters, 2000 characters per entry
-    full_history_search: openmates_task activity_search via openmates tasks activity search
+    full_history_search: openmates tasks activity search
     delivery: scoped encrypted CLI outbox with stable entry id and original ciphertext
     verification:
       - scripts/tests/test_opencode_task_bridge.py
-      - scripts/tests/test_opencode_task_bridge_hook.mjs
       - frontend/packages/openmates-cli/tests/taskActivityHistory.test.ts
       - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts

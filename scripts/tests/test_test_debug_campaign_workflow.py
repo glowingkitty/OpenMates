@@ -33,16 +33,13 @@ def test_fix_tests_is_campaign_orchestrator_and_fix_next_is_resume_wrapper():
 
 
 # contract-test: tooling
-def test_triager_and_auto_fix_use_durable_campaign_records():
+def test_triager_uses_durable_campaign_after_retired_auto_fix_removal():
     triager = text(".claude/agents/test-failure-triager.md")
-    auto_fix = text("scripts/auto_fix_failed_tests.py")
+    assert not (ROOT / "scripts/auto_fix_failed_tests.py").exists()
 
     assert "campaign" in triager.lower()
     assert "acceptance_criteria" in triager
     assert "root_cause" in triager
-    assert "start_debug_campaign" in auto_fix
-    assert "append_debug_group_attempt" in auto_fix
-    assert "last-failed-tests.json" not in auto_fix
 
 
 # contract-test: tooling

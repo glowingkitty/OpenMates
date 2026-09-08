@@ -147,27 +147,6 @@ def test_collection_only_dependabot_never_changes_remediation_state(tmp_path, mo
 
 # Reporting coverage: security-reporting.notifications.daily-not-per-scan
 # contract-test: infrastructure
-def test_suppression_is_job_scoped_and_requires_cutover(tmp_path, monkeypatch):
-    from scripts import _opencode_utils as helper
-    directory = tmp_path / "reports"
-    directory.mkdir()
-    (directory / "enabled.json").write_text('{"enabled":true,"generic_email_suppression":true}')
-    monkeypatch.setenv("SECURITY_REPORTING_DIR", str(directory))
-    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "isolated-placeholder")
-    calls = []
-    class Response:
-        def __enter__(self): return self
-        def __exit__(self, *args): pass
-        def read(self): return b""
-    monkeypatch.setattr(helper.urllib.request, "urlopen", lambda *a, **kw: calls.append(a) or Response())
-    for job in ("dependabot", "eu-vulns", "security", "redteam"):
-        helper._notify_session("arbitrary title", job, "completed", None, 0, 0, None, "test")
-    assert calls == []
-    helper._notify_session("security in unrelated title", "reliability", "completed", None, 0, 0, None, "test")
-    assert len(calls) == 1
-    (directory / "enabled.json").write_text('{"enabled":false,"generic_email_suppression":true}')
-    helper._notify_session("arbitrary", "dependabot", "completed", None, 0, 0, None, "test")
-    assert len(calls) == 2
 
 
 # Reporting coverage: security-reporting.processing.deterministic
@@ -214,13 +193,6 @@ def test_audit_collection_mode_never_invokes_agent_or_changes_state(tmp_path, mo
 
 # Reporting coverage: security-reporting.processing.deterministic
 # contract-test: infrastructure
-def test_collection_mode_blocks_agent_dispatch_before_any_side_effect(tmp_path, monkeypatch):
-    from scripts import _opencode_utils as helper
-    monkeypatch.setenv("SECURITY_REPORTING_COLLECTION_ONLY", "true")
-    monkeypatch.setattr(helper.subprocess, "run", lambda *a, **kw: (_ for _ in ()).throw(AssertionError("launcher boundary reached")))
-    with pytest.raises(RuntimeError, match="collection-only"):
-        helper.run_opencode_session("unused", "unused", str(tmp_path), "test")
-    assert list(tmp_path.iterdir()) == []
 
 
 # Reporting coverage: security-reporting.coverage.no-false-clean
