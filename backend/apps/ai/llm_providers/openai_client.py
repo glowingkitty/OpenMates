@@ -26,7 +26,7 @@ except Exception:  # pragma: no cover
     AsyncOpenAI = None  # type: ignore
 
 logger = logging.getLogger(__name__)
-OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "max"}
+OPENAI_REASONING_EFFORTS = {"none", "low", "medium", "high", "xhigh", "max"}
 OPENAI_CHAT_COMPLETIONS_TOOL_REASONING_NONE_MODELS = {"gpt-5.6-luna"}
 
 # Global state
