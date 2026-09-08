@@ -56,3 +56,36 @@ evidence:
     command: python3 scripts/audit_sdk_cli_parity.py
     result: 89 command entries and 4 workflow template transport entries checked successfully.
     live_sdk_status: Not run; no SDK API key configured in the test environment. CLI session authentication is available.
+
+final_verification:
+  implementation_status: complete
+  real_cli_status: passed
+  verified_at: '2026-09-08T10:28:44.722162+00:00'
+  subject_commit: 885c8ebb443c49ed7dd15d8ec07c3e42eb70abe0
+  real_cli_cases:
+  - json_url_only
+  - default_cwd
+  - explicit_overwrite
+  - json_explicit_music_download
+  - image_download
+  - video_download
+  - code_csv_download
+  code_run_resolution: Code Run stream rejection now visibly falls back to polling the existing execution; real
+    CSV download passed. The test writes to the documented outputs directory.
+  supporting_tests: 7 backend, 3 generated-file and 10 Code Run tests passed.
+  build:
+    command: npm --prefix frontend/packages/openmates-cli run build
+    result: Passed JS bundle and TypeScript declarations; scoped deployment lint/typechecks and SDK boundary gates
+      passed.
+  proof_video:
+    command: python3 scripts/sessions.py proof-video publish --session e89e --run-dir test-results/proof-videos/generated-files-e89e
+    subject_commit: 885c8ebb443c49ed7dd15d8ec07c3e42eb70abe0
+    run_id: generated-files-e89e
+    result: Passed 12-frame review of real graphical terminal capture; delivered MP4 with hash-bound toggleable
+      WebVTT captions.
+    manifest: test-results/proof-videos/generated-files-e89e/manifest.json
+  remaining:
+  - Live npm/pip SDK requests require a configured SDK API key; not run. REST and all seven real CLI cases are verified.
+  visual_smoke:
+    status: not_applicable
+    reason: CLI and backend behavior only; no web or Apple UI changed.
