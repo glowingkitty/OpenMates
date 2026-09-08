@@ -81,6 +81,7 @@ def merge_outputs(event: str, stream: str) -> dict:
     """Emit one hook response; a shared guard denial always beats routing."""
     decoder = json.JSONDecoder()
     contexts, warnings, denials = [], [], []
+    stop_processing = False
     rewritten = None
     while stream.strip():
         stream = stream.lstrip()
@@ -92,6 +93,8 @@ def merge_outputs(event: str, stream: str) -> dict:
         stream = stream[end:]
         if not isinstance(value, dict):
             raise ValueError("Shared hook emitted a non-object response")
+        if value.get("continue") is False:
+            stop_processing = True
         detail = value.get("hookSpecificOutput") or {}
         if detail.get("additionalContext"):
             contexts.append(str(detail["additionalContext"]))
@@ -130,6 +133,8 @@ def merge_outputs(event: str, stream: str) -> dict:
             result.update(decision="block", reason="\n".join(denials))
     elif rewritten is not None:
         detail.update(permissionDecision="allow", updatedInput=rewritten)
+    if event == "Stop" and stop_processing:
+        result["continue"] = False
     return result
 
 
@@ -190,7 +195,18 @@ def main() -> int:
         )
         if event in {"SessionStart", "UserPromptSubmit", "Stop"}:
             from codex_task_lifecycle import hook as task_lifecycle
-            lifecycle_result = task_lifecycle(root, sid, task_id, event, payload, sessions)
+            from codex_task_context import TaskDeliveryDeferred
+            try:
+                lifecycle_result = task_lifecycle(root, sid, task_id, event, payload, sessions)
+            except TaskDeliveryDeferred as exc:
+                # Do not turn a shared cooldown into an infinite Stop continuation.
+                # Pending intent stays durable; deferred delivery is never success.
+                warning = str(exc) + "; Task status is unverified, not completed. Resume reconciliation after cooldown."
+                lifecycle_result = {"systemMessage": warning}
+                if event == "Stop":
+                    lifecycle_result["continue"] = False
+                print(json.dumps(lifecycle_result))
+                return 0
             if lifecycle_result.get("decision") == "block":
                 print(json.dumps(lifecycle_result))
                 return 0

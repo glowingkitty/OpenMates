@@ -128,3 +128,11 @@ def test_stop_merge_uses_only_supported_wire_fields():
 
     result = hooks.merge_outputs("Stop", json.dumps({"decision": "block", "reason": "Persist outcome"}))
     assert result == {"decision": "block", "reason": "Persist outcome"}
+
+
+def test_stop_cooldown_does_not_loop_and_preserves_visible_warning():
+    import json
+    result = hooks.merge_outputs("Stop", json.dumps({"continue": False, "systemMessage": "Task delivery pending cooldown"}) + "\n" + json.dumps({"decision": "block", "reason": "Uncommitted work"}))
+    assert result["continue"] is False
+    assert "pending cooldown" in result["systemMessage"]
+    assert "hookSpecificOutput" not in result
