@@ -382,13 +382,12 @@ VISIT_MOTIVE_CATEGORIES: Dict[str, List[str]] = {
         r"akut",
         r"(?:^|\b)(?:allgemeine\s+)?sprechstunde\b",
         r"allgemein",
-        r"beratung",
+        r"^(?:allgemeine\s+)?beratung$",
         r"konsultation",
         r"consultation",
         r"(?:^|\s)termin(?:vereinbarung)?$",
         r"hausärztlich",
         r"hausarzt",
-        r"beschwerden",          # Akute Beschwerden (already covered by akut, but explicit)
         r"notfall",              # Notfall / Notfallsprechstunde
         r"untersuchung",         # General examination
     ],
