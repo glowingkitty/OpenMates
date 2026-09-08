@@ -190,6 +190,7 @@ jobs:
           path: |
             subject/test-results/ci-environment.json
             subject/test-results/ci-stack.log
+            subject/test-results/ci-stack-spec-*.log
             subject/test-results/ci-results.json
             subject/test-results/ci-codex.json
             subject/test-results/ci-cleanup.json
