@@ -73,3 +73,14 @@ def test_all_existing_holds_have_concrete_dependency_and_next_action():
         assert len(entry["next_action"]) > 50
         assert type(entry["user_input_required"]) is bool
         assert "requirements have not been ported" not in entry["next_action"].lower()
+
+
+def test_live_weather_batches_cannot_relax_replay_network_isolation():
+    import pytest
+    from scripts.ci_coverage import runtime_batches, validate_runtime_batch
+
+    specs = ["chat-settings-flow.spec.ts", "cli-workflows-schedule-real.spec.ts", "test-account-preflight.spec.ts"]
+    assert runtime_batches(specs, 4) == [["chat-settings-flow.spec.ts", "test-account-preflight.spec.ts"], ["cli-workflows-schedule-real.spec.ts"]]
+    with pytest.raises(ValueError, match="separate batch"):
+        validate_runtime_batch(specs)
+    validate_runtime_batch(["cli-workflows-rain-real.spec.ts", "workflows-ready-run-tasks.spec.ts"])

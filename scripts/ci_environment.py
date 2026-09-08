@@ -78,10 +78,22 @@ print('authenticated-roundtrip-cors-presigned-and-private-access-passed')
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, account_emails: list[str] | None = None) -> dict:
+WORKFLOW_SCHEDULER = """from backend.core.api.app.tasks.celery_config import app
+# Keep only the existing workflow scanner and its original interval. Never
+# schedule user AI assignments, provider probes, email campaigns or other cron.
+schedule={name:entry for name,entry in app.conf.beat_schedule.items() if entry.get('task')=='workflows.scan_due_triggers'}
+assert len(schedule)==1, 'Canonical workflow scanner schedule is missing or ambiguous'
+app.conf.beat_schedule=schedule
+app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','--pidfile=/tmp/ci-workflows.pid'])
+"""
+
+
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, workflows: bool = False, account_emails: list[str] | None = None) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     object_storage = object_storage or uploads
     isolate_backend = ai_fixtures or object_storage
+    if workflows and isolate_backend:
+        raise ValueError("Credential-free weather workflows require a separate batch from offline replay/storage")
     credentials = {
         name: secrets.token_hex(24)
         for name in (
@@ -350,6 +362,14 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "mem_limit": 64 * MIB,
         }
 
+    if workflows:
+        workflow_queues = QUEUES + ",workflow"
+        worker["environment"]["CELERY_QUEUES"] = workflow_queues
+        worker["command"] = [part.replace(f"--queues={QUEUES}", f"--queues={workflow_queues}") for part in worker["command"]]
+        scheduler = deepcopy(worker)
+        scheduler["command"] = ["python", "-c", WORKFLOW_SCHEDULER]
+        scheduler["mem_limit"] = 128 * MIB
+        services["workflow-scheduler"] = scheduler
     services["fixture-init"] = {
         "image": "openmates-ci-api:local",
         "mem_limit": 128 * MIB,
@@ -445,12 +465,16 @@ def main():
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         needs_uploads = bool(upload_specs.intersection(selected))
+        workflow_specs = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
+        needs_workflows = bool(workflow_specs.intersection(selected))
+        if needs_workflows and not set(selected).issubset(workflow_specs):
+            raise RuntimeError("Credential-free weather workflows require their own batch")
         needs_storage = bool(storage_specs.intersection(selected)) or needs_uploads
         if needs_storage:
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, account_emails=account_emails)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, workflows=needs_workflows, account_emails=account_emails)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -503,6 +527,9 @@ def main():
         identities = {}
         profile = json.loads(COMPOSE_PATH.read_text())
         required = ["api", "core-worker", "cms", "cms-database", "cache", "vault"]
+        if "workflow-scheduler" in profile["services"]:
+            required.append("workflow-scheduler")
+            evidence["workflow_scheduler"] = {"task": "workflows.scan_due_triggers", "other_periodic_tasks": "excluded", "providers": ["Bright Sky / DWD", "Open-Meteo"], "paid_provider_credentials": "absent"}
         if "uploads" in profile["services"]:
             required.extend(["uploads", "clamav"])
         if "object-storage" in profile["services"]:
@@ -531,7 +558,7 @@ def main():
             }
             if not info["State"]["Running"]:
                 raise RuntimeError("Private service exited: " + service)
-            if service in ("api", "core-worker", "ai-worker", "uploads"):
+            if service in ("api", "core-worker", "ai-worker", "uploads", "workflow-scheduler"):
                 mounts = [
                     mount
                     for mount in info["Mounts"]

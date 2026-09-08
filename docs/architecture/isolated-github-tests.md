@@ -166,3 +166,12 @@ image builds only for batches that require it. This preserves scan/encryption
 and persistence behavior; official cross-origin gateway policy and credentialed
 SightEngine/transcription behavior are not claimed by this profile. Documentation
 capture retains its original assertions and JPEG outputs in a separate artifact.
+
+
+The `workflow_weather` capability retains the original real weather requests
+(Bright Sky/DWD and Open-Meteo, with no provider credentials) and fresh Workflow
+state. It adds the workflow queue and a Beat process filtered to the canonical
+`workflows.scan_due_triggers` entry at its original interval. User AI-assignment
+jobs and all other periodic jobs are excluded. The dispatcher keeps these suites
+in separate batches from offline replay/storage; direct mixed submissions fail
+closed. This capability does not authorize paid inference or search-provider keys.

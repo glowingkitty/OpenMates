@@ -99,14 +99,12 @@
       "execution": null,
       "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
       "specs": [
-        "cli-workflows-schedule-real.spec.ts",
         "cli-workflows-search-controls-real.spec.ts",
         "proof-video-cli.spec.ts",
         "shared-chat-embed-assets.spec.ts",
         "task-activity.spec.ts",
         "task-blocked-reason.spec.ts",
-        "task-detail-fullscreen.spec.ts",
-        "workflows-ready-run-tasks.spec.ts"
+        "task-detail-fullscreen.spec.ts"
       ]
     },
     "ai_provider": {
@@ -121,7 +119,6 @@
         "cli-images.spec.ts",
         "cli-skills-pdf.spec.ts",
         "cli-workflows-ai-chat-real.spec.ts",
-        "cli-workflows-rain-real.spec.ts",
         "cli-workflows-step-test-real.spec.ts",
         "code-repo-embed.spec.ts",
         "cross-client-draft-sync.spec.ts",
@@ -155,8 +152,7 @@
         "teams-settings-context.spec.ts",
         "usage-token-breakdown.spec.ts",
         "webhook-incoming-chat.spec.ts",
-        "wikipedia-mentions.spec.ts",
-        "workflows-ui-contract.spec.ts"
+        "wikipedia-mentions.spec.ts"
       ]
     },
     "private_cloud": {
@@ -375,6 +371,16 @@
       "specs": [
         "apple-ui-contracts.spec.ts"
       ]
+    },
+    "workflow_weather": {
+      "execution": "e2e",
+      "enabling_work": "Run original real Workflow CLI/UI/scheduling assertions with dedicated workflow queue and only canonical workflow-trigger scanner. Original Bright Sky/DWD and Open-Meteo calls need no credentials; no paid AI/provider keys, no generic periodic jobs. Keep this capability in its own batch.",
+      "specs": [
+        "cli-workflows-rain-real.spec.ts",
+        "cli-workflows-schedule-real.spec.ts",
+        "workflows-ready-run-tasks.spec.ts",
+        "workflows-ui-contract.spec.ts"
+      ]
     }
   },
   "holds": {
@@ -524,18 +530,6 @@
       "dependency": "workflow_worker_with_live_steps",
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: runs AI mode, delivers chat through a client claim, waits, and resumes through CLI respond. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add Workflow scheduler/execution queues and client claim/respond fixtures; inspect app-skill side effects individually.",
       "user_input_required": true,
-      "source_environment_names": []
-    },
-    "cli-workflows-rain-real.spec.ts": {
-      "dependency": "workflow_worker_with_live_steps",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: validates, saves, enables, runs, inspects, disables, and deletes a real rain workflow. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add Workflow scheduler/execution queues and client claim/respond fixtures; inspect app-skill side effects individually.",
-      "user_input_required": true,
-      "source_environment_names": []
-    },
-    "cli-workflows-schedule-real.spec.ts": {
-      "dependency": "workflow_scheduler_and_skill_execution",
-      "next_action": "Add runner-local Workflow scheduler/worker queues and genuine CLI execution for creates a one-time scheduled Workflow and inspects the backend-accepted run; inspect each original app-skill step before enabling external access. Preserve ready-run projection and side-effect assertions; any uncached paid step remains separately approval-gated.",
-      "user_input_required": false,
       "source_environment_names": []
     },
     "cli-workflows-search-controls-real.spec.ts": {
@@ -1241,26 +1235,6 @@
       "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: Wiki discovery selects a canonical article and completes with source context. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress.",
       "user_input_required": true,
       "source_environment_names": []
-    },
-    "workflows-ready-run-tasks.spec.ts": {
-      "dependency": "workflow_scheduler_and_skill_execution",
-      "next_action": "Add runner-local Workflow scheduler/worker queues and genuine CLI execution for authors a ready Workflow and preserves the live projected run detail at proof viewports; inspect each original app-skill step before enabling external access. Preserve ready-run projection and side-effect assertions; any uncached paid step remains separately approval-gated.",
-      "user_input_required": false,
-      "source_environment_names": [
-        "PLAYWRIGHT_TEST_BASE_URL",
-        "PLAYWRIGHT_VIDEO_HEIGHT",
-        "PLAYWRIGHT_VIDEO_WIDTH"
-      ]
-    },
-    "workflows-ui-contract.spec.ts": {
-      "dependency": "workflow_worker_with_live_steps",
-      "next_action": "Provide dedicated approved live model credentials and per-run spending caps for original scenario: preserves identity while editing versions and inspecting a cancellable run. Keep actual unmarked requests and assertions; default runner has no provider keys and rejects provider egress. Add Workflow scheduler/execution queues and client claim/respond fixtures; inspect app-skill side effects individually.",
-      "user_input_required": true,
-      "source_environment_names": [
-        "PLAYWRIGHT_TEST_BASE_URL",
-        "PLAYWRIGHT_VIDEO_HEIGHT",
-        "PLAYWRIGHT_VIDEO_WIDTH"
-      ]
     }
   }
 }
