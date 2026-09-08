@@ -269,17 +269,18 @@
         "default-model-cli.spec.ts",
         "default-model-settings.spec.ts",
         "chat-management-flow.spec.ts",
-        "chat-key-wrapper-migration.spec.ts"
+        "chat-key-wrapper-migration.spec.ts",
+        "chat-settings-flow.spec.ts",
+        "hidden-chats-flow.spec.ts"
       ]
     },
     "ai_fixture_pending": {
       "execution": null,
-      "enabling_work": "Spec already declares committed TEST_MOCK response fixtures. Reuse the generic isolated AI worker after initial four-spec batch verifies startup; validate referenced fixture availability and mixed sends. No provider credential approval inferred.",
+      "enabling_work": "Inspect remaining mixed sends and fixture IDs; reuse the now-started internal-network AI worker for existing committed responses. chat-flow has an unmarked second send; incognito-mode references missing incognito_mode.json. Do not invent fixtures to replace live coverage.",
       "specs": [
         "ai-response-language.spec.ts",
         "application-preview.spec.ts",
         "chat-flow.spec.ts",
-        "chat-settings-flow.spec.ts",
         "code-generation-multiturn.spec.ts",
         "connection-resilience.spec.ts",
         "daily-inspiration-chat-flow.spec.ts",
@@ -291,7 +292,6 @@
         "focus-mode-ui-after-activation.spec.ts",
         "follow-up-suggestions-flow.spec.ts",
         "fork-conversation.spec.ts",
-        "hidden-chats-flow.spec.ts",
         "incognito-mode.spec.ts",
         "interactive-questions.spec.ts",
         "message-highlights-touch.spec.ts",
