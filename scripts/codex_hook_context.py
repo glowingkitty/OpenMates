@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import shlex
+import re
 import sys
 
 
@@ -21,6 +22,8 @@ def route(event: str, payload: dict, workspace: Path, session_id: str) -> dict:
         "reuse this binding, including in child tasks. Shared runtime mutation requires "
         "the explicit runtime target and coordinator lease."
     )
+    if payload.get("turn_id"):
+        context += f" Current Codex turn: {payload['turn_id']}."
     result = {"hookEventName": event, "additionalContext": context}
     if event == "PreToolUse":
         tool = payload.get("tool_name")
@@ -29,6 +32,8 @@ def route(event: str, payload: dict, workspace: Path, session_id: str) -> dict:
         if tool in {"Bash", "bash"}:
             if not isinstance(command, str):
                 raise ValueError("Unsupported Codex shell payload; command is required")
+            if re.search(r"\b(?:node|bun|tsx|ts-node)\b[^;\n]*(?:src|dist)/cli\.(?:ts|js)\b", command):
+                raise ValueError("Use the globally installed openmates executable; source/dist CLI execution is prohibited")
             requested = Path(
                 inputs.get("workdir")
                 or inputs.get("cwd")
@@ -178,6 +183,12 @@ def main() -> int:
             refresh=event in {"SessionStart", "UserPromptSubmit"},
             activities=event == "SessionStart",
         )
+        if event in {"SessionStart", "UserPromptSubmit", "Stop"}:
+            from codex_task_lifecycle import hook as task_lifecycle
+            lifecycle_result = task_lifecycle(root, sid, task_id, event, payload, sessions)
+            if lifecycle_result.get("decision") == "block":
+                print(json.dumps(lifecycle_result))
+                return 0
         role = orchestration_context(root, sid, task_id)
         result["hookSpecificOutput"]["additionalContext"] += (
             "\n" + extra + ("\n" + role if role else "")

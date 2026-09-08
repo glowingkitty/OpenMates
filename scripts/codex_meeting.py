@@ -475,9 +475,11 @@ def openmates_tasks(root, reader=None):
         except ModuleNotFoundError:
             from codex_task_context import cli as reader
     tasks, errors = {}, []
-    for status in ("backlog", "todo", "in_progress", "blocked", "done"):
+    for status in (None,):
         try:
-            result = reader(root, ["list", "--status", status])
+            result = reader(root, ["list"])
+            if result.get("complete") is not True:
+                raise ValueError("Global CLI lacks complete task discovery; update it before collecting tasks")
             rows = result["tasks"]
             if not isinstance(rows, list):
                 raise ValueError("Invalid CLI task response")
@@ -504,7 +506,7 @@ def openmates_tasks(root, reader=None):
         "errors": errors,
         "coverage": "incomplete"
         if errors
-        else "CLI snapshot; server pagination completeness unverified",
+        else "complete CLI snapshot",
         "activity_instruction": "Read relevant tasks' activities with the CLI before prioritization; list data is not their full history.",
     }
 

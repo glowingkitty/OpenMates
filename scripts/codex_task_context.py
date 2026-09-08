@@ -19,27 +19,23 @@ REFRESH_SECONDS = 60
 
 
 def cli(root, args):
-    # Use the checkout's CLI so an old global build cannot silently drop current
-    # task filters or delivery IDs. No credentials are printed or inspected.
-    package = root / "frontend/packages/openmates-cli"
-    return json.loads(
-        subprocess.check_output(
-            [
-                "node",
-                "--experimental-strip-types",
-                "--loader",
-                str(package / "tests/loader.mjs"),
-                str(package / "src/cli.ts"),
-                "tasks",
-                *args,
-                "--json",
-            ],
-            cwd=package,
-            stderr=subprocess.DEVNULL,
+    # Preserve the caller's account, profile, environment and global installation.
+    # An incompatible binary or auth failure must remain visible, never fall back.
+    try:
+        result = subprocess.run(
+            ["openmates", "tasks", *args, "--json"],
+            cwd=root,
+            capture_output=True,
             text=True,
-            timeout=4,
+            timeout=20,
         )
-    )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Global openmates timed out; reconcile the existing activity outbox before retrying"
+        ) from exc
+    if result.returncode:
+        raise RuntimeError("Global openmates failed: " + result.stderr.strip())
+    return json.loads(result.stdout)
 
 
 def task_context(root, thread, refresh=False, now=None, reader=cli, activities=False):
@@ -53,6 +49,10 @@ def task_context(root, thread, refresh=False, now=None, reader=cli, activities=F
     if refresh and now - stored.get("checked_at", 0) >= REFRESH_SECONDS:
         try:
             response = reader(root, ["list", "--external-chat", f"codex:{thread}"])
+            if not isinstance(response, dict) or response.get("complete") is not True:
+                raise ValueError(
+                    "Global CLI lacks complete Task discovery; update the installed executable"
+                )
             tasks = (
                 response.get("tasks", []) if isinstance(response, dict) else response
             )
@@ -90,10 +90,8 @@ def task_context(root, thread, refresh=False, now=None, reader=cli, activities=F
                             "--newest-first",
                         ],
                     )
-        except (OSError, ValueError, subprocess.SubprocessError):
-            stored["error"] = (
-                "Task refresh unavailable; inspect openmates tasks list before assigning or completing work"
-            )
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+            stored["error"] = "Task refresh unavailable: " + str(exc)
             stored["checked_at"] = now
         cache.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         import tempfile

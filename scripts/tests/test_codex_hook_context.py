@@ -110,6 +110,7 @@ def test_task_context_is_bounded_cached_and_preserves_activity(tmp_path):
         if args[0] == "activity":
             return {"entries": [{"message": "Required check remains"}]}
         return {
+            "complete": True,
             "tasks": [
                 {"short_id": "TASK-1", "title": "Assigned goal", "status": "in_progress"}
             ]
