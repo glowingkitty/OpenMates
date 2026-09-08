@@ -12,6 +12,7 @@
         "ai-model-settings.spec.ts",
         "ai-settings-breadcrumb.spec.ts",
         "api-keys-flow.spec.ts",
+        "apple-chat-ui-contracts.spec.ts",
         "apple-settings-ui-contracts.spec.ts",
         "backup-code-login-flow.spec.ts",
         "backup-codes-settings.spec.ts",
@@ -56,7 +57,12 @@
         "tasks-flow.spec.ts",
         "tasks-web-app-parity.spec.ts",
         "teams-flow.spec.ts",
-        "web-lifecycle-notification-suppression.spec.ts"
+        "unified-detail-header.spec.ts",
+        "unified-detail-pages.spec.ts",
+        "web-lifecycle-notification-suppression.spec.ts",
+        "workflows-editor.spec.ts",
+        "workflows-input.spec.ts",
+        "workspace-sidebar.spec.ts"
       ]
     },
     "external_integration": {
@@ -77,30 +83,19 @@
         "settings-change-email.spec.ts",
         "signup-flow-passkey.spec.ts",
         "signup-skip-2fa-flow.spec.ts",
-        "test-account-preflight.spec.ts",
-        "unified-detail-header.spec.ts",
-        "unified-detail-pages.spec.ts",
-        "workflows-editor.spec.ts",
-        "workflows-input.spec.ts",
-        "workspace-sidebar.spec.ts"
+        "test-account-preflight.spec.ts"
       ]
     },
     "upload_audio_services": {
       "execution": null,
       "enabling_work": "Add runner-local upload/object-storage/media or workflow/reminder/app services used by the spec; preserve its committed media and scheduled/CLI fixtures. Per-spec signals are in the dependency inventory.",
       "specs": [
-        "api-key-scopes-settings.spec.ts",
-        "apple-chat-history-contracts.spec.ts",
-        "apple-chat-ui-contracts.spec.ts",
         "apple-ui-contracts.spec.ts",
         "assistant-speech-player.spec.ts",
         "berlin-mitte-maps-example.spec.ts",
         "cli-workflows-schedule-real.spec.ts",
         "cli-workflows-search-controls-real.spec.ts",
-        "component-message-input.spec.ts",
-        "components/chat-processing-indicator.spec.ts",
         "composer-model-routing.spec.ts",
-        "dev-preview.spec.ts",
         "docs-screenshot-generator.spec.ts",
         "example-chat-settings-usage.spec.ts",
         "example-chat-speech.spec.ts",
@@ -285,14 +280,19 @@
       "execution": "e2e",
       "enabling_work": "Run existing public browser/component/source assertions on the built candidate; report product failures rather than holding execution.",
       "specs": [
+        "api-key-scopes-settings.spec.ts",
         "app-load-no-error-logs.spec.ts",
+        "apple-chat-history-contracts.spec.ts",
         "apple-embed-rendering-contracts.spec.ts",
         "auth-back-to-demo.spec.ts",
         "business-company-financials-example.spec.ts",
         "business-company-financials.spec.ts",
         "chat-replay-demo-mode.spec.ts",
         "cli-tui-workflows.spec.ts",
+        "component-message-input.spec.ts",
+        "components/chat-processing-indicator.spec.ts",
         "design-search-icons.spec.ts",
+        "dev-preview.spec.ts",
         "docs-links.spec.ts",
         "embeds-map-view-examples.spec.ts",
         "example-chat-logout-preserve.spec.ts",

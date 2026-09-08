@@ -91,13 +91,13 @@ def select_snapshot_specs(root: Path, args) -> list[str]:
         manifest = policy.load_manifest(root / "scripts/daily_ai_test_manifest.json")
 
         names = policy.discover_specs(
-            (p.name for p in folder.glob("*.spec.ts")),
+            (p.relative_to(folder).as_posix() for p in folder.rglob("*.spec.ts")),
             manifest=manifest,
             spec_dir=folder,
         )
         if args.daily:
             plan = policy.daily_plan(
-                (p.name for p in folder.glob("*.spec.ts")),
+                (p.relative_to(folder).as_posix() for p in folder.rglob("*.spec.ts")),
                 datetime.now(timezone.utc).date(),
                 scheduled=True,
                 record_mode=False,
