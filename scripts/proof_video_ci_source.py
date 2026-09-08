@@ -110,6 +110,21 @@ def receipt_sources(receipt_path: Path) -> list[dict[str, Any]]:
                 binding.write_text(json.dumps(identity, sort_keys=True) + "\n")
             if not timeline_path.is_file() or _hash(timeline_path) != identity["timeline_sha256"]:
                 raise CIProofError("Bound timeline hash changed")
+            checkpoint_paths = {}
+            for frame in timeline.get("checkpoint_frames", []):
+                attached = [a for a in attachments if a.get("name") == frame.get("attachment_name")]
+                if len(attached) != 1:
+                    raise CIProofError("Timeline checkpoint lacks its exact attached frame")
+                frame_bytes = base64.b64decode(attached[0].get("body", ""), validate=True)
+                frame_hash = "sha256:" + hashlib.sha256(frame_bytes).hexdigest()
+                if frame_hash != frame.get("sha256"):
+                    raise CIProofError("Attached checkpoint frame hash differs from timeline")
+                frame_path = cache / (frame_hash.removeprefix("sha256:") + ".png")
+                if not frame_path.exists():
+                    frame_path.write_bytes(frame_bytes)
+                if "sha256:" + _hash(frame_path) != frame_hash:
+                    raise CIProofError("Bound checkpoint frame changed")
+                checkpoint_paths[str(frame["checkpoint"])] = str(frame_path)
             records.append({"run_id": f"{run_id}:{index}-{result_index}", "source_run_id": run_id,
                             "git_sha": source, "spec": spec["spec"], "status": "passed",
                             "source": "github_isolated", "isolation_verified": True,
@@ -117,5 +132,6 @@ def receipt_sources(receipt_path: Path) -> list[dict[str, Any]]:
                             "artifact_path": str(video), "artifact_sha256": "sha256:" + identity["artifact_sha256"],
                             "proof_timeline_path": str(timeline_path), "proof_timeline_sha256": "sha256:" + identity["timeline_sha256"],
                             "proof_video_profile": profile, "ci_receipt_path": str(receipt_path),
-                            "ci_receipt_sha256": identity["receipt_sha256"]})
+                            "ci_receipt_sha256": identity["receipt_sha256"],
+                            "proof_checkpoint_paths": checkpoint_paths})
     return records

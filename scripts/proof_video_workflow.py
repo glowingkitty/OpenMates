@@ -426,6 +426,56 @@ def spec_timeline_render_claims(timeline: dict[str, Any], *, device_profile: str
     }
 
 
+def bound_browser_tutorial_plan(
+    record: dict[str, Any], *, source_video: Path, device_profile: str,
+    approved_claims: dict[str, Any], narration_id: str,
+) -> dict[str, Any] | None:
+    """Forward original attested timeline/frames through the existing planner."""
+    timeline_value = record.get("proof_timeline_path")
+    if not timeline_value:
+        if record.get("source") == "github_isolated":
+            raise WorkflowError("Isolated browser proof requires its receipt-bound timeline")
+        return None  # Retained legacy, explicitly authored proof contracts.
+    path = Path(str(timeline_value))
+    if not path.is_file() or _file_sha256(path) != record.get("proof_timeline_sha256"):
+        raise WorkflowError("Proof timeline is missing or its source hash changed")
+    timeline = _load_json(path)
+    if timeline.get("device") != device_profile:
+        raise WorkflowError("Proof timeline device differs from requested profile")
+    claims = spec_timeline_render_claims(timeline, device_profile=device_profile)
+    for field in ("caption_text", "assertions"):
+        if claims[field] != approved_claims[field]:
+            raise WorkflowError("Approved proof claims differ from the original spec timeline")
+    for frame in timeline.get("checkpoint_frames", []):
+        attached_path = (record.get("proof_checkpoint_paths") or {}).get(frame.get("checkpoint"))
+        if attached_path:
+            frame["path"] = attached_path  # In-memory path resolution; original timeline bytes stay intact.
+    try:
+        from scripts import spec_demo
+    except ModuleNotFoundError:
+        import spec_demo
+    metadata = spec_demo.video_metadata(source_video)
+    profile = spec_demo.resolve_device_profile(device_profile)
+    spec_demo.assert_source_device_profile_dimensions(metadata, profile)
+    transcript = [c for c in timeline["contract"]["transcript"] if device_profile in c.get("devices", [])]
+    first_checkpoint = transcript[0]["checkpoint"]
+    checkpoint = next((f for f in timeline.get("checkpoint_frames", []) if f.get("checkpoint") == first_checkpoint), None)
+    if not checkpoint or not Path(str(checkpoint.get("path", ""))).is_file():
+        raise WorkflowError("Timeline recording-clock alignment requires its attached first checkpoint frame")
+    offset_ms = spec_demo.estimate_video_clock_offset_ms(
+        source_video, Path(checkpoint["path"]), checkpoint_ms=checkpoint["at_ms"],
+        frame_rate=spec_demo._require_source_frame_rate(metadata),
+    )
+    # Convert the actual recording end into the timeline clock; never invent a
+    # shorter end marker to discard a closing transition or an unreviewed state.
+    source_end_seconds = float(metadata["duration_seconds"]) + offset_ms / 1000
+    return spec_demo.build_browser_tutorial_plan(
+        timeline, source_video=source_video, source_end_seconds=source_end_seconds,
+        device_profile_name=device_profile, contract_hash=approved_claims["contract_hash"],
+        timeline_hash=str(record["proof_timeline_sha256"]), narration_id=narration_id,
+    )
+
+
 def marker_trim_start(*, ready_timestamp_seconds: float, lead_seconds: float = MARKER_TRIM_LEAD_SECONDS) -> float:
     if ready_timestamp_seconds < 0 or lead_seconds < 0:
         raise WorkflowError("capture-ready marker and trim lead must be non-negative")
