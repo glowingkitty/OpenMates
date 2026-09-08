@@ -175,3 +175,9 @@ state. It adds the workflow queue and a Beat process filtered to the canonical
 jobs and all other periodic jobs are excluded. The dispatcher keeps these suites
 in separate batches from offline replay/storage; direct mixed submissions fail
 closed. This capability does not authorize paid inference or search-provider keys.
+
+Fresh account invites grant exactly 1,000 disposable credits. Provisioning accepts
+the gift through the real first-party authenticated endpoint and verifies the
+returned balance before browser execution; it never writes encrypted balances
+directly. Credits do not provide paid-provider credentials or loosen network
+restrictions. Receipts record the amount and real gift-acceptance method.
