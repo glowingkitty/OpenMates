@@ -340,6 +340,12 @@ def main():
     try:
         if mode in ("e2e", "artifact"):
             results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact")
+        elif mode == "codex":
+            result = subprocess.run(["node", str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
+            receipt = json.loads((RESULTS / "ci-codex.json").read_text())
+            if receipt.get("inference_requested") is not False or receipt.get("status") != "ready":
+                raise RuntimeError("Codex metadata fixture lacks no-inference evidence")
+            results.append({"suite": "codex-metadata", "exit_code": result.returncode, "thread_id": receipt["thread_id"], "inference_requested": False})
         elif mode == "pytest":
             subprocess.run(
                 [

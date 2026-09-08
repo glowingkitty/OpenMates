@@ -146,7 +146,7 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("e2e", "artifact", "pytest", "vitest"):
+        if mode not in ("e2e", "artifact", "codex", "pytest", "vitest"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("e2e", "artifact")
@@ -373,7 +373,7 @@ def main():
     submit.add_argument("--session", required=True)
     submit.add_argument("--source", required=True)
     submit.add_argument("--spec", action="append", default=[])
-    submit.add_argument("--mode", choices=["e2e", "artifact", "pytest", "vitest"], default="e2e")
+    submit.add_argument("--mode", choices=["e2e", "artifact", "codex", "pytest", "vitest"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""

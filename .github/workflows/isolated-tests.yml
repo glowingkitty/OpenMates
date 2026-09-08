@@ -18,7 +18,7 @@ on:
         default: '[]'
       mode:
         type: choice
-        options: [e2e, artifact, pytest, vitest]
+        options: [e2e, artifact, codex, pytest, vitest]
         default: e2e
       dispatch_token:
         required: true
@@ -147,11 +147,22 @@ jobs:
         if: inputs.mode == 'e2e' || inputs.mode == 'artifact'
         working-directory: subject/frontend/apps/web_app
         run: npx playwright install --with-deps chromium
+      - name: Install isolated Codex metadata runtime
+        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
+        run: |
+          npm install --prefix "$RUNNER_TEMP/openmates-codex-cli" --no-audit --no-fund @openai/codex@0.153.4
+          echo "$RUNNER_TEMP/openmates-codex-cli/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Provision empty runner-local Codex thread
+        if: inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts'))
+        run: node ../tooling/scripts/ci_codex_fixture.mjs start
       - name: Run selected checks
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
         run: python3 ../tooling/scripts/ci_run_tests.py
+      - name: Stop runner-private Codex daemon
+        if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
+        run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
         if: always() && inputs.mode == 'e2e'
         run: python3 ../tooling/scripts/ci_environment.py logs
@@ -167,6 +178,7 @@ jobs:
             subject/test-results/ci-environment.json
             subject/test-results/ci-stack.log
             subject/test-results/ci-results.json
+            subject/test-results/ci-codex.json
             subject/test-results/ci-spec-*.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
