@@ -143,3 +143,60 @@ def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):
     monkeypatch.setenv("TEST_ACCOUNT1", "synthetic-forbidden")
     with pytest.raises(RuntimeError, match="Inherited test credentials"):
         runner.reject_inherited_accounts()
+
+
+def test_fresh_sdk_key_uses_private_session_and_bounded_lifetime(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    import pytest
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    calls = []
+    def run(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout='{"api_key":"sk-api-synthetic"}')
+    monkeypatch.setattr(runner.subprocess, "run", run)
+    assert runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"}) == "sk-api-synthetic"
+    command, kwargs = calls[0]
+    assert kwargs["env"]["OPENMATES_STATE_DIR"] == "/private/fresh"
+    assert "client.createApiKey" in command[3]
+    assert "FIXTURE_CREDIT_LIMIT = 1000" in command[3] and "expiresAt:" in command[3]
+    assert kwargs["capture_output"] is True
+    monkeypatch.setattr(runner.subprocess, "run", lambda *a, **k: SimpleNamespace(returncode=1))
+    with pytest.raises(RuntimeError, match="no shared-key fallback"):
+        runner.provision_api_key({"OPENMATES_STATE_DIR": "/private/fresh"})
+
+
+def test_signup_pacing_respects_real_rate_limit(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "_last_signup_started", None)
+    now = [100.0]
+    sleeps = []
+    monkeypatch.setattr(runner.time, "monotonic", lambda: now[0])
+    def sleep(delay):
+        sleeps.append(delay)
+        now[0] += delay
+    monkeypatch.setattr(runner.time, "sleep", sleep)
+    for _ in range(6):
+        runner.pace_signup()
+    assert sleeps == [15] * 5
+    assert now[0] - 100 >= 60
+
+
+def test_later_harness_failure_preserves_completed_results(tmp_path, monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path)
+    monkeypatch.setenv("CI_TEST_MODE", "e2e")
+    monkeypatch.setenv("GITHUB_RUN_ID", "unit-fixture")
+    monkeypatch.setenv("CI_SPECS_JSON", '["first.spec.ts","second.spec.ts"]')
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: "a" * 40)
+    def fail(specs, *, artifact, results):
+        results.append({"spec": specs[0], "exit_code": 0})
+        raise RuntimeError("second account fixture failed")
+    monkeypatch.setattr(runner, "run_e2e", fail)
+    assert runner.main() == 1
+    report = json.loads((tmp_path / "ci-results.json").read_text())
+    assert report["results"] == [{"spec":"first.spec.ts", "exit_code":0}]
+    assert report["success"] is False

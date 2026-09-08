@@ -28,6 +28,9 @@ WEB = ROOT / "frontend/apps/web_app"
 RESULTS = ROOT / "test-results"
 API = "http://localhost:8000"
 APP = "http://localhost:5173"
+# Real signup endpoint permits five email requests per minute per runner IP.
+SIGNUP_INTERVAL_SECONDS = 15
+_last_signup_started = None
 
 
 def reject_inherited_accounts():
@@ -82,8 +85,50 @@ def reserved_account_slot(name: str) -> int:
     raise RuntimeError("Candidate lacks reserved account policy; refusing shared-account fallback")
 
 
+def provision_api_key(account: dict) -> str:
+    """Issue an expiring key through the real SDK using the new CLI session."""
+    require_runner()
+    sdk = (ROOT / "frontend/packages/openmates-cli/dist/index.js").as_uri()
+    program = """
+const { OpenMatesClient } = await import(process.argv[1]);
+const client = new OpenMatesClient({apiUrl: process.argv[2]});
+if (!client.hasSession()) throw new Error('Fresh CLI session is missing');
+const FIXTURE_CREDIT_LIMIT = 1000;
+const FIXTURE_KEY_LIFETIME_MS = 60 * 60 * 1000;
+const result = await client.createApiKey({
+  name: 'Disposable CI fixture', fullAccess: true,
+  creditLimit: {period: 'lifetime', credits: FIXTURE_CREDIT_LIMIT},
+  expiresAt: new Date(Date.now() + FIXTURE_KEY_LIFETIME_MS).toISOString()
+});
+process.stdout.write(JSON.stringify({api_key: result.api_key}));
+"""
+    result = subprocess.run(
+        ["node", "--input-type=module", "-e", program, sdk, API],
+        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"]},
+        capture_output=True, text=True, timeout=60,
+    )
+    if result.returncode:
+        raise RuntimeError("Fresh-account SDK API key issuance failed; no shared-key fallback")
+    key = json.loads(result.stdout).get("api_key")
+    if not isinstance(key, str) or not key.startswith("sk-api-"):
+        raise RuntimeError("Fresh-account SDK returned no API key")
+    return key
+
+
+def pace_signup():
+    """Respect the real shared-IP limit without disabling product rate limits."""
+    global _last_signup_started
+    now = time.monotonic()
+    if _last_signup_started is not None:
+        remaining = SIGNUP_INTERVAL_SECONDS - (now - _last_signup_started)
+        if remaining > 0:
+            time.sleep(remaining)
+    _last_signup_started = time.monotonic()
+
+
 def provision_account(slot: int) -> dict:
     """Use real client crypto/auth; only receipt of the private email code is local."""
+    pace_signup()
     profile = json.loads(COMPOSE_PATH.read_text())
     token = cms_admin_token(profile)
     invite = secrets.token_hex(9)
@@ -240,7 +285,7 @@ def verify_artifact_profile(specs: list[str]):
         raise RuntimeError("Shared-dev HTTPS reachable during artifact proof")
 
 
-def run_e2e(specs: list[str], *, artifact=False):
+def run_e2e(specs: list[str], *, artifact=False, results=None):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
     for name in specs:
@@ -253,7 +298,8 @@ def run_e2e(specs: list[str], *, artifact=False):
             raise ValueError("Invalid spec selection")
     if artifact:
         verify_artifact_profile(specs)
-    results = []
+    if results is None:
+        results = []
     with (RESULTS / "ci-web.log").open("w") as log:
         app_server = None if artifact else subprocess.Popen(
             ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
@@ -282,6 +328,8 @@ def run_e2e(specs: list[str], *, artifact=False):
                 )
                 if not account_free:
                     primary = provision_account(14)
+                    if "OPENMATES_TEST_ACCOUNT_API_KEY" in source:
+                        primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15)
                     env.update(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
@@ -310,6 +358,7 @@ def run_e2e(specs: list[str], *, artifact=False):
                     if len(set(identities)) != 2:
                         raise RuntimeError("Isolated batch received duplicate account identities")
                     account_evidence["identity_hashes"] = identities
+                    account_evidence["api_key_provisioned"] = "OPENMATES_TEST_ACCOUNT_API_KEY" in primary
                 env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(
                     RESULTS / f"ci-spec-{index}.json"
                 )
@@ -371,7 +420,7 @@ def main():
     try:
         if mode in ("e2e", "artifact"):
             reject_inherited_accounts()
-            results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact")
+            results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact", results=results)
         elif mode == "codex":
             result = subprocess.run(["node", str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
             receipt = json.loads((RESULTS / "ci-codex.json").read_text())
