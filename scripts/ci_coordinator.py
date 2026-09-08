@@ -207,6 +207,23 @@ class Queue:
             (key, str(value)),
         )
 
+    def prioritize(self, key: str, owner: str, reason: str):
+        """Admit one owned prerequisite ahead of bulk work without adding slots."""
+        if not reason.strip():
+            raise ValueError("An explicit prerequisite reason is required")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            job = db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone()
+            if not job or job["owner"] != owner or job["state"] != "queued":
+                raise ValueError("Only an owned queued request can be prioritized")
+            previous = self.metadata(db, "prerequisite_request", "")
+            active = db.execute("SELECT state FROM jobs WHERE id=?", (previous,)).fetchone()
+            if previous != key and active and active["state"] not in TERMINAL:
+                raise ValueError("Another prerequisite is still pending")
+            self.set_meta(db, "prerequisite_request", key)
+            self.set_meta(db, "prerequisite_reason", reason.strip())
+            return {"id": key, "reason": reason.strip(), "max_active": MAX_ACTIVE}
+
     def result(self, github, key, root, fetch):
         """Use the same serialized rate budget for evidence and dispatch traffic."""
         with self.path.with_suffix(".lock").open("a") as lock:
@@ -251,7 +268,8 @@ class Queue:
                 jobs = [
                     dict(row)
                     for row in db.execute(
-                        "SELECT * FROM jobs WHERE state NOT IN ('success','failure','cancelled') ORDER BY created"
+                        "SELECT * FROM jobs WHERE state NOT IN ('success','failure','cancelled') ORDER BY (id=?) DESC, created",
+                        (self.metadata(db, "prerequisite_request", ""),)
                     )
                 ]
                 db.commit()
@@ -378,6 +396,10 @@ def main():
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
     )
+    priority = sub.add_parser("prioritize")
+    priority.add_argument("id")
+    priority.add_argument("--session", required=True)
+    priority.add_argument("--reason", required=True)
     status = sub.add_parser("status")
     status.add_argument("id", nargs="?")
     result = sub.add_parser("result")
@@ -414,6 +436,8 @@ def main():
                 )
             )
         )
+    elif args.action == "prioritize":
+        print(json.dumps(queue.prioritize(args.id, args.session, args.reason)))
     elif args.action == "status":
         print(json.dumps(queue.status(args.id)))
     elif args.action == "health":
