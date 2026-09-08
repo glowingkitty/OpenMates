@@ -18,7 +18,8 @@ argument-hint: "<feature or existing specification ID>"
    session worktree. Keep `specification.yml` compact; examples remain separate
    and are loaded for ambiguity and test derivation. Every new or changed
    requirement/assertion must have one or two concrete examples in `examples.yml`
-   with an explicit assertion ID mapping, realistic inputs or state, the action,
+   mapped via case `assertion_ids: [<id>]` or assertion
+   `depends_on: [examples.<group>]` (one or two cases in that group), with realistic inputs or state, the action,
    and observable expected behavior. Reuse and update suitable examples where
    possible. Check coverage against the changed assertions before validation;
    an unrelated example elsewhere in the bundle does not satisfy this rule.
@@ -32,6 +33,11 @@ argument-hint: "<feature or existing specification ID>"
 
    Paste the returned Markdown PDF link into the chat before asking for approval.
    The PDF must contain the complete `specification.yml` and `examples.yml`.
+   Inspect representative rendered PDF pages: each requirement must show its
+   concrete examples directly beneath it, with readable inputs and expected
+   results. YAML counts or a detached examples appendix do not prove this.
+   The renderer checks coverage for added/changed requirements when generating
+   new reviews; do not alter existing approved semantics to satisfy this check.
    Before asking for approval, verify that the review artifact shows changed text using inline green `+`
    insertions and inline red `-` deletions while unchanged text stays neutral.
 5. Briefly explain affected assertions, surfaces, and evidence invalidation next

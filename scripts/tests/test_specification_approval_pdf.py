@@ -2,8 +2,8 @@
 """Tests for readable, exact-fingerprint Specification approval PDFs.
 
 The tests exercise recursive change highlighting, removal visibility, output
-naming, and response-media publication without launching Chromium or contacting
-Docker, Vault, or S3. The renderer remains a deterministic tooling surface.
+naming, actual Chromium PDF text/order, and response-media publication without
+contacting Docker, Vault, or S3. The renderer remains a deterministic tooling surface.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ def bundle(tmp_path: Path) -> specifications.SpecificationBundle:
                 {"id": "example.new", "must": "New truth"},
             ],
         },
-        examples={"specification": "feature.example@1", "cases": [{"id": "new-case", "expect": "visible"}]},
+        examples={"specification": "feature.example@1", "cases": [{"id": "new-case", "assertion_ids": ["example.existing", "example.new"], "input": "Search Berlin", "expect": "visible"}]},
         fingerprint="a" * 64,
     )
 
@@ -292,3 +292,89 @@ def test_real_chromium_render_contains_inline_green_and_red_changes(tmp_path: Pa
     assert red_pixels > 50
     assert pdf.read_bytes().startswith(b"%PDF")
     assert pdf.stat().st_size > 1000
+
+
+# contract-test: tooling
+def test_requirement_examples_are_adjacent_in_generated_pdf(tmp_path: Path) -> None:
+    import fitz
+
+    current = bundle(tmp_path)
+    for index, assertion in enumerate(current.specification["assertions"]):
+        assertion["depends_on"] = [f"examples.group_{index}"]
+    current.examples.clear()
+    for index in range(2):
+        current.examples[f"group_{index}"] = [{
+            "id": f"concrete-case-{index}",
+            "input": {"city": "Köln", "action": f"Search marker {index}"},
+            "expect": {"result": f"Observable outcome {index}"},
+        }]
+    document = approval_pdf.build_html(current, baseline_contract=current.specification,
+        baseline_examples=current.examples, baseline_ref="HEAD")
+    pdf = tmp_path / "adjacent.pdf"
+    approval_pdf.render_pdf(document, pdf)
+    with fitz.open(pdf) as rendered:
+        text = "\n".join(page.get_text() for page in rendered)
+        start = text.index("Existing truth")
+        end = text.index("New truth", start)
+        assert "Observable outcome 0" in text[start:end]
+        assert "Köln" in text[start:end]
+        assert any("Existing truth" in page.get_text() and "Observable outcome 0" in page.get_text()
+                   for page in rendered)
+    assert 'class="diff-insert"' not in document.split(f'id="{approval_pdf.readable_pdf._anchor("requirement", "example.existing")}"')[1].split('</section>')[0]
+
+
+# contract-test: tooling
+def test_changed_requirements_need_concrete_mapped_examples(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    current.examples["cases"][0].pop("assertion_ids")
+    baseline = {"assertions": [current.specification["assertions"][0]]}
+    with pytest.raises(ValueError, match="example.new"):
+        approval_pdf.validate_requirement_example_coverage(current, baseline)
+    current.examples["cases"][0].update({"assertion_ids": ["example.new"], "input": "Search Berlin"})
+    approval_pdf.validate_requirement_example_coverage(current, baseline)
+    current.examples["cases"] *= 3
+    with pytest.raises(ValueError, match="example.new"):
+        approval_pdf.validate_requirement_example_coverage(current, baseline)
+
+
+# contract-test: tooling
+def test_adjacent_example_changes_keep_unchanged_text_neutral(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    old = {"cases": [{"id": "new-case", "assertion_ids": ["example.existing", "example.new"],
+                      "input": "Search Berlin", "expect": "Old visible result"}]}
+    current.examples["cases"][0]["expect"] = "New visible result"
+    document = approval_pdf.build_html(current, baseline_contract=current.specification,
+                                       baseline_examples=old, baseline_ref="HEAD")
+    card = document.split('class="requirement-examples"')[1].split('</section>')[0]
+    assert '<b>-</b>Old' in card and '<b>+</b>New' in card
+    assert 'visible result' in card
+    assert '<b>+</b>Search Berlin' not in card
+
+
+# contract-test: tooling
+def test_existing_requirements_and_review_artifacts_remain_valid(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    current.examples.clear()
+    pdf = tmp_path / "approved.pdf"
+    pdf.write_bytes(b"%PDF-existing-review")
+    artifact = tmp_path / "approved.approval.json"
+    publication = {"bucket": "private-bucket", "key": "review.pdf", "sha256": "sha256:" + approval_pdf.hashlib.sha256(pdf.read_bytes()).hexdigest()}
+    approval_pdf.write_review_artifact(artifact, bundle=current, pdf=pdf, baseline_ref="HEAD",
+        baseline_commit="b" * 40, publication=publication, approval_eligible=True)
+    before = artifact.read_bytes()
+    approval_pdf.validate_requirement_example_coverage(current, current.specification)
+    # Presentation generation never rewrites prior artifacts or bundle hashes.
+    approval_pdf.build_html(current, baseline_contract=current.specification,
+                           baseline_examples={}, baseline_ref="HEAD")
+    assert artifact.read_bytes() == before
+    assert specifications.validate_review_artifact(artifact, current)["fingerprint"] == current.fingerprint
+
+
+# contract-test: tooling
+def test_regeneration_never_overwrites_delivered_pdf(tmp_path: Path) -> None:
+    original = tmp_path / "fingerprint.pdf"
+    original.write_bytes(b"delivered PDF")
+    assert approval_pdf._unused_review_output(original, explicit=False) == tmp_path / "fingerprint-review-2.pdf"
+    with pytest.raises(ValueError, match="already exists"):
+        approval_pdf._unused_review_output(original, explicit=True)
+    assert original.read_bytes() == b"delivered PDF"
