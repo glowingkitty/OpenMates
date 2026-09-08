@@ -6,6 +6,10 @@ Unknown requirements remain visible holds instead of silently changing semantics
 See docs/architecture/isolated-github-tests.md.
 """
 
+import json
+from pathlib import Path
+
+
 CORE_SPECS = frozenset({
     # Reviewed ordinary suites use core auth/state only; assertion failures are results.
     "a11y-keyboard-nav.spec.ts",
@@ -13,6 +17,14 @@ CORE_SPECS = frozenset({
     "a11y-pages.spec.ts",
     "account-interests-settings.spec.ts",
     "language-auto-detect.spec.ts",
+    "app-load-no-error-logs.spec.ts",
+    "auth-back-to-demo.spec.ts",
+    "language-switch-welcome-screen.spec.ts",
+    "settings-apps-navigation.spec.ts",
+    "guest-interest-smart-selection.spec.ts",
+    "notification-stack.spec.ts",
+    "paste-classification.spec.ts",
+
     "interface-font-settings.spec.ts",
     "language-settings-flow.spec.ts",
     "debug-logging-settings.spec.ts",
@@ -43,14 +55,16 @@ HOLD_REASONS = {
 
 
 def partition(specs: list[str]) -> tuple[list[str], dict[str, str]]:
+    manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+    mapped = {spec: group for group in manifest["groups"].values() for spec in group["specs"]}
     supported = []
     held = {}
     for spec in specs:
-        if spec in CORE_SPECS or spec in ARTIFACT_SPECS:
+        if spec in CORE_SPECS or spec in ARTIFACT_SPECS or mapped.get(spec, {}).get("execution") == "e2e":
             supported.append(spec)
         else:
             held[spec] = HOLD_REASONS.get(
-                spec, "Runtime requirements have not been ported to a verified isolated profile"
+                spec, mapped.get(spec, {}).get("enabling_work", "New spec requires dependency classification before dispatch")
             )
     return supported, held
 

@@ -42,3 +42,37 @@ def test_static_build_is_byte_exact_and_routes_fall_back(tmp_path):
         server.shutdown()
         server.server_close()
         worker.join()
+
+
+def test_same_origin_api_preserves_real_request_and_error_response(tmp_path):
+    from http.server import BaseHTTPRequestHandler
+    observed = {}
+    class Api(BaseHTTPRequestHandler):
+        def do_POST(self):
+            observed.update(path=self.path, cookie=self.headers.get('Cookie'),
+                            body=self.rfile.read(int(self.headers['Content-Length'])))
+            self.send_response(409)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(b'{"error":"version_conflict"}')
+    api = ThreadingHTTPServer(('127.0.0.1', 0), Api)
+    class Frontend(StaticAppHandler):
+        api_port = api.server_port
+    web = ThreadingHTTPServer(('127.0.0.1', 0), partial(Frontend, directory=str(tmp_path)))
+    workers = [threading.Thread(target=server.serve_forever, daemon=True) for server in (api, web)]
+    for worker in workers:
+        worker.start()
+    try:
+        request = urllib.request.Request(f'http://127.0.0.1:{web.server_port}/v1/settings/user/language',
+                                         data=b'{"language":"de"}', headers={'Cookie':'synthetic-session=1'})
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(request)
+        assert error.value.code == 409
+        assert error.value.read() == b'{"error":"version_conflict"}'
+        assert observed == {'path':'/v1/settings/user/language', 'cookie':'synthetic-session=1', 'body':b'{"language":"de"}'}
+    finally:
+        for server in (web, api):
+            server.shutdown()
+            server.server_close()
+        for worker in workers:
+            worker.join()
