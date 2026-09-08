@@ -2,9 +2,9 @@ schema_version: 2
 id: isolated-github-tests
 title: Independent GitHub test environments and coordinated dispatch
 status: implementing
-goal: All E2E web app tests and daily tests run on GitHub CI independently of the
-  dev server. Unit tests for code changes still run locally. Remove redundant local
-  per-worktree Docker environments and coordinate GitHub requests within rate limits.
+goal: All E2E web app tests and daily tests run on GitHub CI independently of the dev server. Unit
+  tests for code changes still run locally. Remove redundant local per-worktree Docker environments
+  and coordinate GitHub requests within rate limits.
 authorization:
   source: User explicitly approved planning and implementation on 2026-09-07.
   specification_required: false
@@ -19,66 +19,51 @@ scope:
   out:
   - Hetzner resizing, production changes, resuming other tasks or changing their code.
 architecture:
-  execution: GitHub-hosted Linux runner is the isolation boundary; no nested Docker
-    daemon.
-  source: Immutable Git commit; uncommitted candidates require a reviewed source snapshot
-    transport.
+  execution: GitHub-hosted Linux runner is the isolation boundary; no nested Docker daemon.
+  source: Immutable Git commit; uncommitted candidates require a reviewed source snapshot transport.
   dependencies: Reuse cached dependency layers; invalidate on build/dependency changes.
-  accounts: Disposable accounts initialized through real client crypto/auth flows
-    in a fresh database.
-  network: Explicit local endpoints and a fail-closed shared-domain guard; no dev
-    fallback.
-  coordinator: Single durable local queue, four admitted CI jobs, batched status refresh
-    and budget reserve.
-  daily: Same execution workflow with pinned revision and broader test selection;
-    unit suites on GitHub.
+  accounts: Disposable accounts initialized through real client crypto/auth flows in a fresh database.
+  network: Explicit local endpoints and a fail-closed shared-domain guard; no dev fallback.
+  coordinator: Single durable local queue, four admitted CI jobs, batched status refresh and budget
+    reserve.
+  daily: Same execution workflow with pinned revision and broader test selection; unit suites on
+    GitHub.
   local: Small unit checks remain local; shared dev is not a test execution dependency.
-  historical_migration: Retain applied SQL migration history; remove callers, not
-    live database data.
+  historical_migration: Retain applied SQL migration history; remove callers, not live database data.
 acceptance:
-- Focused candidate E2E executes current frontend/backend on GitHub without Vercel
-  or Hetzner API.
+- Focused candidate E2E executes current frontend/backend on GitHub without Vercel or Hetzner API.
 - Daily path includes unit and E2E suites using the same isolated environment contract.
-- Concurrent requests cannot double-dispatch; uncertain dispatch is reconciled rather
-  than retried blindly.
-- Status requests read coordinator cache; rate exhaustion queues work and respects
-  reset/backoff.
-- Runtime identities and artifacts identify exact source; failures never become successful
-  empty reports.
+- Concurrent requests cannot double-dispatch; uncertain dispatch is reconciled rather than retried
+  blindly.
+- Status requests read coordinator cache; rate exhaustion queues work and respects reset/backoff.
+- Runtime identities and artifacts identify exact source; failures never become successful empty
+  reports.
 - Fresh accounts cannot collide across jobs; auth/encryption flows remain real.
 - No test traffic reaches shared dev; failures save diagnostics before cleanup.
 - Superseded local runtime code removed, existing worktree binding preserved.
 implementation_slices:
 - id: CI-1
-  status: in_progress
+  status: complete
   scope: Remove local runtime experiment and establish portable runner stack.
 - id: CI-2
-  status: pending
+  status: complete
   scope: Fresh account provisioning, local web build, endpoint isolation and evidence.
 - id: CI-3
-  status: pending
+  status: in_progress
   scope: Durable GitHub coordinator and focused/daily dispatcher integration.
 - id: CI-4
-  status: pending
-  scope: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  status: in_progress
+  scope: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
 verification:
-  tooling: Focused local Python and Node unit tests for queue, transport, profile
-    and routing.
-  live: GitHub runner stack startup, real account/client initialization and representative
-    E2E.
+  tooling: Focused local Python and Node unit tests for queue, transport, profile and routing.
+  live: GitHub runner stack startup, real account/client initialization and representative E2E.
   daily: GitHub unit suites and representative daily batch with exact source identity.
-  completion: Required live execution and migration checks must pass before claiming
-    completion.
+  completion: Required live execution and migration checks must pass before claiming completion.
 risks:
-- Existing self-host smoke currently fails image-mode startup; portable startup needs
-  real repair/evidence.
-- Hardcoded dev URLs, live-provider credentials and shared fixture assumptions require
-  explicit migration.
-- Fresh environments add startup time; measure cold/warm startup and total feedback
-  latency.
-- Other tasks are active; hunk integration must preserve their changes and shared
-  runtime leases.
+- Existing self-host smoke currently fails image-mode startup; portable startup needs real repair/evidence.
+- Hardcoded dev URLs, live-provider credentials and shared fixture assumptions require explicit migration.
+- Fresh environments add startup time; measure cold/warm startup and total feedback latency.
+- Other tasks are active; hunk integration must preserve their changes and shared runtime leases.
 evidence:
 - kind: tooling
   command: python3 -m pytest scripts/tests/test_reviewed_deploy.py -q
@@ -90,14 +75,30 @@ evidence:
   result: Failed before API startup; Vault exited 137. No E2E coverage credited.
 - kind: migration
   commit: 9da8d2b3334932b74641e2e45855ba72d4ca7819
-  result: Shell launchers forward to canonical dispatcher; daily units can queue while E2E remains held; superseded local runtime probe removed.
+  result: Shell launchers forward to canonical dispatcher; daily units can queue while E2E remains
+    held; superseded local runtime probe removed.
+- kind: github_pilot
+  run_id: 34170816682
+  subject: 741b51e5e55cbdd540fee99f19df7e83e0f0fdd8
+  harness: e228f980ac64839005e845a54714cce7748517b2
+  result: Overall success; real fresh-account browser preflight passed with zero skipped cases. Runner-local
+    frontend/backend and shared-dev rejection verified.
+- kind: tooling
+  command: python3 -m pytest scripts/tests/test_ci_coverage.py scripts/tests/test_ci_dispatch.py
+    -q
+  result: Seven passed; partial core cutover preserves cloud/unknown holds.
+- kind: deployment
+  commit: 1a788b104fd85393527efb08c4f62842159162d6
+  result: Dependabot owner consumed reviewed deployment adapter; original worktree/index and integration
+    guards preserved.
 handoff:
   session: ecad
-  next: Portable stack and coordinator implementation; no shared runtime mutation.
+  next: Migrate remaining runtime profiles and actual pending candidate specs; core runtime verified.
   current_task_id: TASK-1
-  next_action: Implement portable CI stack and coordinator
+  next_action: Implement genuine runner-local Task creator setup and synthetic renderer profile;
+    preserve cloud coverage holds.
   command: python3 scripts/plan_validate.py docs/plans/isolated-github-tests/plan.yml
-  expected_outcome: Validated executable plan
+  expected_outcome: Exact candidate proof for pending specs without shared-dev execution
   last_verified_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
 scenarios:
 - id: S-1
@@ -125,16 +126,13 @@ scenarios:
   then:
   - Durable GitHub coordinator and focused/daily dispatcher integration.
 - id: S-4
-  title: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  title: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
   given:
   - Approved CI migration
   when:
-  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
   then:
-  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
@@ -165,8 +163,7 @@ acceptance_criteria:
   - T-3
 - id: AC-4
   scenario: S-4
-  text: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  text: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
   required: true
   status: pending
   coverage_status: covered
@@ -227,8 +224,7 @@ tests:
   file: scripts/ci_coordinator.py
   command: python3 scripts/ci_coordinator.py verify-pilot
   assertions:
-  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  - Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
   covers:
   - AC-4
   red_phase:
@@ -306,8 +302,7 @@ tasks:
     files: *id003
     shared_files: []
 - id: TASK-4
-  title: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion
-    audit.
+  title: Real GitHub pilot, concurrent/retry tests, scoped deploy, docs and completion audit.
   status: pending
   phase: working_tasks
   covers:
@@ -333,8 +328,7 @@ implementation_state:
 approvals:
   specification:
     status: not_required
-    reason: 'Explicit user correction: Specifications are product-only, not engineering
-      workflows.'
+    reason: 'Explicit user correction: Specifications are product-only, not engineering workflows.'
   plan:
     status: approved
     approved_at: '2026-09-07'
