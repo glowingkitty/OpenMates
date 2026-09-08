@@ -164,6 +164,8 @@ import type {
 export type { ProjectItemRecord } from "./client.js";
 
 const DEFAULT_API_URL = "https://api.openmates.org";
+// Match the server-bounded Task lookup used by the CLI, rather than its first-page default.
+const TASK_LOOKUP_LIMIT = 500;
 const DEFAULT_RECOVERY_POLL_INTERVAL_MS = 500;
 const DEFAULT_RECOVERY_TIMEOUT_MS = 60_000;
 const SKILL_TASK_POLL_INTERVAL_MS = 2_000;
@@ -3827,6 +3829,7 @@ export class OpenMatesTasks {
     const canonicalFilters = await canonicalizeTaskFilters(this.client, filters);
     const masterKey = filters.labels || filters.tags || filters.externalChat ? await this.client.masterKey() : undefined;
     const response = await this.client.get<{ tasks?: UserTaskRecord[] }>(withQuery("/v1/user-tasks", {
+      limit: TASK_LOOKUP_LIMIT,
       status: canonicalFilters.status,
       chat_id: canonicalFilters.chatId,
       project_id: canonicalFilters.projectId,
