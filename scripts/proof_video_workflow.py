@@ -157,8 +157,7 @@ def resolve_current_context(
         if record.get("status") == "passed"
         and record.get("spec") == spec_name
         and _commit_matches(str(record.get("git_sha") or ""), subject_commit)
-        and record.get("source") == "scripts_tests"
-        and record.get("deployment_verified") is True
+        and _verified_proof_source(record)
     ]
     if not passing_runs:
         raise WorkflowError(
@@ -1752,6 +1751,34 @@ def _load_json(path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+def _verified_proof_source(record: dict[str, Any]) -> bool:
+    return (
+        record.get("source") == "scripts_tests" and record.get("deployment_verified") is True
+    ) or (
+        record.get("source") == "github_isolated" and record.get("isolation_verified") is True
+    )
+
+
+def _ci_test_runs(run_id: str) -> list[dict[str, Any]]:
+    """Resolve an explicit run only from the coordinator's fetched receipt cache."""
+    if not run_id:
+        return []
+    try:
+        from scripts.proof_video_ci_source import CIProofError, receipt_sources
+    except ModuleNotFoundError:
+        from proof_video_ci_source import CIProofError, receipt_sources
+    records = []
+    for path in (CONTROL_PLANE_ROOT / "test-results/ci-runs").glob("*/receipt.json"):
+        receipt = _load_json(path)
+        if str(receipt.get("run_id")) != run_id.split(":", 1)[0]:
+            continue
+        try:
+            records.extend(receipt_sources(path))
+        except (CIProofError, ValueError, OSError) as exc:
+            raise WorkflowError(f"CI proof receipt rejected: {exc}") from exc
+    return records
+
+
 def _local_test_runs() -> list[dict[str, Any]]:
     return [data for path in sorted(PROOF_SOURCE_DIR.glob("*.json"), reverse=True) if (data := _load_json(path))]
 
@@ -1759,12 +1786,11 @@ def _local_test_runs() -> list[dict[str, Any]]:
 def resolve_deployed_run(*, subject_commit: str, spec_name: str, run_id: str, source_video: Path | None = None) -> dict[str, Any]:
     matches = [
         run
-        for run in _local_test_runs()
+        for run in _local_test_runs() + _ci_test_runs(run_id)
         if run_id in {str(run.get("run_id") or ""), str(run.get("source_run_id") or "")}
         and run.get("spec") == Path(spec_name).name
         and run.get("status") == "passed"
-        and run.get("source") == "scripts_tests"
-        and run.get("deployment_verified") is True
+        and _verified_proof_source(run)
         and _commit_matches(str(run.get("git_sha") or ""), subject_commit)
         and _commit_matches(str(run.get("deployment_reference") or ""), subject_commit)
     ]
@@ -1814,7 +1840,7 @@ def start_current(spec_name: str, *, run_id: str = "", session_id: str = "") -> 
     if not subject_commit:
         require_clean_worktree()
         subject_commit = _current_git_sha()
-    runs = _local_test_runs()
+    runs = _local_test_runs() + _ci_test_runs(run_id)
     if run_id:
         runs = [
             run
