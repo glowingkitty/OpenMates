@@ -221,3 +221,44 @@ openmates settings memories delete --id <uuid>
 - [Settings](./settings.md) -- settings management (memories are a sub-command of settings)
 - [Embeds & Sharing](./embeds-and-sharing.md) -- @mentions for skills in chat messages
 - [CLI Standards](../../contributing/standards/cli.md) -- Rule 3 on keeping `MEMORY_TYPE_REGISTRY` in sync with `app.yml`
+
+
+## Downloading generated files
+
+All file-generating app skills use the same download options, including image,
+video, music, audio, 3D, and code-generated artifacts. Without `--json`, files
+are saved in the directory where you run the command. Automatic names are
+unique: existing files are never overwritten. Redundant previews are omitted.
+
+`--json` alone returns structured results with download URLs and their expiry
+information, without saving files. These URLs are temporary bearer links.
+Explicit destination options trigger downloading even with `--json`; the JSON
+then also contains `local_files` with saved absolute paths.
+
+| Options | Behavior |
+| --- | --- |
+| `--output-dir ./media` | Create/use a directory; preserve existing files with unique automatic names. |
+| `--filename background.wav` | Save one file in the current directory under this name. |
+| `--output-dir ./media --filename background.wav` | Choose both the directory and filename. |
+| `--output ./media/background.wav` | Choose a complete file path; cannot combine with the other destination options. |
+| `--json --output ./media/background.wav` | Download the file and return machine-readable results and its local path. |
+| `--no-download` | Return results without saving files. |
+
+An explicit filename always overwrites an existing target, but only after the
+new download completes successfully. A failed transfer leaves the old file
+intact. A batch that produces multiple files needs a directory, not one filename.
+Download errors do not automatically repeat generation or incur another charge.
+
+```bash
+openmates apps music generate "Warm instrumental background" --output-dir ./music
+openmates apps music generate "Warm instrumental background" --json
+openmates apps music generate "Warm instrumental background" --json --output ./music/background.wav
+openmates apps audio generate "Soft notification chime" --provider elevenlabs --output ./sounds/chime.mp3
+```
+
+For inline Code Run, `--source-filename` names the source script; `--filename`
+names the generated output artifact. For example:
+
+```bash
+openmates apps code run --language python --source-filename main.py --code 'open("result.csv", "w").write("value\n42\n")' --filename result.csv
+```

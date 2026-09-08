@@ -2869,7 +2869,7 @@ describe("apps code run command variants", () => {
         "--api-key", "test-key",
         "--json",
         "--language", "python",
-        "--filename", "hello.py",
+        "--source-filename", "hello.py",
         "--code", "print('hello')\n",
         "--no-internet",
       ]);
@@ -2893,8 +2893,9 @@ describe("apps code run command variants", () => {
         "apps", "code", "run",
         "--api-url", apiUrl,
         "--api-key", "test-key",
+        "--no-download",
         "--language", "python",
-        "--filename", "hello.py",
+        "--source-filename", "hello.py",
         "--code", "print('hello')\n",
       ]);
 
@@ -2916,7 +2917,7 @@ describe("apps code run command variants", () => {
           "--api-url", apiUrl,
           "--api-key", "test-key",
           "--language", "python",
-          "--filename", "failure.py",
+          "--source-filename", "failure.py",
           "--code", "raise RuntimeError('expected')\n",
         ]),
         /Code Run failed with exit code 1/,
@@ -3017,7 +3018,7 @@ describe("apps code run command variants", () => {
         "apps", "code", "run",
         "--api-url", apiUrl,
         "--language", "python",
-        "--filename", "hello.py",
+        "--source-filename", "hello.py",
         "--code", "print('hello')\n",
       ], { HOME: tempHome });
       assert.deepEqual(getStats(), { rejected: 1, accepted: 1 });

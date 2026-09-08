@@ -32,3 +32,17 @@ tasks:
   - id: verification
     title: Deploy scoped changes and verify real REST, CLI, SDK calls plus terminal proof.
     status: pending
+
+evidence:
+  backend_unit:
+    command: python3 -m pytest backend/tests/test_tasks_api_security.py -q
+    red: task_owner_unverified HTTP 403 for completed music-shaped result
+    green: 7 passed
+    subject: session e89e working patch
+  real_rest:
+    command: node /tmp/openmates-e89e/rest-probe.mjs
+    subject_commit: ca026069e2f430568f7ff17e3bbbf7b0d76f5aa1
+    result: Music dispatch HTTP 200; completed polling HTTP 200; audio/mpeg download HTTP 200 with 747194 bytes.
+  cli_unit:
+    command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/generatedFiles.test.ts
+    result: 3 supporting tests passed, plus 9 adjacent Code Run command tests passed.

@@ -8103,7 +8103,7 @@ export class OpenMatesClient {
           await new Promise((resolve) => setTimeout(resolve, SKILL_TASK_POLL_INTERVAL_MS));
           continue;
         }
-        throw new Error(`Task polling failed with HTTP ${response.status}`);
+        throw new Error(`Task ${taskId} polling failed with HTTP ${response.status}. Generation was not retried; retain this task ID for recovery.`);
       }
       lastTransientError = null;
       if (response.data.status === "completed") {

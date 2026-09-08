@@ -9,6 +9,7 @@
  * Tests: frontend/packages/openmates-cli/tests/
  */
 
+import {downloadGeneratedFiles, generatedFileOptions, GENERATED_FILE_HELP, fetchGeneratedFile} from "./generatedFiles.js";
 import { codexResumeArguments, readCodexThread, resumeCodexTask } from "./codexConnection.js";
 import {
   OpenMatesClient,
@@ -6897,6 +6898,7 @@ async function handleGeneratedAppSkillCommand(
   }
 
   const inputData = buildGeneratedAppSkillInput(command, positionals, flags);
+  const downloadOptions = generatedFileOptions(flags, inputData);
   try {
     const result = await client.runSkill({
       app: command.app_id,
@@ -6905,10 +6907,16 @@ async function handleGeneratedAppSkillCommand(
       apiKey,
       promptInjectionProtection: flags["disable-prompt-injection-protection"] === true ? false : undefined,
     });
+    const localFiles = await downloadGeneratedFiles(result, downloadOptions, async (url) => {
+      if (url.startsWith("/")) {const raw = await client.getRaw(url, apiKey);return new Response(Buffer.from(raw.data));}
+      return fetchGeneratedFile(url);
+    });
     if (flags.json === true) {
-      printJson(result);
+      printJson(localFiles.length ? {...result as Record<string, unknown>, local_files: localFiles} : result);
     } else {
-      printSkillResult(command.app_id, command.skill_id, result);
+      if (localFiles.length) header(`${capitalise(command.app_id)} › ${capitalise(command.skill_id)} · ${localFiles.length} file${localFiles.length === 1 ? "" : "s"} generated`);
+      else printSkillResult(command.app_id, command.skill_id, result);
+      for (const file of localFiles) console.log(`Saved ${file.path}`);
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -6959,7 +6967,7 @@ function buildGeneratedAppSkillValue(
   const value: Record<string, unknown> = {};
   const consumedPositionals = applyPrimaryPositionals(command, shape, value, positionals);
   for (const [name, schema] of Object.entries(shape.properties)) {
-    if (value[name] !== undefined || name === "requests") continue;
+    if (value[name] !== undefined || ["requests", "output", "output_dir", "filename", "no_download"].includes(name)) continue;
     const raw = readFlag(flags, name);
     if (raw === undefined) continue;
     value[name] = coerceAppSkillFlagValue(name, raw, schema);
@@ -7183,6 +7191,8 @@ function printGeneratedAppSkillCommandHelp(command: GeneratedAppSkillCommand): v
   const key = `${command.app_id}/${command.skill_id}`;
   const examples = APP_SKILL_COMMAND_EXAMPLES[key] ?? [buildGeneratedAppSkillExample(command, shape)];
   for (const example of examples) console.log(`  ${example}`);
+  console.log(`\n${GENERATED_FILE_HELP}`);
+  if (command.app_id === "code" && command.skill_id === "run") console.log("  --source-filename <name>  Name the inline source code file (default follows --language).");
   console.log("\nInspect metadata:");
   console.log(`  openmates apps skill-info ${command.app_id} ${command.skill_id}`);
 }
@@ -7719,7 +7729,7 @@ async function handleCodeRun(
   const requests = await buildCodeRunRequestsFromFlags({
     code: typeof flags.code === "string" ? flags.code : undefined,
     language: typeof flags.language === "string" ? flags.language : undefined,
-    filename: typeof flags.filename === "string" ? flags.filename : undefined,
+    filename: typeof flags["source-filename"] === "string" ? flags["source-filename"] : undefined,
     entry: typeof flags.entry === "string" ? flags.entry : undefined,
     file: typeof flags.file === "string" ? flags.file : undefined,
     dir: typeof flags.dir === "string" ? flags.dir : undefined,
@@ -7739,6 +7749,7 @@ async function handleCodeRun(
     }
   }
 
+  const downloadOptions = generatedFileOptions(flags, {requests});
   const response = await client.runSkill({
     app: "code",
     skill: "run",
@@ -7778,11 +7789,14 @@ async function handleCodeRun(
     finalStatus = await pollCodeRunStatus(client, result.status_path, apiKey, flags.json === true);
   }
 
+  const localFiles = finalStatus.status === "finished" && finalStatus.exit_code === 0
+    ? await downloadGeneratedFiles(finalStatus, downloadOptions) : [];
   if (flags.json === true) {
-    printJson({ ...result, final: finalStatus });
+    printJson({ ...result, final: finalStatus, ...(localFiles.length ? {local_files: localFiles} : {}) });
   } else {
     const finalOutput = formatCodeRunFinalStatusOutput(finalStatus, { includeOutput: !usedStream });
     if (finalOutput) process.stdout.write(finalOutput);
+    for (const file of localFiles) console.log(`Saved ${file.path}`);
   }
   const finalExitCode = typeof finalStatus.exit_code === "number" ? finalStatus.exit_code : null;
   const finalState = typeof finalStatus.status === "string" ? finalStatus.status : "unknown";
@@ -14031,7 +14045,7 @@ Examples:
   openmates apps math calculate "sqrt(144)" --mode numeric --json
   openmates apps code get_docs --library React --question "How do I use useState?" --json
   openmates apps examples travel search_connections
-  openmates apps code run --language python --filename hello.py --code 'print("Hello from CLI")'
+  openmates apps code run --language python --source-filename hello.py --code 'print("Hello from CLI")'
   openmates apps images detect-ai --file ./image.png --json
   openmates apps models3d search --query benchy --count 2 --providers Printables --json
   openmates apps design search_icons --query home --count 12 --json
