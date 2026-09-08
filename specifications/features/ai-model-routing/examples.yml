@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.ai-model-routing@1
+specification: feature.ai-model-routing@2
 
 tier_classification:
   - id: simple-live-search
@@ -130,3 +130,21 @@ composer_layout:
     given: {composer_focused: true}
     when: {open_attachment_menu: true}
     expect: {options: [Drawing, Location, Files], keyboard_operable: true, camera_still_direct: true, audio_still_direct: true}
+
+preprocessing_recovery:
+  - id: missing-required-output-uses-configured-fallback
+    given: {answer_model: anthropic/claude-sonnet-5, preprocessing_retries: true, deadline_remaining: true, configured_fallback: available}
+    when: {primary_response: success_without_tool_calls, fallback_response: valid_required_tool_call}
+    expect: {preprocessing: successful, next_configured_provider_called: true, same_primary_retry: false, answer_model: anthropic/claude-sonnet-5}
+  - id: retry-disabled-missing-output-fails
+    given: {preprocessing_retries: false, configured_fallback: available}
+    when: {primary_response: success_without_tool_calls}
+    expect: {preprocessing: failed, next_configured_provider_called: false}
+  - id: missing-output-fallback-exhausted
+    given: {preprocessing_retries: true, deadline_remaining: true}
+    when: {all_configured_providers: success_without_tool_calls}
+    expect: {preprocessing: failed, fabricated_routing_properties: false, unconfigured_provider_called: false}
+  - id: missing-output-deadline-exhausted
+    given: {preprocessing_retries: true, configured_fallback: available}
+    when: {primary_response: success_without_tool_calls, total_deadline: exhausted}
+    expect: {preprocessing: failed, next_configured_provider_called: false}

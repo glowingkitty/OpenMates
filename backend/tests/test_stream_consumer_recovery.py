@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import importlib
 import json
 import sys
 import types
@@ -76,6 +77,13 @@ _PROVIDER_STUBS = {
 }
 for module_name, attributes in _PROVIDER_STUBS.items():
     if module_name not in sys.modules:
+        # Prefer installed response models so this module cannot replace them
+        # with empty classes for subsequently collected provider tests.
+        try:
+            importlib.import_module(module_name)
+            continue
+        except ImportError:
+            pass
         provider_stub = types.ModuleType(module_name)
         for attr_name, attr_value in attributes.items():
             setattr(provider_stub, attr_name, attr_value)
@@ -289,7 +297,9 @@ def test_persisted_ai_message_broadcast_preserves_parent_user_message_id_and_cre
     assert event["message"]["user_message_id"] == request_data.message_id
 
 
-def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypatch) -> None:
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+@pytest.mark.parametrize("response_kind", ["harmful", "simple"])
+def test_fake_stream_includes_recovery_job_before_final_marker(monkeypatch, response_kind) -> None:
     task_id = "11111111-1111-4111-8111-111111111111"
     request_data = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
@@ -330,12 +340,18 @@ def test_harmful_fake_stream_includes_recovery_job_before_final_marker(monkeypat
         lambda _task_id: SimpleNamespace(state="PENDING"),
     )
 
+    generate = (
+        stream_consumer._generate_fake_stream_for_harmful_content
+        if response_kind == "harmful"
+        else stream_consumer._generate_fake_stream_for_simple_message
+    )
+    content_keyword = "predefined_response" if response_kind == "harmful" else "message_text"
     asyncio.run(
-        stream_consumer._generate_fake_stream_for_harmful_content(
+        generate(
             task_id=task_id,
             request_data=request_data,
             preprocessing_result=preprocessing_result,
-            predefined_response="I can't help with that request.",
+            **{content_keyword: "I can't help with that request."},
             cache_service=cache_service,
             directus_service=object(),
             encryption_service=object(),

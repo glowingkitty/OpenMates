@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.ai-model-routing
-version: 1
+version: 2
 status: draft
 title: AI Model Settings And Chat Routing
 summary: >
@@ -11,6 +11,7 @@ summary: >
 
 scope:
   includes:
+    - Bounded recovery from missing required preprocessing tool output without changing the selected answer model.
     - Three-tier request classification and user defaults for simple, complex, and most-demanding requests.
     - AI settings overview, tier, provider-family, and model-detail navigation and information hierarchy.
     - Provider recommendations per tier and provider-independent model capability indicators.
@@ -244,6 +245,10 @@ assertions:
     type: invariant
     must: A chat-scoped exact model bypasses request-tier classification for model routing while unrelated preprocessing continues; otherwise the preprocessor chooses one of three tiers, applies that tier's user preference, and only then uses automatic and configured fallback selection.
     depends_on: [models.RoutingDecision, models.TierModelPreference, examples.routing]
+  - id: ai-model-routing.preprocessing.missing-output-recovery
+    type: failure
+    must: When a preprocessing provider reports success but returns no required tool call, ordinary retry-enabled preprocessing treats the result as a provider-output failure and tries the next configured preprocessing provider within the existing total deadline; it never fabricates routing properties or changes the selected answer model. Explicit retry-disable controls, including output-safety scans, forbid fallback. Exhausted providers or deadline return a failure rather than a successful classification.
+    depends_on: [examples.preprocessing_recovery]
   - id: ai-model-routing.composer.mention-to-exact-selection
     type: behavior
     must: Selecting or typing an exact model, @best, or @fast resolves to one concrete routable model before send, updates and visibly identifies the chat-scoped selector, removes the redundant model mention from editable message text, and persists the exact model rather than a symbolic alias.
@@ -293,4 +298,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]
+  required_groups: [preprocessing_recovery, tier_classification, tier_preferences, catalog, chat_selection, routing, mentions, unavailable, settings_hierarchy, composer_layout]

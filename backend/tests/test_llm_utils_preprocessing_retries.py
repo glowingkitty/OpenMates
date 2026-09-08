@@ -16,7 +16,7 @@ try:
     )
     from backend.apps.ai.utils import llm_utils
 except ImportError as exc:
-    pytestmark = pytest.mark.skip(reason=f"Backend AI dependencies not installed: {exc}")
+    pytest.skip(f"Backend AI dependencies not installed: {exc}", allow_module_level=True)
 
 
 def _tool_definition() -> dict:
@@ -263,3 +263,53 @@ async def test_call_preprocessing_llm_stops_when_total_retry_budget_is_exhausted
     assert calls == ["provider", "provider"]
     assert result.error_message is not None
     assert "Preprocessing retry budget exhausted" in result.error_message
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.missing-output-recovery
+@pytest.mark.anyio
+@pytest.mark.parametrize("case", ["success", "disabled", "exhausted", "deadline"])
+async def test_missing_preprocessing_output_uses_bounded_fallback(monkeypatch, case):
+    calls = []
+
+    async def provider(**kwargs):
+        calls.append(kwargs["model_id"])
+        if case == "deadline":
+            # Advance the existing monotonic retry clock without a wall-clock wait.
+            clock[0] += llm_utils.PREPROCESSING_TOTAL_TIMEOUT_SECONDS + 1
+        if len(calls) == 2 and case == "success":
+            return UnifiedOpenAIResponse(
+                task_id="test", model_id="fallback/model", success=True,
+                tool_calls_made=[ParsedOpenAIToolCall(
+                    tool_call_id="valid", function_name="expected_tool",
+                    function_arguments_raw="{}", function_arguments_parsed={},
+                )],
+            )
+        return UnifiedOpenAIResponse(task_id="test", model_id="model", success=True)
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    clock = [0.0]
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: (None, None))
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+    if case == "deadline":
+        monkeypatch.setattr(asyncio.get_running_loop(), "time", lambda: clock[0])
+
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="test", model_id="primary/primary-model",
+        message_history=[{"role": "user", "content": "Shorten the client email"}],
+        tool_definition=_tool_definition(), fallback_models=["fallback/fallback-model"],
+        allow_retries=case != "disabled",
+    )
+    assert calls == (["primary-model"] if case in {"disabled", "deadline"} else ["primary-model", "fallback-model"])
+    if case == "success":
+        assert result.arguments == {}
+        assert result.error_message is None
+    else:
+        assert result.arguments is None
+        assert result.error_message
+        if case == "deadline":
+            assert "Preprocessing retry budget exhausted" in result.error_message

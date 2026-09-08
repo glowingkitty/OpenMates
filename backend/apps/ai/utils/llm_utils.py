@@ -1355,6 +1355,10 @@ async def call_preprocessing_llm(
             # tool call instead of analyze_request_properties). This is a provider-specific model
             # failure — a different provider may succeed. Always retry with fallback.
             "not found in tool calls. actual tool calls made:",
+            # Successful transport with no required output is also a provider failure.
+            # Try the next configured provider within the existing deadline; callers
+            # that disable retries (such as output-safety scans) still return above.
+            "did not make the expected tool call",
         ]
         return any(indicator in error_lower for indicator in retryable_indicators)
 
