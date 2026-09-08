@@ -124,3 +124,21 @@ def test_daily_discovery_includes_nested_component_specs(tmp_path, monkeypatch):
     monkeypatch.setattr(daily_ai_test_policy, "discover_specs", lambda names, **kwargs: list(names))
     monkeypatch.setattr(daily_ai_test_policy, "daily_plan", lambda *args, **kwargs: SimpleNamespace(selected=[]))
     assert ci_dispatch.select_snapshot_specs(tmp_path, SimpleNamespace(spec=[], daily=True)) == ["components/nested.spec.ts"]
+
+
+def test_cold_daily_discovers_actual_inventory_without_legacy_accounts(monkeypatch):
+    from pathlib import Path
+    from scripts import ci_dispatch
+    from scripts.ci_coverage import partition
+
+    for key in tuple(ci_dispatch.os.environ):
+        if key.startswith(("TEST_ACCOUNT", "OPENMATES_TEST_ACCOUNT_")):
+            monkeypatch.delenv(key)
+    root = Path(ci_dispatch.__file__).resolve().parents[1]
+    selected = ci_dispatch.select_snapshot_specs(root, SimpleNamespace(spec=[], daily=True))
+    admitted, held = partition(selected)
+    assert "account-interests-settings.spec.ts" in admitted
+    assert "import-account-v1.spec.ts" in admitted
+    assert "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts" not in selected
+    assert "daily-ai-fixed-canary.spec.ts" in held
+    assert "daily-ai-rotating-canary.spec.ts" in held

@@ -34,7 +34,7 @@
     "message-highlights.spec.ts": {"classification": "manual_unmarked_ai"},
     "message-sync.spec.ts": {"classification": "manual_unmarked_ai"},
     "multi-tab-encryption.spec.ts": {"classification": "manual_unmarked_ai"},
-    "prod-smoke-signup-giftcard-chat.spec.ts": {"classification": "manual_expensive"},
+    "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts": {"classification": "manual_expensive"},
     "remotion-video-create.spec.ts": {"classification": "manual_expensive"},
     "shared-chat-embed-assets.spec.ts": {"classification": "manual_unmarked_ai"},
     "skill-audio-generate-speak.spec.ts": {"classification": "manual_expensive"},
