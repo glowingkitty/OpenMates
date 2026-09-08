@@ -52,7 +52,7 @@ pathlib.Path('/vault-data/token.ready').write_text('synthetic runtime')
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False) -> dict:
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False, account_emails: list[str] | None = None) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
     credentials = {
         name: secrets.token_hex(24)
@@ -66,7 +66,11 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False) -> dict:
             "vault",
         )
     }
+    fresh_emails = account_emails or []
+    if len(set(fresh_emails)) != len(fresh_emails) or any(not email.endswith("@example.com") or not email.startswith("ci-") for email in fresh_emails):
+        raise ValueError("CI account allowlist requires unique generated example.com identities")
     common = {
+        **{f"OPENMATES_TEST_ACCOUNT_CI_{index}_EMAIL": email for index, email in enumerate(fresh_emails)},
         "PYTHONPATH": "/app",
         "BACKEND_CONFIG_FILE": "/app/backend/config/backend_config.dev.yml",
         "BUILD_COMMIT_SHA": source_hash,
@@ -361,11 +365,12 @@ def main():
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
         manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
-        fixture_specs = set(manifest["groups"].get("ai_committed_fixtures", {}).get("specs", []))
+        fixture_specs = {spec for group in ("ai_committed_fixtures", "ai_cached_pipeline") for spec in manifest["groups"].get(group, {}).get("specs", [])}
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
             raise RuntimeError("Candidate lacks committed development feature configuration")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)))
+        account_emails = [f"ci-{secrets.token_hex(16)}@example.com" for _ in range(2 * len(selected))]
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), account_emails=account_emails)
         # Docker cannot create nested mountpoints inside a read-only bind.
         # These ignored directories contain only runner-local runtime output.
         for relative in ("backend/core/api/logs", "backend/apps/ai/testing/api_cache"):
