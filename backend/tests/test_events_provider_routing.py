@@ -349,3 +349,35 @@ async def test_auto_mode_adds_conference_schedule_for_known_conference(monkeypat
 
     assert response.error is None
     assert response.results[0]["results"][0]["provider"] == "39c3"
+
+
+# specification-test: direct surface=rest_api assertions=events-search.request.validated,events-search.surface-parity
+async def test_bracket_timezone_window_excludes_outside_events() -> None:
+    events = [
+        {"title": "This week", "date_start": "2026-09-08T19:00:00+02:00"},
+        {"title": "Next week", "date_start": "2026-09-14T19:00:00+02:00"},
+        {"title": "Following week", "date_start": "2026-09-21T00:00:00+02:00"},
+    ]
+    results, metadata = SearchSkill._apply_quality_filters(
+        events, event_type=None, query="pottery workshop",
+        start_date="2026-09-14T00:00:00+02:00[Europe/Berlin]",
+        end_date="2026-09-21T00:00:00+02:00[Europe/Berlin]",
+    )
+    assert [event["title"] for event in results] == ["Next week"]
+    assert "date_window" in metadata["applied_filters"]
+
+
+# specification-test: direct surface=rest_api assertions=events-search.request.validated,events-search.surface-parity
+async def test_date_bounds_normalized_before_provider_dispatch() -> None:
+    valid, invalid, error = _make_skill()._validate_event_requests([
+        {"id": "valid", "query": "pottery", "location": "Berlin",
+         "start_date": "2026-09-14T00:00:00+02:00[Europe/Berlin]",
+         "end_date": "2026-09-21T00:00:00+02:00[Europe/Berlin]"},
+        {"id": "bad", "query": "pottery", "location": "Berlin", "start_date": "not-a-date"},
+    ])
+    assert error is None
+    assert len(valid) == 1
+    assert valid[0]["start_date"] == "2026-09-14T00:00:00+02:00"
+    assert valid[0]["end_date"] == "2026-09-21T00:00:00+02:00"
+    assert invalid[0]["id"] == "bad"
+    assert "start_date" in invalid[0]["error"]
