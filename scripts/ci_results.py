@@ -99,7 +99,8 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
                  and cleanup.get("harness_commit") == result.get("harness_commit")
                  and cleanup.get("containers_remaining") == 0
                  and cleanup.get("volumes_remaining") == 0
-                 and cleanup.get("private_account_files_removed") is True)
+                 and cleanup.get("private_account_files_removed") is True
+                 and not cleanup.get("errors"))
     result.update(cleanup=cleanup, cleanup_verified=valid)
     if job["state"] == "success" and not valid:
         raise RuntimeError("Green E2E lacks verified run-bound account/container/volume cleanup")
