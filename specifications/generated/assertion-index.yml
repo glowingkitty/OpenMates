@@ -26027,7 +26027,7 @@ assertions:
       surface: rest_api
     - &id2973
       path: frontend/apps/web_app/tests/task-blocked-reason.spec.ts
-      line: 56
+      line: 91
       name: renders the decrypted explanation and localized code fallback without
         clipping
       surface: gui.web
@@ -26673,7 +26673,7 @@ assertions:
       surface: rest_api
     - &id3023
       path: frontend/apps/web_app/tests/task-blocked-reason.spec.ts
-      line: 56
+      line: 91
       name: renders the decrypted explanation and localized code fallback without
         clipping
       surface: gui.web
@@ -27369,7 +27369,7 @@ assertions:
       surface: rest_api
     - &id3102
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 51
+      line: 86
       name: renders and operates the complete Activity surface
       surface: gui.web
     - &id3108
@@ -27386,7 +27386,7 @@ assertions:
       surface: rest_api
     - &id3103
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 141
+      line: 182
       name: is the final Task detail section
       surface: gui.web
     - &id3104
@@ -27448,7 +27448,7 @@ assertions:
     direct_tests:
     - &id3109
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 51
+      line: 86
       name: renders and operates the complete Activity surface
       surface: gui.web
     - &id3110
@@ -27612,7 +27612,7 @@ assertions:
       surface: rest_api
     - &id3128
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 51
+      line: 86
       name: renders and operates the complete Activity surface
       surface: gui.web
     - &id3129
@@ -27704,7 +27704,7 @@ assertions:
       surface: rest_api
     - &id3137
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 51
+      line: 86
       name: renders and operates the complete Activity surface
       surface: gui.web
     - &id3138
@@ -28476,12 +28476,12 @@ assertions:
       surface: rest_api
     - &id3258
       path: frontend/apps/web_app/tests/task-activity.spec.ts
-      line: 51
+      line: 86
       name: renders and operates the complete Activity surface
       surface: gui.web
     - &id3259
       path: frontend/apps/web_app/tests/task-blocked-reason.spec.ts
-      line: 56
+      line: 91
       name: renders the decrypted explanation and localized code fallback without
         clipping
       surface: gui.web

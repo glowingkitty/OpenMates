@@ -31,8 +31,43 @@ const TASK_ACTIVITY_PROOF = defineVideoProof({
 		{ id: 'composer-parity', checkpoint: 'rich-composer', visual: 'Multiline, file, voice, processing, and failure states are visible and usable without obstruction.', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'safe-attribution', checkpoint: 'attribution-tombstones', visual: 'Attribution suffixes and content-free deletion tombstones match the Activity contract.', devices: ['web-laptop', 'web-phone'] }
 	],
-	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 9000 }
 });
+
+// Intentional source-recording intervals, not waits used to stabilize assertions.
+// Derive readable intervals from the unchanged transcript; reserve 8s for UI transitions.
+const CAPTURE_TRANSITION_BUDGET_MS = 8000;
+const MAX_CAPTURE_DURATION_MS = 35000;
+const CAPTURE_CUE_MS = new Map<string, number>(
+	TASK_ACTIVITY_PROOF.transcript.map(
+		(cue: { checkpoint: string; text: string }): [string, number] => {
+			const duration = Math.max(
+				TASK_ACTIVITY_PROOF.tutorial.minimumHoldMs,
+				Math.ceil(
+					(cue.text.trim().split(/\s+/).length / TASK_ACTIVITY_PROOF.tutorial.readingWordsPerSecond) *
+						1000
+				)
+			);
+			if (duration > TASK_ACTIVITY_PROOF.tutorial.maximumHoldMs)
+				throw new Error(`Unreadable capture policy for ${cue.checkpoint}`);
+			return [cue.checkpoint, duration];
+		}
+	)
+);
+if (
+	[...CAPTURE_CUE_MS.values()].reduce((sum: number, ms: number) => sum + ms, 0) +
+		CAPTURE_TRANSITION_BUDGET_MS >
+	MAX_CAPTURE_DURATION_MS
+) {
+	throw new Error('Task proof capture exceeds the 35-second output contract');
+}
+async function recordReadableInterval(page: Page, checkpoint: string, fraction = 1): Promise<void> {
+	if (!process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE) return;
+	const duration = CAPTURE_CUE_MS.get(checkpoint);
+	if (duration === undefined) throw new Error(`Missing capture cue ${checkpoint}`);
+	// Record real browser pixels throughout this interval; never synthesize frames.
+	await page.waitForTimeout(duration * fraction);
+}
 
 async function openActivityPreview(page: Page, variant?: string): Promise<void> {
 	const query = new URLSearchParams({ chrome: '0' });
@@ -49,7 +84,8 @@ async function openActivityPreview(page: Page, variant?: string): Promise<void> 
 test.describe('Task Activity component', () => {
 	// contract-test: direct surface=gui.web assertions=tasks.activity.single-final-section,tasks.activity.composer-message-parity,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
 	test('renders and operates the complete Activity surface', async ({ page }: { page: Page }, testInfo: TestInfo) => {
-		const proof = createVideoProofRuntime(TASK_ACTIVITY_PROOF, {
+		if (process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE) test.setTimeout(60000);
+    const proof = createVideoProofRuntime(TASK_ACTIVITY_PROOF, {
 			device: PROOF_DEVICE,
 			attach: testInfo.attach.bind(testInfo),
 			captureFrame: () => page.screenshot({ type: 'png' })
@@ -67,6 +103,8 @@ test.describe('Task Activity component', () => {
 			await expect(page.getByText('I added the launch milestones')).toBeVisible();
 		});
 		await proof.checkpoint('final-activity');
+    const captureStartedAt = Date.now();
+    await recordReadableInterval(page, 'final-activity');
 		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
@@ -103,6 +141,7 @@ test.describe('Task Activity component', () => {
 			});
 		});
 		await proof.checkpoint('rich-composer');
+    await recordReadableInterval(page, 'rich-composer');
 		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
 
@@ -131,7 +170,9 @@ test.describe('Task Activity component', () => {
 			});
 		});
 		await proof.checkpoint('attribution-tombstones');
-		await proof.attach();
+    await recordReadableInterval(page, 'attribution-tombstones');
+		expect(Date.now() - captureStartedAt).toBeLessThanOrEqual(MAX_CAPTURE_DURATION_MS);
+    await proof.attach();
 
 		const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 		expect(overflow, 'Task Activity should not create horizontal overflow').toBeLessThan(8);
