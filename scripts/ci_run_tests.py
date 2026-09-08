@@ -196,6 +196,23 @@ process.stdout.write(JSON.stringify({credits: result.current_credits}));
     return credits
 
 
+def provision_shared_archive(account: dict) -> str:
+    """Seed synthetic encrypted archive rows, then share via the genuine client."""
+    require_runner()
+    result = subprocess.run(
+        ["node", "--experimental-strip-types", str(Path(__file__).with_name("ci_shared_chat_fixture.mjs")), str(ROOT)],
+        env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
+             "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
+        capture_output=True, text=True, timeout=120,
+    )
+    if result.returncode:
+        raise RuntimeError("Fresh encrypted shared archive provisioning failed; no historical shared-dev fallback")
+    url = json.loads(result.stdout).get("url", "")
+    if not url.startswith(APP + "/share/chat/") or "#key=" not in url:
+        raise RuntimeError("Shared archive fixture returned a non-local or unencrypted URL")
+    return url
+
+
 def pace_signup():
     """Respect the real shared-IP limit without disabling product rate limits."""
     global _last_signup_started
@@ -414,6 +431,8 @@ def run_e2e(specs: list[str], *, artifact=False, results=None):
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
                     secondary = provision_account(15, identity_index=2 * index + 1)
                     env.update(primary)
+                    if name == "shared-chat-open.spec.ts":
+                        env["OPENMATES_CI_SHARED_CHAT_URL"] = provision_shared_archive(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
                     env["OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"] = str(reserved_account_slot(name))
                     env.update(

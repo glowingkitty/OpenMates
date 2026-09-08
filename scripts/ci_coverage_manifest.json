@@ -60,6 +60,7 @@
         "settings-privacy-pii-deep-link.spec.ts",
         "settings-translation-coverage.spec.ts",
         "share-embed-flow.spec.ts",
+        "shared-chat-open.spec.ts",
         "show-more-chats-flow.spec.ts",
         "skill-mail-search.spec.ts",
         "startup-sync-contract.spec.ts",
@@ -144,7 +145,6 @@
         "reminder-repeating-and-cancel.spec.ts",
         "reminder-same-chat.spec.ts",
         "remotion-video-create.spec.ts",
-        "shared-chat-open.spec.ts",
         "skill-audio-generate-speak.spec.ts",
         "skill-images-generate-safety-upload.spec.ts",
         "skill-images-generate-safety.spec.ts",
@@ -886,12 +886,6 @@
       "source_environment_names": [
         "PLAYWRIGHT_TEST_BASE_URL"
       ]
-    },
-    "shared-chat-open.spec.ts": {
-      "dependency": "hardcoded_shared_dev_chat_assets",
-      "next_action": "Replace hardcoded historical shared-dev links with a newly created encrypted share fixture on this runner, including genuine uploaded audio/transcript assets. Preserve stale-link rejection and logged-out transcript assertions; no shared state or historical credentials may be imported.",
-      "user_input_required": false,
-      "source_environment_names": []
     },
     "signup-flow-bank-transfer.spec.ts": {
       "dependency": "official_cloud_eligibility_and_billing",
