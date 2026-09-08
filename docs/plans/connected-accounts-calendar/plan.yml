@@ -130,13 +130,36 @@ attempts:
       timestamp: '2026-09-05T17:57:34Z'
       subject_commit: 35c1acdc0d6cdab32d277816a0df7312e60619c8
       candidate_note: Dirty worktree candidate; rerun against the deployed commit before recording live green evidence.
+  - id: ATTEMPT-4
+    task_id: TASK-1
+    approach: Resume landed authorization slices and reproduce legacy provider identity rejection, wrong or ambiguous account selection, implicit primary mutations, unstructured permission failures, and partial batch token retention.
+    outcome: succeeded
+    recorded_at: '2026-09-08'
+    evidence:
+      red: Legacy google_calendar identity returned 403; 12 selection/target cases failed; missing authorization raised PermissionError; failed token batch retained its first ref.
+      green: 82 focused backend tests passed in the preserved Calendar virtualenv; supporting unit evidence only.
+      command: /tmp/opencode/calendar-1523-venv/bin/python -m pytest backend/tests/test_token_broker_refs.py backend/tests/test_sdk_chat_recovery.py backend/tests/test_connected_account_execution.py backend/tests/test_calendar_app_contract.py backend/tests/test_google_calendar_oauth_adapter.py backend/tests/test_calendar_permission_broker.py backend/tests/test_calendar_discovery.py -q
+      run_id: calendar-a667-auth-green
+      candidate_note: Working candidate; live Google acceptance remains pending.
+  - id: ATTEMPT-5
+    task_id: TASK-1
+    approach: Dispatch existing browser permission baseline and check current live OAuth coverage admission through the canonical test dispatcher.
+    outcome: blocked
+    recorded_at: '2026-09-08'
+    evidence:
+      browser_request: cb0fe50d6c4bad1aa0fed7025e66c8b17f8669892b85fc070bd06d630191e917
+      live_hold: Provision an approved dedicated Google OAuth account/client and real consent/login flow with isolated callback origin; generic OpenMates fresh accounts cannot replace Google authentication.
+      limitation: Browser fixture coverage is not live provider acceptance. Current isolated GitHub policy forbids shared-dev fallback.
 handoff:
   current_task_id: TASK-1
-  next_action: Deploy the first scoped authorization fixes for dev verification, then continue TASK-1 authorization and OAuth lifecycle checks.
-  command: 'python3 scripts/sessions.py deploy --session 1523 --title "fix: harden connected account scope and token cleanup" --message "Scoped authorization verification deployment"'
-  expected_outcome: Recorded dev commit for the tested authorization slice; full Calendar and workflow acceptance remains pending.
-  blocker: null
-  last_verified_commit: 35c1acdc0d6cdab32d277816a0df7312e60619c8
+  next_action: Integrate the authorization regression fixes, retrieve the browser baseline, and provision the approved isolated Google test setup before direct live API acceptance and dependent Calendar/CLI/SDK/workflow phases.
+  command: 'python3 scripts/ci_coordinator.py result cb0fe50d6c4bad1aa0fed7025e66c8b17f8669892b85fc070bd06d630191e917'
+  expected_outcome: Current source-bound browser evidence and an admitted dedicated provider runtime; full Calendar and workflow acceptance remains pending.
+  blocker:
+    reason: Live Google OAuth coverage is held pending a dedicated approved account/client and isolated callback origin.
+    question: Which dedicated Google test setup should this task use?
+    next_action: Provision the user-selected isolated Google consent setup and admit the provider runtime before live acceptance.
+  last_verified_commit: 94d55af655a97e77cdf677294f05fbf04469b93e
 scenarios:
   - id: S-1
     title: Connect and authorize without leaking credentials
