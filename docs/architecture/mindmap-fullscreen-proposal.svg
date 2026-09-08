@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="820" viewBox="0 0 1280 820" role="img" aria-labelledby="title desc">
+  <title id="title">Mindmap fullscreen proposal — awaiting approval</title>
+  <desc id="desc">Original design proposal, not a product screenshot. A spacious canvas has a central Launch Plan topic, colored curved branches on both sides, small zoom controls and no JSON panel. A phone illustration shows the same navigable canvas.</desc>
+  <rect width="1280" height="820" fill="#edf0f4"/>
+  <g font-family="Arial, sans-serif" fill="#252b38">
+    <text x="40" y="46" font-size="25" font-weight="700">Mindmap fullscreen</text>
+    <text x="40" y="75" font-size="16" fill="#626979">DESIGN PROPOSAL · Awaiting approval · Original illustration, not current product evidence</text>
+    <rect x="40" y="110" width="870" height="575" rx="20" fill="#fff"/>
+    <path d="M40 180H910" stroke="#e8eaf0"/>
+    <text x="67" y="153" font-size="19" font-weight="700">Launch Plan</text>
+    <text x="714" y="153" font-size="15">Download</text>
+    <text x="857" y="153" font-size="23">×</text>
+    <g fill="none" stroke-width="4" stroke-linecap="round">
+      <path d="M405 380C345 380 367 295 300 295" stroke="#8665d5"/>
+      <path d="M545 380C600 380 577 275 645 275" stroke="#268b85"/>
+      <path d="M545 380C600 380 580 477 645 477" stroke="#cd7b38"/>
+      <g stroke-width="2">
+        <path d="M170 295C150 295 152 249 132 249M170 295C145 295 157 347 132 347" stroke="#aa91e3"/>
+        <path d="M747 275C766 275 767 232 790 232M747 275C766 275 767 320 790 320" stroke="#69b4aa"/>
+        <path d="M747 477C766 477 767 434 790 434M747 477C766 477 767 522 790 522" stroke="#dfa26d"/>
+      </g>
+      <path d="M290 318C410 515 606 470 648 296" stroke="#b0b6c3" stroke-width="1.5" stroke-dasharray="5 6"/>
+    </g>
+    <rect x="403" y="347" width="144" height="66" rx="22" fill="#303950"/>
+    <text x="475" y="386" text-anchor="middle" font-size="20" fill="white" font-weight="700">Launch Plan</text>
+    <rect x="170" y="271" width="145" height="48" rx="17" fill="#f0eafa"/>
+    <text x="242" y="300" text-anchor="middle" font-size="16" fill="#694ca9" font-weight="700">Research</text>
+    <rect x="643" y="251" width="104" height="48" rx="17" fill="#e4f2ef"/>
+    <text x="695" y="281" text-anchor="middle" font-size="16" fill="#22766e" font-weight="700">Build</text>
+    <rect x="643" y="453" width="104" height="48" rx="17" fill="#fbefdf"/>
+    <text x="695" y="483" text-anchor="middle" font-size="16" fill="#a36126" font-weight="700">Ship</text>
+    <g font-size="14">
+      <text x="65" y="230">Customer</text><text x="65" y="248">Interviews</text>
+      <text x="80" y="343">Survey</text>
+      <text x="790" y="227">Messaging</text>
+      <text x="773" y="314">Landing Page</text>
+      <text x="769" y="428">Announcement</text>
+      <text x="790" y="516">Follow-up</text>
+    </g>
+    <rect x="672" y="623" width="211" height="40" rx="20" fill="#f3f4f7"/>
+    <text x="691" y="649" font-size="17">−</text><text x="724" y="649" font-size="14">100%</text>
+    <text x="783" y="649" font-size="17">+</text><text x="830" y="649" font-size="14">Fit</text>
+    <rect x="942" y="110" width="298" height="575" rx="32" fill="#fff" stroke="#ccd1da"/>
+    <text x="966" y="160" font-size="18" font-weight="700">Launch Plan</text><text x="1203" y="160" font-size="22">×</text>
+    <path d="M943 182H1239" stroke="#e8eaf0"/>
+    <g fill="none" stroke-width="3">
+      <path d="M1053 345C1027 345 1029 277 996 277" stroke="#8665d5"/>
+      <path d="M1138 345C1165 345 1144 260 1194 260" stroke="#268b85"/>
+      <path d="M1138 345C1173 345 1144 450 1194 450" stroke="#cd7b38"/>
+    </g>
+    <rect x="1044" y="322" width="105" height="48" rx="15" fill="#303950"/>
+    <text x="1097" y="351" font-size="15" text-anchor="middle" fill="#fff" font-weight="700">Launch Plan</text>
+    <text x="954" y="270" font-size="13" fill="#694ca9">Research</text>
+    <text x="1191" y="250" font-size="13" fill="#22766e">Build</text>
+    <text x="1196" y="441" font-size="13" fill="#a36126">Ship</text>
+    <text x="1091" y="561" text-anchor="middle" font-size="14" fill="#626979">Pinch to explore · Fit to return</text>
+    <rect x="980" y="615" width="223" height="46" rx="23" fill="#f3f4f7"/>
+    <text x="1000" y="644" font-size="20">−</text><text x="1042" y="642" font-size="14">65%</text>
+    <text x="1100" y="644" font-size="20">+</text><text x="1159" y="642" font-size="14">Fit</text>
+    <text x="40" y="733" font-size="17" font-weight="700">Readable branches. One canvas. No source panel in normal fullscreen.</text>
+    <text x="40" y="764" font-size="15" fill="#626979">Preserve download, cross-links, collapse and error recovery. Layout reserves actual wrapped-text height.</text>
+    <text x="40" y="790" font-size="15" fill="#626979">Phone keeps the same map with pan/pinch navigation; the illustration simplifies secondary branches for clarity.</text>
+  </g>
+</svg>
