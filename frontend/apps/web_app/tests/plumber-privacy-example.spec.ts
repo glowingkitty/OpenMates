@@ -94,7 +94,7 @@ for (const profile of PROFILES) {
 			// Public follow-ups open signup for guests; they do not create a draft.
 			// See ActiveChat.handleFollowUpSuggestionClick and the review checklist.
 			await suggestion.click();
-			await expect(page.getByRole('button', { name: 'Sign up', exact: true })).toBeVisible();
+			await expect(page.getByTestId('tab-signup')).toBeVisible();
 			await expect(page.getByRole('button', { name: /^Continue with v/ })).toBeVisible();
 			await proof.attach();
 		} finally {
