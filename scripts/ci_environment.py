@@ -13,6 +13,7 @@ import secrets
 import shutil
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -640,7 +641,11 @@ def main():
                         and len(str(value)) > 8
                     ):
                         output = output.replace(str(value), "<REDACTED>")
-            (Path(SOURCE) / "test-results/ci-stack.log").write_text(output)
+            label = os.environ.get("CI_DIAGNOSTIC_LABEL", "")
+            if label and not re.fullmatch(r"spec-[0-9]{1,3}", label):
+                raise ValueError("Invalid bounded diagnostic label")
+            filename = f"ci-stack-{label}.log" if label else "ci-stack.log"
+            (Path(SOURCE) / "test-results" / filename).write_text(output)
     else:
         raise ValueError("Unknown CI environment action")
 
