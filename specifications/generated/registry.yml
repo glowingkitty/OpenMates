@@ -340,6 +340,18 @@ specifications:
     required_applies_to:
     - rest_api
     - gui.web
+  feature.focus-modes:
+    version: 1
+    status: draft
+    path: features/focus-modes
+    fingerprint: 0822c5e38cb671c398ec2fa4679f5b8516eaad127e07117ff79c35247eaca6cd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.landing-onboarding:
     version: 4
     status: draft
@@ -3855,6 +3867,126 @@ assertions:
     required_applies_to:
     - rest_api
     - gui.web
+  focus-modes.activation:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: c1106560850dc2b90b63a359011f1fba1d66797a9606a7dc63649a4e89d53b3e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.full-instruction:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 0e9f3d69448455d08025475c9d1c44b3fa5ecef784b3c653a4ddcc3d20cd3b61
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.off-instruction:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 35f5d7f15f010554c79aaa2accda28a84f7355b8134157ea4415396ec5ee36ca
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.history-events:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: fa93a7aa92b1d1992c818c37656a9f7ba8b797c6604f7a8cb3546d80d0511b63
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.countdown:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: d1a0bd5e54f8917e8819520c7ae45d76ca6835bf99dbe66affd0a2e34a47620e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.history-side-effects:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 202b979f050194447028cf0442893f1c739559628aeebc1ddcc30a8a51dd92e2
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.controls:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: f7e7cf9b7674082515e255c986b2b7cb5500da3be086e575dbfdef65c76a45ee
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.restoration:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: privacy
+    fingerprint: f90d6ba1e65c5beb9bf73b245b086df57910a0104831801c812a0c604c163891
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.banner-placement:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: behavior
+    fingerprint: bacf0d80f5b1c7bc946b32f2823c39c4acae2ff555c4316c6303bd28ed2325f9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  focus-modes.specializations:
+    specification: feature.focus-modes@1
+    specification_id: feature.focus-modes
+    type: invariant
+    fingerprint: 9e020f8fd50696ad94d5a341b38d87b7249f29c7cf2e49b8a19b02eaaf9698b1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   landing-onboarding.uses-real-chat-shell:
     specification: feature.landing-onboarding@4
     specification_id: feature.landing-onboarding
