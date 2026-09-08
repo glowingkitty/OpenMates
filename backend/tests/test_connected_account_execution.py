@@ -323,3 +323,34 @@ async def test_prepare_connected_account_execution_requires_exact_mutation_scope
         "calendar_id": "primary",
         "event_id": "event-1",
     }
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.permissions.deterministic,calendar.discovery.target
+@pytest.mark.parametrize("selected,expected", [("second", "ref-second"), ("missing", None), (None, None)])
+def test_account_selection_never_uses_another_or_ambiguous_account(selected, expected):
+    from backend.apps.ai.processing.connected_account_execution import _find_token_ref
+    from backend.shared.python_utils.connected_account_registry import connected_account_skill_config
+
+    refs = [{
+        "connected_account_id": account, "app_id": "calendar", "provider_id": "google",
+        "allowed_actions": ["read"], "turn_token_ref": f"ref-{account}",
+        "action_scope": {"provider": "google"},
+    } for account in ("first", "second")]
+    request = {"connected_account_id": selected} if selected else {}
+    found = _find_token_ref(
+        refs, app_id="calendar", action="read", request=request,
+        config=connected_account_skill_config("calendar", "list-calendars"), provider_id="google",
+    )
+    assert (found or {}).get("turn_token_ref") == expected
+
+
+# contract-test: supporting surface=rest_api assertions=calendar.discovery.target
+@pytest.mark.parametrize("skill_id", ["create-event", "update-event", "delete-event"])
+@pytest.mark.parametrize("calendar_id", [None, "", "   "])
+def test_calendar_mutation_scope_requires_explicit_calendar(skill_id, calendar_id):
+    from backend.shared.python_utils.connected_account_registry import action_scope_for_request, connected_account_skill_config
+
+    config = connected_account_skill_config("calendar", skill_id)
+    request = {} if calendar_id is None else {"calendar_id": calendar_id}
+    with pytest.raises(ValueError, match="calendar_id"):
+        action_scope_for_request(request, action=config.action, config=config)

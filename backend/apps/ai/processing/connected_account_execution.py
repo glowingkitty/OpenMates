@@ -180,7 +180,11 @@ def _find_token_ref(
     provider_id: str,
 ) -> dict[str, Any] | None:
     request_scope = action_scope_for_request(request, action=action, config=config)
+    selected_account = request.get("connected_account_id")
+    matches: list[dict[str, Any]] = []
     for token_ref in token_refs:
+        if selected_account is not None and token_ref.get("connected_account_id") != selected_account:
+            continue
         if normalize_connected_account_app_id(token_ref.get("app_id")) != app_id:
             continue
         token_provider = normalize_connected_account_provider_id(
@@ -195,5 +199,9 @@ def _find_token_ref(
         if stored_scope and stored_scope != request_scope:
             continue
         if token_ref.get("turn_token_ref"):
-            return token_ref
-    return None
+            matches.append(token_ref)
+    # A token's list position is never account-selection authority. Existing
+    # single-account calls remain valid; multiple eligible accounts need selection.
+    if len({item.get("connected_account_id") for item in matches}) != 1:
+        return None
+    return matches[0]

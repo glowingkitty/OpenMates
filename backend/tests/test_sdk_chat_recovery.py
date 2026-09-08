@@ -611,3 +611,49 @@ async def test_stateless_sdk_focus_selection_uses_full_instruction_id(monkeypatc
                                  focus_mode={"app_id": "jobs", "focus_mode_id": "career_insights"}),
     )
     assert registry.dispatch_skill.await_args.args[2]["focus_mode"] == "jobs-career_insights"
+
+
+# contract-test: supporting surface=rest_api assertions=calendar.discovery.target,connected-accounts.execution.client-mediated
+@pytest.mark.asyncio
+async def test_calendar_missing_target_fails_before_token_submission(monkeypatch):
+    from backend.core.api.app.services.token_broker import TokenBrokerService
+
+    apps_api_module = ModuleType("backend.core.api.app.routes.apps_api")
+    apps_api_module.call_app_skill = AsyncMock()
+    monkeypatch.setitem(sys.modules, apps_api_module.__name__, apps_api_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    create_ref = AsyncMock()
+    monkeypatch.setattr(TokenBrokerService, "create_turn_token_ref", create_ref)
+    request = _connected_account_request()
+    request.app.state.directus_service.get_items = AsyncMock(return_value=[{
+        "id": "acct-1", "provider_type_hash": hash_id("google"),
+    }])
+    with pytest.raises(HTTPException) as exc_info:
+        await sdk.run_sdk_connected_account_skill(
+            request, "calendar", "create-event",
+            sdk.SdkConnectedAccountSkillRunRequest(
+                input={"requests": [{"title": "Synthetic event"}]},
+                connected_account_token_ref_inputs=[{"connected_account_id": "acct-1"}],
+            ),
+        )
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == {"error": "invalid_connected_account_request"}
+    create_ref.assert_not_awaited()
+    apps_api_module.call_app_skill.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.permissions.deterministic
+@pytest.mark.asyncio
+async def test_connected_skill_missing_authorization_is_structured_forbidden(monkeypatch):
+    apps_api_module = ModuleType("backend.core.api.app.routes.apps_api")
+    apps_api_module.call_app_skill = AsyncMock()
+    monkeypatch.setitem(sys.modules, apps_api_module.__name__, apps_api_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    with pytest.raises(HTTPException) as exc_info:
+        await sdk.run_sdk_connected_account_skill(
+            _connected_account_request(), "calendar", "list-calendars",
+            sdk.SdkConnectedAccountSkillRunRequest(input={"requests": [{}]}),
+        )
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == {"error": "connected_account_authorization_required"}
+    apps_api_module.call_app_skill.assert_not_awaited()

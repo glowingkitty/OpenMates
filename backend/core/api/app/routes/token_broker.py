@@ -171,6 +171,11 @@ async def _assert_connected_account_context(
         hash_id(str(provider_id or "")),
         hash_id(app_id),
     }
+    # Existing encrypted Google connections used google_calendar as their provider
+    # identity. Accept that shipped identity without changing their capabilities;
+    # owner scoping and the action registry below still authorize each request.
+    if normalized_provider == "google":
+        acceptable_provider_hashes.add(hash_id("google_calendar"))
     if provider_hash and provider_hash not in acceptable_provider_hashes:
         raise HTTPException(status_code=403, detail="Connected account provider mismatch")
     invalid_actions = [
@@ -195,41 +200,48 @@ async def create_turn_token_refs(
     vault_key_id = _require_vault_key_id(current_user)
     broker = _build_token_broker(cache_service, encryption_service)
     created: list[TurnTokenRefResponse] = []
-    for item in body.refs:
-        await _assert_connected_account_context(
-            directus_service=directus_service,
-            account_id=item.connected_account_id,
-            user_id=current_user.id,
-            team_id=body.team_id,
-            app_id=item.app_id,
-            provider_id=item.provider_id,
-            allowed_actions=item.allowed_actions,
-        )
-        try:
-            ref = await broker.create_turn_token_ref(
+    try:
+        for item in body.refs:
+            await _assert_connected_account_context(
+                directus_service=directus_service,
+                account_id=item.connected_account_id,
                 user_id=current_user.id,
-                user_vault_key_id=vault_key_id,
-                connected_account_id=item.connected_account_id,
                 team_id=body.team_id,
-                chat_id=body.chat_id,
-                message_id=body.message_id,
                 app_id=item.app_id,
-                allowed_actions=item.allowed_actions,
-                refresh_token_envelope=item.refresh_token_envelope,
                 provider_id=item.provider_id,
-                action_scope=item.action_scope,
+                allowed_actions=item.allowed_actions,
             )
-        except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        created.append(
-            TurnTokenRefResponse(
-                connected_account_id=item.connected_account_id,
-                app_id=item.app_id,
-                provider_id=ref.provider_id,
-                turn_token_ref=ref.turn_token_ref,
-                expires_at=ref.expires_at,
+            try:
+                ref = await broker.create_turn_token_ref(
+                    user_id=current_user.id,
+                    user_vault_key_id=vault_key_id,
+                    connected_account_id=item.connected_account_id,
+                    team_id=body.team_id,
+                    chat_id=body.chat_id,
+                    message_id=body.message_id,
+                    app_id=item.app_id,
+                    allowed_actions=item.allowed_actions,
+                    refresh_token_envelope=item.refresh_token_envelope,
+                    provider_id=item.provider_id,
+                    action_scope=item.action_scope,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
+            created.append(
+                TurnTokenRefResponse(
+                    connected_account_id=item.connected_account_id,
+                    app_id=item.app_id,
+                    provider_id=ref.provider_id,
+                    turn_token_ref=ref.turn_token_ref,
+                    expires_at=ref.expires_at,
+                )
             )
-        )
+    except BaseException:
+        # The batch has no response on rejection/cancellation; none of its refs
+        # may remain usable by a later request.
+        for item in created:
+            await broker.delete_turn_artifacts(turn_token_ref=item.turn_token_ref)
+        raise
     return CreateTurnTokenRefsResponse(refs=created)
 
 

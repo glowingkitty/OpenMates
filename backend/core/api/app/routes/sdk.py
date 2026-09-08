@@ -2263,6 +2263,13 @@ async def run_sdk_connected_account_skill(
         raise HTTPException(status_code=400, detail=f"{config.request_field} entries must be objects")
     if request_body.connected_account_token_ref_inputs and not requests:
         raise HTTPException(status_code=400, detail="Token inputs require at least one connected-account request")
+    # First-party execution only: validate resource selection before retaining any
+    # transient credential envelope. Provider/account contents stay out of errors.
+    try:
+        for request_item in requests:
+            action_scope_for_request(request_item, action=config.action, config=config)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"error": "invalid_connected_account_request"}) from exc
 
     async def _unused_exchange_refresh_token(_refresh_token: str, _scope_context: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("SDK token ref creation must not exchange refresh tokens")
@@ -2346,6 +2353,10 @@ async def run_sdk_connected_account_skill(
             enforce_rest_exposure_policy=False,
         )
         return _strip_sdk_owner_pii_mappings(app_id, skill_id, result)
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=403, detail={"error": "connected_account_authorization_required"},
+        ) from exc
     except (GoogleOAuthTokenExchangeError, RevolutBusinessTokenExchangeError) as exc:
         logger.warning(
             "Connected-account provider token exchange failed for %s/%s provider=%s: %s",

@@ -46,6 +46,7 @@ class FakeEncryption:
         return base64.urlsafe_b64decode(ciphertext.removeprefix(prefix)).decode()
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_token_ref_stores_refresh_envelope_encrypted_without_eager_exchange() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
@@ -80,6 +81,7 @@ async def test_token_ref_stores_refresh_envelope_encrypted_without_eager_exchang
     assert "vault:vault-key" in json.dumps(stored_values)
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_lazy_exchange_requires_matching_scope_and_deletes_refs() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
@@ -138,6 +140,7 @@ async def test_lazy_exchange_requires_matching_scope_and_deletes_refs() -> None:
     assert any(handle.access_token_handle in key for key in cache.deleted)
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_access_token_handle_resolves_only_for_matching_scope() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
@@ -198,6 +201,7 @@ async def test_access_token_handle_resolves_only_for_matching_scope() -> None:
     assert access_token == "access-secret"
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_token_ref_exchange_requires_matching_provider_id() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
@@ -238,6 +242,7 @@ async def test_token_ref_exchange_requires_matching_provider_id() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_turn_token_ref_is_single_use_after_successful_exchange() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
@@ -287,6 +292,7 @@ async def test_turn_token_ref_is_single_use_after_successful_exchange() -> None:
         )
 
 
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
 @pytest.mark.anyio
 async def test_turn_token_ref_creation_rejects_actions_outside_app_provider_registry() -> None:
     from backend.core.api.app.services.token_broker import TokenBrokerService
@@ -314,7 +320,14 @@ async def test_turn_token_ref_creation_rejects_actions_outside_app_provider_regi
         )
 
 
-def test_token_broker_route_rejects_connected_account_provider_mismatch() -> None:
+# contract-test: supporting surface=rest_api assertions=connected-accounts.connection.private-reusable,calendar.connection.scopes
+@pytest.mark.parametrize("stored_provider,expected_status", [
+    ("google", 200), ("google_calendar", 200), ("calendar", 200),
+    ("revolut_business", 403),
+])
+def test_token_broker_route_validates_current_and_legacy_provider_identity(
+    stored_provider: str, expected_status: int,
+) -> None:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
@@ -329,7 +342,7 @@ def test_token_broker_route_rejects_connected_account_provider_mismatch() -> Non
                 {
                     "id": "acct-1",
                     "hashed_user_id": hash_id("user-1"),
-                    "provider_type_hash": hash_id("revolut_business"),
+                    "provider_type_hash": hash_id(stored_provider),
                 }
             ]
 
@@ -362,5 +375,35 @@ def test_token_broker_route_rejects_connected_account_provider_mismatch() -> Non
         },
     )
 
-    assert response.status_code == 403
-    assert response.json()["detail"] == "Connected account provider mismatch"
+    assert response.status_code == expected_status
+    if expected_status == 403:
+        assert response.json()["detail"] == "Connected account provider mismatch"
+    else:
+        assert len(response.json()["refs"]) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=connected-accounts.execution.client-mediated
+@pytest.mark.anyio
+async def test_batch_token_refs_clean_up_if_later_account_is_rejected():
+    from fastapi import HTTPException
+    from backend.core.api.app.models.user import User
+    from backend.core.api.app.routes.token_broker import CreateTurnTokenRefsRequest, create_turn_token_refs
+    from backend.core.api.app.services.directus.team_methods import hash_id
+
+    class Directus:
+        async def get_items(self, collection, params):
+            assert collection == "connected_accounts"
+            return [{"provider_type_hash": hash_id("google")}] if params["filter[id][_eq]"] == "owned" else []
+
+    cache = FakeCache()
+    body = CreateTurnTokenRefsRequest(chat_id="chat", message_id="message", refs=[{
+        "connected_account_id": account, "app_id": "calendar", "provider_id": "google",
+        "allowed_actions": ["read"], "refresh_token_envelope": {"refresh_token": "synthetic-token"},
+    } for account in ("owned", "not-owned")])
+    with pytest.raises(HTTPException) as failure:
+        await create_turn_token_refs(
+            body, current_user=User(id="user", username="synthetic", vault_key_id="vault"),
+            cache_service=cache, encryption_service=FakeEncryption(), directus_service=Directus(),
+        )
+    assert failure.value.status_code == 403
+    assert cache.values == {}
