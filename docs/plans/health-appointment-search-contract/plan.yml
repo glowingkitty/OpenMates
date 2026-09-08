@@ -1,0 +1,197 @@
+schema_version: 2
+id: health-appointment-search-contract
+goal: Keep no treatment appointment substituted for initial injury consultation.
+status: implementing
+approval:
+  user_approved: true
+  scope: User explicitly approved exact Specification and directed implementation; prior campaign planning
+    approval retained.
+specifications:
+- id: feature.app-skill.health-search-appointments
+  version: 1
+  status: approved
+  fingerprint: 29b18dd32ac9fb1019f93a32584c9f7427bf988c8db2fea338374096e8fb440a
+  assertions:
+  - health-search-appointments.input.validated
+  - health-search-appointments.providers.requested
+  - health-search-appointments.purpose.initial-consultation
+  - health-search-appointments.purpose.explicit
+  - health-search-appointments.eligibility.location-speciality
+  - health-search-appointments.eligibility.insurance-patients
+  - health-search-appointments.eligibility.modality-language
+  - health-search-appointments.availability.window-order
+  - health-search-appointments.results.grouping
+  - health-search-appointments.results.booking-provenance
+  - health-search-appointments.results.maps-enrichment
+  - health-search-appointments.outcomes.explicit
+  - health-search-appointments.surface-parity
+scope:
+  in:
+  - Existing health search implementation and regression coverage under approved full contract.
+  out:
+  - Prompt tactics and shared inference edits without Sonnet coordination.
+  - PDF renderer repair (dedicated owner).
+  - Runtime mutation without explicit coordinator target and lease.
+verification_order:
+- focused local supporting tests
+- real REST API/WebSocket
+- real CLI
+- npm SDK
+- pip SDK
+- isolated CI when supported
+- web and reviewed visual proof
+- user confirmation
+- Apple parity
+access_model:
+  endpoint_changes: none
+  existing_execution: Preserve authenticated app-skill execution and inherited auth/rate-limit/credit
+    controls.
+  data: Search criteria and provider results are plaintext during skill execution; no encrypted-chat boundary
+    or public access change.
+tasks:
+- id: TASK-1
+  title: Reproduce and repair provider selection, eligibility, availability and outcomes
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - backend/apps/health/skills/search_appointments_skill.py
+  - backend/tests/test_health_search_appointments_skill.py
+  verification_ids:
+  - T-REVIEW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific health files leased by session 235f
+    shared_files: []
+- id: TASK-2
+  title: Verify real API, CLI and SDK behavior under coordinator runtime lease
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - backend/apps/health/skills/search_appointments_skill.py
+  - backend/tests/test_health_search_appointments_skill.py
+  verification_ids:
+  - T-REVIEW
+  dependencies:
+  - TASK-1
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific health files leased by session 235f
+    shared_files: []
+- id: TASK-3
+  title: Retry exact candidate only after corrections and verify web/maps/links/proof
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - backend/apps/health/skills/search_appointments_skill.py
+  - backend/tests/test_health_search_appointments_skill.py
+  verification_ids:
+  - T-REVIEW
+  dependencies:
+  - TASK-2
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - Task-specific health files leased by session 235f
+    shared_files: []
+evidence:
+  baseline_units: 12 unchanged tests passed before approval; no PRP fallback coverage.
+  source_chat: 64ac5778-548b-4ef2-9d0c-f1af288f049f
+  approval_artifact: /tmp/opencode/specification-approvals/feature.app-skill.health-search-appointments-29b18dd32ac9fb10.approval.json
+handoff:
+  session: 235f
+  current_task_id: TASK-1
+  blocker: null
+  next_action: Deploy scoped verified source, then await explicit coordinator runtime target and lease
+    before real API/CLI/SDK checks.
+  command: python3 scripts/sessions.py prepare-deploy --session 235f
+  expected_outcome: Scoped verification commit; no runtime mutation until coordinator grants target and
+    lease.
+  last_verified_commit: 7bf8f5aa3b5ff48436cab02167b98648db1eb66e
+scenarios:
+- id: S-1
+  title: Search appointments without substituting treatments
+  given:
+  - Approved health app-skill contract
+  when:
+  - Caller requests an initial consultation
+  then:
+  - Only eligible provider services are offered with faithful evidence
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Implement and verify the approved health appointment search guarantees and review the corrected
+    candidate.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: manual
+  verification_ids:
+  - T-REVIEW
+tests:
+- id: T-REVIEW
+  type: manual
+  assertions:
+  - Verify provider service selection, direct API/CLI/SDK behavior and complete corrected example browser/proof
+    review.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_applicable
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+implementation_state:
+  subject_commit: 7bf8f5aa3b5ff48436cab02167b98648db1eb66e
+approvals:
+  specification:
+    status: approved
+    fingerprint: 29b18dd32ac9fb1019f93a32584c9f7427bf988c8db2fea338374096e8fb440a
+    approved_at: '2026-09-08T14:19:00Z'
+  plan:
+    status: approved
+    reason: User directed implementation after exact Specification approval; campaign planning already
+      authorized.
+    approved_at: '2026-09-08T14:19:00Z'
+decisions:
+- id: D-1
+  status: active
+  decision: Implement exact approved contract; no reapproval for unchanged semantics.
+  reason: Explicit user approval and implementation instruction
+  decided_at: '2026-09-08T14:19:00Z'
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: failed_as_expected
+  approach: Added supporting regressions; 12 failed, 15 passed before source changes.
+  recorded_at: '2026-09-08T14:21:00Z'
+- id: A-2
+  task_id: TASK-1
+  outcome: succeeded
+  approach: 39 focused supporting tests pass after reproduced red phases; Python lint, contract-test metadata
+    and SDK/CLI parity audit pass. These are not real API/CLI/SDK proof.
+  recorded_at: '2026-09-08T14:36:00Z'
+title: Implement health appointment search contract

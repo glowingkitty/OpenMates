@@ -196,6 +196,18 @@ specifications:
     - sdks.pip
     - gui.web
     - gui.apple
+  feature.app-skill.health-search-appointments:
+    version: 1
+    status: draft
+    path: features/app-skills/health-search-appointments
+    fingerprint: 29b18dd32ac9fb1019f93a32584c9f7427bf988c8db2fea338374096e8fb440a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
   feature.app-skill.images-view:
     version: 1
     status: draft
@@ -2460,6 +2472,162 @@ assertions:
     specification_id: feature.app-skill.events-search
     type: parity
     fingerprint: 7dfdb244e8e9db7b9cd0cab1bce28b77b5b671116a1f298c39606adfca231371
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.input.validated:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: behavior
+    fingerprint: 913ef3eac660f932505ef8a609671e10d527de3d0793b90eeb104d3f476abdd7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.providers.requested:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: a14125a996de67230d7c36f7db361b990f884e839e1b1f78cad16808c167f35a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.purpose.initial-consultation:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: behavior
+    fingerprint: 47fc288986272a896c1bd03ade269be74b8068c8350846cad8ba7ffb5faeeaba
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.purpose.explicit:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: behavior
+    fingerprint: 0217bc389fe0564f671ca5e2a1f70386d401399118185395d663d4b57386010f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.eligibility.location-speciality:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: c4d0086b30a1959370ddf94df65e6f1a0f17de0efbc7c49a763ed6813751eab7
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.eligibility.insurance-patients:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: d2233f413d9cdb11d010d9eaf36bcf7d40014e0ba0145c662aa5f5e39a29d266
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.eligibility.modality-language:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: b7a6d5032d72d0f68f841034790fc02cc4012bbe2787cbc5d9b26b34901a0086
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.availability.window-order:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: 13e3c9a33058ad022adb7ac6a7529eb6e1b3f0c227d5382b66856ff0e46494cd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.results.grouping:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: ba21621a2f2afe398bf0d76149b2450349ca9ee71e373bd9189fe552bfede05d
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.results.booking-provenance:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: 1335ed330573ca8a2b1c75f8711f301b7fa1bce90e271fb678272c5ae81a430f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.results.maps-enrichment:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: invariant
+    fingerprint: 7f809d00b47321b4fb29029d55a0fbf61b76e78ce6e9db56b09e3af71eb8fcb0
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.outcomes.explicit:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: failure
+    fingerprint: 7758c1bcdeab6cde42ee8d7ade6fb8632acc8b3ac65a0e81670cfbbcf1e59097
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  health-search-appointments.surface-parity:
+    specification: feature.app-skill.health-search-appointments@1
+    specification_id: feature.app-skill.health-search-appointments
+    type: parity
+    fingerprint: 14b2708aad5f70ba9c12091da2e9e7e634187fff13af0af3bf6c98307eb2a1e2
     required_applies_to:
     - rest_api
     - cli

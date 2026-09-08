@@ -39,8 +39,8 @@ import logging
 import re
 import time
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple, TYPE_CHECKING
 from urllib.parse import urlencode
 
 import httpx
@@ -50,7 +50,7 @@ from backend.shared.testing.caching_http_transport import create_http_client
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool, StringConstraints, ValidationError
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
@@ -727,6 +727,35 @@ def _is_private_practice_name(name: str) -> bool:
     return bool(PRIVATE_PRACTICE_NAME_PATTERN.search(str(name or "").lower()))
 
 
+# Provider language display names vary; match known names or the requested code.
+LANGUAGE_LABELS = {
+    "gb": {"gb", "en", "english", "englisch"},
+    "de": {"de", "german", "deutsch"},
+    "ru": {"ru", "russian", "russisch"},
+    "tr": {"tr", "turkish", "türkisch"},
+    "ar": {"ar", "arabic", "arabisch"},
+    "fr": {"fr", "french", "französisch"},
+    "es": {"es", "spanish", "spanisch"},
+    "it": {"it", "italian", "italienisch"},
+    "pl": {"pl", "polish", "polnisch"},
+    "ro": {"ro", "romanian", "rumänisch"},
+    "zh": {"zh", "chinese", "chinesisch"},
+}
+
+
+def _provider_speaks_language(provider: Dict[str, Any], language: Optional[str]) -> bool:
+    """Require positive language evidence when the caller supplies a filter."""
+    if not language:
+        return True
+    wanted = language.lower()
+    accepted = LANGUAGE_LABELS.get(wanted, {wanted})
+    for entry in provider.get("languages") or []:
+        values = (entry.get("code"), entry.get("name")) if isinstance(entry, dict) else (entry,)
+        if any(str(value).lower() in accepted for value in values if value):
+            return True
+    return False
+
+
 def _doctolib_motive_allows_new_patients(visit_motive: Dict[str, Any]) -> bool:
     return bool(visit_motive.get("allowNewPatients", True))
 
@@ -793,8 +822,6 @@ def _select_jameda_services_for_request(
             svc for svc in eligible
             if _matches_motive_category(_jameda_service_name(svc), "general")
         ]
-        if not selected:
-            selected = [svc for svc in eligible if not _is_noise_motive(_jameda_service_name(svc))]
 
     deduped: List[Dict[str, Any]] = []
     seen_ids = set()
@@ -806,17 +833,6 @@ def _select_jameda_services_for_request(
         deduped.append(svc)
 
     return deduped[:3]
-
-
-def _is_noise_motive(motive_name: str) -> bool:
-    """Check if a visit motive name is known noise (irrelevant for most users)."""
-    if not motive_name:
-        return False
-    name_lower = motive_name.lower()
-    return any(
-        re.search(pattern, name_lower)
-        for pattern in NOISE_MOTIVE_PATTERNS
-    )
 
 
 def _normalize_city_for_comparison(city: str) -> str:
@@ -853,14 +869,17 @@ def _cities_match(address_city: str, requested_city_slug: str) -> bool:
 class SearchAppointmentsRequestItem(BaseModel):
     """A single appointment search request."""
 
-    speciality: str = Field(
+    id: Optional[str] = None
+    max_doctors: int = Field(default=DEFAULT_MAX_DOCTORS, gt=0, le=FILTERED_SEARCH_MAX_DOCTORS, strict=True)
+
+    speciality: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
         description="Doctor speciality or type (e.g. 'augenarzt', 'hautarzt', 'zahnarzt', "
         "'ophthalmologist', 'dermatologist', 'general_practitioner', 'dentist', 'cardiologist')."
     )
-    city: str = Field(
+    city: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)] = Field(
         description="City where to search for appointments (e.g. 'Berlin', 'München', 'Munich', 'Hamburg')."
     )
-    provider_platform: str = Field(
+    provider_platform: Literal["both", "doctolib_de", "jameda"] = Field(
         default="both",
         description=(
             "Booking platform to search. 'both' (default) searches Doctolib and Jameda "
@@ -868,11 +887,11 @@ class SearchAppointmentsRequestItem(BaseModel):
             "'jameda' for Jameda Germany only (includes ratings, prices, direct booking URLs)."
         ),
     )
-    insurance_sector: Optional[str] = Field(
+    insurance_sector: Optional[Literal["public", "private"]] = Field(
         default=None,
         description="Insurance type filter: 'public' (GKV) or 'private' (PKV). Omit for all types.",
     )
-    telehealth: bool = Field(
+    telehealth: StrictBool = Field(
         default=False,
         description="If true, only return doctors offering telehealth (video consultation) appointments.",
     )
@@ -880,11 +899,11 @@ class SearchAppointmentsRequestItem(BaseModel):
         default=None,
         description="Filter for doctors who speak a specific language (e.g. 'de', 'gb', 'ru', 'tr').",
     )
-    days_ahead: Optional[int] = Field(
-        default=None,
+    days_ahead: Literal[1, 3, 7] = Field(
+        default=7,
         description="Number of days ahead to look for availability.",
     )
-    visit_motive_category: Optional[str] = Field(
+    visit_motive_category: Optional[Literal["general", "checkup", "vaccination", "followup"]] = Field(
         default=None,
         description=(
             "Filter results by appointment type category. Supported categories: "
@@ -1134,14 +1153,14 @@ async def _fetch_availability(
             practice_id,
             body_preview,
         )
-        return {"availabilities": [], "total": 0, "next_slot": None}
+        raise
     except Exception as exc:
         logger.warning(
             "[health:search_appointments] Availability fetch error for practice %d: %s",
             practice_id,
             exc,
         )
-        return {"availabilities": [], "total": 0, "next_slot": None}
+        raise
 
 
 def _practice_url(provider: Dict[str, Any]) -> str:
@@ -1208,29 +1227,28 @@ def _result_hash(practice_id: int, visit_motive_id: int, slot_datetime: str = ""
 # ---------------------------------------------------------------------------
 
 
-def _filter_past_slots(slot_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Drop any slot whose datetime is already in the past.
+def _slot_instant(item: Dict[str, Any]) -> datetime:
+    """Compare provider timestamps by instant, never by their offset text."""
+    parsed = datetime.fromisoformat(str(item.get("slot_datetime", "")).replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        raise ValueError("Appointment timestamp must include a timezone")
+    return parsed.astimezone(timezone.utc)
 
-    Some provider APIs (notably Jameda) occasionally return stale cached slots
-    that have already been booked or passed. Filtering them up front prevents
-    cards that point at expired appointments.
-    """
+
+def _filter_past_slots(
+    slot_items: List[Dict[str, Any]], days_ahead: Optional[int] = None
+) -> List[Dict[str, Any]]:
+    """Drop stale or invalid provider timestamps rather than advertise unknown availability."""
     now = datetime.now(timezone.utc)
+    end = now + timedelta(days=days_ahead) if days_ahead is not None else None
     fresh: List[Dict[str, Any]] = []
     for item in slot_items:
-        raw_dt = item.get("slot_datetime", "")
-        if not raw_dt:
-            continue
         try:
-            # Accept ISO 8601 with or without tz; assume UTC if naive.
-            parsed = datetime.fromisoformat(str(raw_dt).replace("Z", "+00:00"))
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
-            if parsed >= now:
+            instant = _slot_instant(item)
+            if instant >= now and (end is None or instant <= end):
                 fresh.append(item)
         except (ValueError, TypeError):
-            # Keep items with unparseable timestamps — safer than dropping them
-            fresh.append(item)
+            logger.warning("Dropping appointment with invalid or missing timezone timestamp")
     return fresh
 
 
@@ -1244,21 +1262,20 @@ def _group_slots_by_doctor(
       - `additional_slot_datetimes`: list of up to `max_additional` next slot ISOs
       - `additional_slot_count`: total number of additional slots beyond the primary
 
-    The doctor key combines `practice_id` and `visit_motive_id` so that a
-    doctor with multiple motives still produces one card per motive (matching
-    what the appointment search was actually for).
-
-    Preserves input order for the primary slot assignment: the first slot seen
-    for each doctor wins, so upstream sorting (earliest first) is honored.
+    Provider, doctor, address and service identity prevent unrelated slots from
+    being merged. Sort by timestamp instant before selecting the primary slot.
     """
-    seen_keys: Dict[Tuple[Any, Any], Dict[str, Any]] = {}
-    extras_by_key: Dict[Tuple[Any, Any], List[str]] = {}
+    seen_keys: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+    extras_by_key: Dict[Tuple[Any, ...], List[str]] = {}
 
-    for item in slot_items:
+    for item in sorted(slot_items, key=_slot_instant):
         practice_id = item.get("practice_id")
         visit_motive_id = item.get("visit_motive_id")
         # Fall back to (name, address) when IDs are missing — defensive.
-        key: Tuple[Any, Any] = (
+        key = (
+            item.get("provider_platform"),
+            item.get("name"),
+            item.get("address"),
             practice_id if practice_id is not None else item.get("name", ""),
             visit_motive_id if visit_motive_id is not None else item.get("address", ""),
         )
@@ -1277,7 +1294,7 @@ def _group_slots_by_doctor(
         grouped.append(primary)
 
     # Preserve earliest-slot ordering
-    grouped.sort(key=lambda r: r.get("slot_datetime", ""))
+    grouped.sort(key=_slot_instant)
     return grouped
 
 
@@ -1363,7 +1380,9 @@ async def _process_single_doctolib_request(
     # Use "or" to handle None from Pydantic model_dump() — prevents int(None) TypeError
     days_ahead = int(request.get("days_ahead") or 7)
     max_doctors = int(request.get("max_doctors", DEFAULT_MAX_DOCTORS))
-    visit_motive_category = request.get("visit_motive_category")
+    visit_motive_category = request.get("visit_motive_category") or (
+        None if _procedure_intent_for_speciality(speciality_raw) else "general"
+    )
 
     # When a motive category is set, widen the search pool so that after
     # filtering we still have enough doctors to fill DEFAULT_MAX_SLOTS.
@@ -1458,7 +1477,10 @@ async def _process_single_doctolib_request(
                     visit_motive_category,
                 )
             )
-            and _doctolib_motive_allows_new_patients(p.get("matchedVisitMotive") or {})
+            and _cities_match(str((p.get("location") or {}).get("city") or ""), city_slug)
+            and (not telehealth or (p.get("onlineBooking") or {}).get("telehealth") is True)
+            and _provider_speaks_language(p, language)
+            and (visit_motive_category == "followup" or _doctolib_motive_allows_new_patients(p.get("matchedVisitMotive") or {}))
             and _doctolib_provider_matches_requested_insurance(
                 p,
                 insurance_sector,
@@ -1522,9 +1544,11 @@ async def _process_single_doctolib_request(
         all_slot_items: List[Dict[str, Any]] = []
         doctors_checked = 0
         doctors_with_slots = 0
+        availability_failed = False
 
         for provider, avail in zip(valid_providers, availabilities):
             if isinstance(avail, Exception):
+                availability_failed = True
                 logger.warning(
                     "[health:search_appointments] Availability error for %s: %s",
                     _doctor_name(provider),
@@ -1612,7 +1636,8 @@ async def _process_single_doctolib_request(
                 all_slot_items.append(slot_item)
 
         # Sort all slots by datetime ascending (soonest first), cap at DEFAULT_MAX_SLOTS
-        all_slot_items.sort(key=lambda r: r["slot_datetime"])
+        all_slot_items = _filter_past_slots(all_slot_items, days_ahead=days_ahead)
+        all_slot_items.sort(key=_slot_instant)
         results: List[Dict[str, Any]] = all_slot_items[:DEFAULT_MAX_SLOTS]
 
         logger.info(
@@ -1622,7 +1647,7 @@ async def _process_single_doctolib_request(
             doctors_with_slots,
             len(results),
         )
-        return request_id, results, None
+        return request_id, results, "Doctolib availability is incomplete" if availability_failed else None
 
     except Exception as exc:
         logger.error(
@@ -1631,7 +1656,7 @@ async def _process_single_doctolib_request(
             exc,
             exc_info=True,
         )
-        return request_id, [], str(exc)
+        return request_id, [], "Doctolib is temporarily unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -1778,15 +1803,16 @@ async def _jameda_fetch_slots(
     days_ahead: int,
     service_id: Optional[int] = None,
     insurance_provider_id: Optional[int] = None,
+    new_patient: bool = True,
 ) -> List[Dict[str, Any]]:
     """GET /api/v3/doctors/{id}/addresses/{id}/slots — available appointment slots.
 
     Returns list of slot dicts with 'start' (ISO datetime) and 'booking_url'.
     """
-    start_dt = date.today()
+    start_dt = datetime.now(timezone.utc).replace(microsecond=0)
     end_dt = start_dt + timedelta(days=days_ahead)
-    start_iso = f"{start_dt.isoformat()}T00:00:00+01:00"
-    end_iso = f"{end_dt.isoformat()}T23:59:59+01:00"
+    start_iso = start_dt.isoformat()
+    end_iso = end_dt.isoformat()
 
     params: Dict[str, Any] = {
         "start": start_iso,
@@ -1797,7 +1823,7 @@ async def _jameda_fetch_slots(
             "address_service_id": service_id,
             "including_saas_only_calendar": "true",
             "filters[address_service_id]": service_id,
-            "filters[is_new_patient]": 1,
+            "filters[is_new_patient]": int(new_patient),
             "includingSaasOnlyCalendar": "true",
             "with[]": "address.nearest_slot_after_end",
         })
@@ -1818,7 +1844,7 @@ async def _jameda_fetch_slots(
             "[health:jameda] Slot fetch error for doctor %s address %s: %s",
             doctor_id, address_id, exc,
         )
-        return []
+        raise
 
 
 async def _jameda_fetch_calendar_services(
@@ -1839,7 +1865,7 @@ async def _jameda_fetch_calendar_services(
             "[health:jameda] Calendar service fetch error for doctor %s address %s: %s",
             doctor_id, address_id, exc,
         )
-        return []
+        raise
 
 
 async def _process_single_jameda_request(
@@ -1862,7 +1888,9 @@ async def _process_single_jameda_request(
     city_raw = str(request.get("city", "")).lower().strip()
     days_ahead = int(request.get("days_ahead") or 7)
     max_doctors = int(request.get("max_doctors", DEFAULT_MAX_DOCTORS))
-    visit_motive_category = request.get("visit_motive_category")
+    visit_motive_category = request.get("visit_motive_category") or (
+        None if _procedure_intent_for_speciality(speciality_raw) else "general"
+    )
 
     if not speciality_raw:
         return request_id, [], "Missing required field: 'speciality'"
@@ -1874,6 +1902,10 @@ async def _process_single_jameda_request(
             f"Supported: {', '.join(sorted(VISIT_MOTIVE_CATEGORIES.keys()))}"
         )
 
+    unsupported = [field for field in ("telehealth", "language") if request.get(field)]
+    if unsupported:
+        return request_id, [], "Unsupported Jameda filters: " + ", ".join(unsupported)
+
     # Resolve slugs
     speciality_slug = JAMEDA_SPECIALITY_SLUGS.get(speciality_raw, speciality_raw)
     # City: check Jameda-specific map first, then fall back to raw lowercase
@@ -1884,6 +1916,7 @@ async def _process_single_jameda_request(
         request_id, speciality_slug, city_slug, days_ahead, max_doctors, visit_motive_category,
     )
 
+    provider_failed = False
     try:
         # Step 1: Get token
         token = await _get_jameda_token(client)
@@ -1904,7 +1937,7 @@ async def _process_single_jameda_request(
             )
         ]
         if not doctor_infos:
-            return request_id, [], None
+            return request_id, [], "Jameda availability is incomplete" if provider_failed else None
 
         # Step 3: For each doctor, fetch addresses (filter has_slots)
         address_tasks = [
@@ -1926,6 +1959,7 @@ async def _process_single_jameda_request(
         dropped_wrong_city = 0
         for doc_info, addrs in zip(doctor_infos, all_addresses):
             if isinstance(addrs, Exception):
+                provider_failed = True
                 logger.warning("[health:jameda] Address fetch error for doctor %s: %s", doc_info["doctor_id"], addrs)
                 continue
             matched_addr: Optional[Dict[str, Any]] = None
@@ -1946,7 +1980,7 @@ async def _process_single_jameda_request(
             )
 
         if not doctor_address_pairs:
-            return request_id, [], None
+            return request_id, [], "Jameda availability is incomplete" if provider_failed else None
 
         # Step 4: Fetch calendar services first. Jameda's generic slots endpoint
         # is not tied to a visit motive; booking uses address_service_id-specific
@@ -1964,6 +1998,7 @@ async def _process_single_jameda_request(
         slot_contexts: List[Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]] = []
         for (doc_info, addr), services in zip(doctor_address_pairs, all_services):
             if isinstance(services, Exception):
+                provider_failed = True
                 logger.warning("[health:jameda] Calendar service error for doctor %s: %s", doc_info["doctor_id"], services)
                 services = []
             selected_services = _select_jameda_services_for_request(
@@ -1996,11 +2031,12 @@ async def _process_single_jameda_request(
                         days_ahead,
                         service_id=service_id,
                         insurance_provider_id=service.get("insuranceProviderId"),
+                        new_patient=visit_motive_category != "followup",
                     )
                 )
 
         if not slot_tasks:
-            return request_id, [], None
+            return request_id, [], "Jameda availability is incomplete" if provider_failed else None
 
         all_slots = await asyncio.gather(*slot_tasks, return_exceptions=True)
 
@@ -2011,6 +2047,7 @@ async def _process_single_jameda_request(
         doctors_checked = len(doctor_address_pairs)
         for (doc_info, addr, service), slots in zip(slot_contexts, all_slots):
             if isinstance(slots, Exception):
+                provider_failed = True
                 logger.warning("[health:jameda] Slot error for doctor %s: %s", doc_info["doctor_id"], slots)
                 slots = []
 
@@ -2089,21 +2126,22 @@ async def _process_single_jameda_request(
                 all_slot_items.append(slot_item)
 
         # Sort by datetime ascending, cap at DEFAULT_MAX_SLOTS
-        all_slot_items.sort(key=lambda r: r["slot_datetime"])
+        all_slot_items = _filter_past_slots(all_slot_items, days_ahead=days_ahead)
+        all_slot_items.sort(key=_slot_instant)
         results: List[Dict[str, Any]] = all_slot_items[:DEFAULT_MAX_SLOTS]
 
         logger.info(
             "[health:jameda] Request %s: checked %d doctors, %d with slots, returning %d slot results",
             request_id, doctors_checked, doctors_with_slots, len(results),
         )
-        return request_id, results, None
+        return request_id, results, "Jameda availability is incomplete" if provider_failed else None
 
     except Exception as exc:
         logger.error(
             "[health:jameda] Error processing request %s: %s",
             request_id, exc, exc_info=True,
         )
-        return request_id, [], str(exc)
+        return request_id, [], "Jameda is temporarily unavailable"
 
 
 # ---------------------------------------------------------------------------
@@ -2177,13 +2215,24 @@ class SearchAppointmentsSkill(BaseSkill):
 
         validated, invalid_grouped_results, validation_errors, err = self._partition_requests_by_required_fields(
             requests=requests,
-            required_fields=["speciality"],
+            required_fields=["speciality", "city"],
             field_display_names={"speciality": "speciality"},
             empty_error_message="No appointment search requests provided. 'requests' array must contain at least one request with a 'speciality' field.",
             logger=logger,
         )
         if err:
             return SearchAppointmentsResponse(error=err)
+        normalized = []
+        for req in validated:
+            try:
+                normalized.append(SearchAppointmentsRequestItem.model_validate(req).model_dump(exclude_none=True))
+            except ValidationError as exc:
+                fields = sorted({str(error["loc"][0]) for error in exc.errors()})
+                message = "Invalid appointment search fields: " + ", ".join(fields)
+                logger.warning("%s", message)
+                invalid_grouped_results.append({"id": req["id"], "results": [], "error": message})
+                validation_errors.append(message)
+        validated = normalized
         if not validated:
             return self._build_response_with_errors(
                 response_class=SearchAppointmentsResponse,
@@ -2337,6 +2386,8 @@ class SearchAppointmentsSkill(BaseSkill):
             provider_platform = req.get("provider_platform", "both")
             request_id = str(req.get("id", "1"))
 
+            coverage: Dict[str, str] = {}
+
             if provider_platform == "both":
                 # Search both providers in parallel, merge results by slot_datetime
                 doctolib_result, jameda_result = await asyncio.gather(
@@ -2350,13 +2401,19 @@ class SearchAppointmentsSkill(BaseSkill):
 
                 for label, result in [("Doctolib", doctolib_result), ("Jameda", jameda_result)]:
                     if isinstance(result, Exception):
+                        coverage[label] = "failed"
                         logger.warning("[health:both] %s failed: %s", label, result)
-                        errors_list.append(f"{label}: {result}")
+                        errors_list.append(f"{label} is temporarily unavailable")
                         continue
                     _, items, err = result
+                    coverage[label] = (
+                        "partial" if err and items else
+                        "unsupported" if err and err.startswith("Unsupported ") else
+                        "failed" if err else "success" if items else "no_match"
+                    )
                     if err:
                         logger.info("[health:both] %s returned error: %s", label, err[:80])
-                        errors_list.append(f"{label}: {err}")
+                        errors_list.append(f"{label}: {err}" if err.startswith("Unsupported ") else f"{label} is temporarily unavailable")
                     if items:
                         merged.extend(items)
 
@@ -2365,21 +2422,25 @@ class SearchAppointmentsSkill(BaseSkill):
                     return request_id, [], error_summary
 
                 # Sort combined results by slot_datetime (soonest first)
-                merged.sort(key=lambda r: r.get("slot_datetime", ""))
+                merged.sort(key=_slot_instant)
                 results = merged
                 error = None
 
             elif provider_platform == "jameda":
                 request_id, results, error = await _run_jameda(req)
+                coverage["Jameda"] = "partial" if error and results else "failed" if error else "success" if results else "no_match"
 
             else:
                 request_id, results, error = await _run_doctolib(req)
+                coverage["Doctolib"] = "partial" if error and results else "failed" if error else "success" if results else "no_match"
 
-            if not error and results:
+            if results:
+                # Partial results retain explicit coverage and still pass sanitization.
+                error = None
                 # 1. Drop any slot whose datetime is already in the past (stale
                 #    cached slots from provider APIs). Keeps the user-facing
                 #    result set fresh.
-                results = _filter_past_slots(results)
+                results = _filter_past_slots(results, days_ahead=int(req.get("days_ahead") or 7))
 
                 # 2. Collapse per-slot rows into one card per doctor, with up to
                 #    DEFAULT_MAX_ADDITIONAL_SLOTS alternate times attached. This
@@ -2397,6 +2458,9 @@ class SearchAppointmentsSkill(BaseSkill):
 
             if error or not results:
                 return request_id, results, error
+
+            for item in results:
+                item["search_coverage"] = dict(coverage)
 
             try:
                 sanitized_results = await sanitize_long_text_fields_in_payload(
