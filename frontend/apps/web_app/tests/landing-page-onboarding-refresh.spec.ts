@@ -121,7 +121,10 @@ async function landingIntroLayoutMetrics(page: any): Promise<{
 		const requestRect = request.getBoundingClientRect();
 		const headlineCenter = headlineRect.left + headlineRect.width / 2;
 		const bannerCenter = bannerRect.left + bannerRect.width / 2;
-		const headlineSpans = Array.from(headline.querySelectorAll<HTMLElement>('span'));
+		// Measure the two text segments in the visible responsive variant, not
+		// its wrapper or the hidden desktop/mobile copy.
+		const headlineSpans = Array.from(headline.querySelectorAll<HTMLElement>(':scope > span > span'))
+			.filter((span) => span.getClientRects().length > 0);
 
 		return {
 			activeSideGap: Math.min(activeRect.left, window.innerWidth - activeRect.right),
@@ -1217,7 +1220,7 @@ test.describe('Landing page onboarding refresh', () => {
 		await page.getByTestId('daily-inspiration-previous').click();
 		await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 2000 });
 		await expect(page.getByTestId('daily-inspiration-banner')).toHaveAttribute('data-landing-intro-phase', 'expanded');
-		await expect(page.getByTestId('landing-intro-headline')).toHaveText(LANDING_INTRO_HEADLINE_TEXT);
+		await expect(page.getByTestId('landing-intro-headline')).toHaveText(LANDING_INTRO_HEADLINE_TEXT, { useInnerText: true });
 		await expect(page.getByTestId('guest-intro-copy')).toHaveCount(0);
 		await expect(page.getByTestId('daily-inspiration-phrase')).toHaveCount(0);
 	});
