@@ -8397,7 +8397,7 @@ assertions:
     direct_tests:
     - &id951
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 185
+      line: 180
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
@@ -8485,7 +8485,7 @@ assertions:
       surface: rest_api
     - &id961
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 122
+      line: 117
       name: generated audio example chats include audio app-skill usage rows
       surface: gui.web
     supporting_tests: []
@@ -8545,7 +8545,7 @@ assertions:
       surface: rest_api
     - &id964
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 185
+      line: 180
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
@@ -8813,7 +8813,7 @@ assertions:
       surface: rest_api
     - &id987
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 185
+      line: 180
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
@@ -8939,7 +8939,7 @@ assertions:
       surface: rest_api
     - &id1002
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 122
+      line: 117
       name: generated audio example chats include audio app-skill usage rows
       surface: gui.web
     supporting_tests:
@@ -9012,7 +9012,7 @@ assertions:
     direct_tests:
     - &id1006
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 185
+      line: 180
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web
@@ -16787,17 +16787,17 @@ assertions:
     direct_tests:
     - &id1897
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 107
+      line: 102
       name: guest example chat with static usage exposes usage tab and rows
       surface: gui.web
     - &id1898
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 122
+      line: 117
       name: generated audio example chats include audio app-skill usage rows
       surface: gui.web
     - &id1899
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 161
+      line: 156
       name: example chat cost label deep links to usage details
       surface: gui.web
     - &id1900
@@ -20387,12 +20387,12 @@ assertions:
       surface: gui.web
     - &id2374
       path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
-      line: 190
+      line: 189
       name: keeps only downloadable file rows and preserves useful metadata
       surface: gui.web
     - &id2375
       path: frontend/packages/ui/src/components/chats/__tests__/chatDownloadableFiles.test.ts
-      line: 241
+      line: 240
       name: does not list generic embed UUID fallbacks as downloadable files
       surface: gui.web
     - &id2376
@@ -24968,22 +24968,22 @@ assertions:
       surface: gui.web
     - &id2840
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 107
+      line: 102
       name: guest example chat with static usage exposes usage tab and rows
       surface: gui.web
     - &id2841
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 142
+      line: 137
       name: static example chats expose code, video, and document files in settings
       surface: gui.web
     - &id2842
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 161
+      line: 156
       name: example chat cost label deep links to usage details
       surface: gui.web
     - &id2843
       path: frontend/apps/web_app/tests/example-chat-settings-usage.spec.ts
-      line: 185
+      line: 180
       name: generated audio example chats expose static MP3 files in settings and
         ZIP exports
       surface: gui.web

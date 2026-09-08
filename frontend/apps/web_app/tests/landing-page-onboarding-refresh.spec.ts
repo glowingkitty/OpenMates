@@ -763,13 +763,13 @@ test.describe('Landing page onboarding refresh', () => {
 	test('settings stays beside active chat on laptop', async ({ page }: { page: any }) => {
 		test.setTimeout(45000);
 		await page.setViewportSize({ width: 1440, height: 900 });
-		const exampleChatId = 'example-berlin-dermatology-appointments';
+		const exampleChatId = 'example-svelte-runes-docs';
 
 		await page.goto(getE2EDebugUrl(`/#chat-id=${exampleChatId}`), { waitUntil: 'domcontentloaded' });
 		await page.waitForLoadState('networkidle');
 		await expect(page.getByTestId('active-chat-container')).toBeVisible({ timeout: 15000 });
 		await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', exampleChatId, { timeout: 15000 });
-		await expect(page.getByTestId('mate-message-content').last()).toContainText('dermatology', { timeout: 15000 });
+		await expect(page.getByTestId('mate-message-content').last()).toContainText('Svelte', { timeout: 15000 });
 
 		await page.getByTestId('profile-container').click();
 		await expect(page.getByTestId('settings-menu')).toBeVisible({ timeout: 10000 });

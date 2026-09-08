@@ -167,7 +167,7 @@ describe("guestSmartSelection", () => {
       "example-gigantic-airplanes",
       "example-svelte-runes-docs",
       "example-python-squares-code-run",
-      "example-pdf-search-encryption",
+      "example-privacy-first-local-ai",
       "example-python-squares-code-run",
       "example-privacy-website-hero-background",
     ];
@@ -178,9 +178,9 @@ describe("guestSmartSelection", () => {
     expect(first).toEqual(second);
     expect(first).toEqual(Array.from(new Set(first)));
     expect(first.slice(0, 4)).toEqual([
+      "example-privacy-first-local-ai",
       "example-svelte-runes-docs",
       "example-python-squares-code-run",
-      "example-pdf-search-encryption",
       "example-privacy-website-hero-background",
     ]);
   });

@@ -80,14 +80,14 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "marketing", type: "mate", audience: "work", fallbackLabel: "marketing", icon: "megaphone", appId: "ai", gradientCategory: "marketing_sales",
     related: ["content_creation", "branding_images", "video_social_media", "sales", "events_networking"],
-    exampleChats: ["example-product-teaser-remotion-video", "example-private-workspace-demo-video", "example-product-launch-synth-loop", "example-privacy-website-hero-background", "example-privacy-first-product-launch", "example-nonprofit-event-planning-use", "example-launch-readiness-checklist-doc"],
+    exampleChats: ["example-product-teaser-remotion-video", "example-product-launch-synth-loop", "example-privacy-website-hero-background", "example-nonprofit-event-planning-use", "example-launch-readiness-checklist-doc"],
     suggestions: ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts"],
   },
   {
     id: "software_development", type: "mate", audience: "work", fallbackLabel: "software development", icon: "code", appId: "code", gradientCategory: "software_development", developerIntro: true,
     related: ["automation_workflows", "websites_online_shops", "data_spreadsheets", "ui_ux_design", "research_analysis", "privacy_personal_data"],
     dailyInspirations: ["sandbox-code-execution", "cli-parity", "rest-api", "webhooks", "learning-mode"],
-    exampleChats: ["example-habit-garden-web-application", "example-screenshot-to-html-pricing", "example-beautiful-single-page-html", "example-svelte-runes-docs", "example-openmates-add-app-skill", "example-rust-vector-database-repos", "example-sqlite-strict-tables-summary", "example-python-squares-code-run", "example-usb-c-3v3-ldo", "example-dashboard-sidebar-svg-icons", "example-open-meteo-weather-notebook", "example-privacy-first-local-ai", "example-memory-code-projects", "example-memory-code-preferred-tech", "example-memory-code-coding-setup", "example-memory-code-want-to"],
+    exampleChats: ["example-habit-garden-web-application", "example-screenshot-to-html-pricing", "example-beautiful-single-page-html", "example-svelte-runes-docs", "example-rust-vector-database-repos", "example-sqlite-strict-tables-summary", "example-python-squares-code-run", "example-usb-c-3v3-ldo", "example-dashboard-sidebar-svg-icons", "example-open-meteo-weather-notebook", "example-privacy-first-local-ai", "example-memory-code-projects", "example-memory-code-preferred-tech", "example-memory-code-coding-setup", "example-memory-code-want-to"],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.use_openmates_cli_api", "chat.new_chat_suggestions.cybersecurity"],
   },
   {
@@ -105,19 +105,19 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "business_planning", type: "mate", audience: "work", fallbackLabel: "business planning", icon: "briefcase-business", appId: "ai", gradientCategory: "business_development",
     related: ["marketing", "finance_bookkeeping", "project_management", "sales", "client_work_proposals"],
-    exampleChats: ["example-privacy-first-local-ai", "example-privacy-first-product-launch", "example-launch-readiness-checklist-doc", "example-nonprofit-event-planning-use", "example-frontend-developer-career-pivot", "example-finance-cash-flow-overview", "example-berlin-ai-founder-meetups"],
+    exampleChats: ["example-privacy-first-local-ai", "example-launch-readiness-checklist-doc", "example-nonprofit-event-planning-use", "example-finance-cash-flow-overview", "example-berlin-ai-founder-meetups"],
     suggestions: ["chat.new_chat_suggestions.improve_productivity", "chat.new_chat_suggestions.professional_email"],
   },
   {
     id: "content_creation", type: "skill", audience: "work", fallbackLabel: "content creation", icon: "sparkles", appId: "ai", gradientCategory: "creative_writing",
     related: ["marketing", "writing_editing", "branding_images", "video_social_media"],
-    exampleChats: ["example-product-teaser-remotion-video", "example-private-workspace-demo-video", "example-product-launch-synth-loop", "example-audio-transcribe-voice-note", "example-ted-talk-transcript-summary", "example-rag-explained-videos", "example-reference-image-3d-model", "example-image-vectorize-openmates-header", "example-privacy-website-hero-background", "example-memory-videos-to-watch"],
+    exampleChats: ["example-product-teaser-remotion-video", "example-product-launch-synth-loop", "example-audio-transcribe-voice-note", "example-ted-talk-transcript-summary", "example-rag-explained-videos", "example-reference-image-3d-model", "example-image-vectorize-openmates-header", "example-privacy-website-hero-background", "example-memory-videos-to-watch"],
     suggestions: ["chat.new_chat_suggestions.writing_prompts", "chat.new_chat_suggestions.discover_image_generate", "chat.new_chat_suggestions.discover_video_search"],
   },
   {
     id: "project_management", type: "skill", audience: "work", fallbackLabel: "project management", icon: "list-checks", appId: "tasks", gradientCategory: "business_development",
     related: ["admin_operations", "automation_workflows", "productivity_organization", "business_planning", "client_work_proposals"],
-    exampleChats: ["example-example-chat-task-planning", "example-launch-readiness-checklist-doc", "example-privacy-first-product-launch", "example-privacy-first-local-ai", "example-nonprofit-event-planning-use", "example-library-book-return-workflow", "example-memory-code-projects"],
+    exampleChats: ["example-example-chat-task-planning", "example-launch-readiness-checklist-doc", "example-privacy-first-local-ai", "example-nonprofit-event-planning-use", "example-library-book-return-workflow", "example-memory-code-projects"],
     suggestions: ["chat.new_chat_suggestions.improve_productivity"],
   },
   {
@@ -129,7 +129,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "find_local_events", type: "skill", audience: "personal", fallbackLabel: "find local events", icon: "calendar-search", appId: "events", gradientCategory: "general_knowledge",
     related: ["events_networking", "find_restaurants_cafes", "plan_trips", "health_wellbeing"],
-    exampleChats: ["example-ai-workshops-meetups-berlin", "example-creativity-drawing-meetups-berlin", "example-berlin-ai-founder-meetups", "example-memory-events-saved-events", "example-urban-sports-fitness-studios", "example-urban-sports-yoga-classes"],
+    exampleChats: ["example-ai-workshops-meetups-berlin", "example-creativity-drawing-meetups-berlin", "example-berlin-ai-founder-meetups", "example-memory-events-saved-events", ],
     suggestions: ["chat.new_chat_suggestions.plan_trip_japan"],
   },
   {
@@ -141,7 +141,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "writing_editing", type: "mate", audience: "work", fallbackLabel: "writing & editing", icon: "pen-line", appId: "mail", gradientCategory: "creative_writing",
     related: ["content_creation", "marketing", "client_work_proposals", "customer_support"],
-    exampleChats: ["example-building-maintenance-email", "example-audio-transcribe-voice-note", "example-ted-talk-transcript-summary", "example-memory-docs-writing-style", "example-memory-mail-writing-styles", "example-openmates-add-app-skill", "example-sqlite-strict-tables-summary", "example-launch-readiness-checklist-doc"],
+    exampleChats: ["example-building-maintenance-email", "example-audio-transcribe-voice-note", "example-ted-talk-transcript-summary", "example-memory-docs-writing-style", "example-memory-mail-writing-styles", "example-sqlite-strict-tables-summary", "example-launch-readiness-checklist-doc"],
     suggestions: ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts", "chat.new_chat_suggestions.cover_letter"],
   },
   {
@@ -159,19 +159,19 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "research_analysis", type: "mate", audience: "work", fallbackLabel: "research & analysis", icon: "search-check", appId: "web", gradientCategory: "general_knowledge",
     related: ["data_spreadsheets", "legal_compliance", "learning_new_skills", "news_current_events"],
-    exampleChats: ["example-us-egg-prices-deep", "example-vital-farms-sec-financials", "example-right-to-repair-laws", "example-eu-chat-control-law", "example-housing-policy-dinner-discussion", "example-artemis-ii-mission", "example-germany-historic-film-industry", "example-gigantic-airplanes", "example-framework-store-reputation-check", "example-rust-vector-database-repos", "example-classic-car-reverse-image", "example-pdf-search-encryption", "example-pdf-read-secret-word", "example-pdf-view-page-layout", "example-sqlite-strict-tables-summary", "example-fediverse-activitypub-social-search", "example-open-meteo-weather-notebook", "example-buck-converters-24v-5v"],
+    exampleChats: ["example-us-egg-prices-deep", "example-vital-farms-sec-financials", "example-right-to-repair-laws", "example-eu-chat-control-law", "example-housing-policy-dinner-discussion", "example-artemis-ii-mission", "example-germany-historic-film-industry", "example-gigantic-airplanes", "example-framework-store-reputation-check", "example-rust-vector-database-repos", "example-classic-car-reverse-image", "example-pdf-read-secret-word", "example-pdf-view-page-layout", "example-sqlite-strict-tables-summary", "example-fediverse-activitypub-social-search", "example-open-meteo-weather-notebook", "example-buck-converters-24v-5v"],
     suggestions: ["chat.new_chat_suggestions.quantum_computing", "chat.new_chat_suggestions.ml_vs_ai"],
   },
   {
     id: "data_spreadsheets", type: "skill", audience: "work", fallbackLabel: "data & spreadsheets", icon: "table-2", appId: "math", gradientCategory: "science",
     related: ["research_analysis", "finance_bookkeeping", "software_development", "business_planning"],
-    exampleChats: ["example-finance-cash-flow-overview", "example-vital-farms-sec-financials", "example-mortgage-payment-calculation", "example-damped-sine-wave-plot", "example-open-meteo-weather-notebook", "example-buck-converters-24v-5v", "example-berlin-dermatology-appointments", "example-right-to-repair-laws", "example-python-squares-code-run"],
+    exampleChats: ["example-finance-cash-flow-overview", "example-vital-farms-sec-financials", "example-mortgage-payment-calculation", "example-damped-sine-wave-plot", "example-open-meteo-weather-notebook", "example-buck-converters-24v-5v", "example-right-to-repair-laws", "example-python-squares-code-run"],
     suggestions: ["chat.new_chat_suggestions.discover_math_calculate", "chat.new_chat_suggestions.stock_market"],
   },
   {
     id: "legal_compliance", type: "mate", audience: "work", fallbackLabel: "legal & compliance", icon: "gavel", appId: "ai", gradientCategory: "legal_law",
     related: ["privacy_personal_data", "business_planning", "finance_bookkeeping", "research_analysis"],
-    exampleChats: ["example-eu-chat-control-law", "example-right-to-repair-laws", "example-vital-farms-sec-financials", "example-pdf-search-encryption", "example-privacy-first-local-ai"],
+    exampleChats: ["example-eu-chat-control-law", "example-right-to-repair-laws", "example-vital-farms-sec-financials", "example-privacy-first-local-ai"],
     suggestions: ["chat.new_chat_suggestions.cybersecurity"],
   },
   {
@@ -195,19 +195,19 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "client_work_proposals", type: "mate", audience: "work", fallbackLabel: "client work & proposals", icon: "handshake", appId: "ai", gradientCategory: "business_development",
     related: ["sales", "business_planning", "writing_editing", "project_management"],
-    exampleChats: ["example-privacy-first-local-ai", "example-nonprofit-event-planning-use", "example-privacy-first-product-launch"],
+    exampleChats: ["example-privacy-first-local-ai", "example-nonprofit-event-planning-use", ],
     suggestions: ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.cover_letter"],
   },
   {
     id: "branding_images", type: "skill", audience: "work", fallbackLabel: "branding & images", icon: "image", appId: "images", gradientCategory: "design",
     related: ["ui_ux_design", "marketing", "content_creation", "video_social_media"],
-    exampleChats: ["example-northstar-metrics-svg-logo", "example-image-vectorize-openmates-header", "example-privacy-website-hero-background", "example-habit-tracker-onboarding-draft", "example-dashboard-sidebar-svg-icons", "example-product-teaser-remotion-video", "example-private-workspace-demo-video", "example-reference-image-3d-model", "example-memory-images-preferred-styles", "example-product-launch-synth-loop"],
+    exampleChats: ["example-northstar-metrics-svg-logo", "example-image-vectorize-openmates-header", "example-privacy-website-hero-background", "example-habit-tracker-onboarding-draft", "example-dashboard-sidebar-svg-icons", "example-product-teaser-remotion-video", "example-reference-image-3d-model", "example-memory-images-preferred-styles", "example-product-launch-synth-loop"],
     suggestions: ["chat.new_chat_suggestions.discover_image_generate", "chat.new_chat_suggestions.writing_prompts"],
   },
   {
     id: "video_social_media", type: "skill", audience: "work", fallbackLabel: "video & social media", icon: "video", appId: "videos", gradientCategory: "movies_tv",
     related: ["content_creation", "marketing", "branding_images", "writing_editing"],
-    exampleChats: ["example-product-teaser-remotion-video", "example-private-workspace-demo-video", "example-fediverse-activitypub-social-search", "example-mastodon-account-recent-posts", "example-rag-explained-videos", "example-ted-talk-transcript-summary", "example-memory-videos-to-watch", "example-memory-tv-to-watch", "example-memory-tv-watched-movies", "example-memory-tv-watched-shows", "example-product-launch-synth-loop"],
+    exampleChats: ["example-product-teaser-remotion-video", "example-fediverse-activitypub-social-search", "example-mastodon-account-recent-posts", "example-rag-explained-videos", "example-ted-talk-transcript-summary", "example-memory-videos-to-watch", "example-memory-tv-to-watch", "example-memory-tv-watched-movies", "example-memory-tv-watched-shows", "example-product-launch-synth-loop"],
     suggestions: ["chat.new_chat_suggestions.discover_video_search", "chat.new_chat_suggestions.writing_prompts"],
   },
   {
@@ -219,19 +219,19 @@ const DEFINITIONS: InterestTagDefinition[] = [
   {
     id: "learning_new_skills", type: "context", audience: "personal", fallbackLabel: "learning new skills", icon: "graduation-cap", appId: "web", gradientCategory: "general_knowledge", developerIntro: true,
     related: ["research_analysis", "software_development", "productivity_organization", "diy_electronics"],
-    exampleChats: ["example-memory-study-learning-goals", "example-memory-code-want-to", "example-svelte-runes-docs", "example-rag-explained-videos", "example-ai-workshops-meetups-berlin", "example-frontend-developer-career-pivot", "example-memory-books-to-read", "example-memory-books-currently-reading", "example-memory-books-favorite-books", "example-ted-talk-transcript-summary", "example-sqlite-strict-tables-summary", "example-rust-vector-database-repos", "example-open-meteo-weather-notebook", "example-damped-sine-wave-plot", "example-artemis-ii-mission", "example-gigantic-airplanes", "example-germany-historic-film-industry"],
+    exampleChats: ["example-memory-study-learning-goals", "example-memory-code-want-to", "example-svelte-runes-docs", "example-rag-explained-videos", "example-ai-workshops-meetups-berlin", "example-memory-books-to-read", "example-memory-books-currently-reading", "example-memory-books-favorite-books", "example-ted-talk-transcript-summary", "example-sqlite-strict-tables-summary", "example-rust-vector-database-repos", "example-open-meteo-weather-notebook", "example-damped-sine-wave-plot", "example-artemis-ii-mission", "example-gigantic-airplanes", "example-germany-historic-film-industry"],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.learn_spanish", "chat.new_chat_suggestions.quantum_computing"],
   },
   {
     id: "health_wellbeing", type: "mate", audience: "personal", fallbackLabel: "health & wellbeing", icon: "heart-pulse", appId: "health", gradientCategory: "medical_health",
     related: ["find_doctor_appointments", "cooking_meal_planning", "productivity_organization", "privacy_personal_data"],
-    exampleChats: ["example-urban-sports-fitness-studios", "example-urban-sports-yoga-classes", "example-chickpea-spinach-protein-dinners", "example-organic-groceries-berlin", "example-berlin-morning-bike-forecast", "example-berlin-weather-bike-commute", "example-habit-tracker-onboarding-draft", "example-habit-garden-web-application", "example-memory-health-medical-history"],
+    exampleChats: ["example-chickpea-spinach-protein-dinners", "example-organic-groceries-berlin", "example-berlin-morning-bike-forecast", "example-berlin-weather-bike-commute", "example-habit-tracker-onboarding-draft", "example-habit-garden-web-application", "example-memory-health-medical-history"],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"],
   },
   {
     id: "find_doctor_appointments", type: "skill", audience: "personal", fallbackLabel: "find doctor appointments", icon: "calendar-heart", appId: "health", gradientCategory: "medical_health",
     related: ["health_wellbeing", "privacy_personal_data", "productivity_organization"],
-    exampleChats: ["example-berlin-dermatology-appointments", "example-memory-health-appointments", "example-memory-health-medical-history"],
+    exampleChats: ["example-memory-health-appointments", "example-memory-health-medical-history"],
     suggestions: ["chat.new_chat_suggestions.healthy_breakfast", "chat.new_chat_suggestions.workout_plan"],
   },
   {
@@ -280,7 +280,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
     id: "privacy_personal_data", type: "context", audience: "personal", fallbackLabel: "privacy & personal data", icon: "shield-check", appId: "ai", gradientCategory: "openmates_official",
     related: ["legal_compliance", "health_wellbeing", "finance_bookkeeping", "software_development"],
     dailyInspirations: ["pii-detection", "relevant-memories", "incognito-mode", "provider-independent"],
-    exampleChats: ["example-pdf-search-encryption", "example-eu-chat-control-law", "example-privacy-first-local-ai", "example-private-workspace-demo-video", "example-privacy-first-product-launch", "example-privacy-website-hero-background", "example-building-maintenance-email", "example-memory-health-medical-history", "example-memory-health-appointments", "example-framework-store-reputation-check"],
+    exampleChats: ["example-eu-chat-control-law", "example-privacy-first-local-ai", "example-privacy-website-hero-background", "example-building-maintenance-email", "example-memory-health-medical-history", "example-memory-health-appointments", "example-framework-store-reputation-check"],
     suggestions: ["chat.new_chat_suggestions.cybersecurity", "chat.new_chat_suggestions.professional_email"],
   },
 ];

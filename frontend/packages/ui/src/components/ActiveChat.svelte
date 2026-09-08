@@ -199,30 +199,16 @@
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
     const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
         'example-ai-workshops-meetups-berlin',
-        'example-privacy-first-local-ai',
-        'example-openmates-add-app-skill',
-        'example-private-workspace-demo-video',
     ];
     const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
         [GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID]: [
             'example-ai-workshops-meetups-berlin',
-            'example-urban-sports-fitness-studios',
-            'example-berlin-dermatology-appointments',
         ],
         'openmates-privacy-safety': [
-            'example-privacy-first-local-ai',
-            'example-pdf-search-encryption',
-            'example-privacy-first-product-launch',
         ],
         'openmates-mates-focus': [
-            'example-memory-ai-learning-preferences',
-            'example-frontend-developer-career-pivot',
-            'example-openmates-add-app-skill',
         ],
         'openmates-provider-cross-platform': [
-            'example-private-workspace-demo-video',
-            'example-openmates-add-app-skill',
-            'example-svelte-runes-docs',
         ],
     };
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');

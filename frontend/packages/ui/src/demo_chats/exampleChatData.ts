@@ -35,12 +35,9 @@ import { northstarMetricsSvgLogoChat } from "./data/example_chats/northstar-metr
 import { pythonSquaresCodeRunChat } from "./data/example_chats/python-squares-code-run";
 import { habitTrackerOnboardingDraftChat } from "./data/example_chats/habit-tracker-onboarding-draft";
 import { chickpeaSpinachProteinDinnersChat } from "./data/example_chats/chickpea-spinach-protein-dinners";
-import { openmatesAddAppSkillDocChat } from "./data/example_chats/openmates-add-app-skill-doc";
 import { nonprofitEventPlanningUseCaseChat } from "./data/example_chats/nonprofit-event-planning-use-case";
 import { lh400FlightStatusCheckChat } from "./data/example_chats/lh400-flight-status-check";
-import { berlinDermatologyAppointmentsChat } from "./data/example_chats/berlin-dermatology-appointments";
 import { productLaunchSynthLoopChat } from "./data/example_chats/product-launch-synth-loop";
-import { privateWorkspaceDemoVideoChat } from "./data/example_chats/private-workspace-demo-video";
 import { referenceImage3DModelChat } from "./data/example_chats/reference-image-3d-model";
 import { upcomingRemindersListChat } from "./data/example_chats/upcoming-reminders-list";
 import { cancelTestReminderChat } from "./data/example_chats/cancel-test-reminder";
@@ -48,12 +45,10 @@ import { fediverseActivitypubSocialSearchChat } from "./data/example_chats/fediv
 import { mastodonAccountRecentPostsChat } from "./data/example_chats/mastodon-account-recent-posts";
 import { pdfReadSecretWordChat } from "./data/example_chats/pdf-read-secret-word";
 import { pdfViewPageLayoutChat } from "./data/example_chats/pdf-view-page-layout";
-import { pdfSearchEncryptionChat } from "./data/example_chats/pdf-search-encryption";
 import { imageVectorizeOpenmatesHeaderChat } from "./data/example_chats/image-vectorize-openmates-header";
 import { audioTranscribeVoiceNoteChat } from "./data/example_chats/audio-transcribe-voice-note";
 import { usEggPricesDeepResearchChat } from "./data/example_chats/us-egg-prices-deep-research";
 import { frameworkStoreReputationCheckChat } from "./data/example_chats/framework-store-reputation-check";
-import { frontendDeveloperCareerPivotChat } from "./data/example_chats/frontend-developer-career-pivot";
 import { memoryBooksFavoriteBooksChat } from "./data/example_chats/memory-books-favorite-books";
 import { memoryBooksCurrentlyReadingChat } from "./data/example_chats/memory-books-currently-reading";
 import { memoryBooksToReadListChat } from "./data/example_chats/memory-books-to-read-list";
@@ -91,10 +86,7 @@ import { rostockHeavyRainRadarChat } from "./data/example_chats/rostock-heavy-ra
 import { classicCarReverseImageSearchChat } from "./data/example_chats/classic-car-reverse-image-search";
 import { usbC3v3LdoPcbSchematicChat } from "./data/example_chats/usb-c-3v3-ldo-pcb-schematic";
 import { berlinMorningBikeForecastChat } from "./data/example_chats/berlin-morning-bike-forecast";
-import { privacyFirstProductLaunchMindMapChat } from "./data/example_chats/privacy-first-product-launch-mind-map";
 import { housingPolicyDinnerDiscussionChat } from "./data/example_chats/housing-policy-dinner-discussion";
-import { urbanSportsFitnessStudiosBerlinChat } from "./data/example_chats/urban-sports-fitness-studios-berlin";
-import { urbanSportsYogaClassesBerlinChat } from "./data/example_chats/urban-sports-yoga-classes-berlin";
 import { habitGardenWebApplicationChat } from "./data/example_chats/habit-garden-web-application";
 import { printableBenchyPhoneStandModelsChat } from "./data/example_chats/printable-benchy-phone-stand-models";
 import { exampleChatTaskPlanningChecklistChat } from "./data/example_chats/example-chat-task-planning-checklist";
@@ -142,12 +134,9 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   pythonSquaresCodeRunChat,
   habitTrackerOnboardingDraftChat,
   chickpeaSpinachProteinDinnersChat,
-  openmatesAddAppSkillDocChat,
   nonprofitEventPlanningUseCaseChat,
   lh400FlightStatusCheckChat,
-  berlinDermatologyAppointmentsChat,
   productLaunchSynthLoopChat,
-  privateWorkspaceDemoVideoChat,
   referenceImage3DModelChat,
   upcomingRemindersListChat,
   cancelTestReminderChat,
@@ -155,12 +144,10 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   mastodonAccountRecentPostsChat,
   pdfReadSecretWordChat,
   pdfViewPageLayoutChat,
-  pdfSearchEncryptionChat,
   imageVectorizeOpenmatesHeaderChat,
   audioTranscribeVoiceNoteChat,
   usEggPricesDeepResearchChat,
   frameworkStoreReputationCheckChat,
-  frontendDeveloperCareerPivotChat,
   memoryBooksFavoriteBooksChat,
   memoryBooksCurrentlyReadingChat,
   memoryBooksToReadListChat,
@@ -197,10 +184,7 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   classicCarReverseImageSearchChat,
   usbC3v3LdoPcbSchematicChat,
   berlinMorningBikeForecastChat,
-  privacyFirstProductLaunchMindMapChat,
   housingPolicyDinnerDiscussionChat,
-  urbanSportsFitnessStudiosBerlinChat,
-  urbanSportsYogaClassesBerlinChat,
   habitGardenWebApplicationChat,
   printableBenchyPhoneStandModelsChat,
   exampleChatTaskPlanningChecklistChat,
