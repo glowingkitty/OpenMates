@@ -11,6 +11,7 @@ summary: >
 inherits:
   - architecture.app-skill-execution@1
   - architecture.platform-parity@1
+  - surface.cli@1
 
 scope:
   includes:
@@ -251,7 +252,7 @@ assertions:
     depends_on: [models.AudioGenerateResponse.error, examples.error_outputs]
   - id: audio-generate.execution.async-generated-assets
     type: invariant
-    must: audio.generate always uses the existing async app-skill task pattern for provider execution and returns processing task/embed IDs first; completed results are delivered through generated-asset metadata rather than inline binary data.
+    must: audio.generate always uses the existing async app-skill task pattern for provider execution and returns processing task/embed IDs first; completed results are delivered through generated-asset metadata rather than inline binary data. Owner-authorized polling follows app-skills.execution.async-owner-bound; CLI saving follows the cli.generated-files assertions in surface.cli, with no automatic SDK filesystem writes.
     depends_on: [examples.boundary_cases]
   - id: audio-generate.surface-parity
     type: parity

@@ -15,6 +15,7 @@ scope:
     - Explicitly opted-in concurrent assistant execution for independent read-only skill calls
     - Single-pass structured external-text safety decisions with bounded failure latency
     - Truthful CLI app-skill status messages without session-save decryption notices
+    - Owner-authorized asynchronous result polling without changing existing authentication, rate limits, budgets, or encryption boundaries.
   excludes:
     - Provider-specific request and result fields
     - Client-specific visual layout
@@ -133,6 +134,12 @@ assertions:
     must: Assistant tool calls run concurrently only when every call in the same model-emitted batch has explicit static parallel_safe true metadata; concurrency is bounded to three, result messages retain original call order, cancellation reaches unfinished calls, per-call billing and normalized failures remain visible, and every undeclared, dependent, mutating, payment, account, or workspace batch remains serial.
     depends_on: [models.ParallelSafeSkillBatch, examples.parallel_execution]
 
+  - id: app-skills.execution.async-owner-bound
+    type: security
+    must: Completed asynchronous app-skill jobs, including image, video, music, audio, document, 3D, and code-generated file jobs, carry trusted owner metadata so the submitting authenticated session or authorized API key can retrieve its own result. Other users cannot retrieve results, and unverified ownership remains denied. Provider failures and safety rejections remain visible without leaking private result data or automatically resubmitting generation.
+    depends_on:
+    - examples.async_polling
+
 applies_to:
   rest_api: {required: true}
   cli: {required: true}
@@ -152,4 +159,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, async_polling]

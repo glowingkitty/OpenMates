@@ -78,3 +78,31 @@ parallel_execution:
   - id: concurrent-failure
     given: {eligible_batch: true, one_call_fails: true}
     expect: {normalized_failure_visible: true, sibling_results_visible: true, hidden_failure: false}
+
+async_polling:
+- id: owned-file-generation-across-skills
+  variants: [images.generate, videos.generate, music.generate, audio.generate, audio.speak, docs.generate, models3d.generate, code.run]
+  given: {execution: asynchronous, caller: submitting_user, status: completed}
+  expect: {owned_result_retrievable: true, private_result_hidden_from_other_users: true, automatic_regeneration: false}
+- id: requester-completed-music
+  given:
+    job: completed_music
+    caller: submitting_user
+  expect:
+    status: completed
+    original_file_available: true
+    owner_unverified_403: false
+- id: other-user
+  given:
+    job: completed_music
+    caller: different_user
+  expect:
+    status_code: 404
+    private_result_returned: false
+- id: missing-owner
+  given:
+    job: terminal
+    owner_metadata: absent
+  expect:
+    status_code: 403
+    private_result_returned: false

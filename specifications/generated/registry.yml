@@ -11,7 +11,7 @@ specifications:
     version: 1
     status: draft
     path: architecture/app-skill-execution
-    fingerprint: 776da07c84e58d5a24171d8faf5b18775e6a119aa27b078ef45478b7f5df673e
+    fingerprint: 624a7be64198d2fa3326f65b8129e82dab5b876726758335741ccdbd5db72cb5
     required_applies_to:
     - rest_api
     - cli
@@ -141,7 +141,7 @@ specifications:
     version: 1
     status: approved
     path: features/app-skills/audio-generate
-    fingerprint: 221a9477805e37996ca862841ca47a61f11eb16b96e02e07abbcefb2a54ac8a9
+    fingerprint: c554291d2698a9aa12b6f0c323bc362299c79488ed5883d0262c5319399b1488
     required_applies_to:
     - rest_api
     - cli
@@ -501,7 +501,7 @@ specifications:
     version: 1
     status: draft
     path: surfaces/cli
-    fingerprint: fa98cbf2375d62f3aa586561909a4c01597ff44059b22c8e9a08b44226c70da7
+    fingerprint: f467a84d5b55f4bfdc9ee7d9e825baf06732445e7c13cf4133fccedb7f907831
     required_applies_to:
     - rest_api
     - cli
@@ -690,6 +690,18 @@ assertions:
     specification_id: architecture.app-skill-execution
     type: security
     fingerprint: a8e8e8aa10cfbb2fbcc206596c260fb451a016803e737383432c6dd4be804abd
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  app-skills.execution.async-owner-bound:
+    specification: architecture.app-skill-execution@1
+    specification_id: architecture.app-skill-execution
+    type: security
+    fingerprint: 2bb657e86298f6a9417c052cc32fda8cc5c27abae8543c0cf74c849632b5d275
     required_applies_to:
     - rest_api
     - cli
@@ -1749,7 +1761,7 @@ assertions:
     specification: feature.app-skill.audio-generate@1
     specification_id: feature.app-skill.audio-generate
     type: validation
-    fingerprint: 51c4617e07fd951f91c246b84011eef1037b8689117b58f0033e1530940e5515
+    fingerprint: f13e744316b54610181462d1c6bc9db014ce350db973f4c57298fdb0b18a8e59
     required_applies_to:
     - rest_api
     - cli
@@ -1857,7 +1869,7 @@ assertions:
     specification: feature.app-skill.audio-generate@1
     specification_id: feature.app-skill.audio-generate
     type: invariant
-    fingerprint: 2a78bd9021c17733feae6e5f79aea4134733fecf469d1753da829b21d8f831cc
+    fingerprint: 1981b7dfbecb35a73679616400b2c39d192920ada992b37b5cb69538fa65c8b0
     required_applies_to:
     - rest_api
     - cli
@@ -1869,7 +1881,7 @@ assertions:
     specification: feature.app-skill.audio-generate@1
     specification_id: feature.app-skill.audio-generate
     type: parity
-    fingerprint: 1c0a63a69dad0f6df796b1b42ddcbad49d031b5a58fa7a0d08ae67d82fd8eb30
+    fingerprint: dd1420655878c3e34ee3f0957c853bb29e43aa04a401b856ed6f17151a40570e
     required_applies_to:
     - rest_api
     - cli
@@ -5507,7 +5519,7 @@ assertions:
     specification: surface.cli@1
     specification_id: surface.cli
     type: parity
-    fingerprint: ada9bae40be73ebfce5a58da002d5c3e235340b01b241e4199382839dc807a03
+    fingerprint: f8ef90f4347ee00f60242379a885bc16a7965747aa7811e3f334640b60ea135d
     required_applies_to:
     - rest_api
     - cli
@@ -5541,6 +5553,50 @@ assertions:
     specification_id: surface.cli
     type: behavior
     fingerprint: b071ede4a458a9d0f7867d2e027e7d21722e4a161243f9ed4969b76cbbb4e70f
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.generated-files.cwd-default:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: behavior
+    fingerprint: 6fbfd15db159553ee47d1704a0dd3ce03af4f8a946277e56f425bce3430d25ec
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.generated-files.destination:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: behavior
+    fingerprint: 5da1d99b5dffe4cd8ece5077fbf4d3e0054d19e887ddf44a0ca0a2b6c5c4091a
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.generated-files.safe-visible:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: failure
+    fingerprint: b7ad013b65958d9322535408e48e7c8bcdf4e3dd2e93288bd1c8258d693c2070
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  cli.generated-files.help:
+    specification: surface.cli@1
+    specification_id: surface.cli
+    type: behavior
+    fingerprint: 65491d8e182e48a46b2ca75c81840cab8d0f263cad28c81a72e4a27c9fa09758
     required_applies_to:
     - rest_api
     - cli

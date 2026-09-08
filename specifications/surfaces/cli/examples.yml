@@ -76,3 +76,69 @@ human_output:
       title_or_name_column_present: true
       next_commands_prefer_slugs: true
       full_ids_available_in_detail_or_json: true
+
+generated_file_downloads:
+- id: json-url-only
+  command: openmates apps music generate "Warm instrumental loop" --json
+  expect: {files_saved: 0, stdout: structured_result_with_download_urls_and_expiry}
+- id: json-explicit-download
+  command: openmates apps music generate "Warm instrumental loop" --json --output ./music/background.wav
+  expect: {files_saved: 1, local_path: ./music/background.wav, existing_target: atomically_replaced_after_success, stdout: structured_result_with_urls_and_saved_absolute_paths}
+- id: automatic-name-collision
+  given: {automatic_target_exists: true}
+  expect: {existing_file_unchanged: true, new_file_saved_under_unique_name: true}
+- id: shared-download-behavior-across-skills
+  variants: [images.generate, videos.generate, music.generate, audio.generate, audio.speak, docs.generate, models3d.generate, code.run]
+  given: {result: structured_generated_files, download_options: omitted}
+  expect: {directory: invocation_cwd, each_distinct_artifact_saved: true, redundant_previews_saved: false, shared_destination_and_help_contract: true}
+- id: multiple-generated-artifacts
+  given: {distinct_generated_artifacts: 3, output_dir: ./generated}
+  expect: {files_saved: 3, directory: ./generated, filenames_unique: true}
+- id: invocation-directory
+  command: openmates apps music generate "Warm instrumental loop"
+  expect:
+    directory: invocation_cwd
+    files_saved: 1
+    output: saved_absolute_path
+- id: directory-and-name
+  command: openmates apps music generate "Warm instrumental loop" --output-dir ./music --filename warm.wav
+  expect:
+    local_path: ./music/warm.wav
+    provider_receives_destination_flags: false
+- id: full-path
+  command: openmates apps audio speak --text "Hello" --output ./voice/greeting.mp3
+  expect:
+    local_path: ./voice/greeting.mp3
+- id: result-only
+  command: openmates apps music generate "Warm instrumental loop" --no-download --json
+  expect:
+    files_saved: 0
+    stdout: structured_result_json
+generated_file_failures:
+- id: existing-explicit-name
+  given:
+    explicit_target_exists: true
+  expect:
+    existing_file_replaced_after_success: true
+    visible_error: false
+    automatic_regeneration: false
+- id: download-interrupted
+  given:
+    download_stream: interrupted
+  expect:
+    exit_code: nonzero
+    incomplete_final_file: false
+    existing_target_preserved: true
+    recovery_identifier_reported: true
+- id: invalid-destination
+  given:
+    filename: ../escape.wav
+  expect:
+    rejected_before_generation: true
+    destination_escape: false
+- id: batch-with-one-name
+  given:
+    requested_artifacts: 2
+    filename: track.wav
+  expect:
+    rejected_before_generation: true

@@ -1,0 +1,34 @@
+id: generated-file-cli-downloads
+title: Shared generated file downloads and owner-authorized polling
+goal: Fix production generation polling failures and implement consistent CLI file downloads across all generating skills, then verify real requests on the current dev machine.
+status: implementing
+approval:
+  status: approved
+  source: User explicitly requested updating, approving, implementing, and real dev CLI verification after reviewing concrete download examples.
+scope:
+  - Shared async task ownership binding with owner checks preserved.
+  - Shared generated artifact discovery, atomic writes, unique automatic names, explicit overwrites, and contextual help.
+  - JSON defaults to URLs; explicit destination flags opt into downloads.
+  - REST and real CLI verification on the current dev machine, SDK parity, and terminal proof.
+non_goals:
+  - Production deployment or automatic regeneration of prior production jobs.
+  - Provider/model/pricing changes or browser/Apple UI work.
+specification_refs:
+  - surface.cli@1
+  - architecture.app-skill-execution@1
+  - feature.app-skill.audio-generate@1
+endpoint_access:
+  route: GET /v1/tasks/{task_id}
+  model: Existing authenticated session or authorized developer API key; owner-scoped.
+  limits: Preserve 60/minute polling and existing skill generation budget/credit checks.
+  privacy: Existing authorized generated-asset delivery only; no new public access or decrypted keys.
+tasks:
+  - id: polling
+    title: Reproduce missing owner binding and fix shared dispatch/status path.
+    status: implementing
+  - id: downloads
+    title: Implement shared CLI download handling with regression tests and help.
+    status: pending
+  - id: verification
+    title: Deploy scoped changes and verify real REST, CLI, SDK calls plus terminal proof.
+    status: pending

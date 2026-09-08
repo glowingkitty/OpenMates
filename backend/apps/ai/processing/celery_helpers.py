@@ -3,8 +3,12 @@
 # Celery task helpers for long-running skill execution.
 # Handles task dispatch to app-specific Celery worker containers and status polling.
 
+import asyncio
+import uuid
 import logging
 from typing import Dict, Any, Optional
+
+from backend.shared.python_utils.task_ownership import record_task_owner
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +64,14 @@ async def execute_skill_via_celery(
         # already owns their required private media services.
         queue_name = SHARED_APP_QUEUES.get(app_id, f"app_{app_id}")
         
+        # Bind the owner before work can execute, independently of worker results.
+        dispatch_options = {}
+        user_id = arguments.get("user_id")
+        if isinstance(user_id, str) and user_id:
+            task_id = str(uuid.uuid4())
+            await asyncio.to_thread(record_task_owner, task_id, user_id, celery_producer.conf.broker_url)
+            dispatch_options["task_id"] = task_id
+
         # Dispatch the task to the app's queue
         # The task will be executed in the app's Celery worker container
         task_signature = celery_producer.send_task(
@@ -69,7 +81,8 @@ async def execute_skill_via_celery(
                 "skill_id": skill_id,
                 "arguments": arguments
             },
-            queue=queue_name
+            queue=queue_name,
+            **dispatch_options,
         )
         
         task_id = task_signature.id
