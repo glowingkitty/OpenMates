@@ -146,7 +146,7 @@ class Queue:
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("e2e", "artifact", "codex", "pytest", "vitest"):
+        if mode not in ("e2e", "artifact", "codex", "pytest", "vitest", "selfhost"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("e2e", "artifact")
@@ -162,6 +162,8 @@ class Queue:
                 raise ValueError("Invalid spec path")
         if mode in ("e2e", "artifact") and not specs:
             raise ValueError("E2E requests require explicit specs")
+        if mode == "selfhost" and specs != ["selfhost-smoke.spec.ts"]:
+            raise ValueError("Installer runtime requires exactly its original smoke spec")
         encoded = json.dumps(specs, separators=(",", ":"))
         identity = [owner, source, specs, mode, nonce]
         if proof_profile:
@@ -391,7 +393,7 @@ def main():
     submit.add_argument("--session", required=True)
     submit.add_argument("--source", required=True)
     submit.add_argument("--spec", action="append", default=[])
-    submit.add_argument("--mode", choices=["e2e", "artifact", "codex", "pytest", "vitest"], default="e2e")
+    submit.add_argument("--mode", choices=["e2e", "artifact", "codex", "pytest", "vitest", "selfhost"], default="e2e")
     submit.add_argument("--attempt", default="")
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
@@ -414,7 +416,7 @@ def main():
     root = canonical_root(Path(__file__).resolve().parent.parent)
     queue = Queue(root / "logs/ci-coordinator/queue.sqlite3")
     if args.action == "submit":
-        if args.mode in ("e2e", "artifact"):
+        if args.mode in ("e2e", "artifact", "selfhost"):
             try:
                 from scripts.ci_coverage import partition, execution_mode
             except ModuleNotFoundError:

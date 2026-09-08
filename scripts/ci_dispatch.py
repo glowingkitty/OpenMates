@@ -244,7 +244,7 @@ def run(argv: list[str]) -> int:
             specs, held_reasons = partition(specs)
             held_specs = list(held_reasons)
         from scripts.ci_coverage import execution_mode
-        for mode in ("e2e", "artifact"):
+        for mode in ("e2e", "artifact", "selfhost"):
             selected = [spec for spec in specs if execution_mode(spec) == mode]
             for index in range(0, len(selected), BATCH_SIZE):
                 jobs.append(queue.enqueue(

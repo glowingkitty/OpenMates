@@ -44,6 +44,8 @@ ARTIFACT_SPECS = frozenset({"security-reporting-email-proof.spec.ts"})
 
 
 def execution_mode(spec: str) -> str:
+    if spec == "selfhost-smoke.spec.ts":
+        return "selfhost"
     return "artifact" if spec in ARTIFACT_SPECS else "e2e"
 
 
@@ -60,7 +62,7 @@ def partition(specs: list[str]) -> tuple[list[str], dict[str, str]]:
     supported = []
     held = {}
     for spec in specs:
-        if spec in CORE_SPECS or spec in ARTIFACT_SPECS or mapped.get(spec, {}).get("execution") == "e2e":
+        if spec in CORE_SPECS or spec in ARTIFACT_SPECS or mapped.get(spec, {}).get("execution") in ("e2e", "selfhost"):
             supported.append(spec)
         else:
             held[spec] = HOLD_REASONS.get(

@@ -435,6 +435,10 @@ def main():
         if mode in ("e2e", "artifact"):
             reject_inherited_accounts()
             results = run_e2e(json.loads(os.environ["CI_SPECS_JSON"]), artifact=mode == "artifact", results=results)
+        elif mode == "selfhost":
+            reject_inherited_accounts()
+            from ci_selfhost import run
+            run(ROOT, results)
         elif mode == "codex":
             result = subprocess.run(["node", str(Path(__file__).with_name("ci_codex_fixture.mjs")), "verify"], cwd=ROOT)
             receipt = json.loads((RESULTS / "ci-codex.json").read_text())
