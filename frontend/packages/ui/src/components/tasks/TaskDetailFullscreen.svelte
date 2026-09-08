@@ -1,6 +1,6 @@
 <!--
   TaskDetailFullscreen.svelte
-  Read-only Task fullscreen opened from the central Kanban board.
+  Editable Task fullscreen opened from the central Kanban board.
   Reuses UnifiedEmbedFullscreen for minimize/Escape behavior and delegates all
   task metadata rendering to TaskDetailContent for direct-route parity.
   Design reference: Figma Website node 5754:76027.
@@ -26,12 +26,16 @@
     related,
     activityEntries,
     teamId,
+    canAssignCodex = false,
+    onTaskChange,
     onClose,
   }: {
     task: UserTaskViewModel;
     related?: TaskDetailRelatedData;
     activityEntries?: UserTaskActivityEntry[];
     teamId?: string;
+    canAssignCodex?: boolean;
+    onTaskChange?: (task: UserTaskViewModel) => void;
     onClose: () => void;
   } = $props();
 
@@ -86,7 +90,7 @@
       </div>
     {/snippet}
     {#snippet content()}
-      <TaskDetailContent {task} {related} {activityEntries} {teamId} showTitle={false} />
+      <TaskDetailContent {task} {related} {activityEntries} {teamId} {canAssignCodex} {onTaskChange} headerEmbedded={true} />
     {/snippet}
   </UnifiedEmbedFullscreen>
 </div>

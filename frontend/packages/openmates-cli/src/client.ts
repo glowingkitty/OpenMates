@@ -701,7 +701,7 @@ export interface WorkflowNodeRun {
 
 export type UserTaskStatus = "backlog" | "todo" | "in_progress" | "blocked" | "done";
 export type UserTaskAssigneeType = "user" | "openmates" | "external_ai" | "unassigned";
-export type UserTaskAssigneeIdentity = "openmates" | "opencode";
+export type UserTaskAssigneeIdentity = "openmates" | "codex" | "opencode";
 
 export type ProjectSourceType = "local_folder" | "local_git_repository" | "remote_folder" | "remote_git_repository";
 export type ProjectSourceCapability = "read" | "search" | "import" | "write_request";
@@ -847,7 +847,7 @@ export interface UserTaskRecord {
   assignee_identity?: UserTaskAssigneeIdentity | null;
   assignee_hash?: string | null;
   primary_chat_id?: string | null;
-  external_chat_provider?: "opencode" | null;
+  external_chat_provider?: "codex" | "opencode" | null;
   external_chat_lookup_hash?: string | null;
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
@@ -9442,7 +9442,7 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "opencode"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex" | "opencode"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
     this.requireSession();
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
@@ -9467,12 +9467,12 @@ export class OpenMatesClient {
     return response.data.tasks ?? [];
   }
 
-  async createUserTask(input: UserTaskCreateInput): Promise<UserTaskRecord> {
+  async createUserTask(input: UserTaskCreateInput, context: { creator?: "codex" } = {}): Promise<UserTaskRecord> {
     this.requireSession();
     const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
       "/v1/user-tasks",
       input,
-      this.getCliRequestHeaders(),
+      { ...this.getCliRequestHeaders(), ...(context.creator ? { "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Task-Creator": context.creator } : {}) },
     );
     if (!response.ok || !response.data.task) {
       throw new Error(`User task create failed with HTTP ${response.status}`);

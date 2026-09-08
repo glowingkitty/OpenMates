@@ -24,6 +24,9 @@ scope:
     - Client-encrypted Activity comment text and uploaded embed keys encrypted directly with the Task key, with context-aware personal, Team, CLI, SDK, OpenMates, and named external-AI attribution.
     - Server-authored lifecycle Activity entries for successful Task creation and status transitions, independent of the client or assignee that initiated the mutation.
     - Typed external-chat contexts whose private identifiers and display titles remain client-encrypted while provider and keyed lookup metadata remain server-visible.
+    - Explicit Codex connection, read-only thread status and user-invoked interactive resume through the installed runtime, without automatic agent spawning.
+    - Codex is the new external assignment default; legacy OpenCode contexts retain their original identity and encrypted lookup indexes and cannot resume the retired runtime.
+    - Codex creator eligibility derives only from owner-scoped creation receipts after an explicit first-party CLI creator declaration and paired-session authentication; assignment or relinking never grants it.
     - Safe blocked reason codes plus client-encrypted user-facing blocker explanations.
     - Flat Tasks with optional dependency links and Plan phase grouping; no recursive child Task ownership.
     - Verification work created from a Check or failed Check as normal Tasks while the linked Check remains the source of proof status.
@@ -54,14 +57,14 @@ models:
     task_id: {type: stable_id, required: true}
     status: {type: enum, values: [backlog, todo, in_progress, blocked, done], required: true}
     assignee_type: {type: enum, values: [user, openmates, external_ai, unassigned], required: true}
-    assignee_identity: {type: allowlisted_identity_or_null, values: [openmates, opencode], nullable: true, constraints: {required_for: [openmates, external_ai], forbidden_for: [user, unassigned], display_name_derived_from_registry: true}}
+    assignee_identity: {type: allowlisted_identity_or_null, values: [openmates, codex, opencode], nullable: true, constraints: {required_for: [openmates, external_ai], forbidden_for: [user, unassigned], display_name_derived_from_registry: true}}
     assignee_hash: {type: hashed_user_id_or_null, nullable: true, constraints: {required_for: [user], forbidden_for: [openmates, external_ai, unassigned]}}
     priority: {type: integer, values: [0, 1, 2, 3, 4], required: true}
     position: {type: integer, required: true}
     due_at: {type: timestamp_or_null, nullable: true}
     primary_chat_id: {type: chat_id_or_null, nullable: true}
     hashed_primary_chat_id: {type: hashed_id_or_null, nullable: true}
-    external_chat_provider: {type: enum_or_null, values: [opencode], nullable: true, constraints: {allowlisted: true}}
+    external_chat_provider: {type: enum_or_null, values: [codex, opencode], nullable: true, constraints: {allowlisted: true}}
     external_chat_lookup_hash: {type: blind_index_or_null, nullable: true, constraints: {computed_client_side: true, raw_external_id_recoverable: false}}
     encrypted_external_chat_id: {type: client_ciphertext_or_null, nullable: true, constraints: {plaintext_external_id_backend_storage: forbidden}}
     encrypted_external_chat_title: {type: client_ciphertext_or_null, nullable: true}
@@ -100,12 +103,12 @@ models:
     executable_assignee: {type: invariant, required: true, constraints: {openmates_queue_accepts_only: openmates, external_ai_never_admitted: true}}
 
   TaskAssigneeIdentity:
-    identity: {type: allowlisted_identifier, values: [openmates, opencode], required: true}
+    identity: {type: allowlisted_identifier, values: [openmates, codex, opencode], required: true}
     assignee_type: {type: enum, values: [openmates, external_ai], required: true}
-    display_name: {type: safe_display_name, values: [OpenMates, OpenCode], required: true, constraints: {client_supplied_override: forbidden}}
+    display_name: {type: safe_display_name, values: [OpenMates, Codex, OpenCode], required: true, constraints: {client_supplied_override: forbidden}}
 
   TaskExternalChatContext:
-    provider: {type: enum, values: [opencode], required: true}
+    provider: {type: enum, values: [codex, opencode], required: true}
     lookup_hash: {type: blind_index, required: true, constraints: {domain_separated: true, owner_scoped: true}}
     encrypted_external_id: {type: client_ciphertext, required: true}
     encrypted_display_title: {type: client_ciphertext_or_null, nullable: true}
@@ -138,7 +141,7 @@ models:
     task_id: {type: stable_id, required: true}
     kind: {type: enum, values: [comment, lifecycle_update, tombstone], required: true}
     actor_kind: {type: enum, values: [user, openmates, external_ai, system], required: true}
-    actor_identity: {type: allowlisted_identity_or_null, values: [openmates, opencode], nullable: true, constraints: {display_name_derived_from_registry: true}}
+    actor_identity: {type: allowlisted_identity_or_null, values: [openmates, codex, opencode], nullable: true, constraints: {display_name_derived_from_registry: true}}
     source_surface: {type: enum, values: [web, apple, cli, sdk_npm, sdk_pip, system], required: true}
     event_type: {type: enum, values: [created, updated, moved, status, comment_added, comment_deleted], required: true}
     previous_status: {type: task_status_or_null, nullable: true, constraints: {allowed_for_event_type: status}}
