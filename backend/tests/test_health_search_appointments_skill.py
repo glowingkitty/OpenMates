@@ -417,3 +417,22 @@ async def test_doctolib_availability_failure_is_not_successful_empty():
 @pytest.mark.parametrize("motive", ["Burnout (Beratung)", "Schulterbeschwerden (Behandlung)"])
 def test_general_consultation_rejects_unrequested_condition_treatment(motive):
     assert not skill._matches_motive_category(motive, "general")
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.input.validated
+@pytest.mark.parametrize("days", ["1", "3", "7"])
+def test_search_accepts_numeric_enum_strings_from_llm_schema(days):
+    request = skill.SearchAppointmentsRequestItem(speciality="orthopädie", city="Berlin", days_ahead=days)
+    assert request.days_ahead == int(days)
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.input.validated
+def test_search_rejects_boolean_lookahead():
+    with pytest.raises(ValidationError):
+        skill.SearchAppointmentsRequestItem(speciality="orthopädie", city="Berlin", days_ahead=True)
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.purpose.initial-consultation
+def test_general_consultation_excludes_preventive_exam():
+    assert not skill._matches_motive_category("Vorsorgeuntersuchung", "general")
+    assert skill._matches_motive_category("Vorsorgeuntersuchung", "checkup")

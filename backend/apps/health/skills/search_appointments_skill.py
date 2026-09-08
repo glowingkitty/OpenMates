@@ -50,7 +50,7 @@ from backend.shared.testing.caching_http_transport import create_http_client
 if TYPE_CHECKING:
     from backend.core.api.app.utils.secrets_manager import SecretsManager
 
-from pydantic import BaseModel, Field, StrictBool, StringConstraints, ValidationError
+from pydantic import BaseModel, Field, StrictBool, StringConstraints, ValidationError, field_validator
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.python_utils.app_skill_helpers import sanitize_long_text_fields_in_payload
@@ -610,6 +610,14 @@ def _matches_motive_category(motive_name: str, category: str) -> bool:
         return False
     if category == "general" and CONTROL_VISIT_MOTIVE_PATTERN.search(name_lower):
         return False
+    if category == "general" and any(
+        re.search(pattern, name_lower)
+        for other_category in ("checkup", "vaccination")
+        for pattern in VISIT_MOTIVE_CATEGORIES[other_category]
+    ):
+        # A preventive examination is not an initial consultation, even when
+        # its label also contains the general word Untersuchung.
+        return False
 
     # Check if it matches the requested category
     category_match = False
@@ -914,6 +922,18 @@ class SearchAppointmentsRequestItem(BaseModel):
             "name to return only relevant appointment types."
         ),
     )
+
+
+    @field_validator("days_ahead", mode="before")
+    @classmethod
+    def normalize_lookahead_enum(cls, value: Any) -> Any:
+        # The shared LLM schema adapter exposes numeric enums as strings for
+        # Gemini. Restore only supported values before Literal validation.
+        if isinstance(value, bool):
+            raise ValueError("days_ahead must be a supported integer")
+        if isinstance(value, str) and value in {"1", "3", "7"}:
+            return int(value)
+        return value
 
 
 class SearchAppointmentsRequest(BaseModel):
