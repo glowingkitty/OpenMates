@@ -346,6 +346,8 @@
   .placeholder { position: absolute; top: 19px; left: 20px; color: var(--color-font-secondary); pointer-events: none; }
   .composer-actions { justify-content: flex-end; gap: 8px; padding: 8px 12px 12px; }
   .icon-button, .delete { width: 38px; height: 38px; border: 0; border-radius: 50%; background-color: transparent; cursor: pointer; }
+  /* Keep composer icons at their declared size instead of global text-button minimums. */
+  .icon-button { min-width: 38px; padding: 0; margin: 0; flex: 0 0 38px; }
   .icon-button::before, .delete::before { display: block; width: 20px; height: 20px; margin: auto; content: ''; background: var(--color-font-secondary); mask-position: center; mask-repeat: no-repeat; mask-size: contain; }
   .attach { margin-inline-start: auto; }
   .attach::before { mask-image: var(--icon-url-files); }
