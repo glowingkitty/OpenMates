@@ -1280,12 +1280,13 @@ async def call_preprocessing_llm(
                     )
                     return handle_response(response, expected_tool_name)
                 except asyncio.TimeoutError:
-                    if effective_timeout < PREPROCESSING_TIMEOUT_SECONDS:
+                    remaining_budget = _remaining_preprocessing_budget_seconds()
+                    if remaining_budget is not None and remaining_budget <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
                     return LLMPreprocessingCallResult(
                         error_message=(
                             "Request timeout after "
-                            f"{_format_timeout_seconds(PREPROCESSING_TIMEOUT_SECONDS)}s"
+                            f"{_format_timeout_seconds(effective_timeout)}s"
                         )
                     )
             
@@ -1410,11 +1411,19 @@ async def call_preprocessing_llm(
                 f"(attempt {len(attempted_providers)}/{len(providers_to_try) + WRONG_TOOL_SAME_PROVIDER_RETRIES})"
             )
 
+            # Reserve a share of the existing deadline for each configured fallback.
+            # Otherwise two slow providers can consume the entire chain's budget.
+            # Retry-disabled callers retain their original single-attempt allowance.
+            attempt_budget_seconds = remaining_budget_seconds
+            if allow_retries and attempt_budget_seconds is not None:
+                remaining_providers = len(providers_to_try) - provider_idx
+                attempt_budget_seconds /= remaining_providers
+
             with ai_provider_span(observability_purpose):
                 result = await _call_single_provider(
                     provider_model_id,
                     is_last_provider=is_last_provider,
-                    timeout_seconds=remaining_budget_seconds,
+                    timeout_seconds=attempt_budget_seconds,
                 )
 
             # Success — return immediately.

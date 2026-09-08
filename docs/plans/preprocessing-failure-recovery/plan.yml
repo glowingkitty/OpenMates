@@ -15,6 +15,8 @@ scope:
     the existing recovery helper.
   - Investigate missing preprocessing output; implement fallback only after the presented
     Specification addition is approved.
+  - Reserve remaining preprocessing time for each configured fallback without changing
+    total cap or retry-disable semantics.
   out:
   - Change answer model selection, encryption protocols, charging, or sub-chat continuation
     identity.
@@ -48,11 +50,20 @@ verification:
   - deployed_web_proof
   baseline: Recovery suite 16 passed and 1 pre-existing sub-chat continuation identity
     failure; preprocessing retry suite 14 passed.
-  runtime_status: Requested explicit coordinator runtime target and lease; awaiting
-    response.
+  runtime_status: 2418c1bf loaded and healthy; lease released. Astra coordinates subsequent
+    runtime updates; no lease held by 00b4.
   publication_status: Example content and proof remain pending.
-  unit_result: 24 retry/history passed; 20 recovery/job passed, with one pre-existing
-    sub-chat continuation identity failure.
+  unit_result: Budget-allocation regression reproduced skipped third fallback before
+    fix; 34 preprocessing-retry and stream-fallback tests pass after fix.
+  timeout_allocation:
+    red_run: exec-28895
+    red_result: '2 failed: final configured provider never called'
+    green_run: exec-21081
+    green_result: 34 passed, one warning
+    recorded_at: '2026-09-08T14:03:30.794887+00:00'
+    source_commit: 2418c1bf4de88a77881f8b799625f731c66fab80
+    patch_sha256: 2a8ca4ec7f38ed5aec8d3ccb8838981272932af37e1a2a20852b47577689d55e
+    live_result: Pending coordinated runtime load; no conversation retry.
 title: Recover missing preprocessing output and seal error completion
 implementation_state:
   subject_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
@@ -183,6 +194,19 @@ decisions:
     encrypted completion helper.
   reason: Exact approved missing-output contract and existing chats recovery contract.
   decided_at: '2026-09-08T13:26:45.735680+00:00'
+- id: D-2
+  status: active
+  decision: Divide remaining total preprocessing time among remaining configured providers;
+    preserve total cap, per-attempt ceiling, provider order and retry-disable control.
+  reason: Two full timeouts consumed 25+20 seconds and deterministically starved the
+    third configured provider; this repairs bounded fallback allocation without adding
+    a provider or increasing the approved deadline.
+  decided_at: '2026-09-08T13:58:11.139786+00:00'
+  examples:
+  - Three providers with 45 seconds remaining receive up to 15 seconds each, so a
+    healthy third provider remains reachable.
+  - A retry-disabled caller retains its single up-to-25-second attempt and never dispatches
+    a fallback.
 attempts:
 - id: A-1
   task_id: TASK-1
@@ -191,10 +215,11 @@ attempts:
   recorded_at: '2026-09-08T13:26:45.735680+00:00'
 handoff:
   current_task_id: TASK-1
-  next_action: Integrate scoped repair, then coordinator leases dev runtime for real
-    REST/CLI verification.
+  next_action: Deploy tested source fix; coordinator combines runtime update with
+    Astra adapter work. No runtime mutation or conversation retry by this worker before
+    coordinated verification.
   command: /home/superdev/projects/OpenMates/.venv/bin/python -m pytest backend/tests/test_llm_utils_preprocessing_retries.py
-    -k missing_preprocessing -q
+    backend/tests/test_llm_utils_stream_fallback.py -q
   expected_outcome: Green focused regression tests
   last_verified_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
   blocker: null

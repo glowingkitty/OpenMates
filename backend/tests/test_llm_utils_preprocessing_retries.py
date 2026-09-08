@@ -260,7 +260,7 @@ async def test_call_preprocessing_llm_stops_when_total_retry_budget_is_exhausted
         fallback_models=["fallback-one/model", "fallback-two/model"],
     )
 
-    assert calls == ["provider", "provider"]
+    assert calls == ["provider", "provider", "provider"]
     assert result.error_message is not None
     assert "Preprocessing retry budget exhausted" in result.error_message
 
@@ -313,3 +313,68 @@ async def test_missing_preprocessing_output_uses_bounded_fallback(monkeypatch, c
         assert result.error_message
         if case == "deadline":
             assert "Preprocessing retry budget exhausted" in result.error_message
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.missing-output-recovery
+@pytest.mark.anyio
+@pytest.mark.parametrize("allow_retries,total_budget,expected_timeouts", [
+    (True, 45.0, [15.0, 15.0, 15.0]),
+    (False, 45.0, [25.0]),
+    (True, 0.0, [25.0, 25.0, 25.0]),
+])
+async def test_preprocessing_reserves_budget_for_remaining_configured_providers(
+    monkeypatch, allow_retries, total_budget, expected_timeouts,
+):
+    """Two slow providers must not starve a healthy configured final fallback."""
+    clock = [0.0]
+    calls = []
+    allocated_timeouts = []
+
+    async def provider(**kwargs):
+        calls.append(kwargs["model_id"])
+        return UnifiedOpenAIResponse(
+            task_id="test", model_id=kwargs["model_id"], success=True,
+            tool_calls_made=[ParsedOpenAIToolCall(
+                tool_call_id="valid", function_name="expected_tool",
+                function_arguments_raw="{}", function_arguments_parsed={},
+            )],
+        )
+
+    async def simulated_wait_for(awaitable, timeout):
+        allocated_timeouts.append(timeout)
+        response = await awaitable
+        if len(calls) < 3:
+            clock[0] += timeout
+            raise asyncio.TimeoutError
+        return response
+
+    class CacheServiceWithoutClient:
+        @property
+        async def client(self):
+            return None
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: (None, None))
+    monkeypatch.setattr(llm_utils, "CacheService", CacheServiceWithoutClient)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TIMEOUT_SECONDS", 25.0)
+    monkeypatch.setattr(llm_utils, "PREPROCESSING_TOTAL_TIMEOUT_SECONDS", total_budget)
+    monkeypatch.setattr(asyncio.get_running_loop(), "time", lambda: clock[0])
+    monkeypatch.setattr(llm_utils.asyncio, "wait_for", simulated_wait_for)
+
+    result = await llm_utils.call_preprocessing_llm(
+        task_id="test", model_id="primary/primary-model",
+        message_history=[{"role": "user", "content": "Shorten the email"}],
+        tool_definition=_tool_definition(),
+        fallback_models=["fallback/second-model", "fallback/final-model"],
+        allow_retries=allow_retries,
+    )
+    assert allocated_timeouts == expected_timeouts
+    if allow_retries:
+        assert calls == ["primary-model", "second-model", "final-model"]
+        assert result.arguments == {} and result.error_message is None
+    else:
+        assert calls == ["primary-model"]
+        assert result.arguments is None
+        assert result.error_message == "Request timeout after 25s"
+    if total_budget > 0:
+        assert clock[0] < total_budget
