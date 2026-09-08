@@ -165,12 +165,12 @@ def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: P
         },
         "events": [
             {"kind": "checkpoint", "id": "first-ready", "at_ms": 1000},
-            {"kind": "action", "id": "open-second", "start_ms": 1500, "end_ms": 1700},
-            {"kind": "checkpoint", "id": "second-ready", "at_ms": 3000},
+            {"kind": "action", "id": "open-second", "start_ms": 3000, "end_ms": 3200},
+            {"kind": "checkpoint", "id": "second-ready", "at_ms": 4000},
         ],
         "assertion_results": [
             {"id": "first.visible", "status": "passed", "at_ms": 1000},
-            {"id": "second.visible", "status": "passed", "at_ms": 2200},
+            {"id": "second.visible", "status": "passed", "at_ms": 3800},
         ],
         "checkpoint_frames": [
             {"checkpoint": "first-ready", "path": str(first), "sha256": module.sha256_file(first)},
@@ -181,37 +181,56 @@ def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: P
     plan = module.build_browser_tutorial_plan(
         timeline,
         source_video=source,
-        source_end_seconds=4.0,
+        source_end_seconds=7.0,
+        source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
         device_profile_name="web-laptop",
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
         narration_id="NARR-1",
     )
 
-    assert plan["request"]["renderer"] == "openmates-remotion-browser-v1"
-    assert plan["request"]["presentationMode"] == "browser-frame-scaled-full-viewport"
+    assert plan["request"]["renderer"] == "openmates-clean-browser-v1"
+    assert plan["request"]["presentationMode"] == "clean-full-viewport"
     assert plan["request"]["domain"] == "app.dev.openmates.org"
     assert plan["request"]["sourceHash"] == module.sha256_file(source)
     assert plan["request"]["segments"] == [
-        {"kind": "video", "source_from_ms": 850, "source_to_ms": 4000, "duration_ms": 3150},
+        {"kind": "video", "source_from_ms": 850, "source_to_ms": 7000, "duration_ms": 6150},
     ]
     assert plan["caption_segments"] == [
-        {"id": "CAP-1", "narration_id": "NARR-1", "text": "First state.", "start": 0.0, "end": 0.65, "claim_ids": ["first.visible"]},
-        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Second stable state.", "start": 0.65, "end": 3.15, "claim_ids": ["second.visible"]},
+        {"id": "CAP-1", "narration_id": "NARR-1", "text": "First state.", "start": 0.0, "end": 2.15, "claim_ids": ["first.visible"]},
+        {"id": "CAP-2", "narration_id": "NARR-1", "text": "Second stable state.", "start": 2.15, "end": 6.15, "claim_ids": ["second.visible"]},
     ]
-    assert plan["claim_anchor_times"] == {"first.visible": 0.15, "second.visible": 1.35}
+    assert plan["claim_anchor_times"] == {"first.visible": 0.15, "second.visible": 2.95}
     assert plan["claim_evidence_intervals"] == {
-        "first.visible": [[0.15, 0.55]],
-        "second.visible": [[1.35, 3.15]],
+        "first.visible": [[0.15, 2.05]],
+        "second.visible": [[2.95, 6.15]],
     }
-    assert plan["duration_seconds"] == 3.15
+    assert plan["duration_seconds"] == 6.15
+
+    timeline["events"][1]["start_ms"] = 1100
+    with pytest.raises(module.DemonstrationError, match="first-ready.*requires 1000ms"):
+        module.build_browser_tutorial_plan(
+            timeline, source_video=source, source_end_seconds=7.0,
+            source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
+            device_profile_name="web-laptop", contract_hash="contract", timeline_hash="timeline", narration_id="NARR-1",
+        )
+    timeline["events"][1]["start_ms"] = 3000
+    timeline["contract"]["tutorial"]["maximumHoldMs"] = 1100
+    with pytest.raises(module.DemonstrationError, match="exceeding maximumHoldMs"):
+        module.build_browser_tutorial_plan(
+            timeline, source_video=source, source_end_seconds=7.0,
+            source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
+            device_profile_name="web-laptop", contract_hash="contract", timeline_hash="timeline", narration_id="NARR-1",
+        )
+    timeline["contract"]["tutorial"]["maximumHoldMs"] = 3000
 
     timeline["contract"]["assertions"][1]["checkpoint"] = "missing"
     with pytest.raises(module.DemonstrationError, match="must map to one captured transcript checkpoint"):
         module.build_browser_tutorial_plan(
             timeline,
             source_video=source,
-            source_end_seconds=4.0,
+            source_end_seconds=7.0,
+        source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
             device_profile_name="web-laptop",
             contract_hash="sha256:" + "a" * 64,
             timeline_hash="sha256:" + "b" * 64,
@@ -224,7 +243,8 @@ def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: P
         module.build_browser_tutorial_plan(
             timeline,
             source_video=source,
-            source_end_seconds=4.0,
+            source_end_seconds=7.0,
+        source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
             device_profile_name="web-laptop",
             contract_hash="sha256:" + "a" * 64,
             timeline_hash="sha256:" + "b" * 64,
@@ -234,7 +254,8 @@ def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: P
     plan = module.build_browser_tutorial_plan(
         timeline,
         source_video=source,
-        source_end_seconds=4.0,
+        source_end_seconds=7.0,
+        source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
         device_profile_name="web-laptop",
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
@@ -249,7 +270,8 @@ def test_browser_tutorial_plan_preserves_one_continuous_source_video(tmp_path: P
         module.build_browser_tutorial_plan(
             timeline,
             source_video=source,
-            source_end_seconds=4.0,
+            source_end_seconds=7.0,
+        source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
             device_profile_name="web-laptop",
             contract_hash="sha256:" + "a" * 64,
             timeline_hash="sha256:" + "b" * 64,
@@ -284,12 +306,12 @@ def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_pat
         },
         "events": [
             {"kind": "checkpoint", "id": "first-ready", "at_ms": 1000},
-            {"kind": "action", "id": "open-second", "start_ms": 1400, "end_ms": 1600},
-            {"kind": "checkpoint", "id": "second-ready", "at_ms": 3000},
+            {"kind": "action", "id": "open-second", "start_ms": 3000, "end_ms": 3200},
+            {"kind": "checkpoint", "id": "second-ready", "at_ms": 4000},
         ],
         "assertion_results": [
             {"id": "first.visible", "status": "passed", "at_ms": 1000},
-            {"id": "second.visible", "status": "passed", "at_ms": 2000},
+            {"id": "second.visible", "status": "passed", "at_ms": 3800},
         ],
         "checkpoint_frames": [
             {"checkpoint": "first-ready", "path": str(first), "sha256": module.sha256_file(first)},
@@ -300,7 +322,8 @@ def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_pat
     plan = module.build_browser_tutorial_plan(
         timeline,
         source_video=source,
-        source_end_seconds=4.0,
+        source_end_seconds=7.0,
+        source_metadata={"width": 1440, "height": 900, "frame_rate": 30},
         device_profile_name="web-laptop",
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
@@ -308,14 +331,14 @@ def test_browser_tutorial_plan_uses_stable_video_intervals_after_actions(tmp_pat
     )
 
     assert plan["request"]["segments"] == [
-        {"kind": "video", "source_from_ms": 850, "source_to_ms": 4000, "duration_ms": 3150},
+        {"kind": "video", "source_from_ms": 850, "source_to_ms": 7000, "duration_ms": 6150},
     ]
-    assert plan["caption_segments"][1]["start"] == 0.55
-    assert plan["claim_anchor_times"]["second.visible"] == 1.15
-    assert plan["claim_evidence_intervals"]["second.visible"] == [[1.15, 3.15]]
+    assert plan["caption_segments"][1]["start"] == 2.15
+    assert plan["claim_anchor_times"]["second.visible"] == 2.95
+    assert plan["claim_evidence_intervals"]["second.visible"] == [[2.95, 6.15]]
 
 
-def test_web_phone_tutorial_plan_uses_iphone_safari_content_viewport(tmp_path: Path) -> None:
+def test_web_phone_tutorial_plan_preserves_clean_full_viewport(tmp_path: Path) -> None:
     module = load_module()
     source = tmp_path / "source.webm"
     frame = tmp_path / "ready.png"
@@ -342,22 +365,18 @@ def test_web_phone_tutorial_plan_uses_iphone_safari_content_viewport(tmp_path: P
     plan = module.build_browser_tutorial_plan(
         timeline,
         source_video=source,
-        source_end_seconds=2.0,
+        source_end_seconds=4.0,
+        source_metadata={"width": 390, "height": 844, "frame_rate": 30},
         device_profile_name="web-phone",
         contract_hash="sha256:" + "a" * 64,
         timeline_hash="sha256:" + "b" * 64,
         narration_id="NARR-1",
     )
 
-    assert plan["request"]["viewport"] == {"width": 390, "height": 630}
+    assert plan["request"]["viewport"] == {"width": 390, "height": 844}
     assert plan["request"]["output"] == {"width": 390, "height": 844, "fps": 30}
-    assert plan["request"]["browserChrome"] == {
-        "kind": "iphone13-pro-safari",
-        "tabGroupLabel": "Personal",
-        "topInset": 128,
-        "bottomInset": 86,
-        "devicePixelRatio": 3,
-    }
+    assert "browserChrome" not in plan["request"]
+
 
 
 def test_node_remotion_renderer_rejects_tampered_browser_inputs(tmp_path: Path) -> None:
@@ -978,14 +997,14 @@ def test_device_profile_dimensions_reject_landscape_mobile_wrapper() -> None:
         module.assert_device_profile_dimensions({"width": 800, "height": 450}, profile)
 
 
-def test_web_phone_source_recording_uses_constrained_safari_viewport() -> None:
+def test_web_phone_source_recording_requires_clean_full_viewport() -> None:
     module = load_module()
     profile = module.resolve_device_profile("web-phone")
 
-    module.assert_source_device_profile_dimensions({"width": 390, "height": 630}, profile)
+    module.assert_source_device_profile_dimensions({"width": 390, "height": 844}, profile)
     module.assert_device_profile_dimensions({"width": 390, "height": 844}, profile)
-    with pytest.raises(module.DemonstrationError, match="390x630"):
-        module.assert_source_device_profile_dimensions({"width": 390, "height": 844}, profile)
+    with pytest.raises(module.DemonstrationError, match="390x844"):
+        module.assert_source_device_profile_dimensions({"width": 390, "height": 630}, profile)
 
 
 def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
@@ -1013,7 +1032,7 @@ def test_black_bar_scan_rejects_letterboxed_source(tmp_path: Path) -> None:
         module.assert_no_letterbox_or_pillarbox(video, module.video_metadata(video))
 
 
-def test_black_bar_scan_allows_dark_iphone_safari_top_and_bottom_chrome(tmp_path: Path) -> None:
+def test_clean_phone_rejects_synthetic_safari_black_borders(tmp_path: Path) -> None:
     module = load_module()
     video = tmp_path / "safari-chrome.mp4"
     subprocess.run(
@@ -1037,13 +1056,10 @@ def test_black_bar_scan_allows_dark_iphone_safari_top_and_bottom_chrome(tmp_path
 
     with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
         module.assert_no_letterbox_or_pillarbox(video, metadata)
-    result = module.assert_no_letterbox_or_pillarbox(
-        video,
-        metadata,
-        device_profile=module.resolve_device_profile("web-phone"),
-    )
-
-    assert result["ignored_dark_horizontal_edges"] is True
+    with pytest.raises(module.DemonstrationError, match="letterboxed|pillarboxed"):
+        module.assert_no_letterbox_or_pillarbox(
+            video, metadata, device_profile=module.resolve_device_profile("web-phone"),
+        )
 
 
 @pytest.mark.parametrize("suffix", ["_", "-", "=", "/"])
@@ -1549,3 +1565,24 @@ def test_tutorial_narration_still_rejects_generic_long_claims(text) -> None:
     module = load_module()
     with pytest.raises(module.DemonstrationError, match="too generic|mention visible"):
         module.assert_realistic_tutorial_narration(text)
+
+
+@pytest.mark.parametrize("profile_name,width,height", [("web-phone", 390, 844), ("web-laptop", 1440, 900)])
+def test_clean_browser_render_preserves_full_dimensions_and_real_interval(tmp_path, profile_name, width, height):
+    """Real FFmpeg rendering keeps source pixels full size, with no browser shell."""
+    module = load_module()
+    source = tmp_path / "source.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i",
+                    f"testsrc2=size={width}x{height}:rate=25:duration=1", "-c:v", "libx264", str(source)], check=True)
+    request = {"sourceVideo": str(source), "sourceHash": module.sha256_file(source),
+               "deviceProfile": profile_name, "presentationMode": "clean-full-viewport",
+               "segments": [{"kind": "video", "source_from_ms": 200, "source_to_ms": 800, "duration_ms": 600}]}
+    output = tmp_path / "clean.mp4"
+    module.render_browser_tutorial(request, output)
+    metadata = module.video_metadata(output)
+    assert (metadata["width"], metadata["height"]) == (width, height)
+    assert abs(metadata["duration_seconds"] - 0.6) < 0.05
+    assert module.sha256_file(source) == request["sourceHash"]
+    request["segments"][0]["duration_ms"] = 2000
+    with pytest.raises(module.DemonstrationError, match="cannot synthesize source timing"):
+        module.render_browser_tutorial(request, output)
