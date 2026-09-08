@@ -124,3 +124,22 @@ def test_committed_ai_fixtures_have_worker_and_no_external_network():
     assert "--queues=app_ai" in worker["command"]
     assert worker["image"] == profile["services"]["api"]["image"]
     assert "ai-worker" not in compose_profile("a" * 40)["services"]
+
+
+def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path, monkeypatch):
+    from scripts import ci_environment as runtime
+    import json
+    private = tmp_path / "test-results/ci-private"
+    private.mkdir(parents=True)
+    (private / "compose.json").write_text("{}")
+    (private / "account.env").write_text("synthetic")
+    monkeypatch.setattr(runtime, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(runtime, "COMPOSE_PATH", private / "compose.json")
+    monkeypatch.setattr(runtime, "require_runner", lambda: None)
+    monkeypatch.setattr(runtime, "compose", lambda *args, **kwargs: None)
+    monkeypatch.setattr(runtime.subprocess, "check_output", lambda *args, **kwargs: "")
+    monkeypatch.setattr(runtime.sys, "argv", ["ci_environment.py", "stop"])
+    monkeypatch.setenv("GITHUB_RUN_ID", "synthetic-run")
+    runtime.main()
+    assert not private.exists()
+    assert json.loads((tmp_path / "test-results/ci-cleanup.json").read_text())["private_account_files_removed"] is True

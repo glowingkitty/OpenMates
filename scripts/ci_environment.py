@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import secrets
+import shutil
 import json
 import os
 from pathlib import Path
@@ -452,6 +453,19 @@ def main():
     elif action == "stop":
         if COMPOSE_PATH.exists():
             compose("down", "--volumes", "--remove-orphans", "--timeout", "20")
+            for kind, command in (("containers", ["docker", "ps", "-aq"]), ("volumes", ["docker", "volume", "ls", "-q"])):
+                remaining = subprocess.check_output([*command, "--filter", "label=com.docker.compose.project=openmates-ci"], text=True).strip()
+                if remaining:
+                    raise RuntimeError("Disposable runtime cleanup left " + kind)
+            private = COMPOSE_PATH.parent.resolve()
+            expected = (Path(SOURCE) / "test-results/ci-private").resolve()
+            if private != expected or private == Path(SOURCE).resolve():
+                raise RuntimeError("Refusing cleanup outside the runner-private account directory")
+            shutil.rmtree(private)
+            (Path(SOURCE) / "test-results/ci-cleanup.json").write_text(json.dumps({
+                "run_id": os.environ["GITHUB_RUN_ID"], "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
+                "containers_remaining": 0, "volumes_remaining": 0, "private_account_files_removed": True
+            }))
     elif action == "logs":
         if COMPOSE_PATH.exists():
             result = compose("logs", "--no-color", "--tail", "150", capture=True)
