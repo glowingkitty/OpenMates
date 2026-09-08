@@ -2155,11 +2155,15 @@ describe("CLI saved-chat recovery preflight", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  it("persists streamed embeds when the recovery claim is already terminal", async () => {
+  for (const missingChild of [false, true, "unavailable"]) {
+  it(`persists terminal recovery embeds including missing children: ${missingChild}`, async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
     const recoveryJobId = "44444444-4444-4444-8444-444444444444";
     const embedId = "55555555-5555-4555-8555-555555555555";
+    const childId = "66666666-6666-4666-8666-666666666666";
+    const grandchildId = "77777777-7777-4777-8777-777777777777";
+    const storedIds: string[] = [];
     const captured: {
       preflightPayload?: Record<string, unknown>;
       frameTypes: string[];
@@ -2217,6 +2221,7 @@ describe("CLI saved-chat recovery preflight", () => {
                 type: "send_embed_data",
                 payload: {
                   embed_id: embedId,
+                  embed_ids: missingChild ? [childId] : [],
                   type: "code",
                   content: '{"type":"code","code":"<html></html>","status":"finished"}',
                   status: "finished",
@@ -2252,8 +2257,17 @@ describe("CLI saved-chat recovery preflight", () => {
               },
             }));
           }
+          if (frame.type === "request_embed" && [childId, grandchildId].includes(String(frame.payload.embed_id))) {
+            ws.send(JSON.stringify({type: "send_embed_data", payload: {
+              embed_id: frame.payload.embed_id, parent_embed_id: frame.payload.embed_id === childId ? embedId : childId, status: missingChild === "unavailable" ? "error" : "finished",
+              embed_ids: frame.payload.embed_id === childId ? [grandchildId] : [],
+              content: 'code: "original child bytes"', type: "code",
+              chat_id: captured.preflightPayload?.chat_id, message_id: assistantMessageId,
+            }}));
+          }
           if (frame.type === "store_embed") {
-            captured.storeEmbedPayload = frame.payload;
+            storedIds.push(String(frame.payload.embed_id));
+            if (frame.payload.embed_id === embedId) captured.storeEmbedPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "store_embed_confirmed",
               payload: {
@@ -2280,9 +2294,15 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      if (missingChild === "unavailable") {
+        await assert.rejects(client.sendMessage({ message: "Make HTML from this screenshot" }), /original finished child data is unavailable/);
+        assert.deepEqual(storedIds, []);
+        return;
+      }
       const result = await client.sendMessage({ message: "Make HTML from this screenshot" });
 
       assert.equal(result.assistant, "ok");
+      assert.deepEqual(storedIds, missingChild ? [embedId, childId, grandchildId] : [embedId]);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), false);
       assert.equal(captured.storeEmbedPayload?.embed_id, embedId);
       assert.equal(captured.storeEmbedPayload?.status, "finished");
@@ -2296,6 +2316,8 @@ describe("CLI saved-chat recovery preflight", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  }
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("lazily registers epoch-1 recovery material for an old saved chat", async () => {

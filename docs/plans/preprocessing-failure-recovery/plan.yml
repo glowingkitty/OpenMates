@@ -19,6 +19,8 @@ scope:
     total cap or retry-disable semantics.
   - Repair null title versions in encrypted fork creation and subsequent message dispatch
     under existing chats.fork.non-destructive-boundary contract.
+  - Preserve recovery identity across memory consent and prevent permission-pause metadata crashes.
+  - Investigate recursive artifact persistence without regenerating completed output.
   out:
   - Change answer model selection, encryption protocols, charging, or sub-chat continuation
     identity.
@@ -251,3 +253,29 @@ handoff:
   expected_outcome: Green focused regression tests
   last_verified_commit: a9efbf0ee9878dee77efcfdf1ff05f63f4834978
   blocker: null
+
+completion_persistence_followup:
+  authorization: User assigned consolidated original completion acknowledgment and persistence repair to00b4.
+  contract: chats.completion.recovery-takeover; chats.persistence.client-encrypted unchanged.
+  examples:
+  - A memory permission pause before debug metadata keeps the authorized turn running; consent continuation seals its actual response under the original inference identity.
+  - A generated application is not fully saved until its original source children are durably encrypted; top-level assistant persistence alone does not prove completeness.
+  red:
+  - Permission pause reproduces exact NoneType item-assignment crash in two tests.
+  - Pending context and continuation request omit recovery fields in two tests.
+  - Memory continuation resolver returns None despite original recovery inference identity.
+  preservation: Existing bce4 assistant preserved as vault-encrypted cache snapshot; FAILED preflight prevents normal sealed-job admission, no state bypass performed.
+  evidence_environments:
+    browser: Canonical isolated GitHub CI with locally built web/CLI and Docker services; no Vercel dependency.
+    real_provider: Shared dev REST/CLI/SDK only, runtime mutation requires coordinator lease.
+
+  green:
+  - 39 backend tests passed in three isolated processes; known subchat identity baseline excluded.
+  - CLI recovery parent, recursive child/grandchild, and unavailable-child rejection tests passed (3).
+  limitations:
+  - CLI full typecheck blocked by absent generated UI modules and existing cross-package import configuration.
+  - Wider existing CLI recovery test process79371 still pending; first unrelated encrypted-preflight assertion failed before new child tests.
+  recursive_fix: Fetch original referenced descendants and preserve inherited parent keys; reject unavailable children instead of reporting complete artifact save.
+
+  cache_retention_repair: Existing pending-encryption records retain their existing bounded TTL during active-chat LRU eviction; saved embeds still evict normally. No new retention duration.
+  cache_red: Existing LRU deletes pending-child payload and index in asyncio/trio regression.

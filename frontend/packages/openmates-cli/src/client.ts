@@ -7712,6 +7712,37 @@ export class OpenMatesClient {
     );
     if (finalized.size === 0) return;
 
+    // A recovered parent can arrive without its source-file frames. Fetch the
+    // existing descendants before acknowledging complete artifact persistence.
+    // Never generate replacement content or silently omit an unavailable child.
+    for (const parent of finalized.values()) {
+      for (const childId of parent.embed_ids ?? []) {
+        if (finalized.has(childId)) continue;
+        const childResponse = params.ws.waitForMessage(
+          "send_embed_data",
+          (payload) => {
+            const frame = payload as Record<string, unknown>;
+            const nested = (frame.payload ?? frame) as Record<string, unknown>;
+            return nested.embed_id === childId;
+          },
+        );
+        await params.ws.sendAsync("request_embed", { embed_id: childId });
+        const envelope = (await childResponse).payload as Record<string, unknown>;
+        const child = (envelope.payload ?? envelope) as unknown as SendEmbedDataFrame;
+        if (child.parent_embed_id !== parent.embed_id || !child.content
+          || (child.status ?? "finished") !== "finished"
+          || (child.chat_id && child.chat_id !== params.chatId
+            && child.chat_id !== computeSHA256(params.chatId))) {
+          throw new Error(`Cannot persist referenced child embed ${childId}: original finished child data is unavailable.`);
+        }
+        // request_embed can return the stored message hash; avoid hashing twice.
+        if (child.message_id === computeSHA256(params.fallbackMessageId)) {
+          child.message_id = params.fallbackMessageId;
+        }
+        finalized.set(childId, child);
+      }
+    }
+
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
     const processed = new Set<string>();
@@ -7826,8 +7857,9 @@ export class OpenMatesClient {
         );
         await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
         await keysConfirmed;
-        parentKeys.set(embed.embed_id, embedKey);
       }
+      // Descendants inherit this same key even when their parent is a child.
+      parentKeys.set(embed.embed_id, embedKey);
 
       if (Array.isArray(embed.version_history_rows)) {
         for (const row of embed.version_history_rows) {

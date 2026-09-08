@@ -5335,7 +5335,9 @@ async def _consume_main_processing_stream(
     
     # Debug metadata captured from main_processor (system prompt, tools, message history)
     # Yielded early before the LLM call loop and returned to ask_skill_task for debug caching
-    debug_metadata: Optional[Dict[str, Any]] = None
+    # Permission pauses may precede the model's debug metadata frame.
+    # They must leave the authorized turn resumable rather than failing it.
+    debug_metadata: Dict[str, Any] = {}
     
     pre_main_scope = ai_phase_span("pre_main")
     pre_main_scope.__enter__()

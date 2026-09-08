@@ -517,6 +517,13 @@ async def _trigger_continuation(
             # This allows the task to skip storing another pending context if data
             # is still not in cache for some reason (avoids infinite loop)
             "is_app_settings_memories_continuation": True,
+            # The new Celery task completes the existing authorized recovery turn.
+            # recovery_task_id stays unset: only the original task claims inference.
+            "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
+            "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
+            "recovery_turn_id": pending_context.get("recovery_turn_id"),
+            "recovery_public_key": pending_context.get("recovery_public_key"),
+            "chat_key_version": pending_context.get("chat_key_version"),
         }
         
         # Load the proper skill config from AI app's app.yml

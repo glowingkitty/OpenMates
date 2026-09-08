@@ -274,6 +274,7 @@ def test_empty_post_tool_turn_requires_answer_recovery() -> None:
     assert "yield STANDARDIZED_USER_ERROR_MESSAGE" in source
 
 
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
 def test_pending_app_settings_memories_context_preserves_model_preferences() -> None:
     request_data = SimpleNamespace(
         chat_id="chat-1",
@@ -288,6 +289,12 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
         user_preferences={"default_ai_model_simple": "mistral/mistral-small-latest"},
         embed_file_path_index={"snippet.py": "embed-1"},
         has_image_upload_embed=True,
+        recovery_task_id="original-task-1",
+        recovery_inference_task_id=None,
+        recovery_preflight_id="preflight-1",
+        recovery_turn_id="turn-1",
+        recovery_public_key="public-key-1",
+        chat_key_version=1,
     )
 
     context = _build_pending_app_settings_memories_context(
@@ -302,6 +309,13 @@ def test_pending_app_settings_memories_context_preserves_model_preferences() -> 
     assert context["embed_file_path_index"] == {"snippet.py": "embed-1"}
     assert context["has_image_upload_embed"] is True
     assert "message_history" not in context
+
+
+    assert context["recovery_inference_task_id"] == "original-task-1"
+    assert context["recovery_preflight_id"] == "preflight-1"
+    assert context["recovery_turn_id"] == "turn-1"
+    assert context["recovery_public_key"] == "public-key-1"
+    assert context["chat_key_version"] == 1
 
 
 def test_benchmark_metadata_tags_tool_skill_usage_details() -> None:

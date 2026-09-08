@@ -552,6 +552,16 @@ def _build_pending_app_settings_memories_context(
         "has_image_upload_embed": getattr(request_data, "has_image_upload_embed", False),
         "requested_keys": missing_keys,
         "task_id": task_id,
+        # Resume the authorized turn without claiming a second inference identity.
+        # See docs/architecture/core/chat-encryption-implementation.md.
+        "recovery_inference_task_id": (
+            getattr(request_data, "recovery_task_id", None)
+            or getattr(request_data, "recovery_inference_task_id", None)
+        ),
+        "recovery_preflight_id": getattr(request_data, "recovery_preflight_id", None),
+        "recovery_turn_id": getattr(request_data, "recovery_turn_id", None),
+        "recovery_public_key": getattr(request_data, "recovery_public_key", None),
+        "chat_key_version": getattr(request_data, "chat_key_version", None),
     }
 
 # Max iterations for tool calling to prevent infinite loops

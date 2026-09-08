@@ -688,3 +688,32 @@ def test_sub_chat_continuation_failure_marks_original_inference(monkeypatch) -> 
 
     assert captured["operation"] == "mark_inference_failed"
     assert captured["data"]["inference_task_id"] == request_data.recovery_inference_task_id
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+@pytest.mark.parametrize("marker,reason", [
+    ("__awaiting_app_settings_memories_permission__", "permission_required"),
+    ("__awaiting_connected_account_permission__", "connected_account_required"),
+])
+def test_permission_pause_before_debug_metadata_does_not_fail_turn(monkeypatch, marker, reason):
+    async def paused_stream(**kwargs):
+        yield {marker: True, "request_id": "request-1"}
+
+    monkeypatch.setattr(stream_consumer, "handle_main_processing", paused_stream)
+    monkeypatch.setattr(stream_consumer.celery_config.app, "AsyncResult", lambda _: SimpleNamespace(state="STARTED"))
+    request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1", message_history=[], is_incognito=True)
+    result = asyncio.run(stream_consumer._consume_main_processing_stream(
+        task_id="task-1", request_data=request, preprocessing_result=PreprocessingResult(can_proceed=True),
+        base_instructions={}, directus_service=None, encryption_service=None, user_vault_key_id=None,
+        all_mates_configs=[], discovered_apps_metadata={}, cache_service=None,
+    ))
+    assert result[:4] == ("", False, False, [])
+    assert result[4]["user_task_blocked_reason_code"] == reason
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover
+def test_memory_continuation_seals_under_original_inference_identity():
+    request = AskSkillRequest(chat_id="chat-1", message_id="message-1", user_id="user-1", user_id_hash="hash-1", message_history=[], is_app_settings_memories_continuation=True, recovery_inference_task_id="original-task-1")
+    assert request.resolved_recovery_inference_task_id() == "original-task-1"
+    request.is_app_settings_memories_continuation = False
+    assert request.resolved_recovery_inference_task_id() is None

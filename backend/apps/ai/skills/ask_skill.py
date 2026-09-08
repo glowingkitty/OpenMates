@@ -128,7 +128,8 @@ class AskSkillRequest(BaseModel):
         """Return the durable inference identity for initial or internal continuation tasks."""
         if self.recovery_task_id:
             return self.recovery_task_id
-        if self.is_sub_chat_continuation or self.is_focus_mode_continuation:
+        if (self.is_sub_chat_continuation or self.is_focus_mode_continuation
+                or self.is_app_settings_memories_continuation):
             return self.recovery_inference_task_id
         return None
 
