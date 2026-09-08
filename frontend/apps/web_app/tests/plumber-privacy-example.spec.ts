@@ -78,10 +78,13 @@ for (const profile of PROFILES.filter((item) => !proofProfile || item.device ===
 			await request.scrollIntoViewIfNeeded();
 			await proof.checkpoint('revealed');
 			const preview = page.getByTestId('embed-preview').first();
-			const fullscreen = await openFullscreen(page, preview);
-			await expect(fullscreen).toContainText(EMAIL);
-			await expect(fullscreen).toContainText(PHONE);
-			await fullscreen.getByTestId('embed-pii-toggle').click();
+			const fullscreen = await proof.action('open-and-protect-mail-draft', async () => {
+				const overlay = await openFullscreen(page, preview);
+				await expect(overlay).toContainText(EMAIL);
+				await expect(overlay).toContainText(PHONE);
+				await overlay.getByTestId('embed-pii-toggle').click();
+				return overlay;
+			});
 			await proof.assert('draft', async () => {
 				await expect(fullscreen).toContainText('[EMAIL_1_com]');
 				await expect(fullscreen).toContainText('[PHONE_1_147]');
