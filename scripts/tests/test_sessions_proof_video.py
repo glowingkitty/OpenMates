@@ -56,6 +56,7 @@ def fake_proof_workflow(**functions: object) -> ModuleType:
     module.require_clean_worktree = functions.get("require_clean_worktree", lambda *_args: None)
     module.require_recorded_approval = functions.get("require_recorded_approval", lambda **_kwargs: {})
     module.resolve_deployed_run = functions.get("resolve_deployed_run", lambda **_kwargs: {})
+    module.bound_browser_tutorial_plan = functions.get("bound_browser_tutorial_plan", lambda *_args, **_kwargs: None)
     return module
 
 

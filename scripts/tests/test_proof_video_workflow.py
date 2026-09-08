@@ -2564,3 +2564,47 @@ def test_review_prepares_request_without_launching_agent(tmp_path, monkeypatch):
     assert Path(result["prompt_path"]).is_file()
     assert not Path(result["result_path"]).exists()
     assert not (run_dir / "review-receipt.json").exists()
+
+
+def test_bound_browser_plan_forwards_attested_timeline_and_recording_clock(tmp_path, monkeypatch):
+    from scripts import spec_demo
+    frame = tmp_path / "frame.png"
+    frame.write_bytes(b"synthetic frame")
+    timeline = {
+        "device": "web-phone",
+        "contract": {"surface": "web", "domain": "example.invalid", "transcript": [
+            {"text": "The screen shows the title.", "checkpoint": "title", "devices": ["web-phone"]}],
+            "assertions": [{"id": "title", "description": "Title visible", "devices": ["web-phone"]}]},
+        "checkpoint_frames": [{"checkpoint": "title", "at_ms": 2000, "sha256": workflow._file_sha256(frame)}],
+    }
+    path = tmp_path / "timeline.json"
+    path.write_text(json.dumps(timeline))
+    original = path.read_bytes()
+    record = {"source": "github_isolated", "proof_timeline_path": str(path),
+              "proof_timeline_sha256": workflow._file_sha256(path), "proof_checkpoint_paths": {"title": str(frame)}}
+    claims = workflow.spec_timeline_render_claims(timeline, device_profile="web-phone")
+    observed = {}
+    monkeypatch.setattr(spec_demo, "video_metadata", lambda _p: {"duration_seconds": 3.84, "frame_rate": 30})
+    monkeypatch.setattr(spec_demo, "assert_source_device_profile_dimensions", lambda *_a: None)
+    monkeypatch.setattr(spec_demo, "_require_source_frame_rate", lambda _m: 30)
+    monkeypatch.setattr(spec_demo, "estimate_video_clock_offset_ms", lambda *_a, **_k: 1200)
+    def planner(value, **kwargs):
+        observed.update(kwargs)
+        assert value["checkpoint_frames"][0]["path"] == str(frame)
+        assert value["contract"]["transcript"] == timeline["contract"]["transcript"]
+        return {"bound": True}
+    monkeypatch.setattr(spec_demo, "build_browser_tutorial_plan", planner)
+    assert workflow.bound_browser_tutorial_plan(record, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims=claims, narration_id="N1") == {"bound": True}
+    assert observed["source_end_seconds"] == pytest.approx(5.04)
+    assert observed["timeline_hash"] == record["proof_timeline_sha256"]
+    assert path.read_bytes() == original
+    with pytest.raises(workflow.WorkflowError, match="claims differ"):
+        workflow.bound_browser_tutorial_plan(record, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims={**claims, "caption_text": "Changed"}, narration_id="N1")
+    path.write_text("{}")
+    with pytest.raises(workflow.WorkflowError, match="source hash changed"):
+        workflow.bound_browser_tutorial_plan(record, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims=claims, narration_id="N1")
+
+
+def test_isolated_browser_proof_cannot_fall_back_to_generic_rendering(tmp_path):
+    with pytest.raises(workflow.WorkflowError, match="receipt-bound timeline"):
+        workflow.bound_browser_tutorial_plan({"source": "github_isolated"}, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims={}, narration_id="N1")

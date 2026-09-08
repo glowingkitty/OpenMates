@@ -9823,6 +9823,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             from scripts.proof_video_workflow import (
                 WorkflowError,
                 approved_render_claims,
+                bound_browser_tutorial_plan,
                 record_contract_authorization,
                 require_recorded_approval,
                 resolve_deployed_run,
@@ -9831,6 +9832,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             from proof_video_workflow import (
                 WorkflowError,
                 approved_render_claims,
+                bound_browser_tutorial_plan,
                 record_contract_authorization,
                 require_recorded_approval,
                 resolve_deployed_run,
@@ -9881,6 +9883,14 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             source_end_timestamp_seconds = deployed_run.get("source_end_timestamp_seconds")
         if source_end_timestamp_seconds is not None:
             source["source_end_timestamp_seconds"] = float(source_end_timestamp_seconds)
+        try:
+            browser_tutorial_plan = bound_browser_tutorial_plan(
+                deployed_run, source_video=args.source_video,
+                device_profile=args.device_profile, approved_claims=approved_claims,
+                narration_id=args.narration_id,
+            )
+        except WorkflowError as exc:
+            raise DemonstrationError(str(exc)) from exc
         result = produce_playwright_demonstration(
             run_dir=run_dir,
             source_video=args.source_video,
@@ -9907,6 +9917,7 @@ def cmd_proof_video(args: argparse.Namespace) -> None:
             hold_last_frame_seconds=args.hold_last_frame_seconds,
             ready_timestamp_seconds=getattr(args, "ready_timestamp_seconds", None),
             demo_audio_path=args.demo_audio_path,
+            browser_tutorial_plan=browser_tutorial_plan,
         )
         record = _upsert_proof_video_record(session, run_dir, result)
         _save_sessions(data)
