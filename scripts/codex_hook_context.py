@@ -113,7 +113,12 @@ def merge_outputs(event: str, stream: str) -> dict:
     detail = {"hookEventName": event}
     if contexts:
         detail["additionalContext"] = "\n".join(contexts)
-    result = {"hookSpecificOutput": detail}
+    # Stop accepts universal output plus decision/reason, and rejects unknown
+    # fields. An empty hookSpecificOutput silently defeats continuation in the
+    # runtime. Preserve any informational context as a universal systemMessage.
+    result = {} if event == "Stop" else {"hookSpecificOutput": detail}
+    if event == "Stop":
+        warnings.extend(contexts)
     if warnings:
         result["systemMessage"] = "\n".join(warnings)
     if denials:

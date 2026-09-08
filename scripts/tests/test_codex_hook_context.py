@@ -121,3 +121,10 @@ def test_task_context_is_bounded_cached_and_preserves_activity(tmp_path):
     second = task_context(tmp_path, tid, False, 101, reader)
     assert len(calls) == 2 and "Required check remains" in second
     assert "TASK-1" in first and "stable-sha256" in first
+
+
+def test_stop_merge_uses_only_supported_wire_fields():
+    import json
+
+    result = hooks.merge_outputs("Stop", json.dumps({"decision": "block", "reason": "Persist outcome"}))
+    assert result == {"decision": "block", "reason": "Persist outcome"}
