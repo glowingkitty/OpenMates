@@ -205,3 +205,27 @@ def test_later_harness_failure_preserves_completed_results(tmp_path, monkeypatch
     report = json.loads((tmp_path / "ci-results.json").read_text())
     assert report["results"] == [{"spec":"first.spec.ts", "exit_code":0}]
     assert report["success"] is False
+
+
+def test_proof_dimensions_use_full_canonical_frame(monkeypatch):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    for profile, expected in (("web-phone", {"width": 390, "height": 844}),
+                              ("web-laptop", {"width": 1440, "height": 900})):
+        monkeypatch.setenv("PLAYWRIGHT_PROOF_VIDEO_PROFILE", profile)
+        monkeypatch.setenv("PLAYWRIGHT_VIDEO_HEIGHT", "630")
+        monkeypatch.setenv("PLAYWRIGHT_VIDEO_WIDTH", "390")
+        assert runner.configure_proof_dimensions() == expected
+        assert runner.os.environ["PLAYWRIGHT_VIDEO_HEIGHT"] == str(expected["height"])
+        assert runner.os.environ["PLAYWRIGHT_VIDEO_WIDTH"] == str(expected["width"])
+
+
+def test_proof_dimensions_reject_unknown_profile(monkeypatch):
+    import pytest
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    monkeypatch.setenv("PLAYWRIGHT_PROOF_VIDEO_PROFILE", "unknown")
+    with pytest.raises(ValueError, match="Unsupported"):
+        runner.configure_proof_dimensions()
