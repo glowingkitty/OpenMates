@@ -227,6 +227,7 @@
         "openmates-events.spec.ts",
         "page-load-performance.spec.ts",
         "paste-classification.spec.ts",
+        "plumber-privacy-example.spec.ts",
         "preview-error.spec.ts",
         "proof-audio-speech-example.spec.ts",
         "proof-video-architecture.spec.ts",
