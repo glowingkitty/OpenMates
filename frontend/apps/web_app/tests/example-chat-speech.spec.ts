@@ -124,6 +124,7 @@ test.describe('Public example assistant speech', () => {
 			});
 			await proof.checkpoint('logged-out-public-playback');
 			await page.waitForTimeout(3_000);
+			await proof.attach();
 		}
 	});
 });
