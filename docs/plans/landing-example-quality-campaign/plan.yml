@@ -32,6 +32,18 @@ coordination:
   batching: Bounded workers; prioritize speech/shared blockers and first content candidate. Spawn remaining separate
     workers as capacity frees.
   specifications: Coordinator assigns work only; workers inspect governing Specifications before product edits.
+  specification_decisions_2026_09_08:
+    approved:
+    - feature.ai-model-routing-75e40f6ee6d82dc2; preprocessing recovery; owner example-sonnet
+    - feature.app-memories-278c09756fdcbea7; duplicate consent prevention; owner example-work-memory
+    shared_focus_owner: fix-focus-state; career supplies instruction-loading evidence
+    shared_focus_behavior: Every active-focus request includes full instructions in system prompt; off omits them;
+      activation/deactivation history events remain without instruction content. Historical countdowns belong here.
+    individual_research: feature.web.focus-mode.deep-research; link shared lifecycle
+    app_skill_contracts: Appointment selection and generated-video preview belong to their full app-skill contracts.
+    reuse_first: Preview and dollar rendering owners must check existing contracts before proposing new bundles.
+    examples: Every new or changed requirement must include one or two concrete assertion-mapped examples.
+    pending_question: Explain app-skill instruction sources and recommend observable guarantees in specs, prompt wording in implementation.
   registry_worker:
     worker: task_registry
     session: 6d7a
@@ -156,6 +168,11 @@ coordination:
     title: Fix next-week event date filters and timezone parsing
   coordinator_task: TASK-5745
   new_shared_bug: TASK-9160
+  visibility_correction: Initial native subagents and exec threads were hidden by default UI source filter. All
+    21 assignments now have named interactive-source app-server threads; queue carries approved handoff, preserving
+    old workers and avoiding duplicate work.
+  activation_verified: All 20 formerly queued visible worker threads have inProgress turns and actual commandExecution
+    items. Doctor appointment thread started earlier. Prior worker findings supplied to prevent duplicate work.
 tasks:
 - id: TASK-1
   title: 'Apps: Berlin workshops'
@@ -198,6 +215,11 @@ tasks:
   external_task:
     id: 66d77634-46ba-49db-8243-042506b2e58c
     short_id: TASK-8912
+  visible_chat:
+    id: 01a080f6-03b1-7dd0-94bb-bd07108ebb07
+    url: codex://threads/01a080f6-03b1-7dd0-94bb-bd07108ebb07
+    queue_state: running
+    turn_id: 01a080f9-3be6-7d33-8ca7-fd5274d79719
 - id: TASK-2
   title: 'Apps: Berlin doctor appointment'
   status: pending
@@ -234,9 +256,13 @@ tasks:
   external_task:
     id: e23f8cc5-cbaf-49ed-b569-b003aeb576f1
     short_id: TASK-584
+  visible_chat:
+    id: 01a080f4-f82a-7270-b846-668e3ce8c437
+    url: codex://threads/01a080f4-f82a-7270-b846-668e3ce8c437
+    queue_state: running
 - id: TASK-3
   title: 'Apps: compare holiday flights'
-  status: pending
+  status: in_progress
   kind: example
   opening: I have holiday from Oct 10 to 20. Search for flights from Berlin to Lisbon, Paris, London. Which of the
     flights would be the cheapest and when?
@@ -271,9 +297,14 @@ tasks:
   external_task:
     id: 6823f1b2-ac46-48a8-aed9-b2dd6e286df9
     short_id: TASK-3325
+  visible_chat:
+    id: 01a080f6-9048-75c3-9f0c-f0f0b1911623
+    url: codex://threads/01a080f6-9048-75c3-9f0c-f0f0b1911623
+    queue_state: running
+    turn_id: 01a080f9-3c00-7991-90db-23ffd1193ffe
 - id: TASK-4
   title: 'Privacy: email and phone protection'
-  status: pending
+  status: in_progress
   kind: example
   opening: Help me write a message to a plumber. My kitchen sink has been leaking since yesterday, and I’m available
     tomorrow afternoon. Ask them to contact me at lena.hoffmann@example.com or +1 202-555-0147 to arrange a visit.
@@ -308,9 +339,14 @@ tasks:
   external_task:
     id: 8af0f735-ff11-41e6-add9-fec6ac633c73
     short_id: TASK-77
+  visible_chat:
+    id: 01a080f6-92ce-7ed0-b196-4a3cc31208f0
+    url: codex://threads/01a080f6-92ce-7ed0-b196-4a3cc31208f0
+    queue_state: running
+    turn_id: 01a080f9-3c17-7bc3-86ee-b413e20279b5
 - id: TASK-5
   title: 'Privacy: Paris travel memories'
-  status: pending
+  status: in_progress
   kind: example
   opening: I am visiting Paris from October 1 to 20th. Suggestions for places i should check out?
   acceptance: Coordinate prepared fictional travel memories before generation; verify actual memory request/consent/personalization.
@@ -343,9 +379,14 @@ tasks:
   external_task:
     id: 1f8b7518-fefc-48ef-8ccc-a53911d8088d
     short_id: TASK-3958
+  visible_chat:
+    id: 01a080f6-953b-7473-83c2-f55b7c70fdb4
+    url: codex://threads/01a080f6-953b-7473-83c2-f55b7c70fdb4
+    queue_state: running
+    turn_id: 01a080f9-3c49-70b3-86d0-4572530b34ed
 - id: TASK-6
   title: 'Privacy: work writing memories'
-  status: pending
+  status: in_progress
   kind: example
   opening: Help me draft a reply to a customer asking whether I can photograph their event next Friday. I’m available,
     but I need the location, timings and approximate guest count before I can quote. Use my saved writing preferences
@@ -380,9 +421,14 @@ tasks:
   external_task:
     id: 19654fc1-27ab-4d4e-a6c9-21a4d9100817
     short_id: TASK-8774
+  visible_chat:
+    id: 01a080f6-97c8-7df2-bead-3423cb53299b
+    url: codex://threads/01a080f6-97c8-7df2-bead-3423cb53299b
+    queue_state: running
+    turn_id: 01a080f9-3c91-7df2-bcc1-50a0d86239af
 - id: TASK-7
   title: 'Focus: career insights'
-  status: pending
+  status: in_progress
   kind: example
   opening: I’ve worked in retail for eight years and now manage a small team. I enjoy helping people, but the unpredictable
     shifts are wearing me down. Can you help me figure out what other work might suit me?
@@ -417,9 +463,14 @@ tasks:
   external_task:
     id: 44c11197-5a09-492f-af2e-a65b59d5c956
     short_id: TASK-6436
+  visible_chat:
+    id: 01a080f6-9b57-7672-953f-bc8e21ac40a5
+    url: codex://threads/01a080f6-9b57-7672-953f-bc8e21ac40a5
+    queue_state: running
+    turn_id: 01a080f9-3d2c-7f31-a5e7-954d7f68fc78
 - id: TASK-8
   title: 'Focus: evidence-backed egg-price research'
-  status: pending
+  status: in_progress
   kind: example
   opening: null
   acceptance: Replace example-us-egg-prices-deep. Reuse its natural opening after inspection; parent must include
@@ -454,9 +505,14 @@ tasks:
   external_task:
     id: ad521cb4-6649-48df-b1e5-b59aa8eb09eb
     short_id: TASK-1905
+  visible_chat:
+    id: 01a080f6-a15f-79f0-ae1d-3cf58b377a4d
+    url: codex://threads/01a080f6-a15f-79f0-ae1d-3cf58b377a4d
+    queue_state: running
+    turn_id: 01a080f9-3db1-7730-8b92-fed0b582d4bc
 - id: TASK-9
   title: 'Focus: shop reputation'
-  status: pending
+  status: in_progress
   kind: example
   opening: I’m thinking of buying a refurbished phone from Back Market, but I’ve never used them before. Are they
     reliable, and what should I check before ordering?
@@ -491,9 +547,14 @@ tasks:
   external_task:
     id: 71a89975-5531-4bdd-96fe-b49f43cb1f3d
     short_id: TASK-3588
+  visible_chat:
+    id: 01a080f6-a71b-7a63-aedc-9d53f6099d7c
+    url: codex://threads/01a080f6-a71b-7a63-aedc-9d53f6099d7c
+    queue_state: running
+    turn_id: 01a080f9-3e60-7333-8f99-8be42c88c34d
 - id: TASK-10
   title: 'Providers: GPT-6 Astra habit tracker'
-  status: pending
+  status: in_progress
   kind: example
   opening: '@gpt-6-astra Can you build me a simple habit tracker web app? I want to add my own habits, tick them
     off each day and see how I’ve done this week. It should work nicely on my phone and remember my progress when
@@ -529,6 +590,11 @@ tasks:
   external_task:
     id: 8ce206ef-0542-47ed-b582-a1e5a8f3c2a8
     short_id: TASK-3176
+  visible_chat:
+    id: 01a080f6-ab97-7f51-97c8-45e5ed94aada
+    url: codex://threads/01a080f6-ab97-7f51-97c8-45e5ed94aada
+    queue_state: running
+    turn_id: 01a080f9-3fad-7862-9130-525096871601
 - id: TASK-11
   title: 'Providers: Claude Sonnet 5 client email'
   status: in_progress
@@ -567,9 +633,14 @@ tasks:
   external_task:
     id: 33b16567-fd1a-4404-b08a-e3a68d34c0b6
     short_id: TASK-9006
+  visible_chat:
+    id: 01a080f6-b1a5-7122-a014-301abb08f430
+    url: codex://threads/01a080f6-b1a5-7122-a014-301abb08f430
+    queue_state: running
+    turn_id: 01a080f9-4154-7483-a397-65f99da02820
 - id: TASK-12
   title: 'Providers: Mistral Medium printing choice'
-  status: pending
+  status: in_progress
   kind: example
   opening: '@mistral-medium-latest I run a small café and we’re printing 200 menus for our new Sunday opening. We
     need them by Friday. Our usual printer quoted €180 plus €25 delivery, arriving Thursday. A local printer quoted
@@ -605,6 +676,11 @@ tasks:
   external_task:
     id: 29d8e9b1-331a-4add-8273-8dfb71573305
     short_id: TASK-8548
+  visible_chat:
+    id: 01a080f6-b6ce-7011-924f-81c480e1b715
+    url: codex://threads/01a080f6-b6ce-7011-924f-81c480e1b715
+    queue_state: running
+    turn_id: 01a080f9-42bc-7c73-a788-92884175c853
 - id: TASK-13
   title: Repair example speech and deliver one audio pilot
   status: in_progress
@@ -638,6 +714,11 @@ tasks:
   external_task:
     id: 47b47f09-d38d-4a78-911b-138987b00c6a
     short_id: TASK-5641
+  visible_chat:
+    id: 01a080f6-bd42-73b1-8e36-b412e39fbe2f
+    url: codex://threads/01a080f6-bd42-73b1-8e36-b412e39fbe2f
+    queue_state: running
+    turn_id: 01a080f9-44ae-7dc1-ae8c-eac5a1b0e1a2
 - id: TASK-14
   title: Fix example links follow-ups and composer activation
   status: in_progress
@@ -670,9 +751,14 @@ tasks:
   external_task:
     id: 2ac8891f-00f1-45eb-854b-dc400601ecab
     short_id: TASK-5147
+  visible_chat:
+    id: 01a080f6-c325-76c0-bde8-d008969785ee
+    url: codex://threads/01a080f6-c325-76c0-bde8-d008969785ee
+    queue_state: running
+    turn_id: 01a080f9-46f2-76c0-b700-69c619c968d3
 - id: TASK-15
   title: Fix historical focus countdown and banner placement
-  status: pending
+  status: in_progress
   kind: shared_fix
   acceptance: Own focus activation state UI. Countdown only for genuinely pending cancellable activation, never
     completed/shared/example history; move Career insights active banner about 10px up. Coordinate any ActiveChat
@@ -699,9 +785,14 @@ tasks:
   external_task:
     id: 97776532-d73d-4cd3-94d0-649ac1c8c42d
     short_id: TASK-2879
+  visible_chat:
+    id: 01a080f6-c97b-7332-9d61-997585560557
+    url: codex://threads/01a080f6-c97b-7332-9d61-997585560557
+    queue_state: running
+    turn_id: 01a080f9-4abe-7b43-b5e3-659d46ed8db9
 - id: TASK-16
   title: Fix failed images PDF previews and dollar-sign text
-  status: pending
+  status: in_progress
   kind: shared_fix
   acceptance: Own image failure behavior/PDF thumbnails/message inline math handling. Hide failed images at render
     time; investigate blank PDF preview; Svelte $state and $derived incorrectly render stateandderived. Split distinct
@@ -728,6 +819,11 @@ tasks:
   external_task:
     id: dd76f69d-9ef8-4a62-84df-f5a1f1cef60c
     short_id: TASK-1503
+  visible_chat:
+    id: 01a080f6-cf4c-75c3-b1ce-11e2c225f50b
+    url: codex://threads/01a080f6-cf4c-75c3-b1ce-11e2c225f50b
+    queue_state: running
+    turn_id: 01a080f9-4cb2-7ba0-9e3b-cffffb63df04
 - id: TASK-17
   title: Preserve quoted source evidence in deep research
   status: in_progress
@@ -760,9 +856,14 @@ tasks:
   external_task:
     id: 39f575f0-04de-4d56-b77c-d5175bfed7d2
     short_id: TASK-4273
+  visible_chat:
+    id: 01a080f6-d54e-7802-919e-f913ea2df1ab
+    url: codex://threads/01a080f6-d54e-7802-919e-f913ea2df1ab
+    queue_state: running
+    turn_id: 01a080f9-4e29-7f03-ac4a-af3f6de54518
 - id: TASK-18
   title: Review and improve mindmap fullscreen rendering
-  status: pending
+  status: in_progress
   kind: shared_fix
   acceptance: Own mindmap renderer. No raw JSON in normal fullscreen. Prepare MindNode-style design proposal and
     obtain user design approval before redesign. Preserve screenshot evidence from parent conversation; request
@@ -789,9 +890,14 @@ tasks:
   external_task:
     id: 0b815ac1-2c50-4180-9a51-ec260ac4f6aa
     short_id: TASK-4213
+  visible_chat:
+    id: 01a080f6-dbe3-7151-97d7-1e0dd6916fa2
+    url: codex://threads/01a080f6-dbe3-7151-97d7-1e0dd6916fa2
+    queue_state: running
+    turn_id: 01a080f9-56d4-7103-a3ba-42ad70e5ba25
 - id: TASK-19
   title: Fix generated-video preview and replace bad example
-  status: pending
+  status: in_progress
   kind: shared_fix
   acceptance: Own video preview/provider labels and video example only. Fill preview with thumbnail, white play
     overlay, base info bar overlay, AI icon for Generate, human label via Veo 3.1 Fast. Real natural CLI generation
@@ -818,9 +924,14 @@ tasks:
   external_task:
     id: e3758b49-eb73-4778-9b9d-883d82ab1f3e
     short_id: TASK-5592
+  visible_chat:
+    id: 01a080f6-e2df-7c50-9c12-ad0541354a26
+    url: codex://threads/01a080f6-e2df-7c50-9c12-ad0541354a26
+    queue_state: running
+    turn_id: 01a080f9-6824-79b1-a5bd-84540dbbcfa3
 - id: TASK-20
   title: Remove rejected examples and integrate approved landing set
-  status: pending
+  status: in_progress
   kind: shared_fix
   acceptance: Own registry/slide mapping/deletions/get-docs metadata. Remove urban sports, dermatology, PDF encryption,
     product-launch mindmap, old career, get-docs, bad video examples as instructed; remove missing learning ID.
@@ -848,6 +959,11 @@ tasks:
   external_task:
     id: 86137701-4bd7-4ad3-95fa-8130b1f84160
     short_id: TASK-5238
+  visible_chat:
+    id: 01a080f6-e8f2-7032-a4e4-2204c189d088
+    url: codex://threads/01a080f6-e8f2-7032-a4e4-2204c189d088
+    queue_state: running
+    turn_id: 01a080f9-68f6-7ab1-a0ab-b2084f75ef31
 - id: TASK-21
   title: Create reusable rendered-chat review skill
   status: in_progress
@@ -882,6 +998,11 @@ tasks:
   external_task:
     id: e98f3d64-9cda-4a61-b63d-8cc6580f7c58
     short_id: TASK-4584
+  visible_chat:
+    id: 01a080f6-eed3-7a92-8d0b-7ff8ecc22e4a
+    url: codex://threads/01a080f6-eed3-7a92-8d0b-7ff8ecc22e4a
+    queue_state: running
+    turn_id: 01a080f9-6a99-7c73-a0bd-1efe58318c73
 title: Coordinate landing example quality and shared fixes
 scope:
   in:
