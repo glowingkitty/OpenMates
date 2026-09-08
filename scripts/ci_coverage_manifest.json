@@ -422,8 +422,8 @@
       ]
     },
     "application-preview-share.spec.ts": {
-      "dependency": "real_e2b_preview_sharing",
-      "next_action": "Provide actual application preview execution and sharing gateway plus approved E2B credentials/caps; recover exact application_preview_share cache. A static shared page cannot prove original interactive preview execution. Exact original groups and committed JSON counts: application_preview_share=0.",
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) application_preview_share have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
       "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_2_EMAIL"
@@ -441,8 +441,8 @@
       ]
     },
     "audio-recording-and-speech.spec.ts": {
-      "dependency": "real_audio_transcription_speech_and_storage",
-      "next_action": "Provision runner-local upload/storage and the original transcription/speech workers; recover exact replay fixtures and distinguish live audio requests. Dedicated provider keys/caps require approval; browser audio stubs do not replace real transcription. Exact original groups and committed JSON counts: assistant_response_speech_web=0.",
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) assistant_response_speech_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
       "user_input_required": true,
       "source_environment_names": [
         "PLAYWRIGHT_VIDEO_HEIGHT",
@@ -539,9 +539,9 @@
       "source_environment_names": []
     },
     "cli-workflows-search-controls-real.spec.ts": {
-      "dependency": "workflow_scheduler_and_skill_execution",
-      "next_action": "Add runner-local Workflow scheduler/worker queues and genuine CLI execution for runs search skills and persists inspectable control-step results; inspect each original app-skill step before enabling external access. Preserve ready-run projection and side-effect assertions; any uncached paid step remains separately approval-gated.",
-      "user_input_required": false,
+      "dependency": "original_workflow_events_provider_credentials",
+      "next_action": "Workflow queue and canonical trigger scanner are implemented. Original web/news steps already use explicit fixture queries, but the Events step is an unmarked auto-provider AI meetup search including SerpAPI Google Events. Enable only after dedicated provider credentials/request caps are authorized; preserve original search/control-step assertions and do not substitute a fixture for the live Events step.",
+      "user_input_required": true,
       "source_environment_names": []
     },
     "cli-workflows-step-test-real.spec.ts": {
@@ -945,9 +945,9 @@
       ]
     },
     "skill-code-search-repos.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-code-search-repos.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: code_search_repos_cli=0, code_search_repos_web=3.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) code_search_repos_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -958,9 +958,9 @@
       }
     },
     "skill-events-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-events-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: events_search_cli=30, events_search_web=37.",
-      "user_input_required": false,
+      "dependency": "original_direct_cli_provider_credentials",
+      "next_action": "Committed chat caches are present, but the original direct CLI phase requires the original auto-provider Events path, including Google Events via SerpAPI. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL",
@@ -973,9 +973,9 @@
       }
     },
     "skill-fitness-urban-sports.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-fitness-urban-sports.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: fitness_urban_sports_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) fitness_urban_sports_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -985,9 +985,9 @@
       }
     },
     "skill-health-appointments.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-health-appointments.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: health_appointments_cli=0, health_appointments_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) health_appointments_cli, health_appointments_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -998,9 +998,9 @@
       }
     },
     "skill-home-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-home-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: home_search_cli=0, home_search_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) home_search_cli, home_search_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1025,9 +1025,9 @@
       ]
     },
     "skill-images-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-images-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: images_search_cli=0, images_search_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) images_search_cli, images_search_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1038,9 +1038,9 @@
       }
     },
     "skill-maps-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-maps-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: maps_search_cli=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) maps_search_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1050,9 +1050,9 @@
       }
     },
     "skill-music-generate.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-music-generate.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: music_generate_cli=0, music_generate_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) music_generate_cli, music_generate_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_RUN_MUSIC_GENERATION_TESTS",
         "OPENMATES_TEST_ACCOUNT_API_KEY",
@@ -1064,9 +1064,9 @@
       }
     },
     "skill-shopping-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-shopping-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: shopping_search_cli=0, shopping_search_web=11.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) shopping_search_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1077,9 +1077,9 @@
       }
     },
     "skill-social-media.spec.ts": {
-      "dependency": "missing_social_media_caches_and_worker",
-      "next_action": "Add app_social_media worker and recover exact social_media_search_web/social_media_get_posts_web cache groups, currently absent from committed api_cache. Preserve asynchronous child embeds and final interpretation; new provider recording requires explicit approval. Exact original groups and committed JSON counts: social_media_get_posts_web=0, social_media_search_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) social_media_get_posts_web, social_media_search_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [],
       "committed_cache_files": {
         "social_media_get_posts_web": 0,
@@ -1087,9 +1087,9 @@
       }
     },
     "skill-travel-connections.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-travel-connections.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: travel_connections_cli=2, travel_connections_web=12.",
-      "user_input_required": false,
+      "dependency": "original_direct_cli_provider_credentials",
+      "next_action": "Committed chat caches are present, but the original direct CLI phase requires SerpAPI Google Flights for the original flight search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1100,9 +1100,9 @@
       }
     },
     "skill-travel-stays.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-travel-stays.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: travel_stays_cli=3, travel_stays_web=6.",
-      "user_input_required": false,
+      "dependency": "original_direct_cli_provider_credentials",
+      "next_action": "Committed chat caches are present, but the original direct CLI phase requires SerpAPI Google Hotels for the original hotels search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1113,9 +1113,9 @@
       }
     },
     "skill-travel-train-connections.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-travel-train-connections.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: travel_train_cli=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) travel_train_cli have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1125,9 +1125,9 @@
       }
     },
     "skill-videos-search.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-videos-search.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: videos_search_cli=2, videos_search_web=12.",
-      "user_input_required": false,
+      "dependency": "original_direct_cli_provider_credentials",
+      "next_action": "Committed chat caches are present, but the original direct CLI phase requires Brave Search for the original videos search. Authorize dedicated isolated provider credentials and hard request/spending caps; preserve the original requests and assertions. Do not replace that phase with cached chat responses or restrict original provider selection to get green.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1138,9 +1138,9 @@
       }
     },
     "skill-videos-transcript.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-videos-transcript.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: videos_transcript_cli=0, videos_transcript_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) videos_transcript_cli, videos_transcript_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
@@ -1151,9 +1151,9 @@
       }
     },
     "skill-weather-forecast.spec.ts": {
-      "dependency": "signed_replay_cache_and_direct_skill_phase",
-      "next_action": "Review and restore the exact committed cache group(s) used by skill-weather-forecast.spec.ts, then use the existing internal-network AI worker and fresh signed test context. Its original direct CLI app-skill phase also needs the actual app/provider execution path; chat replay alone cannot cover that phase. Permit only verified credential-free endpoints, or request dedicated provider credentials/caps before paid access. Exact original groups and committed JSON counts: weather_forecast_cli=0, weather_forecast_web=0.",
-      "user_input_required": false,
+      "dependency": "missing_original_recorded_cache",
+      "next_action": "Original cache group(s) weather_forecast_cli, weather_forecast_web have no JSON entries in the canonical checkout and no paths in any available local git ref (exact-path history checked). Supply the existing originally recorded artifact if stored elsewhere, or explicitly authorize dedicated provider recording with credentials and a hard budget. Do not synthesize replacement responses for these formerly real phases. Existing replay runtime/fresh-account signing can execute once caches and the original direct CLI provider prerequisites are available.",
+      "user_input_required": true,
       "source_environment_names": [
         "OPENMATES_TEST_ACCOUNT_API_KEY",
         "PLAYWRIGHT_TEST_BASE_URL"
