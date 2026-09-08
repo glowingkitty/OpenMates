@@ -88,8 +88,9 @@ app.start(['beat','--loglevel=warning','--schedule=/tmp/ci-workflows-schedule','
 """
 
 
-def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, workflows: bool = False, account_emails: list[str] | None = None) -> dict:
+def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_storage: bool = False, uploads: bool = False, public_provider: bool = False, workflows: bool = False, account_emails: list[str] | None = None) -> dict:
     """Return an independent profile; never interpolate the operator environment."""
+    ai_fixtures = ai_fixtures or public_provider
     object_storage = object_storage or uploads
     isolate_backend = ai_fixtures or object_storage
     if workflows and isolate_backend:
@@ -362,6 +363,13 @@ def compose_profile(source_hash: str, *, ai_fixtures: bool = False, object_stora
             "mem_limit": 64 * MIB,
         }
 
+    if public_provider:
+        services["runner-gateway"]["environment"]["OPENMATES_CI_PUBLIC_PROVIDER_PROXY"] = "1"
+        for service in (api, worker, services["ai-worker"]):
+            service["environment"]["HTTPS_PROXY"] = "http://runner-gateway:3128"
+        # Port3128 is internal only. All other provider authorities are denied;
+        # API/AI workers still cannot use direct outbound network connections.
+
     if workflows:
         workflow_queues = QUEUES + ",workflow"
         worker["environment"]["CELERY_QUEUES"] = workflow_queues
@@ -457,7 +465,7 @@ def main():
             ["git", "rev-parse", "HEAD"], cwd=SOURCE, text=True
         ).strip()
         manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
-        fixture_specs = {spec for group in ("ai_committed_fixtures", "ai_cached_pipeline") for spec in manifest["groups"].get(group, {}).get("specs", [])}
+        fixture_specs = {spec for group in ("ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider") for spec in manifest["groups"].get(group, {}).get("specs", [])}
         selected = json.loads(os.environ.get("CI_SPECS_JSON", "[]"))
         if not (Path(SOURCE) / "backend/config/backend_config.dev.yml").is_file():
             raise RuntimeError("Candidate lacks committed development feature configuration")
@@ -465,6 +473,8 @@ def main():
         storage_specs = set(manifest["groups"].get("object_storage", {}).get("specs", []))
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         needs_uploads = bool(upload_specs.intersection(selected))
+        public_specs = set(manifest["groups"].get("ai_cached_public_provider", {}).get("specs", []))
+        needs_public_provider = bool(public_specs.intersection(selected))
         workflow_specs = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
         needs_workflows = bool(workflow_specs.intersection(selected))
         if needs_workflows and not set(selected).issubset(workflow_specs):
@@ -474,7 +484,7 @@ def main():
             for relative in ("backend/core/api/app/services/s3/service.py", "backend/upload/services/s3_upload.py"):
                 if "S3_ENDPOINT_URL" not in (Path(SOURCE) / relative).read_text():
                     raise RuntimeError("Candidate lacks isolated storage endpoint support; publish reviewed current-base integration before testing")
-        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, workflows=needs_workflows, account_emails=account_emails)
+        data = compose_profile(source, ai_fixtures=bool(fixture_specs.intersection(selected)), object_storage=needs_storage, uploads=needs_uploads, public_provider=needs_public_provider, workflows=needs_workflows, account_emails=account_emails)
         if os.environ.get("GITHUB_OUTPUT"):
             with Path(os.environ["GITHUB_OUTPUT"]).open("a") as output:
                 output.write(f"uploads={'true' if needs_uploads else 'false'}\n")
@@ -574,6 +584,9 @@ def main():
                         "Backend must mount the exact candidate source read-only"
                     )
                 identities[service]["backend_source"] = mounts[0]["Source"]
+        if profile["services"].get("runner-gateway", {}).get("environment", {}).get("OPENMATES_CI_PUBLIC_PROVIDER_PROXY") == "1":
+            compose("exec", "-T", "api", "python", "-c", "import socket; s=socket.create_connection(('runner-gateway',3128),timeout=5); s.sendall(b'CONNECT api.openai.com:443 HTTP/1.1\\r\\n\\r\\n'); assert b'403 Forbidden' in s.recv(256); s.close()", capture=True, timeout=10)
+            evidence["public_provider_proxy"] = {"allowed_https_hosts": ["webench.ti.com"], "paid_provider_authority": "rejected before upstream connection", "direct_backend_egress": "internal Docker network", "tls": "end-to-end, no interception"}
         if "object-storage" in profile["services"]:
             if socket.gethostbyname("storage.ci.test") != "127.0.0.1":
                 raise RuntimeError("Object storage must resolve on this runner")

@@ -234,3 +234,18 @@ def test_workflow_scheduler_keeps_only_original_workflow_scan(monkeypatch):
     assert profile["services"]["workflow-scheduler"]["command"] == ["python", "-c", WORKFLOW_SCHEDULER]
     with pytest.raises(ValueError, match="separate batch"):
         compose_profile("a" * 40, workflows=True, ai_fixtures=True)
+
+
+def test_public_replay_keeps_workers_internal_and_proxy_unpublished():
+    from scripts.ci_environment import compose_profile
+    profile = compose_profile('a' * 40, public_provider=True)
+    assert profile['networks']['default']['internal'] is True
+    proxy = profile['services']['runner-gateway']
+    assert proxy['environment']['OPENMATES_CI_PUBLIC_PROVIDER_PROXY'] == '1'
+    assert all('3128' not in port for port in proxy['ports'])
+    for name in ('api', 'core-worker', 'ai-worker'):
+        service = profile['services'][name]
+        assert service['environment']['HTTPS_PROXY'] == 'http://runner-gateway:3128'
+        assert 'ingress' not in service.get('networks', ['default'])
+    ordinary = compose_profile('a' * 40, ai_fixtures=True)
+    assert 'HTTPS_PROXY' not in ordinary['services']['api']['environment']

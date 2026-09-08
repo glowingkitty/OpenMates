@@ -181,3 +181,11 @@ the gift through the real first-party authenticated endpoint and verifies the
 returned balance before browser execution; it never writes encrypted balances
 directly. Credits do not provide paid-provider credentials or loosen network
 restrictions. Receipts record the amount and real gift-acceptance method.
+
+Committed replay suites with an original public-provider CLI phase can use the
+existing gateway's fixed HTTPS CONNECT allowlist. Initially only `webench.ti.com:443`
+is accepted. Backend/AI containers remain on the internal network; the proxy port
+is not published on the host. Private DNS answers, paid-provider authorities and
+shared-dev destinations are rejected before upstream connection. TLS remains
+end-to-end with normal client certificate validation. Original provider requests
+and assertions remain unchanged; no provider credentials are provisioned.
