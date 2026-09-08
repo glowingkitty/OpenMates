@@ -214,6 +214,7 @@
         "example-chats-load.spec.ts",
         "feature-availability.spec.ts",
         "finance-check-accounts.spec.ts",
+        "components/focus-mode-activation.spec.ts",
         "focus-mode-example-chats.spec.ts",
         "guest-interest-smart-selection.spec.ts",
         "landing-page-header-stories.spec.ts",
