@@ -27311,8 +27311,8 @@ assertions:
     direct_tests:
     - &id3094
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 80
-      name: renders complete editable task context and closes from the keyboard
+      line: 123
+      name: renders complete editable task context
       surface: gui.web
     - &id3096
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
@@ -27328,8 +27328,9 @@ assertions:
     supporting_tests:
     - &id3095
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 148
-      name: keeps every detail section reachable on a phone viewport
+      line: 239
+      name: keeps every detail section reachable on a phone viewport and closes from
+        the keyboard
       surface: gui.web
     - &id3097
       path: frontend/apps/web_app/tests/tasks-web-app-parity.spec.ts
@@ -28486,8 +28487,8 @@ assertions:
       surface: gui.web
     - &id3260
       path: frontend/apps/web_app/tests/task-detail-fullscreen.spec.ts
-      line: 80
-      name: renders complete editable task context and closes from the keyboard
+      line: 123
+      name: renders complete editable task context
       surface: gui.web
     - &id3261
       path: frontend/apps/web_app/tests/tasks-flow.spec.ts

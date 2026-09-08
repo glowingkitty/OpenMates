@@ -52,23 +52,66 @@ const TASK_DETAIL_PROOF = defineVideoProof({
 		{
 			id: 'linked-context',
 			checkpoint: 'linked-context',
-			visual: 'Linked workspace context, tags, dependencies, and edit controls are visible without preview chrome.',
+			visual:
+				'Linked workspace context, tags, dependencies, and edit controls are visible without preview chrome.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'bare-component',
 			checkpoint: 'fullscreen-controls',
-			visual: 'Only the task fullscreen component is visible, with no preview toolbar or implementation metadata.',
+			visual:
+				'Only the task fullscreen component is visible, with no preview toolbar or implementation metadata.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
-	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
+	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 9000 }
 });
 
+// Intentional source-recording intervals, not waits used to stabilize assertions.
+// The unchanged transcript needs 20.8s; reserve 8s for genuine UI transitions.
+const CAPTURE_TRANSITION_BUDGET_MS = 8000;
+const MAX_CAPTURE_DURATION_MS = 35000;
+const CAPTURE_CUE_MS = new Map<string, number>(
+	TASK_DETAIL_PROOF.transcript.map(
+		(cue: { checkpoint: string; text: string }): [string, number] => {
+			const duration = Math.max(
+				TASK_DETAIL_PROOF.tutorial.minimumHoldMs,
+				Math.ceil(
+					(cue.text.trim().split(/\s+/).length / TASK_DETAIL_PROOF.tutorial.readingWordsPerSecond) *
+						1000
+				)
+			);
+			if (duration > TASK_DETAIL_PROOF.tutorial.maximumHoldMs)
+				throw new Error(`Unreadable capture policy for ${cue.checkpoint}`);
+			return [cue.checkpoint, duration];
+		}
+	)
+);
+if (
+	[...CAPTURE_CUE_MS.values()].reduce((sum: number, ms: number) => sum + ms, 0) +
+		CAPTURE_TRANSITION_BUDGET_MS >
+	MAX_CAPTURE_DURATION_MS
+) {
+	throw new Error('Task proof capture exceeds the 35-second output contract');
+}
+async function recordReadableInterval(page: Page, checkpoint: string, fraction = 1): Promise<void> {
+	if (!process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE) return;
+	const duration = CAPTURE_CUE_MS.get(checkpoint);
+	if (duration === undefined) throw new Error(`Missing capture cue ${checkpoint}`);
+	// Record real browser pixels throughout this interval; never synthesize frames.
+	await page.waitForTimeout(duration * fraction);
+}
+
 async function openTaskDetailPreview(page: any): Promise<void> {
-	const response = await page.goto('/dev/preview/tasks/TaskDetailFullscreen?chrome=0', { waitUntil: 'networkidle' });
+	const response = await page.goto('/dev/preview/tasks/TaskDetailFullscreen?chrome=0', {
+		waitUntil: 'networkidle'
+	});
 	expect(response?.status()).toBe(200);
-	await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute('data-preview-ready', 'true', { timeout: 15_000 });
+	await expect(page.getByTestId('component-preview-canvas')).toHaveAttribute(
+		'data-preview-ready',
+		'true',
+		{ timeout: 15_000 }
+	);
 	await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
 	await expect(page.getByTestId('preview-status-bar')).toHaveCount(0);
 	await expect(page.getByTestId('render-error')).not.toBeVisible({ timeout: 5_000 });
@@ -77,12 +120,21 @@ async function openTaskDetailPreview(page: any): Promise<void> {
 
 test.describe('Task detail fullscreen component', () => {
 	// contract-test: direct surface=gui.web assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
-	test('renders complete editable task context and closes from the keyboard', async ({ page }: { page: Page }, testInfo: TestInfo) => {
+	test('renders complete editable task context', async ({
+		page
+	}: { page: Page }, testInfo: TestInfo) => {
 		const proof = createVideoProofRuntime(TASK_DETAIL_PROOF, {
 			device: PROOF_DEVICE,
 			attach: testInfo.attach.bind(testInfo),
 			captureFrame: () => page.screenshot({ type: 'png' })
 		});
+		if (process.env.PLAYWRIGHT_PROOF_VIDEO_PROFILE) {
+			// Allow startup plus the bounded genuine recording, not assertion retries.
+			test.setTimeout(60_000);
+			expect(page.viewportSize()).toEqual(
+				PROOF_DEVICE === 'web-phone' ? { width: 390, height: 844 } : { width: 1440, height: 900 }
+			);
+		}
 		await openTaskDetailPreview(page);
 		const close = page.getByTestId('task-detail-minimize');
 		// Initial dialog focus is checked before editor clicks intentionally move it.
@@ -91,7 +143,9 @@ test.describe('Task detail fullscreen component', () => {
 		const detail = page.getByTestId('task-detail-content');
 		await expect(page.getByTestId('embed-header-title')).toContainText('Design 3D model');
 		await expect(detail.getByTestId('task-detail-title')).toContainText('Design 3D model');
-		await expect(detail.getByTestId('workspace-detail-description')).toContainText('fits 2-3 people');
+		await expect(detail.getByTestId('workspace-detail-description')).toContainText(
+			'fits 2-3 people'
+		);
 		await expect(detail.getByTestId('task-detail-status-select')).toHaveValue('blocked');
 		await expect(detail.getByTestId('task-detail-assignee-select')).toHaveValue('opencode');
 		await expect(detail.getByTestId('task-detail-description')).toContainText('fits 2-3 people');
@@ -101,37 +155,72 @@ test.describe('Task detail fullscreen component', () => {
 		await expect(detail.getByTestId('task-detail-due')).toContainText('Oct 22, 2026');
 		await expect(detail.getByTestId('task-detail-projects')).toContainText('Research project');
 		await expect(detail.getByTestId('task-detail-plan')).toContainText('Research launch plan');
-		await expect(detail.getByTestId('task-detail-dependencies')).toContainText('Prepare research brief');
+		await expect(detail.getByTestId('task-detail-dependencies')).toContainText(
+			'Prepare research brief'
+		);
 		await expect(detail.getByTestId('task-detail-tags')).toContainText('#software');
-		await expect(detail.getByTestId('task-detail-blocked-reason')).toContainText('A repository write token is required');
-		await expect(detail.getByTestId('task-detail-external-chat')).toContainText('OpenCode task bridge');
+		await expect(detail.getByTestId('task-detail-blocked-reason')).toContainText(
+			'A repository write token is required'
+		);
+		await expect(detail.getByTestId('task-detail-external-chat')).toContainText(
+			'OpenCode task bridge'
+		);
 		await expect(detail.getByTestId('task-detail-chat')).toContainText('OpenCode');
-		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute('href', '/projects/preview-project');
-		await expect(detail.getByTestId('task-detail-plan-card')).toHaveAttribute('href', '/plans/preview-plan');
+		await expect(detail.getByTestId('task-detail-project-card')).toHaveAttribute(
+			'href',
+			'/projects/preview-project'
+		);
+		await expect(detail.getByTestId('task-detail-plan-card')).toHaveAttribute(
+			'href',
+			'/plans/preview-plan'
+		);
 		await proof.assert('canonical-headings', async () => {
-			await detail.getByTestId('task-detail-title').click();
-			await expect(detail.getByTestId('workspace-detail-title-input')).toBeVisible();
-			await detail.getByTestId('workspace-detail-title-undo').click();
-			await detail.getByTestId('workspace-detail-description').click();
-			await expect(detail.getByTestId('workspace-detail-description-input')).toBeVisible();
-			await detail.getByTestId('workspace-detail-description-undo').click();
-			for (const heading of ['Description', 'Assigned to', 'Due', 'Connected project', 'Connected plan', 'Blockers and dependencies', 'Tags', 'Connected chat']) {
+			for (const heading of [
+				'Description',
+				'Assigned to',
+				'Due',
+				'Connected project',
+				'Connected plan',
+				'Blockers and dependencies',
+				'Tags',
+				'Connected chat'
+			]) {
 				await expect(detail.getByRole('heading', { level: 3, name: heading })).toBeVisible();
 			}
 		});
 		await proof.checkpoint('core-metadata');
-		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+		const captureStartedAt = Date.now();
+		await detail.getByTestId('task-detail-title').click();
+		await expect(detail.getByTestId('workspace-detail-title-input')).toBeVisible();
+		await recordReadableInterval(page, 'core-metadata', 0.5);
+		await detail.getByTestId('workspace-detail-title-undo').click();
+		await detail.getByTestId('workspace-detail-description').click();
+		await expect(detail.getByTestId('workspace-detail-description-input')).toBeVisible();
+		await recordReadableInterval(page, 'core-metadata', 0.5);
+		await detail.getByTestId('workspace-detail-description-undo').click();
+		await page.evaluate(
+			() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+		);
 
-		await proof.action('show-linked-context', () => detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded());
+		await proof.action('show-linked-context', () =>
+			detail.getByTestId('task-detail-project-card').scrollIntoViewIfNeeded()
+		);
 		await proof.assert('linked-context', async () => {
 			await expect(detail.getByTestId('task-detail-project-card')).toBeVisible();
 			await expect(detail.getByTestId('task-detail-plan-card')).toBeVisible();
 			await expect(detail.getByTestId('task-detail-chat')).toBeVisible();
 		});
 		await proof.checkpoint('linked-context');
-		await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+		await recordReadableInterval(page, 'linked-context', 0.5);
+		await detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded();
+		await recordReadableInterval(page, 'linked-context', 0.5);
+		await page.evaluate(
+			() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+		);
 
-		await proof.action('return-to-fullscreen-controls', () => close.scrollIntoViewIfNeeded());
+		await proof.action('return-to-fullscreen-controls', () =>
+			detail.getByTestId('task-detail-title').scrollIntoViewIfNeeded()
+		);
 		await proof.assert('bare-component', async () => {
 			await expect(page.getByTestId('task-detail-fullscreen')).toBeVisible();
 			await expect(page.getByTestId('preview-toolbar')).toHaveCount(0);
@@ -139,13 +228,19 @@ test.describe('Task detail fullscreen component', () => {
 			await expect(close).toBeVisible();
 		});
 		await proof.checkpoint('fullscreen-controls');
+		await recordReadableInterval(page, 'fullscreen-controls');
+		const captureEndedAt = Date.now();
+		expect(captureEndedAt - captureStartedAt).toBeLessThanOrEqual(MAX_CAPTURE_DURATION_MS);
+		// The producer consumes the actual recording end, including test teardown.
 		await proof.attach();
-		await page.keyboard.press('Escape');
-		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
 	});
 
 	// contract-test: supporting surface=gui.web assertions=tasks.detail.embed-responsive
-	test('keeps every detail section reachable on a phone viewport', async ({ page }: { page: Page }) => {
+	test('keeps every detail section reachable on a phone viewport and closes from the keyboard', async ({
+		page
+	}: {
+		page: Page;
+	}) => {
 		await page.setViewportSize({ width: 390, height: 844 });
 		await openTaskDetailPreview(page);
 
@@ -153,7 +248,14 @@ test.describe('Task detail fullscreen component', () => {
 		await expect(page.getByTestId('embed-header-title')).toBeVisible();
 		await detail.getByTestId('task-detail-chat').scrollIntoViewIfNeeded();
 		await expect(detail.getByTestId('task-detail-chat')).toBeVisible();
-		const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-		expect(overflow, 'Task detail should not create horizontal page overflow on mobile').toBeLessThan(8);
+		const overflow = await page.evaluate(
+			() => document.documentElement.scrollWidth - document.documentElement.clientWidth
+		);
+		expect(
+			overflow,
+			'Task detail should not create horizontal page overflow on mobile'
+		).toBeLessThan(8);
+		await page.keyboard.press('Escape');
+		await expect(page.getByTestId('task-detail-fullscreen')).not.toBeVisible({ timeout: 2_000 });
 	});
 });
