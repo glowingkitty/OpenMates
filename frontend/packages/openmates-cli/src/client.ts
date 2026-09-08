@@ -9447,7 +9447,7 @@ export class OpenMatesClient {
     if (filters.externalChatProvider) params.set("external_chat_provider", filters.externalChatProvider);
     if (filters.externalChatLookupHash) params.set("external_chat_lookup_hash", filters.externalChatLookupHash);
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
-    const limit = filters.limit;
+    const limit = filters.limit ?? 500;
     if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
     const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
     if (teamId) params.set("team_id", teamId);
@@ -9459,7 +9459,11 @@ export class OpenMatesClient {
     if (!response.ok) {
       throw new Error(`User task list failed with HTTP ${response.status}`);
     }
-    return response.data.tasks ?? [];
+    const tasks = response.data.tasks ?? [];
+    if (tasks.length >= limit) {
+      throw new Error(`TASK_LIST_INCOMPLETE: server limit ${limit} reached; refusing a truncated task inventory.`);
+    }
+    return tasks;
   }
 
   async createUserTask(input: UserTaskCreateInput, context: { creator?: "codex" } = {}): Promise<UserTaskRecord> {

@@ -178,6 +178,12 @@ def main() -> int:
             refresh=event in {"SessionStart", "UserPromptSubmit"},
             activities=event == "SessionStart",
         )
+        if event in {"SessionStart", "UserPromptSubmit", "Stop"}:
+            from codex_task_lifecycle import hook as task_lifecycle
+            lifecycle_result = task_lifecycle(root, sid, task_id, event, payload, sessions)
+            if lifecycle_result.get("decision") == "block":
+                print(json.dumps(lifecycle_result))
+                return 0
         role = orchestration_context(root, sid, task_id)
         result["hookSpecificOutput"]["additionalContext"] += (
             "\n" + extra + ("\n" + role if role else "")
