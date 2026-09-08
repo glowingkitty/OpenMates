@@ -72,13 +72,13 @@ One flocked reconciler dispatches at most four active jobs. Intent is durable be
 
 Candidate publication and artifact retrieval preserve at least 30 GiB free on the host. Artifact downloads are bounded to 256 MiB, extracted data to 512 MiB and 10,000 files, with a one-minute download deadline. Unsafe paths, symlinks and private account state are rejected. GitHub artifact retention is seven days. Local result-cache and candidate-ref retention automation remains pending.
 
-Fresh accounts are created through real CLI signup and security initialization. Generated credentials and client state stay in a private runner directory. The private email verification code is obtained from that account's local cache key; no shared Gmail account is used for account provisioning. This is not a replacement for email-delivery assertions. All-skipped specs cannot pass.
+Fresh accounts are created through real CLI signup and security initialization. Generated credentials and client state stay in a private runner directory. The private email verification code is obtained from that account's local cache key; no shared Gmail account is used for account provisioning. This is not a replacement for email-delivery assertions. Any skipped selected case makes coverage incomplete. Signup creation is paced against the real per-IP rate limit. Fresh CLI keys have a lifetime credit cap and expiry; the fresh owner approves the exact registered CLI device through the authenticated API. Earlier completed results survive later fixture failures.
 
 ## Coverage and readiness limits
 
 The current portable profile is the self-host edition. It is not equivalent to official-cloud billing, anonymous eligibility or provider-spend enforcement. Cloud-only tests must not silently become self-host tests. Their private-code execution and cost decision is pending. External email, provider, upload and broader worker coverage must be admitted explicitly before complete migration is claimed.
 
-The first pilot failed at concurrent volume initialization; the second completed schema setup but failed at a missing mountpoint beneath a read-only source bind. Both returned honest failure evidence without E2E results. The third pilot repairs the mountpoint. Fresh schema initialization took approximately eight minutes in pilot two; no test-speed improvement is claimed yet.
+Core cold daily accounts, real SvelteKit routes and cleanup have passed on hosted runners. The manifest distinguishes admitted execution from passing product assertions. Existing committed AI responses use an additional AI worker on an internal Docker network; a credential-free TCP gateway exposes API/CMS only to the runner. Cached-pipeline replay keeps its original server-signed marker authorization, with an explicit allowlist of identities generated for that job. No pre-existing account credentials are imported, and no paid provider key is supplied.
 
 
 ### Reviewed current-base deployment
@@ -118,3 +118,21 @@ spec admission permits candidate verification; it does not certify the candidate
 creator/eligibility contract or declare those product tests passed. Their selected
 source must include the reviewed compatible implementation. Proof artifact links
 retain source/harness/profile identities; visual review remains a separate gate.
+
+
+### Installer coverage in the shared queue
+
+`selfhost-smoke.spec.ts` uses the distinct `selfhost` execution mode. The adapter
+executes the candidate's existing source-mode and image-mode installer workflow
+commands and original Playwright assertions inside the same hosted job. It uses
+the real installed API/frontend, creates its own user, and tests admin promotion.
+It does not reuse the ordinary core fixture or claim that a core preflight proves
+installation. Unsupported workflow expressions/actions fail visibly.
+
+The outer workflow supplies Node/pnpm/Python setup and artifact transport. The
+adapter records immutable workflow/source hashes, actual built image IDs, test
+counts and verified container/volume cleanup. Private installer logs and generated
+account material are excluded. The standalone legacy installer schedule must be
+disabled at repository level after this routing is deployed, so all test jobs
+share the coordinator's four-job cap. Admission still requires a real hosted run
+before installer coverage can be marked verified.

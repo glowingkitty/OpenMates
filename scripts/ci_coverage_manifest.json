@@ -180,7 +180,6 @@
         "prod-smoke/prod-smoke-signup-giftcard-chat.spec.ts",
         "referral-signup-purchase.spec.ts",
         "saved-payment-invoice-flow.spec.ts",
-        "selfhost-smoke.spec.ts",
         "settings-buy-credits-stripe-eu.spec.ts",
         "settings-buy-credits-stripe-managed.spec.ts",
         "settings-gift-card-redemption.spec.ts",
@@ -356,6 +355,13 @@
         "skill-web-search.spec.ts",
         "skill-web-read.spec.ts",
         "skill-math-calculate.spec.ts"
+      ]
+    },
+    "selfhost_installer": {
+      "execution": "selfhost",
+      "enabling_work": "Run original source-mode and image-mode installation checks, fresh signup and admin promotion on the GitHub runner, inside the same four-job queue. No provider keys or shared accounts. Verify cleanup and exact image/source evidence.",
+      "specs": [
+        "selfhost-smoke.spec.ts"
       ]
     }
   }
