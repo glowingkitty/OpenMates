@@ -65,7 +65,8 @@ def partition(specs: list[str]) -> tuple[list[str], dict[str, str]]:
             supported.append(spec)
         else:
             held[spec] = HOLD_REASONS.get(
-                spec, mapped.get(spec, {}).get("enabling_work", "New spec requires dependency classification before dispatch")
+                spec, manifest.get("holds", {}).get(spec, {}).get("next_action")
+                or mapped.get(spec, {}).get("enabling_work", "New spec requires dependency classification before dispatch")
             )
     return supported, held
 
