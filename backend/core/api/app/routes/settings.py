@@ -8,6 +8,7 @@ import os
 import hashlib
 import json
 import glob
+from pathlib import Path
 import pyotp
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timezone, timedelta
@@ -104,9 +105,29 @@ def _has_configured_local_llm_model() -> bool:
     return False
 
 
+def _has_isolated_ci_ai_fixtures() -> bool:
+    """Recognize the runner's configured replay engine without provider secrets.
+
+    Only the isolated AI profile sets this capability. Ordinary self-hosted
+    deployments still require a real local model or provider configuration.
+    See docs/architecture/isolated-github-tests.md.
+    """
+    enabled = (
+        os.getenv("CI") == "true"
+        and os.getenv("OPENMATES_CI_ISOLATED") == "1"
+        and os.getenv("OPENMATES_CI_AI_FIXTURES") == "1"
+        and os.getenv("MOCK_EXTERNAL_APIS") == "true"
+        and os.getenv("SERVER_ENVIRONMENT", "production").lower() == "development"
+    )
+    if not enabled:
+        return False
+    fixtures = Path(__file__).resolve().parents[4] / "apps/ai/testing/fixtures"
+    return any(fixtures.glob("*.json"))
+
+
 async def _are_ai_models_configured(request: Request) -> bool:
-    """Return True when at least one server LLM provider key is configured."""
-    if _has_configured_local_llm_model():
+    """Return whether a model or the isolated runner replay engine is configured."""
+    if _has_isolated_ci_ai_fixtures() or _has_configured_local_llm_model():
         return True
 
     for env_key in LLM_PROVIDER_ENV_KEYS:
