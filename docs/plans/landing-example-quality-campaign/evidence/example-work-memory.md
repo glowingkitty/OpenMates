@@ -69,3 +69,46 @@ Real dev WebSocket concurrency plus retry persisted one encrypted request in fic
 SDK auth investigation: the generic `sdk_cli_parity_live_smoke.py` CLI creation command requests full access, so it was not used. Existing `OpenMatesClient.createApiKey` supports `fullAccess:false`, `scopes:{chat:["chat:read_existing"]}`, and short expiry. The bounded runner `/tmp/bce4-memory-sdk-preflight.mjs` followed the established create / approve exact matching device / verify / revoke lifecycle using supported client methods. No secret files were inspected or credentials printed. Both public npm and pip SDKs read the real encrypted SDK message window and locally decrypted one request with count 1 and no action. Temporary key `89ed65fb-d25b-4c20-b9ad-d6043277b5f0` was revoked successfully. No access surfaces expanded.
 
 Component preview fixtures and phone/laptop proof spec are prepared but deployed browser verification remains pending. No runtime lifecycle mutation, travel mutation, audio generation, or further candidate inference occurred.
+
+## Deployed source; browser dispatcher hold
+
+Scoped deploy succeeded at `623274de5a3c0e68383f84f8a8aafd22a9ea7d15` after three upstream-advance restarts; Specification, lint, translations and SDK boundary gates passed. This is a pushed source commit, not evidence that Vercel is Ready or browser proof passed.
+
+Canonical dispatch command: `python3 scripts/tests.py run --spec components/memory-consent.spec.ts --gate-deploy --expected-commit 623274de5a3c0e68383f84f8a8aafd22a9ea7d15 --session bce4 --proof-video-profile web-laptop`. Result: jobs empty, held spec `components/memory-consent.spec.ts`, exact reason **New spec requires dependency classification before dispatch**. The same classification blocks phone. No browser run/recording/upload/delivery occurred. Component fixture dependencies: static fictional URL props, local UI only; no login, memory mutation, inference, provider egress or backend writes. Coordinator/test-infrastructure owner must classify this spec before dispatch. No bypass attempted.
+
+Process observations: the documented dry-run flag is unsupported by the current dispatcher; basename selection also failed because nested specs require tests-relative paths. Existing dispatcher validation exposed both safely. Deploy automatically reran gates after three concurrent upstream changes. These are workflow issues, not product test failures.
+
+## Classification resolved; durable CI submissions
+
+Coordinator authorized routine dependency classification. Under the exact WRITING lease, `components/memory-consent.spec.ts` was added to the existing `browser_component_contract` group. `partition` accepts it without holds. Metadata-only scoped deploy: `f3171e31e9ab3afb2035104fcef3ae61d0ec80d7`. Phone request `1e173df46f5d60d417ae85a2b726927ae6f98cfd2c81a636de9facc53ea302f6`; laptop request `e593903c770536ee02e41ca1799f648cc14e07a8566fd800ccd12adfb7876e05`. Both are durable accepted queue entries, not completed browser runs.
+
+After the compute-setting interruption, terminal waiters no longer existed; canonical cached status confirmed both jobs remained queued. No resubmission occurred. Prior inference that historical failed-prerequisite metadata blocked admission was incorrect: coordinator code excludes terminal jobs, and four occupied slots explained waiting. The correction was acknowledged in Task activity `054ee4c55f099c3f52171a5d7caf191a218b88a54ca6c1b6ba1d73f615e98010`. No prerequisite change is needed.
+
+## Cost-control handoff — waiting only
+
+Session/worktree: `bce4`, `/home/superdev/projects/OpenMates/.openmates-agent-worktrees/agent-bce4`. Codex continuations: GPT-6 Astra LOW. Approved fingerprint and one-audio-pilot gate remain unchanged.
+
+Pending tested source commit: `f3171e31e9ab3afb2035104fcef3ae61d0ec80d7` (fix commit `623274de5a3c0e68383f84f8a8aafd22a9ea7d15`).
+- Phone request: `1e173df46f5d60d417ae85a2b726927ae6f98cfd2c81a636de9facc53ea302f6`, last observed queued, no GitHub run ID yet.
+- Laptop request: `e593903c770536ee02e41ca1799f648cc14e07a8566fd800ccd12adfb7876e05`, last observed queued, no GitHub run ID yet.
+
+Next commands from this worktree (do not resubmit):
+```bash
+python3 scripts/ci_coordinator.py status 1e173df46f5d60d417ae85a2b726927ae6f98cfd2c81a636de9facc53ea302f6
+python3 scripts/ci_coordinator.py status e593903c770536ee02e41ca1799f648cc14e07a8566fd800ccd12adfb7876e05
+# Once terminal, retrieve each receipt and run its codex_evidence_command:
+python3 scripts/ci_coordinator.py result 1e173df46f5d60d417ae85a2b726927ae6f98cfd2c81a636de9facc53ea302f6
+python3 scripts/ci_coordinator.py result e593903c770536ee02e41ca1799f648cc14e07a8566fd800ccd12adfb7876e05
+```
+
+Then inspect failures or review successful phone/laptop proof using the canonical proof workflow. Deliver all available run media, including failed attempts. Only after consent web verification succeeds, resume existing real candidate `b63368d9-8ca5-4674-95bb-aab7ebcd3e69` naturally with explicit writing-memory approval; inspect the actual reply, email protection/restoration and follow-ups, then scaffold owned candidate data/translations and coordinate catalog registration. No travel-memory mutations or audio. No jobs cancelled. This handoff is local pending evidence, intentionally not a new deploy while waiting.
+
+## Successful CI assertions; failed visual admission
+
+Fetched original phone run `34239278192` and laptop run `34239936379`, source `f3171e31e9ab3afb2035104fcef3ae61d0ec80d7`. Both report one expected test, zero skipped/unexpected/flaky. Recordings plus captured images were uploaded through codex_evidence and all four links delivered in visible commentary, then acknowledged. No test was rerun.
+
+Canonical proof import with `--run-id 34239278192` fails: `CI proof receipt rejected: Timeline checkpoint lacks its exact attached frame`. The shared video-proof runtime emits timestamp-only checkpoints when captureFrame is absent; CI proof importer requires an attached frame for every checkpoint. Original timelines and videos remain immutable. This is a proof-tooling mismatch, not a failed product assertion.
+
+Bounded frame scan (frames extracted from original recordings in `/tmp/bce4-memory-review`, not new browser screenshots): phone 2s shows the complete permission card, aligned controls and count1; 4.5s shows the complete card with unknown count omitted; 6.5/7.5s show collapsed history/gradient strip; 8s shows writing-style row clipped to a narrow strip. Laptop 2s shows complete known-count card (mail icon absent at that instant); 4.5s shows unknown-count card during transition; 7.5s shows blank history region; 9.5s shows buttons clipped into a narrow strip. Scanned layout/readability/geometry/controls/assets/state/consistency/proof alignment: standalone card supports known/unknown claims; history frames fail geometry and proof alignment despite passing DOM assertions. Selection cannot be visually admitted. No claim of completed proof. Representative phone8s frame uploaded and visibly delivered.
+
+Root cause: generic content-sized component mount does not supply ChatHistory its flex layout height. Added an isolated sized MemoryConsentHistoryPreview host, preserving real ChatHistory and the existing fictional records; no production CSS changed. Updated spec to use host and assert complete viewport intersection and non-collapsed bounds. Fixture repair lint pending. Existing runs preserved; user requested no rerun. Natural candidate remains held because visual review found this objective defect. Tasks read failed HTTP502 on resume; this milestone stays local pending acknowledged posting.

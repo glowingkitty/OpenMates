@@ -43,9 +43,15 @@ test('shows honest counts and merges legacy requests without granting consent', 
   await proof.checkpoint('unknown');
   await page.waitForTimeout(proofContract.tutorial.minimumHoldMs);
   for (const variant of [undefined, 'reversed']) {
-    await page.goto(preview('ChatHistory', variant));
+    await page.goto(preview('MemoryConsentHistoryPreview', variant));
     await expect(page.getByTestId('app-settings-memories-permission-dialog')).toHaveCount(1);
     await expect(page.getByTestId('memory-category-count')).toContainText('1/1');
+    const dialog = page.getByTestId('app-settings-memories-permission-dialog');
+    await expect(dialog).toBeInViewport({ ratio: 1 });
+    const bounds = await dialog.boundingBox();
+    expect(bounds?.height).toBeGreaterThan(100);
+    const hostBounds = await page.getByTestId('memory-history-proof-host').boundingBox();
+    expect(hostBounds?.height).toBeGreaterThan(400);
   }
   await proof.assert('one-request', async () => {
     await expect(page.getByTestId('app-settings-memories-permission-dialog')).toBeVisible();
