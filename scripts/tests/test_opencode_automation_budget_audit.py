@@ -202,3 +202,9 @@ def test_security_defaults_ingest_snapshots_without_creating_audits(monkeypatch,
     assert all(item["dry_run"] for item in snapshots)
     assert all(str(item["path"]).startswith(str(tmp_path)) for item in snapshots)
     assert not hasattr(helper, "run_opencode_session")
+
+
+def test_retirement_audit_rejects_runtime_configuration(tmp_path):
+    audit = load_audit_module()
+    (tmp_path / "opencode.json").write_text("{}")
+    assert any(issue.path == "opencode.json" for issue in audit.audit_retired_automation(tmp_path))

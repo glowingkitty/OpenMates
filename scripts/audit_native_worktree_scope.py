@@ -21,15 +21,6 @@ REQUIRED_SNIPPETS: dict[str, tuple[str, ...]] = {
         '"worktree_routed"',
         '"disposable_integration"',
     ),
-    ".opencode/plugins/openmates-hooks.js": (
-        "resolveWorktreeRoute",
-        "routeLocalToolArgsForTest",
-        "workdir:",
-        "worktreePath",
-        "sessionsPyRuntime",
-        "Reason:",
-        "Next:",
-    ),
     "docs/contributing/guides/agent-workflow-core.md": (
         "OpenCode Web chats intentionally remain at the root project URL",
         "do not set Bash `workdir` to root",
@@ -52,11 +43,6 @@ FORBIDDEN_PRESENCE_SNIPPETS = (
     "presence heartbeat",
 )
 
-FORBIDDEN_ROUTING_SNIPPETS = (
-    "moveSession(",
-    "Native binding is required before source edits",
-    "NATIVE_HANDOFF_MARKER",
-)
 
 
 def main() -> int:
@@ -74,15 +60,11 @@ def main() -> int:
 
     implementation_text = "\n".join(
         (PROJECT_ROOT / relative_path).read_text(encoding="utf-8")
-        for relative_path in ("scripts/sessions.py", ".opencode/plugins/openmates-hooks.js")
+        for relative_path in ("scripts/sessions.py",)
     ).lower()
     for snippet in FORBIDDEN_PRESENCE_SNIPPETS:
         if snippet in implementation_text:
             failures.append(f"implementation unexpectedly contains deferred presence marker {snippet!r}")
-    plugin_text = (PROJECT_ROOT / ".opencode/plugins/openmates-hooks.js").read_text(encoding="utf-8")
-    for snippet in FORBIDDEN_ROUTING_SNIPPETS:
-        if snippet in plugin_text:
-            failures.append(f"routing plugin unexpectedly contains obsolete native-movement marker {snippet!r}")
 
     if failures:
         print("FAIL native worktree scope audit")

@@ -52,6 +52,32 @@ RETIRED_AUTOMATION_PATHS = (
     "scripts/nightly-pattern-consistency.sh",
     "scripts/nightly-code-structure.sh",
 )
+RETIRED_OPENCODE_RUNTIME_PATHS = (
+    '.opencode/plugins/cli-auto-login.js',
+    '.opencode/plugins/openmates-hooks.js',
+    'opencode.json',
+    'scripts/_opencode_utils.py',
+    'scripts/audit_opencode_output_quality.py',
+    'scripts/audit_opencode_plan_workflow.py',
+    'scripts/auto_fix_failed_tests.py',
+    'scripts/cleanup-opencode-sessions.sh',
+    'scripts/docs_guide_review.py',
+    'scripts/openai_compat_opencode_smoke.py',
+    'scripts/opencode_chat_improvement_review.py',
+    'scripts/opencode_credential_migration.py',
+    'scripts/opencode_permission_watcher.py',
+    'scripts/opencode_runtime_release.py',
+    'scripts/patches/opencode-v1.17.20-bounded-provider-retries.patch',
+    'scripts/patches/opencode-v1.17.20-productive-recompaction.patch',
+    'scripts/patches/opencode-v1.17.20-session-model-binding.patch',
+    'scripts/probe_opencode_workflow.mjs',
+    'scripts/server-restart.sh',
+    'scripts/start-opencode-server.sh',
+    'scripts/sync_opencode_runtime_hook.py',
+    'scripts/verify_opencode_native_worktree.py',
+    'scripts/verify_opencode_presence_live.py',
+)
+
 RETIRED_UNIT_NAMES = ("linear-poller.service", "work-life-opencode.service", "work-life-opencode.timer")
 RETAINED_DETERMINISTIC_WRAPPERS = (
     "scripts/_dependabot_helper.py",
@@ -176,7 +202,7 @@ def audit_retired_automation(root: Path) -> list[AuditIssue]:
     """Reject restored launchers or wiring while allowing retained scanners."""
     issues = [
         AuditIssue(path, "retired automatic OpenCode launcher must remain removed (TASK-8338)")
-        for path in RETIRED_AUTOMATION_PATHS if (root / path).exists()
+        for path in (*RETIRED_AUTOMATION_PATHS, *RETIRED_OPENCODE_RUNTIME_PATHS) if (root / path).exists()
     ]
     for relative in RETAINED_DETERMINISTIC_WRAPPERS:
         path = root / relative

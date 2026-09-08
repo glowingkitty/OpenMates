@@ -2,7 +2,7 @@
 """Synchronize OpenMates agent-tool compatibility files.
 
 Claude Code remains the canonical authoring format for project skills,
-subagents, and Codex hook scripts. This helper generates the Codex/OpenCode
+subagents, and Codex hook scripts. This helper generates the Codex
 mirror files that use different metadata formats while preserving the same
 workflow instructions. Run with `--check` in validation paths to detect drift.
 """
@@ -20,12 +20,15 @@ CLAUDE_SKILLS_DIR = REPO_ROOT / ".claude" / "skills"
 AGENT_SKILLS_DIR = REPO_ROOT / ".agents" / "skills"
 CLAUDE_AGENTS_DIR = REPO_ROOT / ".claude" / "agents"
 CODEX_AGENTS_DIR = REPO_ROOT / ".codex" / "agents"
-OPENCODE_AGENTS_DIR = REPO_ROOT / ".opencode" / "agents"
 CLAUDE_HOOKS_DIR = REPO_ROOT / ".claude" / "hooks"
 CODEX_HOOKS_DIR = REPO_ROOT / ".codex" / "hooks"
 CODEX_HOOK_BRIDGE = CODEX_HOOKS_DIR / "claude-hook-bridge.sh"
 FRONTMATTER_BOUNDARY = "---"
-OPENCODE_ALL_MODE_AGENTS = {"proof-video-reviewer"}
+# Preserve Claude source skills, but never recreate retired OpenCode-only mirrors.
+RETIRED_MIRROR_SKILLS = {
+    "spawn-chat", "implement-opencode-improvements", "opencode-improvement-research",
+    "opencode-workflow-review", "task-status",
+}
 NON_CLAUDE_HOOK_COMMANDS = {
     "lint-design-tokens.sh": REPO_ROOT / "scripts" / "lint-design-tokens.sh",
     "lint-swift-design-tokens.sh": REPO_ROOT / "scripts" / "lint-swift-design-tokens.sh",
@@ -88,6 +91,7 @@ def sync_skills(*, check: bool) -> list[str]:
     AGENT_SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
     claude_skill_names = {path.parent.name for path in CLAUDE_SKILLS_DIR.glob("*/SKILL.md")}
+    claude_skill_names -= RETIRED_MIRROR_SKILLS
     agent_skill_names = {path.parent.name for path in AGENT_SKILLS_DIR.glob("*/SKILL.md")}
 
     for stale_name in sorted(agent_skill_names - claude_skill_names):
@@ -96,6 +100,8 @@ def sync_skills(*, check: bool) -> list[str]:
 
     for source in sorted(CLAUDE_SKILLS_DIR.glob("*/SKILL.md")):
         name = source.parent.name
+        if name in RETIRED_MIRROR_SKILLS:
+            continue
         target = AGENT_SKILLS_DIR / name / "SKILL.md"
         rendered = replace_frontmatter_name(source.read_text(), name)
 
@@ -141,74 +147,19 @@ def render_codex_agent(source: Path) -> str:
     return "\n".join(content).rstrip() + "\n"
 
 
-def yaml_scalar(value: str) -> str:
-    return '"' + value.replace('"', '\\"') + '"'
-
-
-def render_opencode_agent(source: Path) -> str:
-    metadata, body = parse_markdown(source)
-    description = metadata.get("description")
-    if not description:
-        raise ParityError(f"{source} is missing a description")
-
-    tools = {tool.strip() for tool in metadata.get("tools", "").split(",") if tool.strip()}
-    lines = [
-        FRONTMATTER_BOUNDARY,
-        f"description: {yaml_scalar(description)}",
-        f"mode: {'all' if source.stem in OPENCODE_ALL_MODE_AGENTS else 'subagent'}",
-    ]
-
-    if max_turns := metadata.get("maxTurns"):
-        lines.append(f"steps: {max_turns}")
-
-    lines.append("permission:")
-    if source.stem == "proof-video-reviewer":
-        lines.extend(
-            [
-                "  read:",
-                '    "*": deny',
-                '    "test-results/proof-videos/**/review-prompt-round-*.json": allow',
-                '    "test-results/proof-videos/**/frames/*": allow',
-                "  grep: deny",
-                "  glob: deny",
-                "  task: deny",
-                "  external_directory: deny",
-            ]
-        )
-    else:
-        lines.extend(["  read: allow", "  grep: allow", "  glob: allow"])
-    lines.extend(
-        [
-            f"  bash: {'allow' if 'Bash' in tools else 'deny'}",
-            f"  edit: {'allow' if {'Write', 'Edit'} & tools else 'deny'}",
-            FRONTMATTER_BOUNDARY,
-            "",
-            body,
-        ]
-    )
-    return "\n".join(lines).rstrip() + "\n"
-
-
 def sync_agents(*, check: bool) -> list[str]:
     problems: list[str] = []
     CODEX_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
-    OPENCODE_AGENTS_DIR.mkdir(parents=True, exist_ok=True)
 
     claude_names = {path.stem for path in CLAUDE_AGENTS_DIR.glob("*.md")}
     codex_names = {path.stem for path in CODEX_AGENTS_DIR.glob("*.toml")}
-    opencode_names = {path.stem for path in OPENCODE_AGENTS_DIR.glob("*.md")}
 
     for stale_name in sorted(codex_names - claude_names):
         problems.append(f"stale Codex agent mirror: {CODEX_AGENTS_DIR / (stale_name + '.toml')}")
-    for stale_name in sorted(opencode_names - claude_names):
-        problems.append(f"stale OpenCode agent mirror: {OPENCODE_AGENTS_DIR / (stale_name + '.md')}")
-
     for source in sorted(CLAUDE_AGENTS_DIR.glob("*.md")):
         codex_target = CODEX_AGENTS_DIR / f"{source.stem}.toml"
-        opencode_target = OPENCODE_AGENTS_DIR / source.name
         expected = {
             codex_target: render_codex_agent(source),
-            opencode_target: render_opencode_agent(source),
         }
 
         for target, rendered in expected.items():
@@ -296,7 +247,7 @@ def main() -> int:
     if args.check:
         print("Agent-tool parity is up to date.")
     else:
-        print("Synchronized Agent Skills, Codex agents, OpenCode agents, and Codex hook mirrors.")
+        print("Synchronized Agent Skills, Codex agents, and Codex hook mirrors.")
     return 0
 
 

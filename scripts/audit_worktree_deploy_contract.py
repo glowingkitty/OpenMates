@@ -56,10 +56,6 @@ REQUIRED_SNIPPETS: dict[str, list[str]] = {
         "sessions.py worktree",
         "raw git worktree is forbidden",
     ],
-    ".opencode/plugins/openmates-hooks.js": [
-        "root checkout or another managed worktree",
-        "OPENMATES_ROOT_GUARD",
-    ],
     "AGENTS.md": [
         "raw `git worktree` commands",
         "sessions.py worktree ensure",
