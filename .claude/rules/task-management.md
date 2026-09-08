@@ -117,3 +117,21 @@ When reviewing existing Linear tasks for migration:
 - Do not put private user data, secrets, payment details, or sensitive logs in GitHub Issues.
 - Keep comments concise: pickup, one milestone/blocker if useful, and completion.
 - Prefer GitHub Issues for transparency unless the task clearly matches a Linear-only category.
+
+## Codex Task runtime
+
+Use the globally installed `openmates` executable for Task reads and mutations.
+Never execute a source/dist CLI or loader fallback, or change account/profile
+variables to work around an incompatible binary or auth failure. Verify installed
+Codex filtering and `complete: true` discovery, not just package version.
+
+At a completed turn boundary, persist the Task outcome with
+`scripts/codex_task_lifecycle.py --session <bound-session> --task <existing-uuid>
+--turn <current-turn-id> --status in_progress|blocked|done --summary <exact-summary>
+--next-action <action>`. Blocked requires `--reason`; approval blockers also require
+`--reason-code waiting_for_approval --approval <exact-review-link>`. Include the
+acknowledged summary in the final response and preserve blocker, next action and
+approval link. In-progress operations are not blockers, and partial work is not
+done. Stop enforces this boundary; commentary does not trigger transitions.
+Pending intent and the existing encrypted CLI outbox must reconcile before a
+different outcome. Never recreate an activity after uncertain delivery.
