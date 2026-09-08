@@ -189,7 +189,9 @@ async def _async_focus_mode_auto_confirm(
             msg_cache_data = json.loads(msg_str)
             role = msg_cache_data.get("role", "")
             
-            if role not in ("user", "assistant"):
+            # Retain instruction-free focus transitions alongside conversation
+            # history (feature.focus-modes/history-events).
+            if role not in ("user", "assistant", "system"):
                 continue
             
             encrypted_content = msg_cache_data.get("encrypted_content")

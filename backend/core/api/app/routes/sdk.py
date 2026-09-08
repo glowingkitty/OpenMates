@@ -122,6 +122,19 @@ async def _tombstone_sdk_deleted_chat(
         )
 
 
+def _sdk_focus_id(selection: dict[str, str] | None) -> str | None:
+    """Translate the SDK focus selection to the inference focus identity."""
+    if not selection:
+        return None
+    focus_id = selection.get("focus_mode_id")
+    app_id = selection.get("app_id")
+    if not focus_id:
+        raise HTTPException(status_code=422, detail="focus_mode_id is required")
+    if app_id and not focus_id.startswith(f"{app_id}-"):
+        return f"{app_id}-{focus_id}"
+    return focus_id
+
+
 class SdkChatCreateRequest(BaseModel):
     message: str | None = Field(default=None)
     history: list[dict[str, Any]] = Field(default_factory=list)
@@ -1677,7 +1690,7 @@ async def create_sdk_chat(
             "chat_has_title": request_body.encrypted_chat_metadata is None,
             "is_incognito": False,
             "is_external": True,
-            "active_focus_id": focus_mode.get("focus_mode_id") if isinstance(focus_mode, dict) else None,
+            "active_focus_id": _sdk_focus_id(focus_mode) if isinstance(focus_mode, dict) else None,
             "user_preferences": {"model": inference_request.get("model"), "apps_enabled": True},
             "memory_ids": inference_request.get("memory_ids", []),
             "team_id": team_id,
@@ -1774,7 +1787,7 @@ async def create_sdk_chat(
     if request_body.memory_ids:
         payload["memory_ids"] = request_body.memory_ids
     if request_body.focus_mode:
-        payload["focus_mode"] = request_body.focus_mode
+        payload["focus_mode"] = _sdk_focus_id(request_body.focus_mode)
 
     from backend.core.api.app.services.skill_registry import get_global_registry
 

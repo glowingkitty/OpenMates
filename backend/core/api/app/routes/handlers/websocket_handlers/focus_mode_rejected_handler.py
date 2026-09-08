@@ -126,7 +126,9 @@ async def _trigger_continuation_without_focus(
             msg_cache_data = json.loads(msg_str)
             role = msg_cache_data.get("role", "")
             
-            if role not in ("user", "assistant"):
+            # Rejecting a new activation must not erase prior focus transitions
+            # from history (feature.focus-modes/history-events).
+            if role not in ("user", "assistant", "system"):
                 continue
             
             encrypted_content = msg_cache_data.get("encrypted_content")
