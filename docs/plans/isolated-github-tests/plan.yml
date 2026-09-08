@@ -2,9 +2,9 @@ schema_version: 2
 id: isolated-github-tests
 title: Independent GitHub test environments and coordinated dispatch
 status: implementing
-goal: All E2E web app tests and daily tests run on GitHub CI independently of the dev server. Unit
-  tests for code changes still run locally. Remove redundant local per-worktree Docker environments
-  and coordinate GitHub requests within rate limits.
+goal: All E2E web app tests and daily tests run on GitHub CI independently of the dev server. Unit tests
+  for code changes still run locally. Remove redundant local per-worktree Docker environments and coordinate
+  GitHub requests within rate limits.
 authorization:
   source: User explicitly approved planning and implementation on 2026-09-07.
   specification_required: false
@@ -24,20 +24,16 @@ architecture:
   dependencies: Reuse cached dependency layers; invalidate on build/dependency changes.
   accounts: Disposable accounts initialized through real client crypto/auth flows in a fresh database.
   network: Explicit local endpoints and a fail-closed shared-domain guard; no dev fallback.
-  coordinator: Single durable local queue, four admitted CI jobs, batched status refresh and budget
-    reserve.
-  daily: Same execution workflow with pinned revision and broader test selection; unit suites on
-    GitHub.
+  coordinator: Single durable local queue, four admitted CI jobs, batched status refresh and budget reserve.
+  daily: Same execution workflow with pinned revision and broader test selection; unit suites on GitHub.
   local: Small unit checks remain local; shared dev is not a test execution dependency.
   historical_migration: Retain applied SQL migration history; remove callers, not live database data.
 acceptance:
 - Focused candidate E2E executes current frontend/backend on GitHub without Vercel or Hetzner API.
 - Daily path includes unit and E2E suites using the same isolated environment contract.
-- Concurrent requests cannot double-dispatch; uncertain dispatch is reconciled rather than retried
-  blindly.
+- Concurrent requests cannot double-dispatch; uncertain dispatch is reconciled rather than retried blindly.
 - Status requests read coordinator cache; rate exhaustion queues work and respects reset/backoff.
-- Runtime identities and artifacts identify exact source; failures never become successful empty
-  reports.
+- Runtime identities and artifacts identify exact source; failures never become successful empty reports.
 - Fresh accounts cannot collide across jobs; auth/encryption flows remain real.
 - No test traffic reaches shared dev; failures save diagnostics before cleanup.
 - Superseded local runtime code removed, existing worktree binding preserved.
@@ -75,8 +71,8 @@ evidence:
   result: Failed before API startup; Vault exited 137. No E2E coverage credited.
 - kind: migration
   commit: 9da8d2b3334932b74641e2e45855ba72d4ca7819
-  result: Shell launchers forward to canonical dispatcher; daily units can queue while E2E remains
-    held; superseded local runtime probe removed.
+  result: Shell launchers forward to canonical dispatcher; daily units can queue while E2E remains held;
+    superseded local runtime probe removed.
 - kind: github_pilot
   run_id: 34170816682
   subject: 741b51e5e55cbdd540fee99f19df7e83e0f0fdd8
@@ -84,19 +80,37 @@ evidence:
   result: Overall success; real fresh-account browser preflight passed with zero skipped cases. Runner-local
     frontend/backend and shared-dev rejection verified.
 - kind: tooling
-  command: python3 -m pytest scripts/tests/test_ci_coverage.py scripts/tests/test_ci_dispatch.py
-    -q
+  command: python3 -m pytest scripts/tests/test_ci_coverage.py scripts/tests/test_ci_dispatch.py -q
   result: Seven passed; partial core cutover preserves cloud/unknown holds.
 - kind: deployment
   commit: 1a788b104fd85393527efb08c4f62842159162d6
   result: Dependabot owner consumed reviewed deployment adapter; original worktree/index and integration
     guards preserved.
+- kind: github_ordinary_batch
+  run_id: 34172799126
+  subject: 2f4b25fa04da31068dba28e90e041a8a4e67f96b
+  result: 'Three accessibility specs and account interests passed: 15 assertions, zero skips/flaky/unexpected.'
+- kind: github_ordinary_batch
+  run_id: 34173245058
+  subject: 4003e8046513a9fd7834b07261dd6b91eb385c37
+  result: Four security specs executed, zero skips. Backup-code settings and recovery-key settings pass;
+    backup login and debug logging fail original console assertions (anonymous usage 404, login WebSocket
+    auth). No coverage hidden.
+- kind: github_codex_metadata
+  run_id: 34174226574
+  subject: 8dfe65b6b8cdcd1e0a9a63b85c9ccade7d5d239f
+  result: 'Real private managed Codex 0.153.4 daemon: empty thread/start and independent thread/read pass,
+    no inference; cleanup passed.'
+- kind: schedule_cutover
+  result: Actual 03:00 cron now calls canonical run-tests-daily.sh --detach without sourcing .env or entering
+    shared runtime. Four legacy hourly/production schedules explicitly held pending isolated coverage
+    disposition.
 handoff:
   session: ecad
   next: Migrate remaining runtime profiles and actual pending candidate specs; core runtime verified.
   current_task_id: TASK-1
-  next_action: Implement genuine runner-local Task creator setup and synthetic renderer profile;
-    preserve cloud coverage holds.
+  next_action: Finish cold daily account/cleanup evidence, classify actual batch failures, extend remaining
+    upload/service and original fixture profiles; private/live spending remains unapproved.
   command: python3 scripts/plan_validate.py docs/plans/isolated-github-tests/plan.yml
   expected_outcome: Exact candidate proof for pending specs without shared-dev execution
   last_verified_commit: d3f5cb4780a18dc01862a72f2018a3a17ad95112
