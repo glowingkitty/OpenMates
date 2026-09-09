@@ -378,3 +378,36 @@ def test_regeneration_never_overwrites_delivered_pdf(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="already exists"):
         approval_pdf._unused_review_output(original, explicit=True)
     assert original.read_bytes() == b"delivered PDF"
+
+
+# contract-test: tooling
+def test_changed_requirement_rejects_field_dictionary_examples(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    current.examples["cases"][0].update(input={"task_id": "task-1"}, expect={"claimed": False})
+    with pytest.raises(ValueError, match="natural-language"):
+        approval_pdf.validate_requirement_example_coverage(current, {})
+    current.examples["cases"][0].update(
+        input={"language": "sh", "code": "openmates tasks create --title 'Repair header'"},
+        expect="The CLI shows the new Task title and its Todo state.",
+    )
+    approval_pdf.validate_requirement_example_coverage(current, {})
+
+
+# contract-test: tooling
+def test_human_examples_render_as_prose_and_commands_without_leaf_tables(tmp_path: Path) -> None:
+    current = bundle(tmp_path)
+    current.examples["cases"][0] = {
+        "id": "new-case", "assertion_ids": ["example.existing", "example.new"],
+        "given": 'The Task belongs to "Landing - Header".',
+        "when": "A different chat tries to claim it.",
+        "then": "The claim is rejected and the existing owner is named.",
+        "command": {"language": "sh", "code": 'openmates tasks connect <task-id> --thread "$CODEX_THREAD_ID"'},
+    }
+    approval_pdf.validate_requirement_example_coverage(current, {})
+    document = approval_pdf.build_html(current, baseline_contract={}, baseline_examples={}, baseline_ref="HEAD")
+    card = document.split('class="requirement-examples"')[1].split('</section>')[0]
+    assert 'class="requirement-example-prose"' in card
+    assert 'class="requirement-example-code"' in card
+    assert 'class="requirement-example-row"' not in card
+    assert "A different chat tries to claim it." in card
+    assert "&lt;task-id&gt;" in card and "$CODEX_THREAD_ID" in card

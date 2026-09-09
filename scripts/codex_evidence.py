@@ -177,7 +177,7 @@ def collect(directory, receipt):
         try:
             path = resolve_attachment(directory, item["video_path"])
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            if digest != item["video_sha256"]:
+            if digest != item["video_sha256"].removeprefix("sha256:"):
                 raise ValueError("CLI video hash mismatch")
             record.update(
                 path=str(path.relative_to(directory)),

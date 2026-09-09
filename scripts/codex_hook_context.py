@@ -24,7 +24,9 @@ def route(event: str, payload: dict, workspace: Path, session_id: str) -> dict:
     )
     if payload.get("turn_id"):
         context += f" Current Codex turn: {payload['turn_id']}."
-    result = {"hookEventName": event, "additionalContext": context}
+    result = {"hookEventName": event}
+    if event in {"SessionStart", "UserPromptSubmit"}:
+        result["additionalContext"] = context
     if event == "PreToolUse":
         tool = payload.get("tool_name")
         inputs = dict(payload.get("tool_input") or {})
@@ -155,6 +157,13 @@ def main() -> int:
             return 0
         matched = sessions.session_for_codex(sessions._load_sessions(), task_id)
         if not matched:
+            from codex_cached_context import configuration, context as cached_context
+            cache_config = configuration(sessions.CONTROL_PLANE_ROOT, task_id)
+            if cache_config and event != "PreToolUse":
+                extra = cached_context(sessions.CONTROL_PLANE_ROOT, "unbound", task_id, event, cache_config)
+                if extra:
+                    print(json.dumps({"hookSpecificOutput": {"hookEventName": event, "additionalContext": extra}}))
+                return 0
             if event in {"SessionStart", "UserPromptSubmit"}:
                 print(
                     json.dumps(
@@ -187,13 +196,14 @@ def main() -> int:
         )
 
         root = canonical_root(workspace)
-        extra = task_context(
-            root,
-            task_id,
-            refresh=event in {"SessionStart", "UserPromptSubmit"},
-            activities=event == "SessionStart",
-        )
-        if event in {"SessionStart", "UserPromptSubmit", "Stop"}:
+        from codex_cached_context import configuration, context as cached_context
+        cache_config = configuration(root, task_id)
+        extra = ""
+        if cache_config:
+            extra = cached_context(root, sid, task_id, event, cache_config)
+        elif event in {"SessionStart", "UserPromptSubmit"}:
+            extra = task_context(root, task_id, refresh=True, activities=event == "SessionStart")
+        if not cache_config and event in {"SessionStart", "UserPromptSubmit", "Stop"}:
             from codex_task_lifecycle import hook as task_lifecycle
             from codex_task_context import TaskDeliveryDeferred
             try:
@@ -210,11 +220,10 @@ def main() -> int:
             if lifecycle_result.get("decision") == "block":
                 print(json.dumps(lifecycle_result))
                 return 0
-        role = orchestration_context(root, sid, task_id)
-        result["hookSpecificOutput"]["additionalContext"] += (
-            "\n" + extra + ("\n" + role if role else "")
-        )
-        if event == "Stop" and role:
+        role = orchestration_context(root, sid, task_id) if not cache_config and event in {"SessionStart", "UserPromptSubmit", "Stop"} else ""
+        if extra:
+            result["hookSpecificOutput"]["additionalContext"] = result["hookSpecificOutput"].get("additionalContext", "") + "\n" + extra + ("\n" + role if role else "")
+        if not cache_config and event == "Stop" and role:
             result.update(output_guard(root, sid, task_id, payload))
         if payload.get("tool_name") == "apply_patch" and event == "PreToolUse":
             patch = result["hookSpecificOutput"]["updatedInput"]["command"]
