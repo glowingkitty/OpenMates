@@ -5,6 +5,21 @@ last_verified: 2026-06-11
 
 # Testing Reference
 
+## Current execution boundary
+
+Ordinary automated product signup, API/WebSocket, CLI/SDK and browser tests run
+against the isolated GitHub stack through the existing coordinator. Signup account
+provisioning can read its isolated verification code; it must not depend on Brevo
+sending. Historical shared-dev commands below are references, not permission to
+bypass this execution boundary. See `docs/architecture/isolated-github-tests.md`.
+
+The separately authorized live signup-email smoke runs only on the dev server,
+uses the OpenMates CLI in isolated test state, and exercises the deployed worker
+and real email provider. It is not a GitHub live-email job. Keep ordinary isolated
+CI running even when this health check fails. Preserve the global engineering
+Tasks account and distinguish queue acceptance from actual email delivery.
+
+
 Detailed test commands, Playwright Docker setup, test runner reference, and sequential debugging workflow.
 
 ## Contract Assertion Metadata

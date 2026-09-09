@@ -15,10 +15,11 @@ creation is unlinked. Break complex work into multiple Tasks and dependencies.
 Update status when work changes and activity at useful milestones. Wait for
 acknowledgement before claiming ownership or reporting completion.
 
-The old `codex_task_lifecycle.py` per-turn outcome protocol is a legacy fallback,
-not the current agent workflow. Do not invoke it to satisfy an exact-summary or
+The old `codex_task_lifecycle.py` per-turn outcome protocol is retired from the
+active hook path, including when cache configuration is missing. Do not invoke it to satisfy an exact-summary or
 next-action final-text requirement. Repository-wide cached context bypasses those
-old lifecycle and response-table checks. Existing chat history may still contain
+old lifecycle and response-table checks. Missing configuration produces a setup
+notice at entry instead of reviving the retired architecture. Existing chat history may still contain
 old instructions; current repository instructions take precedence.
 
 During an outage, preserve queued operation IDs and let the foreground process

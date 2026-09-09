@@ -80,6 +80,11 @@ product tests against shared dev or start a second CI scheduler. Focused unit,
 lint and build checks may run in the isolated checkout. A dev-host Codex runtime
 pilot uses synthetic cache data to verify the installed hooks and continuation;
 it does not substitute shared-dev product tests for the GitHub checks.
+The separately authorized real signup-email smoke runs only on the dev server,
+through OpenMates CLI signup with isolated test state. Never move this live Brevo
+check to GitHub. Ordinary isolated GitHub signup must remain independent of
+external email sending; preserve the global engineering Tasks account.
+
 
 Use plain language. Explain the outcome, relevant verification and concrete
 remaining work. Do not require a table, fixed heading, repeated retrospective,
@@ -264,7 +269,7 @@ Use the repo rule files when the task touches relevant areas. In OpenCode, these
 - Embeds: `.claude/rules/embed.md`
 - Apple UI: `.claude/rules/apple-ui.md`
 - Planning and acceptance criteria: `.claude/rules/planning.md`
-- Task tracking workflow: `.claude/rules/task-management.md` — GitHub Issues by default; Linear only for programmatically stored/recorded issues, marketing work, sensitive/private work, or explicitly provided Linear issues.
+- Task tracking workflow: `.claude/rules/task-management.md` — OpenMates Tasks for Codex execution; GitHub/Linear only for applicable issue-tracker work.
 
 ---
 

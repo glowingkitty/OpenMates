@@ -1,9 +1,35 @@
 ---
 name: new-task
-description: Create a well-structured task with smart field suggestions; GitHub Issues by default, Linear only for retained internal categories
+description: Create an OpenMates execution Task for Codex; use GitHub or Linear for explicitly requested tracker issues
 user-invocable: true
 argument-hint: "<description of task>"
 ---
+
+## Codex execution Tasks
+
+For Codex work, OpenMates Tasks is the execution source of truth. Use the injected
+Project cache first and the globally installed CLI for scoped detail or mutations.
+Use the personal dev-testing account and existing OpenMates Project
+`96033196-e4b1-431e-b773-ba221e952fed`. Do not create a GitHub or Linear issue merely
+to track a Codex assignment. Those trackers remain for explicitly requested issues
+or existing issue references; the tracker-specific procedure below applies there.
+
+For a new engineering Task, preserve the user's concrete goal, give it a concise
+title and description, and create/link it in one mutation:
+
+```sh
+openmates tasks create --title "Repair header navigation" \
+  --description "Keep the header usable with keyboard and on narrow screens." \
+  --external-chat "codex:$CODEX_THREAD_ID" \
+  --project 96033196-e4b1-431e-b773-ba221e952fed --json
+```
+
+An orchestrator may create unlinked assignments by omitting `--external-chat`.
+The eventual worker claims its own Task. Reuse an existing matching Task instead
+of duplicating it; split complex work into several concrete Tasks and dependencies.
+Keep existing status/blocker fields and meaningful activity. A pending mutation
+is not acknowledged ownership. Finish this Codex path here; do not run the
+GitHub/Linear creation steps below unless that tracker was actually requested.
 
 ## Instructions
 

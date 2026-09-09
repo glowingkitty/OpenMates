@@ -373,3 +373,18 @@ def test_title_edit_does_not_discard_still_ready_dependency():
     rpc = RPC()
     adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks)
     assert len([method for method, _ in rpc.calls if method == "turn/start"]) == 1
+
+
+# contract-test: tooling
+def test_native_codex_worktree_is_recognized_by_repository_metadata(tmp_path):
+    root = tmp_path / "repository"
+    checkout = tmp_path / "codex-worktrees" / "native"
+    metadata = root / ".git/worktrees/native"
+    metadata.mkdir(parents=True)
+    checkout.mkdir(parents=True)
+    (checkout / ".git").write_text("gitdir: " + str(metadata))
+    (metadata / "commondir").write_text("../..")
+    assert adapter.repository_checkout(root, str(checkout))
+    (metadata / "commondir").write_text(str(tmp_path / "unrelated/.git"))
+    assert not adapter.repository_checkout(root, str(checkout))
+    assert not adapter.repository_checkout(root, str(tmp_path / "unknown"))
