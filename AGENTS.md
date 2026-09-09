@@ -108,6 +108,15 @@ unlinked work for assignment. Ordinary CLI creation is unlinked. Codex creation
 uses `--external-chat codex:<current-chat-id>` in the same create request. Keep
 native OpenMates chat instructions tool-based; never give those chats CLI commands.
 
+Use the global `openmates` CLI directly for Task writes. Prefer its ordinary
+terminal output for acknowledgement; request `--json` only when fields must be
+parsed. Use short Task IDs already supplied by context. Do not fetch the Task
+again just to confirm a successful acknowledged write; queued is not success.
+Keep activity to one or two sentences about a changed outcome or blocker, usually
+under 300 characters. Put detailed logs, hashes and test inventories in a referenced
+file or receipt. Do not post a second activity repeating the same milestone.
+Do not use Python wrappers for routine CLI writes or print entire cache files.
+
 Use existing status, blockers and dependencies. Record useful milestones and
 important corrections, not routine tools, heartbeats or retry attempts. A queued
 operation is pending, not a confirmed claim or completion. Continue already owned,

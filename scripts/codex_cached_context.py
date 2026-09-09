@@ -14,7 +14,6 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
-import shlex
 import socket
 import time
 from pathlib import Path
@@ -264,16 +263,12 @@ def _context(root: Path, session: str, thread: str, event: str, config: dict) ->
             "Unconfirmed local deliveries (not Task state): "
             + json.dumps(deliveries, ensure_ascii=False)
         )
-    if full and config.get("snapshots"):
-        snapshot_arg = shlex.quote(config["snapshots"][0])
+    if full:
         lines.append(
-            f"If the CLI is unavailable, enqueue locally: python3 scripts/codex_task_queue.py --snapshot {snapshot_arg} --id <stable-operation-name> --operation '<JSON command>'."
+            "Write Tasks with the global openmates CLI; prefer ordinary output, --json only for parsing. Keep activity to a short changed outcome or blocker; do not repeat receipts or logs."
         )
         lines.append(
-            'Command examples: {"kind":"create","title":"Review landing copy"}; {"kind":"activity","task_id":"<id>","message":"Review finished; two changes remain"}.'
-        )
-        lines.append(
-            f"Inspect delivery without network requests: python3 scripts/codex_task_queue.py --snapshot {snapshot_arg} --status."
+            "CLI outage recovery, only when needed: docs/architecture/codex-task-cache.md (Delivery during an outage). Never treat queued as acknowledged or resubmit pending operations."
         )
     for owner, tasks in grouped.items():
         worker_changed = (
