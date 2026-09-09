@@ -195,3 +195,21 @@ codex_connection_compatibility:
   - id: legacy-resume-rejected
     input: {command: tasks_resume, provider: opencode}
     expect: {runtime_launched: false, original_link_readable: true, explicit_codex_connection_required: true}
+
+task_owner_claim:
+  - id: native-and-cli-defaults
+    input: {native_tool_chat: chat-native, link_to_chat: false, ordinary_cli_explicit_chat: null, codex_creator_chat: chat-header}
+    expect: {native_task_chat: null, ordinary_cli_task_chat: null, codex_task_chat: chat-header, codex_create_and_link_mutations: 1}
+  - id: competing-chat
+    input: {task_owner_title: Landing - Header, task_owner_id: chat-header, requesting_chat: chat-footer}
+    expect: {claim_accepted: false, owner_title_quoted: true, codex_owner_id_shown: chat-header, second_worker_started_for_task: false}
+
+task_chat_deletion:
+  - id: confirmed-delete-preserves-work
+    input: {deleted_chat: chat-header, linked_task_states: [in_progress, done, blocked], independent_blocker: waiting_for_approval}
+    expect: {task_states: [todo, done, blocked], chat_links_removed: true, task_records_preserved: true, non_chat_keys_preserved: true, independent_blocker: waiting_for_approval}
+
+task_delivery_recovery:
+  - id: accepted-write-lost-reply
+    input: {operation_id: header-review-finished, server_accepted: true, reply_lost: true, process_restarted: true}
+    expect: {original_operation_reconciled: true, duplicate_creation: false, pending_is_task_success: false, permanent_conflict_retained: true}

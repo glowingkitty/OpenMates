@@ -3194,3 +3194,20 @@ async def dispatch_cron_session_email(
     except Exception as e:
         logger.error(f"Failed to dispatch cron session notification: {e}", exc_info=True)
         return {"status": "error", "error": str(e)}
+
+
+class TaskSyncHints(BaseModel):
+    scopes: list[str] = Field(min_length=1, max_length=500)
+
+
+@router.post("/task-sync/changed")
+async def task_sync_changed(body: TaskSyncHints, request: Request):
+    """Internal-only, coalesced PostgreSQL commit hints; no content or credits."""
+    import re
+    if any(not re.fullmatch(r"(?:personal|team):[0-9a-f]{64}", scope) for scope in body.scopes):
+        raise HTTPException(status_code=400, detail="invalid_task_sync_scope")
+    cache = get_cache_service(request)
+    for scope in set(body.scopes):
+        if not await cache.publish_event(f"project_task_sync:{scope}", {"changed": True}):
+            raise HTTPException(status_code=503, detail="task_sync_hint_deferred")
+    return {"accepted": True}

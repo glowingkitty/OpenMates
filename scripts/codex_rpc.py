@@ -14,12 +14,17 @@ import json
 import os
 from pathlib import Path
 import socket
+import select
 import struct
 import subprocess
 import time
 
 MAX_FRAME = 16 * 1024 * 1024
 TIMEOUT = 15
+
+
+class CodexRPCRejected(RuntimeError):
+    """The daemon returned a definite error, rather than an uncertain timeout."""
 
 
 class CodexRPC:
@@ -39,6 +44,7 @@ class CodexRPC:
         self.socket.settimeout(TIMEOUT)
         self.buffer = b""
         self.sequence = 0
+        self.notifications = []
         try:
             self.socket.connect(path)
             key = base64.b64encode(os.urandom(16)).decode()
@@ -134,6 +140,20 @@ class CodexRPC:
             if a & 128:
                 return json.loads(payload)
 
+    def remember_notification(self, message):
+        if message.get("method") in {"thread/deleted", "thread/status/changed", "turn/completed"}:
+            if len(self.notifications) >= 1000:
+                # Do not silently lose confirmed deletion or completion events.
+                raise RuntimeError("Codex notification backlog exceeded; reconcile adapter state")
+            self.notifications.append(message)
+
+    def poll_notifications(self, timeout=0):
+        if not self.notifications and (self.buffer or select.select([self.socket], [], [], timeout)[0]):
+            self.socket.settimeout(TIMEOUT)
+            self.remember_notification(self.receive())
+        result, self.notifications = self.notifications, []
+        return result
+
     def call(self, method, params):
         self.sequence += 1
         request_id = self.sequence
@@ -143,10 +163,11 @@ class CodexRPC:
             self.socket.settimeout(max(0.1, deadline - time.monotonic()))
             response = self.receive()
             if response.get("id") != request_id:
+                self.remember_notification(response)
                 continue
             if "error" in response:
                 # Error bodies may contain private prompts. Return the code only.
-                raise RuntimeError(
+                raise CodexRPCRejected(
                     f"Codex {method} rejected: {response['error'].get('code')}"
                 )
             return response.get("result", {})
