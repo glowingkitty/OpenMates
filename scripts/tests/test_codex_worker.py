@@ -116,3 +116,18 @@ def test_explicit_retry_only_replays_definite_message_rejection():
     rpc.fail = None
     dispatch(rpc, record, data, lambda r: None, lambda t: None, True)
     assert record["state"] == "accepted"
+
+
+# contract-test: tooling
+def test_campaign_cap_counts_idle_and_blocked_assignments():
+    from scripts.codex_worker import check_capacity
+
+    state = {
+        "max_workers": 4,
+        "workers": {str(i): {"status": "idle"} for i in range(4)},
+    }
+    with pytest.raises(ValueError, match="limit reached"):
+        check_capacity(state)
+    state["workers"].pop("3")
+    check_capacity(state)
+    check_capacity({"workers": {str(i): {} for i in range(5)}})
