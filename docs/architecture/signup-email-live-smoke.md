@@ -1,7 +1,12 @@
 # Daily live-dev signup email health
 
-The user-authorized live-service layer runs at 03:15 UTC through
-`signup-email-live-smoke.yml`, alongside the existing 03:00 isolated daily tests.
+The user-authorized live-service layer is dispatched by `run-tests-daily.sh`
+through `signup-email-live-smoke.yml`, alongside the existing 03:00 daily tests
+(the host cron timezone applies). The launcher reports dispatch acknowledgement
+separately from verification, and a health-dispatch failure does not suppress
+isolated CI. GitHub push checks register the workflow and run only tooling units;
+the live job requires workflow_dispatch on dev. No default-branch change or
+second scheduler is needed.
 It is not isolated product coverage and does not replace the CI coordinator.
 GitHub runs the bounded Python probe directly against the deployed dev API;
 there is no existing GitHub SSH transport to reuse. Credentials stay in the

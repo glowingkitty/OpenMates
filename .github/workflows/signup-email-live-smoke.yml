@@ -2,8 +2,12 @@ name: Daily live dev signup email smoke
 
 # Explicit live-service health layer; ordinary product checks stay isolated.
 on:
-  schedule:
-    - cron: '15 3 * * *'
+  push:
+    branches: [dev]
+    paths:
+      - '.github/workflows/signup-email-live-smoke.yml'
+      - 'scripts/signup_email_live_smoke.py'
+      - 'scripts/tests/test_signup_email_live_smoke.py'
   workflow_dispatch:
 
 permissions:
@@ -14,14 +18,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  live-email:
-    if: github.ref == 'refs/heads/dev'
+  tooling:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
       - name: Focused tooling checks
         run: python3 -m unittest discover -s scripts/tests -p test_signup_email_live_smoke.py
+  live-email:
+    needs: tooling
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
       - name: UTC daily send identity
         id: day
         run: echo "value=$(date -u +%F)" >> "$GITHUB_OUTPUT"

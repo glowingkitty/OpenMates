@@ -11,4 +11,14 @@ if [[ ! -f "$CI_CANONICAL/scripts/ci_dispatch.py" ]]; then
   echo 'Canonical isolated CI dispatcher unavailable; shared-dev fallback is forbidden.' >&2
   exit 2
 fi
+# This explicitly authorized health layer uses the deployed dev email service.
+# Dispatch only: credentials and probing stay inside the ephemeral GitHub runner.
+# A dispatch failure must remain visible without suppressing isolated daily CI.
+mkdir -p "$CI_CANONICAL/logs/nightly-reports"
+if timeout 30 gh -R glowingkitty/OpenMates workflow run signup-email-live-smoke.yml --ref dev; then
+  printf '%s\n' '{"dispatch":"acknowledged","verification":"pending"}' > "$CI_CANONICAL/logs/nightly-reports/signup-email-live-dispatch.json"
+else
+  printf '%s\n' '{"dispatch":"failed","verification":"not_run"}' > "$CI_CANONICAL/logs/nightly-reports/signup-email-live-dispatch.json"
+  echo 'Live signup-email health dispatch failed; see GitHub access/workflow availability. Continuing isolated daily tests.' >&2
+fi
 exec python3 "$CI_CANONICAL/scripts/ci_dispatch.py" --worktree "$CI_WORKTREE" --daily "$@"

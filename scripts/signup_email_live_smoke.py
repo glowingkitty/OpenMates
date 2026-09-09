@@ -86,6 +86,7 @@ def run_probe(run_id, receipt, report):
         report["configuration"] = "missing:" + ",".join(missing)
         return
     alias = make_alias(os.environ["GMAIL_TEST_ADDRESS"], run_id)
+    report["stage"] = "gmail_oauth"
     token_response = request_json("https://oauth2.googleapis.com/token", form=True, data={
         "client_id": os.environ["GMAIL_CLIENT_ID"], "client_secret": os.environ["GMAIL_CLIENT_SECRET"],
         "refresh_token": os.environ["GMAIL_REFRESH_TOKEN"], "grant_type": "refresh_token",
@@ -94,6 +95,7 @@ def run_probe(run_id, receipt, report):
     if not token:
         raise ProbeError("gmail_token_missing")
     gmail_headers = {"Authorization": f"Bearer {token}"}
+    report["stage"] = "gmail_read_preflight"
     # Check actual read access before sending, without logging inbox metadata.
     request_json(GMAIL_URL + "/messages?maxResults=1", headers=gmail_headers)
     report["configuration"] = "gmail_read_verified"
@@ -105,6 +107,7 @@ def run_probe(run_id, receipt, report):
         raise ProbeError("duplicate_send_prevented") from None
     started = time.time()
     report["started_at"] = datetime.fromtimestamp(started, timezone.utc).isoformat()
+    report["stage"] = "signup_request"
     response = request_json(API_URL + "/v1/auth/request_confirm_email_code", headers={"Origin": APP_URL}, data={
         "email": alias, "hashed_email": base64.b64encode(hashlib.sha256(alias.encode()).digest()).decode(),
         "invite_code": os.environ.get("E2E_SIGNUP_INVITE_CODE", ""), "language": "en", "darkmode": False,
@@ -112,6 +115,7 @@ def run_probe(run_id, receipt, report):
     if response.get("success") is not True:
         raise ProbeError("signup_request_rejected")
     report["queue_acknowledged"] = True
+    report["stage"] = "observe_provider_and_inbox"
     brevo_key = os.environ.get("BREVO_API_KEY")
     report["provider_acceptance"] = "pending" if brevo_key else "unavailable_missing_event_credentials"
     report["inbox_arrival"] = "pending"
