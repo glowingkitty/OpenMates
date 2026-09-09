@@ -26,6 +26,18 @@ TASK_ASSIGNEE_IDENTITIES = {"openmates": {"openmates"}, "external_ai": {"codex",
 TASK_ASSIGNEE_TYPES = {"user", "openmates", "external_ai", "unassigned"}
 
 
+class TaskAlreadyLinkedError(ValueError):
+    """A claimed task must be released before another conversation can claim it."""
+
+
+def _conversation_owner(record: dict[str, Any]) -> tuple[str, str] | None:
+    if record.get("primary_chat_id"):
+        return ("openmates", record["primary_chat_id"])
+    if record.get("external_chat_provider"):
+        return (record["external_chat_provider"], record["external_chat_lookup_hash"])
+    return None
+
+
 class TaskLockBusyError(RuntimeError):
     """Raised when another task lifecycle transition owns the short write lease."""
 
@@ -508,6 +520,42 @@ class UserTaskMethods:
         return response if isinstance(response, list) else []
 
     async def create_task_activity(
+        self,
+        user_id: str,
+        task_id: str,
+        payload: dict[str, Any],
+        *,
+        team_id: str | None = None,
+        expected_external_chat_lookup_hash: str | None = None,
+        source_surface: str,
+        actor_type: str = "user",
+        actor_hash: str | None = None,
+        actor_display_name: str | None = None,
+        actor_profile_image_url: str | None = None,
+    ) -> dict[str, Any] | None:
+        if expected_external_chat_lookup_hash is None:
+            return await self._create_task_activity_unlocked(user_id, task_id, payload,
+                team_id=team_id, source_surface=source_surface, actor_type=actor_type,
+                actor_hash=actor_hash, actor_display_name=actor_display_name,
+                actor_profile_image_url=actor_profile_image_url)
+        if not is_sha256_hex(expected_external_chat_lookup_hash):
+            raise ValueError("Invalid expected Task conversation")
+        lock_key = self._task_lock_key(team_id or user_id, task_id)
+        token = await self._acquire_task_lock(lock_key)
+        try:
+            owner = await self.get_task(task_id, user_id, team_id)
+            if not owner or owner.get("external_chat_lookup_hash") != expected_external_chat_lookup_hash:
+                raise TaskAlreadyLinkedError("TASK_ALREADY_LINKED: queued activity no longer owns the Task")
+            if owner.get("assignee_type") != "external_ai" or owner.get("assignee_identity") != payload.get("actor_identity"):
+                raise PermissionError("Queued activity no longer matches Task assignee")
+            return await self._create_task_activity_unlocked(user_id, task_id, payload,
+                team_id=team_id, source_surface=source_surface, actor_type=actor_type,
+                actor_hash=actor_hash, actor_display_name=actor_display_name,
+                actor_profile_image_url=actor_profile_image_url)
+        finally:
+            await self._release_task_lock(lock_key, token)
+
+    async def _create_task_activity_unlocked(
         self,
         user_id: str,
         task_id: str,
@@ -1098,6 +1146,13 @@ class UserTaskMethods:
             )
         }
         _validate_external_chat_context(effective_context)
+        previous_owner = _conversation_owner(existing)
+        next_owner = _conversation_owner(effective_context)
+        # This check executes inside the same task lease and versioned update
+        # as every other mutation. Ciphertext can change on a same-owner update;
+        # the stable native ID / blind index determines conversation identity.
+        if previous_owner and next_owner and previous_owner != next_owner:
+            raise TaskAlreadyLinkedError("TASK_ALREADY_LINKED: release the current conversation link before claiming this task")
         effective_assignment = {
             field: update[field] if field in update else existing.get(field)
             for field in ("assignee_type", "assignee_identity", "assignee_hash")

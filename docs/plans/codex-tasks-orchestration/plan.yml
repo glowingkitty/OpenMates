@@ -1,0 +1,1061 @@
+schema_version: 2
+profile: strict
+id: codex-tasks-orchestration
+title: Task-driven Codex orchestration with remote-access sync
+status: draft
+goal: Resume reliable OpenMates engineering work using native Task ownership, continuously synced local context,
+  durable delayed delivery and the existing isolated GitHub CI coordinator, without routine orchestration model
+  polling.
+scope:
+  in:
+  - 'Existing Task model: exclusive conversation ownership, create-with-link, explicit release and confirmed deletion
+    cleanup.'
+  - Project-scoped encrypted push sync hosted by foreground remote-access in Zellij.
+  - Local atomic text views, durable outbox, Codex injection and direct dependency/CI result routing.
+  - Small real pilot, matched installed CLI release and safe migration of old orchestration hooks.
+  out:
+  - Native Plans/Specifications/Checks product adoption beyond necessary existing-link deletion cleanup.
+  - Automatic OS-service startup, a new CI scheduler, per-worktree dev containers, or shared-dev E2E.
+  - Large-scale benchmarking, a hosting-provider migration or rewriting unrelated remote-access code.
+  - Production deployment, mass worker creation or bulk audio generation during planning.
+  - New Task fields or a second manually maintained work-state database.
+authorization:
+  planning: Requested in this Mac conversation after ten answered clarification rounds.
+  behavior: Agreed decisions recorded in architecture-refinements.md.
+  implementation: Authorized in Mac conversation 01a08237-d30e-76b3-af1d-7355e9e3ede6; implement over SSH from projectless
+    chat in isolated dev-server worktree; target dev. Do not load the old project Codex runtime to bootstrap its
+    replacement.
+  remote_tests: Focused units local to worktree; product integration/browser tests on isolated GitHub CI.
+specification_refs:
+- id: feature.tasks
+  path: specifications/features/tasks/specification.yml
+  observed_sha256: f3ad89fdde5175ec0b1336edd5de9b0626a0b2ed70a488c7b0fea162f8756d6f
+  observed_status: draft
+- id: feature.projects
+  path: specifications/features/projects/specification.yml
+  observed_sha256: a8a31a60c9a27f36760847a4de9ef397bde16d1275a2cad9d3a19ad76630b62c
+  observed_status: draft
+- id: feature.plans
+  path: specifications/features/plans/specification.yml
+  observed_sha256: 416a76a3e162fca4699352094c897091b04deda5a2e881500487bf53ad967661
+  observed_status: draft
+  scope: Existing chat-link deletion cleanup only; no native Plans rollout.
+scenarios:
+- id: S-1
+  title: Use the existing Project at remote-access startup
+  given:
+  - The OpenMates Project exists but this folder has no saved association.
+  when:
+  - Start remote-access in Zellij and select that existing Project and a cache directory.
+  then:
+  - The process hosts remote files and syncs Tasks without creating a duplicate Project; stopping and restarting
+    catches up.
+- id: S-2
+  title: Create and claim without duplicate ownership
+  given:
+  - A Codex conversation knows its own ID and an authenticated runtime identifies that caller.
+  when:
+  - Create a Task with its external-chat link, then attempt a competing claim through CLI and direct API.
+  then:
+  - Create-and-link is one mutation; same-owner retry is idempotent; competing claims are rejected with quoted owner
+    title and ID. Ordinary CLI creation stays unlinked; native skill creation defaults to its native chat.
+- id: S-3
+  title: Push a web edit into local context
+  given:
+  - Remote access has a consistent Project snapshot and an active subscription.
+  when:
+  - Edit a Task, activity or dependency from another supported client.
+  then:
+  - The authorized device receives the committed change and updates complete atomic files without agent polling,
+    including removal and restoration events.
+- id: S-4
+  title: Recover a gap without stale resurrection
+  given:
+  - A device disconnects while Tasks are changed, deleted or moved between Projects.
+  when:
+  - Reconnect using its saved cursor, including a case where replay history has expired.
+  then:
+  - Replay or a fresh snapshot recovers exact current membership and latest activity; duplicate events and old versions
+    cannot resurrect deleted data.
+- id: S-5
+  title: Every conversation sees all linked Tasks
+  given:
+  - A worker has twelve linked Tasks and its orchestrator manages two workers.
+  when:
+  - Start, resume, compact, and continue their turns while Tasks change.
+  then:
+  - All Tasks and full titles remain represented; descriptions and only the latest activity are shortened; unchanged
+    tool calls inject nothing and perform no network read.
+- id: S-6
+  title: Resume the dependent worker directly
+  given:
+  - A worker is idle waiting for Task dependencies; another worker is active and one is deliberately paused.
+  when:
+  - Complete the last dependency, then replay that event and race delivery with turn completion.
+  then:
+  - Only eligible owners resume; active workers receive a delta; paused workers and unrelated approval blockers
+    remain untouched. Routine delivery does not wake the orchestrator.
+- id: S-7
+  title: Tolerate restart and uncertain acknowledgments
+  given:
+  - Owned work is approved and local delivery intents are persisted.
+  when:
+  - Stop the isolated API, lose a successful response, restart the local process, and restore connectivity.
+  then:
+  - Owned work continues; writes remain visibly pending and recover without duplicate Tasks/activity. New claims
+    wait for acknowledgment. Repeated delayed failures produce one persistent-sync notice rather than Stop-hook
+    loops.
+- id: S-8
+  title: Route GitHub results to their owner
+  given:
+  - Two workers submitted different immutable candidates through the existing CI coordinator.
+  when:
+  - Their runs finish with one pass and one failure while both workers are idle.
+  then:
+  - Each owner receives its own cached result and subject/harness evidence once; no worker polls GitHub independently
+    and a pass does not automatically mark its Task done.
+- id: S-9
+  title: Delete a conversation without deleting work
+  given:
+  - A native or Codex conversation owns in-progress, blocked and completed Tasks and has Plan links.
+  when:
+  - Confirm actual deletion, including cleanup after an integration outage.
+  then:
+  - Remove links and cancel stale wakeups; in-progress becomes todo, done remains done, independent blockers remain.
+    Preserve records and decryption access; archiving/offline status does not trigger deletion cleanup.
+- id: S-10
+  title: Cut over one campaign safely
+  given:
+  - One coordinator and two visible workers use the released global CLI and isolated worktrees.
+  when:
+  - Enable the new adapter for their exact identities and exercise edits, outage, dependency and CI paths.
+  then:
+  - Only one delivery owner and context writer operate per worker. Old lifecycle/table hooks do not loop. Evidence
+    is reviewable, context is readable, and rollback retains Tasks and pending writes.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: The process hosts remote files and syncs Tasks without creating a duplicate Project; stopping and restarting
+    catches up.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CLI
+  - V-CI-SYNC
+  - V-CLI-DEMO
+- id: AC-2
+  scenario: S-2
+  text: Create-and-link is one mutation; same-owner retry is idempotent; competing claims are rejected with quoted
+    owner title and ID. Ordinary CLI creation stays unlinked; native skill creation defaults to its native chat.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-OWNERSHIP
+  - V-CI-SYNC
+  - V-CLI-DEMO
+- id: AC-3
+  scenario: S-3
+  text: The authorized device receives the committed change and updates complete atomic files without agent polling,
+    including removal and restoration events.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-FEED
+  - T-CLI
+  - V-CI-SYNC
+- id: AC-4
+  scenario: S-4
+  text: Replay or a fresh snapshot recovers exact current membership and latest activity; duplicate events and old
+    versions cannot resurrect deleted data.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-FEED
+  - T-CLI
+  - V-CI-SYNC
+- id: AC-5
+  scenario: S-5
+  text: All Tasks and full titles remain represented; descriptions and only the latest activity are shortened; unchanged
+    tool calls inject nothing and perform no network read.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CONTRACT
+  - T-DELIVERY
+  - V-CODEX-PILOT
+  - V-CLI-DEMO
+- id: AC-6
+  scenario: S-6
+  text: Only eligible owners resume; active workers receive a delta; paused workers and unrelated approval blockers
+    remain untouched. Routine delivery does not wake the orchestrator.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DELIVERY
+  - V-CODEX-PILOT
+- id: AC-7
+  scenario: S-7
+  text: Owned work continues; writes remain visibly pending and recover without duplicate Tasks/activity. New claims
+    wait for acknowledgment. Repeated delayed failures produce one persistent-sync notice rather than Stop-hook
+    loops.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CLI
+  - T-DELIVERY
+  - V-CI-SYNC
+  - V-CLI-DEMO
+- id: AC-8
+  scenario: S-8
+  text: Each owner receives its own cached result and subject/harness evidence once; no worker polls GitHub independently
+    and a pass does not automatically mark its Task done.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CI
+  - T-PLAN
+  - V-CODEX-PILOT
+- id: AC-9
+  scenario: S-9
+  text: Remove links and cancel stale wakeups; in-progress becomes todo, done remains done, independent blockers
+    remain. Preserve records and decryption access; archiving/offline status does not trigger deletion cleanup.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-DELETE
+  - V-CI-SYNC
+  - V-CLI-DEMO
+- id: AC-10
+  scenario: S-10
+  text: Only one delivery owner and context writer operate per worker. Old lifecycle/table hooks do not loop. Evidence
+    is reviewable, context is readable, and rollback retains Tasks and pending writes.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CONTRACT
+  - T-DELIVERY
+  - T-PLAN
+  - V-CODEX-PILOT
+  - V-CLI-DEMO
+tests:
+- id: T-CONTRACT
+  type: pytest
+  file: scripts/tests/test_codex_hook_context.py
+  command: python3 -m pytest scripts/tests/test_codex_hook_context.py -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-5
+  - AC-10
+  assertions:
+  - startup/resume/compaction coverage
+  - unchanged hook emits no context
+  - no exact-final-wording gate
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-OWNERSHIP
+  type: pytest
+  file: backend/tests/test_user_tasks_api.py
+  command: python3 -m pytest backend/tests/test_user_tasks_api.py backend/tests/test_user_work_control_routes.py
+    -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-2
+  assertions:
+  - one atomic winning claim
+  - direct PATCH cannot replace an owner
+  - native and external links follow exclusive ownership rules
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-FEED
+  type: pytest
+  file: backend/tests/test_project_task_sync.py
+  command: python3 -m pytest backend/tests/test_project_task_sync.py -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-3
+  - AC-4
+  assertions:
+  - committed changes only
+  - snapshot boundary and replay expiry
+  - authorization and deletion coverage
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-CLI
+  type: unit
+  file: frontend/packages/openmates-cli/tests/remoteAccess.test.ts
+  command: node --test --experimental-strip-types --loader ./tests/loader.mjs tests/remoteAccess.test.ts tests/taskActivityDelivery.test.ts
+    tests/projectTaskSync.test.ts
+  cwd: frontend/packages/openmates-cli
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-1
+  - AC-3
+  - AC-4
+  - AC-7
+  assertions:
+  - existing Project selection
+  - atomic private cache
+  - stable operation identities and shared backoff
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-DELIVERY
+  type: pytest
+  file: scripts/tests/test_codex_orchestration.py
+  command: python3 -m pytest scripts/tests/test_codex_orchestration.py scripts/tests/test_codex_task_lifecycle.py
+    -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-5
+  - AC-6
+  - AC-7
+  - AC-10
+  assertions:
+  - all linked Tasks visible
+  - direct dependency wake and no duplicate wake
+  - queued updates do not block clarification-only turns
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-DELETE
+  type: pytest
+  file: backend/tests/test_delete_chat_handler.py
+  command: python3 -m pytest backend/tests/test_delete_chat_handler.py backend/tests/test_user_plans_api.py -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-9
+  assertions:
+  - durable unlink cleanup
+  - preserved encryption access
+  - active Plan loses execution context coherently
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-CI
+  type: pytest
+  file: scripts/tests/test_ci_coordinator.py
+  command: python3 -m pytest scripts/tests/test_ci_coordinator.py scripts/tests/test_codex_evidence.py -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-8
+  assertions:
+  - source-bound result routing
+  - uncertain delivery reconciliation
+  - no second scheduler
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+- id: T-PLAN
+  type: pytest
+  file: scripts/tests/test_plan_ci_evidence.py
+  command: python3 -m pytest scripts/tests/test_plan_ci_evidence.py -q
+  cwd: .
+  file_status: new_or_extend_existing_as_listed_in_tasks
+  covers:
+  - AC-8
+  - AC-10
+  assertions:
+  - isolated CI evidence accepted
+  - ancestor-only stale proof rejected
+  - required evidence stays required
+  red_phase:
+    required: true
+    expected: Demonstrate the specific gap; record already-passing cases honestly.
+    evidence:
+      status: pending
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: pending
+verifications:
+- id: V-CI-SYNC
+  kind: automated_test
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-1
+  - AC-2
+  - AC-3
+  - AC-4
+  - AC-7
+  - AC-9
+  status: pending
+  description: Run one isolated GitHub integration scenario using the built CLI, real API/WebSocket, fresh account
+    and browser mutation. Exercise conflict, disconnect, lost acknowledgment and delete. Run new project-task-sync.spec.ts
+    through the existing coordinator.
+  evidence:
+    status: pending
+  framework: playwright_and_real_cli
+  execution_environment: isolated_github_ci
+  test_file: frontend/apps/web_app/tests/project-task-sync.spec.ts
+  command: python3 scripts/ci_coordinator.py submit --session <session-id> --source <published-source-ref> --spec
+    project-task-sync.spec.ts --mode e2e
+  evidence_required:
+  - tested source commit
+  - harness commit
+  - profile
+  - run/job ID
+  - exit result
+  - trace/report artifacts
+  - zero shared-dev fallback
+  note: Required automated verification is represented here using the current supported schema. TASK-1 fixes the
+    legacy tests[type=playwright] host restriction; this is not a manual substitute or a waiver.
+- id: V-CODEX-PILOT
+  kind: manual_check
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-5
+  - AC-6
+  - AC-8
+  - AC-10
+  status: pending
+  description: In the dedicated dev-server task, use one visible coordinator and two visible workers on the existing
+    Codex subscription. Verify actual injected context, idle/running/paused transitions, compaction, CI owner delivery,
+    and clean stopping. Keep input/output evidence bounded and private.
+  evidence:
+    status: pending
+- id: V-CLI-DEMO
+  kind: artifact_review
+  phase: final
+  required_for_done: true
+  covers:
+  - AC-1
+  - AC-2
+  - AC-5
+  - AC-7
+  - AC-9
+  - AC-10
+  status: pending
+  description: Review a short CLI transcript plus worker/orchestrator instruction snapshots. Show quoted owner conflicts,
+    a twelve-Task view, pending delivery, recovery and deletion. Preserve source/run identifiers; do not use paid
+    AI generation.
+  evidence:
+    status: pending
+tasks:
+- id: TASK-1
+  title: Prove runtime hooks and align CI contracts
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-5
+    - S-8
+    - S-10
+    acceptance_criteria:
+    - AC-5
+    - AC-8
+    - AC-10
+  expected_files:
+  - scripts/plan_validate.py
+  - scripts/plan_verify.py
+  - scripts/tests/test_plan_ci_evidence.py
+  - scripts/codex_task_context.py
+  - .codex/hooks.json
+  verification_ids:
+  - T-CONTRACT
+  - T-PLAN
+  dependencies: []
+  ownership:
+    files:
+    - scripts/plan_validate.py
+    - scripts/plan_verify.py
+    - scripts/tests/test_plan_ci_evidence.py
+    - scripts/codex_task_context.py
+    - .codex/hooks.json
+    shared_files: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Prove actual remote Codex identity, start/resume/compact context, same-conversation single execution and confirmed
+    deletion signals before depending on them.
+  - Remove hardcoded shared-dev Playwright validation and ancestry-only freshness. Do not change actual CI scheduling.
+  - Map agreed product deltas to repository Tasks/Projects/Plans specifications and existing PDF receipts. Engineering
+    integration does not need a new product Specification. Prepare only missing review material; do not repeat answered
+    architecture questions.
+- id: TASK-2
+  title: Enforce conversation ownership and safe deletion
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    - S-9
+    acceptance_criteria:
+    - AC-2
+    - AC-9
+  expected_files:
+  - backend/core/api/app/routes/user_tasks.py
+  - backend/core/api/app/services/directus/user_task_methods.py
+  - backend/core/api/app/services/user_task_service.py
+  - backend/core/api/app/tasks/persistence_tasks.py
+  - backend/core/api/app/services/user_plan_service.py
+  - backend/apps/ai/processing/task_tool_executor.py
+  - frontend/packages/openmates-cli/src/cli.ts
+  - frontend/packages/openmates-cli/src/client.ts
+  verification_ids:
+  - T-OWNERSHIP
+  - T-DELETE
+  - V-CI-SYNC
+  dependencies:
+  - TASK-1
+  ownership:
+    files:
+    - backend/core/api/app/routes/user_tasks.py
+    - backend/core/api/app/services/directus/user_task_methods.py
+    - backend/core/api/app/services/user_task_service.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/services/user_plan_service.py
+    - backend/apps/ai/processing/task_tool_executor.py
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    shared_files:
+    - backend/core/api/app/routes/user_tasks.py
+    - frontend/packages/openmates-cli/src/cli.ts
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Use existing native/external link fields and optimistic versioning with an atomic ownership guard across all
+    mutation paths.
+  - Bind self-claim/release to the authenticated runtime caller; do not accept a bare claimed conversation ID as
+    authentication. Keep explicit user recovery.
+  - Create with optional link in one mutation; Codex supplies its ID, ordinary CLI defaults unlinked, native skill
+    defaults linked. Return readable conflict details to the appropriate client.
+  - Durably unlink confirmed deleted conversations; preserve records/wrappers and coherent Plan state. No automatic
+    replacement worker.
+- id: TASK-3
+  title: Add durable Project Task changes to the bridge
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-3
+    - S-4
+    - S-9
+    acceptance_criteria:
+    - AC-3
+    - AC-4
+    - AC-9
+  expected_files:
+  - backend/core/api/app/services/project_remote_access_service.py
+  - backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+  - backend/core/api/app/routes/websockets.py
+  - backend/core/api/app/services/project_task_sync_service.py
+  - backend/core/directus/schemas/
+  - backend/tests/test_project_task_sync.py
+  verification_ids:
+  - T-FEED
+  - V-CI-SYNC
+  dependencies:
+  - TASK-1
+  - TASK-2
+  ownership:
+    files:
+    - backend/core/api/app/services/project_remote_access_service.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/project_task_sync_service.py
+    - backend/core/directus/schemas/
+    - backend/tests/test_project_task_sync.py
+    shared_files: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Reuse the remote-access websocket; add explicitly authorized subscriptions rather than native task_update_jobs.
+  - Persist committed change records in existing product storage with transaction-safe capture; no new service or
+    broker.
+  - Provide a consistent paginated bootstrap, replay cursor, removals and bounded reset on expired history. Include
+    Task/activity/dependency/Project-link changes from every supported writer.
+  - Transmit ciphertext plus minimal routing metadata, enforce access changes, include authorized cross-Project
+    dependencies, and bound backlog/fan-out.
+- id: TASK-4
+  title: Sync the selected Project into complete local views
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-3
+    - S-4
+    - S-5
+    acceptance_criteria:
+    - AC-1
+    - AC-3
+    - AC-4
+    - AC-5
+  expected_files:
+  - frontend/packages/openmates-cli/src/remoteAccess.ts
+  - frontend/packages/openmates-cli/src/cli.ts
+  - frontend/packages/openmates-cli/src/ws.ts
+  - frontend/packages/openmates-cli/src/projectTaskSync.ts
+  - frontend/packages/openmates-cli/tests/projectTaskSync.test.ts
+  - docs/user-guide/cli/remote-access.md
+  verification_ids:
+  - T-CLI
+  - V-CI-SYNC
+  dependencies:
+  - TASK-3
+  ownership:
+    files:
+    - frontend/packages/openmates-cli/src/remoteAccess.ts
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/src/projectTaskSync.ts
+    - frontend/packages/openmates-cli/tests/projectTaskSync.test.ts
+    - docs/user-guide/cli/remote-access.md
+    shared_files:
+    - frontend/packages/openmates-cli/src/cli.ts
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Extend startup with an existing-Project picker, task-sync choice and external cache folder; preserve existing
+    read-only file access.
+  - Run one shared connection per process/authentication context. Decrypt locally using existing wrappers, not assumed
+    universal Project-key access.
+  - Generate atomic per-conversation text with every Task and full title; shorten descriptions and one latest activity.
+    Preserve blockers/dependencies, removals and explicit freshness.
+  - Reuse saved bindings on restart; reconnect and reconcile without model involvement.
+- id: TASK-5
+  title: Persist and retry delivery without agent loops
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-2
+    - S-7
+    acceptance_criteria:
+    - AC-2
+    - AC-7
+  expected_files:
+  - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+  - frontend/packages/openmates-cli/src/taskDelivery.ts
+  - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+  - scripts/codex_task_lifecycle.py
+  verification_ids:
+  - T-CLI
+  - T-DELIVERY
+  - V-CI-SYNC
+  dependencies:
+  - TASK-2
+  - TASK-4
+  ownership:
+    files:
+    - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+    - frontend/packages/openmates-cli/src/taskDelivery.ts
+    - frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+    - scripts/codex_task_lifecycle.py
+    shared_files: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Extend one delivery owner and outbox; do not create per-worker retry engines. A small local enqueue path survives
+    a temporarily missing CLI executable.
+  - Persist before send; reuse identities and reconcile lost acknowledgments for creation, activity and state mutations.
+    Retain meaningful lifecycle ordering.
+  - Retry transient failures with jitter, shared cooldown and Retry-After. Report persistent sync trouble only after
+    at least five failures and five minutes, retain work and slow retries.
+  - Do not retry ownership/validation failures blindly. Never report a pending claim or status as confirmed. Owned
+    approved work can continue.
+- id: TASK-6
+  title: Replace context hooks and route workers directly
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-5
+    - S-6
+    - S-7
+    - S-9
+    - S-10
+    acceptance_criteria:
+    - AC-5
+    - AC-6
+    - AC-7
+    - AC-9
+    - AC-10
+  expected_files:
+  - scripts/codex_task_context.py
+  - scripts/codex_task_lifecycle.py
+  - scripts/codex_orchestration.py
+  - .codex/hooks.json
+  - .codex/hooks/claude-hook-bridge.sh
+  - scripts/tests/test_codex_orchestration.py
+  - scripts/tests/test_codex_hook_context.py
+  verification_ids:
+  - T-CONTRACT
+  - T-DELIVERY
+  - V-CODEX-PILOT
+  dependencies:
+  - TASK-1
+  - TASK-4
+  - TASK-5
+  ownership:
+    files:
+    - scripts/codex_task_context.py
+    - scripts/codex_task_lifecycle.py
+    - scripts/codex_orchestration.py
+    - .codex/hooks.json
+    - .codex/hooks/claude-hook-bridge.sh
+    - scripts/tests/test_codex_orchestration.py
+    - scripts/tests/test_codex_hook_context.py
+    shared_files: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Maintain durable conversation/host/worktree associations as integration metadata, not new Task fields.
+  - Inject local snapshots on entry and compaction; deduplicate overlapping hooks. Mid-turn checks read a local
+    dirty marker, inject only changed rows and make no API call.
+  - Resume the eligible owning conversation on its current execution host; preserve explicit pauses and all other
+    blockers. Do not wake the orchestrator for routine activity.
+  - Fence obsolete deletion/release intents and reconcile uncertain sends. Disable exact-summary/final-table/retrospective
+    enforcement for migrated participants; preserve unrelated code checks.
+- id: TASK-7
+  title: Connect existing GitHub results to worker ownership
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-8
+    acceptance_criteria:
+    - AC-8
+  expected_files:
+  - scripts/ci_coordinator.py
+  - scripts/codex_orchestration.py
+  - scripts/codex_evidence.py
+  - scripts/tests/test_ci_coordinator.py
+  - scripts/tests/test_codex_evidence.py
+  verification_ids:
+  - T-CI
+  - T-PLAN
+  - V-CODEX-PILOT
+  dependencies:
+  - TASK-6
+  ownership:
+    files:
+    - scripts/ci_coordinator.py
+    - scripts/codex_orchestration.py
+    - scripts/codex_evidence.py
+    - scripts/tests/test_ci_coordinator.py
+    - scripts/tests/test_codex_evidence.py
+    shared_files: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Keep the current queue, concurrency and result cache. Add only durable job-to-Task/conversation integration
+    metadata and result-consumption notifications.
+  - Deliver each tested source/harness/profile result to its owner, once after reconciliation; no independent worker
+    GitHub polling.
+  - A worker evaluates evidence and remaining work; CI pass alone does not complete a Task.
+- id: TASK-8
+  title: Release, pilot and migrate the Landing workflow
+  status: pending
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    - S-5
+    - S-6
+    - S-7
+    - S-8
+    - S-9
+    - S-10
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+    - AC-5
+    - AC-6
+    - AC-7
+    - AC-8
+    - AC-9
+    - AC-10
+  expected_files:
+  - frontend/apps/web_app/tests/project-task-sync.spec.ts
+  - scripts/ci_coverage_manifest.json
+  - docs/architecture/codex-orchestration.md
+  - docs/architecture/codex-task-lifecycle.md
+  - AGENTS.md
+  - .agents/skills/create-plan/SKILL.md
+  - .agents/skills/verify-plan/SKILL.md
+  verification_ids:
+  - V-CI-SYNC
+  - V-CODEX-PILOT
+  - V-CLI-DEMO
+  dependencies:
+  - TASK-2
+  - TASK-3
+  - TASK-4
+  - TASK-5
+  - TASK-6
+  - TASK-7
+  ownership:
+    files:
+    - frontend/apps/web_app/tests/project-task-sync.spec.ts
+    - scripts/ci_coverage_manifest.json
+    - docs/architecture/codex-orchestration.md
+    - docs/architecture/codex-task-lifecycle.md
+    - AGENTS.md
+    - .agents/skills/create-plan/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    shared_files: []
+  blockers: []
+  follow_up_tasks: []
+  implementation_steps:
+  - Admit the new focused isolated browser test without deleting or weakening original tests. Validate the relevant
+    existing Tasks browser regressions.
+  - Publish the matching global CLI build before operational use; keep development source builds confined to development/CI.
+  - Run one real coordinator/two-worker pilot. Exercise twelve Tasks, a server outage, confirmed deletion, duplicate
+    events, one dependency and two CI outcomes.
+  - Review concise evidence, then migrate existing campaign ownership and pending writes with one observer. Stop
+    old observers before enabling replacements. Rollback disables new delivery while retaining authoritative Tasks
+    and queue data.
+  - Update one concise instruction source and retire superseded orchestration policy; do not introduce mandatory
+    campaign tables in every reply.
+implementation_state:
+  subject_commit: e78dcedba7e5deda6bb4ae3deec92c63211fb55a
+  note: Research baseline only; replace with actual implementation subject before crediting green evidence.
+approvals:
+  specification:
+    status: pending
+    reason: Product source bundles observed as draft. Map exact agreed deltas and inspect existing PDF/fingerprint
+      receipts in TASK-1; engineering-only changes need no product Specification.
+  plan:
+    status: pending
+    reason: Concrete execution plan prepared for review; architecture decisions already agreed.
+decisions:
+- id: D-1
+  status: active
+  decision: Execute from one dedicated dev-server task and isolated worktree; keep the Mac conversation as review
+    context.
+  reason: Code, runtime identity and CLI execution belong on the dev host; avoid fragmented remote shell ownership.
+  decided_at: '2026-09-09'
+- id: D-2
+  status: active
+  decision: Prioritize a real small pilot over load benchmarks and platform replacement.
+  reason: User needs work to resume quickly.
+  decided_at: '2026-09-09'
+attempts:
+- id: ATT-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Validate concrete contracts and source mapping without starting product implementation or CI from the
+    Mac.
+  recorded_at: '2026-09-09'
+handoff:
+  current_task_id: TASK-1
+  next_action: Execute from Mac over SSH in session 51d9 worktree based on origin/dev; validate before integrating
+    into dev.
+  command: python3 scripts/plan_validate.py docs/plans/codex-tasks-orchestration/plan.yml
+  expected_outcome: A valid concrete plan, verified integration primitives and corrected isolated-CI evidence requirements
+    before product rollout.
+  last_verified_commit: 7fe12e0cadf7e65798a9c93283e5d36f34b87cb3
+  blocker: null
+assumptions:
+- id: A-1
+  text: The installed remote Codex runtime exposes reliable context hooks and an authoritative deletion signal.
+  status: unchecked
+  required_before: implementation
+  verification: TASK-1 proves these on the installed runtime; absence is a specific compatibility decision, not
+    permission to infer deletion from missing list entries.
+implementation_notes:
+  plan_path: docs/plans/codex-tasks-orchestration/plan.yml
+  architecture: Foreground remote-access owns generic sync and queued transport; a Codex adapter owns local context
+    and actor-bound wake routing. OpenMates Tasks remains authoritative.
+  existing_patterns:
+  - frontend/packages/openmates-cli/src/remoteAccess.ts
+  - frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+  - scripts/ci_coordinator.py
+  data_flow:
+  - Committed Task change -> durable encrypted event -> selected remote-access subscription -> atomic private cache
+    -> conversation context.
+  - Worker update -> local durable outbox -> canonical transport -> confirmed Task state -> synced views.
+  - Existing CI result -> owner mapping -> one eligible worker continuation.
+  affected_files:
+  - path: scripts/plan_validate.py
+    reason: Prove runtime hooks and align CI contracts
+  - path: scripts/plan_verify.py
+    reason: Prove runtime hooks and align CI contracts
+  - path: scripts/tests/test_plan_ci_evidence.py
+    reason: Prove runtime hooks and align CI contracts
+  - path: scripts/codex_task_context.py
+    reason: Prove runtime hooks and align CI contracts
+  - path: .codex/hooks.json
+    reason: Prove runtime hooks and align CI contracts
+  - path: backend/core/api/app/routes/user_tasks.py
+    reason: Enforce conversation ownership and safe deletion
+  - path: backend/core/api/app/services/directus/user_task_methods.py
+    reason: Enforce conversation ownership and safe deletion
+  - path: backend/core/api/app/services/user_task_service.py
+    reason: Enforce conversation ownership and safe deletion
+  - path: backend/core/api/app/tasks/persistence_tasks.py
+    reason: Enforce conversation ownership and safe deletion
+  - path: backend/core/api/app/services/user_plan_service.py
+    reason: Enforce conversation ownership and safe deletion
+  - path: backend/apps/ai/processing/task_tool_executor.py
+    reason: Enforce conversation ownership and safe deletion
+  - path: frontend/packages/openmates-cli/src/cli.ts
+    reason: Enforce conversation ownership and safe deletion
+  - path: frontend/packages/openmates-cli/src/client.ts
+    reason: Enforce conversation ownership and safe deletion
+  - path: backend/core/api/app/services/project_remote_access_service.py
+    reason: Add durable Project Task changes to the bridge
+  - path: backend/core/api/app/routes/handlers/websocket_handlers/project_remote_access_handlers.py
+    reason: Add durable Project Task changes to the bridge
+  - path: backend/core/api/app/routes/websockets.py
+    reason: Add durable Project Task changes to the bridge
+  - path: backend/core/api/app/services/project_task_sync_service.py
+    reason: Add durable Project Task changes to the bridge
+  - path: backend/core/directus/schemas/
+    reason: Add durable Project Task changes to the bridge
+  - path: backend/tests/test_project_task_sync.py
+    reason: Add durable Project Task changes to the bridge
+  - path: frontend/packages/openmates-cli/src/remoteAccess.ts
+    reason: Sync the selected Project into complete local views
+  - path: frontend/packages/openmates-cli/src/ws.ts
+    reason: Sync the selected Project into complete local views
+  - path: frontend/packages/openmates-cli/src/projectTaskSync.ts
+    reason: Sync the selected Project into complete local views
+  - path: frontend/packages/openmates-cli/tests/projectTaskSync.test.ts
+    reason: Sync the selected Project into complete local views
+  - path: docs/user-guide/cli/remote-access.md
+    reason: Sync the selected Project into complete local views
+  - path: frontend/packages/openmates-cli/src/taskActivityDelivery.ts
+    reason: Persist and retry delivery without agent loops
+  - path: frontend/packages/openmates-cli/src/taskDelivery.ts
+    reason: Persist and retry delivery without agent loops
+  - path: frontend/packages/openmates-cli/tests/taskActivityDelivery.test.ts
+    reason: Persist and retry delivery without agent loops
+  - path: scripts/codex_task_lifecycle.py
+    reason: Persist and retry delivery without agent loops
+  - path: scripts/codex_orchestration.py
+    reason: Replace context hooks and route workers directly
+  - path: .codex/hooks/claude-hook-bridge.sh
+    reason: Replace context hooks and route workers directly
+  - path: scripts/tests/test_codex_orchestration.py
+    reason: Replace context hooks and route workers directly
+  - path: scripts/tests/test_codex_hook_context.py
+    reason: Replace context hooks and route workers directly
+  - path: scripts/ci_coordinator.py
+    reason: Connect existing GitHub results to worker ownership
+  - path: scripts/codex_evidence.py
+    reason: Connect existing GitHub results to worker ownership
+  - path: scripts/tests/test_ci_coordinator.py
+    reason: Connect existing GitHub results to worker ownership
+  - path: scripts/tests/test_codex_evidence.py
+    reason: Connect existing GitHub results to worker ownership
+  - path: frontend/apps/web_app/tests/project-task-sync.spec.ts
+    reason: Release, pilot and migrate the Landing workflow
+  - path: scripts/ci_coverage_manifest.json
+    reason: Release, pilot and migrate the Landing workflow
+  - path: docs/architecture/codex-orchestration.md
+    reason: Release, pilot and migrate the Landing workflow
+  - path: docs/architecture/codex-task-lifecycle.md
+    reason: Release, pilot and migrate the Landing workflow
+  - path: AGENTS.md
+    reason: Release, pilot and migrate the Landing workflow
+  - path: .agents/skills/create-plan/SKILL.md
+    reason: Release, pilot and migrate the Landing workflow
+  - path: .agents/skills/verify-plan/SKILL.md
+    reason: Release, pilot and migrate the Landing workflow
+  verification_strategy:
+  - Focused unit checks verify race/identity/retry invariants.
+  - Required GitHub integration verifications use the real built CLI/API/WebSocket/browser in the existing isolated
+    runner.
+  - A real Codex pilot verifies app-specific hook and continuation semantics.
+  verification_order:
+  - Small focused local unit checks while implementing each slice.
+  - One combined isolated GitHub integration job and targeted existing regressions after source publication.
+  - Actual dev-host Codex adapter pilot using the verified global CLI, with GitHub doing product browser/integration
+    execution.
+  - Review transcript/context/result artifacts and migrate gradually.
+operating_constraints:
+  test_budget: No paid provider calls, no 10000-device benchmark, no repeated broad suites absent a relevant failure.
+  task_state: Plan task IDs describe implementation units. When imported into OpenMates Tasks, linked records become
+    execution truth; generate any plan progress projection rather than dual manual status entry.
+  shared_files: One implementer initially; serialize cli.ts, user_tasks.py and hooks changes. No automatic subagent
+    swarm.
+  rollback: Stop the new adapter, retain caches/outbox and Task ownership, restore only the prior integration configuration.
+    Do not reset task states or delete pending writes.

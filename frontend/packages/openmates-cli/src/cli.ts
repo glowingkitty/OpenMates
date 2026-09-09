@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { taskMutationStore, type TaskMutation } from "./taskMutationDelivery.js";
 /*
  * OpenMates CLI command entry.
  *
@@ -10,7 +11,7 @@
  */
 
 import {downloadGeneratedFiles, generatedFileOptions, GENERATED_FILE_HELP, fetchGeneratedFile} from "./generatedFiles.js";
-import { codexResumeArguments, readCodexThread, resumeCodexTask } from "./codexConnection.js";
+import { codexResumeArguments, assertCodexClaimCaller, readCodexThread, taskOwnerConflict, resumeCodexTask } from "./codexConnection.js";
 import {
   OpenMatesClient,
   INTEREST_TAG_IDS,
@@ -64,6 +65,7 @@ import { WebSocketProtocolError, type PendingTaskUpdateJobFrame, type StreamEven
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 import { readActivityHistory } from "./taskActivityHistory.js";
+import { TaskDeliveryPending } from "./taskDelivery.js";
 import { activityDeliveryStore } from "./taskActivityDelivery.js";
 import { existsSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -827,6 +829,22 @@ function handleCliVersion(flags: Record<string, string | boolean>): void {
 // User tasks
 // ---------------------------------------------------------------------------
 
+async function queuedTaskMutation(client: OpenMatesClient, flags: Record<string, string | boolean>, mutation: TaskMutation, teamId?: string | null): Promise<UserTaskRecord | null> {
+  const session = client.getSession();
+  try {
+    const result = await taskMutationStore([session.apiUrl, session.hashedEmail, teamId || "personal"]).deliver(
+      String(flags["delivery-id"]), async () => mutation, client);
+    if (!("status" in result)) throw new Error("Expected Task mutation acknowledgement.");
+    return result;
+  } catch (error) {
+    if (!(error instanceof TaskDeliveryPending)) throw error;
+    const delivery = { status: "pending", delivery_id: flags["delivery-id"], retry_at: error.retryAt, persistent: error.persistent };
+    if (flags.json === true) printJson({ delivery });
+    else console.log(`${error.message} Delivery ID: ${flags["delivery-id"]}`);
+    return null;
+  }
+}
+
 async function handleTasks(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -847,7 +865,18 @@ async function handleTasks(
     if (task.source === "workflow_run") throw new Error("Workflow projections cannot connect to external agents.");
     if (subcommand === "connect") {
       if (typeof flags.thread !== "string") throw new Error("Usage: openmates tasks connect <task-id> --thread <codex-thread-uuid>");
-      if (task.primaryChatId) throw new Error("This Task has a native chat. Clear that link explicitly before connecting Codex.");
+      if (task.primaryChatId) {
+        const owner = await client.getChatMetadata(task.primaryChatId, scope);
+        throw new Error(taskOwnerConflict({ provider: "openmates", id: owner.id, title: owner.title }));
+      }
+      if (task.externalChat) {
+        if (task.externalChat.provider === "codex" && task.externalChat.id === flags.thread) {
+          printTaskOutput(task, flags);
+          return;
+        }
+        throw new Error(taskOwnerConflict(task.externalChat));
+      }
+      assertCodexClaimCaller(flags.thread);
       const connection = await readCodexThread(flags.thread);
       const patch = await buildUpdateUserTaskInput(task, masterKey, {
         assign: "codex", externalChat: { provider: "codex", id: connection.id, title: connection.title },
@@ -873,11 +902,15 @@ async function handleTasks(
     const task = await requiredResolvedTask(client, masterKey, rest[1], scope, `activity ${action}`);
     const context = { teamId: scope.teamId, personal: scope.personal };
     const actor = flags["as-assignee"] === true ? "assignee" : "user";
+    const ownerHash = actor === "assignee" && task.externalChat ? task.encrypted.external_chat_lookup_hash ?? undefined : undefined;
+    if (actor === "assignee" && task.externalChat?.provider === "codex" && process.env.CODEX_THREAD_ID && task.externalChat.id !== process.env.CODEX_THREAD_ID) {
+      throw new Error(taskOwnerConflict(task.externalChat));
+    }
     const delivery = () => activityDeliveryStore(JSON.stringify([
       client.getSession().apiUrl, client.getSession().hashedEmail, scope.teamId || "personal", task.taskId, actor,
-    ]));
-    const createActivity = (input: Parameters<typeof client.createUserTaskActivity>[1]) => client.createUserTaskActivity(task.taskId, input, {
-      ...context, ...(actor === "assignee" ? { actorMode: "assignee" as const } : {}),
+    ]), undefined, Date.now, ownerHash);
+    const createActivity = (input: Parameters<typeof client.createUserTaskActivity>[1], expectedOwnerHash = ownerHash) => client.createUserTaskActivity(task.taskId, input, {
+      ...context, ...(actor === "assignee" ? { actorMode: "assignee" as const, expectedOwnerHash } : {}),
     });
     if (action === "flush") {
       printJson(await delivery().flush(createActivity));
@@ -910,9 +943,16 @@ async function handleTasks(
       if (!message.trim()) throw new Error("Missing comment. Usage: openmates tasks activity add <task-id> --message <text>");
       const deliveryId = typeof flags["delivery-id"] === "string" ? flags["delivery-id"] : undefined;
       const build = () => buildCreateTaskActivityInput(task, masterKey, { message, ...(deliveryId ? { entryId: deliveryId } : {}) });
-      const record = deliveryId
-        ? await delivery().deliver(deliveryId, build, createActivity)
-        : await createActivity(await build());
+      let record: Awaited<ReturnType<typeof createActivity>>;
+      try {
+        record = deliveryId ? await delivery().deliver(deliveryId, build, createActivity) : await createActivity(await build());
+      } catch (error) {
+        if (!(error instanceof TaskDeliveryPending)) throw error;
+        const delivery = { status: "pending", delivery_id: deliveryId, retry_at: error.retryAt, persistent: error.persistent };
+        if (flags.json === true) printJson({ delivery });
+        else console.log(error.message);
+        return;
+      }
       const entry = await decryptTaskActivityEntry(task, masterKey, record);
       if (entry.message !== message) throw new Error("Activity delivery id already belongs to a different milestone message");
       if (flags.json === true) printJson({ entry: taskActivityToJson(entry) });
@@ -940,7 +980,10 @@ async function handleTasks(
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
     const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
-    const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
+    const updated = flags["delivery-id"]
+      ? await queuedTaskMutation(client, flags, { kind: "update", taskId: task.taskId, input: patch, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined }, scope.teamId)
+      : await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
+    if (!updated) return;
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
   }
@@ -1079,10 +1122,13 @@ async function handleTasks(
     if (flags["as-assignee"] === true) {
       const external = externalChatFromFlags(flags);
       if (!external || external.provider !== "codex") throw new Error("Codex creator attribution requires --external-chat codex:<thread-uuid>.");
-      await readCodexThread(external.id);
+      // Caller and runtime title were verified while resolving the creation input.
       creator = "codex";
     }
-    const created = await client.createUserTask(input, { creator });
+    const created = flags["delivery-id"]
+      ? await queuedTaskMutation(client, flags, { kind: "create", taskId: input.task_id, input, creator }, scope.teamId)
+      : await client.createUserTask(input, { creator });
+    if (!created) return;
     printTaskOutput(await decryptUserTask(created, masterKey), flags);
     return;
   }
@@ -1239,6 +1285,11 @@ async function resolveTaskCreateOptions(
   flags: Record<string, string | boolean>,
   input: TaskCreateOptions,
 ): Promise<TaskCreateOptions> {
+  if (input.externalChat?.provider === "codex") {
+    assertCodexClaimCaller(input.externalChat.id);
+    const connection = await readCodexThread(input.externalChat.id);
+    input = { ...input, externalChat: { provider: "codex", id: connection.id, title: connection.title } };
+  }
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds: string[] = [];
   for (const projectId of input.projectIds ?? []) {
@@ -1254,6 +1305,11 @@ async function resolveTaskUpdateOptions(
   flags: Record<string, string | boolean>,
   input: TaskUpdateOptions,
 ): Promise<TaskUpdateOptions> {
+  if (input.externalChat?.provider === "codex") {
+    assertCodexClaimCaller(input.externalChat.id);
+    const connection = await readCodexThread(input.externalChat.id);
+    input = { ...input, externalChat: { provider: "codex", id: connection.id, title: connection.title } };
+  }
   const chatId = input.chatId ? (await client.resolveChatKeyForContext(input.chatId, teamContextFromFlags(flags))).chatId : input.chatId;
   const projectIds = input.projectIds
     ? await Promise.all(input.projectIds.map(async (projectId) => (await requiredResolvedProject(client, masterKey, projectId, flags)).projectId))
@@ -4343,6 +4399,11 @@ async function handleRemoteAccess(
             bindings,
             signal: controller.signal,
             confirmedTakeover,
+            taskCacheRoot: typeof flags["task-cache"] === "string" ? flags["task-cache"] : undefined,
+            onTaskSync: (event) => {
+              if (flags.json === true) printJson({ type: "project_task_sync", ...event });
+              else if (event.status !== "synced") console.warn(`Task sync: ${event.status}. Pending data will be reconciled automatically.`);
+            },
             onLifecycle: (event) => {
               if (flags.json === true) printJson({ type: "remote_access_lifecycle", ...event });
               else if (event.state === "connected") console.log("Remote access connected.");
@@ -4444,12 +4505,23 @@ async function resolveRemoteAccessBindings(
     if (flags.json === true || !process.stdin.isTTY) {
       throw new Error(`Remote access needs interactive Project review for: ${unresolved.join(", ")}`);
     }
-    console.log("The following folders need OpenMates Projects:");
-    unresolved.forEach((rootPath) => console.log(`  - ${rootPath}`));
-    const answer = (await promptLine(`Create ${unresolved.length} missing Project${unresolved.length === 1 ? "" : "s"}? [y/N] `)).trim().toLowerCase();
-    if (answer !== "y" && answer !== "yes") throw new Error("Remote access Project creation cancelled.");
+    const available = projects.filter((project) => !project.archived);
     for (const rootPath of unresolved) {
-      const project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
+      console.log(`Choose the OpenMates Project for ${rootPath}:`);
+      available.forEach((project, index) => console.log(`  ${index + 1}. ${JSON.stringify(project.name)} (${project.projectId})`));
+      console.log("  new. Create a new Project");
+      const answer = (await promptLine("Project number, 'new', or Enter to cancel: ")).trim();
+      let project: DecryptedProject;
+      if (answer.toLowerCase() === "new") {
+        project = await createEncryptedRemoteAccessProject(client, masterKey, basename(rootPath), context);
+        available.push(project);
+      } else {
+        const index = Number(answer) - 1;
+        if (!/^[1-9][0-9]*$/.test(answer) || !Number.isSafeInteger(index) || !available[index]) {
+          throw new Error("Remote access Project selection cancelled or invalid; no Project was created.");
+        }
+        project = available[index];
+      }
       resolved.push({ rootPath, project, sourceId: randomUUID() });
     }
   }
@@ -13491,17 +13563,19 @@ Options:
 
 function printRemoteAccessHelp(): void {
   console.log(`Remote access command:
-  openmates remote-access [--path <folder>]... [--json]
+  openmates remote-access [--path <folder>]... [--task-cache <folder>] [--json]
 
 Behavior:
   Discovers repository Projects below the current working directory by default.
-  Repeated --path values replace default discovery. Missing Projects are created
-  only after interactive review. The command remains connected in the foreground;
+  Repeated --path values replace default discovery. For an unlinked folder, select
+  an existing Project or explicitly choose 'new' to create one. The command remains connected in the foreground;
   keep the terminal open or use zellij, tmux, or screen.
 
 Security:
   Source metadata is stored locally under ~/.openmates/remote-sources.json.
   Preview cache defaults to ~/.openmates/remote-cache/<source-id>.
+  Task cache defaults to ~/.openmates/project-task-cache, separated by account and Project.
+  --task-cache selects a different private cache folder; Task sync uses the same live connection.
   Project metadata and bridge payloads are encrypted automatically. List, search,
   and text preview stay inside approved roots and exclude protected, ignored,
   binary, symlink-escaped, and out-of-root paths.`);
