@@ -4,7 +4,8 @@ demonstration:
     status: not_applicable
     surface: non_visual
     classified_at: '2026-09-09'
-    verification_ids: [T-UNIT]
+    verification_ids:
+    - T-UNIT
     reason: Engineering account-health tooling; user explicitly requested no videos.
 goal: Add daily live signup verification-email smoke on dev
 approvals:
@@ -35,7 +36,7 @@ id: signup-email-live-smoke
 title: Add daily live signup verification-email smoke on dev
 status: implementing
 implementation_state:
-  subject_commit: pending-deploy
+  subject_commit: 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
 scenarios:
 - id: S-1
   title: Observe actual confirmation sending and arrival
@@ -51,9 +52,9 @@ acceptance_criteria:
   scenario: S-1
   text: One daily bounded request with independent sending and arrival evidence and
     safe cleanup.
-  required: false
-  status: pending
-  coverage_status: uncovered
+  required: true
+  status: blocked
+  coverage_status: blocked
   verification_scope: custom
 tests:
 - id: T-UNIT
@@ -72,12 +73,16 @@ tests:
   green_phase:
     required: false
     expected: pass
-    evidence: {}
+    evidence:
+      command: python3 -m unittest discover -s scripts/tests -p test_signup_email_live_smoke.py
+      result: Nine focused tooling tests passed locally and in GitHub run 34394101382
+        at 6a9ffc64a1589f86a5c0439d532ad977ad0b447d. Live probe source 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
+        is unchanged by this test-only commit.
 tasks:
 - id: TASK-2251
   title: Add daily live signup verification-email smoke on dev
-  status: in_progress
-  phase: working_tasks
+  status: blocked
+  phase: blocked
   covers:
     scenarios:
     - S-1
@@ -88,7 +93,9 @@ tasks:
   verification_ids:
   - T-UNIT
   dependencies: []
-  blockers: []
+  blockers:
+  - Live run acknowledged signup but inbox timed out; independent Brevo event credential
+    unavailable.
   follow_up_tasks: []
   ownership:
     files:
@@ -97,13 +104,19 @@ tasks:
 attempts:
 - id: A-1
   task_id: TASK-2251
-  outcome: planned
-  approach: Implement tooling checks, deploy the daily workflow and validate live
-    once.
+  outcome: blocked
+  approach: Deployed health probe and existing daily launcher integration. GitHub
+    run 34393762872 verified Gmail read access and queue acknowledgement, but inbox
+    arrival timed out and Brevo observation lacked credentials.
   recorded_at: '2026-09-09'
 handoff:
   current_task_id: TASK-2251
-  next_action: Deploy and dispatch live workflow
-  command: gh workflow run signup-email-live-smoke.yml --ref dev
-  expected_outcome: Stage-separated live evidence, or precise credential blocker
-  last_verified_commit: pending-deploy
+  next_action: Provision GitHub Brevo event observation credential and investigate
+    live inbox timeout before another daily attempt.
+  command: gh run view 34393762872
+  expected_outcome: Diagnose the accepted signup request without treating queue acknowledgement
+    as delivery.
+  last_verified_commit: 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
+  blocker:
+    reason: Inbox timeout and missing independent provider observation credential;
+      Gmail access is verified.
