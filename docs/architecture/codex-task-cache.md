@@ -1,6 +1,6 @@
 # Codex Task cache and delivery
 
-This is the opt-in rebuild candidate. OpenMates Tasks is authoritative. The foreground CLI owns synchronization and queued transport; hooks read private files. The candidate includes direct dependency/CI continuation and confirmed Codex deletion delivery. Runtime behavior and the live cutover still require the adapter pilot before this replaces existing orchestration.
+OpenMates Tasks is authoritative. The foreground CLI owns synchronization and queued transport; hooks read private files. On the dev server, cached context is enabled for all repository chats, including newly created chats. The three-chat runtime pilot verified actual developer-context injection, silence on unchanged tool boundaries, and direct dependency continuation. Product integration runs in isolated GitHub CI. Live email delivery verification remains a separate assignment, not a prerequisite for using Task context.
 
 ```mermaid
 flowchart LR
@@ -12,13 +12,13 @@ flowchart LR
     Bridge --> Cache[Atomic account and Project cache]
     Cache --> Worker[Worker developer context]
     Cache --> Parent[Orchestrator developer context]
-    CI[Existing GitHub CI coordinator] -. owner delivery pending pilot .-> Worker
+    CI[Existing GitHub CI coordinator] --> Worker
 ```
 
 Run remote access in a terminal that stays open, for example Zellij:
 
 ```sh
-openmates remote-access --path /home/superdev/projects/OpenMates \
+openmates remote-access --personal --path /home/superdev/projects/OpenMates \
   --task-cache /home/superdev/.openmates/project-task-cache
 ```
 
@@ -26,7 +26,7 @@ For an unbound folder, startup lists existing Projects by quoted title and ID. C
 
 The cache path contains hashes separating API/account/workspace and Project. `snapshot.json` is the atomic data/cursor boundary; `tasks.txt` is a derived readable view. Files are private to the local user. A disconnected cache stays readable and is labelled stale; revoked access clears its data. Replay includes updates, deletion and Project removal; an expired cursor requests a replacement snapshot. The guarantee is all Tasks in the configured Project snapshots, including every linked worker Task there—not unrelated Projects that were never selected.
 
-Enable a specific pilot chat after its snapshot exists:
+For a new installation, enable a specific pilot chat after its snapshot exists:
 
 ```sh
 python3 scripts/codex_cached_context.py configure \
@@ -136,3 +136,36 @@ The current daemon's deletion notification has no verified replay cursor. A conf
 After the pilot, add `--all-threads` to the configure command to inject context into every repository chat, including new chats. Event execution still requires a real local Codex session binding or explicit pilot registration. A Task visible in a Project cache cannot register a new execution owner by itself.
 
 The adapter attaches through `thread/resume` with metadata-only output and a bundled latest-turn summary. `thread/read` does not subscribe to events; using it alone would miss completion notifications. Resume here loads the existing chat without starting inference or changing its model, permissions or instructions. See the [official app-server lifecycle documentation](https://learn.chatgpt.com/docs/app-server).
+
+## Dev rollout and hook readiness
+
+The dev server uses the global `openmates` package and its personal dev-testing
+account. The existing Project is `OpenMates`
+(`96033196-e4b1-431e-b773-ba221e952fed`). Do not create another Project or replace
+that CLI login for signup tests. Use a separate `OPENMATES_STATE_DIR` for signup.
+The foreground CLI runs in the `openmates-remote` Zellij session. It must be
+restarted deliberately after host reboot; no background service was installed.
+
+Before activating event delivery, or after changing installed hook definitions:
+
+```sh
+python3 scripts/codex_cached_context.py doctor \
+  --repository /home/superdev/projects/OpenMates --thread <actual-chat-id>
+# {"status":"ready","missing_hooks":[],"hooks_needing_review":[],"resolution":null}
+```
+
+This is one local daemon request, not a model run or Task API request. The runtime
+must have `codex` on PATH. `configure --events` performs the same check and refuses
+activation when hooks are disabled or need review. Use Codex `/hooks` to review
+and trust the exact installed definitions; never bypass trust. Changed untrusted
+hooks can otherwise be skipped silently, leaving agents without their context.
+Do not repeat this check on every tool call.
+
+Repository-wide configuration uses `--all-threads`; it removes the old Task
+lifecycle/final-summary enforcement for both existing and new chats. It does not
+rewrite old conversation history. For a fresh continuation, preserve the old
+chat ID, decisions, relevant evidence, remaining work and linked Task IDs in a
+short handoff. Stop the old worker before transferring its Task links. Confirm
+release before the new owner claims; do not duplicate Tasks to bypass ownership.
+A Project snapshot only includes its member Tasks: add relevant older engineering
+Tasks to this Project without changing ownership when migrating them.

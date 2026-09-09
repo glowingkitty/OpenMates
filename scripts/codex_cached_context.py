@@ -349,9 +349,40 @@ def _context(root: Path, session: str, thread: str, event: str, config: dict) ->
     return "\n".join(lines)
 
 
+
+REQUIRED_CONTEXT_HOOKS = {"sessionStart", "userPromptSubmit", "preToolUse", "postToolUse"}
+
+
+def runtime_preflight(root: Path, rpc) -> dict:
+    """Reject silently skipped context hooks before enabling event execution."""
+    response = rpc.call("hooks/list", {"cwds": [str(root.resolve())]})
+    source = str(root.resolve() / ".codex" / "hooks.json")
+    hooks = [hook for entry in response.get("data", []) for hook in entry.get("hooks", [])
+             if hook.get("sourcePath") == source and "claude-hook-bridge.sh" in hook.get("command", "")]
+    available = {hook.get("eventName") for hook in hooks if hook.get("enabled")}
+    missing = sorted(REQUIRED_CONTEXT_HOOKS - available)
+    review = sorted({hook["eventName"] for hook in hooks
+                     if hook.get("eventName") in REQUIRED_CONTEXT_HOOKS
+                     and hook.get("enabled") and hook.get("trustStatus") != "trusted"})
+    return {"status": "ready" if not missing and not review else "needs_attention",
+            "missing_hooks": missing, "hooks_needing_review": review,
+            "resolution": None if not missing and not review else
+            "Open Codex in this repository and use /hooks to review the installed definitions. "
+            "Trust only reviewed hooks; do not bypass hook trust. Re-run this check before enabling continuation."}
+
+
+def inspect_runtime(root: Path) -> dict:
+    try:
+        from scripts.codex_rpc import CodexRPC
+    except ModuleNotFoundError:
+        from codex_rpc import CodexRPC
+    with CodexRPC() as rpc:
+        return runtime_preflight(root, rpc)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["enabled", "configure"])
+    parser.add_argument("action", choices=["enabled", "configure", "doctor"])
     parser.add_argument("--repository", type=Path, required=True)
     parser.add_argument("--thread", required=True)
     parser.add_argument("--snapshot", action="append", default=[])
@@ -380,6 +411,10 @@ def main():
     )
     args = parser.parse_args()
     uuid.UUID(args.thread)
+    if args.action == "doctor":
+        result = inspect_runtime(args.repository)
+        print(json.dumps(result))
+        return 0 if result["status"] == "ready" else 2
     if args.action == "enabled":
         return 0 if configuration(args.repository, args.thread) else 1
     if not args.snapshot:
@@ -406,6 +441,9 @@ def main():
     if args.events:
         if not args.runtime.is_file():
             parser.error("Adapter runtime script does not exist")
+        readiness = inspect_runtime(args.repository)
+        if readiness["status"] != "ready":
+            parser.error(json.dumps(readiness))
         repository.update(events_enabled=True, runtime=str(args.runtime.resolve()))
         repository.setdefault("activated_at", time.time())
         repository.setdefault("execution_hosts", {})[args.thread] = socket.gethostname()

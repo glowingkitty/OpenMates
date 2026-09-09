@@ -538,6 +538,9 @@ def cli():
                 state["workers"][args.worker] = new_worker(
                     args.worker, args.task, args.title, now
                 )
+            else:
+                # Refresh explicit assignment metadata without resetting delivery or pause state.
+                state["workers"][args.worker].update(task=args.task, title=args.title)
         elif args.action == "stop":
             state.update(enabled=False, monitoring="stopped")
             for item in state["outbox"].values():
@@ -595,8 +598,11 @@ def cli():
             for item in state["outbox"].values():
                 if item.get("delivery_id") == args.message_id:
                     item.update(status="accepted", turn=args.turn_id)
-        output = (
-            render_table(state)
+        if args.action == "register" and state.get("adapter_mode") == "task_cache":
+            output = json.dumps({"registered": args.worker, "title": args.title, "task_id": args.task})
+        else:
+            output = (
+                render_table(state)
             if args.action == "table"
             else json.dumps(state, indent=2)
         )

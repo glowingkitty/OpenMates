@@ -146,6 +146,13 @@ Register approved workers in the coordinator's existing repository session using
 adapter using `codex_cached_context.py configure --session <coordinator-session>`.
 Use each actual worker's Codex ID and execution host. Registration records the
 relationship; it does not authorize a second agent to claim an already owned Task.
+On the dev installation, all new repository chats already receive cached context.
+Use the global CLI personal dev-testing account and existing OpenMates Project
+`96033196-e4b1-431e-b773-ba221e952fed`. After hook changes, run the one-time
+`codex_cached_context.py doctor --repository <repository> --thread <coordinator-id>`
+check before activating events; review changed hooks with Codex `/hooks`. A
+readiness failure needs hook review, not another worker launch. Registration
+updates an existing worker assignment without resetting its pause/delivery state.
 
 - Use cached Tasks for routine progress. When they do not answer a specific
   question, inspect the relevant workers in one bounded `wait_threads` call
