@@ -952,6 +952,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize: {str(e)}", exc_info=True)
 
+    from backend.core.api.app.services.project_task_sync_service import ProjectTaskSyncService
+    app.state.project_task_sync = ProjectTaskSyncService(app.state.directus_service, app.state.cache_service)
+    app.state.project_task_sync_listener_task = asyncio.create_task(app.state.project_task_sync.listen())
+
     # Start Redis Pub/Sub listener task
     logger.info("Starting Redis Pub/Sub listener for cache events as a background task...")
     app.state.redis_pubsub_listener_task = asyncio.create_task(listen_for_cache_events(app))
@@ -1111,6 +1115,13 @@ async def lifespan(app: FastAPI):
             await app.state.user_updates_listener_task
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for user updates cancelled")
+
+    if hasattr(app.state, 'project_task_sync_listener_task'):
+        app.state.project_task_sync_listener_task.cancel()
+        try:
+            await app.state.project_task_sync_listener_task
+        except asyncio.CancelledError:
+            pass
 
     if hasattr(app.state, 'embed_data_listener_task'):
         app.state.embed_data_listener_task.cancel()

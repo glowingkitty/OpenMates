@@ -1088,7 +1088,7 @@ describe("OpenMatesClient session API URL", () => {
               safe_metadata: {
                 status: "todo",
                 assignee_type: "user",
-                primary_chat_id: "chat-1",
+                primary_chat_id: null,
                 position: 1780000001,
                 created_at: 1780000001,
                 updated_at: 1780000001,
@@ -1142,6 +1142,7 @@ describe("OpenMatesClient session API URL", () => {
       assert.equal(serializedPersistPayload.includes("Reconnect task title"), false);
       assert.equal(serializedPersistPayload.includes("Reconnect task description"), false);
       assert.equal(captured.persistPayload.encrypted_task_payload.task_id, "task-reconnect-1");
+      assert.equal(captured.persistPayload.encrypted_task_payload.primary_chat_id, null);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_task_key);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_title);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_description);
@@ -2094,19 +2095,26 @@ describe("CLI saved-chat recovery preflight", () => {
         "created_at",
         "encrypted_content",
         "encrypted_pii_mappings",
+        "encrypted_sender_name",
         "role",
         "updated_at",
       ]);
       assert.equal(typeof encryptedUserMessage.encrypted_pii_mappings, "string");
+      assert.equal(typeof encryptedUserMessage.encrypted_sender_name, "string");
       assert.equal(JSON.stringify(encryptedUserMessage).includes("Email [EMAIL_1_com]"), false);
       assert.equal(JSON.stringify(encryptedUserMessage).includes("sarah@example.com"), false);
       const newChatMetadata = captured.preflightPayload.encrypted_chat_metadata as Record<string, unknown>;
       assert.deepEqual(Object.keys(newChatMetadata).sort(), [
         "created_at",
         "encrypted_chat_key",
+        "encrypted_slug",
         "encrypted_title",
+        "slug_lookup_hash",
         "updated_at",
       ]);
+      assert.equal(typeof newChatMetadata.encrypted_slug, "string");
+      assert.match(String(newChatMetadata.slug_lookup_hash), /^[0-9a-f]{64}$/);
+      assert.equal(JSON.stringify(newChatMetadata).includes("sarah@example.com"), false);
 
       const masterKey = Buffer.alloc(32);
       const encryptedChatKey = String(captured.preflightPayload.encrypted_chat_key);
