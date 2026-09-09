@@ -5,6 +5,26 @@ user-invocable: true
 argument-hint: "[OPE-XXX]"
 ---
 
+## Codex execution Tasks
+
+For Codex work, OpenMates Tasks is the execution source of truth. Use the injected
+Project cache first and the globally installed CLI for scoped detail or mutations.
+Use the personal dev-testing account and existing OpenMates Project
+`96033196-e4b1-431e-b773-ba221e952fed`. Do not create a GitHub or Linear issue merely
+to track a Codex assignment. Those trackers remain for explicitly requested issues
+or existing issue references; the tracker-specific procedure below applies there.
+
+For selecting the next Codex assignment, inspect the latest dated meeting record,
+relevant commits and cached Tasks. Use `openmates tasks list --project
+96033196-e4b1-431e-b773-ba221e952fed --json` once only if the cache is insufficient.
+Inspect existing owner and dependencies before proposing a Task. A completed
+commit or idle chat does not establish that the whole Task is Done. Preserve
+existing authorization; claim an unlinked Task as the current chat only after the
+assignment is approved. An ownership conflict requires explicit release by the
+old owner, never a duplicate Task or competing worker. Continue with normal
+repository session and verification guidance; skip the tracker-specific steps
+below unless the user requested GitHub/Linear issue work.
+
 ## Instructions
 
 You are helping the user pick **one task** to work on next and start working on it in this session. No spawning separate sessions — you do the work right here.

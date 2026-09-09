@@ -5,6 +5,18 @@ user-invocable: true
 argument-hint: "<feature | bug | issue id | specification path | docs/plans/<slug>/plan.yml>"
 ---
 
+## Codex execution boundary
+
+OpenMates Tasks remains the execution source of truth; native OpenMates Plans and
+Specs integration is deferred. Preserve the existing repository YAML Plan and PDF
+specification approval workflow. Do not create a second manually maintained Task
+status database. Ordinary real REST/WebSocket, CLI/SDK and browser verification
+runs on the isolated GitHub stack. The separately authorized live signup-email
+smoke uses OpenMates CLI and runs only on dev, with isolated test state. It does
+not move to GitHub when local credentials are missing. Existing authorization
+and explicit user waivers persist; do not restart approval/question rounds or
+require videos the user has explicitly declined.
+
 ## Instructions
 
 You are creating the executable implementation Plan for a non-trivial OpenMates

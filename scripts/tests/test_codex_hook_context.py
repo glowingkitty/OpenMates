@@ -163,3 +163,15 @@ def test_list_refresh_does_not_discard_cached_activity(tmp_path):
     task_context(tmp_path, tid, True, 100, reader, activities=True)
     result = task_context(tmp_path, tid, True, 200, reader)
     assert 'Decision still matters' in result
+
+
+# contract-test: tooling
+def test_missing_cache_never_revives_stop_lifecycle(monkeypatch, tmp_path):
+    import sys
+    from scripts import codex_cached_context as cached
+    from scripts.codex_hook_context import task_instructions
+    monkeypatch.setitem(sys.modules, "codex_cached_context", cached)
+    monkeypatch.setattr(cached, "configuration", lambda root, thread: None)
+    assert "not configured" in task_instructions(tmp_path, "session", "thread", "SessionStart")
+    for event in ("PreToolUse", "PostToolUse", "Stop"):
+        assert task_instructions(tmp_path, "session", "thread", event) == ""

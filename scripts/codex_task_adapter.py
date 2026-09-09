@@ -102,6 +102,22 @@ def dependency_ready(previous, current):
     )
 
 
+def repository_checkout(root, location):
+    """Recognize app-native linked worktrees through their local Git metadata."""
+    checkout = Path(location).resolve()
+    if checkout.is_relative_to(root):
+        return True
+    try:
+        pointer = (checkout / ".git").read_text().strip()
+        if not pointer.startswith("gitdir: "):
+            return False
+        gitdir = (checkout / pointer[len("gitdir: "):]).resolve()
+        common = (gitdir / (gitdir / "commondir").read_text().strip()).resolve()
+        return common == (root / ".git").resolve()
+    except (OSError, ValueError):
+        return False
+
+
 def execution_threads(root, config):
     """Explicit pilots or actual local repository bindings, never cache visibility."""
     host = socket.gethostname()
@@ -122,7 +138,7 @@ def execution_threads(root, config):
                 and record.get("codex_host") == host
                 and worktree.get("status") not in {"merged", "removed"}
                 and location
-                and Path(location).resolve().is_relative_to(root)
+                and repository_checkout(root, location)
             ):
                 uuid.UUID(thread)
                 allowed.add(thread)

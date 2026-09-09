@@ -140,6 +140,21 @@ def merge_outputs(event: str, stream: str) -> dict:
     return result
 
 
+def task_instructions(root, sid, thread, event):
+    """Disk context or an entry-time setup notice; never legacy lifecycle writes."""
+    from codex_cached_context import configuration, context as cached_context
+    config = configuration(root, thread)
+    if config:
+        return cached_context(root, sid, thread, event, config)
+    if event in {"SessionStart", "UserPromptSubmit"}:
+        return ("OpenMates Task cache is not configured for this repository. "
+                "Use the global personal CLI and foreground remote-access setup in "
+                "docs/architecture/codex-task-cache.md. Task state is unavailable; "
+                "do not infer ownership or completion. The retired lifecycle and "
+                "timer observer must not be started as a fallback.")
+    return ""
+
+
 def main() -> int:
     # Direct invocation resolves the same immutable coordinator as the bridge.
     import sessions
@@ -188,43 +203,11 @@ def main() -> int:
                 "Bound Codex workspace is missing; reconcile it before writing"
             )
         result = route(event, payload, workspace, sid)
-        from codex_task_context import task_context
-        from codex_orchestration import (
-            canonical_root,
-            context as orchestration_context,
-            output_guard,
-        )
-
+        from codex_orchestration import canonical_root
         root = canonical_root(workspace)
-        from codex_cached_context import configuration, context as cached_context
-        cache_config = configuration(root, task_id)
-        extra = ""
-        if cache_config:
-            extra = cached_context(root, sid, task_id, event, cache_config)
-        elif event in {"SessionStart", "UserPromptSubmit"}:
-            extra = task_context(root, task_id, refresh=True, activities=event == "SessionStart")
-        if not cache_config and event in {"SessionStart", "UserPromptSubmit", "Stop"}:
-            from codex_task_lifecycle import hook as task_lifecycle
-            from codex_task_context import TaskDeliveryDeferred
-            try:
-                lifecycle_result = task_lifecycle(root, sid, task_id, event, payload, sessions)
-            except TaskDeliveryDeferred as exc:
-                # Do not turn a shared cooldown into an infinite Stop continuation.
-                # Pending intent stays durable; deferred delivery is never success.
-                warning = str(exc) + "; Task status is unverified, not completed. Resume reconciliation after cooldown."
-                lifecycle_result = {"systemMessage": warning}
-                if event == "Stop":
-                    lifecycle_result["continue"] = False
-                print(json.dumps(lifecycle_result))
-                return 0
-            if lifecycle_result.get("decision") == "block":
-                print(json.dumps(lifecycle_result))
-                return 0
-        role = orchestration_context(root, sid, task_id) if not cache_config and event in {"SessionStart", "UserPromptSubmit", "Stop"} else ""
+        extra = task_instructions(root, sid, task_id, event)
         if extra:
-            result["hookSpecificOutput"]["additionalContext"] = result["hookSpecificOutput"].get("additionalContext", "") + "\n" + extra + ("\n" + role if role else "")
-        if not cache_config and event == "Stop" and role:
-            result.update(output_guard(root, sid, task_id, payload))
+            result["hookSpecificOutput"]["additionalContext"] = result["hookSpecificOutput"].get("additionalContext", "") + "\n" + extra
         if payload.get("tool_name") == "apply_patch" and event == "PreToolUse":
             patch = result["hookSpecificOutput"]["updatedInput"]["command"]
             prefixes = (
