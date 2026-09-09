@@ -37,7 +37,7 @@ async function createRunnerCodexEligibility(page: import('@playwright/test').Pag
 			// Retries use the same real account; each creation must have its own slug.
 			'tasks', 'create', '--title', `Runner Codex eligibility fixture ${randomUUID()}`,
 			'--as-assignee', '--external-chat', `codex:${thread}`, '--json'
-		]);
+		], 60_000, {CODEX_THREAD_ID: thread});
 		// Do not emit decrypted CLI output or account/session material in artifacts.
 		if (result.code !== 0) {
 			throw new Error(`Genuine Codex Task creation failed (exit ${result.code}); inspect runner-private CLI diagnostics and local Codex availability.`);

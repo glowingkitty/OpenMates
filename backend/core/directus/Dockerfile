@@ -10,7 +10,9 @@ USER root
 RUN apk add --no-cache curl postgresql-client su-exec
 
 COPY --chown=node:node extensions /directus/extensions
-RUN mkdir -p /directus/extensions/chat-recovery-transaction/dist \
+RUN mkdir -p /directus/extensions/project-task-sync/dist \
+    && cp /directus/extensions/project-task-sync/src/*.js /directus/extensions/project-task-sync/dist/ \
+    && mkdir -p /directus/extensions/chat-recovery-transaction/dist \
     && cp /directus/extensions/chat-recovery-transaction/src/*.js \
         /directus/extensions/chat-recovery-transaction/dist/ \
     && mkdir -p /directus/extensions/workflow-runtime-transaction/dist \

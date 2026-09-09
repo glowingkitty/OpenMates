@@ -529,6 +529,16 @@ export class OpenMatesWsClient {
     return () => this.socket.off("message", onMessage);
   }
 
+  onProjectTaskSync(handler: (type: string, payload: unknown) => void): () => void {
+    const onMessage = (rawData: RawData) => {
+      let parsed: WsEnvelope<unknown>;
+      try { parsed = JSON.parse(rawData.toString()); } catch { return; }
+      if (parsed.type === "project_task_sync" || parsed.type === "project_task_sync_error") handler(parsed.type, parsed.payload);
+    };
+    this.socket.on("message", onMessage);
+    return () => this.socket.off("message", onMessage);
+  }
+
   onProjectRemoteAccessRequest(
     handler: (payload: ProjectRemoteAccessRequestFrame) => void | Promise<void>,
   ): () => void {
