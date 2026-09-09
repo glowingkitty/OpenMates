@@ -21,7 +21,7 @@ if [ -z "${OPENCODE_SESSION_ID:-}" ]; then
   if [ -n "$CODEX_HOOK_TASK" ]; then
     export CODEX_THREAD_ID="$CODEX_HOOK_TASK"
   fi
-  if [ "$EVENT" = "SessionStart" ] || [ "$EVENT" = "UserPromptSubmit" ] || [ "$EVENT" = "PreToolUse" ] || [ "$EVENT" = "Stop" ]; then
+  if [ "$EVENT" = "SessionStart" ] || [ "$EVENT" = "UserPromptSubmit" ] || [ "$EVENT" = "PreToolUse" ] || [ "$EVENT" = "PostToolUse" ] || [ "$EVENT" = "Stop" ]; then
       ROUTING_OUTPUT=$(printf '%s' "$INPUT" | python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_hook_context.py" "$EVENT")
       ROUTING_STATUS=$?
       [ "$ROUTING_STATUS" -eq 0 ] || exit "$ROUTING_STATUS"
@@ -204,6 +204,12 @@ case "$EVENT" in
     esac
     ;;
   Stop)
+    # Opted-in cached Task delivery owns persistence independently of this turn.
+    # Do not make clarification/final wording trigger another model invocation.
+    if [ -n "${CODEX_THREAD_ID:-}" ] && python3 "${OPENMATES_CONTROL_PLANE_RUNTIME:-$PROJECT_ROOT}/scripts/codex_cached_context.py" enabled --repository "$PROJECT_ROOT" --thread "$CODEX_THREAD_ID"; then
+      emit_codex_result
+      exit 0
+    fi
     run_hook "check-uncommitted.sh" "$(printf '%s' "$INPUT" | jq '. + {hook_event_name: "Stop", stop_hook_active: false}')" false
     ;;
 esac

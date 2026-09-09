@@ -195,3 +195,55 @@ codex_connection_compatibility:
   - id: legacy-resume-rejected
     input: {command: tasks_resume, provider: opencode}
     expect: {runtime_launched: false, original_link_readable: true, explicit_codex_connection_required: true}
+
+task_owner_claim:
+  - id: native-and-cli-defaults
+    given: A native OpenMates chat creates a Task using its Task tool. A person also creates a Task from an ordinary terminal.
+    when: The native tool explicitly sets link_to_chat to false; the terminal command omits a chat link. A Codex worker instead passes its own chat ID during creation.
+    then: The first two Tasks remain unlinked. The Codex Task is linked to that worker in the same create request; no second claim request is needed.
+  - id: competing-chat
+    given: The Task "Repair header navigation" belongs to the Codex chat "Landing - Header".
+    when: A different chat tries to claim that Task.
+    then: The claim is rejected. The error quotes "Landing - Header" and shows its Codex chat ID. Another worker cannot claim the Task until its current link is released.
+
+task_chat_deletion:
+  - id: confirmed-delete-preserves-work
+    given: A chat owns one in-progress Task, one Done Task and one Task blocked while waiting for approval.
+    when: The chat is actually deleted, rather than archived or temporarily offline.
+    then: Its Task links are removed. The in-progress Task becomes Todo, the Done Task stays Done, and the approval blocker remains. The Tasks, their history and their readable non-chat keys survive.
+
+task_delivery_recovery:
+  - id: accepted-write-lost-reply
+    given: OpenMates accepts a Task creation, but the response is lost before the CLI receives it.
+    when: The foreground connection recovers after a restart.
+    then: Delivery checks the original operation before retrying and finds the existing Task instead of creating a duplicate. Until confirmed, the operation is shown as pending; a permanent conflict remains visible for review.
+
+task_dependency_readiness:
+  - id: last-task-dependency-done
+    given: "The Task 'Implement the signup email smoke' is Blocked only on explicit Task dependencies. Its blocker code is external_dependency; it has no private blocker explanation or linked Plan."
+    when: The final dependency becomes Done.
+    then: The Task becomes Todo. No new chat is created. An explicitly paused owner remains paused even though its Task is ready.
+  - id: preserve-independent-blocker
+    given: A Task has completed dependencies but also has an encrypted explanation saying that user approval is still needed.
+    when: Dependency readiness is checked.
+    then: The Task stays Blocked and keeps that explanation. Completing dependencies does not override the separate human blocker.
+
+task_cached_context:
+  - id: all-tasks-bounded-text
+    given: An orchestrator manages twelve Tasks in the configured OpenMates Project, and each Task has twenty activity entries.
+    when: Codex loads its cached Task overview.
+    then: All twelve Tasks appear with full titles and current states. Descriptions are shortened and only the latest activity per Task is shown. An unchanged tool boundary repeats no Task rows and makes no Task inventory request.
+  - id: event-delivery-is-not-ownership
+    given: A Task belongs to a paused Codex chat on the dev server, and a laptop can see the same Task.
+    when: The Task's dependencies become Done.
+    then: The paused chat is not resumed automatically, the laptop cannot claim the already owned Task for another chat, and routine activity does not wake the orchestrator.
+
+task_execution_boundary:
+  - id: pending-is-not-ownership
+    given: A worker's claim is queued as pending while the server is unavailable. A related CI run has passed.
+    when: The worker decides whether to begin the Task.
+    then: It waits for the confirmed claim. The CI result does not grant ownership or automatically mark the Task Done.
+  - id: another-device-is-not-another-owner
+    given: A Task is owned by a chat registered to execute on the dev server.
+    when: The same Task is opened on a laptop.
+    then: Viewing it starts no new chat and transfers no execution lease. Moving execution requires an explicit handoff that first stops the source adapter.

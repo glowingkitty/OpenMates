@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
-import { codexResumeArguments, readCodexThread } from "../src/codexConnection.ts";
+import { codexResumeArguments, readCodexThread, taskOwnerConflict } from "../src/codexConnection.ts";
 
 const THREAD = "00000000-0000-4000-8000-000000000001";
 
@@ -56,4 +56,22 @@ test("connection reads metadata without resume, prompt, transcript or compressio
     await new Promise<void>(resolve => http.close(() => resolve()));
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+// contract-test: supporting surface=cli assertions=tasks.conversation.single-owner-claim
+test("claim conflict identifies the quoted conversation and its actual runtime", () => {
+  assert.match(taskOwnerConflict({ provider: "codex", id: THREAD, title: "Landing - Header" }),
+    new RegExp(`"Landing - Header".*Codex chat ID: ${THREAD}`));
+  assert.match(taskOwnerConflict({ provider: "openmates", id: THREAD, title: "Website" }),
+    new RegExp(`"Website".*openmates chats show ${THREAD}`));
+});
+
+
+// contract-test: supporting surface=cli assertions=tasks.conversation.single-owner-claim
+test("a coordinator cannot claim on behalf of a different chat", async () => {
+  const { assertCodexClaimCaller } = await import("../src/codexConnection.ts");
+  const worker = "00000000-0000-0000-0000-000000000001";
+  assert.doesNotThrow(() => assertCodexClaimCaller(worker, worker));
+  assert.throws(() => assertCodexClaimCaller(worker, "00000000-0000-0000-0000-000000000002"), /Only the owning Codex chat/);
+  assert.throws(() => assertCodexClaimCaller(worker, ""), /leave the Task unlinked/);
 });

@@ -80,3 +80,9 @@ project_surface_parity:
   - id: same-linked-object
     input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], project: project-1, item: plan-1}
     expect: {same_target_hash: true, same_object_lifecycle_owner: plan, raw_id_exposed: false}
+
+project_task_sync:
+  - id: twelve-tasks-and-reconnect
+    given: Remote access is running for the OpenMates Project, which contains twelve Tasks.
+    when: A Task title is edited in the web app. Later, the device disconnects while another Task is deleted, then reconnects.
+    then: The title reaches the private cache without a model request. All current Tasks retain their full titles and latest activity. Reconnection removes the deleted Task; revoked Project access clears that cached scope.

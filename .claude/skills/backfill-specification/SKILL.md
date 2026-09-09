@@ -20,6 +20,8 @@ argument-hint: "<test path or Plan cluster>"
    historical implementation choices from durable behavior.
 5. Invoke `define-specification`, including its requirement for one or two
    concrete, assertion-mapped examples for each added or changed requirement.
+   Use natural-language scenarios or actual code/commands with expected results;
+   do not paste internal fixture dictionaries into the human approval examples.
    Present the complete compact Specification, and
    wait for approval before mapping the test or changing implementation behavior.
 6. Update the existing Plan with Specification references and evidence locations;

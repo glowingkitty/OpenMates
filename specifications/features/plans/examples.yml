@@ -97,3 +97,9 @@ plan_surface_parity:
   - id: approval-wait-parity
     input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], plan_revision: 7}
     expect: {same_approval_identity: true, stale_revision_rejected: true, visible_failure: true}
+
+plan_chat_deletion:
+  - id: linked-chat-deleted
+    given: The Plan "Landing rollout" is linked to a native OpenMates chat.
+    when: That chat is actually deleted.
+    then: The Plan loses its chat link and automatic continuation is paused. The Plan, its history and readable non-chat keys remain. Deleting the chat does not approve the Plan or count as successful execution.

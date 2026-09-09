@@ -61,6 +61,7 @@ class TaskStageService:
         assignee_type: str,
         status: str,
         position: int | None = None,
+        link_to_chat: bool = True,
     ) -> dict[str, Any]:
         context = TaskToolContext(user_id=user_id, chat_id=chat_id or "")
         result = await execute_task_tool_call(
@@ -71,6 +72,7 @@ class TaskStageService:
                 "assignee_type": assignee_type,
                 "status": status,
                 "position": position,
+                "link_to_chat": link_to_chat,
             },
             context=context,
             cache_service=self.cache_service,
@@ -100,6 +102,7 @@ class CreateSkill(BaseSkill):
         description: str | None = None,
         assignee: str | None = None,
         status: str = "todo",
+        link_to_chat: bool = True,
         user_id: str | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
@@ -132,6 +135,7 @@ class CreateSkill(BaseSkill):
                     assignee_type=assignment.storage_assignee_type,
                     status=task_status,
                     position=base_position + index,
+                    link_to_chat=task_input.get("link_to_chat", link_to_chat),
                 )
                 results.append(_task_embed_result(task_input, staged, task_status))
             return CreateTasksResponse(success=True, results=results, result_count=len(results))

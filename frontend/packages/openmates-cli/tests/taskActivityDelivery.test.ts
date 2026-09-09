@@ -21,9 +21,11 @@ test("lost acknowledgement recovers identical ciphertext after restart without d
   let builds = 0;
   let writes = 0;
   try {
-    const first = activityDeliveryStore("account-a:task-1:assignee", directory);
+    let clock = 1000;
+    const first = activityDeliveryStore("account-a:task-1:assignee", directory, () => clock);
     await assert.rejects(first.deliver(id, async () => { builds++; return input; }, async () => { writes++; throw new Error("response lost"); }));
-    const restarted = activityDeliveryStore("account-a:task-1:assignee", directory);
+    clock += 7000;
+    const restarted = activityDeliveryStore("account-a:task-1:assignee", directory, () => clock);
     const flushed = await restarted.flush(async actual => { assert.deepEqual(actual, input); writes++; return entry; });
     assert.equal(flushed.pending, 0);
     await restarted.deliver(id, async () => { throw new Error("must not encrypt again"); }, async () => { throw new Error("must not post again"); });
