@@ -781,3 +781,18 @@ async def test_task_tool_accepts_model_formatted_task_id_and_version() -> None:
 
     assert result["status"] == "pending_client_persistence"
     assert stored_jobs[0]["expected_task_version"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("link,expected", [(True, "chat-1"), (False, None)])
+async def test_task_create_stages_explicit_chat_link_without_losing_delivery_context(monkeypatch, link, expected):
+    from backend.apps.ai.processing import task_tool_executor as executor
+    stage = AsyncMock(return_value={"job": {"job_id": "job"}})
+    monkeypatch.setattr(executor, "_stage_client_persisted_task_change", stage)
+    context = TaskToolContext(user_id="user-1", chat_id="chat-1")
+    await execute_task_tool_call(tool_name=TASK_TOOL_CREATE, args={"title": "Capture work", "link_to_chat": link},
+        context=context, cache_service=None, directus_service=None, encryption_service=None,
+        user_vault_key_id=None, message_id="message-1")
+    assert stage.await_args.kwargs["safe_metadata"]["primary_chat_id"] == expected
+    assert stage.await_args.kwargs["context"].chat_id == "chat-1"
+    assert context.attached_tasks[0]["primary_chat_id"] == expected
