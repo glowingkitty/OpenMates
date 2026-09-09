@@ -88,6 +88,17 @@ def dispatch(rpc, record, intent, save, register, retry_rejected=False):
     return record
 
 
+def check_capacity(state):
+    limit = state.get("max_workers")
+    if limit is not None:
+        if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+            raise ValueError("Invalid campaign worker limit")
+        if len(state.get("workers", {})) >= limit:
+            raise ValueError(
+                f"Campaign worker limit reached ({limit}); close or hand off an existing assignment before launching another"
+            )
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("action", choices=["create", "message", "receipt"])
@@ -122,7 +133,9 @@ def main():
     path = directory / (key + ".json")
     import fcntl
 
-    with (directory / (key + ".lock")).open("a") as lock:
+    with (directory / ("create.lock" if a.action == "create" else key + ".lock")).open(
+        "a"
+    ) as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         record = json.loads(path.read_text()) if path.exists() else {}
         if a.action == "receipt":
@@ -188,6 +201,8 @@ def main():
             "coordinator"
         ) not in (None, owner):
             raise ValueError("Session registry belongs to another coordinator")
+        if a.action == "create" and not record and registry.exists():
+            check_capacity(json.loads(registry.read_text()))
         with CodexRPC() as rpc:
             result = dispatch(
                 rpc,

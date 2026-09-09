@@ -226,3 +226,11 @@ read Task/cache progress; do not repeatedly try remote-only IDs against this dae
 After a definite message rejection (not a timeout), retry the same operation and
 original inputs with `--retry-rejected`. This resumes the unloaded chat before
 dispatch. Accepted operations are never resent; uncertain timeouts require review.
+
+An explicitly configured campaign `max_workers` in its private orchestration
+registry limits registered assignments, including idle/blocked workers. Creation
+is serialized per coordinator session and rejects a launch at the limit before
+calling the daemon. Reuse an existing dispatch receipt without consuming a slot.
+Only close/remove an old registration after its worker has stopped and its Task
+ownership is resolved; a blocker alone does not free a slot. This cap is scoped
+to that campaign and is not a new global worker limit.
