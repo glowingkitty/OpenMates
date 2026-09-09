@@ -27,6 +27,12 @@ The foreground `openmates remote-access` process owns Project synchronization,
 queued retries and its Codex event adapter. Use the configured Task-cache adapter;
 do not start the legacy `codex_orchestration.py serve` observer, register timed
 review schedules, or install an additional heartbeat for the same workers.
+If create/message app tools are absent, use the documented `codex_worker.py`
+command interface in `docs/architecture/codex-task-cache.md`. Do not stop at
+preparing handoffs or repeatedly search for missing tools. It creates visible
+workers, records dispatch receipts, and registers them with the existing adapter.
+Use `--full-access` only with the user's explicit permission; command execution
+permissions do not determine whether app tools are exposed.
 Before assignment, check the local adapter status once. If it is stopped or stale,
 report that state and repair the foreground connection rather than promising
 background monitoring. See `docs/architecture/codex-task-cache.md` for startup,
