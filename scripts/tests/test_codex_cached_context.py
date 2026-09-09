@@ -159,3 +159,53 @@ def test_context_omits_dependency_storage_fields_and_retry_bookkeeping():
     event["retry_at"] = 456
     assert cached.render_event(event) == rendered
     assert "delivery-internal" not in rendered
+
+
+# contract-test: tooling
+def test_runtime_preflight_rejects_modified_hook_without_starting_inference(tmp_path):
+    class RPC:
+        def call(self, method, params):
+            assert method == "hooks/list" and params == {"cwds": [str(tmp_path)]}
+            return {"data": [{"hooks": [
+                {"eventName": event, "enabled": True, "trustStatus": "modified" if event == "sessionStart" else "trusted",
+                 "sourcePath": str(tmp_path / ".codex/hooks.json"), "command": "bash claude-hook-bridge.sh"}
+                for event in cached.REQUIRED_CONTEXT_HOOKS]}]}
+    result = cached.runtime_preflight(tmp_path, RPC())
+    assert result["status"] == "needs_attention"
+    assert result["hooks_needing_review"] == ["sessionStart"]
+    assert "/hooks" in result["resolution"]
+
+
+# contract-test: tooling
+def test_runtime_preflight_requires_all_enabled_project_context_hooks(tmp_path):
+    class RPC:
+        def call(self, *_):
+            return {"data": [{"hooks": [
+                {"eventName": event, "enabled": event != "postToolUse", "trustStatus": "trusted",
+                 "sourcePath": str(tmp_path / ".codex/hooks.json"), "command": "bash claude-hook-bridge.sh"}
+                for event in cached.REQUIRED_CONTEXT_HOOKS]}]}
+    assert cached.runtime_preflight(tmp_path, RPC())["missing_hooks"] == ["postToolUse"]
+
+
+# contract-test: tooling
+def test_runtime_preflight_accepts_reviewed_project_hooks(tmp_path):
+    class RPC:
+        def call(self, *_):
+            return {"data": [{"hooks": [
+                {"eventName": event, "enabled": True, "trustStatus": "trusted",
+                 "sourcePath": str(tmp_path / ".codex/hooks.json"), "command": "bash claude-hook-bridge.sh"}
+                for event in cached.REQUIRED_CONTEXT_HOOKS]}]}
+    assert cached.runtime_preflight(tmp_path, RPC())["status"] == "ready"
+
+
+# contract-test: tooling
+def test_repository_cutover_covers_new_unregistered_chats(tmp_path, monkeypatch):
+    monkeypatch.setenv('OPENMATES_STATE_DIR', str(tmp_path / 'cli'))
+    config = tmp_path / 'cli/codex-adapter.json'
+    config.parent.mkdir()
+    entry = {'enabled': True, 'all_threads': True, 'threads': [THREAD], 'snapshots': []}
+    config.write_text(json.dumps({'repositories': {str(tmp_path.resolve()): entry}}))
+    assert cached.configuration(tmp_path, WORKER) == entry
+    entry['all_threads'] = False
+    config.write_text(json.dumps({'repositories': {str(tmp_path.resolve()): entry}}))
+    assert cached.configuration(tmp_path, WORKER) is None
