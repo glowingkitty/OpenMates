@@ -8,6 +8,8 @@ See docs/architecture/signup-email-live-smoke.md.
 # contract-test-file: tooling
 
 import importlib.util
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -19,6 +21,30 @@ SPEC.loader.exec_module(smoke)
 
 
 class LiveEmailGuards(unittest.TestCase):
+    def test_daily_health_dispatch_failure_preserves_isolated_ci(self):
+        launcher = Path(__file__).parents[1] / "run-tests-daily.sh"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "scripts").mkdir()
+            (root / "scripts/ci_dispatch.py").touch()
+            binaries = root / "bin"
+            binaries.mkdir()
+            commands = {
+                "git": '#!/bin/sh\nprintf "%s/.git\\n" "$TEST_ROOT"\n',
+                "gh": '#!/bin/sh\nexit 1\n',
+                "python3": '#!/bin/sh\nprintf "%s\\n" "$@" > "$TEST_ROOT/isolated-args"\n',
+            }
+            for name, content in commands.items():
+                executable = binaries / name
+                executable.write_text(content)
+                executable.chmod(0o755)
+            env = {**os.environ, "PATH": str(binaries) + os.pathsep + os.environ["PATH"], "TEST_ROOT": str(root)}
+            result = subprocess.run(["bash", str(launcher)], env=env, capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("--daily", (root / "isolated-args").read_text())
+            report = smoke.json.loads((root / "logs/nightly-reports/signup-email-live-dispatch.json").read_text())
+            self.assertEqual(report, {"dispatch": "failed", "verification": "not_run"})
+
     def test_alias_isolated_and_invalid_ids_rejected(self):
         self.assertEqual(smoke.make_alias("dedicated+old@example.com", "2026-09-09"), "dedicated+live-signup-2026-09-09@example.com")
         with self.assertRaises(smoke.ProbeError):
