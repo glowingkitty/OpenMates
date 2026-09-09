@@ -120,18 +120,18 @@ When reviewing existing Linear tasks for migration:
 
 ## Codex Task runtime
 
-Use the globally installed `openmates` executable for Task reads and mutations.
-Never execute a source/dist CLI or loader fallback, or change account/profile
-variables to work around an incompatible binary or auth failure. Verify installed
-Codex filtering and `complete: true` discovery, not just package version.
+Use the global `openmates` CLI with its existing personal dev-testing account.
+Read injected cached Tasks for routine progress; use scoped details only when
+needed. Do not invoke a source CLI or change the engineering account to work
+around a failure. Signup tests use separate isolated CLI state.
 
-At a completed turn boundary, persist the Task outcome with
-`scripts/codex_task_lifecycle.py --session <bound-session> --task <existing-uuid>
---turn <current-turn-id> --status in_progress|blocked|done --summary <exact-summary>
---next-action <action>`. Blocked requires `--reason`; approval blockers also require
-`--reason-code waiting_for_approval --approval <exact-review-link>`. Include the
-acknowledged summary in the final response and preserve blocker, next action and
-approval link. In-progress operations are not blockers, and partial work is not
-done. Stop enforces this boundary; commentary does not trigger transitions.
-Pending intent and the existing encrypted CLI outbox must reconcile before a
-different outcome. Never recreate an activity after uncertain delivery.
+The current workflow is documented in `docs/architecture/codex-task-cache.md`.
+Create and link Tasks in one mutation, split complex assignments into Tasks,
+and record meaningful status changes and activity. Use existing blocker and
+dependency fields. A queued claim or completion is pending until acknowledged.
+Foreground remote-access retries durable intents; do not resend on a timer.
+
+There is no per-turn exact-summary or next-action requirement. Do not call the
+legacy codex_task_lifecycle.py outcome protocol or start the old orchestration
+observer for migrated repository chats. Explain outcomes and remaining work in
+plain language. Partial work is not Done, and ongoing work is not a blocker.

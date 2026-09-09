@@ -1,32 +1,21 @@
 # Codex daily meeting and orchestration
 
-OpenMates Tasks own goals, decisions and activity. Codex owns execution. The
-orchestrator stores only scheduling, evidence references and delivery receipts.
-The approved design removes the six-worker cap and nightly clock shutdown.
+OpenMates Tasks own work state and activity. Codex chats own execution. The
+foreground global CLI syncs the selected Project and hosts the local event
+adapter. See [Task cache and delivery](codex-task-cache.md) for configuration,
+commands, instruction examples and runtime limits.
 
 ```mermaid
 flowchart TD
-    U[Ask today's priorities and wait] --> M[Research previous and current work]
-    H[Yesterday's priorities, Codex tasks and commits] --> M
-    G[Today's running and completed task outcomes and commits] --> M
-    N[Nightly CI coverage and notification receipts] --> M
-    T[OpenMates CLI Tasks and decisions] --> M
-    M --> Q[Four clarification rounds]
-    Q --> F[Propose today's focus and assignments]
-    F --> A[User approves assignments]
-    A --> W[Existing Codex workers]
-    W --> C[Cheap metadata observer: 30 seconds]
-    J[Existing CI queue] --> C
-    C --> D{New event or changed work due for review?}
-    D -->|No| Q[Stay quiet]
-    D -->|Yes| O[Orchestrator reviews evidence]
-    O -->|New evidence / dependency / drift| I[One concise instruction]
-    I --> W
-    O --> R[Linked table + exact blocker quote + S3 proof]
-    C --> P{30 minutes without outcome evidence?}
-    P -->|Yes| K[Park orchestration; workers keep running]
-    K --> E[Retain registered job completion watch]
-    E -->|New result| O
+    U[Today's priorities] --> R[Research saved work and CI evidence]
+    R --> Q[Four clarification rounds]
+    Q --> A[Approved assignments]
+    A --> W[Workers create or claim their Tasks]
+    W --> T[OpenMates Tasks]
+    T --> C[Private Project cache]
+    C --> I[Changed context in working chats]
+    C --> D[Dependency ready: resume eligible owner once]
+    W --> F[All worker Tasks done: notify coordinator once]
 ```
 
 ## Meeting order and daily memory
@@ -109,162 +98,48 @@ No resend or notification cutover is performed by this change. Plan that repair
 as a scoped task with the intended recipients/channel approval; do not infer
 notification delivery from a passing GitHub run.
 
-## Observer commands
+## Assignment and execution
 
-Use the coordinator's existing repository session. Each worker retains its own
-session/worktree and its own OpenMates Task. No new worker is created by these
-commands, and registration alone does not start background monitoring.
+Use the daily-meeting-and-orchestration skill. Preserve existing user approval
+and answered questions when continuing an approved assignment. Each worker uses
+its own bound repository session and creates or claims its own OpenMates Tasks.
+Split substantial workflows into concrete Tasks and explicit dependencies.
 
-```bash
-python3 scripts/codex_orchestration.py --session abcd register \
-  --coordinator <coordinator-uuid> --worker <worker-uuid> \
-  --task TASK-123 --title 'Complete signup verification'
-python3 scripts/codex_orchestration.py --session abcd serve
-python3 scripts/codex_orchestration.py --session abcd status
+Register actual worker IDs and Task IDs in the coordinator's existing session:
+
+```sh
+python3 scripts/codex_orchestration.py --session <coordinator-session> register \
+  --coordinator <coordinator-chat-id> --worker <worker-chat-id> \
+  --task <task-id> --title "Landing - Header"
 ```
 
-`serve` is a foreground, inference-free observer with one advisory delivery lock.
-It discovers the installed daemon's supported Unix WebSocket endpoint. Do not
-launch detached shell loops or a second scheduler. A service integration must
-explicitly own this command. This implementation does not activate a live service
-or attach to an existing coordinator automatically.
+Configure that session for the foreground Task-cache adapter as described in
+codex-task-cache.md. Registration does not claim or transfer a Task. An already
+owned Task must be explicitly released before a replacement worker claims it.
 
-Review cadence after a genuine affected-user instruction: 1, 2, 3, 13, 23, 33,
-53, 73, 93, 113, 133, 153, 183 minutes, then every 30 minutes. Missed checks
-coalesce. An unchanged timestamp at a due checkpoint does not wake reasoning.
-Metadata timestamps never count as outcome evidence.
+Use injected cached Tasks for routine progress. For a specific unanswered status
+question, call `wait_threads` once with `timeoutMs: 0`, worker ID and remote host
+ID. Read a short history only when the Task detail and status leave a question.
+Do not start the old `serve` observer, timed review loop or polling heartbeat.
 
-```bash
-python3 scripts/codex_orchestration.py --session abcd progress \
-  --worker <uuid> --kind verification --evidence 'ci:<request-id>:new-assertion-failure'
-python3 scripts/codex_orchestration.py --session abcd user-instruction \
-  --worker <uuid> --message-id <actual-human-message-id>
-python3 scripts/codex_orchestration.py --session abcd job \
-  --worker <uuid> --id <ci-request-id> --state running
-python3 scripts/codex_orchestration.py --session abcd note \
-  --worker <uuid> --quote 'Exact worker sentence.' --next-action 'Inspect the new CI result'
-```
+Routine activity updates only refresh cached context. Dependency and source-bound
+CI events go to their eligible owner. All completed worker Tasks trigger one
+coordinator notification. Paused workers stay paused. CI success is evidence;
+it does not automatically mark the assignment Done.
 
-Only the coordinator classifies semantic progress: a new cause, relevant fix,
-verification result, usable artifact or resolved dependency. Evidence identities
-are deduplicated. User messages grant a fresh inactivity window only to explicitly
-listed workers. Worker pushes and automated messages cannot authorize work.
+## Human communication and recovery
 
-After 30 minutes without evidence, stop actively observing that worker. It keeps
-executing. Read registered CI jobs from the existing coordinator's cached SQLite
-state; do not add another GitHub poller. Completion rearms the affected worker.
-Unregistered external render jobs have no automatic completion adapter yet: report
-that limitation and register their result explicitly as dependency evidence.
-All parked with no external watches ends the loop after one pending summary is
-accepted. A busy coordinator can defer this one summary without rereading workers.
+Report the outcome, meaningful verification and actual remaining work in plain
+language. There is no required status table, exact-summary repetition, copied
+blocker quote or extra Task next-action field. Use the existing blocker fields.
+Do not turn a resolved local typo or routine command into a retrospective.
 
-## Interventions and delivery recovery
+Queued delivery is pending until acknowledged. Foreground transport retries with
+delay and stable operation IDs; agents do not resend on a timer. Preserve outbox
+state and ownership during rollback. Hook definition changes require normal
+Codex review/trust and the activation doctor before enabling event execution.
 
-Record a justified intervention before using supported Codex task controls:
-
-```bash
-python3 scripts/codex_orchestration.py --session abcd instruction \
-  --worker <uuid> --trigger drift --evidence 'worker-message:<id>' \
-  --next-action 'Return to the original signup verification; report the assertion result.'
-python3 scripts/codex_orchestration.py --session abcd instruction-receipt \
-  --worker <uuid> --message-id <accepted-message-id>
-python3 scripts/codex_orchestration.py --session abcd instruction-result \
-  --worker <uuid> --effect advanced --evidence 'ci:<new-run-id>'
-```
-
-A second instruction is refused until the prior effect is inspected. Identical
-instructions are refused even after an unchanged outcome. The recorder does not
-send worker messages: the coordinator must verify the supported tool's actual
-acceptance. This keeps intervention judgment and execution visible.
-
-Coordinator wakeups persist pending → uncertain → accepted. State is atomically
-replaced under a file lock; process restarts preserve identity. A timeout after
-submission remains uncertain and is never automatically resent. Use `reconcile
---message-id <id> --turn-id <id>` only when supported thread history contains both
-identities. Otherwise leave it uncertain for inspection.
-
-Wakeups use `turn/start.toolOutput` with empty user input, preserving observer
-results as tool output instead of user messages. The supported runtime queues
-that output if a regular turn becomes active. The observer checks coordinator
-idle status first, but no atomic idle-only start field exists: a concurrent human
-turn can receive the queued data. This cannot grant new human approval authority.
-See [official App Server documentation](https://learn.chatgpt.com/docs/app-server).
-There are no automatic worker starts. Live unattended activation remains separate
-from deploying these tested tools.
-
-`stop` disables future orchestration deliveries and cancels pending records;
-`remove --worker <uuid>` ends observation of a completed or deliberately paused
-worker. Neither command cancels worker execution. An already accepted/in-flight
-turn cannot be unsent by a local stop; do not interrupt it automatically.
-
-## Role-specific context and visual delivery
-
-The existing Codex hook bridge projects bounded Task context at lifecycle/tool
-boundaries and adds the linked-table contract only for a registered coordinator.
-Task content is fetched through the source CLI and cached privately, with recent
-activity at SessionStart/resume/compaction. No heartbeat is written as activity.
-The existing CLI encrypted idempotent outbox remains the activity delivery owner.
-
-Stop checks final table links when `last_assistant_message` and `turn_id` exist,
-with at most one correction per turn. It cannot intercept every commentary
-message or rewrite Codex's provider system prompt. The skill and injected role
-contract govern those messages; workers acquire no table requirement.
-
-CI result retrieval writes `codex-evidence.json` with each spec/test/attempt/profile
-and video/image hash. Run the returned command, then paste its S3 links:
-
-```bash
-python3 scripts/codex_evidence.py /absolute/test-results/ci-runs/<request> --upload
-# After posting the actual links, acknowledge their receipt IDs:
-python3 scripts/codex_evidence.py /absolute/test-results/ci-runs/<request> \
-  --ack <evidence-id> --message-id <posted-message-id>
-```
-
-Upload failures do not change the test verdict. Retrying refreshes retained
-artifacts, not tests. Expired presigned links refresh after 48 hours. Images always
-have explicit links; optional embeds are additional. Videos include the artifact
-filename and, for component proof, the exact deployed component preview URL.
-Do not upload credentials, auth state, private user data or raw logs. Missing
-capture is an unmet obligation with an explicit reason, never replacement footage.
-Actual OpenMates CLI product E2E uses the existing terminal recorder; timeout now
-finalizes footage and retains failure exit code 124. Routine scripts are exempt.
-
-## Concrete output examples
-
-These are illustrative replays, not new live status claims. Real output uses the
-actual task link, last-check time and uploaded proof URL.
-
-**No new marketing evidence**
-
-| Task | Status | Evidence / next action | Your input |
-|---|---|---|---|
-| [Marketing](codex://threads/<marketing-id>) | Parked · checked 01:08 | “No render was retried and no MP4 exists yet.” → Await the requested asset decision | Choose the asset |
-
-No repeat “continue” instruction. Existing rendering, if any, is not cancelled.
-
-**CI finished with one new failure**
-
-| Task | Status | Evidence / next action | Your input |
-|---|---|---|---|
-| [Signup verification](codex://threads/<signup-id>) | Investigating · checked 09:14 | New signup assertion failure → Inspect its cause today · [Video](https://example.invalid/presigned-proof) `phone-retry-0.mp4` | — |
-
-**Yesterday's work and today's priorities**
-
-| Task | Yesterday | Suggested action | Your input |
-|---|---|---|---|
-| [CI migration](codex://threads/<ci-id>) | Dispatch fix committed; notification receipt absent | Resume scoped reporting diagnosis | Approve priority |
-| [CLI feature](codex://threads/<cli-id>) | Implementation committed; product E2E pending | Resume verification and publish recording | — |
-| [Completed feature](codex://threads/<done-id>) | Commit + verified proof + Task activity | Complete and close | — |
-
-Show actual suite counts below this only when their source-bound reports exist;
-“45 failed batches” must never become “45 failed tests”.
-
-## Verification and rollback
-
-Run the focused Codex orchestration/meeting/evidence/hook tests and the affected
-CI result/dispatch/CLI capture tests. Sync canonical skills and audit hook parity.
-No product E2E rerun is needed just to verify scheduling or table formatting.
-Rollback disables the wakeup writer first, preserves scheduling/delivery evidence,
-and restores the earlier adapter/skill; it must not restore the retired OpenCode
-monitor. Live rollout/long-running efficiency evidence is reported separately
-from isolated implementation tests.
+Product tests run through the existing isolated GitHub CI coordinator. Focused
+unit and tooling checks may run locally. Explicitly authorized live-service smoke
+checks are separate and must distinguish deployed service evidence from isolated
+product tests. No additional CI scheduler is introduced.
