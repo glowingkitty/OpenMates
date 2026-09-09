@@ -115,6 +115,7 @@ import {
   findTask,
   taskKeyFromRecord,
   type DecryptedUserTask,
+  type TaskUpdateOptions,
 } from "./tasksCli.js";
 import {
   decryptUserPlans,
@@ -853,6 +854,7 @@ export interface UserTaskRecord {
   external_chat_lookup_hash?: string | null;
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
+  key_wrappers?: Array<Record<string, unknown>>;
   linked_project_ids?: string[] | null;
   linked_project_hashes?: string[] | null;
   parent_task_id?: string | null;
@@ -9612,6 +9614,23 @@ export class OpenMatesClient {
       throw new Error(`Failed to extract task proposals (HTTP ${response.status})`);
     }
     return response.data.proposed_tasks;
+  }
+
+  /** Resolve membership-authorized Project keys before replacing task wrappers. */
+  async prepareUserTaskUpdate(task: DecryptedUserTask, input: TaskUpdateOptions, context: TeamContextOptions = {}): Promise<UserTaskUpdateInput> {
+    const masterKey = this.getMasterKeyBytes();
+    if (input.projectIds === undefined) return buildUpdateUserTaskInput(task, masterKey, input);
+    this.requireSession();
+    const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+      `/v1/user-tasks/${encodeURIComponent(task.taskId)}/key-wrappers`, this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !Array.isArray(response.data.key_wrappers)) throw new Error("Unable to load required task key wrappers.");
+    const projectKeys = new Map<string, Uint8Array>();
+    for (const projectId of new Set(input.projectIds)) {
+      const detail = await this.getProject(projectId, context);
+      projectKeys.set(projectId, await this.decryptProjectKey(detail.project, context));
+    }
+    return buildUpdateUserTaskInput(task, masterKey, input, {keyWrappers: response.data.key_wrappers, projectKeys});
   }
 
   async updateUserTask(taskId: string, input: UserTaskUpdateInput, context: TeamContextOptions = {}): Promise<UserTaskRecord> {
