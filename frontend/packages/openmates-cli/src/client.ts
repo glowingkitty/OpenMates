@@ -853,6 +853,7 @@ export interface UserTaskRecord {
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
   linked_project_ids?: string[] | null;
+  linked_project_hashes?: string[] | null;
   parent_task_id?: string | null;
   plan_id?: string | null;
   task_type?: "work" | "verification" | null;
@@ -1644,7 +1645,7 @@ export function buildTaskUpdateJobPersistPayload(params: {
 
 function pruneAbsentTaskPersistFields(payload: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(payload).filter(([, value]) => value !== undefined && value !== null),
+    Object.entries(payload).filter(([key, value]) => value !== undefined && (value !== null || key === "primary_chat_id")),
   );
 }
 
@@ -1675,6 +1676,8 @@ function formatTaskEventSystemContent(event: TaskEventFrame): string {
 
 function assertTaskPersistPayloadEncrypted(payload: Record<string, unknown>): void {
   const allowedSafeKeys = new Set([
+    "slug_lookup_hash",
+    "assignee_identity",
     "assignee_hash",
     "assignee_type",
     "blocked_reason_code",
@@ -5480,7 +5483,7 @@ export class OpenMatesClient {
   }
 
   /**
-   * Get the decrypted messages for a specific chat.
+   * Resolve decrypted chat metadata without fetching message history.
    *
    * Lookup order (most-recent-first for all title matches):
    * 1. Exact full UUID match
@@ -5490,6 +5493,15 @@ export class OpenMatesClient {
    *
    * @param query Full UUID, 8-char short ID, or chat title.
    */
+  async getChatMetadata(query: string, options: TeamContextOptions = {}): Promise<ChatListItem> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(true, [], options);
+    const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    return this.decryptChatListItem(found, wrappingKey, cache, teamId);
+  }
+
+  /** Get decrypted messages for a chat resolved by UUID, prefix or title. */
   async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
@@ -7662,7 +7674,7 @@ export class OpenMatesClient {
           description: typeof privatePatch.description === "string" ? privatePatch.description : "",
           status: typeof safeMetadata.status === "string" ? safeMetadata.status as UserTaskStatus : "todo",
           assign: typeof safeMetadata.assignee_type === "string" ? safeMetadata.assignee_type : "user",
-          chatId: typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
+          chatId: safeMetadata.primary_chat_id === null ? undefined : typeof safeMetadata.primary_chat_id === "string" ? safeMetadata.primary_chat_id : claim.chat_id ?? params.activeChatId,
         });
         encryptedTaskPayload = {
           ...input,
@@ -9497,6 +9509,30 @@ export class OpenMatesClient {
     return tasks;
   }
 
+  /** Submit a confirmed Codex runtime deletion, never a missing-list inference. */
+  async unlinkDeletedTaskChat(lookupHash: string, eventId: string, context: TeamContextOptions = {}): Promise<{unlinked_tasks: number; event_id: string}> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const response = await this.http.post<{unlinked_tasks: number; event_id: string}>("/v1/user-tasks/external-chat-deleted",
+      {external_chat_lookup_hash: lookupHash, event_id: eventId, ...(teamId ? {team_id: teamId} : {})}, this.getCliRequestHeaders());
+    if (!response.ok || response.data.event_id !== eventId) throw Object.assign(new Error(`Task chat deletion failed with HTTP ${response.status}`), {status: response.status, retryAfterMs: response.retryAfterMs});
+    return response.data;
+  }
+
+  /** Exact scoped lookup for queue reconciliation, without loading the task inventory. */
+  async getUserTask(taskId: string, context: TeamContextOptions = {}): Promise<UserTaskRecord | null> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(context);
+    const query = teamId ? `?team_id=${encodeURIComponent(teamId)}` : "";
+    const response = await this.http.get<{ task?: UserTaskRecord }>(
+      `/v1/user-tasks/${encodeURIComponent(taskId)}${query}`, this.getCliRequestHeaders());
+    if (response.status === 404) return null;
+    if (!response.ok || !response.data.task) {
+      throw Object.assign(new Error(`User task read failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
+    }
+    return response.data.task;
+  }
+
   async createUserTask(input: UserTaskCreateInput, context: { creator?: "codex" } = {}): Promise<UserTaskRecord> {
     this.requireSession();
     const response = await this.http.post<{ task?: UserTaskRecord; history?: WorkspaceHistoryResult }>(
@@ -9505,7 +9541,7 @@ export class OpenMatesClient {
       { ...this.getCliRequestHeaders(), ...(context.creator ? { "X-OpenMates-Task-Actor": "assignee", "X-OpenMates-Task-Creator": context.creator } : {}) },
     );
     if (!response.ok || !response.data.task) {
-      throw new Error(`User task create failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task create failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     response.data.task.history = response.data.history ?? null;
     return response.data.task;
@@ -9587,7 +9623,7 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok || !response.data.task) {
-      throw new Error(`User task update failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task update failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     response.data.task.history = response.data.history ?? null;
     return response.data.task;
@@ -9615,7 +9651,7 @@ export class OpenMatesClient {
       this.getCliRequestHeaders(),
     );
     if (!response.ok) {
-      throw new Error(`User task delete failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task delete failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     return response.data;
   }
@@ -9644,7 +9680,7 @@ export class OpenMatesClient {
   async createUserTaskActivity(
     taskId: string,
     input: UserTaskActivityCreateInput,
-    context: TeamContextOptions & { actorMode?: "user" | "assignee" } = {},
+    context: TeamContextOptions & { actorMode?: "user" | "assignee"; expectedOwnerHash?: string } = {},
   ): Promise<UserTaskActivityRecord> {
     this.requireSession();
     const teamId = this.resolveTeamContext(context);
@@ -9655,10 +9691,11 @@ export class OpenMatesClient {
       {
         ...this.getCliRequestHeaders(),
         ...(context.actorMode ? { "X-OpenMates-Task-Actor": context.actorMode } : {}),
+        ...(context.expectedOwnerHash ? { "X-OpenMates-Task-Owner": context.expectedOwnerHash } : {}),
       },
     );
     if (!response.ok || !response.data.entry) {
-      throw new Error(`User task activity create failed with HTTP ${response.status}`);
+      throw Object.assign(new Error(`User task activity create failed with HTTP ${response.status}`), { status: response.status, retryAfterMs: response.retryAfterMs });
     }
     return response.data.entry;
   }
