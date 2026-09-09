@@ -1,7 +1,15 @@
 ---
-description: Task tracking workflow — GitHub Issues by default, Linear only for retained internal categories
+description: OpenMates Tasks for Codex execution; GitHub and Linear for issue tracking
 globs:
 ---
+
+## Codex execution takes precedence
+
+Codex tracks engineering execution in OpenMates Tasks using the global personal
+dev-testing CLI account and selected OpenMates Project. The cached Task context
+is the normal inventory. GitHub/Linear instructions below apply to explicitly
+requested issue-tracker work, not every Codex Task. A tracker issue may be linked
+as context; do not maintain a competing execution status database.
 
 ## Task Tracking Workflow
 
