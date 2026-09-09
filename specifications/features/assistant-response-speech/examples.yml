@@ -264,3 +264,24 @@ lifecycle:
     given: {stored_profile_version: 1, current_profile_version: 2, source_text_unchanged: true}
     action: select_speak
     expect: {old_files_not_presented_as_current: true, segments_regenerated_with_version_2: true, old_files_lifecycle_cleanup_required: true}
+
+mail_projection:
+  - id: plumber-mail-body-with-protected-contact-details
+    given: >
+      The approved plumber response links a mail draft titled "Kitchen sink leak
+      repair needed - available tomorrow afternoon". Its body asks for a repair
+      visit and says "Please contact me at [EMAIL_1_com] or [PHONE_1_147] so we can
+      arrange a time." The viewer has revealed the fictional contacts on screen.
+    when: The owner requests speech for that response through web or CLI.
+    then: >
+      Speech includes the authored subject and complete body in response order,
+      preserving [EMAIL_1_com] and [PHONE_1_147] without restoring contact values.
+      It does not announce a code example or read embed JSON, metadata, or IDs,
+      and performs no rewriting inference. Editing the subject or body invalidates
+      the affected speech segments.
+  - id: unavailable-mail-and-real-code-remain-distinct
+    given: An assistant response links an unavailable mail draft beside a real code block.
+    when: The owner requests speech through web or CLI.
+    then: >
+      Speech announces "A mail draft is available." without inventing its body.
+      The actual code block retains the existing code-summary behavior.
