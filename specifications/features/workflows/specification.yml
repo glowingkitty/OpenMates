@@ -1,22 +1,28 @@
 schema_version: 1
 id: feature.workflows
-version: 2
+version: 3
 status: draft
 title: Workflows
 summary: >
   OpenMates Workflows execute validated user-authored automation graphs with
   encrypted retained content, explicit lifecycle state, and fenced side effects
-  such as client-encrypted chat delivery.
+  through deterministic app-skill, Filter, Check, and Send message steps,
+  with optional schedules and run-owned remembered deliveries.
 
 scope:
   includes:
     - Workflow definitions, validation, runs, step tests, action lifecycle, and visible run detail.
-    - Draft-to-active readiness: blank drafts, single-trigger activation, and reachable side-effect validation.
-    - Encrypted retained Workflow content for prompts, inputs, outputs, waits, and pending chat delivery.
+    - Manual execution readiness, optional single-schedule activation, deterministic control flow, budgets, and run deletion.
+    - Encrypted retained Workflow inputs, outputs, pending chat delivery, and indexed run-owned delivery fingerprints.
+    - Date/time recurrence, new-result filtering, selective embed creation, and standard chat overviews.
     - Workflow send_chat_message delivery for existing or newly routed owner chats.
     - Owner-device claim, encrypted persistence, acknowledgement, retry, expiry, cancellation, and reconnect semantics for chat delivery.
   excludes:
     - Non-Workflow chat sends and normal chat inference.
+    - V1 AI evaluation, AI inference steps, AI authoring/editing, user-input pauses, general loops, Wait nodes, and custom code execution.
+    - V1 event/chat/webhook triggers, direct project writes, cross-provider duplicate detection, and comparison with manually saved project content.
+    - Separate report, push, or email action nodes; normal chat notifications remain available.
+    - Automatic apartment applications and other external mutations.
     - Provider-specific app skill result semantics except as typed Workflow action outputs.
     - Team-owned Workflow chat delivery.
     - Server-side creation of normal chat keys or plaintext regular chat rows.
@@ -26,17 +32,17 @@ models:
     draft_graph:
       type: incomplete_workflow_graph
       required: true
-      constraints: {zero_triggers_allowed: true, maximum_triggers: 1, activation_allowed: false}
+      constraints: {zero_triggers_allowed: true, maximum_automatic_triggers: 1, incomplete_graph_cannot_run: true}
     active_graph:
       type: executable_workflow_graph
       required: true
-      constraints: {trigger_count: 1, first_authored_trigger_kind: schedule_trigger, reachable_side_effect_required: true}
+      constraints: {automatic_trigger_optional: true, maximum_automatic_triggers: 1, automatic_trigger_kind: schedule_trigger, complete_forward_graph_required: true, reachable_send_message_required: true}
     qualifying_side_effects:
       type: workflow_node_type_set
-      values: [create_chat_report, start_new_chat, send_notification, send_email_notification]
+      values: [send_chat_message]
     non_qualifying_nodes:
       type: workflow_node_type_set
-      values: [app_skill_action, decision, repeat, ask_user, wait, end]
+      values: [app_skill_action, check, filter]
 
   WorkflowRun:
     run_id:
@@ -44,7 +50,7 @@ models:
       required: true
     status:
       type: enum
-      values: [accepted, running, waiting_for_input, completed, failed, cancelled]
+      values: [accepted, running, completed, failed, cancelled]
     run_type:
       type: enum
       values: [full_run, step_test]
@@ -100,15 +106,15 @@ models:
 assertions:
   - id: workflows.activation.reachable-side-effect
     type: invariant
-    must: A disabled blank Workflow draft may contain zero triggers and no action nodes, but activation requires exactly one trigger and at least one qualifying side-effect node reachable from that trigger; a second trigger is always rejected, fetch/app-skill, decision, repeat, ask-user, wait, and end nodes do not satisfy readiness by themselves, and failed readiness creates no accepted run or side effect.
+    must: A blank draft is saveable but not runnable. A complete forward graph with a reachable Send message step is runnable by its owner or an authorized assistant without an automatic trigger or enabled schedule. Enabling automatic execution additionally requires exactly one valid date/time schedule. Missing required inputs, invalid references, cycles, or a second automatic trigger prevent acceptance without creating a run or side effect; a branch may legitimately finish without sending.
     depends_on: [models.WorkflowActivationReadiness, examples.activation_readiness]
   - id: workflows.execution.lifecycle-visible
     type: behavior
-    must: Workflow acceptance, step execution, waits, side-effect dispatch, completion, failure, expiry, cancellation, and step-test outcomes remain explicit in run detail without fabricating downstream side effects that have not been acknowledged.
+    must: Each accepted run is pinned to an immutable definition version. Acceptance, step execution, side-effect dispatch, completion, failure, expiry, cancellation, and step-test outcomes remain explicit without claiming unacknowledged delivery; failed steps stop downstream execution, cancellation stops future steps, and retries preserve accepted side-effect identities.
     depends_on: [models.WorkflowRun, models.WorkflowActionOutput, examples.lifecycle]
   - id: workflows.content.encrypted-retained
     type: privacy
-    must: Workflow definitions, prompts, mapped inputs, outputs, waits, chat delivery payloads, and retained run content use Automation Vault encryption for private content; notifications and logs contain no private payload content.
+    must: Workflow definitions, mapped inputs, outputs, chat delivery payloads, and retained run content use Automation Vault encryption for private content; notifications and logs contain no private payload content. Duplicate lookup uses workflow-scoped keyed fingerprints rather than plaintext URLs or unkeyed URL hashes, with only necessary run, destination, status, and timing metadata retained alongside them.
     depends_on: [models.WorkflowActionOutput.encrypted_content, models.WorkflowChatDelivery.encrypted_payload, examples.encrypted_retained_content]
   - id: workflows.chat-delivery.pending-private
     type: privacy
@@ -124,13 +130,152 @@ assertions:
     depends_on: [models.WorkflowChatPersistence, examples.chat_delivery_encrypted_persistence]
   - id: workflows.surface.semantic-parity
     type: parity
-    must: Backend, CLI, and web preserve the same Workflow lifecycle, encrypted retained content, content-private chat delivery, claim fencing, and client-encrypted chat persistence semantics.
-    depends_on: [models, examples, applies_to]
+    must: Backend, CLI, and web preserve identical manual/scheduled readiness, Check and Filter results, budgets, selective embeds, run-deletion forgetting, and encrypted delivery semantics. Any exposed SDK methods preserve the same semantics, while SDK launch gating and Apple UI remain deferred under applies_to.
+    depends_on: [models, examples.surface_parity, applies_to]
+
+  - id: workflows.mvp.steps
+    type: behavior
+    must: V1 offers Use app skill, Filter, Check, and Send message. It excludes AI inference/evaluation/authoring,
+      custom code, user-input pauses, Repeat/Wait/End authoring, and separate report/push/email actions. Execution
+      ends at the end of a path; assistant on-demand invocation of an existing definition remains allowed. Unsupported
+      legacy definitions remain inspectable but cannot be newly run or enabled without explicit migration; never
+      silently convert their behavior.
+    depends_on:
+    - examples.mvp_steps
+  - id: workflows.schedule.recurrence
+    type: behavior
+    must: Date/time supports once, every N minutes/hours/days/weeks/months, selected weekdays, monthly day numbers,
+      ordinal weekdays including last, and last day; recurring schedules carry a start date, local time or interval
+      anchor, IANA timezone, optional end date, and optional active weekdays/time window. Structured versioned
+      rules, never a required cron string, drive identical previews and execution. Invalid or skill-disallowed
+      intervals are rejected with a reason.
+    depends_on:
+    - examples.schedule_recurrence
+  - id: workflows.schedule.edge-cases
+    type: behavior
+    must: 'Monthly missing dates are skipped and last day is explicit. Calendar schedules keep local wall time:
+      nonexistent DST times are skipped and repeated local times run once. Windows are start-inclusive and end-exclusive
+      and interval anchors reset at each window start; overnight windows are rejected in V1 with an actionable
+      explanation. Missed schedule occurrences are recorded as skipped, not replayed in a backlog; a workflow
+      has at most one executing run and overlapping automatic occurrences are skipped, while overlapping manual
+      requests are rejected visibly. Pending chat delivery does not hold the execution slot indefinitely.'
+    depends_on:
+    - examples.schedule_edges
+  - id: workflows.actions.skill-contract
+    type: behavior
+    must: Use app skill exposes only explicitly workflow-supported, registered and runtime-verified skills with
+      typed inputs/outputs, required authorization and known charging behavior. Weather, news, events and home
+      search are V1 launch use cases; capability presence alone is not execution proof. Provider-specific filters
+      stay in skill inputs where supported; unavailable fields are not invented, partial failure remains distinct
+      from empty success, and provider output is validated untrusted data rather than executable instructions.
+    depends_on:
+    - examples.skill_contract
+  - id: workflows.control.filter
+    type: behavior
+    must: Filter consumes an accessible earlier typed list, preserves item identities/references and order, and
+      returns the matching list without side effects or user-authored loops. Conditions support equality/inequality,
+      numeric comparison, contains/starts-with, membership, existence and not-previously-delivered; a flat condition
+      group matches all or any. Missing fields do not satisfy comparisons (exists is false); empty results are
+      valid. V1 has no AI filter.
+    depends_on:
+    - examples.filter
+  - id: workflows.control.check
+    type: behavior
+    must: The user-facing name is Check and the serialized node type is check across all surfaces; do not expose decision as a second name. Legacy decision nodes require an explicit semantics-preserving conversion to check in a new definition version, leaving historical versions and runs immutable. A Check evaluates deterministic typed conditions
+      over accessible earlier scalar values or list counts, using the same comparison operators and flat all/any
+      grouping as Filter. It executes only its If true or If false sequence; either may do nothing, then execution
+      continues after the Check. Branch-local outputs are available only on that branch in V1, and no arbitrary
+      expressions, cycles, or parallel branches are allowed.
+    depends_on:
+    - examples.check
+  - id: workflows.control.typed-data
+    type: behavior
+    must: 'Inputs reference any accessible earlier output, not only the preceding node. Authoring uses declared
+      output schemas rather than requiring a prior live run: lists offer Filter and count-based Checks, scalars
+      offer compatible Checks, and invalid types, forward references or references to an unexecuted branch
+      fail validation before charging or execution.'
+    depends_on:
+    - examples.typed_data
+  - id: workflows.message.standard
+    type: behavior
+    must: Send message targets an existing owner chat or a new chat with a required title, uses an optional introductory
+      text and a standard deterministic overview of explicitly selected results, and includes a workflow-run
+      link and references to the included result embeds. It invokes the regular content-private chat notification
+      flow and requires no AI inference or custom template editor.
+    depends_on:
+    - examples.standard_message
+  - id: workflows.results.selective-embeds
+    type: behavior
+    must: Intermediate search/filter results are bounded-retention encrypted run data, not automatically permanent
+      embeds. Permanent result embeds are created only for items actually handed to chat delivery; future project-save
+      support must apply the same selected-only rule. Message and embed persistence are coordinated so no visible
+      message contains unresolved references; idempotent retries reuse delivery, message and embed identities.
+      Ordinary client-encryption and owner-device fencing remain mandatory; V1 does not introduce offline project
+      write authority.
+    depends_on:
+    - examples.selective_embeds
+  - id: workflows.history.delivered-membership
+    type: behavior
+    must: Not previously delivered compares selected candidate identities against completed deliveries of retained
+      runs of this workflow to the selected destination, not merely the immediately preceding run and not every
+      fetched result. Prefer provider plus stable result ID, otherwise a normalized canonical URL; cross-provider
+      matching and manually saved project comparisons are deferred. Run-owned indexed delivery records permit
+      a single batch membership lookup without loading private historical result payloads.
+    depends_on:
+    - examples.delivered_membership
+  - id: workflows.history.delivery-reservations
+    type: behavior
+    must: Delivery fingerprints and reservations belong to the originating run and destination. Pending accepted
+      delivery reserves only included result identities atomically against concurrent attempts; acknowledged
+      persistence makes them delivered. Failed, expired or cancelled undelivered output releases reservations.
+      Retries preserve stable identities; a fetched, filtered-out or unsuccessfully delivered item never becomes
+      permanently suppressed.
+    depends_on:
+    - examples.delivery_reservations
+  - id: workflows.history.delete-forgets
+    type: privacy
+    must: Deleting a run removes its retained private inputs/outputs and its duplicate-detection records/reservations
+      from active workflow storage. Pending writes are fenced/cancelled before deletion succeeds; if an in-flight
+      write cannot be safely resolved, deletion stays visibly pending rather than allowing a late delivery. Results
+      remembered only by that run become eligible again, but another retained run may still remember them. Existing
+      destination messages/embeds remain and show an unavailable run link; separately governed billing or backup
+      retention is not represented as erased by run deletion. Automatic run deletion has the same forgetting
+      effect; payload-only expiry may retain delivery records only while their owning visible run remains and
+      this distinction is explained.
+    depends_on:
+    - examples.delete_forgets
+  - id: workflows.budget.limits
+    type: behavior
+    must: Users may set workflow credit caps per day, week or month. Show a best-available schedule cost estimate
+      and unknown cost components before enabling; an uncapped workflow requires explicit acknowledgement. Reserve
+      allowance before charged work, enforce each configured cap including concurrent/retried work, reconcile
+      actual spend, and pause automatic execution at exhaustion. Periods use the workflow timezone, with weeks
+      starting Monday; a fresh period permits execution again unless separately disabled. Manual runs obey the
+      same caps.
+    depends_on:
+    - examples.budgets
+  - id: workflows.budget.notifications
+    type: behavior
+    must: The regular notification system reports likely budget shortfall based on observed runs, a first run
+      consuming at least 30 percent of a configured period cap, and exhaustion that pauses execution. Each reason
+      is deduplicated per relevant budget period/configuration; notices contain no private result content and
+      link to the workflow cost view.
+    depends_on:
+    - examples.budget_notifications
+  - id: workflows.access.boundaries
+    type: privacy
+    must: Workflow control and retained private data are owner-authenticated first-party client surfaces; scheduler/dispatcher
+      work is internal-only. Developer API keys do not gain access to encrypted chat, embed, project, keys, or
+      delivery material through this amendment. Existing explicitly approved narrower developer metadata surfaces
+      remain unchanged. Control/read/delete routes are rate-limited, execution additionally obeys skill and budget
+      limits, and authorization is rechecked before destination writes.
+    depends_on:
+    - examples.access_boundaries
 
 applies_to:
   rest_api:
     required: true
-    role: Workflow validation, run control, run detail, and step-test APIs expose lifecycle metadata without private content.
+    role: Owner-authenticated first-party workflow control and private data; internal scheduler execution; no newly authorized developer-key access to encrypted material.
   cli:
     required: true
     parity: semantic
@@ -150,4 +295,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence]
+  required_groups: [activation_readiness, lifecycle, encrypted_retained_content, chat_delivery_private, chat_delivery_fencing, chat_delivery_encrypted_persistence, surface_parity, mvp_steps, schedule_recurrence, schedule_edges, skill_contract, filter, check, typed_data, standard_message, selective_embeds, delivered_membership, delivery_reservations, delete_forgets, budgets, budget_notifications, access_boundaries]

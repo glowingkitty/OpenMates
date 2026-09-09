@@ -1,73 +1,216 @@
 schema_version: 1
-specification: feature.workflows@2
-
+specification: feature.workflows@3
 activation_readiness:
-  - id: blank-draft-is-persistable-but-not-active
-    given: {enabled: false, trigger_nodes: [], action_nodes: []}
-    expect: {draft_persisted: true, activation_allowed: false, accepted_run_created: false}
-  - id: time-trigger-with-reachable-notification-is-ready
-    given:
-      trigger_node: {id: trigger-1, type: schedule_trigger}
-      nodes: [{id: notify-1, type: send_notification}]
-      edges: [{source: trigger-1, target: notify-1}]
-    expect: {activation_allowed: true, trigger_count: 1, reachable_qualifying_side_effects: [notify-1]}
-  - id: structural-steps-do-not-make-workflow-ready
-    given:
-      trigger_node: {id: trigger-1, type: schedule_trigger}
-      nodes: [{id: fetch-1, type: app_skill_action}, {id: decision-1, type: decision}, {id: wait-1, type: wait}, {id: end-1, type: end}]
-      reachable_node_ids: [fetch-1, decision-1, wait-1, end-1]
-    expect: {activation_allowed: false, accepted_run_created: false, side_effect_dispatched: false}
-  - id: unreachable-effect-and-second-trigger-are-rejected
-    given:
-      trigger_nodes: [{id: trigger-1, type: schedule_trigger}, {id: trigger-2, type: manual_trigger}]
-      unreachable_nodes: [{id: report-1, type: create_chat_report}]
-    expect: {activation_allowed: false, errors: [exactly_one_trigger_required, reachable_side_effect_required]}
-
+- id: activation_readiness-1
+  given: A blank draft has no steps or schedule.
+  when: Alice saves it and tries Run now.
+  then: Saving succeeds but running explains the missing runnable steps and creates no run.
+- id: activation_readiness-2
+  given: A complete search-to-message workflow has no automatic trigger.
+  when: Alice or her authorized assistant runs it manually; she later adds one schedule.
+  then: The manual run succeeds without enabling a schedule; automatic enablement validates the single schedule
+    and runnable graph.
 lifecycle:
-  - id: action-completes-at-pending-delivery
-    input: {workflow_action: send_chat_message, delivery_created: true}
-    expect: {workflow_step_status: completed, output_status: delivery_pending, persisted_regular_chat_message_reported: false}
-  - id: terminal-undelivered-remains-visible
-    input: {delivery_status: expired}
-    expect: {run_detail_status: expired, workflow_run_reopened: false}
-  - id: failed-step-stops-later-steps
-    input: {step_status: failed, later_steps_configured: true}
-    expect: {later_steps_executed: false, final_run_status: failed}
-
+- id: lifecycle-1
+  given: A run has accepted a pending chat delivery.
+  when: Its definition is edited before a device reconnects.
+  then: The run stays pinned to its original version and reports pending delivery without claiming a persisted
+    message.
+- id: lifecycle-2
+  given: A search step fails before the message step.
+  when: Execution reaches the failure.
+  then: The run records the error and no downstream message executes.
 encrypted_retained_content:
-  - id: retained-run-content-vault-encrypted
-    durable_state:
-      contains: [run_id, step_id, status, encrypted_content]
-      forbidden: [plaintext_prompt, plaintext_mapped_input, plaintext_output, plaintext_wait_response]
-  - id: notification-content-free
-    input: {notification_kind: workflow_chat_delivery_available, owner_offline: true}
-    expect: {links_to_run_or_delivery: true, contains_private_content: false}
-
+- id: encrypted_retained_content-1
+  given: A run contains private search requirements and outputs.
+  when: Its data and delivery fingerprints are retained.
+  then: Private payloads are Vault-encrypted and lookup fingerprints are workflow-scoped and keyed; logs and
+    notifications omit private contents.
 chat_delivery_private:
-  - id: pending-delivery-vault-only
-    durable_state:
-      contains: [delivery_id, chat_id, message_id, encrypted_payload, status]
-      forbidden: [plaintext_title, plaintext_message, raw_regular_chat_key, normal_chat_ciphertext_before_client_persist]
-  - id: availability-frame-content-free
-    input: {delivery_status: delivery_pending, active_owner_client: true}
-    expect: {frame_contains_delivery_id: true, frame_contains_private_content: false}
-
+- id: chat_delivery_private-1
+  given: Alice is offline when a private message is ready.
+  when: The workflow creates pending chat delivery.
+  then: Only Vault ciphertext is stored for its title and message; the availability notice contains no private
+    text or normal chat key.
 chat_delivery_fencing:
-  - id: claims-only-pending
-    input:
-      deliveries:
-        - {delivery_id: pending-delivery, status: delivery_pending}
-        - {delivery_id: claimed-delivery, status: claimed}
-        - {delivery_id: acknowledged-delivery, status: acknowledged}
-    expect: {claimed_delivery_ids: [pending-delivery]}
-  - id: stale-token-rejected
-    input: {delivery_status: claimed, current_generation: 2, client_generation: 1, operation: persist}
-    expect_error: {code: stale_or_superseded_claim, ciphertext_written: false}
-
+- id: chat_delivery_fencing-1
+  given: Two devices have different claim generations for the same delivery.
+  when: The older device tries to persist after a newer claim wins.
+  then: The stale write is rejected; already claimed or acknowledged deliveries cannot be claimed as new pending
+    deliveries.
 chat_delivery_encrypted_persistence:
-  - id: existing-chat-uses-immutable-key
-    input: {delivery_kind: existing_chat, immutable_chat_key_available: true}
-    expect: {new_chat_key_generated: false, encrypted_message_written: true, stable_ids_preserved: true}
-  - id: new-chat-single-winner-generates-key
-    input: {delivery_kind: new_chat, concurrent_owner_devices: 2}
-    expect: {winning_clients: 1, generated_chat_keys: 1, duplicate_messages: 0}
+- id: chat_delivery_encrypted_persistence-1
+  given: A delivery targets an existing chat.
+  when: The winning owner client persists it.
+  then: It uses that chat's immutable key and the delivery's stable IDs.
+- id: chat_delivery_encrypted_persistence-2
+  given: Two owner devices receive a new-chat delivery.
+  when: Both try to persist it.
+  then: Only the winning client generates the new chat key and one message is created.
+surface_parity:
+- id: surface_parity-1
+  given: Alice authors a no-schedule apartment workflow in the CLI.
+  when: She opens it on the web and runs it through an authorized client.
+  then: All surfaces show the same Filter, Check, costs, delivery states and run-deletion forgetting; exposed
+    SDK methods do not change these semantics.
+mvp_steps:
+- id: mvp_steps-1
+  given: Alice opens a new Workflow.
+  when: She adds a step.
+  then: She can choose Use app skill, Filter, Check, or Send message; no AI evaluation, code, wait, or separate
+    notification action is offered.
+- id: mvp_steps-2
+  given: An older Workflow contains an email action.
+  when: Alice opens it and attempts to enable it.
+  then: Its saved definition remains readable, but enablement explains that the action must be replaced; no
+    email action is silently converted.
+schedule_recurrence:
+- id: schedule_recurrence-1
+  given: Alice chooses every 15 minutes between 08:00 and 20:00 in Europe/Berlin.
+  when: She previews and enables the apartment search.
+  then: The same calculator schedules 08:00, 08:15 and subsequent quarter-hours through 19:45; no 20:00 occurrence
+    is included.
+- id: schedule_recurrence-2
+  given: Bob selects the second Tuesday of each month at 09:00 in Europe/Berlin, starting October 2026.
+  when: He previews the rule.
+  then: The next dates are 13 October, 10 November and 8 December at 09:00; weekly, daily, interval and one-time
+    choices are also available without entering cron.
+schedule_edges:
+- id: schedule_edges-1
+  given: A monthly Workflow runs on the 31st and another explicitly on the last day.
+  when: February arrives.
+  then: The 31st rule skips February; the last-day rule runs on its final date. A local 02:30 daily rule skips
+    a missing spring DST time and runs once during a repeated autumn time.
+- id: schedule_edges-2
+  given: An apartment run is still executing when its next 15-minute occurrence becomes due, and later the
+    server recovers from downtime.
+  when: The scheduler checks due occurrences.
+  then: Overlapping and missed occurrences are recorded as skipped without duplicate execution or a catch-up
+    burst; a manual overlap request explains that a run is already active.
+skill_contract:
+- id: skill_contract-1
+  given: Alice configures Home search and one provider is unavailable.
+  when: The scheduled skill completes with other results.
+  then: Run detail identifies incomplete provider coverage rather than claiming there are no new apartments;
+    unsupported search parameters are not presented as working filters.
+- id: skill_contract-2
+  given: Bob opens the skill picker and code.run lacks supported workflow execution.
+  when: He tries to add it.
+  then: The capability is unavailable with an explanation; returned text from supported skills cannot execute
+    code on the server.
+filter:
+- id: filter-1
+  given: An Events search returns descriptions containing Buffer, AI, or neither.
+  when: Alice filters for descriptions containing Buffer or AI.
+  then: Only matching events remain in original order with their identities intact; the original list stays
+    available to later steps.
+- id: filter-2
+  given: An apartment list contains items with and without a known room count.
+  when: Alice filters for at least two rooms and not previously delivered.
+  then: Items with missing room counts or an existing delivery are excluded; no matching items produces an
+    empty list, not a failed run.
+check:
+- id: check-1
+  given: A weather result reports a 70 percent rain probability and Alice configured greater than 60.
+  when: The Check executes.
+  then: Only If true sends the rain message; If false does nothing. At 60 percent the false branch is chosen. Saving uses node type check, not decision; converting a legacy decision creates a new version without changing historical runs.
+- id: check-2
+  given: A Filter returns no new apartments.
+  when: The Check checks whether its result count is greater than zero.
+  then: The false branch does nothing and the run ends quietly, or continues to explicitly configured following
+    steps; no empty recommendation is sent.
+typed_data:
+- id: typed_data-1
+  given: Alice has added an Events search but never run it.
+  when: She adds a Filter and Check.
+  then: The declared list and count fields are selectable immediately; the Check can reference either the
+    original list or the filtered list.
+- id: typed_data-2
+  given: Bob references a value produced only on the other Check branch.
+  when: He saves a complete runnable definition.
+  then: Validation explains the unavailable input and prevents execution without spending credits.
+standard_message:
+- id: standard_message-1
+  given: Alice schedules an AI-news search each weekday and chooses a new chat titled AI news.
+  when: The run finds selected articles.
+  then: A deterministic overview with article embeds and a link to this run is delivered through the regular
+    chat flow without AI summarization charges.
+- id: standard_message-2
+  given: Bob schedules an event search each Sunday at 19:00 and selects an existing chat.
+  when: Filtered events are sent.
+  then: The message contains his introductory text, the selected event references and the run link; no separate
+    report or push action is needed.
+selective_embeds:
+- id: selective_embeds-1
+  given: A search returns ten apartments and the Filter selects two for a chat message.
+  when: The delivery is prepared and persisted.
+  then: Only the two selected apartments become permanent result embeds; the other eight remain temporary encrypted
+    run data.
+- id: selective_embeds-2
+  given: All owner devices are offline when a message with two result references is ready.
+  when: A device reconnects and retries persistence.
+  then: The delivery remains visibly pending until the authorized client can persist the message and referenced
+    embeds consistently; retry creates no duplicate message or embeds.
+delivered_membership:
+- id: delivered_membership-1
+  given: Apartment A was sent two runs ago, disappeared last run, and returns with a new apartment B.
+  when: A Filter checks not previously delivered to the same chat.
+  then: Only B remains; A is recognized across retained runs using the batch identity lookup.
+- id: delivered_membership-2
+  given: Apartment C was fetched previously but filtered out and never sent.
+  when: Changed requirements now select C.
+  then: C remains eligible. Delivery to a different selected destination is not silently treated as delivery
+    to this destination.
+delivery_reservations:
+- id: delivery_reservations-1
+  given: A pending chat delivery contains apartment A while a later search also finds A.
+  when: Both try to send to the same destination.
+  then: The reservation prevents a duplicate; a successful owner-client acknowledgement turns it into a delivered
+    record.
+- id: delivery_reservations-2
+  given: The pending delivery expires without persistence.
+  when: The next run finds the apartment again.
+  then: Its reservation has been released and the result can be recommended; no failed delivery is counted
+    as sent.
+delete_forgets:
+- id: delete_forgets-1
+  given: Run 1 sent apartment A, no other run sent it, and its chat message remains.
+  when: Alice deletes Run 1 after reading the deletion explanation.
+  then: Run data and delivery fingerprints are removed; A may be sent again, the original message remains,
+    and its run link says the run is unavailable.
+- id: delete_forgets-2
+  given: Run 2 also recorded the same apartment, while Run 3 has a pending delivery.
+  when: Alice deletes Run 1 and then requests deletion of Run 3.
+  then: Run 2 still suppresses its delivered apartment; Run 3 pending writes are fenced before deletion completes
+    and cannot later create a forgotten delivery.
+budgets:
+- id: budgets-1
+  given: A search costs 10 credits and Alice schedules it every 15 minutes from 08:00 to 20:00.
+  when: She enables it with a 400-credit daily cap.
+  then: The estimate shows 48 searches and 480 search credits per full day plus any other costs; execution
+    cannot exceed the configured cap and pauses when allowance is insufficient.
+- id: budgets-2
+  given: Bob leaves all budget caps unset.
+  when: He enables the schedule.
+  then: He must acknowledge the uncapped cost warning; a manual run on a capped workflow cannot bypass its
+    remaining allowance.
+budget_notifications:
+- id: budget_notifications-1
+  given: The first run spends 35 credits against a 100-credit daily cap.
+  when: Usage is reconciled.
+  then: Alice receives a content-private first-run budget warning; refreshing the page or retrying reconciliation
+    does not resend it.
+- id: budget_notifications-2
+  given: Observed runs predict a shortfall and the remaining budget later becomes insufficient.
+  when: The scheduler evaluates the budget.
+  then: The user receives distinct shortfall and paused-execution notices once for their relevant period, not
+    one alert on every skipped occurrence.
+access_boundaries:
+- id: access_boundaries-1
+  given: Another user or an unrelated developer API key knows a run ID.
+  when: They request its private outputs or attempt chat delivery.
+  then: Access is denied without disclosing payloads or key material.
+- id: access_boundaries-2
+  given: An authorized owner schedules a message and destination authorization is later revoked.
+  when: The delivery attempts persistence.
+  then: The write is rejected visibly; cached access cannot override the revoked authorization.
