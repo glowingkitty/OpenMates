@@ -80,3 +80,8 @@ project_surface_parity:
   - id: same-linked-object
     input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], project: project-1, item: plan-1}
     expect: {same_target_hash: true, same_object_lifecycle_owner: plan, raw_id_exposed: false}
+
+project_task_sync:
+  - id: twelve-tasks-and-reconnect
+    input: {selected_project: openmates, task_count: 12, web_title_edit: Header reviewed, disconnected_task_deletion: task-footer}
+    expect: {all_titles_cached: true, latest_activity_only: true, web_edit_pushed_without_model_call: true, reconnect_removes_deleted_task: true, revoked_scope_cleared: true}

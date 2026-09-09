@@ -195,3 +195,45 @@ codex_connection_compatibility:
   - id: legacy-resume-rejected
     input: {command: tasks_resume, provider: opencode}
     expect: {runtime_launched: false, original_link_readable: true, explicit_codex_connection_required: true}
+
+task_owner_claim:
+  - id: native-and-cli-defaults
+    input: {native_tool_chat: chat-native, link_to_chat: false, ordinary_cli_explicit_chat: null, codex_creator_chat: chat-header}
+    expect: {native_task_chat: null, ordinary_cli_task_chat: null, codex_task_chat: chat-header, codex_create_and_link_mutations: 1}
+  - id: competing-chat
+    input: {task_owner_title: Landing - Header, task_owner_id: chat-header, requesting_chat: chat-footer}
+    expect: {claim_accepted: false, owner_title_quoted: true, codex_owner_id_shown: chat-header, second_worker_started_for_task: false}
+
+task_chat_deletion:
+  - id: confirmed-delete-preserves-work
+    input: {deleted_chat: chat-header, linked_task_states: [in_progress, done, blocked], independent_blocker: waiting_for_approval}
+    expect: {task_states: [todo, done, blocked], chat_links_removed: true, task_records_preserved: true, non_chat_keys_preserved: true, independent_blocker: waiting_for_approval}
+
+task_delivery_recovery:
+  - id: accepted-write-lost-reply
+    input: {operation_id: header-review-finished, server_accepted: true, reply_lost: true, process_restarted: true}
+    expect: {original_operation_reconciled: true, duplicate_creation: false, pending_is_task_success: false, permanent_conflict_retained: true}
+
+task_dependency_readiness:
+  - id: last-task-dependency-done
+    input: {status: blocked, blocked_reason_code: external_dependency, encrypted_blocked_reason: null, plan_id: null, dependency_states: [done, done]}
+    expect: {status: todo, automatic_chat_creation: false, paused_owner_resumed: false}
+  - id: preserve-independent-blocker
+    input: {status: blocked, blocked_reason_code: external_dependency, encrypted_blocked_reason: private-ciphertext, dependency_states: [done]}
+    expect: {status: blocked, private_blocker_preserved: true}
+
+task_cached_context:
+  - id: all-tasks-bounded-text
+    input: {configured_project: project-openmates, linked_worker_tasks: 12, activities_per_task: 20}
+    expect: {visible_tasks: 12, full_titles_preserved: true, activity_entries_per_task: 1, descriptions_shortened: true, unchanged_tool_inventory_requests: 0}
+  - id: event-delivery-is-not-ownership
+    input: {task_owner: chat-header, other_device_can_see_task: true, owner_paused: true, dependency_states: [done]}
+    expect: {second_chat_claim_accepted: false, paused_owner_resumed: false, routine_orchestrator_wake: false}
+
+task_execution_boundary:
+  - id: pending-is-not-ownership
+    input: {delivery_status: pending, operation: claim, ci_result: success}
+    expect: {confirmed_owner: false, work_started: false, task_automatically_done: false}
+  - id: another-device-is-not-another-owner
+    input: {task_owner: chat-header, registered_host: dev-server, viewing_host: laptop}
+    expect: {new_chat_started: false, execution_lease_transferred: false}

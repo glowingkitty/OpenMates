@@ -421,7 +421,7 @@ specifications:
     version: 1
     status: draft
     path: features/plans
-    fingerprint: 42bdef146759edab2103675caead7c9449df0ff43f669c2f40abe4602f335683
+    fingerprint: e2138c202980cf037b193fd48a3e937d60ff50cabe9401087c3d70fd0406baeb
     required_applies_to:
     - rest_api
     - cli
@@ -432,7 +432,7 @@ specifications:
     version: 1
     status: draft
     path: features/projects
-    fingerprint: 0d04832e141aa62c98ace16df2a8aacf6673e089b27b9980496c740be132d4d7
+    fingerprint: 58b5420660a9cddcc3c9f980bad8d103cc518c5757866ff6add39fdb88d0399a
     required_applies_to:
     - rest_api
     - cli
@@ -469,7 +469,7 @@ specifications:
     version: 4
     status: draft
     path: features/tasks
-    fingerprint: 4c570a78a058912d480cb2dd455344d6c83d8e549986b33318a4df0a816b59d4
+    fingerprint: 78173ecc6b20bd3961dbfa59a3016008d58cbe2170ed755770b6c05f31d4bf04
     required_applies_to:
     - rest_api
     - cli
@@ -4715,7 +4715,18 @@ assertions:
     specification: feature.plans@1
     specification_id: feature.plans
     type: parity
-    fingerprint: 9221b527dd385d614fc946a8456b9748479adffecd65209fd3de48f8b3afd348
+    fingerprint: b1be5ae07145a921f0590b13578500825932fae706c925c33f1767fc5b4401b9
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  plans.chat.confirmed-deletion:
+    specification: feature.plans@1
+    specification_id: feature.plans
+    type: behavior
+    fingerprint: 58e5fc86b82e9645bcf2a6afb85957f607cfa1c0fb9471f2885908f1b6223331
     required_applies_to:
     - rest_api
     - cli
@@ -4836,7 +4847,18 @@ assertions:
     specification: feature.projects@1
     specification_id: feature.projects
     type: parity
-    fingerprint: 7d99e0fff464a1769399a213e36f613326d4b38a0914265bc0995fbc1806a789
+    fingerprint: f20d1dc0798a3a74ec63954921e4c83a96a16ebf7d443f6b413bf11e8d54121e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  projects.remote-access.task-sync:
+    specification: feature.projects@1
+    specification_id: feature.projects
+    type: behavior
+    fingerprint: 8d49489094c643fe68e7e96898699078cec4d8093df7dce332699d85478bb5df
     required_applies_to:
     - rest_api
     - cli
@@ -5371,7 +5393,73 @@ assertions:
     specification: feature.tasks@4
     specification_id: feature.tasks
     type: parity
-    fingerprint: b1dd1de82cba8aba9708722eb8f1ccb36275f3a5f648ce3310b773d942cb9f6b
+    fingerprint: 62da6e59b73cd4af3dfe52657139fb0075a4886797d65223c6a6d25de1c90dde
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.conversation.single-owner-claim:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: invariant
+    fingerprint: b87924c437a67b4680e9e10d3ad8a6e781731c04e3d1b704ddf9520506b6d281
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.conversation.confirmed-deletion:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: a1b9c4104f232d48f430252a0ad8c2350d4405fe827235fa4ed8d8c207ac5eb1
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.delivery.durable-intent:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: 97dc4c32409c099d40dd03b0a8bc20a76a54729f7d543bbdb1719a2fb355d02e
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.dependencies.ready-transition:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: 139869bd0ecfe788244f70d7eae0bb402b5bdb4d08a3824b956cdc878e83bbbe
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.context.project-cache:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: behavior
+    fingerprint: a604e1424c411efa7373838f0c865810bf8717329d3733c3a2b00a82b79547e3
+    required_applies_to:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+  tasks.delivery.execution-boundary:
+    specification: feature.tasks@4
+    specification_id: feature.tasks
+    type: invariant
+    fingerprint: bbda639cafe6fb9f5df926fb55e518e47299f1bbebf58c73d73ca111aa4354fc
     required_applies_to:
     - rest_api
     - cli

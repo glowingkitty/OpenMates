@@ -111,21 +111,32 @@ def test_setup_failure_retains_each_selected_spec_obligation(tmp_path):
 
 
 def test_cli_product_recording_included_but_generic_script_excluded(tmp_path):
-    import hashlib
+    from scripts.cli_video_capture import build_capture_manifest
 
     (tmp_path / "cli.mp4").write_bytes(b"cli")
-    manifest = {
-        "capture_kind": "real_terminal_screen",
-        "argv": ["openmates", "chats", "list"],
-        "classification": "cli_e2e",
-        "video_path": "cli.mp4",
-        "video_sha256": hashlib.sha256(b"cli").hexdigest(),
-        "exit_status": 1,
-    }
+    (tmp_path / "transcript.txt").write_text("synthetic CLI output")
+    (tmp_path / "events.jsonl").write_text("")
+    manifest = build_capture_manifest(
+        argv=["openmates", "chats", "list"],
+        video_path=tmp_path / "cli.mp4",
+        transcript_path=tmp_path / "transcript.txt",
+        events_path=tmp_path / "events.jsonl",
+        exit_status=1,
+        target_environment="github-isolated",
+        classification="cli_e2e",
+    )
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
     records = media.collect(tmp_path, receipt())
     assert any(
-        r.get("profile") == "terminal" and r["result"] == "failed" for r in records
+        r.get("profile") == "terminal"
+        and r["result"] == "failed"
+        and r["recording"] == "available"
+        for r in records
+    )
+    (tmp_path / "cli.mp4").write_bytes(b"changed")
+    assert any(
+        r.get("profile") == "terminal" and r["recording"] == "unavailable"
+        for r in media.collect(tmp_path, receipt())
     )
     manifest["argv"] = ["python3", "generic.py"]
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))

@@ -51,9 +51,10 @@ def _expected_version_property() -> dict[str, Any]:
 def _create_tool() -> dict[str, Any]:
     return _tool(
         TASK_TOOL_CREATE,
-        "Create a user-visible task in this chat. Private content will be staged for client encryption before durable persistence.",
+        "Create a user-visible task, linked to this chat by default. Set link_to_chat=false for unlinked work. Private content will be staged for client encryption before durable persistence.",
         {
             "title": {"type": "string", "description": "Short user-visible task title."},
+            "link_to_chat": {"type": "boolean", "default": True, "description": "Link the created task to this chat; false leaves it unlinked."},
             "description": {"type": "string", "description": "Optional task details or acceptance criteria."},
             "assignee_type": {"type": "string", "enum": ["user", "openmates"], "default": "user"},
             "status": {"type": "string", "enum": ["backlog", "todo", "in_progress", "blocked"], "default": "todo"},
