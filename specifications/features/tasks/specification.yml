@@ -24,7 +24,7 @@ scope:
     - Client-encrypted Activity comment text and uploaded embed keys encrypted directly with the Task key, with context-aware personal, Team, CLI, SDK, OpenMates, and named external-AI attribution.
     - Server-authored lifecycle Activity entries for successful Task creation and status transitions, independent of the client or assignee that initiated the mutation.
     - Typed external-chat contexts whose private identifiers and display titles remain client-encrypted while provider and keyed lookup metadata remain server-visible.
-    - Explicit Codex connection, read-only thread status and user-invoked interactive resume through the installed runtime, without automatic agent spawning.
+    - Explicit Codex connection, read-only thread status and user-invoked interactive resume through the installed runtime; an opt-in foreground adapter may continue an already linked, eligible chat after a dependency or CI event without spawning another chat.
     - Codex is the new external assignment default; legacy OpenCode contexts retain their original identity and encrypted lookup indexes and cannot resume the retired runtime.
     - Codex creator eligibility derives only from owner-scoped creation receipts after an explicit first-party CLI creator declaration and paired-session authentication; assignment or relinking never grants it.
     - Safe blocked reason codes plus client-encrypted user-facing blocker explanations.
@@ -277,6 +277,32 @@ assertions:
     type: parity
     must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, named assignment identities, lifecycle, Activity comments and system entries, tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
     depends_on: [models, examples, applies_to]
+
+  - id: tasks.conversation.single-owner-claim
+    type: invariant
+    must: Creating and linking a Task is one mutation. Ordinary CLI creation is unlinked; an explicit Codex link targets the calling chat. Native Task tools default to their current chat unless link_to_chat is false. A Task has at most one native or external conversation owner across devices. An existing conversation owner must be explicitly released before another conversation claims the Task; same-owner claims are idempotent and competing claims identify the quoted owner title and Codex chat id, or a native chat id with its OpenMates view command. The CLI checks its actual caller identity; this local workflow check is not cryptographic device attestation.
+    depends_on: [models.TaskRecord, models.TaskExternalChatContext, examples.task_owner_claim]
+  - id: tasks.conversation.confirmed-deletion
+    type: behavior
+    must: Confirmed conversation deletion removes its Task links and execution context while preserving Task records, history and readable non-chat keys. In-progress work returns to Todo, Done remains Done, and independent blockers remain. Archive, offline state and absence from a device listing are not deletion evidence.
+    depends_on: [models.TaskRecord, models.TaskKeyWrapper, examples.task_chat_deletion]
+  - id: tasks.delivery.durable-intent
+    type: behavior
+    must: A queued mutation retains its original identity, owner and version across temporary outages. Uncertain acceptance is reconciled before retry; shared delayed cooldowns prevent worker retry storms. Pending delivery is distinct from confirmed Task state, and persistent failure requires both five failed attempts and five elapsed minutes.
+    depends_on: [models.TaskRecord, examples.task_delivery_recovery]
+
+  - id: tasks.dependencies.ready-transition
+    type: behavior
+    must: When all explicit Task dependencies are Done, a blocked Task with external_dependency, no encrypted private blocker explanation and no linked Plan returns to Todo. Other blockers and unfinished dependencies remain blocked. Task readiness is separate from execution; only the registered eligible owner may be continued by the opt-in adapter, while a paused chat remains paused.
+    depends_on: [models.TaskDependency, models.TaskLifecycleState, examples.task_dependency_readiness]
+  - id: tasks.context.project-cache
+    type: behavior
+    must: A configured Project cache includes every linked Task in that Project for its authorized chat and registered orchestrator, preserving full titles, existing status, blockers and dependency metadata. Only descriptions and the latest activity are shortened in injected views. Unchanged tool boundaries inject no repeated rows and make no Task inventory request. Cache data is not instructions or approval, and unconfigured Projects are outside the snapshot scope.
+    depends_on: [models.TaskRecord, examples.task_cached_context]
+  - id: tasks.delivery.execution-boundary
+    type: invariant
+    must: A pending create or claim is not confirmed ownership and does not authorize starting that work. Queue recovery retains operation identity and rejects permanent ownership or version conflicts visibly. Completion of a CI run does not itself complete a Task. Execution registration is host-bound; seeing a Task from another device does not authorize a second chat or confer a distributed execution lease.
+    depends_on: [models.TaskRecord, examples.task_execution_boundary]
 
 applies_to:
   rest_api:

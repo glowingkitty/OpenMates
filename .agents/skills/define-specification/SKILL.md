@@ -20,7 +20,13 @@ argument-hint: "<feature or existing specification ID>"
    requirement/assertion must have one or two concrete examples in `examples.yml`
    mapped via case `assertion_ids: [<id>]` or assertion
    `depends_on: [examples.<group>]` (one or two cases in that group), with realistic inputs or state, the action,
-   and observable expected behavior. Reuse and update suitable examples where
+   and observable expected behavior. Write examples for the person approving the
+   requirement: short natural-language `given`, `when`, `then` sentences, or a
+   concrete `input: {language: sh, code: ...}` command and readable `expect` output.
+   Do not use dictionaries of internal flags, fixture IDs and booleans as the
+   human-facing example. Keep machine fixtures in tests. A reader must understand
+   the scenario without decoding field names or nested tables.
+   Reuse and update suitable examples where
    possible. Check coverage against the changed assertions before validation;
    an unrelated example elsewhere in the bundle does not satisfy this rule.
 3. Validate with `python3 scripts/specifications.py validate <bundle>`, then run
@@ -34,8 +40,8 @@ argument-hint: "<feature or existing specification ID>"
    Paste the returned Markdown PDF link into the chat before asking for approval.
    The PDF must contain the complete `specification.yml` and `examples.yml`.
    Inspect representative rendered PDF pages: each requirement must show its
-   concrete examples directly beneath it, with readable inputs and expected
-   results. YAML counts or a detached examples appendix do not prove this.
+   concrete examples directly beneath it as paragraphs or code blocks, with readable inputs and expected
+   results. Flattened field/value tables are not acceptable examples. YAML counts or a detached examples appendix do not prove this.
    The renderer checks coverage for added/changed requirements when generating
    new reviews; do not alter existing approved semantics to satisfy this check.
    Before asking for approval, verify that the review artifact shows changed text using inline green `+`

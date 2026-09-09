@@ -303,7 +303,7 @@ def queue_review(state, now, reasons):
 def observe_tick(path, rpc, now=None, root=None):
     now = time.time() if now is None else now
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         selected = {
             k: dict(w)
@@ -319,7 +319,7 @@ def observe_tick(path, rpc, now=None, root=None):
         except (RuntimeError, TimeoutError, OSError) as e:
             errors[tid] = str(e)
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         reasons = {}
         for tid, thread in snapshots.items():
@@ -374,7 +374,7 @@ def observe_tick(path, rpc, now=None, root=None):
 def deliver(path, rpc):
     """At-most-once attempt; ambiguous acceptance stays visible until reconciled."""
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         owner = state["coordinator"]
         pending = [
@@ -388,7 +388,7 @@ def deliver(path, rpc):
     if thread["status"]["type"] == "active":
         return
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         pending = [
             (k, v) for k, v in state["outbox"].items() if v["status"] == "pending"
@@ -496,6 +496,9 @@ def cli():
         with path.with_suffix(".delivery.lock").open("a") as owner_lock:
             fcntl.flock(owner_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             while True:
+                if path.exists() and json.loads(path.read_text()).get("adapter_mode") == "task_cache":
+                    print(json.dumps({"monitoring": "migrated_to_task_cache"}))
+                    return
                 with CodexRPC() as rpc:
                     observe_tick(path, rpc, root=root)
                     deliver(path, rpc)
@@ -503,6 +506,7 @@ def cli():
                 if (
                     args.action == "tick"
                     or not state.get("enabled")
+                    or state.get("adapter_mode") == "task_cache"
                     or (
                         state.get("monitoring") == "parked"
                         and not any(
@@ -534,6 +538,9 @@ def cli():
                 state["workers"][args.worker] = new_worker(
                     args.worker, args.task, args.title, now
                 )
+            else:
+                # Refresh explicit assignment metadata without resetting delivery or pause state.
+                state["workers"][args.worker].update(task=args.task, title=args.title)
         elif args.action == "stop":
             state.update(enabled=False, monitoring="stopped")
             for item in state["outbox"].values():
@@ -591,8 +598,11 @@ def cli():
             for item in state["outbox"].values():
                 if item.get("delivery_id") == args.message_id:
                     item.update(status="accepted", turn=args.turn_id)
-        output = (
-            render_table(state)
+        if args.action == "register" and state.get("adapter_mode") == "task_cache":
+            output = json.dumps({"registered": args.worker, "title": args.title, "task_id": args.task})
+        else:
+            output = (
+                render_table(state)
             if args.action == "table"
             else json.dumps(state, indent=2)
         )

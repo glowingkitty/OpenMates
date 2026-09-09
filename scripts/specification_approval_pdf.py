@@ -363,29 +363,43 @@ def validate_requirement_example_coverage(
         if assertion["id"] not in changed:
             continue
         cases = requirement_examples(assertion, bundle.examples)
-        concrete = all(case.get("id") and (case.get("input") or case.get("given"))
-                       and (case.get("expect") or case.get("then")) for _, case in cases)
+        def readable(value: Any) -> bool:
+            return (isinstance(value, str) and bool(value.strip())) or (
+                isinstance(value, dict) and isinstance(value.get("code"), str) and bool(value["code"].strip())
+            )
+        concrete = all(case.get("id") and readable(case.get("given") or case.get("input"))
+                       and readable(case.get("then") or case.get("expect")) for _, case in cases)
         if not 1 <= len(cases) <= 2 or not concrete:
             raise ValueError(f"Requirement {assertion['id']} needs 1–2 concrete mapped examples "
-                             "with input/given and expect/then; use assertion_ids or depends_on: examples.<group>")
+                             "written as natural-language input/given and expect/then, or explicit code examples; "
+                             "use assertion_ids or depends_on: examples.<group>")
 
 
 def _example_rows(current: Any, baseline: Any = MISSING, path: str = "") -> str:
-    """Present canonical structured examples as readable labels with leaf-level diffs."""
-    if isinstance(current, dict):
+    """Render human scenarios as prose and explicit commands as code, never leaf tables.
+
+    Historical structured fixtures stay visible as a single code block. New or
+    changed requirements must supply a readable scenario or actual code example.
+    """
+    if not path and isinstance(current, dict):
         old = baseline if isinstance(baseline, dict) else {}
-        rows = [_example_rows(value, old.get(key, MISSING), f"{path} / {_label(key)}" if path else _label(key))
-                for key, value in current.items()]
-        rows.extend(render_removed(f"{path} / {_label(key)}", value, level=5)
-                    for key, value in old.items() if key not in current)
-        return "".join(rows) or _example_rows("{}", MISSING if baseline is MISSING else "{}", path)
-    if isinstance(current, list):
-        matched, removed = _match_list_items(current, baseline if isinstance(baseline, list) else [])
-        return (_example_rows("[]", MISSING if baseline is MISSING else "[]", path) if not current else "") + "".join(_example_rows(value, matched[index], f"{path} / {index + 1}")
-                       for index, value in enumerate(current)) + "".join(
-                           render_removed(path, value, level=5) for value in removed)
-    return (f'<div class="requirement-example-row"><strong>{html.escape(path)}</strong>'
-            f'<span>{_scalar_diff(current, baseline)}</span></div>')
+        parts = [_example_rows(value, old.get(key, MISSING), _label(key))
+                 for key, value in current.items()]
+        parts.extend(render_removed(_label(key), value, level=5)
+                     for key, value in old.items() if key not in current)
+        return "".join(parts)
+    label = f'<strong>{html.escape(path)}.</strong> ' if path else ""
+    if isinstance(current, str):
+        return f'<p class="requirement-example-prose">{label}{_scalar_diff(current, baseline)}</p>'
+    if isinstance(current, dict) and isinstance(current.get("code"), str):
+        previous = baseline.get("code", MISSING) if isinstance(baseline, dict) else MISSING
+        return (f'<p>{label}</p><pre class="requirement-example-code" '
+                f'style="white-space:pre-wrap;overflow-wrap:anywhere"><code>{_scalar_diff(current["code"], previous)}</code></pre>')
+    # Preserve old fixtures without presenting nested field paths as prose.
+    text = json.dumps(current, ensure_ascii=False, indent=2)
+    old_text = MISSING if baseline is MISSING else json.dumps(baseline, ensure_ascii=False, indent=2)
+    return (f'<p>{label}</p><pre class="requirement-example-code" '
+            f'style="white-space:pre-wrap;overflow-wrap:anywhere"><code>{_scalar_diff(text, old_text)}</code></pre>')
 
 
 def _attach_requirement_examples(document: str, bundle: specifications.SpecificationBundle,
@@ -426,11 +440,10 @@ def _render_examples_appendix(
             case_key = str(case_id[1]) if case_id else f"case-{index}"
             changed = case != baseline_by_id.get(case_key, MISSING)
             baseline_case = baseline_by_id.get(case_key, MISSING)
-            fields = "".join(
-                f'<div class="example-field"><div class="field-label">{html.escape(_label(key))}</div>'
-                f'{_compact_diff_value(value, baseline_case.get(key, MISSING) if isinstance(baseline_case, dict) else MISSING)}</div>'
-                for key, value in case.items()
-                if key != "id"
+            fields = _example_rows(
+                {key: value for key, value in case.items() if key not in {"id", "assertion_ids"}},
+                {key: value for key, value in baseline_case.items() if key not in {"id", "assertion_ids"}}
+                if isinstance(baseline_case, dict) else {},
             ) if isinstance(case, dict) else _compact_value(case)
             case_cards.append(
                 f'<article class="example-case {"diff-added" if baseline_case is MISSING else "diff-modified" if changed else ""}" id="example-{readable_pdf._anchor("case", case_key)}">'
