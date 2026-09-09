@@ -190,3 +190,32 @@ Recovery helpers are documented here for actual CLI outages; normal context does
 not need to repeat private snapshot paths and Python/JSON recovery examples. All
 linked Tasks and their full titles remain visible, with shortened descriptions
 and latest activity. Unchanged tool boundaries still emit no context.
+
+## Remote worker commands when app tools are absent
+
+Some app-created remote chats expose read tools but no create/message tools.
+Full Access does not add tools. Use the existing daemon through this command
+interface for user-approved visible workers; no new observer is needed:
+
+```bash
+python3 /home/superdev/projects/OpenMates/scripts/codex_worker.py create --session <coordinator-session> --operation privacy-first-wave --title "Landing - Privacy and speech" --task TASK-77 --prompt-file <handoff.md> --full-access
+python3 /home/superdev/projects/OpenMates/scripts/codex_worker.py message --session <coordinator-session> --operation privacy-followup-1 --thread <worker-id> --prompt-file <followup.md> --full-access
+python3 /home/superdev/projects/OpenMates/scripts/codex_worker.py receipt --session <coordinator-session> --operation privacy-first-wave
+```
+
+`--full-access` requires explicit user authorization. It supplies permissions at
+both creation and turn start; it is not inferred from the parent UI or server
+default. Without it, configured daemon defaults apply. A running turn can retain
+its original permissions despite a changed composer setting. Stop it and resume
+with explicit permissions rather than approving every command.
+
+Create automatically registers the worker and enables that coordinator session
+in the existing Task-cache event adapter. It does not claim Tasks: the new worker
+starts its own repository session and claims explicitly released Tasks through
+the global OpenMates CLI. Include those steps in the handoff.
+
+Use one stable operation name per intended launch/message. The compact receipt
+returns state, chat ID and turn ID. Reusing the name reads the existing result;
+changed input is rejected. `needs_review` retains any known chat ID and does not
+retry uncertain calls. Do not invent another operation name to retry. Messages
+are explicit assignment/decision updates, never routine progress notifications.
