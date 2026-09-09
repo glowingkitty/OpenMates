@@ -97,3 +97,8 @@ plan_surface_parity:
   - id: approval-wait-parity
     input: {surfaces: [rest_api, cli, sdk_npm, sdk_pip, gui_web], plan_revision: 7}
     expect: {same_approval_identity: true, stale_revision_rejected: true, visible_failure: true}
+
+plan_chat_deletion:
+  - id: linked-chat-deleted
+    input: {plan: landing-rollout, primary_chat: chat-header, confirmed_chat_deletion: true}
+    expect: {primary_chat: null, continuation_paused: true, plan_preserved: true, non_chat_keys_preserved: true, deletion_is_approval: false}

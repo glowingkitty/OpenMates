@@ -369,7 +369,7 @@ async def test_external_chat_task_allows_master_wrapper_but_rejects_chat_wrapper
 
 # contract-test: direct surface=rest_api assertions=tasks.external-chat.encrypted-context,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
-async def test_update_task_can_switch_external_context_to_native_when_all_external_fields_are_cleared() -> None:
+async def test_update_task_requires_release_before_switching_external_to_native() -> None:
     existing = {
         "id": "task-row",
         **task_payload(primary_chat_id=None),
@@ -392,27 +392,21 @@ async def test_update_task_can_switch_external_context_to_native_when_all_extern
     directus.update_item_if_version = AsyncMock(return_value={"id": "task-row", "task_id": "task-1", "version": 2})
     methods = UserTaskMethods(with_lock_cache(directus))
 
-    updated = await methods.update_task(
-        "task-1",
-        "user-1",
-        {
-            "version": 1,
-            "primary_chat_id": "chat-1",
-            "external_chat_provider": None,
-            "external_chat_lookup_hash": None,
-            "encrypted_external_chat_id": None,
-            "encrypted_external_chat_title": None,
-            "key_wrappers": replacement_wrappers,
-        },
-    )
-
-    assert updated is not None
-    persisted = directus.update_item_if_version.await_args.args[2]
-    assert persisted["hashed_primary_chat_id"] == hash_id("chat-1")
-    assert persisted["external_chat_provider"] is None
-    assert persisted["external_chat_lookup_hash"] is None
-    assert persisted["encrypted_external_chat_id"] is None
-    assert persisted["encrypted_external_chat_title"] is None
+    with pytest.raises(ValueError, match="TASK_ALREADY_LINKED"):
+        await methods.update_task(
+            "task-1",
+            "user-1",
+            {
+                "version": 1,
+                "primary_chat_id": "chat-1",
+                "external_chat_provider": None,
+                "external_chat_lookup_hash": None,
+                "encrypted_external_chat_id": None,
+                "encrypted_external_chat_title": None,
+                "key_wrappers": replacement_wrappers,
+            },
+        )
+    directus.update_item_if_version.assert_not_awaited()
 
 
 # contract-test: direct surface=rest_api assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity
@@ -505,11 +499,11 @@ async def test_update_task_if_version_honors_committed_payload_version() -> None
 
 # contract-test: direct surface=rest_api assertions=tasks.lifecycle.visible,tasks.project-links.encrypted,tasks.key-wrappers.context-scoped
 @pytest.mark.asyncio
-async def test_update_task_if_version_relinks_chat_with_replacement_key_wrappers() -> None:
+async def test_update_task_if_version_links_unclaimed_task_with_replacement_key_wrappers() -> None:
     existing = {
         "id": "task-row",
-        **task_payload(),
-        "hashed_primary_chat_id": hash_id("chat-1"),
+        **task_payload(primary_chat_id=None),
+        "hashed_primary_chat_id": None,
         "linked_project_hashes": [hash_id("project-1")],
     }
     existing_wrappers = [
@@ -1352,3 +1346,66 @@ async def test_encrypted_ask_cannot_bypass_codex_eligibility(monkeypatch, operat
     assert error.value.status_code == 403
     service.create_task.assert_not_awaited()
     service.update_task.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('next_owner', [
+    {'external_chat_provider': 'codex', 'external_chat_lookup_hash': 'd'*64,
+     'encrypted_external_chat_id': 'cipher-other'},
+    {'primary_chat_id': 'native-other', 'external_chat_provider': None,
+     'external_chat_lookup_hash': None, 'encrypted_external_chat_id': None},
+])
+async def test_claim_cannot_replace_linked_conversation(next_owner):
+    existing = {'id': 'task-row', **task_payload(primary_chat_id=None),
+                'external_chat_provider': 'codex', 'external_chat_lookup_hash': 'c'*64,
+                'encrypted_external_chat_id': 'cipher-owner'}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[existing]),
+                               update_item_if_version=AsyncMock())
+    methods = UserTaskMethods(with_lock_cache(directus))
+    with pytest.raises(ValueError, match='TASK_ALREADY_LINKED'):
+        await methods.update_task_if_version('task-1', 'user-1', {'version': 1, **next_owner}, 1)
+    directus.update_item_if_version.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_existing_owner_can_update_title_without_reclaiming():
+    existing = {'id': 'task-row', **task_payload(primary_chat_id=None),
+                'external_chat_provider': 'codex', 'external_chat_lookup_hash': 'c'*64,
+                'encrypted_external_chat_id': 'cipher-owner'}
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[existing]),
+                               update_item_if_version=AsyncMock(return_value={**existing, 'version': 2}))
+    methods = UserTaskMethods(with_lock_cache(directus))
+    assert await methods.update_task_if_version('task-1', 'user-1',
+        {'version': 1, 'encrypted_external_chat_title': 'cipher-updated-title'}, 1)
+
+
+@pytest.mark.asyncio
+async def test_exact_task_read_keeps_team_viewer_access_and_scoped_lookup(monkeypatch):
+    monkeypatch.setattr(user_tasks, "_current_session_user", AsyncMock(return_value=SimpleNamespace(id="user-1")))
+    team = SimpleNamespace(require_team_role=AsyncMock())
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(directus_service=SimpleNamespace(team=team))))
+    methods = SimpleNamespace(get_task=AsyncMock(return_value={"task_id": "task-1", "encrypted_title": "cipher"}))
+    result = await user_tasks.get_user_task(request, None, "task-1", "team-1", SimpleNamespace(task_methods=methods))
+    methods.get_task.assert_awaited_once_with("task-1", "user-1", "team-1")
+    assert "viewer" in team.require_team_role.await_args.args[2]
+    assert result["task"]["encrypted_title"] == "cipher"
+    methods.get_task.return_value = None
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.get_user_task(request, None, "missing", "team-1", SimpleNamespace(task_methods=methods))
+    assert error.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_external_chat_deletion_binds_session_identity_and_retains_transient_failure(monkeypatch):
+    auth = AsyncMock(return_value=SimpleNamespace(id="user-1"))
+    monkeypatch.setattr(user_tasks, "_current_session_user", auth)
+    sync = SimpleNamespace(unlink_deleted_external_chat=AsyncMock(return_value={"unlinked_tasks": 2, "event_id": "b" * 64}))
+    request = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(project_task_sync=sync)))
+    body = user_tasks.ExternalTaskChatDeletedRequest(external_chat_lookup_hash="a" * 64, event_id="b" * 64)
+    result = await user_tasks.external_task_chat_deleted(request, None, body)
+    assert result["unlinked_tasks"] == 2
+    sync.unlink_deleted_external_chat.assert_awaited_once_with("user-1", "a" * 64, "b" * 64, None)
+    sync.unlink_deleted_external_chat.side_effect = RuntimeError("unavailable")
+    with pytest.raises(HTTPException) as error:
+        await user_tasks.external_task_chat_deleted(request, None, body)
+    assert error.value.status_code == 503

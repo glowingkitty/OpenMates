@@ -1088,7 +1088,7 @@ describe("OpenMatesClient session API URL", () => {
               safe_metadata: {
                 status: "todo",
                 assignee_type: "user",
-                primary_chat_id: "chat-1",
+                primary_chat_id: null,
                 position: 1780000001,
                 created_at: 1780000001,
                 updated_at: 1780000001,
@@ -1142,6 +1142,7 @@ describe("OpenMatesClient session API URL", () => {
       assert.equal(serializedPersistPayload.includes("Reconnect task title"), false);
       assert.equal(serializedPersistPayload.includes("Reconnect task description"), false);
       assert.equal(captured.persistPayload.encrypted_task_payload.task_id, "task-reconnect-1");
+      assert.equal(captured.persistPayload.encrypted_task_payload.primary_chat_id, null);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_task_key);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_title);
       assert.ok(captured.persistPayload.encrypted_task_payload.encrypted_description);
