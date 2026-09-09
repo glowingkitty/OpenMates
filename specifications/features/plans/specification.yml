@@ -200,6 +200,11 @@ assertions:
     must: REST, CLI, SDK, and web preserve the same encrypted content, revision approval, Specification links, explicitly required gates, Task links, Check links, completion blockers, and visible failures wherever Plan operations are exposed.
     depends_on: [models, examples, applies_to]
 
+  - id: plans.chat.confirmed-deletion
+    type: behavior
+    must: Confirmed native chat deletion unlinks its Plans and pauses automatic continuation while preserving the Plan record, history and readable non-chat keys. Deletion does not count as approval or successful execution.
+    depends_on: []
+
 applies_to:
   rest_api:
     required: true

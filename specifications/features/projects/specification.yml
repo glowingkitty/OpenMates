@@ -145,6 +145,11 @@ assertions:
     must: REST, CLI, SDK, and web preserve explicit context, encrypted CRUD, wrappers, item links, object ownership, destructive confirmation, and visible failures wherever Project operations are exposed.
     depends_on: [models, examples, applies_to]
 
+  - id: projects.remote-access.task-sync
+    type: behavior
+    must: While remote-access runs in the foreground, selected authorized Projects synchronize encrypted Task updates over the existing outbound connection to private account-scoped device caches. Atomic data and cursor commits preserve all Tasks, replay changes and removals after reconnect, and clear revoked scope. Cache views shorten only descriptions and the latest activity; server storage does not gain decrypted private content.
+    depends_on: []
+
 applies_to:
   rest_api:
     required: true

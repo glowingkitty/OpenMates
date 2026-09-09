@@ -278,6 +278,19 @@ assertions:
     must: REST, CLI, SDK, and web preserve encrypted content, native/external Chat context, encrypted blocked explanations, named assignment identities, lifecycle, Activity comments and system entries, tombstones, Plan/Check/Project links, version conflicts, workflow projections, and visible failures wherever Task operations are exposed.
     depends_on: [models, examples, applies_to]
 
+  - id: tasks.conversation.single-owner-claim
+    type: invariant
+    must: Creating and linking a Task is one mutation. Ordinary CLI creation is unlinked; an explicit Codex link targets the calling chat. Native Task tools default to their current chat unless link_to_chat is false. An existing conversation owner must be explicitly released before another conversation claims the Task; same-owner claims are idempotent and competing claims identify the quoted owner title and chat id.
+    depends_on: [models.TaskRecord, models.TaskExternalChatContext]
+  - id: tasks.conversation.confirmed-deletion
+    type: behavior
+    must: Confirmed conversation deletion removes its Task links and execution context while preserving Task records, history and readable non-chat keys. In-progress work returns to Todo, Done remains Done, and independent blockers remain. Archive, offline state and absence from a device listing are not deletion evidence.
+    depends_on: [models.TaskRecord, models.TaskKeyWrapper]
+  - id: tasks.delivery.durable-intent
+    type: behavior
+    must: A queued mutation retains its original identity, owner and version across temporary outages. Uncertain acceptance is reconciled before retry; shared delayed cooldowns prevent worker retry storms. Pending delivery is distinct from confirmed Task state, and persistent failure requires both five failed attempts and five elapsed minutes.
+    depends_on: [models.TaskRecord]
+
 applies_to:
   rest_api:
     required: true

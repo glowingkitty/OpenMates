@@ -152,8 +152,8 @@ async function loginWorkflowCliViaPair(page: any, apiUrl: string, homeDir: strin
 	expect(code).toBe(0);
 }
 
-async function runWorkflowCli(apiUrl: string, homeDir: string, args: string[], timeoutMs = 60_000): Promise<CliResult> {
-	return runCli(apiUrl, args, timeoutMs, {useApiKey: false, env: workflowCliEnv(apiUrl, homeDir)});
+async function runWorkflowCli(apiUrl: string, homeDir: string, args: string[], timeoutMs = 60_000, callerEnv: Record<string, string> = {}): Promise<CliResult> {
+	return runCli(apiUrl, args, timeoutMs, {useApiKey: false, env: {...workflowCliEnv(apiUrl, homeDir), ...callerEnv}});
 }
 
 function expectCliSuccess(result: CliResult, label: string): void {

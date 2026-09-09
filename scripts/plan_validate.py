@@ -328,10 +328,14 @@ def _validate_tests(data: dict[str, Any], ac_ids: set[str], schema_version: int)
             )
         if test_type == "playwright":
             target = _capture(errors, _require_string, test, f"tests[{index}].target", default=None)
-            if target is not None and target != "app.dev.openmates.org":
-                errors.append(f"{test_id} Playwright target must be app.dev.openmates.org")
-            if green_phase is not None and green_phase.get("expected") != "pass_after_deploy":
-                errors.append(f"{test_id} Playwright green_phase.expected must be pass_after_deploy")
+            # Keep historical plans readable while admitting the isolated CI
+            # contract. Execution is scheduled by ci_coordinator, not this file.
+            isolated = test.get("execution_environment") == "isolated_github_ci"
+            expected = "pass" if isolated else "pass_after_deploy"
+            if not isolated and target is not None and target != "app.dev.openmates.org":
+                errors.append(f"{test_id} Playwright requires execution_environment: isolated_github_ci")
+            if green_phase is not None and green_phase.get("expected") != expected:
+                errors.append(f"{test_id} Playwright green_phase.expected must be {expected}")
     if errors:
         raise PlanError(errors, partial=(covered, test_ids))
     return covered, test_ids
@@ -832,10 +836,10 @@ def main() -> int:
     try:
         data = validate_plan(path)
     except PlanError as exc:
-        print(f"FAIL {path.relative_to(REPO_ROOT)}: {exc}", file=sys.stderr)
+        print(f"FAIL {path}: {exc}", file=sys.stderr)
         return 1
 
-    print(f"PASS {path.relative_to(REPO_ROOT)}: {data['id']} ({data['status']})")
+    print(f"PASS {path}: {data['id']} ({data['status']})")
     return 0
 
 

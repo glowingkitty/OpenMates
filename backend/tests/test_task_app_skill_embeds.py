@@ -31,6 +31,7 @@ class FakeTaskStageService:
         assignee_type: str,
         status: str,
         position: int | None = None,
+        link_to_chat: bool = True,
     ) -> dict[str, Any]:
         call = {
             "user_id": user_id,
@@ -41,6 +42,7 @@ class FakeTaskStageService:
             "assignee_type": assignee_type,
             "status": status,
             "position": position,
+            "link_to_chat": link_to_chat,
         }
         self.calls.append(call)
         index = len(self.calls)
@@ -128,6 +130,7 @@ async def test_task_create_accepts_flat_single_task_arguments() -> None:
             "assignee_type": "user",
             "status": "todo",
             "position": stage_service.calls[0]["position"],
+            "link_to_chat": True,
         }
     ]
 
@@ -144,3 +147,13 @@ def test_task_create_multiple_tasks_stay_in_single_skill_payload() -> None:
         "search",
         {"query": ["one", "two"]},
     )
+
+
+@pytest.mark.anyio
+async def test_native_creation_defaults_to_current_chat_and_accepts_explicit_unlinked() -> None:
+    stage = FakeTaskStageService()
+    response = await _skill().execute(tasks=[{"title": "Linked by default"}, {"title": "Capture for later", "link_to_chat": False}],
+        user_id="user-1", chat_id="chat-1", message_id="message-1", task_stage_service=stage)
+    assert response.success
+    assert [call["link_to_chat"] for call in stage.calls] == [True, False]
+    assert all(call["chat_id"] == "chat-1" for call in stage.calls), "Encryption delivery stays routed to the current chat"
