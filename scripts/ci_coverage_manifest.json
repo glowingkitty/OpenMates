@@ -50,6 +50,7 @@
         "plan-assumptions-flow.spec.ts",
         "plans-flow.spec.ts",
         "project-plans-flow.spec.ts",
+        "project-task-sync.spec.ts",
         "projects-flow.spec.ts",
         "projects-remote-sources.spec.ts",
         "proton-local-connector-settings.spec.ts",
