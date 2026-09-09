@@ -90,6 +90,13 @@ Use plain language. Explain the outcome, relevant verification and concrete
 remaining work. Do not require a table, fixed heading, repeated retrospective,
 exact summary wording or a mirrored "next action" field in every reply.
 
+For dev-server orchestration, use canonical `scripts/codex_worker.py` for visible
+worker creation and messages, with `--full-access` when explicitly authorized.
+The desktop create/send tools can override daemon permissions on each new turn;
+the composer label and an earlier Full Access turn do not establish later settings.
+This command targets its local host only; use cached Task state to report progress,
+not cross-host parent messaging. See the remote worker commands in the cache guide.
+
 For the Task cache adapter, the foreground `openmates remote-access` process owns
 sync and retries. Codex receives all linked Tasks in the configured Project scope
 from disk at entry/resume and only changed rows while working. Cached titles,

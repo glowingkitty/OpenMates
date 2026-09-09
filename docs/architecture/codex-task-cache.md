@@ -191,10 +191,11 @@ not need to repeat private snapshot paths and Python/JSON recovery examples. All
 linked Tasks and their full titles remain visible, with shortened descriptions
 and latest activity. Unchanged tool boundaries still emit no context.
 
-## Remote worker commands when app tools are absent
+## Reliable dev-server worker commands
 
 Some app-created remote chats expose read tools but no create/message tools.
-Full Access does not add tools. Use the existing daemon through this command
+Full Access does not add tools. Desktop create/send calls can also override
+permissions on each new turn. Prefer the existing daemon through this command
 interface for user-approved visible workers; no new observer is needed:
 
 ```bash
@@ -219,3 +220,9 @@ returns state, chat ID and turn ID. Reusing the name reads the existing result;
 changed input is rejected. `needs_review` retains any known chat ID and does not
 retry uncertain calls. Do not invent another operation name to retry. Messages
 are explicit assignment/decision updates, never routine progress notifications.
+
+The command addresses chats on its own host only. A parent on another host should
+read Task/cache progress; do not repeatedly try remote-only IDs against this daemon.
+After a definite message rejection (not a timeout), retry the same operation and
+original inputs with `--retry-rejected`. This resumes the unloaded chat before
+dispatch. Accepted operations are never resent; uncertain timeouts require review.
