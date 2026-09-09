@@ -341,7 +341,12 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
   } as UserTaskCreateInput;
 }
 
-export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKey: Uint8Array, input: TaskUpdateOptions): Promise<UserTaskUpdateInput> {
+export interface TaskProjectKeyContext {
+  keyWrappers: Array<Record<string, unknown>>;
+  projectKeys: Map<string, Uint8Array>;
+}
+
+export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKey: Uint8Array, input: TaskUpdateOptions, projectContext?: TaskProjectKeyContext): Promise<UserTaskUpdateInput> {
   if (input.chatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
   const taskKey = await taskKeyFromRecord(task.encrypted, masterKey);
   const patch: UserTaskUpdateInput = { version: task.version, updated_at: nowSeconds() };
@@ -378,8 +383,39 @@ export async function buildUpdateUserTaskInput(task: DecryptedUserTask, masterKe
     patch.encrypted_external_chat_title = await encryptWithAesGcmCombined(input.externalChat.title ?? "", taskKey);
   }
   if (input.projectIds !== undefined) {
-    patch.linked_project_ids = input.projectIds;
-    patch.encrypted_linked_project_ids = await encryptWithAesGcmCombined(JSON.stringify(input.projectIds), taskKey);
+    if (!projectContext) throw new Error("Project relinking requires task wrappers and authorized project keys.");
+    const projectIds = [...new Set(input.projectIds)];
+    const hashId = (id: string) => createHash("sha256").update(id).digest("hex");
+    const chatId = input.externalChat ? null : input.chatId !== undefined ? input.chatId : task.primaryChatId;
+    const planId = input.planId !== undefined ? input.planId : task.planId;
+    const wrappers: Array<Record<string, unknown>> = [{
+      key_type: "master", encrypted_task_key: task.encrypted.encrypted_task_key, created_at: nowSeconds(),
+    }];
+    // Replacement is atomic on the server. Preserve non-project access without
+    // copying persistence IDs, and never keep a native-chat key for another owner.
+    for (const wrapper of projectContext.keyWrappers) {
+      if (wrapper.key_type === "master" || wrapper.key_type === "project") continue;
+      if (wrapper.key_type === "chat" && (!chatId || wrapper.hashed_chat_id !== hashId(chatId))) continue;
+      if (wrapper.key_type === "plan" && (!planId || wrapper.hashed_plan_id !== hashId(planId))) continue;
+      if (!["chat", "plan", "team"].includes(String(wrapper.key_type))) throw new Error("Unsupported task key wrapper type.");
+      if (typeof wrapper.encrypted_task_key !== "string" || !wrapper.encrypted_task_key) throw new Error("Missing encrypted task wrapper key.");
+      const retained: Record<string, unknown> = {};
+      for (const field of ["key_type", "encrypted_task_key", "hashed_chat_id", "hashed_plan_id", "hashed_team_id", "team_key_epoch", "created_at", "expires_at"]) {
+        if (wrapper[field] !== undefined) retained[field] = wrapper[field];
+      }
+      wrappers.push(retained);
+    }
+    if (chatId && !wrappers.some(wrapper => wrapper.key_type === "chat")) throw new Error("Missing required primary chat key wrapper.");
+    if (planId && !wrappers.some(wrapper => wrapper.key_type === "plan")) throw new Error("Missing required plan key wrapper.");
+    for (const projectId of projectIds) {
+      const projectKey = projectContext.projectKeys.get(projectId);
+      if (!projectKey) throw new Error(`Missing authorized project key for ${projectId}.`);
+      wrappers.push({key_type: "project", hashed_project_id: hashId(projectId),
+        encrypted_task_key: await encryptBytesWithAesGcm(taskKey, projectKey), created_at: nowSeconds()});
+    }
+    patch.key_wrappers = wrappers;
+    patch.linked_project_ids = projectIds;
+    patch.encrypted_linked_project_ids = await encryptWithAesGcmCombined(JSON.stringify(projectIds), taskKey);
   }
   if (input.planId !== undefined) patch.plan_id = input.planId;
   const priority = normalizeTaskPriority(input.priority);
