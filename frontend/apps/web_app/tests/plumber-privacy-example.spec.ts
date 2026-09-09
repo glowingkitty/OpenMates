@@ -17,6 +17,8 @@ const CHAT_ID = 'example-plumber-message-email-phone';
 const EXAMPLE_PATH = '/example/plumber-message-email-phone-privacy';
 const EMAIL = 'lena.hoffmann@example.com';
 const PHONE = '+1 202-555-0147';
+// Retain each asserted state for the full caption interval in the real recording.
+const PROOF_READING_HOLD_MS = 6_000;
 const DEVICES = ['web-phone', 'web-laptop'];
 const PROFILES = [
 	{ device: 'web-phone', width: 390, height: 844 },
@@ -70,6 +72,7 @@ for (const profile of PROFILES.filter((item) => !proofProfile || item.device ===
 			});
 			await request.scrollIntoViewIfNeeded();
 			await proof.checkpoint('protected');
+			if (proofProfile) await page.waitForTimeout(PROOF_READING_HOLD_MS);
 			await proof.action('reveal-contacts', () => toggle.click());
 			await proof.assert('revealed', async () => {
 				await expect(request).toContainText(EMAIL);
@@ -77,6 +80,7 @@ for (const profile of PROFILES.filter((item) => !proofProfile || item.device ===
 			});
 			await request.scrollIntoViewIfNeeded();
 			await proof.checkpoint('revealed');
+			if (proofProfile) await page.waitForTimeout(PROOF_READING_HOLD_MS);
 			const preview = page.getByTestId('embed-preview').first();
 			const fullscreen = await proof.action('open-and-protect-mail-draft', async () => {
 				const overlay = await openFullscreen(page, preview);
@@ -92,6 +96,7 @@ for (const profile of PROFILES.filter((item) => !proofProfile || item.device ===
 				await expect(fullscreen).not.toContainText(EMAIL);
 			});
 			await proof.checkpoint('draft');
+			if (proofProfile) await page.waitForTimeout(PROOF_READING_HOLD_MS);
 			await closeFullscreen(page, fullscreen);
 			await expect(request).toContainText('[EMAIL_1_com]');
 			await page.reload({ waitUntil: 'domcontentloaded' });
