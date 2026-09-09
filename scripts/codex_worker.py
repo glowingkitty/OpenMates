@@ -29,13 +29,21 @@ from scripts.codex_orchestration import (
 from scripts.codex_cached_context import _save, configuration
 
 
-def dispatch(rpc, record, intent, save, register):
+def dispatch(rpc, record, intent, save, register, retry_rejected=False):
     """Never automatically retry an invocation with an uncertain remote outcome."""
     digest = hashlib.sha256(json.dumps(intent, sort_keys=True).encode()).hexdigest()
     if record:
         if record.get("digest") != digest:
             raise ValueError("Operation ID already belongs to different input")
-        return record
+        if (
+            retry_rejected
+            and intent["action"] == "message"
+            and record.get("state") == "needs_review"
+            and str(record.get("error", "")).startswith("Codex turn/start rejected:")
+        ):
+            record.clear()  # Definite daemon rejection, never an uncertain timeout.
+        else:
+            return record
     record.update(digest=digest, state="pending")
     save(record)
     permissions = (
@@ -57,6 +65,10 @@ def dispatch(rpc, record, intent, save, register):
             register(thread)
         else:
             record["thread_id"] = thread
+            resume = {"threadId": thread, "excludeTurns": True}
+            if intent["full_access"]:
+                resume.update(approvalPolicy="never", sandbox="danger-full-access")
+            rpc.call("thread/resume", resume)
         record["state"] = "dispatching"
         save(record)
         result = rpc.call(
@@ -96,6 +108,11 @@ def main():
         "--full-access",
         action="store_true",
         help="Only with explicit user authorization; applies to this and subsequent turns",
+    )
+    p.add_argument(
+        "--retry-rejected",
+        action="store_true",
+        help="Retry the same message only after a definite turn/start rejection, never a timeout",
     )
     a = p.parse_args()
     root = canonical_root(Path.cwd())
@@ -173,7 +190,12 @@ def main():
             raise ValueError("Session registry belongs to another coordinator")
         with CodexRPC() as rpc:
             result = dispatch(
-                rpc, record, intent, lambda value: _save(path, value), register
+                rpc,
+                record,
+                intent,
+                lambda value: _save(path, value),
+                register,
+                a.retry_rejected,
             )
         print(
             json.dumps(

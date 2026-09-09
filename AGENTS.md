@@ -117,6 +117,14 @@ under 300 characters. Put detailed logs, hashes and test inventories in a refere
 file or receipt. Do not post a second activity repeating the same milestone.
 Do not use Python wrappers for routine CLI writes or print entire cache files.
 
+When an important user decision is required, stop the dependent work and mark
+its Task Blocked using `openmates tasks block <id> --reason-code needs_user_input
+--reason-text "<specific decision required>"`. Present the decision once with a
+recommendation; preserve prior approvals and continue only independent approved
+work. Do not repeatedly wake the user or worker for an unchanged blocker. Record
+pending delivery honestly if the CLI is unavailable. In Progress is Task state;
+Running/Idle is chat runtime state and must be reported separately.
+
 Use existing status, blockers and dependencies. Record useful milestones and
 important corrections, not routine tools, heartbeats or retry attempts. A queued
 operation is pending, not a confirmed claim or completion. Continue already owned,
