@@ -86,3 +86,33 @@ def test_default_does_not_escalate_permissions():
     dispatch(rpc, {}, dict(intent(), full_access=False), lambda r: None, lambda t: None)
     assert "sandbox" not in rpc.calls[0][1]
     assert "sandboxPolicy" not in rpc.calls[-1][1]
+
+
+# contract-test: tooling
+def test_message_resumes_unloaded_thread_before_start():
+    rpc = RPC()
+    dispatch(
+        rpc,
+        {},
+        dict(intent(), action="message", thread="old"),
+        lambda r: None,
+        lambda t: None,
+    )
+    assert [m for m, _ in rpc.calls] == ["thread/resume", "turn/start"]
+    assert rpc.calls[0][1]["excludeTurns"] is True
+
+
+# contract-test: tooling
+def test_explicit_retry_only_replays_definite_message_rejection():
+    data = dict(intent(), action="message", thread="old")
+    rpc = RPC("turn/start")
+    record = {}
+    with pytest.raises(TimeoutError):
+        dispatch(rpc, record, data, lambda r: None, lambda t: None)
+    count = len(rpc.calls)
+    dispatch(rpc, record, data, lambda r: None, lambda t: None, True)
+    assert len(rpc.calls) == count
+    record["error"] = "Codex turn/start rejected: -32600"
+    rpc.fail = None
+    dispatch(rpc, record, data, lambda r: None, lambda t: None, True)
+    assert record["state"] == "accepted"
