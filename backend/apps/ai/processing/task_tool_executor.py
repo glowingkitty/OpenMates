@@ -146,6 +146,10 @@ async def execute_task_tool_call(
     now = int(time.time())
     skill_id = task_tool_skill_id(tool_name)
     if skill_id == "create":
+        link_to_chat = args.get("link_to_chat", True)
+        if not isinstance(link_to_chat, bool):
+            raise ValueError("link_to_chat must be a boolean")
+        primary_chat_id = context.chat_id or None if link_to_chat else None
         title = str(args.get("title") or "").strip()
         title_key = _normalize_task_title(title)
         if title_key and title_key in context.client_persisted_create_titles:
@@ -166,7 +170,7 @@ async def execute_task_tool_call(
                 "status": _safe_status(args.get("status"), default="todo"),
                 "assignee_type": _safe_assignee_type(args.get("assignee_type")),
                 "assignee_identity": _safe_assignee_identity(args.get("assignee_type")),
-                "primary_chat_id": context.chat_id,
+                "primary_chat_id": primary_chat_id,
                 "position": position,
                 "created_at": now,
                 "updated_at": now,
@@ -183,7 +187,7 @@ async def execute_task_tool_call(
             context.client_persisted_create_titles[title_key] = task_id
         context.attached_tasks.append({
             "task_id": task_id,
-            "primary_chat_id": context.chat_id,
+            "primary_chat_id": primary_chat_id,
             "title": title,
             "description": str(args.get("description") or ""),
             "status": _safe_status(args.get("status"), default="todo"),

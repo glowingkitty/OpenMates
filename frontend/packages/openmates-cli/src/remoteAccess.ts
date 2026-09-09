@@ -10,6 +10,13 @@
  * Tests: frontend/packages/openmates-cli/tests/remoteAccess.test.ts.
  */
 
+import { startCodexTaskBridges, flushCodexChatDeletions } from "./codexTaskBridge.js";
+import { flushTaskCommands } from "./taskCommandDelivery.js";
+import { flushPendingTaskMutations } from "./taskMutationDelivery.js";
+import { flushPendingTaskActivities } from "./taskActivityDelivery.js";
+import lockfile from "proper-lockfile";
+import { resolveStateDir } from "./storage.js";
+import { ProjectTaskCache, decryptProjectTask, type ProjectTaskFrame } from "./projectTaskSync.js";
 import { homedir } from "node:os";
 import {
   chmodSync,
@@ -304,14 +311,53 @@ export async function runRemoteAccessBridge(options: {
   bindings: LiveRemoteAccessBinding[];
   signal: AbortSignal;
   confirmedTakeover?: boolean;
+  taskCacheRoot?: string;
+  onTaskSync?: (event: { projectId: string; directory: string; status: string }) => void;
   onLifecycle?: (event: RemoteAccessLifecycleEvent) => void;
 }): Promise<void> {
+  const accountScope = JSON.stringify([options.client.getSession().apiUrl, options.client.getSession().hashedEmail, options.bindings[0]?.teamId ?? "personal"]);
+  const caches = new Map<string, ProjectTaskCache>();
+  const releases: Array<() => Promise<void>> = [];
+  let deliveryTimer: ReturnType<typeof setInterval> | undefined;
+  let delivering = false;
+  let codexBridges: ReturnType<typeof startCodexTaskBridges> | undefined;
+  const flushDelivery = async () => {
+    if (delivering || options.signal.aborted) return;
+    delivering = true;
+    try {
+      const notice = (status: string) => options.onTaskSync?.({ projectId: "", directory: "", status });
+      await flushCodexChatDeletions(options.client, options.bindings[0]?.teamId, resolveStateDir(), notice);
+      await flushTaskCommands(options.client, options.bindings[0]?.teamId, resolveStateDir(), notice);
+      await flushPendingTaskActivities(options.client, options.bindings[0]?.teamId, resolveStateDir(), notice);
+      await flushPendingTaskMutations(options.client, options.bindings[0]?.teamId, resolveStateDir(), notice);
+    }
+    catch { options.onTaskSync?.({ projectId: "", directory: "", status: "delivery_deferred" }); }
+    finally { delivering = false; }
+  };
+  try {
+    for (const binding of options.bindings) {
+      const projectId = binding.source.projectId!;
+      if (caches.has(projectId)) continue;
+      const cache = new ProjectTaskCache(options.taskCacheRoot ?? join(resolveStateDir(), "project-task-cache"), accountScope, projectId);
+      releases.push(await lockfile.lock(cache.directory, { retries: 0, stale: 120000 }));
+      caches.set(projectId, cache);
+    }
+  codexBridges = startCodexTaskBridges(options.bindings.map(item => item.source.rootPath),
+    [...caches.values()].map(cache => join(cache.directory, "snapshot.json")), resolveStateDir(),
+    status => options.onTaskSync?.({projectId: "", directory: "", status}));
+  deliveryTimer = setInterval(() => { void flushDelivery(); }, 5000);
+  void flushDelivery();
   let reconnectAttempt = 0;
   while (!options.signal.aborted) {
     options.onLifecycle?.({ state: reconnectAttempt === 0 ? "connecting" : "reconnecting", attempt: reconnectAttempt });
     let ws: Awaited<ReturnType<OpenMatesClient["openProjectRemoteAccessWebSocket"]>>["ws"] | null = null;
     let removeRequestListener: (() => void) | null = null;
     let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let taskSubscribeTimer: ReturnType<typeof setTimeout> | undefined;
+    const waitingForProjects = new Set(caches.keys());
+    let removeTaskListener: (() => void) | null = null;
+    let taskFrames = Promise.resolve();
+    for (const cache of caches.values()) cache.connection("reconnecting");
     try {
       const opened = await options.client.openProjectRemoteAccessWebSocket();
       ws = opened.ws;
@@ -327,7 +373,46 @@ export async function runRemoteAccessBridge(options: {
         })),
       });
       await ws.waitForMessage("project_remote_access_registered", undefined, 20_000);
-      reconnectAttempt = 0;
+      removeTaskListener = ws.onProjectTaskSync((type, payload) => {
+        taskFrames = taskFrames.then(async () => {
+          const frame = payload as ProjectTaskFrame & { code?: string };
+          const cache = caches.get(frame.project_id);
+          if (type === "project_task_sync_error") {
+            if (cache) cache.connection(frame.code === "access_revoked" ? "revoked" : "reconnecting");
+            else if (frame.code === "access_revoked") for (const item of caches.values()) item.connection("revoked");
+            else ws?.close();
+            options.onTaskSync?.({ projectId: frame.project_id ?? "", directory: cache?.directory ?? "", status: frame.code ?? "sync_deferred" });
+            return;
+          }
+          if (!cache) throw new Error("Task sync returned an unselected Project");
+          const binding = options.bindings.find(item => item.source.projectId === frame.project_id)!;
+          const committed = await cache.accept(frame, record => decryptProjectTask(record,
+            options.client.getMasterKeyBytes(), binding.projectKey, frame.project_id));
+          if (committed) {
+            waitingForProjects.delete(frame.project_id);
+            if (!waitingForProjects.size) clearTimeout(taskSubscribeTimer);
+            reconnectAttempt = 0;
+            codexBridges?.changed();
+            options.onTaskSync?.({ projectId: frame.project_id, directory: cache.directory, status: "synced" });
+          }
+        }).catch(() => {
+          options.onTaskSync?.({ projectId: "", directory: "", status: "sync_deferred" });
+          ws?.close(); // A fresh connection replays the last fully committed cursor.
+        });
+      });
+      taskSubscribeTimer = setTimeout(() => {
+        if (waitingForProjects.size) {
+          options.onTaskSync?.({ projectId: "", directory: "", status: "Task sync did not acknowledge all Projects; reconnecting." });
+          ws?.close();
+        }
+      }, 30_000);
+      await ws.sendAsync("project_task_sync_subscribe", {
+        ...(options.bindings[0]?.teamId ? { team_id: options.bindings[0].teamId } : {}),
+        bindings: [...caches].map(([project_id, cache]) => ({
+          project_id, source_id: options.bindings.find(item => item.source.projectId === project_id)!.source.sourceId,
+          cursor: cache.cursor,
+        })),
+      });
       options.onLifecycle?.({ state: "connected" });
       removeRequestListener = ws.onProjectRemoteAccessRequest((frame) => {
         void handleLiveRemoteAccessRequest(ws!, opened.ownerId, options.sourceSessionId, options.bindings, frame);
@@ -347,13 +432,23 @@ export async function runRemoteAccessBridge(options: {
       if (/session expired|invalid|not logged in/i.test(message)) throw error;
     } finally {
       if (heartbeatTimer) clearInterval(heartbeatTimer);
+      clearTimeout(taskSubscribeTimer);
       removeRequestListener?.();
+      removeTaskListener?.();
+      await taskFrames;
       ws?.close();
     }
     reconnectAttempt += 1;
     const delayMs = reconnectDelayMs(reconnectAttempt);
     options.onLifecycle?.({ state: "reconnecting", attempt: reconnectAttempt, delayMs });
     await waitForAbort(options.signal, delayMs);
+  }
+  } finally {
+    codexBridges?.close();
+    if (deliveryTimer) clearInterval(deliveryTimer);
+    for (const cache of caches.values()) if (cache.snapshot.connection !== "revoked") cache.connection("stopped");
+    const released = await Promise.allSettled(releases.reverse().map(release => release()));
+    if (released.some(result => result.status === "rejected")) options.onTaskSync?.({projectId: "", directory: "", status: "Task cache lock cleanup needs review."});
   }
 }
 

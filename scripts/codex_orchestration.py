@@ -303,7 +303,7 @@ def queue_review(state, now, reasons):
 def observe_tick(path, rpc, now=None, root=None):
     now = time.time() if now is None else now
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         selected = {
             k: dict(w)
@@ -319,7 +319,7 @@ def observe_tick(path, rpc, now=None, root=None):
         except (RuntimeError, TimeoutError, OSError) as e:
             errors[tid] = str(e)
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         reasons = {}
         for tid, thread in snapshots.items():
@@ -374,7 +374,7 @@ def observe_tick(path, rpc, now=None, root=None):
 def deliver(path, rpc):
     """At-most-once attempt; ambiguous acceptance stays visible until reconciled."""
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         owner = state["coordinator"]
         pending = [
@@ -388,7 +388,7 @@ def deliver(path, rpc):
     if thread["status"]["type"] == "active":
         return
     with transaction(path) as state:
-        if not state.get("enabled"):
+        if not state.get("enabled") or state.get("adapter_mode") == "task_cache":
             return
         pending = [
             (k, v) for k, v in state["outbox"].items() if v["status"] == "pending"
@@ -496,6 +496,9 @@ def cli():
         with path.with_suffix(".delivery.lock").open("a") as owner_lock:
             fcntl.flock(owner_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             while True:
+                if path.exists() and json.loads(path.read_text()).get("adapter_mode") == "task_cache":
+                    print(json.dumps({"monitoring": "migrated_to_task_cache"}))
+                    return
                 with CodexRPC() as rpc:
                     observe_tick(path, rpc, root=root)
                     deliver(path, rpc)
@@ -503,6 +506,7 @@ def cli():
                 if (
                     args.action == "tick"
                     or not state.get("enabled")
+                    or state.get("adapter_mode") == "task_cache"
                     or (
                         state.get("monitoring") == "parked"
                         and not any(
