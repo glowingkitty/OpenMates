@@ -279,11 +279,14 @@ as unclear, upload the representative blocker frame, and ask the user for consen
 before changing product code. Do not automatically repair subjective or ambiguous
 visual differences.
 
-## Agent Workflow Retrospective
+## Workflow improvements
 
-For every non-trivial task-closing summary, include a concise retrospective about the agentic process used to fulfill the request, not about the request's product results. Report only observed preventable process problems and inefficiencies from the main chat, research, tool use, delegated agents, and sub-chats, such as failed or redundant searches, incorrect skill or agent selection, instruction conflicts, avoidable rereads or tool calls, unnecessary retries, avoidable context growth, wasted subagent runs, policy or hook friction, abandoned approaches, missed verification, or coordination failures. Include only inefficiencies that wasted agent cycles, context, tool calls, subagent runs, retries, or inference tokens and could plausibly have been prevented by better deterministic scripts, hooks, focused audits/tests, skills, agent/subagent definitions, or runtime instructions. Do not repeat implementation results, changed files, discovered product bugs, test outcomes, or remaining product work unless an agent-workflow deficiency caused or unnecessarily prolonged them. Ordinary task difficulty is not a workflow issue.
-
-For each observed preventable process problem or inefficiency, check the relevant existing hooks, skills, agents, agent instructions, and deterministic audits/tests before recommending the smallest concrete workflow improvement. Classify each recommendation as a hook, skill, agent/subagent definition, agent instruction, or deterministic audit/test. Do not recommend new prompt prose when an existing mechanism already covers the issue or a deterministic guard would be more reliable. Ground efficiency claims in observable actions only; do not estimate token counts or durations. State when existing coverage is sufficient and no change is warranted. Use `None observed` when no preventable agent-workflow issue occurred. Do not invent problems, expose hidden reasoning, guess durations, or include raw private logs or private chat content. Simple requests, clarification-only turns, and progress updates do not require this section.
+Mention a workflow problem when it materially affects the result or requires a
+user decision. Record useful recurring findings in the related OpenMates Task
+activity and fix the smallest relevant cause when authorized. Do not require a
+retrospective, process-note paragraph, fixed status table or `None observed` in
+every final response. Routine corrected typos, searches and retries do not belong
+in the product outcome report. Keep evidence factual and private data protected.
 
 ## Common Commands
 
