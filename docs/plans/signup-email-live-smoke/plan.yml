@@ -1,0 +1,109 @@
+schema_version: 2
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    classified_at: '2026-09-09'
+    verification_ids: [T-UNIT]
+    reason: Engineering account-health tooling; user explicitly requested no videos.
+goal: Add daily live signup verification-email smoke on dev
+approvals:
+  specification:
+    status: not_required
+    reason: Engineering tooling; existing auth behavior unchanged.
+  plan:
+    status: approved
+    approved_at: '2026-09-09'
+    reason: Explicit delegated user approval of implementation and daily live validation.
+scope:
+  in:
+  - Engineering health check of existing signup behavior; no product changes.
+  - User explicitly authorized live-dev email validation as an additional layer.
+  - Use existing GitHub Gmail secrets without changing personal CLI state.
+  out:
+  - Product behavior changes and personal CLI state mutation
+decisions:
+- id: D-1
+  status: active
+  decision: Run the live-dev health probe from GitHub with ephemeral secrets.
+  reason: No existing GitHub SSH transport; normal isolated CI remains unchanged.
+  decided_at: '2026-09-09'
+verification:
+- Focused local and GitHub tooling guards for correlation and duplicate prevention.
+- One live workflow invocation; missing credentials remain an explicit blocker.
+id: signup-email-live-smoke
+title: Add daily live signup verification-email smoke on dev
+status: implementing
+implementation_state:
+  subject_commit: pending-deploy
+scenarios:
+- id: S-1
+  title: Observe actual confirmation sending and arrival
+  given:
+  - Dedicated inbox credentials and deployed dev signup worker
+  when:
+  - The daily job submits one signup preflight
+  then:
+  - Report queue acknowledgement, provider acceptance and inbox arrival separately;
+    never create an account.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: One daily bounded request with independent sending and arrival evidence and
+    safe cleanup.
+  required: false
+  status: pending
+  coverage_status: uncovered
+  verification_scope: custom
+tests:
+- id: T-UNIT
+  type: unit
+  file: scripts/tests/test_signup_email_live_smoke.py
+  command: python3 -m unittest discover -s scripts/tests -p test_signup_email_live_smoke.py
+  assertions:
+  - Exact recipient and timestamp correlation; duplicate send prevention; no false
+    success.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: not_required
+    evidence: {}
+  green_phase:
+    required: false
+    expected: pass
+    evidence: {}
+tasks:
+- id: TASK-2251
+  title: Add daily live signup verification-email smoke on dev
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - scripts/signup_email_live_smoke.py
+  verification_ids:
+  - T-UNIT
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - scripts/signup_email_live_smoke.py
+    shared_files: []
+attempts:
+- id: A-1
+  task_id: TASK-2251
+  outcome: planned
+  approach: Implement tooling checks, deploy the daily workflow and validate live
+    once.
+  recorded_at: '2026-09-09'
+handoff:
+  current_task_id: TASK-2251
+  next_action: Deploy and dispatch live workflow
+  command: gh workflow run signup-email-live-smoke.yml --ref dev
+  expected_outcome: Stage-separated live evidence, or precise credential blocker
+  last_verified_commit: pending-deploy
