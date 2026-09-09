@@ -105,3 +105,20 @@ export async function resumeCodexTask(context: { provider: string; id: string })
     child.once("exit", code => code === 0 ? resolve() : reject(new Error(`Codex resume exited with status ${code ?? "interrupted"}.`)));
   });
 }
+
+/** Render decrypted ownership only at the client, never in a server error. */
+export function taskOwnerConflict(owner: { provider: string; id: string; title?: string | null }): string {
+  const title = JSON.stringify(owner.title || "Untitled chat");
+  const location = owner.provider === "openmates"
+    ? `OpenMates chat ID: ${owner.id}. View: openmates chats show ${owner.id}`
+    : `${owner.provider === "codex" ? "Codex" : "OpenCode"} chat ID: ${owner.id}`;
+  return `Task is already linked to ${title}. ${location}. Release that link before claiming the task in another chat.`;
+}
+
+/** A link mutation must originate in that chat, not an orchestrator claiming for it. */
+export function assertCodexClaimCaller(threadId: string, currentThread = process.env.CODEX_THREAD_ID): void {
+  codexResumeArguments({ provider: "codex", id: threadId });
+  if (!currentThread || currentThread !== threadId) {
+    throw new Error("Only the owning Codex chat can claim a Task. Run this command inside Codex chat ID: " + threadId + ". Ordinary CLI creation can omit --external-chat to leave the Task unlinked.");
+  }
+}
