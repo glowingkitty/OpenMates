@@ -18,20 +18,22 @@ approvals:
     reason: Explicit delegated user approval of implementation and daily live validation.
 scope:
   in:
-  - Engineering health check of existing signup behavior; no product changes.
-  - User explicitly authorized live-dev email validation as an additional layer.
-  - Use existing GitHub Gmail secrets without changing personal CLI state.
+  - Bounded dev-host global CLI signup email probe using isolated temporary state.
+  - Existing dev-host daily runner integration alongside isolated GitHub product tests.
+  - Local controlled inbox observation and optional existing Brevo event diagnostics.
   out:
-  - Product behavior changes and personal CLI state mutation
+  - Live Brevo signup in GitHub, GitHub secret extraction, personal CLI login changes.
+  - Product behavior changes, full registration, another email send today, videos.
 decisions:
 - id: D-1
   status: active
-  decision: Run the live-dev health probe from GitHub with ephemeral secrets.
-  reason: No existing GitHub SSH transport; normal isolated CI remains unchanged.
+  decision: Run real Brevo signup only through the globally installed CLI on the dev
+    server.
+  reason: Explicit user architecture correction; remove the earlier GitHub live workflow.
   decided_at: '2026-09-09'
 verification:
-- Focused local and GitHub tooling guards for correlation and duplicate prevention.
-- One live workflow invocation; missing credentials remain an explicit blocker.
+- Focused local tooling guards; no live provider checks in GitHub.
+- Dev-host preflight reports four missing local inbox settings before any signup.
 id: signup-email-live-smoke
 title: Add daily live signup verification-email smoke on dev
 status: implementing
@@ -39,19 +41,19 @@ implementation_state:
   subject_commit: 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
 scenarios:
 - id: S-1
-  title: Observe actual confirmation sending and arrival
+  title: Dev-host CLI request delivers expected confirmation to controlled inbox
   given:
-  - Dedicated inbox credentials and deployed dev signup worker
+  - Local dedicated inbox readonly OAuth and installed CLI on dev-server.
   when:
-  - The daily job submits one signup preflight
+  - The existing daily launcher starts one isolated CLI signup and stops before verification.
   then:
-  - Report queue acknowledgement, provider acceptance and inbox arrival separately;
-    never create an account.
+  - Expected confirmation arrives within deadline; provider observation remains optional;
+    global CLI login is untouched.
 acceptance_criteria:
 - id: AC-1
   scenario: S-1
-  text: One daily bounded request with independent sending and arrival evidence and
-    safe cleanup.
+  text: Dev-host installed CLI submits at most one daily request in isolated state
+    and the expected email arrives in the controlled inbox.
   required: true
   status: blocked
   coverage_status: blocked
@@ -75,9 +77,8 @@ tests:
     expected: pass
     evidence:
       command: python3 -m unittest discover -s scripts/tests -p test_signup_email_live_smoke.py
-      result: Nine focused tooling tests passed locally and in GitHub run 34394101382
-        at 6a9ffc64a1589f86a5c0439d532ad977ad0b447d. Live probe source 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
-        is unchanged by this test-only commit.
+      result: 14 local tooling checks pass including GitHub rejection, CLI environment
+        isolation and corrected subject matcher. Earlier GitHub live evidence is rejected.
 tasks:
 - id: TASK-2251
   title: Add daily live signup verification-email smoke on dev
@@ -94,8 +95,8 @@ tasks:
   - T-UNIT
   dependencies: []
   blockers:
-  - Live run acknowledged signup but inbox timed out; independent Brevo event credential
-    unavailable.
+  - Local GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN and GMAIL_TEST_ADDRESS
+    are absent; no dev-host signup attempted.
   follow_up_tasks: []
   ownership:
     files:
@@ -104,19 +105,19 @@ tasks:
 attempts:
 - id: A-1
   task_id: TASK-2251
-  outcome: blocked
-  approach: Deployed health probe and existing daily launcher integration. GitHub
-    run 34393762872 verified Gmail read access and queue acknowledgement, but inbox
-    arrival timed out and Brevo observation lacked credentials.
+  outcome: rejected
+  approach: Earlier GitHub live attempt is not acceptable proof after user clarified
+    dev-host CLI only. Worker logged successful Brevo sending; probe used the wrong
+    subject matcher, now corrected with red/green tooling regression.
   recorded_at: '2026-09-09'
 handoff:
   current_task_id: TASK-2251
-  next_action: Provision GitHub Brevo event observation credential and investigate
-    live inbox timeout before another daily attempt.
-  command: gh run view 34393762872
-  expected_outcome: Diagnose the accepted signup request without treating queue acknowledgement
-    as delivery.
+  next_action: Securely configure dedicated inbox OAuth locally, then validate dev-host
+    CLI on the next unreserved day.
+  command: python3 scripts/signup_email_live_smoke.py --help
+  expected_outcome: Real local CLI request and independent expected inbox arrival;
+    no GitHub live send.
   last_verified_commit: 99e6313f83c43ab5e05c42f7c6c6556be9126cb0
   blocker:
-    reason: Inbox timeout and missing independent provider observation credential;
-      Gmail access is verified.
+    reason: Four local Gmail settings absent. Existing provider key remains local
+      and optional.

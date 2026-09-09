@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """Bounded, opt-in live-dev signup email health check (engineering tooling).
 
-Calls the existing first-party signup route; never completes registration.
+Uses the global installed CLI on the dev host; never completes registration.
 Keeps OAuth tokens, recipient aliases, message bodies and codes in memory.
 Reports queue acknowledgement, Brevo acceptance and inbox arrival separately.
 See docs/architecture/signup-email-live-smoke.md for scheduling and boundaries.
 """
 
 import argparse
-import base64
-import hashlib
 import json
 import os
 import re
+import secrets
+import selectors
+import shutil
+import socket
+import subprocess
+import tempfile
 import time
 from datetime import datetime, timezone
 from email.utils import getaddresses
@@ -22,18 +26,83 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 API_URL = "https://api.dev.openmates.org"
-APP_URL = "https://app.dev.openmates.org"
+DEV_HOSTNAME = "dev-server"
+CLI_REQUEST_SECONDS = 30
+CLI_PROMPT = b"Email verification code: "
 GMAIL_URL = "https://gmail.googleapis.com/gmail/v1/users/me"
 BREVO_URL = "https://api.brevo.com/v3/smtp/statistics/events"
 POLL_SECONDS = 5
 HTTP_TIMEOUT = 10
 DEADLINE_SECONDS = 120
-SUBJECT = "Confirm your email address"
+# email.this_is_your_email_code, not the heading inside confirm-email.mjml.
+SUBJECT_PATTERN = re.compile(r"Your code: [0-9]{6}", re.IGNORECASE)
 GMAIL_SETTINGS = ("GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_TEST_ADDRESS")
 
 
 class ProbeError(Exception):
     """Only static, safe stage/status identifiers may leave an HTTP boundary."""
+
+
+def require_dev_host():
+    if os.environ.get("GITHUB_ACTIONS") or socket.gethostname() != DEV_HOSTNAME:
+        raise ProbeError("dev_host_only_github_forbidden")
+
+
+def cli_environment(state_dir):
+    # No engineering auth, signup-code shortcut, profile or inbox credentials
+    # may flow into the isolated signup subprocess. No confirmation is supplied.
+    environment = {key: value for key, value in os.environ.items()
+                   if key in ("PATH", "HOME", "LANG", "LC_ALL", "TZ")}
+    environment["OPENMATES_STATE_DIR"] = str(state_dir)
+    environment["OPENMATES_CLI_SIGNUP_PASSWORD"] = secrets.token_urlsafe(32)
+    return environment
+
+
+def request_with_cli(alias, run_id):
+    installed = Path.home() / ".npm-global/bin/openmates"
+    cli = str(installed) if installed.is_file() else shutil.which("openmates")
+    if not cli:
+        raise ProbeError("global_cli_unavailable")
+    # Exclude repository/source builds even if a shell PATH was customized.
+    resolved = Path(cli).resolve()
+    if "node_modules/openmates/" not in str(resolved):
+        raise ProbeError("installed_global_cli_required")
+    with tempfile.TemporaryDirectory(prefix="signup-email-state-") as directory:
+        command = [cli, "--api-url", API_URL, "signup", "--email", alias,
+                   "--username", "email-smoke-" + run_id.replace("-", "")]
+        invite = os.environ.get("E2E_SIGNUP_INVITE_CODE") or os.environ.get("SIGNUP_TEST_INVITE_CODE")
+        if invite:
+            command.extend(["--invite-code", invite])
+        process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, env=cli_environment(Path(directory)),
+                                   cwd=directory)
+        output = b""
+        deadline = time.monotonic() + CLI_REQUEST_SECONDS
+        try:
+            with selectors.DefaultSelector() as selector:
+                selector.register(process.stdout, selectors.EVENT_READ)
+                while time.monotonic() < deadline:
+                    if selector.select(timeout=min(1, max(0, deadline - time.monotonic()))):
+                        chunk = os.read(process.stdout.fileno(), 4096)
+                        if not chunk:
+                            raise ProbeError("cli_exited_before_email_prompt")
+                        output = (output + chunk)[-65536:]
+                        if CLI_PROMPT in output:
+                            return
+                    if process.poll() is not None:
+                        raise ProbeError("cli_exited_before_email_prompt")
+                raise ProbeError("cli_email_request_timeout")
+        finally:
+            # Stop before verification/account creation. Never print CLI output.
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+            process.stdin.close()
+            process.stdout.close()
 
 
 def request_json(url, *, data=None, headers=None, form=False):
@@ -64,7 +133,7 @@ def message_matches(message, alias, started):
     headers = {h["name"].lower(): h["value"] for h in message.get("payload", {}).get("headers", [])}
     recipients = {address.lower() for _, address in getaddresses([headers.get("to", "")])}
     return (alias in recipients and int(message.get("internalDate", 0)) >= int((started - 10) * 1000)
-            and SUBJECT.lower() in headers.get("subject", "").lower())
+            and SUBJECT_PATTERN.fullmatch(headers.get("subject", "").strip()) is not None)
 
 
 def acceptance_matches(event, alias, started):
@@ -80,7 +149,11 @@ def acceptance_matches(event, alias, started):
             and event.get("messageId") not in (None, "", "unknown"))
 
 
-def run_probe(run_id, receipt, report):
+def run_probe(run_id, receipt, report, observe_since=None):
+    require_dev_host()
+    report["mode"] = "read_only_observation" if observe_since is not None else "send_once"
+    if observe_since is not None and not time.time() - 86400 <= observe_since <= time.time():
+        raise ProbeError("observation_start_outside_last_day")
     missing = [name for name in GMAIL_SETTINGS if not os.environ.get(name)]
     if missing:
         report["configuration"] = "missing:" + ",".join(missing)
@@ -99,22 +172,18 @@ def run_probe(run_id, receipt, report):
     # Check actual read access before sending, without logging inbox metadata.
     request_json(GMAIL_URL + "/messages?maxResults=1", headers=gmail_headers)
     report["configuration"] = "gmail_read_verified"
-    receipt.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with receipt.open("x") as handle:
-            handle.write("send_reserved\n")
-    except FileExistsError:
-        raise ProbeError("duplicate_send_prevented") from None
-    started = time.time()
+    started = observe_since if observe_since is not None else time.time()
     report["started_at"] = datetime.fromtimestamp(started, timezone.utc).isoformat()
-    report["stage"] = "signup_request"
-    response = request_json(API_URL + "/v1/auth/request_confirm_email_code", headers={"Origin": APP_URL}, data={
-        "email": alias, "hashed_email": base64.b64encode(hashlib.sha256(alias.encode()).digest()).decode(),
-        "invite_code": os.environ.get("E2E_SIGNUP_INVITE_CODE", ""), "language": "en", "darkmode": False,
-    })
-    if response.get("success") is not True:
-        raise ProbeError("signup_request_rejected")
-    report["queue_acknowledged"] = True
+    if observe_since is None:
+        receipt.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with receipt.open("x") as handle:
+                handle.write("send_reserved\n")
+        except FileExistsError:
+            raise ProbeError("duplicate_send_prevented") from None
+        report["stage"] = "signup_request"
+        request_with_cli(alias, run_id)
+        report["queue_acknowledged"] = True
     report["stage"] = "observe_provider_and_inbox"
     brevo_key = os.environ.get("BREVO_API_KEY")
     report["provider_acceptance"] = "pending" if brevo_key else "unavailable_missing_event_credentials"
@@ -135,6 +204,9 @@ def run_probe(run_id, receipt, report):
                     message = request_json(GMAIL_URL + "/messages/" + item["id"] + "?format=metadata&metadataHeaders=To&metadataHeaders=Subject", headers=gmail_headers)
                     if message_matches(message, alias, started):
                         report["inbox_arrival"] = "observed"
+                        received = int(message["internalDate"]) / 1000
+                        report["inbox_received_at"] = datetime.fromtimestamp(received, timezone.utc).isoformat()
+                        report["inbox_received_within_deadline"] = received <= started + DEADLINE_SECONDS
                         break
             except ProbeError as exc:
                 report["inbox_arrival"] = "error:" + str(exc)
@@ -144,7 +216,9 @@ def run_probe(run_id, receipt, report):
     for stage in ("provider_acceptance", "inbox_arrival"):
         if report[stage] == "pending":
             report[stage] = "timeout"
-    report["passed"] = report["provider_acceptance"] == report["inbox_arrival"] == "observed"
+    # Actual expected inbox delivery proves the end-to-end path. Independent
+    # provider events are diagnostics, not an extra credential requirement.
+    report["passed"] = report["inbox_arrival"] == "observed" and report.get("inbox_received_within_deadline", False)
 
 
 def main():
@@ -152,10 +226,22 @@ def main():
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--observe-since", type=float, help="Read-only recheck of this alias since an existing attempt's Unix timestamp; never sends")
+    parser.add_argument("--dev-host", action="store_true", required=True, help="Explicit dev-server-only live health layer")
     args = parser.parse_args()
-    report = {"passed": False, "queue_acknowledged": False, "provider_acceptance": "not_attempted", "inbox_arrival": "not_attempted", "source_commit": os.environ.get("GITHUB_SHA", "local"), "cleanup": "no_account_created; scoped_cache_keys_expire; inbox_readonly"}
+    report = {"passed": False, "queue_acknowledged": False, "provider_acceptance": "not_attempted", "inbox_arrival": "not_attempted", "execution_surface": "dev_host_global_cli", "cleanup": "no_account_created; isolated_cli_state_removed; scoped_cache_keys_expire; inbox_readonly"}
     try:
-        run_probe(args.run_id, args.receipt, report)
+        require_dev_host()
+        # Reuse the established local configuration reader; never move secrets
+        # from GitHub or persist them into the global CLI login.
+        from run_tests import _read_env_file, _get_env
+        configured = _read_env_file()
+        for name in (*GMAIL_SETTINGS, "BREVO_API_KEY", "E2E_SIGNUP_INVITE_CODE", "SIGNUP_TEST_INVITE_CODE"):
+            if not os.environ.get(name):
+                value = _get_env(name, configured)
+                if value:
+                    os.environ[name] = value
+        run_probe(args.run_id, args.receipt, report, args.observe_since)
     except ProbeError as exc:
         report["error"] = str(exc)
     except Exception:

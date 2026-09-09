@@ -1,52 +1,57 @@
-# Daily live-dev signup email health
+# Daily dev-host CLI signup email health
 
-The user-authorized live-service layer is dispatched by `run-tests-daily.sh`
-through `signup-email-live-smoke.yml`, alongside the existing 03:00 daily tests
-(the host cron timezone applies). The launcher reports dispatch acknowledgement
-separately from verification, and a health-dispatch failure does not suppress
-isolated CI. GitHub push checks register the workflow and run only tooling units;
-the live job requires workflow_dispatch on dev. No default-branch change or
-second scheduler is needed.
-It is not isolated product coverage and does not replace the CI coordinator.
-GitHub runs the bounded Python probe directly against the deployed dev API;
-there is no existing GitHub SSH transport to reuse. Credentials stay in the
-ephemeral runner environment. No global OpenMates CLI state is accessed.
+The existing 03:00 dev-server cron invokes `scripts/run-tests-daily.sh`.
+It runs the bounded local `signup_email_live_smoke.py --dev-host` health check,
+then dispatches ordinary isolated GitHub tests even when local health fails.
+The real Brevo check never runs in GitHub. The former GitHub live workflow was
+explicitly disabled and removed after the user clarified this boundary.
+Its previous run is not acceptable proof of the requested architecture.
 
-The existing first-party signup preflight is sessionless, Origin restricted,
-and limited to five requests/minute. The probe sends one plaintext dedicated
-inbox alias and its base64 SHA-256 hash, with the existing invite gate. It never
-submits a confirmation code or creates an account. No credits are spent.
-The worker's two alias-specific cache keys expire naturally after 20 minutes;
-Gmail is read-only and no unrelated messages, cache keys or accounts are deleted.
+The probe requires hostname `dev-server` and rejects `GITHUB_ACTIONS`. It uses
+only the global installed `openmates` CLI against the explicit dev API target.
+The installed CLI supports an absolute `OPENMATES_STATE_DIR`; each attempt uses
+a temporary directory and a subprocess environment without personal API keys,
+profiles or signup-code shortcuts. It supplies a random throwaway password
+through the supported environment input, waits for `Email verification code:`,
+then terminates the CLI without providing a code. This acknowledges the signup
+request only, not email sending. No registration is completed. The temporary
+state is removed; the global personal engineering login is untouched.
 
-Repository secrets: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`,
-`GMAIL_REFRESH_TOKEN`, `GMAIL_TEST_ADDRESS`, `E2E_SIGNUP_INVITE_CODE` when required,
-and `BREVO_API_KEY` for independent transactional event observation. The latter
-must correspond to the deployed worker's provider account. Missing provider
-event credentials do not suppress independent inbox observation, but cannot
-produce an overall pass. Missing/invalid Gmail read access prevents sending.
+The existing first-party signup route is sessionless, Origin restricted and
+limited to five requests/minute. CLI supplies the normal normalized address,
+hash and invite-gate fields. No new route or product behavior is introduced.
+The email worker, template and Brevo path remain the deployed dev services.
+No credits are spent. Alias-specific cache keys expire naturally after 20 minutes;
+no Redis lookup is counted as sending or delivery evidence. No account or inbox
+messages are deleted, and the Gmail client is read-only.
 
-The workflow serializes executions, reserves the UTC day in Actions cache before
-the live request, and refuses automatic/manual reruns that day. The script also
-uses an exclusive receipt before submission; a network failure is never retried
-as another signup request. Actions cache is a best-effort duplicate guard and
-can be evicted/deleted; operators must not delete the daily reservation to retry.
-The alias is deterministic per UTC day so evidence remains correlated.
+Local configuration uses the established `run_tests.py` environment helper:
+`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and
+`GMAIL_TEST_ADDRESS`. Configure these securely on the dev host with readonly
+access to the existing dedicated inbox. The invite code can use
+`E2E_SIGNUP_INVITE_CODE` or `SIGNUP_TEST_INVITE_CODE` when needed. Existing local
+`BREVO_API_KEY` may support optional read-only event observation; do not copy
+credentials from GitHub or add a new provider credential requirement.
+Missing or invalid local inbox access prevents signup execution entirely.
 
-Reports contain queue acknowledgement, a fresh exact-recipient Brevo `requests`
-event with a message ID, and independent Gmail arrival with matching recipient,
-timestamp and confirmation-template subject. Gmail metadata avoids reading
-bodies/codes. Subject matching demonstrates the confirmation email kind, not
-full rendered-body quality. Redis retrieval is never sending/delivery evidence.
-The poll budget is 120 seconds with bounded HTTP calls and a six-minute job cap.
-Provider acceptance with inbox timeout is a failure, as is inbox arrival without
-provider observation. Provider `delivered` events are not inbox observation.
+One UTC-day alias and exclusive local receipt prevent duplicate requests. The
+receipt is reserved before starting the CLI, and network/CLI errors never resend.
+The prior 2026-09-09 attempt also has a local reservation; do not delete it to
+retry. `--observe-since <unix-timestamp>` only reads the same alias's existing
+mail/events and never starts signup or changes the send reservation.
 
-The redacted JSON report is retained seven days as a GitHub artifact and copied
-to the job summary. Actions failure notifications use repository subscriptions;
-no additional email notification integration is claimed. Reports bind the probe
-source SHA, but do not attest the separately deployed live API's commit.
+The redacted local report at `logs/nightly-reports/signup-email-live-smoke.json`
+keeps queue acknowledgement, optional Brevo acceptance, and actual inbox arrival
+separate. Exact recipient and freshness checks must match the existing English
+signup subject `Your code: {six digits}`; the heading inside the email is not its
+subject. Codes, addresses, bodies, provider receipts and tokens are never logged.
+A matching email received within 120 seconds proves delivery even without
+independent Brevo events. Provider acceptance alone cannot pass. Read-only later
+observation checks the original arrival timestamp against the original deadline.
+CLI submission is bounded to 30 seconds; HTTP calls have ten-second timeouts;
+the outer daily invocation has a 240-second cap. Failures remain visible and do
+not suppress isolated daily CI. No extra notification sending is introduced.
 
-Local tooling validation: `python3 -m unittest discover -s scripts/tests -p test_signup_email_live_smoke.py`.
-Actual health validation: dispatch `signup-email-live-smoke.yml` on `dev` once,
-then inspect its redacted report. No browser or video is required.
+Local tooling checks: `python3 -m unittest discover -s scripts/tests -p test_signup_email_live_smoke.py`.
+Actual proof must be a dev-host installed-CLI attempt with controlled inbox
+arrival. No browser, GitHub live email job, or video is part of this health layer.
