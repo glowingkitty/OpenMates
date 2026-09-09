@@ -169,3 +169,24 @@ short handoff. Stop the old worker before transferring its Task links. Confirm
 release before the new owner claims; do not duplicate Tasks to bypass ownership.
 A Project snapshot only includes its member Tasks: add relevant older engineering
 Tasks to this Project without changing ownership when migrating them.
+
+## Efficient commands and activity
+
+Workers write Tasks through the installed global CLI. Use the cached short ID and
+ordinary terminal output for a human acknowledgement, for example:
+
+```bash
+openmates tasks activity add TASK-7947 --message 'Project migration finished; all 26 Tasks retained their owners.'
+```
+
+Use `--json` when a caller needs to parse fields. Neither output style changes
+encryption, ownership checks or durable delivery. A pending delivery is not
+success: retain its ID and let the foreground transport retry. Do not pipe away
+errors or use `head` to hide delivery state. Do not fetch after an acknowledged
+write just to repeat its result. Keep detailed evidence in a linked file/receipt;
+activity should state the changed outcome or blocker in one or two sentences.
+
+Recovery helpers are documented here for actual CLI outages; normal context does
+not need to repeat private snapshot paths and Python/JSON recovery examples. All
+linked Tasks and their full titles remain visible, with shortened descriptions
+and latest activity. Unchanged tool boundaries still emit no context.
