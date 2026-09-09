@@ -1007,7 +1007,7 @@ async function handleTasks(
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "add-to-project");
     const linkedProjectIds = appendUniqueId(task.linkedProjectIds, project.projectId);
-    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: linkedProjectIds });
+    const patch = await client.prepareUserTaskUpdate(task, { projectIds: linkedProjectIds }, scope);
     const updated = flags["delivery-id"]
       ? await queuedTaskMutation(client, flags, { kind: "update", taskId: task.taskId, input: patch, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined }, scope.teamId)
       : await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
@@ -1020,7 +1020,7 @@ async function handleTasks(
     rejectRemoteCopyFlags(flags);
     const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "<project-id>"), flags);
     const task = await requiredResolvedTask(client, masterKey, subcommand, scope, "remove-from-project");
-    const patch = await buildUpdateUserTaskInput(task, masterKey, { projectIds: removeId(task.linkedProjectIds, project.projectId) });
+    const patch = await client.prepareUserTaskUpdate(task, { projectIds: removeId(task.linkedProjectIds, project.projectId) }, scope);
     const updated = await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });
     printTaskOutput(await decryptUserTask(updated, masterKey), flags);
     return;
@@ -1168,7 +1168,7 @@ async function handleTasks(
     const id = rest[0];
     if (!id) throw new Error("Missing task ID. Usage: openmates tasks edit <task-id> [--title ...]");
     const task = await resolveTask(client, masterKey, id, taskEditLookupScope(scope));
-    const patch = await buildUpdateUserTaskInput(task, masterKey, await resolveTaskUpdateOptions(client, masterKey, flags, {
+    const patch = await client.prepareUserTaskUpdate(task, await resolveTaskUpdateOptions(client, masterKey, flags, {
       title: typeof flags.title === "string" ? flags.title : undefined,
       description: typeof flags.description === "string" ? flags.description : undefined,
       labels: flags.label || flags.labels || flags.tag || flags.tags ? labelFlags(flags) : undefined,
@@ -1182,7 +1182,7 @@ async function handleTasks(
       planId: flags.plan === true ? null : typeof flags.plan === "string" ? flags.plan : undefined,
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
-    }));
+    }), scope);
     const updated = flags["delivery-id"]
       ? await queuedTaskMutation(client, flags, {kind: "update", taskId: task.taskId, input: patch, ownerHash: task.encrypted.external_chat_lookup_hash ?? undefined}, scope.teamId)
       : await client.updateUserTask(task.taskId, patch, { teamId: scope.teamId, personal: scope.personal });

@@ -42,6 +42,28 @@ async function createRunnerCodexEligibility(page: import('@playwright/test').Pag
 		if (result.code !== 0) {
 			throw new Error(`Genuine Codex Task creation failed (exit ${result.code}); inspect runner-private CLI diagnostics and local Codex availability.`);
 		}
+
+		// contract-test: direct surface=cli assertions=tasks.project-links.encrypted,tasks.key-wrappers.context-scoped,tasks.external-chat.encrypted-context
+		const created = JSON.parse(result.stdout).task;
+		const command = async (args: string[]) => {
+			const response = await runWorkflowCli('http://localhost:8000', cliHome, [...args, '--json'], 60_000, {CODEX_THREAD_ID: thread});
+			if (response.code !== 0) throw new Error(`Task project relink probe failed (exit ${response.code}).`);
+			return JSON.parse(response.stdout);
+		};
+		const project = (await command(['projects', 'create', '--name', `Task relink fixture ${randomUUID()}`])).project;
+		try {
+			for (const action of ['add-to-project', 'remove-from-project']) {
+				await command(['tasks', created.task_id, action, project.project_id]);
+				const reloaded = (await command(['tasks', 'show', created.task_id])).task;
+				if (reloaded.title !== created.title || reloaded.primary_chat_id !== null ||
+					JSON.stringify(reloaded.external_chat) !== JSON.stringify(created.external_chat) ||
+					reloaded.linked_project_ids.includes(project.project_id) !== (action === 'add-to-project')) {
+					throw new Error('Task project relink changed ownership or failed to preserve decrypted content and membership.');
+				}
+			}
+		} finally {
+			await command(['projects', 'delete', project.project_id, '--confirm', project.project_id]);
+		}
 	} finally {
 		removeWorkflowCliHome(cliHome);
 	}
