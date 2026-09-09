@@ -64,6 +64,10 @@ skills:
           items:
             type: object
             properties:
+              link_to_chat:
+                type: boolean
+                default: true
+                description: Link to the current chat; false leaves the Task unlinked.
               title:
                 type: string
               description:
@@ -80,6 +84,10 @@ skills:
                   - todo
                   - in_progress
                   - blocked
+        link_to_chat:
+          type: boolean
+          default: true
+          description: Default chat-link choice for created Tasks; tasks[] can override it.
         title:
           type: string
           description: Single-task title when not using tasks[].

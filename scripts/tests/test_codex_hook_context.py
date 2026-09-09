@@ -136,3 +136,30 @@ def test_stop_cooldown_does_not_loop_and_preserves_visible_warning():
     assert result["continue"] is False
     assert "pending cooldown" in result["systemMessage"]
     assert "hookSpecificOutput" not in result
+
+
+def test_context_keeps_every_task_and_full_titles(tmp_path):
+    from scripts.codex_task_context import task_context
+    tasks = [{'task_id': str(i), 'short_id': f'TASK-{i}', 'title': f'Work {i} ' + 'title '*90,
+              'description': 'detail '*1000, 'status': 'blocked', 'blocked_reason': 'Waiting for approval',
+              'dependencies': [{'task_id': 'dependency', 'status': 'todo'}]} for i in range(12)]
+    result = task_context(tmp_path, '00000000-0000-0000-0000-000000000001', True, 100,
+                          lambda *_: {'complete': True, 'tasks': tasks})
+    for task in tasks:
+        assert task['title'] in result
+        assert task['short_id'] in result
+    assert 'Waiting for approval' in result
+    assert 'dependency' in result
+    assert 'detail '*1000 not in result
+
+
+def test_list_refresh_does_not_discard_cached_activity(tmp_path):
+    from scripts.codex_task_context import task_context
+    def reader(_, args):
+        if args[0] == 'activity':
+            return {'entries': [{'message': 'Decision still matters'}]}
+        return {'complete': True, 'tasks': [{'task_id': '1', 'title': 'First', 'status': 'todo'}]}
+    tid = '00000000-0000-0000-0000-000000000001'
+    task_context(tmp_path, tid, True, 100, reader, activities=True)
+    result = task_context(tmp_path, tid, True, 200, reader)
+    assert 'Decision still matters' in result
