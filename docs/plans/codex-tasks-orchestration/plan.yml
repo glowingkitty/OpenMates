@@ -2,7 +2,7 @@ schema_version: 2
 profile: strict
 id: codex-tasks-orchestration
 title: Task-driven Codex orchestration with remote-access sync
-status: draft
+status: implementing
 goal: Resume reliable OpenMates engineering work using native Task ownership, continuously synced local context,
   durable delayed delivery and the existing isolated GitHub CI coordinator, without routine orchestration model
   polling.
@@ -458,12 +458,16 @@ verifications:
   - AC-4
   - AC-7
   - AC-9
-  status: pending
+  status: passed
   description: Run one isolated GitHub integration scenario using the built CLI, real API/WebSocket, fresh account
     and browser mutation. Exercise conflict, disconnect, lost acknowledgment and delete. Run new project-task-sync.spec.ts
     through the existing coordinator.
   evidence:
-    status: pending
+    status: passed
+    source_commit: f68a2419225cdd8f5a2e92d8738a2ff912f3f768
+    run_id: 34386688217
+    request_id: c0fff666ef2d15d205c075991e79ab806591a6eabfb98720a7412d5660167021
+    cleanup_verified: true
   framework: playwright_and_real_cli
   execution_environment: isolated_github_ci
   test_file: frontend/apps/web_app/tests/project-task-sync.spec.ts
@@ -493,7 +497,9 @@ verifications:
     Codex subscription. Verify actual injected context, idle/running/paused transitions, compaction, CI owner delivery,
     and clean stopping. Keep input/output evidence bounded and private.
   evidence:
-    status: pending
+    status: partial
+    note: Actual context, unchanged tool silence, direct idle dependency continuation and worker completion notification
+      verified. Remaining runtime coverage is not claimed from units.
 - id: V-CLI-DEMO
   kind: artifact_review
   phase: final
@@ -506,9 +512,8 @@ verifications:
   - AC-9
   - AC-10
   status: pending
-  description: Review a short CLI transcript plus worker/orchestrator instruction snapshots. Show quoted owner conflicts,
-    a twelve-Task view, pending delivery, recovery and deletion. Preserve source/run identifiers; do not use paid
-    AI generation.
+  description: Review concise CLI/context evidence; user explicitly rejected video proof. No video gate applies
+    to this assignment.
   evidence:
     status: pending
 tasks:
@@ -554,7 +559,7 @@ tasks:
     architecture questions.
 - id: TASK-2
   title: Enforce conversation ownership and safe deletion
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -604,7 +609,7 @@ tasks:
     replacement worker.
 - id: TASK-3
   title: Add durable Project Task changes to the bridge
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -649,7 +654,7 @@ tasks:
     dependencies, and bound backlog/fan-out.
 - id: TASK-4
   title: Sync the selected Project into complete local views
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -696,7 +701,7 @@ tasks:
   - Reuse saved bindings on restart; reconnect and reconcile without model involvement.
 - id: TASK-5
   title: Persist and retry delivery without agent loops
-  status: in_progress
+  status: done
   phase: working_tasks
   covers:
     scenarios:
@@ -895,17 +900,20 @@ tasks:
   - Update one concise instruction source and retire superseded orchestration policy; do not introduce mandatory
     campaign tables in every reply.
 implementation_state:
-  subject_commit: bf07f226d8d23bb4f008c6a215b973dd97fca531
-  note: Published candidate under isolated CI. Later claim-conflict formatting and per-intent queue-lock refinements
-    require matching final source validation. No deployment, live pilot or completed-Plan evidence is claimed.
+  subject_commit: bd16c9eb06c5affdd0d2b538449831cbad5292c6
+  note: Core rebuild deployed. Global CLI 0.18.0-alpha.32 installed in personal dev-testing account. All repository
+    chats select cached context. Finishing legacy Task Project membership repair and daily real email smoke.
 approvals:
   specification:
-    status: pending
-    reason: Product source bundles observed as draft. Map exact agreed deltas and inspect existing PDF/fingerprint
-      receipts in TASK-1; engineering-only changes need no product Specification.
+    status: approved
+    reason: User approved general Tasks/Projects/Plans requirements and requested readable examples; corrected PDFs
+      and exact fingerprints recorded through the approval tool.
+    approved_at: '2026-09-09'
   plan:
-    status: pending
-    reason: Concrete execution plan prepared for review; architecture decisions already agreed.
+    status: approved
+    reason: User explicitly authorized implementation on dev, three real Codex pilot chats, and continuation through
+      remaining steps.
+    approved_at: '2026-09-09'
 decisions:
 - id: D-1
   status: active
@@ -927,13 +935,12 @@ attempts:
   recorded_at: '2026-09-09'
 handoff:
   current_task_id: TASK-8
-  next_action: Finish the real isolated sync/ownership/dependency/recovery and existing Tasks regression; include
-    post-candidate fixes in final validation. Then prove actual Codex hook injection and continuation in the bounded
-    pilot before live cutover.
+  next_action: Finish Project membership command repair, migrate bound engineering Tasks without changing owners,
+    and verify the daily live email smoke. Preserve outstanding runtime limits explicitly.
   command: python3 scripts/plan_validate.py docs/plans/codex-tasks-orchestration/plan.yml
-  expected_outcome: Source-bound integration evidence and a concrete, reversible pilot/cutover procedure; existing
-    live hooks and global CLI remain unchanged.
-  last_verified_commit: 7fe12e0cadf7e65798a9c93283e5d36f34b87cb3
+  expected_outcome: New and existing chats receive private cached Tasks and use direct event continuation; global
+    personal CLI account remains intact.
+  last_verified_commit: bd16c9eb06c5affdd0d2b538449831cbad5292c6
   blocker: null
 assumptions:
 - id: A-1
@@ -1054,29 +1061,30 @@ implementation_notes:
     execution.
   - Review transcript/context/result artifacts and migrate gradually.
   progress:
-  - Single-owner API/SQL guards, native no-link option, durable Project journal, scoped WebSocket fanout and private
-    full Task cache implemented.
-  - Owner-bound context, dependency/CI continuation, worker completion ordering, explicit pause, uncertain-start
-    reconciliation and confirmed deletion delivery implemented behind opt-in configuration.
-  - Codex create/edit/claim/release/done/activity writes now select durable delivery automatically. A CLI-independent
-    private writer survives an unavailable executable.
-  - 'Focused checks passed: backend ownership (67), native skills/tools (34), task update jobs (9), cached context
-    (3), event adapter (12), scoped sync service (5), CLI pending-dispatch (1), conflict/admission (4), mutation
-    recovery/concurrency (3), and existing hook/tooling parity audit.'
-  - The CLI build including declarations passed before the last queue/conflict refinements; the final rebuild is
-    being checked. No focused checks substitute for real integration.
-  - Run 34353213213 was cancelled after an SDK declaration omission; run 34360216049 failed before the probe started
-    due to a missing test-helper export.
-  - Run 34363392371 was cancelled before product checks after remote shell quoting damaged harness diagnostics.
-    No recordings were produced; cleanup verified. A transpilation plus unresolved-identifier preflight now checks
-    both probe files.
-  - 'Current CI: request af30c5b6d099ba6d6c8d04130a1d0f5b5f3a9f9bbc62954e1e7d97b283f98550, source bf07f226d8d23bb4f008c6a215b973dd97fca531,
-    run 34364893899, project-task-sync.spec.ts plus tasks-flow.spec.ts.'
-  - 'Remaining: source-matched green integration, native/external deletion lifecycle integration, real Codex hook/pause/wake/compaction
-    pilot, matching global CLI release, and controlled migration. Deletion notifications missed while disconnected
-    have no verified replay source; absent chats are never treated as deleted.'
+  - Core source F68 passed isolated GitHub run34386688217, request c0fff666ef2d15d205c075991e79ab806591a6eabfb98720a7412d5660167021.
+    Both project-task-sync.spec.ts and tasks-flow.spec.ts passed; cleanup verified.
+  - Dev bd16c9eb includes unchanged tested product behavior plus reviewed human-example PDF/tooling corrections.
+    19 PDF tests pass. General requirements approved; no video requested or required for this assignment under explicit
+    user instruction.
+  - Global openmates 0.18.0-alpha.32 runs in personal dev-testing account. Existing Project96033196-e4b1-431e-b773-ba221e952fed
+    is synced by openmates remote-access in Zellij openmates-remote.
+  - 'Three real Codex chats verified developer-context injection: coordinator12 Tasks, each worker5 Tasks, full
+    titles, shortened descriptions/activity, and no repeated rows after an unchanged tool. Initially modified hooks
+    were skipped; normal CLI review/trust corrected this. New activation doctor prevents silent unreviewed activation.'
+  - Real dependency completion generated one accepted direct Worker B continuation and one Worker A completion event
+    to coordinator. Original durable delivery IDs and accepted turn IDs are retained in private adapter state.
+  - Repository-wide all_threads context is active. Workflows and an unregistered identity select the new path, bypassing
+    old final-summary lifecycle enforcement. No old enabled orchestration registry remains outside the pilot.
+  - Older Task Project membership migration found missing replacement key wrappers in the existing CLI command.
+    Worker A owns that repair; no ownership changes were attempted. Worker B implements the real daily dev email
+    smoke with ephemeral GitHub credentials.
+  - 'Unverified runtime cases remain explicit: deletion during a daemon connection gap has no replay cursor; initial
+    attachment cannot infer a missed historical dependency transition. Do not interpret absent/archived chats as
+    deleted.'
 operating_constraints:
-  test_budget: No paid provider calls, no 10000-device benchmark, no repeated broad suites absent a relevant failure.
+  test_budget: No large-scale benchmark or repeated broad suites without a relevant failure. Explicitly authorized
+    bounded live signup email smoke may call the real provider; ordinary product integration remains isolated GitHub
+    CI.
   task_state: Plan task IDs describe implementation units. When imported into OpenMates Tasks, linked records become
     execution truth; generate any plan progress projection rather than dual manual status entry.
   shared_files: One implementer initially; serialize cli.ts, user_tasks.py and hooks changes. No automatic subagent
