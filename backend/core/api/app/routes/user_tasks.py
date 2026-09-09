@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
+from backend.core.api.app.services.directus.user_task_methods import TaskAlreadyLinkedError
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
@@ -354,6 +355,8 @@ async def _require_task_team_role(request: Request, user_id: str, team_id: str |
 def _handle_task_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
+    if isinstance(exc, TaskAlreadyLinkedError):
+        raise HTTPException(status_code=409, detail="TASK_ALREADY_LINKED") from exc
     if isinstance(exc, UserTaskConflictError):
         raise HTTPException(status_code=409, detail="TASK_VERSION_CONFLICT") from exc
     if isinstance(exc, DuplicateObjectSlugError):
@@ -782,6 +785,29 @@ async def ask_user_tasks(
         _handle_task_error(exc)
 
 
+class ExternalTaskChatDeletedRequest(BaseModel):
+    external_chat_lookup_hash: str = Field(pattern="^[a-f0-9]{64}$")
+    event_id: str = Field(pattern="^[a-f0-9]{64}$")
+    team_id: str | None = None
+
+
+@router.post("/external-chat-deleted")
+@limiter.limit("30/minute")
+async def external_task_chat_deleted(request: Request, response: Response, body: ExternalTaskChatDeletedRequest) -> dict[str, Any]:
+    """Paired-session-only deletion receipt; opaque chat index, no credits.
+
+    The local Codex adapter may submit this only after a confirmed runtime delete
+    notification. It cannot use absence from listings as deletion evidence.
+    """
+    current_user = await _current_session_user(request, response)
+    await _require_task_team_role(request, current_user.id, body.team_id)
+    try:
+        return await request.app.state.project_task_sync.unlink_deleted_external_chat(
+            current_user.id, body.external_chat_lookup_hash, body.event_id, body.team_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail="TASK_CHAT_DELETION_DEFERRED") from exc
+
+
 @router.get("/{task_id}/history")
 @limiter.limit("60/minute")
 async def list_user_task_history(
@@ -864,6 +890,7 @@ async def create_user_task_activity(
             team_id=team_id,
             source_surface=source_surface,
             actor_mode=derive_task_activity_actor_mode(request, source_surface),
+            expected_external_chat_lookup_hash=request.headers.get("x-openmates-task-owner") or None,
             actor_display_name=getattr(current_user, "username", None),
             actor_profile_image_url=getattr(current_user, "profile_image_url", None),
         )
@@ -929,6 +956,33 @@ async def restore_user_task_from_history(
         return {"task": result.get("object"), "history": result}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/{task_id}")
+@limiter.limit("120/minute")
+async def get_user_task(
+    request: Request,
+    response: Response,
+    task_id: str,
+    team_id: str | None = Query(default=None),
+    service: UserTaskService = Depends(get_user_task_service),
+) -> dict[str, Any]:
+    """Existing authenticated Task access; encrypted single-record read, no credits.
+
+    First-party session/device read; this new encrypted surface does not add developer API-key access.
+    Team membership is checked before lookup; a missing or inaccessible ID is 404.
+    """
+    current_user = await _current_session_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        task = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        if not task:
+            raise HTTPException(status_code=404, detail="TASK_NOT_FOUND")
+        return {"task": task}
+    except Exception as exc:
+        _handle_task_error(exc)
 
 
 @router.patch("/{task_id}")
