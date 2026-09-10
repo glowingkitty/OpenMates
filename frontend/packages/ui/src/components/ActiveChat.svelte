@@ -5713,6 +5713,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let guestLandingIntroResetToken = $state(0);
     let guestInterestSignupSlideToken = $state(0);
     let guestSkipLandingIntro = $state(false);
+    let lastGuestWorkspaceSlideId = $state<string | null>(null);
+    let guestReturnSlideId = $state<string | null>(null);
     let guestLandingIntroOverlayActive = $derived(
         !$authStore.isAuthenticated && guestLandingIntroPhase !== 'regular'
     );
@@ -5833,6 +5835,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
         if ($authStore.isAuthenticated) return;
+        lastGuestWorkspaceSlideId = inspiration.inspiration_id;
         activeGuestSurface = inspiration.surface ?? 'chats';
         const nextId = inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
             ? GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID
@@ -5856,6 +5859,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     function resetGuestLandingIntroState() {
+        lastGuestWorkspaceSlideId = null;
+        guestReturnSlideId = null;
         guestAllExamplesVisible = false;
         guestSkipLandingIntro = false;
         guestLandingIntroPhase = 'expanded';
@@ -7580,7 +7585,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         olderMessageWindowLoading = false;
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
-            if (isGuestExampleChat) {
+            guestReturnSlideId = closingChat ? lastGuestWorkspaceSlideId : null;
+            if (guestReturnSlideId) {
+                // Closing returns guests to their place in the workspace carousel.
+                guestSkipLandingIntro = false;
+                guestLandingIntroPhase = guestReturnSlideId === GUEST_DEFAULT_INTRO_INSPIRATION_ID ? 'expanded' : 'regular';
+            } else if (isGuestExampleChat) {
                 guestAllExamplesVisible = false;
                 guestSkipLandingIntro = true;
                 guestLandingIntroPhase = 'regular';
@@ -12944,6 +12954,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     landingIntroResetToken={guestLandingIntroResetToken}
                                     landingSignupSlideToken={guestInterestSignupSlideToken}
                                     skipLandingIntro={guestSkipLandingIntro}
+                                    restoreGuestSlideId={guestReturnSlideId}
                                 />
                             {/key}
                         </div>
