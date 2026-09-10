@@ -6328,7 +6328,7 @@
                     forceUnauthenticatedCta={anonymousFileAttachmentPending}
                     reserveTrailingControlSpace={showStopProcessingButton && !hasSendableDraft}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                    micPermissionState={$recordingState.micPermissionState}
+                    blockedMicAttempt={$recordingState.blockedMicAttempt}
                     {highlightPressHold}
                     isSketchOpen={showSketch}
                     {modelSelection}
@@ -6359,21 +6359,6 @@
         {#if queuedMessageText}
             <div class="queued-message-indicator" transition:fade={{ duration: 200 }}>
                 {queuedMessageText}
-            </div>
-        {/if}
-
-        <!-- Mic permission hint — shown below action buttons.
-             · denied → always-visible error telling user to unblock in settings
-             · prompt/unknown + showRecordHint → timed hint to allow mic access
-             · granted + single tap → handled by highlightPressHold prop on ActionButtons
-               (no separate hint div needed; the inline label flashes instead) -->
-        {#if $recordingState.micPermissionState === 'denied'}
-            <div class="queued-message-indicator mic-permission-hint mic-permission-blocked" transition:fade={{ duration: 200 }}>
-                {$text('enter_message.record_audio.microphone_blocked')}
-            </div>
-        {:else if $recordingState.showRecordHint && $recordingState.micPermissionState !== 'granted'}
-            <div class="queued-message-indicator mic-permission-hint" transition:fade={{ duration: 200 }}>
-                {$text('enter_message.record_audio.allow_microphone_access')}
             </div>
         {/if}
 

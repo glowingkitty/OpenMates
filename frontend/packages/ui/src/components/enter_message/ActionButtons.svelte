@@ -12,6 +12,8 @@
     import ComposerModelSelector from './ComposerModelSelector.svelte';
 
     const SPEECH_STATUS_DURATION_MS = 1800;
+    const MIC_SHAKE_DURATION_MS = 350;
+    const MIC_SHAKE_DISTANCE_PX = 5;
 
     interface Props {
         showSendButton?: boolean;
@@ -19,7 +21,7 @@
         isAuthenticated?: boolean;
         allowAnonymousTextSend?: boolean;
         hasNoCredits?: boolean;
-        micPermissionState?: 'unknown' | 'granted' | 'prompt' | 'denied';
+        blockedMicAttempt?: number;
         highlightPressHold?: boolean;
         isSketchOpen?: boolean;
         unauthenticatedCtaLabel?: string;
@@ -35,6 +37,7 @@
     let {
         showSendButton = false,
         isRecordButtonPressed = false,
+        blockedMicAttempt = 0,
         isAuthenticated = true,
         allowAnonymousTextSend = false,
         hasNoCredits = false,
@@ -50,6 +53,20 @@
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
+    let recordButton: HTMLButtonElement;
+    let previousBlockedMicAttempt = 0;
+    $effect(() => {
+        if (blockedMicAttempt === previousBlockedMicAttempt) return;
+        previousBlockedMicAttempt = blockedMicAttempt;
+        recordButton?.getAnimations().forEach(animation => animation.cancel());
+        recordButton?.animate(
+            [0, -1, 1, -1, 1, 0].map(offset => ({
+                transform: `translateX(${offset * MIC_SHAKE_DISTANCE_PX}px)`
+            })),
+            { duration: MIC_SHAKE_DURATION_MS, easing: 'ease-in-out' }
+        );
+    });
+
     let showAttachmentMenu = $state(false);
     let attachmentMenuElement: HTMLDivElement;
     let speechStatus = $state<'on' | 'off' | null>(null);
@@ -212,6 +229,7 @@
             type="button"
             class="clickable-icon icon_recordaudio {isRecordButtonPressed ? 'recording' : ''}"
             data-testid="record-audio-button"
+            bind:this={recordButton}
             onmousedown={handleRecordMouseDown}
             onmouseup={handleRecordMouseUp}
             onmouseleave={handleRecordMouseLeave}
