@@ -1902,3 +1902,10 @@ div.clickable-icon {
     transition: none;
   }
 }
+
+/* Newly mounted controls start in their measured state without a color flash.
+   Normal transitions are enabled after the initial style has been committed. */
+[data-header-overlay-initializing],
+[data-header-overlay-initializing] * {
+  transition: none !important;
+}

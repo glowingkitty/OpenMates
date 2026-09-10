@@ -9,7 +9,7 @@
   import { text } from '@repo/ui';
   import { tooltip } from '../actions/tooltip';
   import type { Snippet } from 'svelte';
-  import { tick } from 'svelte';
+  import { tick, onMount } from 'svelte';
   import { fly } from 'svelte/transition';
 
   let {
@@ -25,19 +25,29 @@
     close: Snippet;
     resetKey?: string;
   } = $props();
-  const SHARE_MIN_WIDTH = 360;
+  const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
   const MENU_GAP = 12;
   const MENU_DURATION = 180;
   const MENU_HOVER_SCALE = 1.08;
   const MENU_SHADOW_CLEARANCE = 8;
   let width = $state(0);
+  let containerWidth = $state(0);
   let open = $state(false);
   let root: HTMLDivElement;
   let trigger: HTMLButtonElement;
   let anchor: HTMLDivElement;
   let menuWidth = $state(240);
   const menuId = $props.id();
+
+  onMount(() => {
+    const container = root.closest<HTMLElement>('.chat-side, .fullscreen-container') ?? root;
+    const updateWidth = () => { containerWidth = container.clientWidth; };
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(container);
+    updateWidth();
+    return () => observer.disconnect();
+  });
 
   $effect(() => {
     void resetKey;
@@ -101,11 +111,11 @@
   <div class="primary-actions">
     <div
       class="report-action"
-      class:show-label={width >= REPORT_LABEL_MIN_WIDTH}
+      class:show-label={containerWidth >= REPORT_LABEL_MIN_WIDTH}
     >
       {@render report()}
     </div>
-    {#if width >= SHARE_MIN_WIDTH}<div class="share-action">
+    {#if containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
         {@render share()}
       </div>{/if}
     <div class="more-anchor" bind:this={anchor}>
@@ -140,7 +150,7 @@
               : MENU_DURATION,
           }}
         >
-          {#if width < SHARE_MIN_WIDTH}{@render share()}{/if}
+          {#if containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
           {@render actions()}
         </div>
       {/if}
