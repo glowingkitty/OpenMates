@@ -17,6 +17,15 @@ export interface SpecFlow {
   title: string;
   kind: 'user_flow' | 'edge_case';
   steps: string[];
+  requiredCheckRefs?: string[];
+}
+/** Read-only projections of linked Project Checks, not Spec-owned definitions. */
+export interface SpecCheckPreview {
+  id: string;
+  title: string;
+  method: 'Deterministic' | 'Human confirmation';
+  description: string;
+  evidence: string;
 }
 export interface SpecModel {
   id: string;
@@ -44,4 +53,5 @@ export interface SpecificationDocument {
   flows: SpecFlow[];
   models: SpecModel[];
   previewNotice: string;
+  linkedChecks?: SpecCheckPreview[];
 }
