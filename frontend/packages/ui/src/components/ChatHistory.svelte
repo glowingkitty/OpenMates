@@ -3213,7 +3213,7 @@
       --toolbar-clearance: calc(25px + 3 * var(--spacing-4) + var(--spacing-5));
       mask-image: linear-gradient(to bottom,
         transparent var(--toolbar-clearance),
-        black calc(var(--toolbar-clearance) + var(--spacing-7)),
+        black calc(var(--toolbar-clearance) + 2 * var(--spacing-5)),
         black calc(100% - 30px),
         transparent 100%);
     }
