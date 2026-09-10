@@ -7592,12 +7592,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputFieldRef?.focus();
     }
 
-    /**
-     * Handler for when the create icon is clicked.
-     */
-    // In-session chat navigation replaces the URL, so retain return targets locally.
-    // The close path must not record the chat being closed as a new return target.
-    const chatReturnTargets: Array<string | null> = [];
+    // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
 
     async function handleCloseChat() {
@@ -7605,14 +7600,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         closingChat = true;
         try {
             const chatId = currentChat?.chat_id;
-            const target = currentChat?.parent_id || chatReturnTargets.at(-1);
-            // Discard the closed branch so repeated closes continue toward the start screen.
-            const targetIndex = target ? chatReturnTargets.lastIndexOf(target) : -1;
+            const target = currentChat?.parent_id;
             if (target && target !== chatId) {
                 await handleChatNavigate(target);
-                if (currentChat?.chat_id === target) {
-                    chatReturnTargets.splice(Math.max(0, targetIndex));
-                }
             } else {
                 await handleNewChatClick();
             }
@@ -7622,7 +7612,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     async function handleNewChatClick() {
-        chatReturnTargets.length = 0;
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
@@ -7705,9 +7694,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Auto-focus the message input field on desktop devices only
-        // On touch devices, users must manually tap to focus to avoid unwanted keyboard popups
-        if (($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
+        // Only the New chat action starts an input session. Close reuses the reset
+        // but leaves the workspace unfocused, including on desktop.
+        if (!closingChat && ($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
             // Use a small delay to ensure the editor is ready after clearing
             setTimeout(() => {
                 if (messageInputFieldRef) {
@@ -9417,9 +9406,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null }) {
-         if (!closingChat && currentChat?.chat_id !== chat.chat_id) {
-             chatReturnTargets.push(currentChat?.chat_id ?? null);
-         }
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
