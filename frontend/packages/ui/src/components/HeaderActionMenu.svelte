@@ -19,6 +19,8 @@
     restoreChat,
     close,
     resetKey,
+    hasShare,
+    hasActions,
   }: {
     report: Snippet;
     share: Snippet;
@@ -26,6 +28,8 @@
     restoreChat?: Snippet;
     close: Snippet;
     resetKey?: string;
+    hasShare: boolean;
+    hasActions: boolean;
   } = $props();
   const SHARE_MIN_WIDTH = 460;
   const REPORT_LABEL_MIN_WIDTH = 640;
@@ -37,10 +41,15 @@
   let containerWidth = $state(0);
   let open = $state(false);
   let root: HTMLDivElement;
-  let trigger: HTMLButtonElement;
-  let anchor: HTMLDivElement;
+  let trigger = $state<HTMLButtonElement>();
+  let anchor = $state<HTMLDivElement>();
   let menuWidth = $state(240);
   const menuId = $props.id();
+  const hasOverflowActions = $derived(hasActions || (hasShare && containerWidth < SHARE_MIN_WIDTH));
+
+  $effect(() => {
+    if (!hasOverflowActions) open = false;
+  });
 
   onMount(() => {
     const container = root.closest<HTMLElement>('.chat-side, .fullscreen-container') ?? root;
@@ -87,7 +96,7 @@
       event.preventDefault();
       event.stopPropagation();
       open = false;
-      trigger.focus();
+      trigger?.focus();
     } else if (event.key === 'ArrowDown' && event.target === trigger) {
       event.preventDefault();
       open = true;
@@ -117,10 +126,11 @@
     >
       {@render report()}
     </div>
-    {#if containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
+    {#if hasShare && containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
         {@render share()}
       </div>{/if}
     {@render restoreChat?.()}
+    {#if hasOverflowActions}
     <div class="more-anchor" bind:this={anchor}>
       <div class="button-wrapper more-wrapper" class:is-open={open}>
         <button
@@ -158,6 +168,7 @@
         </div>
       {/if}
     </div>
+    {/if}
   </div>
   <div class="close-action">{@render close()}</div>
 </div>

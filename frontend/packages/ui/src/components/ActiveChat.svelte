@@ -7595,6 +7595,10 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     // Closing returns to the parent or workspace without starting a new input session.
     let closingChat = $state(false);
 
+    const showChatSettingsAction = $derived(!!(hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)));
+    const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
+    const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
+
     async function handleCloseChat() {
         // In split view, close only the pane; preserve the active chat and embed.
         if (showSideBySideFullscreen) {
@@ -13020,7 +13024,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
                         inert={showWelcome && hideWelcomeForKeyboard}
                     >
-                        <HeaderActionMenu resetKey={currentChat?.chat_id}>
+                        <HeaderActionMenu
+                            resetKey={currentChat?.chat_id}
+                            hasShare={hasActiveShareableChatSurface}
+                            hasActions={showChatSettingsAction || showChatRemindersAction || isAdminUser || showChatPIIAction}
+                        >
                   {#snippet report()}
                     <div
                       class="new-chat-button-wrapper"
@@ -13063,7 +13071,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                     {/if}
                   {/snippet}
                   {#snippet actions()}
-                    {#if hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)}
+                    {#if showChatSettingsAction}
                       <div class="new-chat-button-wrapper">
                         <button
                           class="header-action"
@@ -13085,7 +13093,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         >
                       </div>
                     {/if}
-                    {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others}
+                    {#if showChatRemindersAction}
                       <div class="new-chat-button-wrapper">
                         <button
                           class="header-action"
@@ -13127,7 +13135,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                       </div>
                     {/if}
                     <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
-                    {#if chatHasPII && !showWelcome}
+                    {#if showChatPIIAction}
                       <div class="new-chat-button-wrapper">
                         <button
                           data-testid="chat-pii-toggle"

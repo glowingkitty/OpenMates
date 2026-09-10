@@ -99,10 +99,20 @@
     onTogglePII,
     onIncludeOriginalPII,
   }: Props = $props();
+  const hasSecondaryActions = $derived(Boolean(
+    (showCopy && onCopy) ||
+    (showDownload && onDownload) ||
+    (showCalendar && onCalendar) ||
+    (showRun && onRun) ||
+    (showPreview && onTogglePreview) ||
+    (showDebug && onToggleDebug) ||
+    (showPIIToggle && onTogglePII) ||
+    (showPIIIncludeOriginal && onIncludeOriginalPII)
+  ));
 </script>
 
 <div class="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu>
+  <HeaderActionMenu hasShare={showShare} hasActions={hasSecondaryActions}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
