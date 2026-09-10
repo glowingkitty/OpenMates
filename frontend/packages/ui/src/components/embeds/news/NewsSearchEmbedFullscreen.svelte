@@ -13,6 +13,7 @@
 -->
 
 <script lang="ts">
+  import { searchResultImageUrl } from '../../../utils/searchPreviewImages';
   import SearchResultsTemplate from '../SearchResultsTemplate.svelte';
   import NewsEmbedPreview from './NewsEmbedPreview.svelte';
   import NewsEmbedFullscreen from './NewsEmbedFullscreen.svelte';
@@ -103,8 +104,8 @@
       embed_id: embedId,
       title: content.title as string | undefined,
       url: content.url as string,
-      favicon_url: getNestedField(content, 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
-      thumbnail: getNestedField(content, 'thumbnail.original', 'thumbnail.src', 'thumbnail', 'thumbnail_original', 'image'),
+      favicon_url: getNestedField(content, 'favicon', 'meta_url.favicon', 'favicon_url', 'meta_url_favicon'),
+      thumbnail: searchResultImageUrl(content),
       description: (content.description as string) || (content.snippet as string),
       extra_snippets: content.extra_snippets as string | string[] | undefined,
       page_age: (content.age as string) || (content.page_age as string) || undefined
@@ -115,20 +116,8 @@
    * Transform legacy results for backwards compatibility
    */
   function transformLegacyResults(results: unknown[]): NewsSearchResult[] {
-    return (results as Array<Record<string, unknown>>).map((r, i) => {
-      const metaUrl = r.meta_url as Record<string, string> | undefined;
-      const thumbnail = r.thumbnail as Record<string, string> | undefined;
-      return {
-        embed_id: `legacy-${i}`,
-        title: r.title as string | undefined,
-        url: r.url as string,
-        favicon_url: (r.favicon as string) || (r.favicon_url as string) || (r.meta_url_favicon as string) || metaUrl?.favicon,
-        thumbnail: (r.thumbnail_original as string) || thumbnail?.original || thumbnail?.src,
-        description: (r.description as string) || (r.snippet as string),
-        extra_snippets: r.extra_snippets as string | string[] | undefined,
-        page_age: (r.age as string) || (r.page_age as string) || undefined
-      };
-    });
+    return (results as Array<Record<string, unknown>>).map((result, index) =>
+      transformToNewsResult(`legacy-${index}`, result));
   }
 </script>
 

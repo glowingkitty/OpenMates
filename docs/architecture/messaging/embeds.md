@@ -109,6 +109,7 @@ sequenceDiagram
 - **Skill cancellation:** individual skill cancel without stopping AI → `SkillCancelledException` in [skill_executor.py](../../backend/apps/ai/processing/skill_executor.py) → embed status `cancelled`
 - **Cache miss:** [embedResolver.ts](../../frontend/packages/ui/src/services/embedResolver.ts) fetches from Directus on miss — never terminal error
 - **Composite embeds:** `app_skill_use` contains `embed_ids` → child embeds loaded via `_load_and_cache_embeds_for_chats()` in [user_cache_tasks.py](../../backend/core/api/app/tasks/user_cache_tasks.py)
+- **News images:** preview strips and article fullscreen share the image-field selector in `searchPreviewImages.ts`, including nested and flattened `thumbnail.src` and `thumbnail.original` fields. Current parent image metadata avoids child reads. A visible legacy news preview without image metadata may resolve at most ten unique children through the existing embed cache; offscreen previews do not hydrate, and obsolete results are discarded on teardown.
 - **Cross-chat access:** owner uses master key wrapper; recipient uses chat key wrapper from share link
 - **Stale vault keys:** cache decryption fails → request from client → re-cache (same pattern as [message-processing.md](./message-processing.md))
 - **Duplicate detection:** `content_hash` (SHA256) used for code/file/sheet/document embeds — [embed_service.py](../../backend/core/api/app/services/embed_service.py)

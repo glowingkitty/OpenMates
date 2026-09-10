@@ -40,3 +40,38 @@ test('deduplicates before applying the thumbnail cap and preserves titles', () =
   assert.deepEqual(images[0], { url: results[0].image_url, title: 'Image 0' });
   assert.equal(images[9].url, results[9].image_url);
 });
+
+// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+test('accepts legacy string thumbnails and image aliases used by news fullscreen', () => {
+  for (const result of [
+    { thumbnail: 'https://example.org/photo.jpg' },
+    { image: 'https://example.org/photo.jpg' },
+    { 'thumbnail.src': 'https://example.org/photo.jpg' },
+    { thumbnail_original: 'null', thumbnail_src: 'https://example.org/photo.jpg' },
+  ]) assert.equal(searchResultImageUrl(result), 'https://example.org/photo.jpg');
+});
+
+// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+test('legacy previews resolve bounded children but current parent images need no child reads', async () => {
+  const { resolveSearchPreviewImages } = await import('./searchPreviewImages.ts');
+  const reads = [];
+  const loader = async id => { reads.push(id); return { thumbnail_src: `https://example.org/${id}.jpg` }; };
+  const current = await resolveSearchPreviewImages([{ preview_image_url: 'https://example.org/current.jpg' }], ['unused'], loader);
+  assert.equal(current[0].url, 'https://example.org/current.jpg');
+  assert.deepEqual(reads, []);
+  const ids = Array.from({ length: 20 }, (_, i) => String(i));
+  const legacy = await resolveSearchPreviewImages([{ favicon: 'icon.png' }], [ids[0], ...ids], loader);
+  assert.equal(legacy.length, 10);
+  assert.deepEqual(reads, ids.slice(0, 10));
+});
+
+// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+test('obsolete legacy-preview loads do not publish images', async () => {
+  const { resolveSearchPreviewImages } = await import('./searchPreviewImages.ts');
+  const controller = new AbortController();
+  const images = await resolveSearchPreviewImages([], ['child'], async () => {
+    controller.abort();
+    return { thumbnail_src: 'https://example.org/old.jpg' };
+  }, controller.signal);
+  assert.deepEqual(images, []);
+});
