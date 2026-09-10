@@ -147,7 +147,7 @@
   {#snippet details(snippetProps)}
     <div class="mail-details" class:mobile={snippetProps.isMobile}>
       <div class="mail-body-preview">
-        <SensitiveText value={bodyPreview || $text('embeds.mail.empty_content')} mappings={embedPIIState.mappings} revealed={embedPIIState.revealed} onToggle={$activeChatStore ? togglePII : undefined} />
+        <SensitiveText wikiLinksClickable={false} value={bodyPreview || $text('embeds.mail.empty_content')} mappings={embedPIIState.mappings} revealed={embedPIIState.revealed} onToggle={$activeChatStore ? togglePII : undefined} />
       </div>
     </div>
   {/snippet}

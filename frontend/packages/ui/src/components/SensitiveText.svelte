@@ -10,11 +10,12 @@
   import type { PIIMapping } from '../types/chat';
   import { hydrateWikiLinks, replaceWikiLinksInText } from '../utils/embedLinkUtils';
 
-  let { value, mappings, revealed, onToggle }: {
+  let { value, mappings, revealed, onToggle, wikiLinksClickable = true }: {
     value: string;
     mappings: PIIMapping[];
     revealed: boolean;
     onToggle?: () => void;
+    wikiLinksClickable?: boolean;
   } = $props();
   let root: HTMLSpanElement;
   const pieces = $derived.by(() => {
@@ -38,7 +39,7 @@
   });
   $effect(() => {
     void pieces;
-    if (root) return hydrateWikiLinks(root);
+    if (root) return hydrateWikiLinks(root, { clickable: wikiLinksClickable });
   });
 </script>
 
