@@ -150,6 +150,6 @@
     "svelte": "^5.55.7",
     "svelte-check": "^4.6.0",
     "typescript": "^5.9.2",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   }
 }
