@@ -39,6 +39,8 @@
     description?: string | null;
     /** Close handler */
     onClose: () => void;
+    showChatButton?: boolean;
+    onShowChat?: () => void;
   }
 
   const SUPPORTED_WIKIPEDIA_LANGUAGES = new Set([
@@ -53,6 +55,8 @@
     thumbnailUrl = null,
     description = null,
     onClose,
+    showChatButton = false,
+    onShowChat,
   }: Props = $props();
 
   // On-demand fetched data — initialized from props, overwritten by API fetch
@@ -133,6 +137,8 @@
 </script>
 
 <UnifiedEmbedFullscreen
+  {showChatButton}
+  {onShowChat}
   appId="study"
   skillId="study"
   skillIconName="study"

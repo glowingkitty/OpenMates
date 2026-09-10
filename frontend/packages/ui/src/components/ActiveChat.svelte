@@ -7596,6 +7596,11 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     let closingChat = $state(false);
 
     async function handleCloseChat() {
+        // In split view, close only the pane; preserve the active chat and embed.
+        if (showSideBySideFullscreen) {
+            forceOverlayMode = true;
+            return;
+        }
         if (closingChat) return;
         closingChat = true;
         try {
@@ -14177,6 +14182,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
                                 description={wikiFullscreenData.description}
+                                showChatButton={showChatButtonInFullscreen}
+                                onShowChat={handleShowChat}
                                 onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}
                             />
                             {:else}

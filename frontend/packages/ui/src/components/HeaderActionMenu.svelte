@@ -16,12 +16,14 @@
     report,
     share,
     actions,
+    restoreChat,
     close,
     resetKey,
   }: {
     report: Snippet;
     share: Snippet;
     actions: Snippet;
+    restoreChat?: Snippet;
     close: Snippet;
     resetKey?: string;
   } = $props();
@@ -118,6 +120,7 @@
     {#if containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
         {@render share()}
       </div>{/if}
+    {@render restoreChat?.()}
     <div class="more-anchor" bind:this={anchor}>
       <div class="button-wrapper more-wrapper" class:is-open={open}>
         <button

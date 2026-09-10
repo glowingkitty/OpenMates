@@ -138,13 +138,14 @@
         </div>
       {/if}
     {/snippet}
-    {#snippet actions()}
+    {#snippet restoreChat()}
       <!-- Restore chat (ultra-wide side-by-side mode) -->
       {#if showChatButton && onShowChat}
         <div class="button-wrapper">
           <button
             class="header-action"
             use:tooltip
+            data-testid="embed-show-chat-button"
             onclick={onShowChat}
             aria-label={$text('chat.show_chat')}
             ><span
@@ -156,6 +157,8 @@
         </div>
       {/if}
 
+    {/snippet}
+    {#snippet actions()}
       <!-- Copy -->
       {#if showCopy && onCopy}
         <div class="button-wrapper">
