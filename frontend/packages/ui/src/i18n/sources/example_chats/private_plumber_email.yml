@@ -1,0 +1,439 @@
+title:
+  context: "Title of example chat: Draft a plumber email privately"
+  en: "Draft a plumber email privately"
+  de: E-Mail an Klempner privat entwerfen
+  zh: 私密起草水管工邮件
+  es: Redactar un correo para un fontanero de forma privada
+  fr: Rédiger un e-mail à un plombier en toute confidentialité
+  pt: Redigir um e-mail para um canalizador de forma privada
+  ru: Составить письмо сантехнику приватно
+  ja: 水道屋へのメールをプライベートに作成
+  ko: 배관공에게 보낼 이메일 비공개로 작성하기
+  it: "Scrivi privatamente la bozza di un'email per un idraulico"
+  tr: Gizli bir şekilde tesisatçı e-postası taslağı hazırla
+  vi: Soạn email gửi thợ sửa ống nước một cách riêng tư
+  id: Tulis draf email untuk tukang ledeng secara privat
+  pl: Napisz prywatnie e-mail do hydraulika
+  nl: Privé een e-mail voor een loodgieter opstellen
+  ar: صياغة بريد إلكتروني لسباك بخصوصية
+  hi: निजी तौर पर प्लंबर के लिए ईमेल ड्राफ्ट करें
+  th: ร่างอีเมลหาช่างประปาแบบเป็นส่วนตัว
+  cs: Napsat e-mail instalatérovi soukromě
+  sv: Skriv ett utkast till ett mejl till en rörmokare privat
+  he: ניסוח אימייל לאינסטלטור באופן פרטי
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Draft a plumber email privately"
+  en: "Draft a friendly repair enquiry while keeping your email address and phone number hidden from the AI."
+  de: Entwirf eine freundliche Reparaturanfrage, während deine E-Mail-Adresse und Telefonnummer vor der KI verborgen bleiben.
+  zh: 起草一封友好的维修咨询邮件，同时对 AI 隐藏你的电子邮箱地址和电话号码。
+  es: Redacta una consulta de reparación amable manteniendo tu dirección de correo electrónico y número de teléfono ocultos para la IA.
+  fr: "Rédige une demande de réparation amicale tout en gardant ton adresse e-mail et ton numéro de téléphone cachés de l'IA."
+  pt: Redige um pedido de reparação amigável mantendo o teu endereço de e-mail e número de telefone ocultos da IA.
+  ru: Составь вежливый запрос на ремонт, скрыв свой адрес электронной почты и номер телефона от ИИ.
+  ja: メールアドレスや電話番号をAIに隠したまま、修理の問い合わせメールを丁寧に作成します。
+  ko: 이메일 주소와 전화번호를 AI에게 노출하지 않으면서 친절한 수리 문의 메일을 작성해 보세요.
+  it: "Scrivi una richiesta di riparazione amichevole mantenendo il tuo indirizzo email e il tuo numero di telefono nascosti all'IA."
+  tr: E-posta adresinizi ve telefon numaranızı yapay zekadan gizli tutarak arkadaşça bir onarım talebi taslağı hazırlayın.
+  vi: Soạn một thư hỏi sửa chữa thân thiện trong khi vẫn giữ địa chỉ email và số điện thoại của bạn ẩn khỏi AI.
+  id: Buat draf pertanyaan perbaikan yang ramah sambil menjaga alamat email dan nomor telepon Anda tetap tersembunyi dari AI.
+  pl: Przygotuj uprzejme zapytanie o naprawę, zachowując swój adres e-mail i numer telefonu w tajemnicy przed AI.
+  nl: Stel een vriendelijke reparatieaanvraag op terwijl je je e-mailadres en telefoonnummer verborgen houdt voor de AI.
+  ar: صياغة استفسار ودي عن إصلاح مع الحفاظ على سرية بريدك الإلكتروني ورقم هاتفك عن الذكاء الاصطناعي.
+  hi: एआई (AI) से अपना ईमेल पता और फ़ोन नंबर छिपाते हुए मरम्मत के लिए एक विनम्र पूछताछ ड्राफ्ट करें।
+  th: ร่างคำขอซ่อมแซมที่เป็นกันเอง โดยที่ยังคงซ่อนที่อยู่อีเมลและเบอร์โทรศัพท์ของคุณจาก AI
+  cs: Sestavte přátelskou poptávku na opravu a přitom ponechte svou e-mailovou adresu a telefonní číslo skryté před AI.
+  sv: "Skriv en vänlig förfrågan om reparation samtidigt som du håller din e-postadress och ditt telefonnummer dolda för AI:n."
+  he: נסחו פנייה ידידותית לתיקון תוך שמירה על כתובת האימייל ומספר הטלפון שלכם חסויים מה-AI.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Draft a plumber email privately. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "My kitchen tap has been dripping for three days. Could you draft a friendly email to a plumber asking about availability and an estimated repair cost? Include my email, [EMAIL_1_com], and phone number, [PHONE_1_123], so they can contact me."
+  de: "Mein Küchenwasserhahn tropft seit drei Tagen. Könntest du eine freundliche E-Mail an einen Klempner entwerfen und nach der Verfügbarkeit sowie den geschätzten Reparaturkosten fragen? Füge meine E-Mail, [EMAIL_1_com], und Telefonnummer, [PHONE_1_123], hinzu, damit er mich kontaktieren kann."
+  zh: "我的厨房水龙头已经滴水三天了。你能帮我起草一封语气友好的邮件给水管工，询问他们是否有空以及预估的维修费用吗？请附上我的邮箱 [EMAIL_1_com] 和电话号码 [PHONE_1_123]，以便他们联系我。"
+  es: "Mi grifo de la cocina lleva goteando tres días. ¿Podrías redactar un correo electrónico amable para un fontanero preguntando por su disponibilidad y un coste estimado de la reparación? Incluye mi correo electrónico, [EMAIL_1_com], y mi número de teléfono, [PHONE_1_123], para que puedan ponerse en contacto conmigo."
+  fr: "Le robinet de ma cuisine fuit depuis trois jours. Peux-tu rédiger un e-mail amical à un plombier pour lui demander ses disponibilités et une estimation du coût de la réparation ? Inclus mon e-mail, [EMAIL_1_com], et mon numéro de téléphone, [PHONE_1_123], pour qu'il puisse me contacter."
+  pt: "A minha torneira da cozinha está a pingar há três dias. Poderias redigir um e-mail amigável para um canalizador a perguntar sobre a disponibilidade e um custo estimado de reparação? Inclui o meu e-mail, [EMAIL_1_com], e o número de telefone, [PHONE_1_123], para que me possam contactar."
+  ru: "У меня на кухне уже три дня капает кран. Можешь составить вежливое письмо сантехнику, чтобы узнать, когда он свободен и сколько примерно будет стоить ремонт? Укажи мою почту [EMAIL_1_com] и номер телефона [PHONE_1_123], чтобы он мог со мной связаться."
+  ja: "キッチンの蛇口から3日前から水が漏れています。水道屋さんに、対応可能な日程と修理費用の見積もりを尋ねる丁寧なメールを作成してもらえますか？連絡先として、私のメールアドレス [EMAIL_1_com] と電話番号 [PHONE_1_123] を含めてください。"
+  ko: "주방 수도꼭지에서 사흘째 물이 새고 있어요. 배관공에게 보낼 친절한 이메일 초안을 작성해 주시겠어요? 방문 가능 시간과 예상 수리 비용을 물어봐 주세요. 연락받을 수 있도록 제 이메일 [EMAIL_1_com]과 전화번호 [PHONE_1_123]도 포함해 주세요."
+  it: "Il rubinetto della mia cucina gocciola da tre giorni. Potresti scrivere una bozza di email amichevole a un idraulico chiedendo la disponibilità e un costo stimato per la riparazione? Includi la mia email, [EMAIL_1_com], e il mio numero di telefono, [PHONE_1_123], così potrà contattarmi."
+  tr: "Mutfak musluğum üç gündür damlatıyor. Bir tesisatçıya müsaitlik durumunu ve tahmini onarım maliyetini soran arkadaşça bir e-posta taslağı hazırlayabilir misiniz? Bana ulaşabilmeleri için e-posta adresimi, [EMAIL_1_com], ve telefon numaramı, [PHONE_1_123], ekleyin."
+  vi: "Vòi nước trong bếp của tôi đã bị rò rỉ suốt ba ngày nay. Bạn có thể soạn một email thân thiện gửi cho thợ sửa ống nước để hỏi về thời gian rảnh và chi phí sửa chữa ước tính không? Hãy bao gồm email của tôi, [EMAIL_1_com], và số điện thoại, [PHONE_1_123], để họ có thể liên hệ với tôi."
+  id: "Keran dapur saya sudah menetes selama tiga hari. Bisakah Anda membuatkan draf email yang ramah kepada tukang ledeng untuk menanyakan ketersediaan dan perkiraan biaya perbaikan? Sertakan email saya, [EMAIL_1_com], dan nomor telepon, [PHONE_1_123], agar mereka bisa menghubungi saya."
+  pl: "Mój kran w kuchni przecieka od trzech dni. Czy możesz napisać uprzejmy e-mail do hydraulika z zapytaniem o dostępność i szacunkowy koszt naprawy? Dołącz mój e-mail, [EMAIL_1_com], oraz numer telefonu, [PHONE_1_123], aby mógł się ze mną skontaktować."
+  nl: "Mijn keukenkraan druppelt al drie dagen. Kun je een vriendelijke e-mail opstellen voor een loodgieter om te vragen naar de beschikbaarheid en een schatting van de reparatiekosten? Vermeld mijn e-mailadres, [EMAIL_1_com], en telefoonnummer, [PHONE_1_123], zodat ze contact met me kunnen opnemen."
+  ar: "صنبور المطبخ لدي يقطر منذ ثلاثة أيام. هل يمكنك صياغة بريد إلكتروني ودي لسباك للاستفسار عن توفره وتكلفة الإصلاح التقديرية؟ يرجى تضمين بريدي الإلكتروني، [EMAIL_1_com]، ورقم هاتفي، [PHONE_1_123]، ليتمكن من التواصل معي."
+  hi: "मेरी रसोई का नल तीन दिनों से टपक रहा है। क्या आप प्लंबर को भेजने के लिए एक विनम्र ईमेल ड्राफ्ट कर सकते हैं जिसमें उनकी उपलब्धता और मरम्मत की अनुमानित लागत के बारे में पूछा गया हो? इसमें मेरा ईमेल, [EMAIL_1_com], और फ़ोन नंबर, [PHONE_1_123], शामिल करें ताकि वे मुझसे संपर्क कर सकें।"
+  th: "ก๊อกน้ำในห้องครัวของฉันน้ำหยดมาสามวันแล้ว ช่วยร่างอีเมลที่เป็นกันเองถึงช่างประปาเพื่อสอบถามคิวว่างและราคาประเมินในการซ่อมหน่อยได้ไหม? รบกวนใส่อีเมล [EMAIL_1_com] และเบอร์โทรศัพท์ [PHONE_1_123] ของฉันลงไปด้วย เพื่อให้เขาติดต่อกลับได้"
+  cs: "Už tři dny mi kape kohoutek v kuchyni. Mohl byste mi napsat přátelský e-mail pro instalatéra s dotazem na dostupnost a odhadovanou cenu opravy? Uveďte prosím můj e-mail, [EMAIL_1_com], a telefonní číslo, [PHONE_1_123], aby mě mohl kontaktovat."
+  sv: "Min kökskran har droppat i tre dagar. Kan du skriva ett vänligt mejl till en rörmokare och fråga om tillgänglighet och en uppskattad reparationskostnad? Inkludera min e-post, [EMAIL_1_com], och mitt telefonnummer, [PHONE_1_123], så att de kan kontakta mig."
+  he: "הברז במטבח שלי מטפטף כבר שלושה ימים. תוכל לנסח אימייל ידידותי לאינסטלטור כדי לשאול על זמינות ועלות משוערת לתיקון? כדאי לכלול את האימייל שלי, [EMAIL_1_com], ואת מספר הטלפון שלי, [PHONE_1_123], כדי שיוכלו ליצור איתי קשר."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Draft a plumber email privately. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+
+    ***
+
+    **Anticipate Next Steps:**
+    1. Would you like to create a [reminder](/#settings/apps/reminder) to check for their reply or turn off your water main temporarily if the drip worsens?
+    2. If you're planning to look at it yourself while waiting, I can guide you through inspecting the cartridge or washer.
+  de: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Nächste Schritte:**
+    1. Möchtest du eine [Erinnerung](/#settings/apps/reminder) erstellen, um nach einer Antwort zu sehen, oder den Hauptwasserhahn vorübergehend zudrehen, falls das Tropfen schlimmer wird?
+    2. Wenn du planst, es dir während des Wartens selbst anzusehen, kann ich dich bei der Inspektion der Kartusche oder Dichtung anleiten.
+  zh: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **后续步骤建议：**
+    1. 你是否想要创建一个[提醒](/#settings/apps/reminder)来检查他们的回复，或者在滴水加重时暂时关闭水总阀？
+    2. 如果你打算在等待期间尝试自己修理，我可以指导你如何检查阀芯或垫圈。
+  es: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Anticipar los siguientes pasos:**
+    1. ¿Te gustaría crear un [recordatorio](/#settings/apps/reminder) para comprobar si han respondido o para cerrar la llave de paso temporalmente si el goteo empeora?
+    2. Si tienes pensado echarle un vistazo tú mismo mientras esperas, puedo guiarte para inspeccionar el cartucho o la arandela.
+  fr: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Anticiper les prochaines étapes :**
+    1. Souhaites-tu créer un [rappel](/#settings/apps/reminder) pour vérifier s'il a répondu ou pour couper l'arrivée d'eau principale temporairement si la fuite s'aggrave ?
+    2. Si tu prévois d'y jeter un œil toi-même en attendant, je peux te guider pour inspecter la cartouche ou le joint.
+  pt: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Antecipar Próximos Passos:**
+    1. Gostarias de criar um [lembrete](/#settings/apps/reminder) para verificar a resposta ou desligar a tua rede de água temporariamente se o gotejamento piorar?
+    2. Se planeias dar uma vista de olhos por conta própria enquanto esperas, posso guiar-te na inspeção do cartucho ou da anilha.
+  ru: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Что можно сделать дальше:**
+    1. Хочешь создать [напоминание](/#settings/apps/reminder), чтобы проверить ответ, или временно перекрыть воду, если течь усилится?
+    2. Если планируешь осмотреть кран самостоятельно в ожидании ответа, я могу подсказать, как проверить картридж или прокладку.
+  ja: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **次のステップの提案:**
+    1. 返信を確認するための[リマインダー](/#settings/apps/reminder)を作成しますか？それとも、水漏れが悪化した場合に備えて一時的に元栓を閉めますか？
+    2. 待っている間に自分で確認してみる場合は、カートリッジやパッキンの点検方法を案内できます。
+  ko: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **다음 단계 안내:**
+    1. 답장이 왔는지 확인하기 위한 [리마인더](/#settings/apps/reminder)를 설정하거나, 물이 더 많이 새는 경우를 대비해 일시적으로 수도 계량기를 잠그는 방법을 알아보시겠어요?
+    2. 기다리는 동안 직접 확인해 보실 계획이라면, 카트리지나 와셔를 점검하는 방법을 안내해 드릴 수 있습니다.
+  it: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Anticipa i prossimi passi:**
+    1. Vorresti creare un [promemoria](/#settings/apps/reminder) per controllare la sua risposta o chiudere temporaneamente la valvola principale dell'acqua se lo sgocciolio peggiora?
+    2. Se hai intenzione di dare un'occhiata tu stesso mentre aspetti, posso guidarti nell'ispezione della cartuccia o della guarnizione.
+  tr: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Sıradaki Adımlar:**
+    1. Yanıtlarını kontrol etmek için bir [hatırlatıcı](/#settings/apps/reminder) oluşturmak mı istersiniz yoksa damlama kötüleşirse ana su vanasını geçici olarak kapatmak mı?
+    2. Beklerken kendiniz bakmayı planlıyorsanız, kartuşu veya contayı incelemeniz konusunda size rehberlik edebilirim.
+  vi: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Dự đoán các bước tiếp theo:**
+    1. Bạn có muốn tạo một [nhắc nhở](/#settings/apps/reminder) để kiểm tra phản hồi của họ hoặc tạm thời khóa van nước chính nếu tình trạng rò rỉ trở nên tệ hơn không?
+    2. Nếu bạn định tự mình kiểm tra trong khi chờ đợi, tôi có thể hướng dẫn bạn cách kiểm tra lõi van hoặc vòng đệm.
+  id: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Langkah Selanjutnya:**
+    1. Apakah Anda ingin membuat [pengingat](/#settings/apps/reminder) untuk mengecek balasan mereka atau mematikan saluran air utama untuk sementara jika tetesannya semakin parah?
+    2. Jika Anda berencana untuk memeriksanya sendiri sambil menunggu, saya bisa memandu Anda memeriksa kartrid atau ring (washer).
+  pl: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Przewiduj kolejne kroki:**
+    1. Czy chcesz utworzyć [przypomnienie](/#settings/apps/reminder), aby sprawdzić odpowiedź, lub tymczasowo zakręcić główny zawór wody, jeśli wyciek się nasili?
+    2. Jeśli planujesz samodzielnie rzucić na to okiem w oczekiwaniu na fachowca, mogę Cię poprowadzić przez proces sprawdzania głowicy lub uszczelki.
+  nl: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Mogelijke vervolgstappen:**
+    1. Wil je een [herinnering](/#settings/apps/reminder) instellen om hun antwoord te controleren of je hoofdkraan tijdelijk dichtdraaien als het druppelen erger wordt?
+    2. Als je van plan bent om er zelf naar te kijken terwijl je wacht, kan ik je helpen bij het inspecteren van het binnenwerk of het kraanleertje.
+  ar: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **توقع الخطوات التالية:**
+    1. هل ترغب في إنشاء [تذكير](/#settings/apps/reminder) للتحقق من ردهم أو إغلاق محبس المياه الرئيسي مؤقتاً إذا زاد التنقيط؟
+    2. إذا كنت تخطط لتفقد الأمر بنفسك أثناء الانتظار، يمكنني إرشادك خلال فحص القلب (الخرطوشة) أو الجلبة.
+  hi: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **अगले चरणों का अनुमान लगाएं:**
+    1. क्या आप उनके जवाब की प्रतीक्षा करने के लिए एक [रिमाइंडर](/#settings/apps/reminder) सेट करना चाहेंगे या यदि टपकना बढ़ जाता है तो अस्थायी रूप से अपनी मुख्य पानी की लाइन बंद करना चाहेंगे?
+    2. यदि आप प्रतीक्षा करते समय इसे स्वयं देखने की योजना बना रहे हैं, तो मैं कार्ट्रिज या वॉशर की जांच करने में आपका मार्गदर्शन कर सकता हूं।
+  th: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **สิ่งที่ควรทำต่อไป:**
+    1. คุณต้องการสร้าง [การแจ้งเตือน](/#settings/apps/reminder) เพื่อตรวจสอบการตอบกลับ หรือปิดวาล์วน้ำหลักชั่วคราวหากน้ำหยดแรงขึ้นไหม?
+    2. หากคุณวางแผนจะลองตรวจสอบด้วยตัวเองระหว่างรอ ฉันสามารถแนะนำวิธีตรวจเช็กไส้วาล์วหรือแหวนยางให้ได้นะ
+  cs: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Předvídejte další kroky:**
+    1. Chcete si vytvořit [připomínku](/#settings/apps/reminder), abyste zkontrolovali odpověď, nebo dočasně uzavřít hlavní uzávěr vody, pokud se kapání zhorší?
+    2. Pokud se na to plánujete během čekání podívat sami, mohu vás provést kontrolou kartuše nebo těsnění.
+  sv: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **Förslag på nästa steg:**
+    1. Vill du skapa en [påminnelse](/#settings/apps/reminder) om att kolla efter svar, eller stänga av huvudkranen tillfälligt om droppandet förvärras?
+    2. Om du planerar att titta på det själv medan du väntar kan jag guida dig genom att inspektera insatsen eller packningen.
+  he: |
+    ```json
+    {"type": "mail", "embed_id": "f5b9420e-f3cb-4457-9385-27edeacc96fb"}
+    ```
+    
+    ***
+    
+    **צעדים הבאים אפשריים:**
+    1. האם תרצו ליצור [תזכורת](/#settings/apps/reminder) כדי לבדוק אם קיבלתם תשובה, או לסגור את שיבר המים הראשי באופן זמני אם הטפטוף יחמיר?
+    2. אם אתם מתכננים לבדוק את זה בעצמכם בזמן ההמתנה, אני יכול להדריך אתכם איך לבדוק את המחסנית (cartridge) או את האטם.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Set a reminder to follow up with the plumber if I don’t hear back in two days"
+  de: Erinnerung erstellen, um beim Klempner nachzufassen, falls ich in zwei Tagen keine Rückmeldung erhalte
+  zh: 如果两天内没有收到回复，请设置提醒以跟进水管工的情况
+  es: Pon un recordatorio para hacer un seguimiento con el fontanero si no recibo respuesta en dos días
+  fr: "Crée un rappel pour relancer le plombier si je n'ai pas de nouvelles d'ici deux jours"
+  pt: Define um lembrete para dar seguimento com o canalizador se não obtiver resposta em dois dias
+  ru: Установить напоминание связаться с сантехником, если он не ответит через два дня
+  ja: 2日経っても返信がない場合に、水道屋さんに再度連絡するようリマインダーを設定する
+  ko: 이틀 내에 답장이 없으면 배관공에게 다시 연락하도록 리마인더 설정하기
+  it: "Imposta un promemoria per ricontattare l'idraulico se non ricevo risposta entro due giorni"
+  tr: İki gün içinde yanıt alamazsam tesisatçıyı tekrar aramak için bir hatırlatıcı ayarla
+  vi: Đặt lời nhắc để theo dõi với thợ sửa ống nước nếu tôi không nhận được phản hồi sau hai ngày
+  id: Pasang pengingat untuk menindaklanjuti dengan tukang ledeng jika saya tidak mendapat kabar dalam dua hari
+  pl: Ustaw przypomnienie, aby skontaktować się z hydraulikiem, jeśli nie odpowie w ciągu dwóch dni
+  nl: Stel een herinnering in om contact op te nemen met de loodgieter als ik binnen twee dagen niets hoor
+  ar: ضبط تذكير لمتابعة السباك إذا لم أتلق رداً خلال يومين
+  hi: यदि दो दिनों में कोई जवाब नहीं मिलता है, तो प्लंबर से दोबारा संपर्क करने के लिए एक रिमाइंडर सेट करें
+  th: ตั้งการแจ้งเตือนเพื่อติดตามผลกับช่างประปา หากไม่ได้รับการติดต่อกลับภายในสองวัน
+  cs: Nastavit připomínku, abych se instalatérovi ozval znovu, pokud se do dvou dnů neozve
+  sv: Ställ in en påminnelse om att följa upp med rörmokaren om jag inte har hört något inom två dagar
+  he: הגדרת תזכורת להמשך טיפול מול האינסטלטור אם לא אקבל תשובה תוך יומיים
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Ask the plumber for a rough time estimate for the repair"
+  de: Den Klempner nach einer groben Zeitschätzung für die Reparatur fragen
+  zh: 询问水管工维修的大致时间估算
+  es: Pregunta al fontanero por una estimación aproximada de tiempo para la reparación
+  fr: Demande au plombier une estimation de la durée de la réparation
+  pt: Pergunta ao canalizador uma estimativa aproximada de tempo para a reparação
+  ru: Спросить у сантехника примерное время, необходимое на ремонт
+  ja: 水道屋さんに修理にかかる大まかな時間を尋ねる
+  ko: 배관공에게 수리에 걸리는 대략적인 시간 물어보기
+  it: "Chiedi all'idraulico una stima approssimativa dei tempi per la riparazione"
+  tr: Tesisatçıdan onarım için yaklaşık bir süre tahmini iste
+  vi: Hỏi thợ sửa ống nước về thời gian sửa chữa ước tính sơ bộ
+  id: Tanyakan kepada tukang ledeng perkiraan waktu perbaikan
+  pl: Zapytaj hydraulika o przybliżony czas trwania naprawy
+  nl: Vraag de loodgieter om een ruwe tijdsindicatie voor de reparatie
+  ar: سؤال السباك عن تقدير تقريبي للوقت المستغرق في الإصلاح
+  hi: प्लंबर से मरम्मत के लिए लगने वाले अनुमानित समय के बारे में पूछें
+  th: ถามช่างประปาเกี่ยวกับระยะเวลาโดยประมาณที่ใช้ในการซ่อม
+  cs: Zeptat se instalatéra na přibližný časový odhad opravy
+  sv: Fråga rörmokaren om en ungefärlig tidsuppskattning för reparationen
+  he: בקשת הערכת זמן כללית מהאינסטלטור לביצוע התיקון
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Check local plumber reviews before choosing one to call"
+  de: Bewertungen lokaler Klempner prüfen, bevor ich einen anrufe
+  zh: 在选择致电之前查看当地水管工的评价
+  es: Consulta las reseñas de fontaneros locales antes de elegir a quién llamar
+  fr: "Consulte les avis sur les plombiers locaux avant d'en choisir un"
+  pt: Verifica as avaliações de canalizadores locais antes de escolher um para contactar
+  ru: Посмотреть отзывы о местных сантехниках перед звонком
+  ja: 依頼する前に地元の水道屋さんの口コミを確認する
+  ko: 연락할 곳을 결정하기 전에 지역 배관공 리뷰 확인하기
+  it: Controlla le recensioni degli idraulici locali prima di sceglierne uno da chiamare
+  tr: Arayacağınız kişiyi seçmeden önce yerel tesisatçı yorumlarını kontrol edin
+  vi: Kiểm tra các đánh giá về thợ sửa ống nước tại địa phương trước khi chọn một người để gọi
+  id: Cek ulasan tukang ledeng lokal sebelum memilih siapa yang akan dihubungi
+  pl: Sprawdź opinie o lokalnych hydraulikach przed wybraniem jednego z nich
+  nl: Bekijk beoordelingen van lokale loodgieters voordat je er een kiest om te bellen
+  ar: التحقق من تقييمات السباكين المحليين قبل اختيار أحدهم للاتصال به
+  hi: किसी को कॉल करने से पहले स्थानीय प्लंबर की समीक्षाएं (reviews) देखें
+  th: ตรวจสอบรีวิวช่างประปาในพื้นที่ก่อนตัดสินใจเลือกโทรหาใครสักคน
+  cs: Podívat se na recenze místních instalatérů, než se rozhodnu, kterému zavolám
+  sv: Kolla recensioner av lokala rörmokare innan jag väljer vem jag ska ringa
+  he: בדיקת ביקורות על אינסטלטורים מקומיים לפני שבוחרים למי להתקשר
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Confirm if the dripping could cause water damage if ignored"
+  de: Klären, ob das Tropfen Wasserschäden verursachen kann, wenn es ignoriert wird
+  zh: 确认如果忽视漏水是否会导致水损害
+  es: Confirma si el goteo podría causar daños por agua si se ignora
+  fr: Confirme si la fuite peut causer des dégâts des eaux si elle est ignorée
+  pt: Confirma se o gotejamento pode causar danos por água se for ignorado
+  ru: Узнать, может ли капающий кран привести к повреждению водой, если его игнорировать
+  ja: 水漏れを放置すると浸水被害の原因になるか確認する
+  ko: 방치할 경우 물 샘 현상이 침수 피해를 일으킬 수 있는지 확인하기
+  it: "Conferma se lo sgocciolio potrebbe causare danni causati dall'acqua se ignorato"
+  tr: Damlama görmezden gelinirse su hasarına neden olup olmayacağını teyit et
+  vi: Xác nhận xem việc rò rỉ có thể gây hư hỏng do nước nếu bị bỏ qua hay không
+  id: Pastikan apakah tetesan air tersebut bisa menyebabkan kerusakan air jika diabaikan
+  pl: Upewnij się, czy przeciekanie może spowodować szkody wodne, jeśli zostanie zignorowane
+  nl: Bevestig of het druppelen waterschade kan veroorzaken als het wordt genegeerd
+  ar: التأكد مما إذا كان التنقيط قد يسبب ضرراً بالمياه إذا تم تجاهله
+  hi: पुष्टि करें कि क्या अनदेखा करने पर टपकते पानी से नुकसान हो सकता है
+  th: ตรวจสอบว่าการปล่อยให้น้ำหยดทิ้งไว้อาจทำให้เกิดความเสียหายจากน้ำได้หรือไม่
+  cs: Ověřit, zda by kapání mohlo způsobit škody vodou, pokud by se neřešilo
+  sv: Bekräfta om droppandet kan orsaka vattenskador om det ignoreras
+  he: בירור אם הטפטוף עלול לגרום לנזקי מים אם נתעלם ממנו
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Compare emergency plumbing service rates in my area"
+  de: Preise für Klempner-Notdienste in meiner Nähe vergleichen
+  zh: 比较我所在地区的紧急管道维修服务费率
+  es: Compara las tarifas de servicios de fontanería de urgencia en mi zona
+  fr: "Compare les tarifs des services de plomberie d'urgence dans ma région"
+  pt: Compara as tarifas de serviços de canalização de emergência na minha área
+  ru: Сравнить расценки на услуги аварийной сантехнической службы в моем районе
+  ja: 近隣エリアの緊急水道修理の料金を比較する
+  ko: 우리 동네 긴급 배관 수리 비용 비교하기
+  it: Confronta le tariffe dei servizi di pronto intervento idraulico nella mia zona
+  tr: Bölgemdeki acil tesisat servisi ücretlerini karşılaştır
+  vi: So sánh giá dịch vụ sửa ống nước khẩn cấp trong khu vực của tôi
+  id: Bandingkan tarif layanan tukang ledeng darurat di area saya
+  pl: Porównaj stawki pogotowia hydraulicznego w mojej okolicy
+  nl: Vergelijk tarieven voor spoedloodgieters in mijn regio
+  ar: مقارنة أسعار خدمات السباكة الطارئة في منطقتي
+  hi: मेरे क्षेत्र में आपातकालीन प्लंबिंग सेवा दरों की तुलना करें
+  th: เปรียบเทียบราคาค่าบริการช่างประปาฉุกเฉินในพื้นที่ของฉัน
+  cs: Porovnat sazby pohotovostních instalatérských služeb v mém okolí
+  sv: Jämför priser för jourhavande rörmokare i mitt område
+  he: השוואת תעריפים של שירותי אינסטלציה דחופים באזור שלי
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Write down the plumber’s response for future reference"
+  de: Die Antwort des Klempners für spätere Zwecke notieren
+  zh: 记下水管工的回复以备将来参考
+  es: Anota la respuesta del fontanero para futuras consultas
+  fr: Note la réponse du plombier pour référence future
+  pt: Anota a resposta do canalizador para referência futura
+  ru: Записать ответ сантехника для справки на будущее
+  ja: 今後の参考のために水道屋さんの回答をメモしておく
+  ko: 나중에 참고할 수 있도록 배관공의 답변 기록해 두기
+  it: "Annota la risposta dell'idraulico per riferimento futuro"
+  tr: Gelecekte başvurmak üzere tesisatçının yanıtını not et
+  vi: Ghi lại phản hồi của thợ sửa ống nước để tham khảo sau này
+  id: Catat jawaban tukang ledeng untuk referensi di masa mendatang
+  pl: Zapisz odpowiedź hydraulika na przyszłość
+  nl: Noteer de reactie van de loodgieter voor toekomstig gebruik
+  ar: تدوين رد السباك للرجوع إليه في المستقبل
+  hi: भविष्य के संदर्भ के लिए प्लंबर की प्रतिक्रिया लिख लें
+  th: จดบันทึกการตอบกลับของช่างประปาไว้เพื่อใช้อ้างอิงในอนาคต
+  cs: Zapsat si odpověď instalatéra pro budoucí potřebu
+  sv: Skriv ner rörmokarens svar för framtida referens
+  he: תיעוד תשובת האינסטלטור לצורך התייחסות עתידית
+  verified_by_human: []
+

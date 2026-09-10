@@ -207,6 +207,7 @@
             'example-ai-workshops-meetups-berlin',
         ],
         'openmates-privacy-safety': [
+            'example-private-plumber-email',
         ],
         'openmates-mates-focus': [
         ],
