@@ -9,7 +9,8 @@
   import { onDestroy } from 'svelte';
   import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { fetchAndDecryptImage } from '../images/imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
+  const imageOwner = createImageUrlOwner();
 
   interface ModelFile { s3_key: string; aes_nonce?: string; }
   interface Props {
@@ -41,12 +42,13 @@
     void loadPoster(poster);
   });
 
-  onDestroy(() => decryptedPosterUrl && URL.revokeObjectURL(decryptedPosterUrl));
+  onDestroy(imageOwner.destroy);
 
   async function loadPoster(poster: ModelFile) {
     try {
-      const image = await fetchAndDecryptImage(s3BaseUrl, poster.s3_key, aesKey, poster.aes_nonce ?? '');
-      decryptedPosterUrl = URL.createObjectURL(image);
+      await fetchAndDecryptImage(s3BaseUrl, poster.s3_key, aesKey, poster.aes_nonce ?? '');
+      decryptedPosterUrl = getCachedImageUrl(poster.s3_key) ?? '';
+      imageOwner.retain(poster.s3_key);
     } catch (caught) {
       posterError = caught instanceof Error ? caught.message : 'Failed to load model preview';
     }

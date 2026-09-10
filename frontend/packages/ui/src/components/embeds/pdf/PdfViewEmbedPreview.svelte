@@ -31,9 +31,9 @@
   import {
     fetchAndDecryptImage,
     getCachedImageUrl,
-    retainCachedImage,
-    releaseCachedImage,
+    createImageUrlOwner,
   } from '../images/imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
 
   interface Props {
     /** Unique embed ID for this skill-use embed */
@@ -217,8 +217,8 @@
 
     try {
       console.debug(`[PdfViewEmbedPreview] Loading page-1 screenshot (attempt ${loadRetryCount}):`, screenshotS3Key);
-      const blob = await fetchAndDecryptImage('', screenshotS3Key, aesKey, aesNonce);
-      imageUrl = URL.createObjectURL(blob);
+      await fetchAndDecryptImage('', screenshotS3Key, aesKey, aesNonce);
+      imageUrl = getCachedImageUrl(screenshotS3Key)!;
       if (retainedS3Key && retainedS3Key !== screenshotS3Key) releaseCachedImage(retainedS3Key);
       retainedS3Key = screenshotS3Key;
       retainCachedImage(screenshotS3Key);
@@ -253,6 +253,7 @@
   }
 
   onDestroy(() => {
+    releaseOwnedImages();
     if (retainedS3Key) {
       releaseCachedImage(retainedS3Key);
       retainedS3Key = undefined;

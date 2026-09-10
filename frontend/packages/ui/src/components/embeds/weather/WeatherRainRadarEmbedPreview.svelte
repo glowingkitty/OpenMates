@@ -10,7 +10,9 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { chatSyncService } from '../../../services/chatSyncService';
-  import { fetchAndDecryptImage } from '../images/imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
+  const imageOwner = createImageUrlOwner();
+  let retainedImageKey: string | null = null;
 
   interface RadarSummary {
     rain_expected?: boolean | null;
@@ -126,19 +128,21 @@
   });
 
   onDestroy(() => {
-    if (previewImageUrl) URL.revokeObjectURL(previewImageUrl);
+    loadedPreviewKey = '';
+    imageOwner.destroy();
   });
 
   async function loadPreviewImage(s3Key: string, key: string) {
     try {
-      const imageBlob = await fetchAndDecryptImage(localS3BaseUrl, s3Key, localAesKey, localAesNonce);
-      const nextUrl = URL.createObjectURL(imageBlob);
+      await fetchAndDecryptImage(localS3BaseUrl, s3Key, localAesKey, localAesNonce);
+      const nextUrl = getCachedImageUrl(s3Key);
       if (loadedPreviewKey !== key) {
-        URL.revokeObjectURL(nextUrl);
         return;
       }
-      if (previewImageUrl) URL.revokeObjectURL(previewImageUrl);
-      previewImageUrl = nextUrl;
+      if (retainedImageKey && retainedImageKey !== s3Key) imageOwner.release(retainedImageKey);
+      imageOwner.retain(s3Key);
+      retainedImageKey = s3Key;
+      previewImageUrl = nextUrl ?? '';
     } catch (err) {
       console.error('[WeatherRainRadarEmbedPreview] Failed to load preview image:', err);
     }
@@ -311,18 +315,18 @@
 
   .radar-copy strong {
     color: var(--color-grey-100);
-    font-size: 14px;
+    font-size: var(--font-size-small);
   }
 
   .radar-copy span,
   .loading-copy {
     color: var(--color-grey-70);
-    font-size: 12px;
+    font-size: 0.75rem;
     line-height: 1.35;
   }
 
   .error-indicator {
     color: var(--color-error);
-    font-size: 13px;
+    font-size: var(--font-size-xs);
   }
 </style>

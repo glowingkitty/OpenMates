@@ -10,7 +10,8 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from '../images/imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from '../images/imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
   import { activeChatStore } from '../../../stores/activeChatStore';
   import { authStore } from '../../../stores/authStore';
   import {
@@ -194,6 +195,7 @@
   });
 
   onDestroy(() => {
+    releaseOwnedImages();
     destroyed = true;
     if (retainedScreenshotKey) releaseCachedImage(retainedScreenshotKey);
   });
