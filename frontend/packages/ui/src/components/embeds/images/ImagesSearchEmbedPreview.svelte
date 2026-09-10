@@ -14,6 +14,8 @@
 -->
 
 <script lang="ts">
+  import SearchThumbnailStrip from '../SearchThumbnailStrip.svelte';
+  import { searchPreviewImages } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { handleImageError } from '../../../utils/offlineImageHandler';
@@ -97,17 +99,7 @@
   const skillIconName = 'search';
   let skillName = $derived($text('common.search'));
 
-  // Min image width at 30px strip height — images are landscape-ish (avg ~4:3 ratio).
-  // At 30px height a 4:3 image is ~40px wide. Container ~300px wide → ~7 fit.
-  // Cap count to avoid loading dozens of images that will never be visible.
-  const THUMB_MAX_COUNT = 10;
-
-  // Show thumbnails that have a URL — cap count to what fits in the strip
-  let previewThumbnails = $derived(
-    results
-      .filter(r => r.thumbnail_url || r.image_url)
-      .slice(0, THUMB_MAX_COUNT)
-  );
+  let previewThumbnails = $derived(searchPreviewImages(results));
 
   // Extract unique favicons from results (first 3 unique sources, like WebSearchEmbedPreview)
   let faviconResults = $derived(
@@ -218,17 +210,7 @@
         </div>
       {:else if status === 'finished' && previewThumbnails.length > 0}
         <!-- Image thumbnails at top (full-width, fills available space) -->
-        <div class="thumbnail-strip" data-testid="images-search-thumbnail-strip">
-          {#each previewThumbnails as result, i (i)}
-            <img
-              src={proxyUrl(result.image_url || result.thumbnail_url)}
-              alt={result.title || ''}
-              class="thumb-img"
-              data-testid="images-search-thumbnail"
-              use:handleImageError
-            />
-          {/each}
-        </div>
+        <SearchThumbnailStrip images={previewThumbnails} appId="images" />
         <!-- Bottom section: query text + favicons (below thumbnails) -->
         <div class="results-footer">
           <span class="search-query">{query}</span>
@@ -327,25 +309,6 @@
     font-style: italic;
   }
 
-  /* Horizontal thumbnail strip — fixed 30px height, images sized to fit */
-  .thumbnail-strip {
-    display: flex;
-    flex-direction: row;
-    gap: var(--spacing-1);
-    width: 100%;
-    height: 30px;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .thumb-img {
-    height: 30px;
-    width: auto;
-    flex-shrink: 0;
-    object-fit: cover;
-    display: block;
-  }
-
   /* Results footer: query text + favicon row (shown below thumbnails) */
   .results-footer {
     display: flex;
@@ -442,7 +405,7 @@
 
   .skeleton-line {
     height: 12px;
-    background: var(--color-grey-15, #f0f0f0);
+    background: var(--color-grey-10, #f0f0f0);
     border-radius: var(--radius-1);
     animation: pulse 1.5s ease-in-out infinite;
   }

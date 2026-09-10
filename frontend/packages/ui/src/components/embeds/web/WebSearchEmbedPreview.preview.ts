@@ -18,6 +18,7 @@ const defaultProps = {
       description:
         "Discover the best dining experiences in Berlin, from traditional German cuisine to international flavors. Updated for 2026.",
       favicon: "",
+      preview_image_url: "/images/examples/group1.jpg",
     },
     {
       title: "Berlin Food Scene: A Complete Guide",

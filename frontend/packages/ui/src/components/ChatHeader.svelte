@@ -45,7 +45,7 @@
     chatCreatedAt  - Unix timestamp in seconds of chat creation/publication
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import { browser } from '$app/environment';
   import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils';
   import { text } from '@repo/ui';
@@ -173,31 +173,69 @@
   }> | null>(null);
   let isImageBubbleFading = $state(false);
 
-  function getImageBubblePair(index: number) {
-    if (hasHeaderMedia || !Array.isArray(headerImageBubbles)) return [];
-    if (headerImageBubbles.length <= 2) return headerImageBubbles;
+  // Only decoded images participate in the carousel. Keep the current picture
+  // visible while others load, and discard completions from an obsolete chat.
+  let loadedImageBubbles = $state<NonNullable<typeof headerImageBubbles>>([]);
+  $effect(() => {
+    const candidates = hasHeaderMedia ? [] : (headerImageBubbles ?? []);
+    let cancelled = false;
+    const pendingImages = new Set<HTMLImageElement>();
+    const retained = untrack(() => loadedImageBubbles).filter(bubble =>
+      candidates.some(candidate => candidate.imageUrl === bubble.imageUrl &&
+        candidate.parentEmbedId === bubble.parentEmbedId));
+    loadedImageBubbles = retained;
+    const loadedUrls = new Set(retained.map(bubble => bubble.imageUrl));
+    for (const bubble of candidates) {
+      if (loadedUrls.has(bubble.imageUrl)) continue;
+      loadedUrls.add(bubble.imageUrl);
+      const image = new Image();
+      pendingImages.add(image);
+      image.decoding = 'async';
+      image.src = bubble.imageUrl;
+      image.decode().then(() => {
+        if (!cancelled) loadedImageBubbles = [...loadedImageBubbles, bubble];
+      }).catch(error => {
+        if (!cancelled) console.warn('[ChatHeader] Search image could not be decoded:', error);
+      }).finally(() => pendingImages.delete(image));
+    }
+    return () => {
+      cancelled = true;
+      for (const image of pendingImages) image.removeAttribute('src');
+      pendingImages.clear();
+    };
+  });
 
-    const leftIndex = index % headerImageBubbles.length;
-    const rightIndex = (leftIndex + Math.ceil(headerImageBubbles.length / 2)) % headerImageBubbles.length;
-    return [headerImageBubbles[leftIndex], headerImageBubbles[rightIndex]];
+  function getImageBubblePair(index: number) {
+    if (hasHeaderMedia || loadedImageBubbles.length === 0) return [];
+    if (loadedImageBubbles.length <= 2) return loadedImageBubbles;
+    const leftIndex = index % loadedImageBubbles.length;
+    const rightIndex = (leftIndex + Math.ceil(loadedImageBubbles.length / 2)) % loadedImageBubbles.length;
+    return [loadedImageBubbles[leftIndex], loadedImageBubbles[rightIndex]];
   }
 
   const imageBubbles = $derived.by(() => getImageBubblePair(imageBubbleCycleIndex));
-
-  function advanceImageBubbleCycle() {
-    const bubbleCount = !hasHeaderMedia && Array.isArray(headerImageBubbles) ? headerImageBubbles.length : 0;
-    if (bubbleCount <= 2) return;
-
-    previousImageBubbles = getImageBubblePair(imageBubbleCycleIndex);
-    isImageBubbleFading = true;
-    imageBubbleCycleIndex = (imageBubbleCycleIndex + 1) % bubbleCount;
-
+  let displayedImageBubbles: NonNullable<typeof headerImageBubbles> = [];
+  $effect(() => {
+    const next = imageBubbles;
+    if (next.every((bubble, index) => bubble.imageUrl === displayedImageBubbles[index]?.imageUrl)
+      && next.length === displayedImageBubbles.length) return;
+    // Keep the old layer opaque underneath the fade-in to avoid a brightness dip.
+    previousImageBubbles = displayedImageBubbles;
+    displayedImageBubbles = [...next];
+    isImageBubbleFading = next.length > 0;
     if (imageBubbleFadeTimeout !== null) clearTimeout(imageBubbleFadeTimeout);
     imageBubbleFadeTimeout = setTimeout(() => {
       isImageBubbleFading = false;
       previousImageBubbles = null;
       imageBubbleFadeTimeout = null;
     }, IMAGE_BUBBLE_FADE_MS);
+  });
+
+  function advanceImageBubbleCycle() {
+    const bubbleCount = loadedImageBubbles.length;
+    if (hasHeaderMedia || bubbleCount <= 2 || document.hidden ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    imageBubbleCycleIndex = (imageBubbleCycleIndex + 1) % bubbleCount;
   }
 
   function getPreviousImageBubble(index: number) {
@@ -1526,7 +1564,7 @@
 
   .image-bubble-img-previous {
     z-index: 0;
-    animation: imageBubbleFadeOut var(--image-bubble-fade-ms, 1000ms) ease-in-out both;
+    opacity: 1;
   }
 
   @keyframes imageBubbleFadeIn {
@@ -1534,9 +1572,8 @@
     to { opacity: 1; }
   }
 
-  @keyframes imageBubbleFadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .image-bubble-img-current { animation: none; }
   }
 
   .image-bubble:hover {

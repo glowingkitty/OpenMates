@@ -22,6 +22,8 @@
 -->
 
 <script lang="ts">
+  import SearchThumbnailStrip from '../SearchThumbnailStrip.svelte';
+  import { searchPreviewImages } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
@@ -282,6 +284,7 @@
   
   // Get flattened results (handles both nested and flat backend formats)
   let flatResults = $derived(flattenResults(results));
+  let previewThumbnails = $derived(searchPreviewImages(flatResults));
   
   // Get first 3 results with favicons for display (uses flattened results)
   // Checks favicon, favicon_url, and meta_url.favicon formats
@@ -368,6 +371,9 @@
 >
   {#snippet details({ isMobile: isMobileLayout })}
     <div class="news-search-details" class:mobile={isMobileLayout}>
+      {#if status === 'finished' && previewThumbnails.length > 0}
+        <SearchThumbnailStrip images={previewThumbnails} appId="news" />
+      {/if}
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
       

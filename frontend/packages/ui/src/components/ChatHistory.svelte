@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { searchResultImageUrl } from '../utils/searchPreviewImages';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
@@ -347,6 +348,7 @@
   let headerImageBubbles = $state<HeaderImageBubble[] | null>(null);
   let headerImageBubbleRequestId = 0;
   let headerImageBubbleCandidateKey = '';
+  let headerImageBubbleChatKey: string | null = null;
   let headerImageBubbleRetryTick = $state(0);
   let headerImageBubbleRetryTimer: ReturnType<typeof setTimeout> | null = null;
   let headerImageBubbleRetryBaseKey = '';
@@ -461,7 +463,7 @@
     parentEmbedId: string,
     childEmbedId: string,
   ): boolean {
-    const rawUrl = result.thumbnail_url || result.image_url;
+    const rawUrl = searchResultImageUrl(result);
     if (!rawUrl || seen.has(rawUrl)) return false;
 
     seen.add(rawUrl);
@@ -487,7 +489,7 @@
       const appId = attrs.app_id;
       const skillId = attrs.skill_id;
       const contentRef = attrs.contentRef;
-      if (appId === 'images' && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+      if ((appId === 'images' || appId === 'news' || appId === 'web') && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
         const parentEmbedId = contentRef.slice('embed:'.length);
         candidates.push({
           parentEmbedId,
@@ -525,6 +527,9 @@
           return bubbles;
         }
       }
+
+      // Parent metadata already carries the visible images; avoid duplicate child hydration.
+      if (parentPreviewResults.some(result => searchResultImageUrl(result))) continue;
 
       if (childEmbedIds.length === 0) {
         childEmbedIds = normalizeEmbedIds(decodedParent?.embed_ids ?? parentEmbed?.embed_ids);
@@ -1664,10 +1669,16 @@
   }
 
   $effect(() => {
-    const requestId = ++headerImageBubbleRequestId;
+    const chatKey = currentChatId;
+    if (headerImageBubbleChatKey !== chatKey) {
+      headerImageBubbleChatKey = chatKey;
+      headerImageBubbles = null;
+      headerImageBubbleRequestId += 1;
+    }
     const retryTick = headerImageBubbleRetryTick;
 
     if (!showChatHeader || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError) {
+      headerImageBubbleRequestId += 1;
       headerImageBubbleCandidateKey = '';
       headerImageBubbleRetryBaseKey = '';
       headerImageBubbleRetryCount = 0;
@@ -1683,6 +1694,7 @@
     }
 
     if (candidates.length === 0) {
+      headerImageBubbleRequestId += 1;
       headerImageBubbleCandidateKey = '';
       headerImageBubbleRetryBaseKey = '';
       headerImageBubbleRetryCount = 0;
@@ -1695,7 +1707,7 @@
     const embedUpdateKey = messages
       .map(message => message._embedUpdateTimestamp ?? '')
       .join('|');
-    const baseCandidateKey = `${candidates
+    const baseCandidateKey = `${chatKey}:${candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
       .join(';')}#${embedUpdateKey}`;
     if (baseCandidateKey !== headerImageBubbleRetryBaseKey) {
@@ -1707,6 +1719,7 @@
     const candidateKey = `${baseCandidateKey}#retry:${retryTick}`;
     if (candidateKey === headerImageBubbleCandidateKey) return;
     headerImageBubbleCandidateKey = candidateKey;
+    const requestId = ++headerImageBubbleRequestId;
 
     resolveHeaderImageBubbles(candidates)
       .then((bubbles) => {
