@@ -1884,6 +1884,21 @@ div.clickable-icon {
 }
 
 [data-header-overlay] .clickable-icon.top-button {
-  background-color: #fff !important;
-  color: #fff !important;
+  /* Filter the complete masked fill, including its gradient background-image. */
+  filter: brightness(0) invert(1);
+}
+
+/* Filters interpolate smoothly even when the original icon fill is a gradient. */
+.top-buttons .clickable-icon.top-button,
+.embed-top-bar .clickable-icon.top-button {
+  transition: filter var(--duration-normal) var(--easing-in-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .top-buttons .new-chat-button-wrapper,
+  .embed-top-bar .button-wrapper,
+  .top-buttons .clickable-icon.top-button,
+  .embed-top-bar .clickable-icon.top-button {
+    transition: none;
+  }
 }

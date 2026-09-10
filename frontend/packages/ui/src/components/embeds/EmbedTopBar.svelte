@@ -7,7 +7,7 @@
 
   Layout:
   - Left side: Chat, Share, Copy, Download, Report Issue, PII toggle buttons
-  - Right side: Minimize (close) button
+  - Right side: Close button
 
   All buttons use the same pill-wrapper + circular-icon design as the new-chat
   button in ActiveChat.svelte.
@@ -255,15 +255,15 @@
     {/if}
   </div>
 
-  <!-- Right: minimize / close -->
+  <!-- Right: close -->
   <div class="top-bar-right">
     <div class="button-wrapper">
       <button
-        class="clickable-icon icon_minimize top-button"
+        class="clickable-icon icon_close top-button"
         data-testid={closeTestId}
         onclick={onClose}
-        aria-label="Minimize"
-        title="Minimize"
+        aria-label={$text('common.close')}
+        title={$text('common.close')}
       ></button>
     </div>
   </div>
@@ -318,7 +318,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
+    transition: background-color var(--duration-normal) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
     cursor: pointer;
     pointer-events: auto;
   }

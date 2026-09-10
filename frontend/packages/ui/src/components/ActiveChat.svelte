@@ -7594,7 +7594,34 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     /**
      * Handler for when the create icon is clicked.
      */
+    // In-session chat navigation replaces the URL, so retain return targets locally.
+    // The close path must not record the chat being closed as a new return target.
+    const chatReturnTargets: Array<string | null> = [];
+    let closingChat = $state(false);
+
+    async function handleCloseChat() {
+        if (closingChat) return;
+        closingChat = true;
+        try {
+            const chatId = currentChat?.chat_id;
+            const target = currentChat?.parent_id || chatReturnTargets.at(-1);
+            // Discard the closed branch so repeated closes continue toward the start screen.
+            const targetIndex = target ? chatReturnTargets.lastIndexOf(target) : -1;
+            if (target && target !== chatId) {
+                await handleChatNavigate(target);
+                if (currentChat?.chat_id === target) {
+                    chatReturnTargets.splice(Math.max(0, targetIndex));
+                }
+            } else {
+                await handleNewChatClick();
+            }
+        } finally {
+            closingChat = false;
+        }
+    }
+
     async function handleNewChatClick() {
+        chatReturnTargets.length = 0;
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
         const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
@@ -8653,17 +8680,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     }
 
     /**
-     * Handler for minimizing the chat in side-by-side mode.
-     * When in ultra-wide mode with side-by-side layout, this hides the chat
-     * and shows only the embed fullscreen in overlay mode.
-     * The user can restore the chat by clicking the "chat" button in the fullscreen view.
-     */
-    function handleMinimizeChat() {
-        console.debug('[ActiveChat] Minimize chat clicked - switching to overlay mode');
-        forceOverlayMode = true;
-    }
-    
-    /**
      * Handler for showing the chat from fullscreen view.
      * Called when user clicks the "chat" button in the embed fullscreen view.
      * Restores the side-by-side layout by disabling overlay mode.
@@ -9400,6 +9416,9 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
 
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null }) {
+         if (!closingChat && currentChat?.chat_id !== chat.chat_id) {
+             chatReturnTargets.push(currentChat?.chat_id ?? null);
+         }
          // RACE CONDITION GUARD: Increment generation counter so concurrent/stale calls bail out.
          // Between setting currentChat (immediate) and setting currentMessages (after async DB reads),
          // chatUpdated events can see the new currentChat but operate on the old currentMessages.
@@ -13116,20 +13135,19 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                                     </button>
                                 </div>
                             {/if}
-                            <!-- Minimize chat button - only shows in side-by-side mode -->
-                            <!-- When clicked, hides the chat and shows only the embed fullscreen (overlay mode) -->
-                            {#if showSideBySideFullscreen}
+                            {#if !showWelcome}
                                 <div class="new-chat-button-wrapper">
                                     <button
-                                        class="clickable-icon icon_minimize top-button"
-                                        aria-label={$text('chat.minimize')}
-                                        onclick={handleMinimizeChat}
+                                        class="clickable-icon icon_close top-button"
+                                        data-testid="chat-close-button"
+                                        aria-label={$text('common.close')}
+                                        disabled={closingChat}
+                                        onclick={handleCloseChat}
                                         use:tooltip
-                                    >
-                                    </button>
+                                    ></button>
                                 </div>
                             {/if}
-                            
+
                             <!-- Activate buttons once features are implemented -->
                             <!-- Video call button -->
                             <!-- <button 
@@ -16533,7 +16551,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
+        transition: background-color var(--duration-normal) var(--easing-in-out), transform var(--duration-fast) var(--easing-in-out), box-shadow var(--duration-fast) var(--easing-in-out);
         cursor: pointer;
         pointer-events: auto;
     }
