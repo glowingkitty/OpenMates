@@ -2447,3 +2447,28 @@ yesterday:
   sv: Igår
   he: אתמול
   verified_by_human: []
+
+more_actions:
+  context: Accessible label for the chat and fullscreen embed More actions button
+  en: More
+  de: Mehr
+  zh: 更多
+  es: Más
+  fr: Plus
+  pt: Mais
+  ru: Ещё
+  ja: その他
+  ko: 더보기
+  it: Altro
+  tr: Daha fazla
+  vi: Thêm
+  id: Lainnya
+  pl: Więcej
+  nl: Meer
+  ar: المزيد
+  hi: अधिक
+  th: เพิ่มเติม
+  cs: Více
+  sv: Mer
+  he: עוד
+  verified_by_human: []

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import HeaderActionMenu from './HeaderActionMenu.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
     import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
@@ -13028,63 +13029,160 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
                         inert={showWelcome && hideWelcomeForKeyboard}
                     >
-                        <!-- Left side buttons -->
-                        <div class="left-buttons">
-                            {#if hasActiveShareableChatSurface}
-                                <!-- Share button - opens settings menu with share submenu. -->
-                                <!-- Public example chats use the static public-link share panel. -->
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_share top-button"
-                                        data-testid="chat-share-button"
-                                        aria-label={$text('chat.share')}
-                                        onclick={handleShareChat}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            <div class="new-chat-button-wrapper" data-testid="report-issue-button-shell">
-                                <button
-                                    data-testid="report-issue-button"
-                                    class="clickable-icon icon_bug top-button"
-                                    aria-label={$text('header.report_issue')}
-                                    onclick={handleReportIssue}
-                                    use:tooltip
-                                >
-                                </button>
-                            </div>
-                            {#if isAdminUser}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        data-testid="start-debugging-button"
-                                        class="clickable-icon icon_task top-button"
-                                        class:debug-mode-active={$chatDebugStore.rawTextMode}
-                                        aria-label={$chatDebugStore.rawTextMode ? $text('chats.context_menu.end_debugging') : $text('chats.context_menu.start_debugging')}
-                                        onclick={handleToggleDebugMode}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
-                            {#if chatHasPII && !showWelcome}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        data-testid="chat-pii-toggle"
-                                        data-pii-revealed={piiRevealed ? 'true' : 'false'}
-                                        class="clickable-icon {piiRevealed ? 'icon_visible' : 'icon_hidden'} top-button"
-                                        class:pii-toggle-active={piiRevealed}
-                                        aria-label={piiRevealed
-                                            ? $text('chat.pii_hide')
-                                            : $text('chat.pii_show')}
-                                        onclick={handleTogglePIIVisibility}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                        </div>
+                        <HeaderActionMenu resetKey={currentChat?.chat_id}>
+                  {#snippet report()}
+                    <div
+                      class="new-chat-button-wrapper"
+                      data-testid="report-issue-button-shell"
+                    >
+                      <button
+                        data-testid="report-issue-button"
+                        class="header-action"
+                        aria-label={$text('header.report_issue')}
+                        onclick={handleReportIssue}
+                        use:tooltip
+                        ><span
+                          class="clickable-icon icon_bug top-button"
+                          aria-hidden="true"
+                        ></span><span class="action-label"
+                          >{$text('header.report_issue')}</span
+                        ></button
+                      >
+                    </div>
+                  {/snippet}
+                  {#snippet share()}
+                    {#if hasActiveShareableChatSurface}
+                      <!-- Share button - opens settings menu with share submenu. -->
+                      <!-- Public example chats use the static public-link share panel. -->
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-share-button"
+                          aria-label={$text('chat.share')}
+                          onclick={handleShareChat}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_share top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$text('chat.share')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                  {#snippet actions()}
+                    {#if hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-details-button"
+                          aria-label="Chat details"
+                          onclick={() =>
+                            openChatDetailsSettings(
+                              currentChat?.chat_id &&
+                                isExampleChat(currentChat.chat_id)
+                                ? 'share'
+                                : 'tasks',
+                            )}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_settings top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label">Chat details</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                    {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-reminders-button"
+                          aria-label={$text('chat.reminders')}
+                          onclick={handleOpenReminders}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_reminder top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$text('chat.reminders')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                    {#if isAdminUser}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          data-testid="start-debugging-button"
+                          class="header-action"
+                          class:debug-mode-active={$chatDebugStore.rawTextMode}
+                          aria-label={$chatDebugStore.rawTextMode
+                            ? $text('chats.context_menu.end_debugging')
+                            : $text('chats.context_menu.start_debugging')}
+                          onclick={handleToggleDebugMode}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_task top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$chatDebugStore.rawTextMode
+                              ? $text('chats.context_menu.end_debugging')
+                              : $text(
+                                  'chats.context_menu.start_debugging',
+                                )}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                    <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
+                    {#if chatHasPII && !showWelcome}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          data-testid="chat-pii-toggle"
+                          data-pii-revealed={piiRevealed ? 'true' : 'false'}
+                          class="header-action"
+                          class:pii-toggle-active={piiRevealed}
+                          aria-label={piiRevealed
+                            ? $text('chat.pii_hide')
+                            : $text('chat.pii_show')}
+                          onclick={handleTogglePIIVisibility}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon {piiRevealed
+                              ? 'icon_visible'
+                              : 'icon_hidden'} top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{piiRevealed
+                              ? $text('chat.pii_hide')
+                              : $text('chat.pii_show')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                  {#snippet close()}
+                    {#if !showWelcome}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          class="header-action"
+                          data-testid="chat-close-button"
+                          aria-label={$text('common.close')}
+                          disabled={closingChat}
+                          onclick={handleCloseChat}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon icon_close top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{$text('common.close')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                </HeaderActionMenu>
 
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
@@ -13109,59 +13207,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             </div>
                         {/if}
 
-                        <!-- Right side buttons -->
-                        <div class="right-buttons">
-                            {#if hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_settings top-button"
-                                        data-testid="chat-details-button"
-                                        aria-label="Chat details"
-                                        onclick={() => openChatDetailsSettings(currentChat?.chat_id && isExampleChat(currentChat.chat_id) ? 'share' : 'tasks')}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            {#if hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_reminder top-button"
-                                        data-testid="chat-reminders-button"
-                                        aria-label={$text('chat.reminders')}
-                                        onclick={handleOpenReminders}
-                                        use:tooltip
-                                    >
-                                    </button>
-                                </div>
-                            {/if}
-                            {#if !showWelcome}
-                                <div class="new-chat-button-wrapper">
-                                    <button
-                                        class="clickable-icon icon_close top-button"
-                                        data-testid="chat-close-button"
-                                        aria-label={$text('common.close')}
-                                        disabled={closingChat}
-                                        onclick={handleCloseChat}
-                                        use:tooltip
-                                    ></button>
-                                </div>
-                            {/if}
 
-                            <!-- Activate buttons once features are implemented -->
-                            <!-- Video call button -->
-                            <!-- <button 
-                                class="clickable-icon icon_video_call top-button" 
-                                aria-label={$text('chat.start_video_call')}
-                                use:tooltip
-                            ></button> -->
-                            <!-- Audio call button -->
-                            <!-- <button 
-                                class="clickable-icon icon_call top-button" 
-                                aria-label={$text('chat.start_audio_call')}
-                                use:tooltip
-                            ></button> -->
-                        </div>
                     </div>
 
                     <AssistantSpeechPlayer onHeightChange={(height) => assistantSpeechOverlayHeight = height} />
@@ -16389,14 +16435,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
         z-index: var(--z-index-raised-2);
     }
 
-    .top-buttons.guest-all-examples-top-buttons .left-buttons {
-        justify-content: flex-start;
-    }
-
-    .top-buttons.guest-all-examples-top-buttons .right-buttons {
-        justify-content: flex-end;
-    }
-
     .top-buttons.guest-all-examples-top-buttons .guest-all-examples-toolbar,
     .top-buttons.guest-all-examples-top-buttons .guest-all-examples-action {
         pointer-events: auto;
@@ -16519,17 +16557,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content.welcome-hiding *,
     .top-buttons.welcome-hiding * {
         pointer-events: none !important;
-    }
-
-    /* Add styles for left and right button containers */
-    .left-buttons {
-        display: flex;
-        gap: var(--spacing-5); /* Space between buttons */
-    }
-
-    .right-buttons {
-        display: flex;
-        gap: 25px; /* Space between buttons */
     }
 
     /* PII toggle button: subtle orange tint when PII is revealed (warns sensitive data exposed) */

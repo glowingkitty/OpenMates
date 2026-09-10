@@ -1484,41 +1484,12 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
-    transition: scrollbar-color var(--duration-normal) var(--easing-default);
+    /* Scrollbar styling is shared with chat history in styles/theme.css. */
     /* Allow users to select and copy text in fullscreen embed content */
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
-  }
-
-  .content-area:hover {
-    scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
-  }
-
-  .content-area::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .content-area::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .content-area::-webkit-scrollbar-thumb {
-    background-color: rgba(128, 128, 128, 0.2);
-    border-radius: var(--radius-1);
-    border: 2px solid transparent;
-    transition: background-color var(--duration-normal) var(--easing-default);
-  }
-
-  .content-area:hover::-webkit-scrollbar-thumb {
-    background-color: rgba(128, 128, 128, 0.5);
-  }
-
-  .content-area::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(128, 128, 128, 0.7);
   }
 
   /* ===========================================
