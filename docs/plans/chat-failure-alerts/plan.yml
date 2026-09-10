@@ -1,0 +1,178 @@
+schema_version: 2
+goal: Notify the admin when backend chat processing fails on official dev and production,
+  capped at five emails per server per UTC day and disabled on self-hosting.
+specifications:
+- architecture.operational-monitoring@3
+decisions:
+- id: D-1
+  status: active
+  decision: User approved the exact notification PDF on 2026-09-10 and requested implementation
+    and dev deploy.
+  reason: User-approved scope and existing architecture
+  decided_at: '2026-09-10'
+- id: D-2
+  status: active
+  decision: User explicitly waived E2E testing; run focused unit and lint checks only.
+  reason: User-approved scope and existing architecture
+  decided_at: '2026-09-10'
+- id: D-3
+  status: active
+  decision: No new endpoint, client behavior, billing, or encrypted-data access. Email
+    contains allowlisted operational metadata only.
+  reason: User-approved scope and existing architecture
+  decided_at: '2026-09-10'
+- id: D-4
+  status: active
+  decision: Existing chat reliability investigation remains distinct from alert verification;
+    do not infer live reliability from units.
+  reason: User-approved scope and existing architecture
+  decided_at: '2026-09-10'
+scenarios:
+- id: S-1
+  title: A terminal technical failure queues an email even when its result envelope
+    says completed; expected policy/credit/cancellation outcomes do not.
+  given:
+  - The approved managed-server notification policy is active.
+  when:
+  - A terminal failure is handled.
+  then:
+  - The scenario title describes the required outcome.
+- id: S-2
+  title: Concurrent workers share five reservations per UTC day; duplicate jobs and
+    restarts cannot send extra emails.
+  given:
+  - The approved managed-server notification policy is active.
+  when:
+  - A terminal failure is handled.
+  then:
+  - The scenario title describes the required outcome.
+- id: S-3
+  title: Self-hosting sends no alerts; notification infrastructure failure leaves
+    the original response intact and logs a safe delivery state.
+  given:
+  - The approved managed-server notification policy is active.
+  when:
+  - A terminal failure is handled.
+  then:
+  - The scenario title describes the required outcome.
+acceptance_criteria:
+- id: AC-1
+  text: Focused tests cover trigger classification, cap, duplicates, environment isolation,
+    privacy and failed delivery.
+  scenario: S-1
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-ALERTS
+- id: AC-2
+  text: Scoped source is linted and deployed to dev; E2E and actual email delivery
+    remain explicitly unverified under the waiver.
+  scenario: S-2
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-ALERTS
+implementation:
+- Add a shared notification dispatcher and atomic email-worker allowance using existing
+  Redis and mail services.
+- Connect worker terminal outcomes and WebSocket dispatch/handler failures.
+- Run focused checks, document limitations, and deploy through session 7742.
+id: chat-failure-alerts
+title: Capped chat failure emails
+status: implementing
+scope:
+  in:
+  - Internal managed-server failure emails and focused validation
+  out:
+  - E2E tests by user waiver
+  - Production rollout
+  - Client UI changes
+tests:
+- id: T-ALERTS
+  type: pytest
+  file: backend/tests/test_chat_failure_notifications.py
+  command: python -m pytest backend/tests/test_chat_failure_notifications.py -q
+  assertions:
+  - Atomic cap, deduplication, exclusion and privacy hold.
+  covers:
+  - AC-1
+  - AC-2
+  red_phase:
+    required: false
+    expected: not_required
+    evidence:
+      reason: New approved feature; existing failure investigation red recorded separately.
+  green_phase:
+    required: true
+    expected: passed
+    evidence:
+      result: 70 focused notification and adjacent AI checks passed
+      status: passed
+      run_id: local-pytest-70-20260910
+      command: PYTHONPATH=/tmp/chat-alert-testdeps:$PWD /home/superdev/projects/OpenMates/.venv/bin/python
+        -m pytest backend/tests/test_chat_failure_notifications.py backend/tests/test_llm_utils_preprocessing_retries.py
+        backend/tests/test_openai_responses.py backend/tests/test_stream_consumer_recovery.py
+        -q
+      timestamp: '2026-09-10T15:43:00Z'
+      subject_commit: 36750c21afc3a6076dba32df1948fabba14dafe7
+tasks:
+- id: TASK-1
+  title: Implement and deploy approved alerts
+  status: in_progress
+  phase: working_tasks
+  expected_files:
+  - backend/shared/python_utils/chat_failure_notifications.py
+  verification_ids:
+  - T-ALERTS
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - backend/shared/python_utils/chat_failure_notifications.py
+    shared_files: []
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+implementation_state:
+  subject_commit: 36750c21afc3a6076dba32df1948fabba14dafe7
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-09-10'
+    fingerprint: 5809705a199bfc279eb33393031b83ced565689134dd983fce569a6fb60e9e5c
+  plan:
+    status: approved
+    approved_at: '2026-09-10'
+    reason: User explicitly instructed implement and deploy the approved scope.
+attempts:
+- id: A-1
+  task_id: TASK-1
+  outcome: planned
+  approach: Focused tests and scoped deploy; E2E waived
+  recorded_at: '2026-09-10'
+handoff:
+  current_task_id: TASK-1
+  next_action: Run lint and deploy
+  command: python3 scripts/sessions.py prepare-deploy --session 7742
+  expected_outcome: Scoped reviewed deploy
+  last_verified_commit: 36750c21afc3a6076dba32df1948fabba14dafe7
+  blocker: null
+demonstration:
+  eligibility:
+    status: not_applicable
+    surface: non_visual
+    reason: Internal notification plumbing; user explicitly waived E2E tests. No browser
+      or CLI product surface changed.
+    verification_ids:
+    - T-ALERTS
+    classified_at: '2026-09-10'

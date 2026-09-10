@@ -1,5 +1,5 @@
 schema_version: 1
-specification: architecture.operational-monitoring@2
+specification: architecture.operational-monitoring@3
 
 daily_snapshots:
   - id: compact-dev-last-24-hours
@@ -165,3 +165,39 @@ canonical_operations_channel:
     expect:
       false_delivery_success: false
       configuration_incident: missing_production_operations_destination
+
+chat_failure_triggers:
+  - id: terminal-error-even-with-discord-and-completed-status
+    assertion_ids: [operational-monitoring.chat-failures.email-trigger]
+    given: An official production chat exhausts preprocessing fallbacks, while Discord is healthy and OpenObserve is unavailable.
+    when: The backend returns the generic processing-error response, even if its task envelope says completed.
+    then: An admin email is queued promptly; Discord acceptance and unavailable traces cannot suppress it.
+  - id: self-host-and-nonfailures-excluded
+    assertion_ids: [operational-monitoring.chat-failures.email-trigger]
+    given: A self-hosted server has an admin email configured; an official dev server also handles successful fallbacks, user cancellations, insufficient-credit rejections, and policy rejections.
+    when: The self-hosted chat fails technically and the dev requests end in those expected states.
+    then: None queues a chat-failure email; a terminal technical failure on official dev does queue one.
+
+chat_failure_limits:
+  - id: concurrent-workers-share-cap
+    assertion_ids: [operational-monitoring.chat-failures.daily-cap]
+    given: Official dev has sent four chat-failure emails today and several workers detect three distinct failures concurrently, with duplicate handling of one request.
+    when: Workers reserve notification delivery and one worker restarts before the day ends.
+    then: At most one further email is sent, it explains the daily cap, duplicates do not send again, and the remaining distinct failures are counted as suppressed.
+  - id: environments-and-next-day
+    assertion_ids: [operational-monitoring.chat-failures.daily-cap]
+    given: Dev has exhausted its five-email allowance and production has sent none today.
+    when: Production detects a terminal chat failure, and dev detects a new failure after midnight UTC.
+    then: Both failures are eligible under their separate daily allowances; no backlog flood is sent at midnight.
+
+chat_failure_delivery:
+  - id: useful-content-free-email
+    assertion_ids: [operational-monitoring.chat-failures.safe-delivery]
+    given: A provider exception includes a private prompt, a user identifier, and raw provider details.
+    when: An official production failure email is rendered.
+    then: It identifies production, the allowlisted failure stage and category, the deployed revision when available, and daily counts; none of the private content or identifiers appears.
+  - id: delivery-outage-does-not-hide-chat-error
+    assertion_ids: [operational-monitoring.chat-failures.safe-delivery]
+    given: A terminal chat failure occurs while the admin address is missing, the queue or limiter is unavailable, or email transport rejects or ambiguously accepts the notification.
+    when: Notification delivery is attempted.
+    then: The original chat error still reaches the user promptly, the specific delivery state remains visible without claiming success, and no recursive notification is generated.

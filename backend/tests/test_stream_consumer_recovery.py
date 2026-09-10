@@ -519,7 +519,8 @@ def test_standardized_server_error_fallback_can_be_sealed_for_recovery(monkeypat
     assert result == {"job_id": "77777777-7777-4777-8777-777777777777"}
 
 
-def test_sub_chat_parent_continuation_does_not_inherit_recovery_identity(monkeypatch) -> None:
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.message.identity-idempotent
+def test_sub_chat_parent_continuation_preserves_inference_without_reusing_execution_identity(monkeypatch) -> None:
     original_request = AskSkillRequest(
         chat_id="22222222-2222-4222-8222-222222222222",
         message_id="33333333-3333-4333-8333-333333333333",
@@ -562,7 +563,12 @@ def test_sub_chat_parent_continuation_does_not_inherit_recovery_identity(monkeyp
     request_payload = captured["kwargs"]["request_data_dict"]
     assert captured["task_id"] is None
     assert request_payload["recovery_task_id"] is None
-    assert request_payload["recovery_inference_task_id"] is None
+    # Continuation is a new execution, but must seal its answer under the
+    # original inference so an offline owner can recover the completed turn.
+    assert request_payload["recovery_inference_task_id"] == original_request.recovery_inference_task_id
+    continuation_request = AskSkillRequest(**request_payload)
+    assert continuation_request.resolved_recovery_inference_task_id() == original_request.recovery_inference_task_id
+    assert continuation_request.is_sub_chat_continuation is True
     assert request_payload["continuation_message_id"] is None
     assert request_payload["recovery_preflight_id"] == original_request.recovery_preflight_id
     assert request_payload["recovery_turn_id"] == original_request.recovery_turn_id

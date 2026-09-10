@@ -46,10 +46,10 @@ specifications:
     - gui.web
     - gui.apple
   architecture.operational-monitoring:
-    version: 2
-    status: approved
+    version: 3
+    status: draft
     path: architecture/operational-monitoring
-    fingerprint: c8df8be00366ef12f96d24f00757d8c840a65397ca918297b3b62dd2023cad0f
+    fingerprint: 5809705a199bfc279eb33393031b83ced565689134dd983fce569a6fb60e9e5c
     required_applies_to:
     - cli
   architecture.security-reporting:
@@ -966,85 +966,106 @@ assertions:
     required_applies_to:
     - gui.web
     - gui.apple
+  operational-monitoring.chat-failures.email-trigger:
+    specification: architecture.operational-monitoring@3
+    specification_id: architecture.operational-monitoring
+    type: behavior
+    fingerprint: cc2482f3a1d545d3fc9014c160e80565b8121c737d73ad38e0a261396854e1e5
+    required_applies_to:
+    - cli
+  operational-monitoring.chat-failures.daily-cap:
+    specification: architecture.operational-monitoring@3
+    specification_id: architecture.operational-monitoring
+    type: invariant
+    fingerprint: ccdf5cdf8d10e2727f6fdad03138f177e0ab22dd90533f8686031016f81d7317
+    required_applies_to:
+    - cli
+  operational-monitoring.chat-failures.safe-delivery:
+    specification: architecture.operational-monitoring@3
+    specification_id: architecture.operational-monitoring
+    type: privacy
+    fingerprint: e5d9fc2f68a00758f5f8cb0a5dfd980858b37532d2a3e4dcf44354dbc3919be7
+    required_applies_to:
+    - cli
   operational-monitoring.digest.real-24h-snapshot:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
     fingerprint: 5112f444dc80588fb67bfe64e78582c115956bb40b0cf2be3c167d9b1070cf6b
     required_applies_to:
     - cli
   operational-monitoring.self-host.auto-email:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
     fingerprint: 0e536e43869475c62e9eb8e145bb1381f92fab124b29bdefe47195c1f1d7d125
     required_applies_to:
     - cli
   operational-monitoring.self-host.no-billing:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: security
     fingerprint: ca3170a7488d97c15994ac18ce2d0d761f97a71359f9f00c4d0c03ebe0d17493
     required_applies_to:
     - cli
   operational-monitoring.delivery.real-data-test:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
     fingerprint: 11b20c30899d4e750be07125a5e19845781738b4aafe17dd54b141e897f730fb
     required_applies_to:
     - cli
   operational-monitoring.alerts.independent-urgent-path:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: failure
     fingerprint: 5f63d9ec2b8c396982859b5f47574974f410967f899928b7aa3933a600a0506a
     required_applies_to:
     - cli
   operational-monitoring.alerts.actionable-low-noise:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
     fingerprint: 7281c0bb387e2bb15dea10f125bf2dc028820ed161888fd9342dc8183280fb2e
     required_applies_to:
     - cli
   operational-monitoring.delivery.observable:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: invariant
     fingerprint: 1cab584102bde76bddfdea48523b3324723eb8ba8e5579fdbe8947a09e9db453
     required_applies_to:
     - cli
   operational-monitoring.content.privacy-boundary:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: privacy
     fingerprint: 9546c9d8feedbae88af3c2395eaec6568fc7d577dfa0568aeb78857aed1a1bdf
     required_applies_to:
     - cli
   operational-monitoring.environments.isolated-labeled:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: security
     fingerprint: 1c4dcf4be52e10d5f3d417d77e700e49c3332224553c2c4b83a1ca283ac71028
     required_applies_to:
     - cli
   operational-monitoring.providers.current-availability:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
     fingerprint: c315b988cf376ea22b18dd4237e306883217d54e11442a97aabd2cf090c76a66
     required_applies_to:
     - cli
   operational-monitoring.billing.no-spend-readiness:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: invariant
     fingerprint: 66b2593ca5d9c61032e0482ffdff3b8824e7f997b853ac4df0a08f492b875f82
     required_applies_to:
     - cli
   operational-monitoring.notifications.canonical-operations-channel:
-    specification: architecture.operational-monitoring@2
+    specification: architecture.operational-monitoring@3
     specification_id: architecture.operational-monitoring
     type: behavior
     fingerprint: e2a962383ea321b9394c87c6b2365835bce5e49949c3143fa0da6f5d4942e6cf

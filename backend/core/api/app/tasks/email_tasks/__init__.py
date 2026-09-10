@@ -49,7 +49,10 @@ from . import bank_transfer_duplicate_reference_email_task
 # this __init__.py will execute and import all the task modules, which causes
 # the @app.task decorators to run and register the tasks with Celery.
 
+from . import chat_failure_email_task  # Managed-server terminal chat failure alerts
+
 __all__ = [
+    "chat_failure_email_task",
     'verification_email_task',
     'existing_account_email_task',
     'new_device_email_task',

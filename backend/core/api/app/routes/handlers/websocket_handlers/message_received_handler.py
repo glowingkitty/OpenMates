@@ -5,6 +5,8 @@
 # that bypass prompt injection detection but are processed by LLMs.
 # See: docs/architecture/prompt_injection_protection.md
 
+from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
+
 import logging
 import json
 import hashlib # Import hashlib for hashing user_id
@@ -2284,6 +2286,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 )
             except Exception as e_send_err:
                 logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
+            await notify_chat_failure(f"{chat_id}:{message_id}", stage="dispatch")
         finally:
             if legacy_admitted and not ai_task_id:
                 try:
@@ -2329,6 +2332,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
         except Exception as e_send:
             logger.error(f"Failed to send error to {user_id}/{device_fingerprint_hash} after main error: {e_send}")
+        failure_identity = f"{payload.get('chat_id')}:{payload.get('message_id')}" if isinstance(payload, dict) and payload.get("message_id") else ""
+        await notify_chat_failure(failure_identity, stage="dispatch", category="unexpected_error")
     finally:
         # End the OTel span and detach context via ws_span_helper
         if _otel_span is not None:
