@@ -78,6 +78,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await verify('assistant-speech.playback.two-second-idle-grace', async () => {
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
+			await expect.poll(() => player.getByTestId('assistant-speech-loading').evaluate((element) => getComputedStyle(element).animationName)).not.toBe('none');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-2');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-1,segment-2,segment-3');
