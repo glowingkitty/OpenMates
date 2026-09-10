@@ -12976,7 +12976,8 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <HeaderActionMenu
                             resetKey={currentChat?.chat_id}
                             hasShare={hasActiveShareableChatSurface}
-                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser, showChatPIIAction].filter(Boolean).length}
+                            hasPriorityAction={showChatPIIAction}
+                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
                         >
                   {#snippet report()}
                     <div
@@ -13014,6 +13015,33 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                             aria-hidden="true"
                           ></span><span class="action-label"
                             >{$text('chat.share')}</span
+                          ></button
+                        >
+                      </div>
+                    {/if}
+                  {/snippet}
+                  {#snippet priorityAction()}
+                    <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
+                    {#if showChatPIIAction}
+                      <div class="new-chat-button-wrapper">
+                        <button
+                          data-testid="chat-pii-toggle"
+                          data-pii-revealed={piiRevealed ? 'true' : 'false'}
+                          class="header-action"
+                          aria-label={piiRevealed
+                            ? $text('chat.pii_hide')
+                            : $text('chat.pii_show')}
+                          onclick={handleTogglePIIVisibility}
+                          use:tooltip
+                          ><span
+                            class="clickable-icon {piiRevealed
+                              ? 'icon_visible'
+                              : 'icon_hidden'} top-button"
+                            aria-hidden="true"
+                          ></span><span class="action-label"
+                            >{piiRevealed
+                              ? $text('chat.pii_hide')
+                              : $text('chat.pii_show')}</span
                           ></button
                         >
                       </div>
@@ -13079,32 +13107,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                               : $text(
                                   'chats.context_menu.start_debugging',
                                 )}</span
-                          ></button
-                        >
-                      </div>
-                    {/if}
-                    <!-- PII hide/unhide toggle - only shows when chat has sensitive data -->
-                    {#if showChatPIIAction}
-                      <div class="new-chat-button-wrapper">
-                        <button
-                          data-testid="chat-pii-toggle"
-                          data-pii-revealed={piiRevealed ? 'true' : 'false'}
-                          class="header-action"
-                          class:pii-toggle-active={piiRevealed}
-                          aria-label={piiRevealed
-                            ? $text('chat.pii_hide')
-                            : $text('chat.pii_show')}
-                          onclick={handleTogglePIIVisibility}
-                          use:tooltip
-                          ><span
-                            class="clickable-icon {piiRevealed
-                              ? 'icon_visible'
-                              : 'icon_hidden'} top-button"
-                            aria-hidden="true"
-                          ></span><span class="action-label"
-                            >{piiRevealed
-                              ? $text('chat.pii_hide')
-                              : $text('chat.pii_show')}</span
                           ></button
                         >
                       </div>
@@ -16465,11 +16467,6 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .center-content.welcome-hiding *,
     .top-buttons.welcome-hiding * {
         pointer-events: none !important;
-    }
-
-    /* PII toggle button: subtle orange tint when PII is revealed (warns sensitive data exposed) */
-    .pii-toggle-active {
-        background-color: rgba(245, 158, 11, 0.3) !important;
     }
 
     /* Admin debug mode button: highlighted while debug mode is active. */

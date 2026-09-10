@@ -16,3 +16,8 @@ export default {
   showDownload: true,
   onDownload: noop,
 };
+
+export const variants = {
+  sensitiveHidden: { showPIIToggle: true, onTogglePII: noop, piiRevealed: false },
+  sensitiveRevealed: { showPIIToggle: true, onTogglePII: noop, piiRevealed: true },
+};

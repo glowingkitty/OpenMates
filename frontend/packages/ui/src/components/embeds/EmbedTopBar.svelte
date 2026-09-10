@@ -106,13 +106,12 @@
     (showRun && onRun),
     (showPreview && onTogglePreview),
     (showDebug && onToggleDebug),
-    (showPIIToggle && onTogglePII),
     (showPIIIncludeOriginal && onIncludeOriginalPII)
   ].filter(Boolean).length);
 </script>
 
 <div class="embed-top-bar" use:headerOverlayControls>
-  <HeaderActionMenu hasShare={showShare} actionCount={secondaryActionCount}>
+  <HeaderActionMenu hasShare={showShare} hasPriorityAction={Boolean(showPIIToggle && onTogglePII)} actionCount={secondaryActionCount}>
     {#snippet report()}
       <!-- Report Issue (always shown) -->
       <div class="button-wrapper">
@@ -147,6 +146,34 @@
           >
         </div>
       {/if}
+    {/snippet}
+    {#snippet priorityAction()}
+      <!-- PII toggle -->
+      {#if showPIIToggle && onTogglePII}
+        <div class="button-wrapper">
+          <button
+            data-testid="embed-pii-toggle"
+            data-pii-revealed={piiRevealed ? 'true' : 'false'}
+            class="header-action"
+            use:tooltip
+            onclick={onTogglePII}
+            aria-label={piiRevealed
+              ? $text('embeds.pii_hide')
+              : $text('embeds.pii_show')}
+            ><span
+              class="clickable-icon {piiRevealed
+                ? 'icon_visible'
+                : 'icon_hidden'} top-button"
+              aria-hidden="true"
+            ></span><span class="action-label"
+              >{piiRevealed
+                ? $text('embeds.pii_hide')
+                : $text('embeds.pii_show')}</span
+            ></button
+          >
+        </div>
+      {/if}
+
     {/snippet}
     {#snippet restoreChat()}
       <!-- Restore chat (ultra-wide side-by-side mode) -->
@@ -297,33 +324,6 @@
         </div>
       {/if}
 
-      <!-- PII toggle -->
-      {#if showPIIToggle && onTogglePII}
-        <div class="button-wrapper">
-          <button
-            data-testid="embed-pii-toggle"
-            data-pii-revealed={piiRevealed ? 'true' : 'false'}
-            class="header-action"
-            use:tooltip
-            class:pii-toggle-active={piiRevealed}
-            onclick={onTogglePII}
-            aria-label={piiRevealed
-              ? $text('embeds.pii_hide')
-              : $text('embeds.pii_show')}
-            ><span
-              class="clickable-icon {piiRevealed
-                ? 'icon_visible'
-                : 'icon_hidden'} top-button"
-              aria-hidden="true"
-            ></span><span class="action-label"
-              >{piiRevealed
-                ? $text('embeds.pii_hide')
-                : $text('embeds.pii_show')}</span
-            ></button
-          >
-        </div>
-      {/if}
-
       {#if showPIIIncludeOriginal && onIncludeOriginalPII}
         <div class="button-wrapper pii-include-original">
           <button
@@ -435,11 +435,6 @@
   /* Preview toggle: primary tint when preview mode is active */
   .preview-active {
     background-color: rgba(99, 102, 241, 0.25) !important;
-  }
-
-  /* PII toggle: amber tint when sensitive data is revealed — matches ActiveChat.svelte */
-  .pii-toggle-active {
-    background-color: rgba(245, 158, 11, 0.3) !important;
   }
 
   :global(.clickable-icon.icon_calendar) {

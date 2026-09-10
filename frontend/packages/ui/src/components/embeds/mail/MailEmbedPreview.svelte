@@ -10,7 +10,9 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
-  import { hydrateWikiLinks, replaceWikiLinksInText } from '../../../utils/embedLinkUtils';
+  import SensitiveText from '../../SensitiveText.svelte';
+  import { activeChatStore } from '../../../stores/activeChatStore';
+  import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
 
   interface Props {
     id: string;
@@ -44,7 +46,6 @@
   let localContent = $state('');
   let localStatus = $state<'processing' | 'finished' | 'error' | 'cancelled'>('processing');
   let storeResolved = $state(false);
-  let bodyPreviewEl: HTMLDivElement | undefined = $state(undefined);
 
   $effect(() => {
     if (!storeResolved) {
@@ -100,14 +101,9 @@
     return lines.join('\n');
   });
 
-  let bodyPreviewHtml = $derived(replaceWikiLinksInText(bodyPreview));
-
-  $effect(() => {
-    void bodyPreviewHtml;
-    if (!bodyPreviewEl) return;
-    const cleanup = hydrateWikiLinks(bodyPreviewEl, { clickable: false });
-    return cleanup;
-  });
+  function togglePII() {
+    if ($activeChatStore) piiVisibilityStore.toggle($activeChatStore);
+  }
 
   function handleEmbedDataUpdated(data: { status: string; decodedContent: Record<string, unknown> | null }) {
     if (!data.decodedContent) {
@@ -150,13 +146,8 @@
 >
   {#snippet details(snippetProps)}
     <div class="mail-details" class:mobile={snippetProps.isMobile}>
-      <div class="mail-body-preview" bind:this={bodyPreviewEl}>
-        {#if bodyPreviewHtml}
-          <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-          {@html bodyPreviewHtml}
-        {:else}
-          {bodyPreview || $text('embeds.mail.empty_content')}
-        {/if}
+      <div class="mail-body-preview">
+        <SensitiveText value={bodyPreview || $text('embeds.mail.empty_content')} mappings={embedPIIState.mappings} revealed={embedPIIState.revealed} onToggle={$activeChatStore ? togglePII : undefined} />
       </div>
     </div>
   {/snippet}

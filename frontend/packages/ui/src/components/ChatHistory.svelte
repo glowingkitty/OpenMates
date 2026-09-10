@@ -3241,7 +3241,8 @@
     /* ActiveChat's action buttons float over both inline edges. Reserve those
        lanes in the scrollable message column so auto-scroll cannot move a
        bubble underneath them after the sidebar narrows the canvas. */
-    padding-inline: 90px;
+    /* Gradually release the floating-control gutters as the pane narrows. */
+    padding-inline: clamp(0px, calc((100cqw - 730px) / 3), 90px);
     /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }

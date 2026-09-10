@@ -15,6 +15,8 @@
   let {
     report,
     share,
+    priorityAction,
+    hasPriorityAction = false,
     actions,
     restoreChat,
     close,
@@ -24,6 +26,8 @@
   }: {
     report: Snippet;
     share: Snippet;
+    priorityAction?: Snippet;
+    hasPriorityAction?: boolean;
     actions: Snippet;
     restoreChat?: Snippet;
     close: Snippet;
@@ -45,8 +49,9 @@
   let anchor = $state<HTMLDivElement>();
   let menuWidth = $state(240);
   const menuId = $props.id();
-  const overflowCount = $derived(actionCount + Number(hasShare && containerWidth < SHARE_MIN_WIDTH));
-  const hasOverflowActions = $derived(overflowCount >= 2);
+  const overflowCount = $derived(actionCount + Number(hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)));
+  // Keep Share in More whenever sensitive-data controls occupy the primary slot.
+  const hasOverflowActions = $derived(overflowCount >= 2 || (hasPriorityAction && overflowCount > 0));
 
   $effect(() => {
     if (!hasOverflowActions) open = false;
@@ -127,18 +132,20 @@
     >
       {@render report()}
     </div>
-    {#if hasShare && containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
+    {#if hasPriorityAction && priorityAction}
+      <div class="priority-action">{@render priorityAction()}</div>
+    {:else if hasShare && containerWidth >= SHARE_MIN_WIDTH}<div class="share-action">
         {@render share()}
       </div>{/if}
     {@render restoreChat?.()}
-    {#if overflowCount === 1}
+    {#if overflowCount === 1 && !hasPriorityAction}
       <div class="direct-action">
         {#if hasShare && containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
         {#if actionCount === 1}{@render actions()}{/if}
       </div>
     {:else if hasOverflowActions}
     <div class="more-anchor" bind:this={anchor}>
-      <div class="button-wrapper more-wrapper" class:is-open={open}>
+      <div class="button-wrapper more-wrapper">
         <button
           bind:this={trigger}
           use:tooltip
@@ -169,7 +176,7 @@
               : MENU_DURATION,
           }}
         >
-          {#if containerWidth < SHARE_MIN_WIDTH}{@render share()}{/if}
+          {#if hasShare && (hasPriorityAction || containerWidth < SHARE_MIN_WIDTH)}{@render share()}{/if}
           {@render actions()}
         </div>
       {/if}
@@ -208,8 +215,20 @@
       opacity var(--duration-normal),
       background-color var(--duration-normal);
   }
-  .more-wrapper.is-open {
-    opacity: 0.5;
+  /* One interaction treatment for every toolbar pill, including More. */
+  .header-action-menu :global(.button-wrapper),
+  .header-action-menu :global(.new-chat-button-wrapper) {
+    transition: background-color var(--duration-normal), transform var(--duration-normal), box-shadow var(--duration-normal);
+  }
+  .header-action-menu :global(.button-wrapper:hover),
+  .header-action-menu :global(.new-chat-button-wrapper:hover) {
+    transform: scale(1.08);
+    box-shadow: var(--shadow-lg);
+  }
+  .header-action-menu :global(.button-wrapper:active),
+  .header-action-menu :global(.new-chat-button-wrapper:active) {
+    transform: scale(0.95);
+    box-shadow: var(--shadow-xs);
   }
   .more-actions {
     position: absolute;

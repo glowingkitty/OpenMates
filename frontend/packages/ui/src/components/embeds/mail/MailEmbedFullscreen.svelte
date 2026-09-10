@@ -17,7 +17,7 @@
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import type { PIIMapping } from '../../../types/chat';
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
-  import { hydrateWikiLinks, replaceWikiLinksInText } from '../../../utils/embedLinkUtils';
+  import SensitiveText from '../../SensitiveText.svelte';
 
   /**
    * Coerce an unknown value to a string, returning empty string for non-strings.
@@ -111,10 +111,6 @@
   let safeSubject = $derived(applyPIIMode(subject));
   let safeContent = $derived(applyPIIMode(content));
   let safeFooter = $derived(applyPIIMode(footer));
-  let contentEl: HTMLDivElement | undefined = $state(undefined);
-  let footerEl: HTMLDivElement | undefined = $state(undefined);
-  let safeContentHtml = $derived(replaceWikiLinksInText(safeContent));
-  let safeFooterHtml = $derived(replaceWikiLinksInText(safeFooter));
 
   let mailBody = $derived.by(() => {
     if (safeFooter && safeContent) return `${safeContent}\n\n${safeFooter}`;
@@ -203,16 +199,6 @@
     };
   }
 
-  $effect(() => {
-    void safeContentHtml;
-    void safeFooterHtml;
-    const cleanupContent = hydrateWikiLinks(contentEl);
-    const cleanupFooter = hydrateWikiLinks(footerEl);
-    return () => {
-      cleanupContent();
-      cleanupFooter();
-    };
-  });
 </script>
 
 <UnifiedEmbedFullscreen
@@ -246,36 +232,26 @@
     <div class="mail-fullscreen-content">
       <section class="mail-field">
         <div class="label">{$text('embeds.mail.to')}</div>
-        <div class="value">{safeReceiver || '—'}</div>
+        <div class="value"><SensitiveText value={safeReceiver || '—'} mappings={allPIIMappings} revealed={piiRevealed} onToggle={chatId ? togglePII : undefined} /></div>
       </section>
 
       <section class="mail-field">
         <div class="label">{$text('embeds.mail.subject')}</div>
-        <div class="value">{safeSubject || '—'}</div>
+        <div class="value"><SensitiveText value={safeSubject || '—'} mappings={allPIIMappings} revealed={piiRevealed} onToggle={chatId ? togglePII : undefined} /></div>
       </section>
 
       <section class="mail-field">
         <div class="label">{$text('embeds.mail.content')}</div>
-        <div class="body" bind:this={contentEl}>
-          {#if safeContentHtml}
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-            {@html safeContentHtml}
-          {:else}
-            {safeContent || $text('embeds.mail.empty_content')}
-          {/if}
+        <div class="body">
+          <SensitiveText value={safeContent || $text('embeds.mail.empty_content')} mappings={allPIIMappings} revealed={piiRevealed} onToggle={chatId ? togglePII : undefined} />
         </div>
       </section>
 
       {#if safeFooter}
         <section class="mail-field">
           <div class="label">{$text('embeds.mail.footer')}</div>
-          <div class="body footer" bind:this={footerEl}>
-            {#if safeFooterHtml}
-              <!-- eslint-disable-next-line svelte/no-at-html-tags -- Content is HTML-escaped via embedLinkUtils.escapeHtml() -->
-              {@html safeFooterHtml}
-            {:else}
-              {safeFooter}
-            {/if}
+          <div class="body footer">
+            <SensitiveText value={safeFooter} mappings={allPIIMappings} revealed={piiRevealed} onToggle={chatId ? togglePII : undefined} />
           </div>
         </section>
       {/if}
@@ -341,7 +317,7 @@
   .body {
     padding: var(--spacing-5) var(--spacing-6);
     border-radius: var(--radius-4);
-    background: var(--color-grey-5);
+    background: var(--color-grey-10);
     border: 1px solid var(--color-grey-20);
     min-height: 44px;
   }

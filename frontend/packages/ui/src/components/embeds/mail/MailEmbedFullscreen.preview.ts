@@ -7,11 +7,13 @@
 
 /** Default props — shows a fullscreen email draft view */
 const defaultProps = {
-  receiver: "anna@openmates.dev",
+  data: { decodedContent: {
+  receiver: "anna@example.com",
   subject: "Project Update — Sprint 12 Review",
   content:
     "Hi Anna,\n\nThe latest sprint review went well. All tickets were closed except the auth refactor, which is carried over to Sprint 13.\n\nKey highlights:\n- Login flow redesigned (done)\n- API rate limiting added (done)\n- Auth refactor (carried over)\n\nLet me know if you have any questions.\n\nBest,\nMax",
   footer: "",
+  } },
   onClose: () => {},
   hasPreviousEmbed: false,
   hasNextEmbed: false,
@@ -32,10 +34,12 @@ export const variants = {
 
   /** Short email */
   short: {
-    receiver: "team@openmates.dev",
+    data: { decodedContent: {
+    receiver: "team@example.com",
     subject: "Quick update",
     content: "All systems nominal. Deploy scheduled for 18:00.",
     footer: "",
+    } },
     onClose: () => {},
     hasPreviousEmbed: false,
     hasNextEmbed: false,
