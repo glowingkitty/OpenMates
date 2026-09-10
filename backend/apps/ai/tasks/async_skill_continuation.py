@@ -38,7 +38,7 @@ ASYNC_SKILL_COMPLETION_KEY_PREFIX = "async_skill_completion"
 ASYNC_EMBED_REFERENCE_INSTRUCTION = (
     "When referencing a specific completed result that has an embed_ref field, "
     "link it with Markdown like [human-readable title](embed:the_embed_ref). "
-    "Use the result title or a short description as the link text; never use the embed_ref itself as the visible text."
+    "For web sources, use natural short attribution such as according to CNBC followed by and WIRED; keep full headlines in previews. For other results use a short description; never show the embed_ref or its random suffix."
 )
 celery_app = None
 
