@@ -7,6 +7,7 @@
 import { mount, tick, unmount } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import EmbedReferencePreview from "../EmbedReferencePreview.svelte";
+import { embedRefIndexVersion, embedStore } from "../../../services/embedStore";
 
 const embedResolverMocks = vi.hoisted(() => ({
   resolveEmbed: vi.fn(),
@@ -38,26 +39,18 @@ const chatSyncMocks = vi.hoisted(() => {
 });
 
 vi.mock("../../../services/embedResolver", () => embedResolverMocks);
-vi.mock("../../../services/embedStore", () => ({
+vi.mock("../../../services/embedStore", async () => ({
   embedStore: {
     resolveByRef: vi.fn(() => null),
     resolveByRefDeep: vi.fn(async () => null),
   },
-  embedRefIndexVersion: {
-    subscribe(run: (value: number) => void) {
-      run(0);
-      return () => undefined;
-    },
-  },
+  embedRefIndexVersion: (await import("svelte/store")).writable(0),
 }));
 vi.mock("../../../services/chatSyncService", () => ({
   chatSyncService: chatSyncMocks.service,
 }));
 vi.mock("../../enter_message/extensions/embed_renderers", () => ({
   getEmbedRenderer: vi.fn(() => ({ render: rendererMocks.render })),
-}));
-vi.mock("../../../data/embedRegistry.generated", () => ({
-  normalizeEmbedType: vi.fn(() => "code-application"),
 }));
 
 async function flush(): Promise<void> {
@@ -79,11 +72,66 @@ describe("EmbedReferencePreview", () => {
     embedResolverMocks.decodeToonContent.mockReset();
     rendererMocks.render.mockReset();
     chatSyncMocks.listeners.clear();
+    vi.mocked(embedStore.resolveByRef).mockReturnValue(null);
+    embedRefIndexVersion.set(0);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
+  it("ends unresolved reference loading after bounded retries", async () => {
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedReferencePreview, {
+      target,
+      props: { embedRef: "missing-event-A1b" },
+    });
+    try {
+      await flush();
+      expect(target.textContent).toContain("Loading preview...");
+      await vi.advanceTimersByTimeAsync(7_000);
+      await flush();
+      expect(target.textContent).toContain("Preview unavailable");
+      expect(target.textContent).not.toContain("Loading preview...");
+    } finally {
+      await unmount(component);
+      target.remove();
+    }
+  });
+
+  // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
+  it("renders an event when its reference arrives after mount", async () => {
+    const embedId = "delayed-event-id";
+    embedResolverMocks.resolveEmbed.mockResolvedValue({
+      embed_id: embedId, type: "event", status: "finished", content: "event-content",
+    });
+    embedResolverMocks.decodeToonContent.mockResolvedValue({
+      type: "event_result", app_id: "events", skill_id: "search", title: "Community workshop",
+    });
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+    const component = mount(EmbedReferencePreview, {
+      target, props: { embedRef: "community-workshop-A1b" },
+    });
+    try {
+      await flush();
+      expect(target.textContent).toContain("Loading preview...");
+      vi.mocked(embedStore.resolveByRef).mockReturnValue(embedId);
+      embedRefIndexVersion.update((version) => version + 1);
+      await flush();
+      expect(rendererMocks.render).toHaveBeenCalledWith(expect.objectContaining({
+        attrs: expect.objectContaining({ type: "events-event", title: "Community workshop" }),
+      }));
+      expect(target.textContent).not.toContain("Loading preview...");
+      await vi.advanceTimersByTimeAsync(7_000);
+      expect(target.textContent).not.toContain("Preview unavailable");
+    } finally {
+      await unmount(component);
+      target.remove();
+    }
   });
 
   // contract-test: direct surface=gui.web assertions=chats.rendering.assistant-document-convergence
