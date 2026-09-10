@@ -1137,6 +1137,13 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
 
     server.once("connection", (socket) => {
       setTimeout(() => {
+        socket.send(JSON.stringify({ type: "ai_typing_started", payload: {
+          chat_id: "unrelated", title: "Wrong chat", category: "finance", icon_names: ["banknote"],
+        }}));
+        socket.send(JSON.stringify({ type: "ai_typing_started", payload: {
+          chat_id: chatId, user_message_id: userMessageId,
+          title: "Plumber repair request", category: "maker_prototyping", icon_names: ["wrench"],
+        }}));
         socket.send(
           JSON.stringify({
             type: "ai_message_update",
@@ -1197,6 +1204,9 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.recoveryJobId, "recovery-job-before-post-processing");
       assert.equal(response.messageId, "assistant-before-post-processing");
       assert.equal(response.content, "Application preview is ready.");
+      assert.equal(response.generatedTitle, "Plumber repair request");
+      assert.equal(response.generatedIcon, "wrench");
+      assert.equal(response.category, "maker_prototyping");
       assert.equal(response.chatSummary, "Summary from post-processing.");
       assert.ok(Date.now() - startedAt >= 200, "saved-chat recovery should wait for post-processing");
     } finally {

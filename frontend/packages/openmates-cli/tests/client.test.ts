@@ -113,6 +113,29 @@ describe("OpenMatesClient session API URL", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("shares original PII only with an explicit opt-in", async () => {
+    const client = OpenMatesClient.load();
+    const chatId = "11111111-1111-4111-8111-111111111111";
+    const encryptedChatKey = await encryptBytesWithAesGcm(new Uint8Array(32), new Uint8Array(32));
+    const internals = client as unknown as {
+      ensureSynced: () => Promise<unknown>;
+      http: { post: (path: string, body: Record<string, unknown>) => Promise<unknown> };
+    };
+    internals.ensureSynced = async () => ({ chats: [{ details: { id: chatId, encrypted_chat_key: encryptedChatKey } }] });
+    const requests: Record<string, unknown>[] = [];
+    internals.http.post = async (path, body) => {
+      assert.equal(path, "/v1/share/chat/metadata");
+      requests.push(body);
+      return { ok: true, data: { success: true } };
+    };
+    await client.createChatShareLink(chatId);
+    await client.createChatShareLink(chatId, 0, undefined, { includeSensitiveData: true });
+    await client.createChatShareLink(chatId);
+    assert.deepEqual(requests.map((body) => body.share_pii), [false, true, false]);
+    assert.equal(requests.some((body) => "piiMappings" in body), false);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps authentication capability discovery out of payment routes", () => {
     const source = readFileSync(new URL("../src/client.ts", import.meta.url), "utf8");
     const methodStart = source.indexOf("async getAuthMethodsStatus");
@@ -1929,6 +1952,7 @@ describe("CLI saved-chat recovery preflight", () => {
       messagePayload?: Record<string, unknown>;
       preflightPayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
+      metadataPayload?: Record<string, unknown>;
       frameTypes: string[];
       preflightAcknowledged: boolean;
       terminalSent: boolean;
@@ -2009,6 +2033,10 @@ describe("CLI saved-chat recovery preflight", () => {
             }));
             setTimeout(() => {
               captured.terminalSent = true;
+              ws.send(JSON.stringify({ type: "ai_typing_started", payload: {
+                chat_id: frame.payload.chat_id, user_message_id: message.message_id,
+                title: "Contact a plumber", category: "general_knowledge", icon_names: ["wrench"],
+              }}));
               ws.send(JSON.stringify({
                 type: "ai_message_update",
                 payload: {
@@ -2028,6 +2056,10 @@ describe("CLI saved-chat recovery preflight", () => {
                 payload: { chat_id: frame.payload.chat_id },
               }));
             }, 10);
+          }
+          if (frame.type === "encrypted_chat_metadata") {
+            captured.metadataPayload = frame.payload;
+            ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload.chat_id } }));
           }
           if (frame.type === "recovery_job_claim") {
             assert.equal(frame.payload.job_id, recoveryJobId);
@@ -2081,7 +2113,8 @@ describe("CLI saved-chat recovery preflight", () => {
 
       assert.ok(captured.preflightPayload);
       assert.equal(captured.frameTypes.indexOf("chat_turn_preflight") < captured.frameTypes.indexOf("chat_message_added"), true);
-      assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
+      assert.equal(captured.frameTypes.indexOf("encrypted_chat_metadata") > captured.frameTypes.indexOf("recovery_job_persist"), true);
+      assert.equal(captured.metadataPayload?.message_id, undefined);
       const inferenceRequest = captured.preflightPayload.inference_request as Record<string, unknown>;
       const finalInferenceRequest = { ...captured.messagePayload };
       delete finalInferenceRequest.protocol_version;
@@ -2128,6 +2161,10 @@ describe("CLI saved-chat recovery preflight", () => {
         { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
         { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
       ]);
+      assert.ok(captured.metadataPayload);
+      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_title), chatKey), "Contact a plumber");
+      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_chat_category), chatKey), "general_knowledge");
+      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_icon), chatKey), "wrench");
       assert.equal(captured.frameTypes.includes("ai_response_completed"), false);
       assert.equal(captured.frameTypes.includes("recovery_job_claim"), true);
       assert.equal(captured.frameTypes.includes("recovery_job_persist"), true);
@@ -2145,7 +2182,7 @@ describe("CLI saved-chat recovery preflight", () => {
       );
       assert.equal(
         await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_sender_name), chatKey),
-        "Assistant",
+        "George",
       );
       assert.equal(
         await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_category), chatKey),

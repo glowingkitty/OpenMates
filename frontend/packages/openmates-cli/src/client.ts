@@ -7322,7 +7322,7 @@ export class OpenMatesClient {
             assistant,
             chatKeyBytes,
           );
-          const encryptedSenderName = await encryptWithAesGcmCombined("Assistant", chatKeyBytes);
+          const encryptedSenderName = await encryptWithAesGcmCombined(category ? MATE_NAMES[category] ?? "Assistant" : "Assistant", chatKeyBytes);
           const encryptedCategory = recovered.category
             ? await encryptWithAesGcmCombined(recovered.category, chatKeyBytes)
             : undefined;
@@ -7399,6 +7399,25 @@ export class OpenMatesClient {
             fallbackMessageId: assistantId,
             ownerId,
           });
+          // Chat-level identity is separate from assistant-message metadata.
+          // Use the same encrypted storage protocol as the web typing handler.
+          if (isNewChat && (resp.generatedTitle || resp.generatedIcon)) {
+            const metadataStored = ws.waitForMessage(
+              "encrypted_metadata_stored",
+              (payload) => (payload as Record<string, unknown>).chat_id === chatId,
+              20_000,
+            );
+            await ws.sendAsync("encrypted_chat_metadata", {
+              chat_id: chatId,
+              ...(teamId ? { team_id: teamId } : {}),
+              encrypted_chat_key: encryptedChatKey,
+              ...(resp.generatedTitle ? { encrypted_title: await encryptWithAesGcmCombined(resp.generatedTitle, chatKeyBytes) } : {}),
+              ...(category ? { encrypted_chat_category: await encryptWithAesGcmCombined(category, chatKeyBytes) } : {}),
+              ...(resp.generatedIcon ? { encrypted_icon: await encryptWithAesGcmCombined(resp.generatedIcon, chatKeyBytes) } : {}),
+              versions: { messages_v: terminalExpectedMessagesV + 1 },
+            });
+            await metadataStored;
+          }
           await this.persistPostProcessingMetadata({
             ws,
             chatId,
@@ -11185,6 +11204,7 @@ export class OpenMatesClient {
     chatId: string,
     durationSeconds: ShareDuration = 0,
     password?: string,
+    options: { includeSensitiveData?: boolean } = {},
   ): Promise<string> {
     const session = this.requireSession();
     const masterKey = base64ToBytes(session.masterKeyExportedB64);
@@ -11245,6 +11265,7 @@ export class OpenMatesClient {
         summary: null,
         share_cta_text: null,
         is_shared: true,
+        share_pii: options.includeSensitiveData === true,
       },
     );
     if (!metadataResponse.ok || metadataResponse.data.success !== true) {

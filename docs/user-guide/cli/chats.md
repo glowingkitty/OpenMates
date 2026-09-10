@@ -198,9 +198,10 @@ Deletes one or more chats. Shows chat titles and asks for confirmation before de
 openmates chats share d262cb68
 openmates chats share last --expires 604800
 openmates chats share d262cb68 --password mypass
+openmates chats share d262cb68 --include-sensitive-data
 ```
 
-Creates an encrypted share link for the chat. See [embeds-and-sharing.md](./embeds-and-sharing.md) for details on zero-knowledge share encryption.
+Creates an encrypted share link for the chat. Original email and phone values are excluded by default. Use `--include-sensitive-data` only when you want recipients to be able to reveal the originals, matching the web share menu. See [embeds-and-sharing.md](./embeds-and-sharing.md) for details on zero-knowledge share encryption.
 
 | Option | Description |
 |--------|-------------|

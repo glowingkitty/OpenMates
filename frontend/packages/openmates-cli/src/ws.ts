@@ -766,6 +766,8 @@ export class OpenMatesWsClient {
     chatSummary: string | null;
     chatTags: string[];
     updatedChatTitle: string | null;
+    generatedTitle: string | null;
+    generatedIcon: string | null;
     taskProposals: TaskProposalEvent[];
     taskUpdateProposals: TaskUpdateProposalEvent[];
     taskEvents: TaskEventFrame[];
@@ -796,6 +798,8 @@ export class OpenMatesWsClient {
       let chatSummary: string | null = null;
       let chatTags: string[] = [];
       let updatedChatTitle: string | null = null;
+      let generatedTitle: string | null = null;
+      let generatedIcon: string | null = null;
       let taskProposals: TaskProposalEvent[] = [];
       let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
       const taskEvents: TaskEventFrame[] = [];
@@ -908,6 +912,8 @@ export class OpenMatesWsClient {
             chatSummary,
             chatTags,
             updatedChatTitle,
+            generatedTitle,
+            generatedIcon,
             taskProposals,
             taskUpdateProposals,
             taskEvents,
@@ -940,6 +946,8 @@ export class OpenMatesWsClient {
               chatSummary,
               chatTags,
               updatedChatTitle,
+              generatedTitle,
+              generatedIcon,
               taskProposals,
               taskUpdateProposals,
               taskEvents,
@@ -968,6 +976,8 @@ export class OpenMatesWsClient {
           chatSummary,
           chatTags,
           updatedChatTitle,
+          generatedTitle,
+          generatedIcon,
           taskProposals,
           taskUpdateProposals,
           taskEvents,
@@ -1284,7 +1294,14 @@ export class OpenMatesWsClient {
 
           // Typing started — fires before content chunks arrive
           if (type === "ai_typing_started") {
+            if (p.chat_id !== chatId) return;
             capture(p);
+            // Preprocessing owns the initial title; post-processing only retitles
+            // conversations that drift. Preserve both until encrypted persistence.
+            if (typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
+            if (Array.isArray(p.icon_names)) {
+              generatedIcon = p.icon_names.find((icon): icon is string => typeof icon === "string" && icon.trim().length > 0) ?? generatedIcon;
+            }
             onStream?.({
               kind: "typing",
               content: "",
@@ -1360,6 +1377,8 @@ export class OpenMatesWsClient {
             chatSummary,
             chatTags,
             updatedChatTitle,
+            generatedTitle,
+            generatedIcon,
             taskProposals,
             taskUpdateProposals,
             taskEvents,

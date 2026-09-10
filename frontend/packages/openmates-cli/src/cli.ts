@@ -5765,6 +5765,7 @@ async function handleChats(
         id,
         durationSeconds,
         password,
+        { includeSensitiveData: flags["include-sensitive-data"] === true },
       );
       if (flags.json === true) {
         printJson({
@@ -13804,7 +13805,7 @@ function printChatsHelp(): void {
   openmates chats answer-interactive --chat <id> --question-json '<json>' --answer-json '<json>' [--json] [--accept-task-proposals]
   openmates chats download <chat-id> [--output <path>] [--zip] [--json]
   openmates chats delete <id1> [id2] [id3] ... [--yes]
-  openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--json]
+  openmates chats share [<chat-id>] [--expires <seconds>] [--password <pwd>] [--include-sensitive-data] [--json]
   openmates chats incognito <message> [--json] [--no-pii-detection]
   openmates chats incognito-history [--json]      Deprecated: incognito stores no history
   openmates chats incognito-clear                 Deprecated: incognito stores no history
