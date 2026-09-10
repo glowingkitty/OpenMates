@@ -8,8 +8,9 @@
 <script lang="ts">
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { SpecificationDocument, SpecFlow } from './SpecificationDocument';
-  interface Props { document: SpecificationDocument; onClose: () => void }
-  let { document, onClose }: Props = $props();
+  interface Props { data: { decodedContent: { document: SpecificationDocument } }; onClose: () => void }
+  let { data, onClose }: Props = $props();
+  const document = $derived(data.decodedContent.document);
   const requirements = $derived(new Map(document.requirements.map(item => [item.id, item])));
   const models = $derived(new Map(document.models.map(item => [item.id, item])));
   function flows(ids: string[], kind: SpecFlow['kind']) {
@@ -131,7 +132,7 @@
   .specification-view :global(.header-inner) { background: var(--spec-cover) !important; border-radius: 0; box-shadow: none; }
   .specification-view :global(.embed-header-orbs), .specification-view :global(.deco-icon) { display: none; }
   .specification-view :global(.header-title-text), .specification-view :global(.header-subtitle) { color: var(--color-grey-0); }
-  .specification-view :global(.header-icon-skill) { background-color: var(--color-grey-0); }
+  .specification-view :global(.header-skill-icon) { background-color: var(--color-grey-0); }
   .spec-document { container-type: inline-size; padding: 0 max(24px, calc((100% - 760px) / 2)) 88px; background: var(--color-grey-10); min-height: 100%; }
   .document-intro { text-align: center; padding: 28px 0 12px; }
   .summary { max-width: 540px; margin: 0 auto 12px; font-size: var(--font-size-lg); font-weight: 600; line-height: 1.6; }

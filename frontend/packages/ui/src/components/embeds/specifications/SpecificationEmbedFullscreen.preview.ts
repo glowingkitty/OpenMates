@@ -40,4 +40,4 @@ const document: SpecificationDocument = {
   ],
 };
 
-export default { document, onClose: () => window.dispatchEvent(new CustomEvent('specification-preview-close')) };
+export default { data: { decodedContent: { document } }, onClose: () => window.dispatchEvent(new CustomEvent('specification-preview-close')) };
