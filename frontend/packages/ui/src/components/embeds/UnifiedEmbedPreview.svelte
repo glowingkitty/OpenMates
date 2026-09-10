@@ -48,6 +48,8 @@
   interface Props {
     /** Unique embed ID */
     id: string;
+    /** Reuse card rendering for parent-owned content without an embed record or sync. */
+    presentationOnly?: boolean;
     /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient color */
     appId: string;
     /** Skill identifier (e.g., 'search', 'get_transcript') */
@@ -98,6 +100,7 @@
   
   let {
     id,
+    presentationOnly = false,
     appId,
     skillId,
     skillIconName,
@@ -148,6 +151,7 @@
   let shouldShowSkillIcon = $derived(showSkillIcon ?? !isDirectContentEmbed);
 
   let isSavedEmbed = $derived.by(() => {
+    if (presentationOnly) return false;
     for (const appGroups of $appSettingsMemoriesStore.entriesByApp.values()) {
       for (const entries of Object.values(appGroups)) {
         if (entries.some((entry) => entry.item_value?.embed_id === id)) return true;
@@ -223,6 +227,7 @@
    * IndexedDB - the data is already available from the parent component's props.
    */
   async function refetchFromStore() {
+    if (presentationOnly) return;
     // Skip refetch for legacy IDs - these are synthetic IDs from legacy results
     // that don't exist in IndexedDB. The data is already available from props.
     if (id.startsWith('legacy-')) {
@@ -291,12 +296,16 @@
    */
   async function requestStaleEmbedUpdate() {
     // Only request if still processing and not a legacy/synthetic ID
-    if (status !== 'processing' || id.startsWith('legacy-')) return;
+    if (presentationOnly || status !== 'processing' || id.startsWith('legacy-')) return;
 
     await requestEmbedFromServerOnce(id, 'preview-stale-recovery');
   }
 
   onMount(() => {
+    if (presentationOnly) {
+      viewportListenerCleanup = setupScrollTiltListeners();
+      return;
+    }
 
     // Subscribe to embedUpdated events from chatSyncService
     embedUpdateListener = handleEmbedUpdate as (event: Event) => void;
@@ -633,6 +642,7 @@
    * Starts a timer that will trigger context menu if touch is held long enough
    */
   function handleTouchStart(e: TouchEvent) {
+    if (presentationOnly) { e.stopPropagation(); return; }
     // Prevent TipTap / parent handlers from interfering with embed interactions
     e.stopPropagation();
     
@@ -778,6 +788,7 @@
    * Only prevent default browser context menu
    */
   function handleContextMenu(e: MouseEvent) {
+    if (presentationOnly) { e.stopPropagation(); return; }
     // Always prevent native browser context menu inside embeds.
     e.preventDefault();
     // Stop bubbling to TipTap's contextmenu handler to avoid duplicate menu triggers.
@@ -863,7 +874,7 @@
   class:hovering={isHovering && status === 'finished'}
   class:scroll-tilting={isScrollTilting}
   class:error={status === 'error'}
-  data-embed-id={id}
+  data-embed-id={presentationOnly ? undefined : id}
   data-app-id={appId}
   data-skill-id={skillId}
   data-status={status}

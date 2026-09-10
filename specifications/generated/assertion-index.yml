@@ -26647,7 +26647,8 @@ assertions:
     - &id2994
       path: frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
       line: 31
-      name: read custom sections, inspect proof, and expand flows and models by keyboard
+      name: read custom sections, inspect proof, and open flow fullscreen and inspect
+        model details
       surface: gui.web
     supporting_tests: []
     tests:
@@ -26665,7 +26666,8 @@ assertions:
     - &id2995
       path: frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
       line: 31
-      name: read custom sections, inspect proof, and expand flows and models by keyboard
+      name: read custom sections, inspect proof, and open flow fullscreen and inspect
+        model details
       surface: gui.web
     supporting_tests: []
     tests:
@@ -26683,7 +26685,8 @@ assertions:
     - &id2996
       path: frontend/apps/web_app/tests/components/specification-fullscreen.spec.ts
       line: 31
-      name: read custom sections, inspect proof, and expand flows and models by keyboard
+      name: read custom sections, inspect proof, and open flow fullscreen and inspect
+        model details
       surface: gui.web
     supporting_tests: []
     tests:
