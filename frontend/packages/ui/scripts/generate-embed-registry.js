@@ -145,6 +145,11 @@ function buildTypeNormalizationMap(allEmbedTypes) {
     // Also map child backend_type → child frontend_type (for composite embeds)
     if (def.child_type && def.child_frontend_type) {
       typeMap[def.child_type] = def.child_frontend_type;
+      // Encrypted content may retain a provider result type distinct from the
+      // persistence type. Both must select the same child renderer on reload.
+      if (def.child_content_type) {
+        typeMap[def.child_content_type] = def.child_frontend_type;
+      }
     }
   }
 
@@ -1110,9 +1115,9 @@ function main() {
   // NOTE: CHILD_TYPE_OVERRIDES validation (EmbedReferencePreview.svelte) is
   // not feasible yet because the TOON content `type` field uses different
   // names than the backend child_type (e.g. "health_result" vs "appointment").
-  // The mapping between these is not declared in app.yml. Adding a
-  // `toon_content_type` field to app.yml would enable this validation.
-  // See follow-up task for this improvement.
+  // Apps may declare child_content_type to normalize a historical content
+  // alias (events does this). Full validation still requires declarations
+  // for the remaining provider-specific aliases.
 }
 
 // Run

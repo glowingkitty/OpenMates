@@ -83,7 +83,7 @@
    */
   const CHILD_TYPE_OVERRIDES = new Set([
     'image_result', 'web_result', 'news_result', 'video_result',
-    'location', 'flight', 'stay', 'event', 'product', 'job',
+    'location', 'flight', 'stay', 'event', 'event_result', 'product', 'job',
     'health_result', 'recipe', 'price_calendar_result', 'listing',
   ]);
   const INTERACTIVE_QUESTION_LANGUAGE = 'interactive_question';
@@ -278,6 +278,9 @@
         retryTimer = setTimeout(() => {
           retryCount++;
           embedRefIndexVersion.update((n) => n + 1);
+          // A still-unresolved derived ID remains null, so Svelte will not
+          // rerun the render effect merely because the index version changed.
+          void renderResolvedPreview();
         }, 1000 * (retryCount + 1)); // 1s, 2s, 3s
       } else {
         loading = false;

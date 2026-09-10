@@ -7458,7 +7458,10 @@ def run_vitest() -> SuiteResult:
     ui_dir = PROJECT_ROOT / "frontend" / "packages" / "ui"
     vitest_runs: list[tuple[Path, str]] = []
 
-    if (ui_dir / "vitest.simple.config.ts").is_file():
+    # Component regressions need the Svelte plugin and SvelteKit aliases.
+    if (ui_dir / "vitest.config.ts").is_file():
+        vitest_runs.append((ui_dir, "--config vitest.config.ts"))
+    elif (ui_dir / "vitest.simple.config.ts").is_file():
         vitest_runs.append((ui_dir, "--config vitest.simple.config.ts"))
 
     # Auto-discover additional vitest dirs
@@ -7518,6 +7521,14 @@ def run_vitest() -> SuiteResult:
             try:
                 data = json.loads(raw[json_start:json_end + 1])
                 for tf in data.get("testResults", []):
+                    if tf.get("status") == "failed" and not tf.get("assertionResults"):
+                        overall_status = "failed"
+                        all_tests.append({
+                            "name": tf.get("name", f"{rel}/vitest-collection"),
+                            "status": "failed",
+                            "duration_seconds": 0,
+                            "error": str(tf.get("message") or "Test collection failed")[:MAX_ERROR_SNIPPET],
+                        })
                     for ar in tf.get("assertionResults", []):
                         name = ar.get("fullName", ar.get("title", "unknown"))
                         status = "passed" if ar.get("status") == "passed" else "failed"

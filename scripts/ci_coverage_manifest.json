@@ -201,6 +201,7 @@
         "components/chat-processing-indicator.spec.ts",
         "components/specification-fullscreen.spec.ts",
         "components/memory-consent.spec.ts",
+        "components/embed-reference-preview.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",

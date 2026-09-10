@@ -5,6 +5,7 @@
 // The index remains process-local and stores no decrypted embed content.
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { normalizeEmbedType, EMBED_PREVIEW_COMPONENTS, EMBED_FULLSCREEN_COMPONENTS } from "../../data/embedRegistry.generated";
 import {
   clearEmbedRefIndexEntries,
   embedRefIndexVersion,
@@ -14,6 +15,14 @@ import {
 } from "../embedRefIndex";
 
 describe("embedRefIndexVersion", () => {
+  // contract-test: supporting surface=gui.web assertions=chat-share-settings.shared-link-open
+  it("routes decrypted event result references to the event preview and fullscreen", () => {
+    const type = normalizeEmbedType("event_result");
+    expect(type).toBe("events-event");
+    expect(EMBED_PREVIEW_COMPONENTS[type]).toBe("events/EventEmbedPreview.svelte");
+    expect(EMBED_FULLSCREEN_COMPONENTS[type]).toBe("events/EventEmbedFullscreen.svelte");
+  });
+
   beforeEach(clearEmbedRefIndexEntries);
   afterEach(clearEmbedRefIndexEntries);
 

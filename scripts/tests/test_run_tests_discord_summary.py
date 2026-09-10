@@ -21,6 +21,36 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RUN_TESTS_PATH = PROJECT_ROOT / "scripts" / "run_tests.py"
 
 
+def test_local_vitest_uses_component_config_and_reports_collection_failure(tmp_path, monkeypatch):
+    runner = load_run_tests_module()
+    ui = tmp_path / "frontend/packages/ui"
+    ui.mkdir(parents=True)
+    (ui / "vitest.config.ts").write_text("export default {}")
+    (ui / "vitest.simple.config.ts").write_text("export default {}")
+    monkeypatch.setattr(runner, "PROJECT_ROOT", tmp_path)
+    commands = []
+
+    def fake_run(command, **kwargs):
+        commands.append(command)
+        return SimpleNamespace(returncode=1, stderr="", stdout=json.dumps({
+            "testResults": [
+                {"name": "healthy.test.ts", "status": "passed", "assertionResults": [
+                    {"fullName": "healthy assertion", "status": "passed", "duration": 1},
+                ]},
+                {"name": "component.test.ts", "status": "failed", "assertionResults": [],
+                 "message": "Cannot resolve component dependency"},
+            ],
+        }))
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    result = runner.run_vitest()
+    assert "vitest.config.ts" in commands[0]
+    assert "vitest.simple.config.ts" not in commands[0]
+    assert result.status == "failed"
+    assert result.tests[-1]["name"] == "component.test.ts"
+    assert result.tests[-1]["error"] == "Cannot resolve component dependency"
+
+
 def load_run_tests_module():
     spec = importlib.util.spec_from_file_location("openmates_run_tests_discord", RUN_TESTS_PATH)
     assert spec is not None
