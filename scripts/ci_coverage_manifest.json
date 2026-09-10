@@ -199,6 +199,7 @@
         "cli-tui-workflows.spec.ts",
         "component-message-input.spec.ts",
         "components/chat-processing-indicator.spec.ts",
+        "components/specification-fullscreen.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
         "composer-model-routing.spec.ts",
