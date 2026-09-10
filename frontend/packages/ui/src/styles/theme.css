@@ -286,28 +286,33 @@ main::-webkit-scrollbar-thumb {
   pointer-events: none;
 }
 
-/* Chat and embed scrollers share the same thin, transparent-track design.
+/* Chat, embed and settings scrollers share the same thin, transparent-track design.
    Specific important WebKit rules override the legacy global forced scrollbar. */
 .chat-history-container,
+.settings-menu .settings-content-wrapper,
 .unified-embed-fullscreen-overlay .content-area {
   scrollbar-width: thin;
   scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
 }
 .chat-history-container:hover,
+.settings-menu .settings-content-wrapper:hover,
 .unified-embed-fullscreen-overlay .content-area:hover {
   scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
 }
 .chat-history-container::-webkit-scrollbar,
+.settings-menu .settings-content-wrapper::-webkit-scrollbar,
 .unified-embed-fullscreen-overlay .content-area::-webkit-scrollbar {
   width: 6px !important;
   height: 6px !important;
 }
 .chat-history-container::-webkit-scrollbar-track,
+.settings-menu .settings-content-wrapper::-webkit-scrollbar-track,
 .unified-embed-fullscreen-overlay .content-area::-webkit-scrollbar-track {
   background: transparent !important;
   box-shadow: none !important;
 }
 .chat-history-container::-webkit-scrollbar-thumb,
+.settings-menu .settings-content-wrapper::-webkit-scrollbar-thumb,
 .unified-embed-fullscreen-overlay .content-area::-webkit-scrollbar-thumb {
   background-color: rgba(128, 128, 128, 0.2) !important;
   border: none !important;
@@ -315,10 +320,12 @@ main::-webkit-scrollbar-thumb {
   min-width: 0 !important;
 }
 .chat-history-container:hover::-webkit-scrollbar-thumb,
+.settings-menu .settings-content-wrapper:hover::-webkit-scrollbar-thumb,
 .unified-embed-fullscreen-overlay .content-area:hover::-webkit-scrollbar-thumb {
   background-color: rgba(128, 128, 128, 0.5) !important;
 }
 .chat-history-container::-webkit-scrollbar-thumb:hover,
+.settings-menu .settings-content-wrapper::-webkit-scrollbar-thumb:hover,
 .unified-embed-fullscreen-overlay .content-area::-webkit-scrollbar-thumb:hover {
   background-color: rgba(128, 128, 128, 0.7) !important;
 }

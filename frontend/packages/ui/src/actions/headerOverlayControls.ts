@@ -29,7 +29,7 @@ export function headerOverlayControls(node: HTMLElement) {
     const viewport = surface!.getBoundingClientRect();
     for (const control of Array.from(node.querySelectorAll<HTMLElement>(CONTROL_SELECTOR))) {
       const bounds = control.getBoundingClientRect();
-      const overlaps = !!banner && banner.width > 0 && banner.height > 0 &&
+      const overlaps = !control.closest('[data-header-overlay-disabled]') && !!banner && banner.width > 0 && banner.height > 0 &&
         bounds.bottom > Math.max(banner.top, viewport.top) &&
         bounds.top < Math.min(banner.bottom, viewport.bottom) &&
         bounds.right > Math.max(banner.left, viewport.left) &&

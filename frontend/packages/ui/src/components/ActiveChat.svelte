@@ -13077,7 +13077,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <button
                           class="header-action"
                           data-testid="chat-details-button"
-                          aria-label="Chat details"
+                          aria-label={$text('common.settings')}
                           onclick={() =>
                             openChatDetailsSettings(
                               currentChat?.chat_id &&
@@ -13089,7 +13089,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                           ><span
                             class="clickable-icon icon_settings top-button"
                             aria-hidden="true"
-                          ></span><span class="action-label">Chat details</span
+                          ></span><span class="action-label">{$text('common.settings')}</span
                           ></button
                         >
                       </div>

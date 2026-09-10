@@ -11,7 +11,7 @@ export function tooltip(node: HTMLElement) {
     const browser = typeof window !== 'undefined';
     
     // Return no-op action for SSR or when conditions aren't met
-    if (!browser || !node.getAttribute('aria-label')) {
+    if (!browser || !node.getAttribute('aria-label') || node.closest('[data-tooltip-disabled]')) {
         return {
             destroy() {
                 // No-op for SSR or when no aria-label

@@ -14,6 +14,7 @@
 -->
 
 <script lang="ts">
+  import { tooltip } from '../../actions/tooltip';
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import { text } from '@repo/ui';
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
@@ -108,9 +109,9 @@
         <button
           data-testid="embed-report-issue-button"
           class="header-action"
+          use:tooltip
           onclick={onReportIssue}
           aria-label={$text('header.report_issue')}
-          title={$text('header.report_issue')}
           ><span class="clickable-icon icon_bug top-button" aria-hidden="true"
           ></span><span class="action-label"
             >{$text('header.report_issue')}</span
@@ -124,10 +125,10 @@
         <div class="button-wrapper">
           <button
             class="header-action"
+            use:tooltip
             data-testid="embed-share-button"
             onclick={onShare}
             aria-label={$text('chat.share')}
-            title={$text('chat.share')}
             ><span
               class="clickable-icon icon_share top-button"
               aria-hidden="true"
@@ -143,9 +144,9 @@
         <div class="button-wrapper">
           <button
             class="header-action"
+            use:tooltip
             onclick={onShowChat}
             aria-label={$text('chat.show_chat')}
-            title={$text('chat.show_chat')}
             ><span
               class="clickable-icon icon_chat top-button"
               aria-hidden="true"
@@ -160,13 +161,14 @@
         <div class="button-wrapper">
           <button
             class="header-action"
+            use:tooltip
             onclick={onCopy}
             aria-label={$text('common.copy')}
-            title={$text('common.copy')}
             ><span
               class="clickable-icon icon_copy top-button"
               aria-hidden="true"
-            ></span><span class="action-label">{$text('common.copy')}</span></button
+            ></span><span class="action-label">{$text('common.copy')}</span
+            ></button
           >
         </div>
       {/if}
@@ -177,27 +179,31 @@
           {#if downloadHref}
             <a
               class="header-action"
+              use:tooltip
               data-testid="embed-download-button"
               href={downloadHref}
               download={downloadFilename}
               aria-label={$text('common.download')}
-              title={$text('common.download')}
               ><span
                 class="clickable-icon icon_download top-button"
                 aria-hidden="true"
-              ></span><span class="action-label">{$text('common.download')}</span></a
+              ></span><span class="action-label"
+                >{$text('common.download')}</span
+              ></a
             >
           {:else}
             <button
               class="header-action"
+              use:tooltip
               data-testid="embed-download-button"
               onclick={onDownload}
               aria-label={$text('common.download')}
-              title={$text('common.download')}
               ><span
                 class="clickable-icon icon_download top-button"
                 aria-hidden="true"
-              ></span><span class="action-label">{$text('common.download')}</span></button
+              ></span><span class="action-label"
+                >{$text('common.download')}</span
+              ></button
             >
           {/if}
         </div>
@@ -208,10 +214,10 @@
         <div class="button-wrapper">
           <button
             class="header-action"
+            use:tooltip
             data-testid="embed-calendar-button"
             onclick={onCalendar}
             aria-label="Add to calendar"
-            title="Add to calendar"
             ><span
               class="clickable-icon icon_calendar top-button"
               aria-hidden="true"
@@ -225,10 +231,10 @@
         <div class="button-wrapper" class:run-active={runActive}>
           <button
             class="header-action"
+            use:tooltip
             data-testid="embed-run-button"
             onclick={onRun}
             aria-label={$text('app_skills.code.run')}
-            title={$text('app_skills.code.run')}
             ><span
               class="clickable-icon icon_play top-button"
               aria-hidden="true"
@@ -244,10 +250,10 @@
         <div class="button-wrapper" class:preview-active={previewActive}>
           <button
             class="header-action"
+            use:tooltip
             data-testid="embed-preview-button"
             onclick={onTogglePreview}
             aria-label={previewActive ? 'Hide preview' : 'Show preview'}
-            title={previewActive ? 'Hide preview' : 'Show preview'}
             ><span
               class="clickable-icon icon_preview top-button"
               aria-hidden="true"
@@ -264,10 +270,10 @@
           <button
             data-testid="embed-toggle-debug"
             class="header-action"
+            use:tooltip
             class:debug-mode-active={debugActive}
             onclick={onToggleDebug}
             aria-label={debugActive ? 'End debugging' : 'Start debugging'}
-            title={debugActive ? 'End debugging' : 'Start debugging'}
             ><span
               class="clickable-icon icon_task top-button"
               aria-hidden="true"
@@ -285,12 +291,10 @@
             data-testid="embed-pii-toggle"
             data-pii-revealed={piiRevealed ? 'true' : 'false'}
             class="header-action"
+            use:tooltip
             class:pii-toggle-active={piiRevealed}
             onclick={onTogglePII}
             aria-label={piiRevealed
-              ? $text('embeds.pii_hide')
-              : $text('embeds.pii_show')}
-            title={piiRevealed
               ? $text('embeds.pii_hide')
               : $text('embeds.pii_show')}
             ><span
@@ -312,9 +316,9 @@
           <button
             data-testid="embed-pii-include-original"
             class="header-action"
+            use:tooltip
             onclick={onIncludeOriginalPII}
             aria-label={$text('embeds.pii_include_original')}
-            title={$text('embeds.pii_include_original')}
             ><span
               class="clickable-icon icon_lock top-button"
               aria-hidden="true"
@@ -328,10 +332,10 @@
       <div class="button-wrapper">
         <button
           class="header-action"
+          use:tooltip
           data-testid={closeTestId}
           onclick={onClose}
           aria-label={$text('common.close')}
-          title={$text('common.close')}
           ><span class="clickable-icon icon_close top-button" aria-hidden="true"
           ></span><span class="action-label">{$text('common.close')}</span
           ></button

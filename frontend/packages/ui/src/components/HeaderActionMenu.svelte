@@ -7,6 +7,7 @@
 -->
 <script lang="ts">
   import { text } from '@repo/ui';
+  import { tooltip } from '../actions/tooltip';
   import type { Snippet } from 'svelte';
   import { tick } from 'svelte';
   import { fly } from 'svelte/transition';
@@ -28,6 +29,8 @@
   const REPORT_LABEL_MIN_WIDTH = 640;
   const MENU_GAP = 12;
   const MENU_DURATION = 180;
+  const MENU_HOVER_SCALE = 1.08;
+  const MENU_SHADOW_CLEARANCE = 8;
   let width = $state(0);
   let open = $state(false);
   let root: HTMLDivElement;
@@ -45,8 +48,10 @@
     if (open && root && anchor) {
       menuWidth = Math.max(
         0,
-        root.getBoundingClientRect().right -
-          anchor.getBoundingClientRect().left,
+        (root.getBoundingClientRect().right -
+          anchor.getBoundingClientRect().left -
+          MENU_SHADOW_CLEARANCE) /
+          MENU_HOVER_SCALE,
       );
     }
   });
@@ -55,6 +60,16 @@
     if (open && event.target instanceof Node && !root.contains(event.target))
       open = false;
   }
+  function actionClicked(event: MouseEvent) {
+    const action =
+      event.target instanceof Element
+        ? event.target.closest('button, a')
+        : null;
+    if (action && action !== trigger && !action.matches(':disabled')) {
+      open = false;
+    }
+  }
+
   async function keydown(event: KeyboardEvent) {
     if (event.key === 'Escape' && open) {
       event.preventDefault();
@@ -78,6 +93,7 @@
   bind:this={root}
   bind:clientWidth={width}
   onkeydown={keydown}
+  onclick={actionClicked}
   role="toolbar"
   tabindex="-1"
   aria-label={$text('common.more_actions')}
@@ -96,6 +112,7 @@
       <div class="button-wrapper more-wrapper" class:is-open={open}>
         <button
           bind:this={trigger}
+          use:tooltip
           class="header-action more-trigger"
           aria-label={$text('common.more_actions')}
           aria-expanded={open}
@@ -110,7 +127,10 @@
         <div
           id={menuId}
           class="more-actions"
+          data-header-overlay-disabled
+          data-tooltip-disabled
           style:max-width={`${menuWidth}px`}
+          style:--menu-hover-scale={MENU_HOVER_SCALE}
           style:top={`calc(100% + ${MENU_GAP}px)`}
           transition:fly={{
             y: -8,
@@ -170,16 +190,15 @@
     align-items: flex-start;
     gap: var(--spacing-4);
     z-index: 2;
-    max-height: 60dvh;
-    overflow-y: auto;
-    scrollbar-width: thin;
-    padding: 0 4px 8px 0;
+    /* Allow pill hover transforms and shadows to extend beyond the menu bounds. */
+    overflow: visible;
     pointer-events: auto;
   }
   .header-action-menu :global(.header-action) {
     all: unset;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-4);
     box-sizing: border-box;
     cursor: pointer;
@@ -200,6 +219,10 @@
   }
   .header-action-menu :global(.clickable-icon) {
     flex-shrink: 0;
+    display: block;
+    width: 25px;
+    height: 25px;
+    margin: 0;
   }
   .header-action-menu :global(.action-label) {
     display: none;
@@ -217,6 +240,11 @@
   .more-actions :global(.new-chat-button-wrapper) {
     max-width: 100%;
     box-sizing: border-box;
+    transform-origin: left center;
+  }
+  .more-actions :global(.button-wrapper:hover),
+  .more-actions :global(.new-chat-button-wrapper:hover) {
+    transform: scale(var(--menu-hover-scale));
   }
   .header-action-menu :global([data-header-overlay] .action-label) {
     color: #fff;
