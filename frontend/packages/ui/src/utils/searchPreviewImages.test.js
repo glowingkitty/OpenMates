@@ -75,3 +75,19 @@ test('obsolete legacy-preview loads do not publish images', async () => {
   }, controller.signal);
   assert.deepEqual(images, []);
 });
+
+// contract-test: supporting surface=gui.web assertions=web-search.surface-parity
+test('web fullscreen and both search parents retain the shared image path', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = name => readFile(new URL(`../components/embeds/${name}.svelte`, import.meta.url), 'utf8');
+  const website = await source('web/WebsiteEmbedFullscreen');
+  assert.match(website, /searchResultImageUrl\(dc\)/);
+  assert.match(website, /searchResultImageUrl\(attrs\)/);
+  for (const app of ['web', 'news']) {
+    const parent = await source(`${app}/${app === 'web' ? 'Web' : 'News'}SearchEmbedPreview`);
+    assert.match(parent, /<SearchThumbnailStrip[^>]*\{childEmbedIds\}/);
+  }
+  const search = await source('web/WebSearchEmbedFullscreen');
+  assert.match(search, /searchResultImageUrl\(content\)/);
+  assert.match(search, /searchResultImageUrl\(r\)/);
+});

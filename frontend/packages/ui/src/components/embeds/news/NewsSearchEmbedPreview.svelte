@@ -23,8 +23,7 @@
 
 <script lang="ts">
   import SearchThumbnailStrip from '../SearchThumbnailStrip.svelte';
-  import { searchPreviewImages, resolveSearchPreviewImages } from '../../../utils/searchPreviewImages';
-  import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
+  import { searchPreviewImages } from '../../../utils/searchPreviewImages';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
   import { proxyImage, MAX_WIDTH_FAVICON } from '../../../utils/imageProxy';
@@ -124,8 +123,6 @@
   let storeResolved = $state(false);
   let localResults = $state<NewsSearchResult[]>([]);
   let localChildEmbedIds = $state<string[]>([]);
-  let isVisible = $state(false);
-  let fallbackImages = $state<Array<{ url: string; title: string }>>([]);
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
 
@@ -290,40 +287,8 @@
   
   // Get flattened results (handles both nested and flat backend formats)
   let flatResults = $derived(flattenResults(results));
-  let metadataImages = $derived(searchPreviewImages(flatResults));
-  let previewThumbnails = $derived(metadataImages.length > 0 ? metadataImages : fallbackImages);
+  let previewThumbnails = $derived(searchPreviewImages(flatResults));
 
-  // Legacy news parents kept favicons but dropped thumbnails. Hydrate only a
-  // bounded set of children once the card is actually visible; current parents
-  // use their own image metadata with no additional embed reads.
-  function observeVisibility(node: HTMLElement) {
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        isVisible = true;
-        observer.disconnect();
-      }
-    });
-    observer.observe(node);
-    return { destroy: () => observer.disconnect() };
-  }
-
-  $effect(() => {
-    const controller = new AbortController();
-    const ids = childEmbedIds;
-    fallbackImages = [];
-    if (isVisible && status === 'finished' && metadataImages.length === 0 && ids.length > 0) {
-      void resolveSearchPreviewImages(flatResults, ids, async childId => {
-        const child = await resolveEmbed(childId);
-        return child?.content ? decodeToonContent(child.content) : null;
-      }, controller.signal).then(images => {
-        if (!controller.signal.aborted) fallbackImages = images;
-      }).catch(error => {
-        if (!controller.signal.aborted) console.warn('[NewsSearchEmbedPreview] Could not load legacy preview images:', error);
-      });
-    }
-    return () => controller.abort();
-  });
-  
   // Get first 3 results with favicons for display (uses flattened results)
   // Checks favicon, favicon_url, and meta_url.favicon formats
   let faviconResults = $derived(
@@ -408,9 +373,9 @@
   onEmbedDataUpdated={handleEmbedDataUpdated}
 >
   {#snippet details({ isMobile: isMobileLayout })}
-    <div class="news-search-details" class:mobile={isMobileLayout} use:observeVisibility>
-      {#if status === 'finished' && previewThumbnails.length > 0}
-        <SearchThumbnailStrip images={previewThumbnails} appId="news" />
+    <div class="news-search-details" class:mobile={isMobileLayout}>
+      {#if status === 'finished'}
+        <SearchThumbnailStrip images={previewThumbnails} {childEmbedIds} appId="news" />
       {/if}
       <!-- Query text -->
       <div class="ds-search-query">{query}</div>
