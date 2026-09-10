@@ -11,27 +11,34 @@ export interface ProjectedAssistantSpeechSegment {
   chapter: { kind: "heading"; text: string } | { kind: "part"; number: number } | { kind: "semantic"; type: "code" | "table" | "structured" };
 }
 
+const MAX_SPEECH_SEGMENTS = 20;
+const MAX_SEGMENT_CHARACTERS = 2_000;
+const FENCED_BLOCK = /^```[\s\S]*```$/;
+
 export function projectAssistantSpeech(content: string): ProjectedAssistantSpeechSegment[] {
   let nearestHeading = "";
-  return content
-    .split(/\n\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-    .flatMap((paragraph) => {
+  // Keep fences atomic, including blank lines and large payloads. Splitting before
+  // projection can expose pieces of internal JSON as ordinary speakable prose.
+  const paragraphs = content.split(/(```[\s\S]*?```)/g).flatMap((block) =>
+    FENCED_BLOCK.test(block.trim()) ? [block] : block.split(/\n\n+/),
+  );
+  const segments: ProjectedAssistantSpeechSegment[] = [];
+  for (const paragraph of paragraphs.map((block) => block.trim()).filter(Boolean)) {
+    if (!FENCED_BLOCK.test(paragraph)) {
       const heading = paragraph.split("\n").map((line) => line.match(/^#{1,6}\s+(.+?)\s*#*$/)?.[1]?.trim()).find(Boolean);
       if (heading) nearestHeading = heading;
-      return splitLongParagraph(paragraph).map((chunk) => ({ chunk, heading: nearestHeading }));
-    })
-    .slice(0, 20)
-    .map(({ chunk, heading }, sequence) => {
-      const projected = projectParagraph(chunk);
-      return {
-        sequence,
-        ...projected,
-        chapter: chapterFor(projected.kind, heading, sequence),
-      };
-    })
-    .filter((segment) => segment.speakableText.length > 0);
+    }
+    const projected = projectParagraph(paragraph);
+    for (const speakableText of splitLongParagraph(projected.speakableText)) {
+      if (segments.length === MAX_SPEECH_SEGMENTS) return segments;
+      const sequence = segments.length;
+      segments.push({
+        sequence, kind: projected.kind, speakableText,
+        chapter: chapterFor(projected.kind, nearestHeading, sequence),
+      });
+    }
+  }
+  return segments;
 }
 
 function chapterFor(
@@ -49,9 +56,9 @@ function chapterFor(
 function splitLongParagraph(paragraph: string): string[] {
   const chunks: string[] = [];
   let remainder = paragraph;
-  while (remainder.length > 2_000) {
-    let boundary = remainder.lastIndexOf(" ", 2_000);
-    if (boundary <= 0) boundary = 2_000;
+  while (remainder.length > MAX_SEGMENT_CHARACTERS) {
+    let boundary = remainder.lastIndexOf(" ", MAX_SEGMENT_CHARACTERS);
+    if (boundary <= 0) boundary = MAX_SEGMENT_CHARACTERS;
     chunks.push(remainder.slice(0, boundary).trim());
     remainder = remainder.slice(boundary).trimStart();
   }
@@ -59,18 +66,37 @@ function splitLongParagraph(paragraph: string): string[] {
   return chunks;
 }
 
+function projectFence(markdown: string): Omit<ProjectedAssistantSpeechSegment, "sequence" | "chapter"> {
+  // Search results are serialized in fences too; fences alone do not mean code.
+  const body = markdown.replace(/^```[^\n]*\n|\n?```$/g, "").trim();
+  let payload: Record<string, unknown> | null = null;
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) payload = parsed as Record<string, unknown>;
+  } catch {
+    // Ordinary code is not JSON; only recognized embed metadata changes its type.
+  }
+  if (payload?.type === "app_skill_use") {
+    return { kind: "embed_summary", speakableText: payload.skill_id === "search" ? "Search results are available." : "App results are available." };
+  }
+  if (payload && (payload.embed_id || ["website", "image", "audio", "video"].includes(String(payload.type)))) {
+    return { kind: "embed_summary", speakableText: "Structured data is available." };
+  }
+  return { kind: "code_summary", speakableText: "A code example is available." };
+}
+
 function projectParagraph(markdown: string): Omit<ProjectedAssistantSpeechSegment, "sequence" | "chapter"> {
   const trimmed = markdown.trim();
-  if (/^```[\s\S]*```$/.test(trimmed)) return { kind: "code_summary", speakableText: "A code example is available." };
+  if (/^```[\s\S]*```$/.test(trimmed)) return projectFence(trimmed);
   const lines = trimmed.split("\n").filter((line) => line.trim());
   if (lines.length >= 2 && lines.every((line) => /^\s*\|.*\|\s*$/.test(line))) {
     return { kind: "table_summary", speakableText: "A table is available." };
   }
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+  if (trimmed.startsWith("{") || (trimmed.startsWith("[") && !/^\[[^\]]+\]\([^)]*\)/.test(trimmed))) {
     return { kind: "embed_summary", speakableText: "Structured data is available." };
   }
   const speakableText = trimmed
-    .replace(/```[\s\S]*?```/g, " A code example is available. ")
+    .replace(/```[\s\S]*?```/g, (fence) => ` ${projectFence(fence).speakableText} `)
     .replace(/^\s*\|.*\|\s*$/gm, " A table is available. ")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
     .replace(/`[^`]*`/g, "")

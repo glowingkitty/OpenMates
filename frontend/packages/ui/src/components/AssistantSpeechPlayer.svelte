@@ -65,10 +65,11 @@
     onboarding_support: onboardingSupportMateUrl,
   };
   let isPlaying = $derived($player.status === 'playing');
-  let isPaused = $derived($player.status === 'paused');
+  let isPaused = $derived(['paused', 'completed'].includes($player.status));
+  let isFailed = $derived($player.status === 'failed' || Boolean($player.error));
+  let isBlocked = $derived($player.status === 'blocked_by_autoplay');
   let isLoading = $derived(
-    ['waiting_for_segment', 'waiting_for_more'].includes($player.status) ||
-    $player.presentationMode === 'passive_clip',
+    !isFailed && ['waiting_for_segment', 'waiting_for_more'].includes($player.status),
   );
   let isVisible = $derived(
     $player.responseId !== null && !['idle', 'stopped'].includes($player.status),
@@ -140,6 +141,7 @@
     data-presentation={$player.presentationMode}
     data-status={$player.status}
     aria-label="Voice response player"
+    aria-busy={isLoading}
   >
     <div
       class="assistant-speech-mate"
@@ -181,15 +183,15 @@
       {/each}
     </div>
 
-    <div class="assistant-speech-primary-controls" class:paused={isPaused}>
+    <div class="assistant-speech-primary-controls" class:paused={isPaused || isFailed || isBlocked}>
       {#key isPlaying}
         <button
           transition:scale={{ duration: 180, start: 0.65 }}
           type="button"
           class="assistant-speech-primary-control"
           data-testid="assistant-speech-primary-control"
-          aria-label={isPlaying ? 'Pause voice response' : 'Play voice response'}
-          onclick={() => isPlaying ? controller.pause() : void controller.play()}
+          aria-label={isFailed ? $text('common.retry') : isBlocked ? $text('chat.assistant_speech.continue_playback') : isPlaying ? 'Pause voice response' : 'Play voice response'}
+          onclick={() => isPlaying ? controller.pause() : isBlocked ? void controller.continueAfterUserGesture() : void controller.play()}
         >
           <span
             class="assistant-speech-icon"
@@ -200,7 +202,7 @@
           ></span>
         </button>
       {/key}
-      {#if isPaused}
+      {#if isPaused || isFailed || isBlocked}
         <button
           transition:scale={{ duration: 180, start: 0.65 }}
           type="button"
@@ -231,7 +233,11 @@
           {activeRegion ? chapterLabel(activeRegion.chapter) : $text('common.loading')}
         </strong>
         {#if isLoading}
-          <small class="assistant-speech-loading" data-testid="assistant-speech-loading">{$text('common.loading')}</small>
+          <small class="assistant-speech-loading" role="status" data-testid="assistant-speech-loading">{$text('common.loading')}</small>
+        {:else if isFailed}
+          <small class="assistant-speech-status" role="alert" data-testid="assistant-speech-error">{$text('chat.assistant_speech.unavailable')}</small>
+        {:else if isBlocked}
+          <small class="assistant-speech-status" role="status" data-testid="assistant-speech-autoplay-recovery">{$text('chat.assistant_speech.continue_playback')}</small>
         {/if}
       </div>
       {#if $player.presentationMode === 'replayable_track_queue' && nextRegion}
@@ -465,11 +471,26 @@
   .assistant-speech-adjacent:hover,
   .assistant-speech-adjacent:focus-visible { opacity: 1; }
   .assistant-speech-adjacent-label { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .assistant-speech-loading {
+  .assistant-speech-loading,
+  .assistant-speech-status {
     font-size: var(--font-size-xxs);
     line-height: 1;
-    opacity: 0.54;
     white-space: nowrap;
+  }
+
+  .assistant-speech-loading {
+    background: var(--processing-text-gradient);
+    background-size: 200% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    animation: processing-text-shimmer 1.5s infinite linear;
+  }
+
+  .assistant-speech-status {
+    max-width: min(340px, 70vw);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   @media (max-width: 730px) {
@@ -489,6 +510,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .assistant-speech-loading { animation: none; color: inherit; background: none; }
     .assistant-speech-waveform,
     .assistant-speech-waveform-bar,
     .assistant-speech-primary-control,

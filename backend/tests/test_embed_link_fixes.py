@@ -24,14 +24,18 @@ try:
         _MIXED_URL_EMBED_PATTERN,
         _EMBED_REF_SUFFIX_PATTERN,
     )
-    from backend.apps.ai.utils.embed_display_text import (
-        derive_display_text_from_embed_ref,
-        derive_embed_display_title,
-        escape_markdown_link_label,
-        is_bad_embed_display_text,
-    )
+
 except ImportError as _exc:
-    pytestmark = pytest.mark.skip(reason=f"Backend dependencies not installed: {_exc}")
+    STREAM_IMPORT_ERROR = str(_exc)
+else:
+    STREAM_IMPORT_ERROR = None
+
+from backend.apps.ai.utils.embed_display_text import (
+    derive_display_text_from_embed_ref,
+    derive_embed_display_title,
+    escape_markdown_link_label,
+    is_bad_embed_display_text,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -145,6 +149,7 @@ def test_escape_markdown_link_label():
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestFixMixedUrlEmbedReferences:
     """Tests for rewriting [text](https://url) (embed:ref) → [text](embed:ref)."""
 
@@ -229,6 +234,7 @@ class TestFixMixedUrlEmbedReferences:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestFixBacktickedInlineEmbedReferences:
     """Tests for unwrapping inline-code embed links so the UI can render them."""
 
@@ -265,6 +271,7 @@ class TestFixBacktickedInlineEmbedReferences:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestInlineEmbedLinkPattern:
     """Tests for _INLINE_EMBED_LINK_PATTERN regex."""
 
@@ -294,6 +301,7 @@ class TestInlineEmbedLinkPattern:
         assert match.group(2) == "test-ref"
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestBareEmbedRefPattern:
     """Tests for _BARE_EMBED_REF_PATTERN — brackets without (embed:...) parenthetical."""
 
@@ -334,6 +342,7 @@ class TestBareEmbedRefPattern:
         assert match is None
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestMixedUrlEmbedPattern:
     """Tests for _MIXED_URL_EMBED_PATTERN regex."""
 
@@ -368,6 +377,7 @@ class TestMixedUrlEmbedPattern:
         assert match is None
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestEmbedRefSuffixPattern:
     """Tests for _EMBED_REF_SUFFIX_PATTERN — the random 2-4 char suffix at end."""
 
@@ -395,8 +405,13 @@ class TestEmbedRefSuffixPattern:
 class TestDeriveEmbedDisplayText:
     """Tests for safe display-text derivation from technical embed refs."""
 
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
     def test_domain_ref_uses_domain(self):
-        assert derive_display_text_from_embed_ref("computerweekly.com-Kzy") == "computerweekly.com"
+        assert derive_display_text_from_embed_ref("computerweekly.com-Kzy") == "according to computerweekly.com"
+
+    # contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+    def test_web_fallback_uses_domain_instead_of_full_article_title(self):
+        assert derive_embed_display_title({"type": "website", "title": "A very long article title", "url": "https://www.wired.com/story/test"}, "wired.com-Ab1") == "according to wired.com"
 
     def test_connection_ref_uses_carrier_and_time(self):
         assert derive_display_text_from_embed_ref("ice-0800-PsB") == "ICE 08:00"
@@ -426,6 +441,7 @@ class TestDeriveEmbedDisplayText:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skipif(STREAM_IMPORT_ERROR is not None, reason=f"Backend dependencies not installed: {STREAM_IMPORT_ERROR}")
 class TestFixBadEmbedDisplayText:
     """
     Tests for _fix_bad_embed_display_text (the async function).
@@ -552,8 +568,8 @@ class TestFixBadEmbedDisplayText:
         )
 
         assert result == (
-            "Sources: [CNBC AI Infrastructure](embed:cnbc.com-vcZ), "
-            "[Second Talent Market Report](embed:secondtalent.com-RFp)"
+            "Sources: [according to cnbc.com](embed:cnbc.com-vcZ), "
+            "[according to secondtalent.com](embed:secondtalent.com-RFp)"
         )
 
     @pytest.mark.asyncio
@@ -596,7 +612,7 @@ class TestFixBadEmbedDisplayText:
         )
 
         assert result == (
-            "Source: [Research \\[Draft\\] &lt;img src=x&gt;](embed:example.com-X7z)\n\n"
+            "Source: [according to example.com](embed:example.com-X7z)\n\n"
             f"> Literal quote {grouped_cite}\n\n"
             f"Inline code `{grouped_cite}`\n\n"
             f"```text\nLiteral fenced code {grouped_cite}\n```"

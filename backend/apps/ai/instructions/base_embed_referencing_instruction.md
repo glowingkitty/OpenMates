@@ -22,8 +22,10 @@ Image search results use the same domain-based `embed_ref` format as web search 
 - Direct code/document/sheet embeds also have explicit `embed_ref` values. Use those exact values; never derive refs from filenames or status words like `finished`.
 - Always use inline references when presenting multiple skill results (flights, search results, places, etc.) so the user can tap each result directly.
 - You may use multiple inline embed links in a single response.
-- The display text should be short and descriptive (airline + time for flights, article title for search results, etc.).
-- **CRITICAL: The display text must NEVER be the embed_ref itself, any part of the embed_ref, or the random suffix from the embed_ref.** The embed_ref is a technical identifier (e.g. `blog.laozhang.ai-pOx`) — the user must see a human-readable description instead.
+- Integrate web citations naturally into the sentence using short attribution text, not the full article headline. For example: `New finishes include glacier and burgundy, [according to CNBC](embed:cnbc.com-Ab1) [and WIRED](embed:wired.com-Cd2).` Use only refs actually returned by the tools; these example refs are illustrative.
+- Use the publication name when known, or its domain when not: `[according to wired.com](embed:wired.com-Cd2)`. For multiple sources, vary the connective naturally (such as `and WIRED`) instead of repeating an entire headline or attribution phrase. Keep full article titles in the source preview.
+- Other embed labels should remain short and descriptive (airline + time for flights, a document name, or a meaningful description).
+- **CRITICAL: The display text must NEVER be the embed_ref itself, or its random suffix.** The embed_ref is a technical identifier (e.g. `blog.laozhang.ai-pOx`) — the user must see a human-readable description instead.
 - Prefer inline references over bullet-point summaries when results are already shown as cards.
 
 **Common mistakes — NEVER do these:**
@@ -35,7 +37,7 @@ Image search results use the same domain-based `embed_ref` format as web search 
 - `[Technical Changelog](https://docs.mistral.ai/getting-started/changelog)(embed:docs.mistral.ai-pFX)` — WRONG: same mistake without the space
 - `[upload_to_api_video.sh-finished](embed:upload_to_api_video.sh-finished)` — WRONG: this guesses a ref from the filename/status instead of using the provided `embed_ref`
 
-**Always write a descriptive title instead, using the embed ref exclusively:**
+**Use natural source attribution or a short meaningful label, using the embed ref exclusively:**
 - `[ChatGPT Plus Usage Limits](embed:blog.laozhang.ai-pOx)` — CORRECT: describes the content
 - `[Reddit discussion on Claude vs ChatGPT](embed:reddit.com-fdr)` — CORRECT: describes the content
 - `[Mistral Small 4 Release Post](embed:mistral.ai-nvh)` — CORRECT: embed ref only, no https:// URL alongside it

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import re
+import json
 from hashlib import sha256
 from collections.abc import Iterable, Mapping
 from typing import Any
@@ -148,20 +149,36 @@ def project_speech_segments(*, blocks: Iterable[Mapping[str, Any]], language: st
     return segments
 
 
+def _project_fence(markdown: str) -> tuple[str, str]:
+    """Recognize internal embed metadata before applying the code fallback."""
+    body = re.sub(r"^```[^\n]*\n|\n?```$", "", markdown).strip()
+    try:
+        payload = json.loads(body)
+    except (ValueError, TypeError):
+        payload = None
+    if isinstance(payload, dict) and payload.get("type") == "app_skill_use":
+        if payload.get("skill_id") == "search":
+            return "embed_summary", "Search results are available."
+        return "embed_summary", "App results are available."
+    if isinstance(payload, dict) and (payload.get("embed_id") or payload.get("type") in {"website", "image", "audio", "video"}):
+        return "embed_summary", "Structured data is available."
+    return "code_summary", "A code example is available."
+
+
 def project_streaming_speech_segment(markdown: str) -> tuple[str, str] | None:
     """Create a safe deterministic fallback when streaming lacks semantic blocks."""
     text = markdown.strip()
     if not text:
         return None
     if _FENCED_CODE.fullmatch(text):
-        return "code_summary", "A code example is available."
+        return _project_fence(text)
     if _is_markdown_table(text):
         return "table_summary", "A table is available."
-    if text.startswith(("{", "[")):
+    if text.startswith("{") or (text.startswith("[") and not _MARKDOWN_LINK.match(text)):
         return "embed_summary", "Structured data is available."
     # Streaming responses are encrypted client history, so the server cannot
     # recover producer block metadata here. Never turn raw structured syntax into speech.
-    text = _FENCED_CODE_BLOCK.sub(" A code example is available. ", text)
+    text = _FENCED_CODE_BLOCK.sub(lambda match: " " + _project_fence(match.group(0))[1] + " ", text)
     text = _TABLE_ROW.sub(" A table is available. ", text)
     text = _MARKDOWN_LINK.sub(r"\1", text)
     text = _INLINE_CODE.sub("", text)

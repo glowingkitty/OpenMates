@@ -110,6 +110,8 @@ class AssistantSpeechController {
     projected: ProjectedSpeechSegment[];
   } | null = null;
   private segmentSequence = new Map<string, number>();
+  private readonly latestStatusBySegmentId = new Map<string, SpeechStatusSegment>();
+  private lastRequest: { chatId: string; messageId: string; projected: ProjectedSpeechSegment[] } | null = null;
   private chatId: string | null = null;
   private messageId: string | null = null;
   private error: string | null = null;
@@ -131,6 +133,19 @@ class AssistantSpeechController {
   }>();
 
   constructor() {
+    // Asset publication and speech readiness travel independently. Subscribe to
+    // the existing post-storage event so delayed client encryption can recover.
+    void import("./chatSyncService").then(({ chatSyncService }) => {
+      chatSyncService.addEventListener("embedUpdated", (event: Event) => {
+        const assetId = (event as CustomEvent<{ embed_id?: string }>).detail?.embed_id;
+        if (!assetId || this.queue.state.status === "stopped") return;
+        for (const status of this.latestStatusBySegmentId.values()) {
+          if (status.status === "ready" && status.generated_asset_id === assetId) {
+            void this.hydrateReadySegment(status);
+          }
+        }
+      });
+    }).catch((cause) => console.error("[AssistantSpeechController] Asset recovery subscription failed:", cause));
     webSocketService.on<SpeechStatusPayload>("assistant_speech_status", (payload) => {
       void this.handleStatus(payload);
     });
@@ -149,6 +164,7 @@ class AssistantSpeechController {
     if (projected.length === 0) return;
     this.supersedeCurrentMessage(messageId);
     this.pending = { chatId, messageId, projected };
+    this.lastRequest = this.pending;
     this.stoppedMessageIds.delete(messageId);
     this.dismissedMessageIds.delete(messageId);
     this.chatId = chatId;
@@ -157,17 +173,50 @@ class AssistantSpeechController {
     this.publicPlayback = false;
     this.mateName = mate.name || "OpenMates";
     this.mateCategory = mate.category || "default";
+    if (this.queue.state.responseId !== messageId || this.queue.state.status === "stopped") {
+      this.queue.start(messageId, []);
+    }
     this.publish();
-    await webSocketService.sendMessage("assistant_speech", {
-      action: "request",
-      chat_id: chatId,
-      assistant_message_id: messageId,
-      segments: projected.map(({ chapter: _chapter, ...segment }) => segment),
-    });
+    await this.sendRequest();
   }
 
   pause(): void { this.queue.pause(); }
-  play(): Promise<void> { return this.queue.play(); }
+  async play(): Promise<void> {
+    if (this.queue.state.status === "failed") {
+      const activeId = this.queue.state.activeSegmentId;
+      const ready = activeId ? this.latestStatusBySegmentId.get(activeId) : undefined;
+      this.error = null;
+      if (ready?.status === "ready") {
+        await this.hydrateReadySegment(ready);
+      } else if (this.lastRequest) {
+        this.pending = this.lastRequest;
+        if (ready) {
+          await this.hydrateReadySegment({ ...ready, status: "queued" });
+        } else if (!activeId) {
+          this.queue.start(this.lastRequest.messageId, []);
+        }
+        await this.sendRequest();
+        if (this.error) return;
+      }
+    }
+    await this.queue.play();
+  }
+
+  private async sendRequest(): Promise<void> {
+    const request = this.pending;
+    if (!request) return;
+    try {
+      await webSocketService.sendMessage("assistant_speech", {
+        action: "request", chat_id: request.chatId, assistant_message_id: request.messageId,
+        segments: request.projected.map(({ chapter: _chapter, ...segment }) => segment),
+      });
+    } catch (cause) {
+      if (this.messageId !== request.messageId) return;
+      console.error("[AssistantSpeechController] Speech request failed:", cause);
+      this.error = "Speech is temporarily unavailable.";
+      this.queue.fail();
+    }
+  }
   previous(): Promise<void> { return this.queue.previous(); }
   next(): Promise<void> { return this.queue.next(); }
   selectSegment(segmentId: string): Promise<void> { return this.queue.selectSegment(segmentId); }
@@ -177,6 +226,8 @@ class AssistantSpeechController {
     if (this.messageId) this.dismissedMessageIds.add(this.messageId);
     this.audioResolutionGeneration += 1;
     this.queue.stop();
+    this.lastRequest = null;
+    this.pending = null;
     this.releaseGeneratedAudio();
   }
 
@@ -203,6 +254,7 @@ class AssistantSpeechController {
         ...presentation,
       };
     }));
+    this.queue.markComplete();
     this.publish();
   }
 
@@ -233,13 +285,21 @@ class AssistantSpeechController {
       this.chatId = chatId;
       this.messageId = messageId;
       this.segmentSequence.clear();
+      // Cached rows and newly queued rows are returned in separate groups.
+      // Join chapter metadata by sequence, never by acceptance array position.
+      const sequences = payload.segments.flatMap((status) => typeof status.sequence === "number" ? [status.sequence] : []);
+      const sequenceOffset = sequences.length ? Math.max(0, Math.min(...sequences) - projected[0].sequence) : 0;
       const segments = payload.segments.flatMap((status, index) => {
-        if (!status.segment_id || !projected[index]) return [];
-        const sequence = status.sequence ?? projected[index].sequence;
+        const sequence = (status.sequence ?? projected[index]?.sequence ?? index) - sequenceOffset;
+        const source = projected.find((segment) => segment.sequence === sequence);
+        if (!status.segment_id || !source) return [];
+        const latest = this.latestStatusBySegmentId.get(status.segment_id);
+        if (latest?.status === "ready") status = { ...status, ...latest };
+        this.latestStatusBySegmentId.set(status.segment_id, status);
         this.segmentSequence.set(status.segment_id, sequence);
         const presentation = {
-          chapter: projected[index].chapter,
-          kind: status.kind || projected[index].kind,
+          chapter: source.chapter,
+          kind: status.kind || source.kind,
           playbackClass: status.kind === "app_use_announcement" ? "passive" as const : "replayable" as const,
         };
         this.presentationBySegmentId.set(status.segment_id, presentation);
@@ -257,16 +317,24 @@ class AssistantSpeechController {
       } else {
         this.queue.start(messageId, segments);
       }
-      await Promise.all(payload.segments.map((status) => this.hydrateReadySegment(status)));
+      this.queue.markComplete();
+      await Promise.all(payload.segments.map((status) => this.hydrateReadySegment(this.latestStatusBySegmentId.get(status.segment_id ?? "") ?? status)));
       return;
     }
 
     if (payload.status === "error" && !payload.segment_id) {
       this.error = "Speech is temporarily unavailable.";
+      this.queue.fail();
       this.publish();
       return;
     }
     if (payload.segment_id) {
+      const latest = this.latestStatusBySegmentId.get(payload.segment_id);
+      if (latest?.status === "ready" && ["queued", "generating"].includes(payload.status ?? "")) return;
+      this.latestStatusBySegmentId.set(payload.segment_id, payload);
+      // Acceptance supplies authoritative ordering and chapter metadata for manual
+      // requests. Retain early readiness rather than starting a partial queue.
+      if (this.pending) return;
       if (
         typeof payload.sequence === "number" &&
         payload.message_id &&
@@ -324,6 +392,7 @@ class AssistantSpeechController {
     if (sequence === undefined) return;
     const presentation = this.presentationBySegmentId.get(status.segment_id) ?? defaultPresentation(sequence, status.kind);
     if (status.status !== "ready" || !status.generated_asset_id) {
+      if (status.status === "error") this.error = "Speech is temporarily unavailable.";
       this.queue.upsertSegment({
         id: status.segment_id,
         sequence,
@@ -362,6 +431,8 @@ class AssistantSpeechController {
       if (resolvedAudio.s3Key) {
         this.audioKeyBySegmentId.set(status.segment_id, resolvedAudio.s3Key);
       }
+      const recoveringActive = this.queue.state.status === "failed" && this.queue.state.activeSegmentId === status.segment_id;
+      if (recoveringActive) this.error = null;
       this.queue.upsertSegment({
         id: status.segment_id,
         sequence,
@@ -371,6 +442,7 @@ class AssistantSpeechController {
         waveform: [],
         ...presentation,
       });
+      if (recoveringActive) await this.queue.play();
       this.publish();
       void buildWaveformFromAudioUrl(resolvedAudio.url)
         .then((waveform) => {
@@ -415,6 +487,12 @@ class AssistantSpeechController {
     if (this.messageId && this.messageId !== nextMessageId) {
       this.rememberStoppedMessage(this.messageId);
       this.audioResolutionGeneration += 1;
+      this.queue.stop();
+      this.segmentSequence.clear();
+      this.presentationBySegmentId.clear();
+      this.latestStatusBySegmentId.clear();
+      this.pending = null;
+      this.lastRequest = null;
       this.releaseGeneratedAudio();
     }
   }
