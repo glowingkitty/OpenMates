@@ -43,6 +43,22 @@ beforeEach(() => {
 const accepted = (segments: unknown[]) => mocks.handlers.get("assistant_speech_status")?.({ status: "accepted", segments });
 const ready = { segment_id: "segment-0", sequence: 0, status: "ready", generated_asset_id: "asset-0", message_id: "message", chat_id: "chat" };
 
+// contract-test: supporting surface=gui.web assertions=assistant-speech.failure.nonblocking-visible-resumable
+it("keeps current playback controls usable when a later chapter fails", async () => {
+  const { assistantSpeechController: controller } = await import("../assistantSpeechController");
+  await controller.request("chat", "message", "First paragraph.\n\nSecond paragraph.");
+  await accepted([ready, { segment_id: "segment-1", sequence: 1, status: "queued" }]);
+  await vi.waitFor(() => expect(get(controller.player).status).toBe("playing"));
+  await mocks.handlers.get("assistant_speech_status")?.({ ...ready, segment_id: "segment-1", sequence: 1, status: "error" });
+  expect(get(controller.player).status).toBe("playing");
+  expect(get(controller.player).error).toBeNull();
+  expect(get(controller.player).regions[1].status).toBe("failed");
+  await controller.next();
+  expect(get(controller.player).status).toBe("failed");
+  expect(get(controller.player).error).toBeTruthy();
+  await controller.close();
+});
+
 // contract-test: supporting surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace,assistant-speech.failure.nonblocking-visible-resumable
 it("shows pending feedback immediately and exposes request failures", async () => {
   const { assistantSpeechController: controller } = await import("../assistantSpeechController");

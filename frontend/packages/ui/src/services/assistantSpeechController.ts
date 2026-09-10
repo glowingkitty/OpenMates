@@ -139,7 +139,7 @@ class AssistantSpeechController {
       chatSyncService.addEventListener("embedUpdated", (event: Event) => {
         const assetId = (event as CustomEvent<{ embed_id?: string }>).detail?.embed_id;
         if (!assetId || this.queue.state.status === "stopped") return;
-        for (const status of this.latestStatusBySegmentId.values()) {
+        for (const status of Array.from(this.latestStatusBySegmentId.values())) {
           if (status.status === "ready" && status.generated_asset_id === assetId) {
             void this.hydrateReadySegment(status);
           }
@@ -518,7 +518,9 @@ class AssistantSpeechController {
       chatId: this.chatId,
       messageId: this.messageId,
       regions: this.queue.waveformRegions,
-      error: this.error,
+      // A prefetched chapter can fail while the current audio is still playing.
+      // Keep its failure in the queue; show recovery when that chapter is active.
+      error: this.queue.state.status === "failed" ? this.error : null,
       presentationMode: this.queue.presentationMode,
       hasReplayableTracks: this.queue.hasReplayableTracks,
       mateName: this.mateName,
