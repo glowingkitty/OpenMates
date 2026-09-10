@@ -356,7 +356,7 @@
         padding: var(--spacing-4) var(--spacing-8);
         border: none;
         border-radius: var(--radius-8);
-        color: var(--color-grey-0);
+        color: var(--color-font-button);
         font-weight: 500;
         background: var(--color-button-primary);
         cursor: pointer;
