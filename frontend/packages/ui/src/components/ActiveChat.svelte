@@ -14887,10 +14887,12 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     .active-chat-container.side-by-side-active {
         background-color: var(--color-grey-0); /* Lighter background to show separation */
         box-shadow: none; /* Remove shadow since child cards have shadows */
-        padding: var(--spacing-5); /* Add padding to show gap around cards */
+        /* Keep workspace edges identical across single-pane and split layouts.
+           The flex gap supplies separation only between the two cards. */
+        padding: 0;
     }
     
-    /* Ensure content-container fills the padded area */
+    /* Ensure content-container fills the workspace edge to edge */
     .active-chat-container.side-by-side-active .content-container {
         height: 100%;
     }
