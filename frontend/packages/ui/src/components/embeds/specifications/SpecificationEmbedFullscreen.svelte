@@ -9,11 +9,12 @@
 <script lang="ts">
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
-  import type { SpecificationDocument, SpecFlow } from './SpecificationDocument';
+  import type { SpecificationDocument, SpecFlow, SpecCheckPreview } from './SpecificationDocument';
   interface Props { data: { decodedContent: { document: SpecificationDocument } }; onClose: () => void }
   let { data, onClose }: Props = $props();
   const document = $derived(data.decodedContent.document);
   let selectedFlow = $state<SpecFlow | null>(null);
+  let selectedCheck = $state<SpecCheckPreview | null>(null);
   const requirements = $derived(new Map(document.requirements.map(item => [item.id, item])));
   const models = $derived(new Map(document.models.map(item => [item.id, item])));
   function flows(ids: string[], kind: SpecFlow['kind']) {
@@ -30,7 +31,7 @@
     {#each items as flow (flow.id)}
       <div data-testid={`spec-flow-${flow.id}`}>
         <UnifiedEmbedPreview id={`spec-flow-${flow.id}`} presentationOnly
-          appId="code" appIconName="design" skillId="specification-flow" skillIconName="design"
+          appId="design" appIconName="design" skillId="specification-flow" skillIconName="design"
           skillName={flow.title} status="finished" showStatus={false} showSkillIcon={false}
           onFullscreen={() => { selectedFlow = flow; }}>
           {#snippet details()}
@@ -46,8 +47,22 @@
 {/snippet}
 
 <div class="specification-view">
-  {#if selectedFlow}
-    <UnifiedEmbedFullscreen appId="code" skillIconName="design" showShare={false}
+  {#if selectedCheck}
+    <UnifiedEmbedFullscreen appId="plans" skillIconName="task" showShare={false}
+      testId="spec-check-fullscreen" closeTestId="spec-check-close"
+      embedHeaderTitle={selectedCheck.title} embedHeaderSubtitle={`Check · ${selectedCheck.method}`}
+      onClose={() => { selectedCheck = null; }}>
+      {#snippet content()}
+        <article class="flow-document">
+          <p class="flow-parent">Linked from {document.title} / {selectedFlow?.title}</p>
+          <p>{selectedCheck.description}</p>
+          <h2>Evidence</h2><p>{selectedCheck.evidence}</p>
+          <p class="flow-parent">Design preview · illustrative Check · styling proposed</p>
+        </article>
+      {/snippet}
+    </UnifiedEmbedFullscreen>
+  {:else if selectedFlow}
+    <UnifiedEmbedFullscreen appId="design" skillIconName="design" showShare={false}
       testId="spec-flow-fullscreen" closeTestId="spec-flow-close"
       embedHeaderTitle={selectedFlow.title}
       embedHeaderSubtitle={`${selectedFlow.kind === 'edge_case' ? 'Edge case' : 'User flow'} · ${document.title}`}
@@ -56,6 +71,27 @@
         <article class="flow-document">
           <p class="flow-parent">Part of {document.project} / {document.title}</p>
           <ol>{#each selectedFlow.steps as step}<li>{step}</li>{/each}</ol>
+          <h2 class="checks-heading">Checks</h2>
+          {#if selectedFlow.requiredCheckRefs?.length}
+            <p class="flow-parent">Illustrative links · evidence must match this flow’s revision.</p>
+            <div class="flow-grid">
+              {#each selectedFlow.requiredCheckRefs as checkId}
+                {@const check = document.linkedChecks?.find(item => item.id === checkId)}
+                {#if check}
+                  <div data-testid={`spec-check-${check.id}`}>
+                    <UnifiedEmbedPreview id={`spec-check-${check.id}`} presentationOnly
+                      appId="plans" appIconName="task" skillId="check" skillIconName="task"
+                      skillName={check.title} status="finished" showStatus={false} showSkillIcon={false}
+                      onFullscreen={() => { selectedCheck = check; }}>
+                      {#snippet details()}
+                        <div class="check-preview"><span>{check.method} · sample</span><p>{check.description}</p><strong>No proof recorded</strong></div>
+                      {/snippet}
+                    </UnifiedEmbedPreview>
+                  </div>
+                {/if}
+              {/each}
+            </div>
+          {:else}<p class="flow-parent">No Checks linked in this example yet.</p>{/if}
         </article>
       {/snippet}
     </UnifiedEmbedFullscreen>
@@ -134,7 +170,7 @@
                   {@const model = models.get(id)}
                   {#if model}
                     <details class="model-detail" data-testid={`spec-model-${id}`}>
-                      <summary><span aria-hidden="true">‹/›</span> {model.id}</summary>
+                      <summary>{@render icon('code')} {model.id}</summary>
                       <div class="model-content"><p>{model.description}</p><dl>{#each model.fields as field}<dt><code>{field.name}</code><span>{field.type}</span></dt><dd>{field.description}</dd>{/each}</dl></div>
                     </details>
                   {/if}
@@ -189,7 +225,7 @@
   .requirement-details { margin-top: 9px; color: var(--color-font-secondary); font-size: var(--font-size-xxs); }
   .requirement-details summary:hover { color: var(--color-font-primary); }
   code { overflow-wrap: anywhere; font-size: var(--font-size-xxs); }
-  .flow-grid { align-items: start; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .flow-grid { align-items: start; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
   .architecture-card { background: var(--color-grey-0); border-radius: 24px; box-shadow: 0 3px 3px var(--color-grey-30); min-width: 0; overflow: hidden; }
   .flow-preview { padding: 12px 14px; }
   .flow-preview ul { margin: 8px 0 0; padding-left: 18px; color: var(--color-font-secondary); font-size: var(--font-size-small); line-height: 1.45; }
@@ -212,7 +248,13 @@
   .architecture-diagram i { width: 28px; border-top: 1px dashed var(--color-grey-50); margin: 0 8px; }
   .model-list { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; padding: 0 8px; }
   .model-detail { min-width: 0; max-width: 100%; }
-  .model-detail > summary { border-radius: 18px; background: var(--color-primary-start); color: var(--color-font-button); padding: 5px 12px; font-size: var(--font-size-xxs); font-weight: 650; overflow-wrap: anywhere; }
+  .model-detail > summary { display: flex; align-items: center; gap: 6px; border-radius: 18px; background: var(--color-app-code); color: var(--color-font-button); padding: 5px 12px; font-size: var(--font-size-xxs); font-weight: 650; overflow-wrap: anywhere; }
+  .model-detail > summary .spec-icon { width: 16px; height: 16px; color: var(--color-font-button); }
+  .check-preview { padding: 16px; font-size: var(--font-size-small); }
+  .check-preview > span { color: var(--color-font-secondary); font-size: var(--font-size-xxs); }
+  .check-preview p { line-height: 1.45; margin: 10px 0; }
+  .check-preview strong { font-size: var(--font-size-xxs); }
+  .checks-heading { margin-top: 36px; }
   .model-detail[open] { flex-basis: 100%; }
   .model-detail[open] > summary { width: fit-content; }
   .model-content { padding: 14px 18px; margin-top: 12px; border: 1px solid var(--color-grey-25); border-radius: 14px; background: var(--color-grey-0); font-size: var(--font-size-xs); }
