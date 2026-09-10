@@ -3616,25 +3616,34 @@ export class EmbedStore {
    * contain the plaintext embed_id. We use the suffix only to find candidates, then
    * decrypt and verify the embedded TOON still contains the exact requested ref.
    */
-  async resolveByRefDeep(embedRef: string): Promise<string | null> {
+  async resolveByRefDeep(
+    embedRef: string,
+    chatId?: string | null,
+  ): Promise<string | null> {
     const indexedEmbedId = this.resolveByRef(embedRef);
     if (indexedEmbedId) return indexedEmbedId;
 
-    const inFlight = this.refRepairInFlight.get(embedRef);
+    if (chatId === undefined) {
+      // Lazy import avoids the example-chat registry's import cycle with EmbedStore.
+      const { activeChatStore } = await import("../stores/activeChatStore");
+      chatId = activeChatStore.get();
+    }
+    const repairKey = JSON.stringify([chatId, embedRef]);
+    const inFlight = this.refRepairInFlight.get(repairKey);
     if (inFlight) return inFlight;
 
-    const repair = this.resolveByRefDeepUncached(embedRef);
-    this.refRepairInFlight.set(embedRef, repair);
+    const repair = this.resolveByRefDeepUncached(embedRef, chatId);
+    this.refRepairInFlight.set(repairKey, repair);
     try {
       return await repair;
     } finally {
-      if (this.refRepairInFlight.get(embedRef) === repair) {
-        this.refRepairInFlight.delete(embedRef);
+      if (this.refRepairInFlight.get(repairKey) === repair) {
+        this.refRepairInFlight.delete(repairKey);
       }
     }
   }
 
-  private async resolveByRefDeepUncached(embedRef: string): Promise<string | null> {
+  private async resolveByRefDeepUncached(embedRef: string, chatId: string | null): Promise<string | null> {
     const indexedEmbedId = this.resolveByRef(embedRef);
     if (indexedEmbedId) return indexedEmbedId;
 
@@ -3661,6 +3670,29 @@ export class EmbedStore {
 
       return null;
     };
+
+    // A historical chat can fall entirely outside the global newest-200 scan.
+    // Search its encrypted rows first, including children, and verify the exact
+    // decrypted ref using the same path as the global fallback. Never persist refs.
+    if (chatId) {
+      let hashedChatId = chatIdHashCache.get(chatId);
+      if (!hashedChatId) {
+        hashedChatId = await computeSHA256(chatId);
+        chatIdHashCache.set(chatId, hashedChatId);
+      }
+      const cachedRows = Array.from(embedCache.values()).filter(
+        (entry) => entry.hashed_chat_id === hashedChatId,
+      );
+      const storedRows = await this.getEmbedsByHashedChatId(hashedChatId);
+      const chatCandidates = new Set<string>();
+      for (const entry of [...cachedRows, ...storedRows]) {
+        if (entry.status === "error" || entry.status === "cancelled") continue;
+        const embedId = this.getEntryEmbedId(entry);
+        if (embedId) chatCandidates.add(embedId);
+      }
+      const chatResult = await tryCandidates(Array.from(chatCandidates));
+      if (chatResult) return chatResult;
+    }
 
     const candidates = new Set<string>(
       embedIdPrefix
