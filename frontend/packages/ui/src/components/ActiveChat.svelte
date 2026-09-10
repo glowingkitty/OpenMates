@@ -12976,7 +12976,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                         <HeaderActionMenu
                             resetKey={currentChat?.chat_id}
                             hasShare={hasActiveShareableChatSurface}
-                            hasActions={showChatSettingsAction || showChatRemindersAction || isAdminUser || showChatPIIAction}
+                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser, showChatPIIAction].filter(Boolean).length}
                         >
                   {#snippet report()}
                     <div

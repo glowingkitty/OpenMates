@@ -1,5 +1,7 @@
 <script lang="ts">
   import { searchResultImageUrl } from '../utils/searchPreviewImages';
+  import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
+  import { embedStore, embedRefIndexVersion } from '../services/embedStore';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import type { SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
@@ -489,7 +491,7 @@
       const appId = attrs.app_id;
       const skillId = attrs.skill_id;
       const contentRef = attrs.contentRef;
-      if ((appId === 'images' || appId === 'news' || appId === 'web') && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
+      if ((appId === 'images' || appId === 'news' || appId === 'web' || appId === 'events') && skillId === 'search' && typeof contentRef === 'string' && contentRef.startsWith('embed:')) {
         const parentEmbedId = contentRef.slice('embed:'.length);
         candidates.push({
           parentEmbedId,
@@ -506,9 +508,25 @@
     }
   }
 
-  async function resolveHeaderImageBubbles(candidates: ImageSearchCandidate[]): Promise<HeaderImageBubble[]> {
+  async function resolveHeaderImageBubbles(candidates: ImageSearchCandidate[], linkedRefs: string[], chatId: string | null): Promise<HeaderImageBubble[]> {
     const seen = new Set<string>();
     const bubbles: HeaderImageBubble[] = [];
+
+    // Explicit assistant references outrank parent preview order across all searches.
+    // Resolve actual child IDs so clicking a bubble opens the referenced result.
+    for (const ref of linkedRefs) {
+      const embedId = await embedStore.resolveByRefDeep(ref, chatId);
+      if (!embedId) continue;
+      const linkedEmbed = await resolveEmbed(embedId);
+      const decoded = linkedEmbed?.content ? await decodeToonContent(linkedEmbed.content) : null;
+      if (!decoded || typeof decoded !== 'object') continue;
+      const rawEntry = await embedStore.getRawEntry(`embed:${embedId}`);
+      const parentId = rawEntry?.parent_embed_id || embedId;
+      if (appendHeaderImageBubble(decoded, bubbles, seen, parentId, embedId)) return bubbles;
+      for (const result of getParentPreviewImageResults(decoded)) {
+        if (appendHeaderImageBubble(result, bubbles, seen, embedId, embedId)) return bubbles;
+      }
+    }
 
     for (const candidate of candidates) {
       let childEmbedIds = candidate.childEmbedIds;
@@ -1689,11 +1707,15 @@
     }
 
     const candidates: ImageSearchCandidate[] = [];
+    const linkedRefs = Array.from(new Set(messages
+      .filter(message => message.role === 'assistant')
+      .flatMap(message => collectHeaderImageRefs(message.content))));
+    const refIndexVersion = $embedRefIndexVersion;
     for (const message of messages) {
       collectImageSearchCandidates(message.content as TiptapNode | undefined, candidates);
     }
 
-    if (candidates.length === 0) {
+    if (candidates.length === 0 && linkedRefs.length === 0) {
       headerImageBubbleRequestId += 1;
       headerImageBubbleCandidateKey = '';
       headerImageBubbleRetryBaseKey = '';
@@ -1709,7 +1731,7 @@
       .join('|');
     const baseCandidateKey = `${chatKey}:${candidates
       .map(candidate => `${candidate.parentEmbedId}:${candidate.childEmbedIds.join('|')}`)
-      .join(';')}#${embedUpdateKey}`;
+      .join(';')}#${embedUpdateKey}#${linkedRefs.join('|')}#${refIndexVersion}`;
     if (baseCandidateKey !== headerImageBubbleRetryBaseKey) {
       headerImageBubbleRetryBaseKey = baseCandidateKey;
       headerImageBubbleRetryCount = 0;
@@ -1721,7 +1743,7 @@
     headerImageBubbleCandidateKey = candidateKey;
     const requestId = ++headerImageBubbleRequestId;
 
-    resolveHeaderImageBubbles(candidates)
+    resolveHeaderImageBubbles(candidates, linkedRefs, chatKey)
       .then((bubbles) => {
         if (requestId !== headerImageBubbleRequestId) return;
         headerImageBubbles = bubbles.length > 0 ? bubbles : null;

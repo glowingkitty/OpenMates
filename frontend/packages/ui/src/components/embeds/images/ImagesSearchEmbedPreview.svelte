@@ -240,7 +240,9 @@
         <div class="text-content">
           <span class="search-query">{query}</span>
           <span class="search-provider">{$text('embeds.via')} {provider}</span>
-          {#if resultState === 'missing_preview_metadata'}
+          {#if resultState === 'known_zero_results'}
+            <span class="preview-metadata-missing" data-testid="images-search-no-results">{$text('embeds.search_no_results')}</span>
+          {:else if resultState === 'missing_preview_metadata'}
             <span class="preview-metadata-missing" data-testid="images-search-preview-metadata-missing-message">
               {$text('embeds.search_preview_open_to_view_results')}
             </span>
@@ -423,7 +425,7 @@
   :global(.dark) .search-provider { color: var(--color-grey-50, #888); }
   :global(.dark) .skeleton-line   { background: var(--color-grey-80, #333); }
   :global(.dark) .remaining-count { color: var(--color-grey-50, #888); }
-  :global(.dark) .favicon { border-color: var(--color-grey-85, #222); background: var(--color-grey-80, #333); }
+  :global(.dark) .favicon { border-color: var(--color-grey-90, #222); background: var(--color-grey-80, #333); }
 
   :global(.dark) .search-error {
     background: var(--color-error-95, #2a1515);
