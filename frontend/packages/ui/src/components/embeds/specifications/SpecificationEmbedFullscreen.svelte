@@ -2,15 +2,18 @@
   Specification fullscreen reader, built on the shared embed shell.
   Renders Outcome, boundaries and ordered custom chapters from typed view data.
   Requirement proof is separate from authored content and expands for inspection.
-  Flows and models disclose full content locally without fetching chat history.
+  Flows open the shared fullscreen renderer using parent-owned Spec data.
+  No independent flow embed, storage lookup or chat history is involved.
   Contract: specifications/features/specifications/specification.yml.
 -->
 <script lang="ts">
+  import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { SpecificationDocument, SpecFlow } from './SpecificationDocument';
   interface Props { data: { decodedContent: { document: SpecificationDocument } }; onClose: () => void }
   let { data, onClose }: Props = $props();
   const document = $derived(data.decodedContent.document);
+  let selectedFlow = $state<SpecFlow | null>(null);
   const requirements = $derived(new Map(document.requirements.map(item => [item.id, item])));
   const models = $derived(new Map(document.models.map(item => [item.id, item])));
   function flows(ids: string[], kind: SpecFlow['kind']) {
@@ -25,19 +28,38 @@
 {#snippet flowCards(items: SpecFlow[])}
   <div class="flow-grid">
     {#each items as flow (flow.id)}
-      <details class="flow-card" data-testid={`spec-flow-${flow.id}`}>
-        <summary>
-          <span class="flow-state"><span></span>Draft</span>
-          <span class="flow-excerpt">{flow.steps.slice(0, 2).join(' ')}</span>
-          <span class="flow-footer"><span class="flow-icon">{@render icon('design')}</span><strong>{flow.title}</strong><span class="expand" aria-hidden="true">+</span></span>
-        </summary>
-        <ol>{#each flow.steps as step}<li>{step}</li>{/each}</ol>
-      </details>
+      <div data-testid={`spec-flow-${flow.id}`}>
+        <UnifiedEmbedPreview id={`spec-flow-${flow.id}`} presentationOnly
+          appId="code" appIconName="design" skillId="specification-flow" skillIconName="design"
+          skillName={flow.title} status="finished" showStatus={false} showSkillIcon={false}
+          onFullscreen={() => { selectedFlow = flow; }}>
+          {#snippet details()}
+            <div class="flow-preview">
+              <span class="flow-state"><span></span>Draft</span>
+              <ul>{#each flow.steps.slice(0, 3) as step}<li>{step}</li>{/each}</ul>
+            </div>
+          {/snippet}
+        </UnifiedEmbedPreview>
+      </div>
     {/each}
   </div>
 {/snippet}
 
 <div class="specification-view">
+  {#if selectedFlow}
+    <UnifiedEmbedFullscreen appId="code" skillIconName="design" showShare={false}
+      testId="spec-flow-fullscreen" closeTestId="spec-flow-close"
+      embedHeaderTitle={selectedFlow.title}
+      embedHeaderSubtitle={`${selectedFlow.kind === 'edge_case' ? 'Edge case' : 'User flow'} · ${document.title}`}
+      onClose={() => { selectedFlow = null; }}>
+      {#snippet content()}
+        <article class="flow-document">
+          <p class="flow-parent">Part of {document.project} / {document.title}</p>
+          <ol>{#each selectedFlow.steps as step}<li>{step}</li>{/each}</ol>
+        </article>
+      {/snippet}
+    </UnifiedEmbedFullscreen>
+  {:else}
   <UnifiedEmbedFullscreen appId="code" skillIconName="design" {onClose} showShare={false}
     testId="specification-fullscreen" embedHeaderTitle={document.title}
     embedHeaderSubtitle={`${document.category} · Specification for ${document.project}`}>
@@ -124,6 +146,7 @@
       </article>
     {/snippet}
   </UnifiedEmbedFullscreen>
+  {/if}
 </div>
 
 <style>
@@ -166,21 +189,22 @@
   .requirement-details { margin-top: 9px; color: var(--color-font-secondary); font-size: var(--font-size-xxs); }
   .requirement-details summary:hover { color: var(--color-font-primary); }
   code { overflow-wrap: anywhere; font-size: var(--font-size-xxs); }
-  .flow-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
-  .flow-card, .architecture-card { background: var(--color-grey-0); border-radius: 24px; box-shadow: 0 3px 3px var(--color-grey-30); min-width: 0; overflow: hidden; }
-  .flow-card summary { min-height: 166px; display: flex; flex-direction: column; }
+  .flow-grid { align-items: start; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+  .architecture-card { background: var(--color-grey-0); border-radius: 24px; box-shadow: 0 3px 3px var(--color-grey-30); min-width: 0; overflow: hidden; }
+  .flow-preview { padding: 12px 14px; }
+  .flow-preview ul { margin: 8px 0 0; padding-left: 18px; color: var(--color-font-secondary); font-size: var(--font-size-small); line-height: 1.45; }
+  .flow-document { max-width: 700px; margin: 0 auto; padding: 28px 24px 60px; }
+  .flow-parent { color: var(--color-font-secondary); font-size: var(--font-size-small); }
+  .flow-document ol { padding-left: 24px; line-height: 1.7; }
+  .flow-document li + li { margin-top: 16px; }
   .flow-state { display: inline-flex; align-items: center; align-self: flex-start; gap: 7px; margin: 12px 16px 8px; font-size: var(--font-size-xxs); color: var(--color-font-secondary); }
   .flow-state > span { width: 10px; height: 10px; border-radius: 50%; background: var(--color-warning); }
-  .flow-excerpt { padding: 0 22px 18px; line-height: 1.5; font-size: var(--font-size-xs); color: var(--color-font-secondary); flex: 1; }
   .flow-footer { display: flex; align-items: center; gap: 12px; background: var(--color-grey-10); border-top: 1px solid var(--color-grey-20); min-height: 58px; padding: 0 14px 0 0; border-radius: 28px; font-size: var(--font-size-p); }
-  .flow-icon, .architecture-icon { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; background: var(--color-grey-90); }
-  .flow-icon .spec-icon { color: var(--color-grey-0); }
+  .architecture-icon { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; flex-shrink: 0; background: var(--color-grey-90); }
   .architecture-icon { background: var(--color-app-ai); }
   .architecture-icon .spec-icon { color: var(--color-font-button); }
   .expand { margin-left: auto; color: var(--color-font-secondary); font-size: var(--font-size-h3); }
   details[open] > summary .expand { transform: rotate(45deg); }
-  .flow-card ol { padding: 0 24px 10px 38px; line-height: 1.65; font-size: var(--font-size-small); }
-  .flow-card li + li { margin-top: 7px; }
   .architecture-card { width: min(340px, 100%); }
   .architecture-card p { padding: 0 20px 8px; font-size: var(--font-size-small); line-height: 1.6; }
   .architecture-diagram { display: flex; align-items: center; justify-content: center; min-height: 126px; padding: 14px 20px; font-size: var(--font-size-xxs); font-weight: 650; }

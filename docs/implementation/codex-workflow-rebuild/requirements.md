@@ -51,6 +51,7 @@ The main rollout concerns CLI, required backend/remote-access capabilities, Code
 - [x] Revision checks happen automatically in normal CLI use. Explain conflicts in plain language; never silently overwrite intervening edits.
 - [x] Include three initial templates: General, Software Architecture, Design. They share one core model; detailed starting sections are still being clarified.
 - [x] The core document has an **Outcome**, **Scope & boundaries**, then one or more custom sections containing suitable Requirements, User flows, Edge cases and Relevant models.
+- [x] User flows and edge cases remain children of their Spec, not separate embed records or independent data models. Reuse the shared embed preview UI; clicking opens the shared fullscreen UI with that child’s content. Closing returns to the Spec. Presentation must not trigger embed lookups, sync or persistence.
 - [x] Models are referenced once canonically. Web reading links to model/code embeds; PDFs include the relevant model definitions.
 - [x] Requirement examples are concise prose or actual commands/code with expected outcomes. No flattened dictionary tables as examples.
 - [x] Checks link evidence to specific requirements. PDF checkboxes derive from exact revision-matched results; include Check/test links and evidence-as-of time. Unverified, stale, failed and waived evidence must not be presented as proven.
@@ -90,8 +91,8 @@ The main rollout concerns CLI, required backend/remote-access capabilities, Code
 - [ ] Build a shared-model fullscreen component using the existing embed shell and preview system.
 - [ ] Use real Teams Spec content and clearly labelled sample proof states; do not imply real coverage was verified.
 - [ ] Show outcome, boundaries and custom sections, readable requirements/applicability, flows/edge cases and model references.
-- [ ] Include functional local expansion of details/models so layout can be reviewed without backend records or account data.
-- [ ] Verify phone/laptop layout, keyboard operation and full content access in a focused component test; deploy the scoped preview to dev and provide its exact URL.
+- [ ] Use shared preview cards for flows and edge cases with a local fullscreen transition; retain requirement/model details for discussion without backend records or account data.
+- [ ] For this discussion draft, verify loading and flow open/close on the live preview, then share the URL. Full responsive testing and proof-video production are deferred until the structure is agreed.
 - [ ] Ask the next clarification about document structure after presenting the result.
 
 ### B. Reliable Task operations and concise instructions
