@@ -15,7 +15,7 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree, onEmbedCleanup } from "./mountedEmbedLifecycle";
 import MathPlotEmbedPreview from "../../../embeds/math/MathPlotEmbedPreview.svelte";
 import { resolveEmbed } from "../../../../services/embedResolver";
 import { dispatchEmbedFullscreen } from "../../../../services/embedFullscreenController";
@@ -84,6 +84,7 @@ export class MathPlotRenderer implements EmbedRenderer {
           });
         };
         chatSyncService.addEventListener("embedUpdated", decryptRetryHandler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", decryptRetryHandler));
 
         // Allow the incoming send_embed_data to be processed — without this the
         // isEmbedAlreadyProcessed guard in chatSyncServiceHandlersAI silently drops
@@ -105,6 +106,7 @@ export class MathPlotRenderer implements EmbedRenderer {
         }
 
         // Leave the node empty while waiting for the server response.
+        disposeEmbedTree(content, false);
         content.innerHTML = "";
         return;
       }
@@ -122,6 +124,8 @@ export class MathPlotRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -162,6 +166,7 @@ export class MathPlotRenderer implements EmbedRenderer {
         "[MathPlotRenderer] Error mounting MathPlotEmbedPreview:",
         error,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Plot unavailable</div>`;
     }
   }

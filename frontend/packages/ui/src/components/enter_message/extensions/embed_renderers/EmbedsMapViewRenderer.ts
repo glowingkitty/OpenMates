@@ -4,7 +4,7 @@
 // create, update, or enrich persisted embeds.
 // Spec: docs/specs/embeds-map-view/spec.yml
 
-import { mount, unmount } from "svelte";
+import { mount, unmount } from "./mountedEmbedLifecycle";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import EmbedsMapView from "../../../embeds/EmbedsMapView.svelte";

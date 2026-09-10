@@ -37,59 +37,86 @@ import {
  * When the ref count drops to zero the blob URL is revoked after a grace
  * period to free memory.
  */
-const imageCache = new Map<
-  string,
-  {
-    blobUrl: string;
-    refCount: number;
-    revokeTimer: ReturnType<typeof setTimeout> | null;
-  }
->();
-
-/** Grace period before revoking an unreferenced blob URL (ms). */
+type CachedImage = {
+  blob: Blob;
+  blobUrl: string;
+  refCount: number;
+  revokeTimer: ReturnType<typeof setTimeout> | null;
+};
+const imageCache = new Map<string, CachedImage>();
+const pendingImages = new Map<string, Promise<Blob>>();
 const REVOKE_GRACE_MS = 30_000;
+const MAX_CACHED_IMAGE_BYTES = 64 * 1024 * 1024;
+let cachedBytes = 0;
+let trimTimer: ReturnType<typeof setTimeout> | null = null;
 
-/**
- * Increment the reference count for a cached blob URL.
- * Call this when a component mounts and starts using the URL.
- */
+function evictImage(s3Key: string, entry: CachedImage): void {
+  if (imageCache.get(s3Key) !== entry || entry.refCount > 0) return;
+  if (entry.revokeTimer) clearTimeout(entry.revokeTimer);
+  URL.revokeObjectURL(entry.blobUrl);
+  imageCache.delete(s3Key);
+  cachedBytes -= entry.blob.size;
+}
+
+function trimUnusedImages(): void {
+  trimTimer = null;
+  for (const [key, entry] of Array.from(imageCache)) {
+    if (cachedBytes <= MAX_CACHED_IMAGE_BYTES) break;
+    evictImage(key, entry);
+  }
+}
+
+function scheduleImageRelease(s3Key: string, entry: CachedImage): void {
+  if (entry.refCount !== 0 || entry.revokeTimer) return;
+  entry.revokeTimer = setTimeout(() => evictImage(s3Key, entry), REVOKE_GRACE_MS);
+  // Let awaiting consumers acquire their references before enforcing the budget.
+  if (cachedBytes > MAX_CACHED_IMAGE_BYTES && trimTimer === null) {
+    trimTimer = setTimeout(trimUnusedImages, 0);
+  }
+}
+
 export function retainCachedImage(s3Key: string): void {
   const entry = imageCache.get(s3Key);
   if (!entry) return;
   entry.refCount++;
-  // Cancel any pending revocation since someone is using it again
-  if (entry.revokeTimer) {
-    clearTimeout(entry.revokeTimer);
-    entry.revokeTimer = null;
-  }
+  if (entry.revokeTimer) clearTimeout(entry.revokeTimer);
+  entry.revokeTimer = null;
 }
 
-/**
- * Decrement the reference count for a cached blob URL.
- * When it reaches zero, schedule revocation after a grace period.
- * Call this when a component unmounts.
- */
 export function releaseCachedImage(s3Key: string): void {
   const entry = imageCache.get(s3Key);
   if (!entry) return;
   entry.refCount = Math.max(0, entry.refCount - 1);
-  if (entry.refCount === 0 && !entry.revokeTimer) {
-    entry.revokeTimer = setTimeout(() => {
-      // Double-check ref count hasn't increased since timer was set
-      const current = imageCache.get(s3Key);
-      if (current && current.refCount === 0) {
-        URL.revokeObjectURL(current.blobUrl);
-        imageCache.delete(s3Key);
-      }
-    }, REVOKE_GRACE_MS);
-  }
+  scheduleImageRelease(s3Key, entry);
 }
 
-/**
- * Get a cached blob URL if available, without fetching.
- */
 export function getCachedImageUrl(s3Key: string): string | undefined {
-  return imageCache.get(s3Key)?.blobUrl;
+  const entry = imageCache.get(s3Key);
+  if (!entry) return undefined;
+  imageCache.delete(s3Key);
+  imageCache.set(s3Key, entry);
+  return entry.blobUrl;
+}
+
+/** One reference per component/key, including repeated effects and late loads. */
+export function createImageUrlOwner() {
+  const keys = new Set<string>();
+  let disposed = false;
+  return {
+    retain(key: string): void {
+      if (disposed || keys.has(key) || !imageCache.has(key)) return;
+      retainCachedImage(key);
+      keys.add(key);
+    },
+    release(key: string): void {
+      if (keys.delete(key)) releaseCachedImage(key);
+    },
+    destroy(): void {
+      disposed = true;
+      for (const key of Array.from(keys)) releaseCachedImage(key);
+      keys.clear();
+    },
+  };
 }
 
 /**
@@ -116,33 +143,40 @@ export async function fetchAndDecryptImage(
   nonceBase64: string,
   variant: unknown = {},
 ): Promise<Blob> {
-  // 0. Check cache first — return existing blob if we already decrypted this image
   const cached = imageCache.get(s3Key);
   if (cached) {
-    // Return a fresh Blob reference from the cached blob URL.
-    // Simpler: re-fetch from blob URL (instant, no network)
-    const resp = await fetch(cached.blobUrl);
-    return resp.blob();
+    getCachedImageUrl(s3Key); // Touch LRU without fetching our own blob URL.
+    return cached.blob;
   }
+  const pending = pendingImages.get(s3Key);
+  if (pending) return pending;
 
-  // 1. Fetch the encrypted blob via presigned URL (with automatic 403 retry)
-  const encryptedData = await fetchWithPresignedUrl(s3Key);
-
-  const decryptedData = await decryptMediaPayload({
-    encryptedData,
-    aesKeyBase64,
-    variant,
-    legacyNonceBase64: nonceBase64,
-  });
-
-  // 6. Determine MIME type from the s3_key extension
-  const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
-
-  const blob = new Blob([decryptedData], { type: mimeType });
-
-  // 7. Cache the decrypted blob URL for future use
-  const blobUrl = URL.createObjectURL(blob);
-  imageCache.set(s3Key, { blobUrl, refCount: 0, revokeTimer: null });
-
-  return blob;
+  const request = (async () => {
+    const encryptedData = await fetchWithPresignedUrl(s3Key);
+    const decryptedData = await decryptMediaPayload({
+      encryptedData,
+      aesKeyBase64,
+      variant,
+      legacyNonceBase64: nonceBase64,
+    });
+    const mimeType = s3Key.endsWith(".png") ? "image/png" : "image/webp";
+    const blob = new Blob([decryptedData], { type: mimeType });
+    const entry: CachedImage = {
+      blob,
+      blobUrl: URL.createObjectURL(blob),
+      refCount: 0,
+      revokeTimer: null,
+    };
+    imageCache.set(s3Key, entry);
+    cachedBytes += blob.size;
+    // Also expires download-only and abandoned requests with no component owner.
+    scheduleImageRelease(s3Key, entry);
+    return blob;
+  })();
+  pendingImages.set(s3Key, request);
+  try {
+    return await request;
+  } finally {
+    pendingImages.delete(s3Key);
+  }
 }

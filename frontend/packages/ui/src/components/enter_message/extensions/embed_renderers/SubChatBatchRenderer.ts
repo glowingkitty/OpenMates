@@ -5,7 +5,7 @@
 // mounts a Svelte carousel over existing child chat records. It does not create
 // or mutate persisted embed rows.
 
-import { mount, unmount } from "svelte";
+import { mount, unmount } from "./mountedEmbedLifecycle";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import SubChatBatchPreview from "../../../sub_chats/SubChatBatchPreview.svelte";

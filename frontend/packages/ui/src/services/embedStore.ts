@@ -9,6 +9,7 @@
 //
 // This enables offline-first chat sharing: all wrapped keys are pre-stored on server
 
+import { BoundedCache } from "../utils/boundedCache";
 import { EmbedStoreEntry, EmbedType } from "../message_parsing/types";
 import { computeSHA256, createContentId } from "../message_parsing/utils";
 import {
@@ -48,7 +49,9 @@ const EMBEDS_STORE_NAME = "embeds";
 const EMBED_KEYS_STORE_NAME = "embed_keys";
 
 // In-memory cache for embeds (decrypted)
-const embedCache = new Map<string, EmbedStoreEntry>();
+const MAX_EMBED_CACHE_BYTES = 64 * 1024 * 1024;
+const MAX_EMBED_CACHE_ENTRIES = 2000;
+const embedCache = new BoundedCache<string, EmbedStoreEntry>(MAX_EMBED_CACHE_BYTES, MAX_EMBED_CACHE_ENTRIES);
 
 // In-memory cache for unwrapped embed keys (for performance)
 const embedKeyCache = new Map<string, Uint8Array>();
@@ -1049,8 +1052,8 @@ export class EmbedStore {
       vault_key_id: data.vault_key_id as string | undefined,
     };
 
-    // Store in memory cache
-    embedCache.set(contentRef, entry);
+    // Keep the only copy until the IndexedDB transaction commits.
+    embedCache.setPinned(contentRef, entry);
     embedAvailabilityVersion.update((version) => version + 1);
 
     try {
@@ -1060,6 +1063,7 @@ export class EmbedStore {
         "readwrite",
       );
       const store = transaction.objectStore(EMBEDS_STORE_NAME);
+      transaction.addEventListener("complete", () => embedCache.markPersisted(contentRef, entry), { once: true });
 
       await new Promise<void>((resolve, reject) => {
         const request = store.put(entry);
@@ -1330,8 +1334,8 @@ export class EmbedStore {
       vault_key_id: preExtractedMetadata?.vault_key_id,
     };
 
-    // Store in memory cache
-    embedCache.set(contentRef, entry);
+    // Keep the only copy until the IndexedDB transaction commits.
+    embedCache.setPinned(contentRef, entry);
     embedAvailabilityVersion.update((version) => version + 1);
 
     try {
@@ -1341,6 +1345,7 @@ export class EmbedStore {
         "readwrite",
       );
       const store = transaction.objectStore(EMBEDS_STORE_NAME);
+      transaction.addEventListener("complete", () => embedCache.markPersisted(contentRef, entry), { once: true });
 
       await new Promise<void>((resolve, reject) => {
         const request = store.put(entry);
@@ -1424,7 +1429,7 @@ export class EmbedStore {
         encryption_mode: "client",
       };
 
-      embedCache.set(item.contentRef, entry);
+      embedCache.setPinned(item.contentRef, entry);
       entries.push(entry);
     }
     embedAvailabilityVersion.update((version) => version + 1);
@@ -1442,8 +1447,12 @@ export class EmbedStore {
       }
 
       await new Promise<void>((resolve, reject) => {
-        transaction.oncomplete = () => resolve();
+        transaction.oncomplete = () => {
+          for (const entry of entries) embedCache.markPersisted(entry.contentRef, entry);
+          resolve();
+        };
         transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
       });
     } catch (error) {
       console.warn(
@@ -2069,7 +2078,7 @@ export class EmbedStore {
       embed_ids: embedData.embed_ids as string[] | undefined,
     };
 
-    embedCache.set(contentRef, entry);
+    embedCache.setPinned(contentRef, entry);
     embedAvailabilityVersion.update((version) => version + 1);
   }
 

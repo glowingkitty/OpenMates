@@ -21,7 +21,7 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree, onEmbedCleanup } from "./mountedEmbedLifecycle";
 import { get } from "svelte/store";
 import ImageEmbedPreview from "../../../embeds/images/ImageEmbedPreview.svelte";
 import type { AIDetectionMetadata } from "../../../embeds/images/imageAuthenticity";
@@ -126,6 +126,7 @@ export class ImageRenderer implements EmbedRenderer {
     ) {
       const embedId = attrs.contentRef.replace("embed:", "");
       // Show a loading spinner while we fetch from EmbedStore (or wait for server response).
+      disposeEmbedTree(content, false);
       content.innerHTML =
         '<div class="image-embed-loading" style="display:flex;align-items:center;justify-content:center;min-height:80px;"><div class="loading-spinner" style="width:24px;height:24px;border:2px solid var(--color-grey-20,#eaeaea);border-top-color:var(--color-primary-50,#5b8dd9);border-radius:50%;animation:spin 0.8s linear infinite;"></div></div>';
 
@@ -258,6 +259,7 @@ export class ImageRenderer implements EmbedRenderer {
                     "[ImageRenderer] Image embed data from server is incomplete:",
                     embedId,
                   );
+                  disposeEmbedTree(content, false);
                   content.innerHTML =
                     '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
                 }
@@ -267,18 +269,21 @@ export class ImageRenderer implements EmbedRenderer {
                   "[ImageRenderer] Failed to re-render image after server delivery:",
                   err,
                 );
+                disposeEmbedTree(content, false);
                 content.innerHTML =
                   '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
               });
           };
 
           chatSyncService.addEventListener("embedUpdated", embedUpdatedHandler);
+        onEmbedCleanup(content, () => chatSyncService.removeEventListener("embedUpdated", embedUpdatedHandler));
         })
         .catch((err) => {
           console.error(
             "[ImageRenderer] Failed to load restored draft image from EmbedStore:",
             err,
           );
+          disposeEmbedTree(content, false);
           content.innerHTML =
             '<div class="image-error" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>';
         });
@@ -295,6 +300,7 @@ export class ImageRenderer implements EmbedRenderer {
         "[ImageRenderer] No URL, src, or S3 data for image embed:",
         attrs,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML =
         '<div class="image-error">Image URL not available</div>';
       return;
@@ -310,6 +316,8 @@ export class ImageRenderer implements EmbedRenderer {
       container.style.margin = "0";
       container.style.marginBottom = "8px";
 
+      disposeEmbedTree(content, false);
+
       content.innerHTML = `
         <img 
           src="${imageUrl}" 
@@ -320,6 +328,7 @@ export class ImageRenderer implements EmbedRenderer {
         />
       `;
     } else {
+      disposeEmbedTree(content, false);
       content.innerHTML = `
         <div class="image-embed-container">
           <img 
@@ -362,6 +371,8 @@ export class ImageRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -454,6 +465,7 @@ export class ImageRenderer implements EmbedRenderer {
       });
     } catch (error) {
       console.error("[ImageRenderer] Error mounting ImageEmbedPreview:", error);
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div class="image-error-fallback" style="padding:8px;font-size:12px;color:var(--color-grey-50)">Image unavailable</div>`;
     }
   }

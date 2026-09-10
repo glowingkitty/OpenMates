@@ -15,7 +15,9 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text, settingsDeepLink, panelState } from '@repo/ui';
-  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
+
   import { generateImageFilename, embedPngMetadata } from './imageDownloadUtils';
   import { modelsMetadata } from '../../../data/modelsMetadata';
   import { getProviderIconUrl } from '../../../data/providerIcons';
@@ -198,8 +200,8 @@
     
     try {
       console.debug('[ImageGenerateEmbedFullscreen] Loading full image from S3:', fullFileData.s3_key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce ?? '', fullFileData);
-      fullImageUrl = URL.createObjectURL(blob);
+      await fetchAndDecryptImage(s3BaseUrl, fullFileData.s3_key, aesKey, aesNonce ?? '', fullFileData);
+      fullImageUrl = getCachedImageUrl(fullFileData.s3_key)!;
       retainedFullKey = fullFileData.s3_key;
       retainCachedImage(fullFileData.s3_key);
     } catch (err) {
@@ -224,6 +226,7 @@
   
   // Cleanup: release cached image references on unmount
   onDestroy(() => {
+    releaseOwnedImages();
     if (retainedPreviewKey) releaseCachedImage(retainedPreviewKey);
     if (retainedFullKey) releaseCachedImage(retainedFullKey);
     for (const key of retainedInputKeys) {
@@ -268,8 +271,8 @@
           continue;
         }
 
-        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
-        const url = URL.createObjectURL(blob);
+        await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
+        const url = getCachedImageUrl(previewKey)!;
         retainCachedImage(previewKey);
         retainedInputKeys.push(previewKey);
         inputImageUrls = new Map(inputImageUrls).set(embedId, url);

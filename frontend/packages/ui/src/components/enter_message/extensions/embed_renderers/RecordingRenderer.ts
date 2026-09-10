@@ -44,7 +44,7 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import { get } from "svelte/store";
 import RecordingEmbedPreview from "../../../embeds/audio/RecordingEmbedPreview.svelte";
 import { authStore } from "../../../../stores/authStore";
@@ -127,6 +127,7 @@ export class RecordingRenderer implements EmbedRenderer {
     // -----------------------------------------------------------------------
     if (attrs.contentRef && attrs.contentRef.startsWith("embed:")) {
       // Show a loading placeholder while fetching from EmbedStore
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div class="recording-embed-loading" style="display:flex;align-items:center;justify-content:center;min-height:80px;padding:8px;"><div class="loading-spinner" style="width:20px;height:20px;border:2px solid var(--color-grey-20,#eaeaea);border-top-color:var(--color-app-audio,#e05555);border-radius:50%;animation:spin 0.8s linear infinite;"></div></div>`;
 
       return embedStore
@@ -270,6 +271,8 @@ export class RecordingRenderer implements EmbedRenderer {
       }
     }
 
+    disposeEmbedTree(content, false);
+
     content.innerHTML = "";
 
     try {
@@ -390,6 +393,7 @@ export class RecordingRenderer implements EmbedRenderer {
         "[RecordingRenderer] Error mounting RecordingEmbedPreview:",
         error,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Voice note unavailable</div>`;
     }
   }

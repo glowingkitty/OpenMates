@@ -33,7 +33,9 @@
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import ImageAuthenticityBadge from './ImageAuthenticityBadge.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
+
   import { skillPreviewService } from '../../../services/skillPreviewService';
   import type { AIDetectionMetadata } from './imageAuthenticity';
   import { hasMediaEncryptionMetadata } from '../../../services/encryption/mediaEncryption';
@@ -222,6 +224,7 @@
 
   // Release cached blob URL reference on component unmount to avoid memory leaks.
   onDestroy(() => {
+    releaseOwnedImages();
     if (retainedS3Key) {
       releaseCachedImage(retainedS3Key);
       retainedS3Key = undefined;
@@ -394,8 +397,8 @@
         `[ImageEmbedPreview] Loading preview image from S3 (attempt ${loadRetryCount}/${MAX_IMAGE_LOAD_RETRIES}):`,
         previewS3Key,
       );
-      const blob = await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce ?? '', previewFile);
-      imageUrl = URL.createObjectURL(blob);
+      await fetchAndDecryptImage(s3BaseUrl, previewS3Key, aesKey, aesNonce ?? '', previewFile);
+      imageUrl = getCachedImageUrl(previewS3Key)!;
       if (retainedS3Key && retainedS3Key !== previewS3Key) releaseCachedImage(retainedS3Key);
       retainedS3Key = previewS3Key;
       retainCachedImage(previewS3Key);

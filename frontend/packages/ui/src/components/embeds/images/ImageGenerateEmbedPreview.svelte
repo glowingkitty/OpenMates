@@ -18,7 +18,9 @@
   import { onDestroy } from 'svelte';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import { text } from '@repo/ui';
-  import { fetchAndDecryptImage, getCachedImageUrl, retainCachedImage, releaseCachedImage } from './imageEmbedCrypto';
+  import { fetchAndDecryptImage, getCachedImageUrl, createImageUrlOwner } from './imageEmbedCrypto';
+  const { retain: retainCachedImage, release: releaseCachedImage, destroy: releaseOwnedImages } = createImageUrlOwner();
+
   import { getModelDisplayName, getModelByNameOrId } from '../../../utils/modelDisplayName';
   import { getProviderIconUrl } from '../../../data/providerIcons';
   import { resolveEmbed, decodeToonContent } from '../../../services/embedResolver';
@@ -153,6 +155,7 @@
   
   // Cleanup: release cached blob URL references on unmount
   onDestroy(() => {
+    releaseOwnedImages();
     if (retainedS3Key) {
       releaseCachedImage(retainedS3Key);
       retainedS3Key = undefined;
@@ -245,8 +248,8 @@
           continue;
         }
 
-        const blob = await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
-        const url = URL.createObjectURL(blob);
+        await fetchAndDecryptImage(inputS3BaseUrl, previewKey, inputAesKey, inputAesNonce ?? '', previewFile);
+        const url = getCachedImageUrl(previewKey)!;
         retainCachedImage(previewKey);
         retainedInputKeys.push(previewKey);
         inputImageUrls = new Map(inputImageUrls).set(embedId, url);
@@ -299,8 +302,8 @@
     
     try {
       console.debug('[ImageGenerateEmbedPreview] Loading preview image from S3:', s3Key);
-      const blob = await fetchAndDecryptImage(s3BaseUrl, s3Key, aesKey, aesNonce ?? '', previewFile);
-      imageUrl = URL.createObjectURL(blob);
+      await fetchAndDecryptImage(s3BaseUrl, s3Key, aesKey, aesNonce ?? '', previewFile);
+      imageUrl = getCachedImageUrl(s3Key)!;
       // Retain reference in shared cache so blob URL isn't revoked while we're using it
       if (retainedS3Key && retainedS3Key !== s3Key) releaseCachedImage(retainedS3Key);
       retainedS3Key = s3Key;

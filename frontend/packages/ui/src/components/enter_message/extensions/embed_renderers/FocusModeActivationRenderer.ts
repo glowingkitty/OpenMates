@@ -19,7 +19,7 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import FocusModeActivationEmbed from "../../../embeds/focus_mode/FocusModeActivationEmbed.svelte";
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
@@ -43,6 +43,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
       console.warn(
         "[FocusModeActivationRenderer] Missing focus_id in attrs, skipping render",
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = "";
       return;
     }
@@ -95,6 +96,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     }
 
     // Clear the content element
+    disposeEmbedTree(content, false);
     content.innerHTML = "";
 
     // Set data attributes for context menu detection in ChatMessage.svelte
@@ -202,6 +204,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
         "[FocusModeActivationRenderer] Error mounting component:",
         e,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<span style="color: var(--color-grey-50); font-size: 12px;">Focus mode: ${focusModeName}</span>`;
     }
   }

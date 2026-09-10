@@ -1,3 +1,4 @@
+import { BoundedCache } from "../utils/boundedCache";
 // frontend/packages/ui/src/services/searchService.ts
 // Core search engine service for offline full-text search across chats, messages, settings,
 // apps, skills, focus modes, and memories.
@@ -808,9 +809,10 @@ async function resolveEmbedText(
  *
  * This data is RAM-only and cleared when the page unloads.
  */
-const messageIndex = new Map<
-  string,
-  Array<{
+const MAX_SEARCH_INDEX_BYTES = 32 * 1024 * 1024;
+const MAX_SEARCH_INDEX_CHATS = 500;
+const MAX_CONCURRENT_INDEX_JOBS = 5;
+type SearchEntries = Array<{
     messageId: string;
     content: string;
     createdAt: number;
@@ -828,11 +830,37 @@ const messageIndex = new Map<
     embedFocusId?: string;
     /** Focus mode display name/translation key from embed payload */
     embedFocusModeName?: string;
-  }>
->();
+  }>;
+const messageIndex = new BoundedCache<string, SearchEntries>(MAX_SEARCH_INDEX_BYTES, MAX_SEARCH_INDEX_CHATS);
+const pendingIndexJobs = new Map<string, Promise<SearchEntries>>();
+let activeIndexJobs = 0;
+const indexWaiters: Array<() => void> = [];
+let indexGeneration = 0;
 
-/** Track which chats have had their messages indexed */
-const indexedChatIds = new Set<string>();
+// Share decryption across warm-up and overlapping searches, with one global limit.
+async function indexChatMessages(chatId: string): Promise<SearchEntries> {
+  const cached = messageIndex.get(chatId);
+  if (cached) return cached;
+  const pending = pendingIndexJobs.get(chatId);
+  if (pending) return pending;
+  const generation = indexGeneration;
+  const job = (async () => {
+    if (activeIndexJobs >= MAX_CONCURRENT_INDEX_JOBS) {
+      await new Promise<void>(resolve => indexWaiters.push(resolve));
+    } else { activeIndexJobs++; }
+    try {
+      if (generation !== indexGeneration) return [];
+      return await buildChatMessageIndex(chatId, generation);
+    } finally {
+      const next = indexWaiters.shift();
+      if (next) next(); else activeIndexJobs--;
+    }
+  })();
+  pendingIndexJobs.set(chatId, job);
+  try { return await job; } finally {
+    if (pendingIndexJobs.get(chatId) === job) pendingIndexJobs.delete(chatId);
+  }
+}
 
 /**
  * Metadata search index for expanded search (chats 101–1000).
@@ -876,8 +904,7 @@ let metadataWarmUpInProgress = false;
  *
  * @param chatId - The chat ID to index
  */
-async function indexChatMessages(chatId: string): Promise<void> {
-  if (indexedChatIds.has(chatId)) return;
+async function buildChatMessageIndex(chatId: string, generation: number): Promise<SearchEntries> {
 
   try {
     let messages: Message[];
@@ -953,16 +980,17 @@ async function indexChatMessages(chatId: string): Promise<void> {
       }
     }
 
+    if (generation !== indexGeneration) return [];
     messageIndex.set(chatId, entries);
-    indexedChatIds.add(chatId);
+    return entries;
   } catch (error) {
     console.error(
       `[SearchService] Error indexing messages for chat ${chatId}:`,
       error,
     );
     // Mark as indexed even on error to avoid repeated failures
-    indexedChatIds.add(chatId);
-    messageIndex.set(chatId, []);
+    if (generation === indexGeneration) messageIndex.set(chatId, []);
+    return [];
   }
 }
 
@@ -974,6 +1002,7 @@ async function indexChatMessages(chatId: string): Promise<void> {
 export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
   if (warmUpInProgress) return;
   warmUpInProgress = true;
+  const generation = indexGeneration;
 
   console.debug(
     `[SearchService] Warming up search index for ${chatIds.length} chats...`,
@@ -984,6 +1013,7 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
     // Process chats in small batches to avoid blocking the main thread
     const BATCH_SIZE = 5;
     for (let i = 0; i < chatIds.length; i += BATCH_SIZE) {
+      if (generation !== indexGeneration) break;
       const batch = chatIds.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map((chatId) => indexChatMessages(chatId)));
 
@@ -995,12 +1025,12 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
 
     const elapsed = performance.now() - startTime;
     console.debug(
-      `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${indexedChatIds.size} chats)`,
+      `[SearchService] Search index warmed up in ${elapsed.toFixed(0)}ms (${messageIndex.size} chats)`,
     );
   } catch (error) {
     console.error("[SearchService] Error during search index warm-up:", error);
   } finally {
-    warmUpInProgress = false;
+    if (generation === indexGeneration) warmUpInProgress = false;
   }
 }
 
@@ -1014,8 +1044,10 @@ export async function warmUpSearchIndex(chatIds: string[]): Promise<void> {
 async function indexChatMetadata(chat: Chat): Promise<void> {
   if (indexedMetadataChatIds.has(chat.chat_id)) return;
 
+  const generation = indexGeneration;
   try {
     const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+    if (generation !== indexGeneration) return;
     if (metadata) {
       metadataIndex.set(chat.chat_id, {
         summary: metadata.summary,
@@ -1029,7 +1061,7 @@ async function indexChatMetadata(chat: Chat): Promise<void> {
       `[SearchService] Error indexing metadata for chat ${chat.chat_id}:`,
       error,
     );
-    indexedMetadataChatIds.add(chat.chat_id);
+    if (generation === indexGeneration) indexedMetadataChatIds.add(chat.chat_id);
   }
 }
 
@@ -1043,6 +1075,7 @@ async function indexChatMetadata(chat: Chat): Promise<void> {
 export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
   if (metadataWarmUpInProgress) return;
   metadataWarmUpInProgress = true;
+  const generation = indexGeneration;
 
   const metadataOnlyChats = chats.filter(
     (c) => c.is_metadata_only && !indexedMetadataChatIds.has(c.chat_id),
@@ -1062,6 +1095,7 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
     // Process in batches of 10 (metadata decryption is lighter than message indexing)
     const BATCH_SIZE = 10;
     for (let i = 0; i < metadataOnlyChats.length; i += BATCH_SIZE) {
+      if (generation !== indexGeneration) break;
       const batch = metadataOnlyChats.slice(i, i + BATCH_SIZE);
       await Promise.all(batch.map((chat) => indexChatMetadata(chat)));
 
@@ -1081,7 +1115,7 @@ export async function warmUpMetadataSearchIndex(chats: Chat[]): Promise<void> {
       error,
     );
   } finally {
-    metadataWarmUpInProgress = false;
+    if (generation === indexGeneration) metadataWarmUpInProgress = false;
   }
 }
 
@@ -1200,7 +1234,9 @@ export async function addMessageToIndex(
   if (!rawContent) return;
 
   // Remove all existing entries for this message (clean slate for update)
-  const existing = messageIndex.get(chatId) || [];
+  const existing = messageIndex.get(chatId);
+  if (!existing) return;
+  const generation = indexGeneration;
   const withoutThisMessage = existing.filter(
     (e) => e.messageId !== message.message_id,
   );
@@ -1247,7 +1283,9 @@ export async function addMessageToIndex(
     });
   }
 
-  messageIndex.set(chatId, [...withoutThisMessage, ...newEntries]);
+  if (generation === indexGeneration && messageIndex.get(chatId) === existing) {
+    messageIndex.set(chatId, [...withoutThisMessage, ...newEntries]);
+  }
 }
 
 // --- Search Logic ---
@@ -1336,8 +1374,8 @@ function searchMessagesInChat(
   chatId: string,
   query: string,
   activeFocusId: string | null = null,
+  entries = messageIndex.get(chatId),
 ): MessageMatchSnippet[] {
-  const entries = messageIndex.get(chatId);
   if (!entries) return [];
 
   const snippets: MessageMatchSnippet[] = [];
@@ -1530,6 +1568,7 @@ export async function search(
   hiddenChats: Chat[] = [],
   isAuthenticated: boolean = false,
   isAdmin: boolean = false,
+  signal?: AbortSignal,
 ): Promise<SearchResults> {
   if (!query || query.trim().length === 0) {
     return {
@@ -1544,42 +1583,10 @@ export async function search(
   const trimmedQuery = query.trim();
   const allSearchableChats = [...chats, ...hiddenChats];
 
-  // Separate full chats (with messages in IndexedDB) from metadata-only chats
-  const fullChats = allSearchableChats.filter((c) => !c.is_metadata_only);
-  const metadataOnlyChats = allSearchableChats.filter(
-    (c) => c.is_metadata_only,
-  );
-
-  // Ensure all full chats are indexed (lazy indexing for chats not yet warmed up)
-  const unindexedChats = fullChats.filter(
-    (c) => !indexedChatIds.has(c.chat_id),
-  );
-
-  if (unindexedChats.length > 0) {
-    const publicUnindexedChats = unindexedChats.filter((c) =>
-      isPublicChat(c.chat_id),
-    );
-    const privateUnindexedChats = unindexedChats.filter(
-      (c) => !isPublicChat(c.chat_id),
-    );
-
-    // Public/example chats can contain many embed references. Keep that indexing
-    // in the background so draft-preview and title matches can render first.
-    if (publicUnindexedChats.length > 0 && !warmUpInProgress) {
-      warmUpSearchIndex(publicUnindexedChats.map((c) => c.chat_id)).catch((error) => {
-        console.error("[SearchService] Error warming public search index:", error);
-      });
-    }
-
-    if (privateUnindexedChats.length > 0 && !warmUpInProgress) {
-      // Index unindexed private chats — this is the "cold start" path. When
-      // background warm-up is already running, return title/metadata matches
-      // immediately instead of duplicating expensive indexing in the foreground.
-      await Promise.all(
-        privateUnindexedChats.map((c) => indexChatMessages(c.chat_id)),
-      );
-    }
-  }
+  const metadataOnlyChats = allSearchableChats.filter(c => c.is_metadata_only);
+  // During initial warm-up show cached/title matches immediately. On its refresh,
+  // search evicted chats directly and keep only their snippets, never all indexes.
+  const useWarmIndexOnly = warmUpInProgress;
 
   // Lazy-index metadata for metadata-only chats not yet indexed
   const unindexedMetadataChats = metadataOnlyChats.filter(
@@ -1592,7 +1599,9 @@ export async function search(
   const chatResults: ChatSearchResult[] = [];
 
   // Search each chat
-  for (const chat of allSearchableChats) {
+  for (let offset = 0; offset < allSearchableChats.length; offset += MAX_CONCURRENT_INDEX_JOBS) {
+    await Promise.all(allSearchableChats.slice(offset, offset + MAX_CONCURRENT_INDEX_JOBS).map(async (chat) => {
+    signal?.throwIfAborted();
     let decryptedTitle: string | null = null;
     let activeFocusId: string | null = null;
 
@@ -1617,10 +1626,13 @@ export async function search(
     // Check message matches (only for full chats — metadata-only chats have no messages)
     let messageSnippets: MessageMatchSnippet[] = [];
     if (!chat.is_metadata_only) {
+      const entries = useWarmIndexOnly ? messageIndex.get(chat.chat_id) : await indexChatMessages(chat.chat_id);
+      signal?.throwIfAborted();
       messageSnippets = searchMessagesInChat(
         chat.chat_id,
         trimmedQuery,
         activeFocusId,
+        entries,
       );
     }
 
@@ -1659,6 +1671,7 @@ export async function search(
         metadataSnippets,
       });
     }
+    }));
   }
 
   // Sort results:
@@ -1706,4 +1719,16 @@ export async function search(
     totalCount,
     isWarmingUp: warmUpInProgress,
   };
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("userLoggingOut", () => {
+    indexGeneration++;
+    messageIndex.clear();
+    metadataIndex.clear();
+    indexedMetadataChatIds.clear();
+    pendingIndexJobs.clear();
+    metadataWarmUpInProgress = false;
+    warmUpInProgress = false;
+  });
 }

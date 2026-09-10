@@ -2345,6 +2345,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	}
 
 	onDestroy(() => {
+		searchController?.abort();
 		// Notify cache that sidebar was destroyed — event listeners are about to be
 		// removed, so any chatUpdated / LOCAL_CHAT_LIST_CHANGED_EVENT that fires while
 		// unmounted will not update the cache. The next getCache(_, isComponentRemount=true)
@@ -2565,6 +2566,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	 */
 	/** Track whether search index warm-up has been triggered this session */
 	let searchWarmUpTriggered = false;
+	let searchController: AbortController | null = null;
 
 	/**
 	 * Trigger search index warm-up on first search interaction.
@@ -2576,17 +2578,24 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 		searchWarmUpTriggered = true;
 		const chatIds = allChatsFromDB.map(c => c.chat_id);
 		if (chatIds.length > 0) {
-			warmUpSearchIndex(chatIds).catch(err =>
+			warmUpSearchIndex(chatIds).then(() => {
+				if (searchState.isActive && searchState.query.trim() && !searchController?.signal.aborted) {
+					void handleSearchQuery(searchState.query);
+				}
+			}).catch(err =>
 				console.error('[Chats] Search index warm-up error:', err),
 			);
 		}
 	}
 
 	async function handleSearchQuery(query: string): Promise<void> {
+		searchController?.abort();
+		const controller = new AbortController();
+		searchController = controller;
 		setSearchQuery(query);
 		applyPendingCacheUpsertsToLocalList();
 		await tick();
-		triggerSearchWarmUpIfNeeded();
+		if (controller.signal.aborted) return;
 
 		if (!query || query.trim().length === 0) {
 			searchResults = null;
@@ -2595,6 +2604,8 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			searchTextHighlightStore.set(null);
 			return;
 		}
+
+		triggerSearchWarmUpIfNeeded();
 
 		// Update in-chat text highlighting with current query
 		searchTextHighlightStore.set(query.trim());
@@ -2614,13 +2625,15 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 			unlocked,
 			$authStore.isAuthenticated,
 			$userProfile.is_admin,
+			controller.signal,
 		);
-			searchResults = results;
+			if (!controller.signal.aborted) searchResults = results;
 		} catch (error) {
+			if (controller.signal.aborted) return;
 			console.error('[Chats] Search error:', error);
 			searchResults = null;
 		} finally {
-			setSearching(false);
+			if (!controller.signal.aborted) setSearching(false);
 		}
 	}
 
@@ -2628,6 +2641,7 @@ function setLastActiveChatIdForDisplay(chatId: string | null): void {
 	 * Handle search close — clears query and hides search results.
 	 */
 	function handleSearchClose(): void {
+		searchController?.abort();
 		closeSearch();
 		searchResults = null;
 		// Clear in-chat text highlighting when search closes

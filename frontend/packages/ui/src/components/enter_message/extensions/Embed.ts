@@ -4,6 +4,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { EmbedNodeAttributes } from "../../../message_parsing/types";
 import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
+import { disposeEmbedTree, isEmbedTargetDisposed } from "./embed_renderers/mountedEmbedLifecycle";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
 import { cancelUpload, deleteDraftEmbed } from "../embedHandlers";
 
@@ -790,6 +791,7 @@ export const Embed = Node.create<EmbedOptions>({
         if (renderResult instanceof Promise) {
           // Handle async rendering (e.g., loading from EmbedStore)
           renderResult.catch((error) => {
+            if (isEmbedTargetDisposed(mountTarget)) return;
             console.error("[Embed] Error during async render:", error);
             mountTarget.innerHTML = `<div class="embed-error">Error loading embed: ${error.message}</div>`;
           });
@@ -1255,7 +1257,7 @@ export const Embed = Node.create<EmbedOptions>({
           return true;
         },
         destroy: () => {
-          // Cleanup if needed
+          disposeEmbedTree(wrapper);
         },
       };
     };

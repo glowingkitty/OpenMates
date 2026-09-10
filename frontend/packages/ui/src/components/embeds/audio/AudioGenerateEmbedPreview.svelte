@@ -11,7 +11,11 @@
   import { onDestroy } from 'svelte';
   import { text } from '@repo/ui';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
-  import { fetchAndDecryptAudio, releaseCachedAudio } from './audioEmbedCrypto';
+  import { createAudioUrlOwner } from './audioEmbedCrypto';
+  const audioUrlOwner = createAudioUrlOwner();
+  const fetchAndDecryptAudio = audioUrlOwner.fetch;
+  const releaseCachedAudio = audioUrlOwner.release;
+  onDestroy(audioUrlOwner.destroy);
   import { getModelDisplayName } from '../../../utils/modelDisplayName';
   import {
     getGeneratedAudioDataUrl,

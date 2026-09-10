@@ -18,7 +18,7 @@
 
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
-import { mount, unmount } from "svelte";
+import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import MapsLocationEmbedPreview from "../../../embeds/maps/MapsLocationEmbedPreview.svelte";
 import { dispatchEmbedFullscreen } from "../../../../services/embedFullscreenController";
 
@@ -43,6 +43,8 @@ export class MapLocationRenderer implements EmbedRenderer {
         );
       }
     }
+
+    disposeEmbedTree(content, false);
 
     content.innerHTML = "";
 
@@ -151,6 +153,7 @@ export class MapLocationRenderer implements EmbedRenderer {
         "[MapLocationRenderer] Error mounting MapsLocationEmbedPreview:",
         error,
       );
+      disposeEmbedTree(content, false);
       content.innerHTML = `<div style="padding:8px;font-size:12px;color:var(--color-grey-50)">Location unavailable</div>`;
     }
   }
