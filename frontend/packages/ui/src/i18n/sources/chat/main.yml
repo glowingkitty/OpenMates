@@ -3302,3 +3302,52 @@ sub_chats.stop_queue:
   sv: Stoppa kö
   he: עצירת התור
   verified_by_human: []
+
+assistant_speech.continue_playback:
+  context: Visible action when the browser requires a user gesture to start speech
+  en: Tap to play audio
+  de: Tippen, um Audio abzuspielen
+  zh: 点击播放音频
+  es: Toca para reproducir el audio
+  fr: Touchez pour lire l’audio
+  pt: Toque para reproduzir o áudio
+  ru: Нажмите, чтобы воспроизвести аудио
+  ja: タップして音声を再生
+  ko: 탭하여 오디오 재생
+  it: Tocca per riprodurre l’audio
+  tr: Sesi oynatmak için dokunun
+  vi: Chạm để phát âm thanh
+  id: Ketuk untuk memutar audio
+  pl: Dotknij, aby odtworzyć dźwięk
+  nl: Tik om audio af te spelen
+  ar: اضغط لتشغيل الصوت
+  hi: ऑडियो चलाने के लिए टैप करें
+  th: แตะเพื่อเล่นเสียง
+  cs: Klepnutím přehrajete zvuk
+  sv: Tryck för att spela upp ljud
+  he: הקישו להפעלת השמע
+  verified_by_human: []
+assistant_speech.unavailable:
+  context: Safe speech failure status next to the retry control
+  en: Audio unavailable. Try again.
+  de: Audio nicht verfügbar. Erneut versuchen.
+  zh: 音频不可用。请重试。
+  es: Audio no disponible. Inténtalo de nuevo.
+  fr: Audio indisponible. Réessayez.
+  pt: Áudio indisponível. Tente novamente.
+  ru: Аудио недоступно. Попробуйте снова.
+  ja: 音声を利用できません。再試行してください。
+  ko: 오디오를 사용할 수 없습니다. 다시 시도하세요.
+  it: Audio non disponibile. Riprova.
+  tr: Ses kullanılamıyor. Tekrar deneyin.
+  vi: Âm thanh không khả dụng. Hãy thử lại.
+  id: Audio tidak tersedia. Coba lagi.
+  pl: Dźwięk niedostępny. Spróbuj ponownie.
+  nl: Audio niet beschikbaar. Probeer opnieuw.
+  ar: الصوت غير متاح. حاول مجددًا.
+  hi: ऑडियो उपलब्ध नहीं है। फिर से कोशिश करें।
+  th: ไม่สามารถเล่นเสียงได้ โปรดลองอีกครั้ง
+  cs: Zvuk není dostupný. Zkuste to znovu.
+  sv: Ljudet är inte tillgängligt. Försök igen.
+  he: השמע אינו זמין. נסו שוב.
+  verified_by_human: []

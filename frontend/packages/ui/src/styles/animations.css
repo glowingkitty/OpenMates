@@ -292,3 +292,19 @@
       rotate(var(--deco-rotate, 0deg));
   }
 }
+
+/* Shared text sweep for typing and pending speech. Hosts can supply contrasting
+ * colors when the text sits on an accent background rather than a chat surface. */
+:root {
+  --processing-text-gradient: linear-gradient(90deg,
+    var(--processing-text-base, var(--color-grey-60)) 0%,
+    var(--processing-text-base, var(--color-grey-60)) 40%,
+    var(--processing-text-highlight, var(--color-grey-40)) 50%,
+    var(--processing-text-base, var(--color-grey-60)) 60%,
+    var(--processing-text-base, var(--color-grey-60)) 100%);
+}
+
+@keyframes processing-text-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}

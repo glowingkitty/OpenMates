@@ -283,3 +283,17 @@ def test_projects_streamed_markdown_without_sending_protocol_code_json_or_table_
         "embed_summary",
         "Structured data is available.",
     )
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.projection.deterministic-semantic
+@pytest.mark.parametrize("fence", ["json", "json_embed", ""])
+def test_search_embed_is_not_announced_as_code(fence):
+    markdown = '```' + fence + '\n{"type":"app_skill_use","app_id":"web","skill_id":"search","embed_id":"search-1"}\n```'
+    assert project_streaming_speech_segment(markdown) == ("embed_summary", "Search results are available.")
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.projection.deterministic-semantic
+def test_citation_at_start_of_paragraph_remains_speakable_prose():
+    assert project_streaming_speech_segment("[According to CNBC](embed:cnbc.com-Ab1), it comes in burgundy.") == (
+        "prose_paragraph", "According to CNBC, it comes in burgundy."
+    )

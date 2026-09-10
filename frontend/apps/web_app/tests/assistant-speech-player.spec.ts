@@ -26,19 +26,30 @@ const PLAYER_PROOF = defineVideoProof({
 		{ id: 'playing', text: 'The player centers the active chapter and shows the previous, current, and next waveforms as one compact window.', checkpoint: 'playing', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'pending', text: 'Advancing shifts the chapter and waveform window by one while the pending active clip uses a flat placeholder.', checkpoint: 'pending', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'ready', text: 'When audio becomes ready, real waveform bars transition into place and playback resumes.', checkpoint: 'ready', devices: ['web-laptop', 'web-phone'] },
-		{ id: 'paused', text: 'Pausing reveals separate Play and Close controls without hiding chapter navigation.', checkpoint: 'paused', devices: ['web-laptop', 'web-phone'] }
+		{ id: 'paused', text: 'Pausing reveals separate Play and Close controls without hiding chapter navigation.', checkpoint: 'paused', devices: ['web-laptop', 'web-phone'] },
+		{ id: 'recovery', text: 'A playback failure is visible with Retry and Close. Browser autoplay blocking offers a separate tap to play without generating audio again.', checkpoint: 'recovery', devices: ['web-laptop', 'web-phone'] }
 	],
 	assertions: [
 		{ id: 'assistant-speech.playback.pinned-full-response-waveform', checkpoint: 'playing', visual: 'The rounded speech-accent player follows the Figma hierarchy without clipping.', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'assistant-speech.playback.two-second-idle-grace', checkpoint: 'pending', visual: 'The selected pending chapter is current with Loading and a flat waveform.', devices: ['web-laptop', 'web-phone'] },
 		{ id: 'assistant-speech.playback.deterministic-chapter-labels', checkpoint: 'ready', visual: 'The selected named chapter retains focus as ready waveform samples replace the flat placeholder and playback starts.', devices: ['web-laptop', 'web-phone'] },
-		{ id: 'assistant-speech.playback.single-queue-segment-control', checkpoint: 'paused', visual: 'Paused playback exposes distinct Play and Close controls.', devices: ['web-laptop', 'web-phone'] }
+		{ id: 'assistant-speech.playback.single-queue-segment-control', checkpoint: 'paused', visual: 'Paused playback exposes distinct Play and Close controls.', devices: ['web-laptop', 'web-phone'] },
+		{ id: 'assistant-speech.playback.autoplay-recovery-visible', checkpoint: 'recovery', visual: 'An explicit tap-to-play action appears when the browser blocks audio.', devices: ['web-laptop', 'web-phone'] }
 	],
 	tutorial: { readingWordsPerSecond: 2.5, minimumHoldMs: 1800, maximumHoldMs: 5000 }
 });
 
 test.describe('AssistantSpeechPlayer component preview', () => {
-	// contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.deterministic-chapter-labels,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace
+    // contract-test: supporting surface=gui.web assertions=assistant-speech.playback.two-second-idle-grace
+    test('keeps loading feedback readable with reduced motion', async ({ page }) => {
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.goto('/dev/preview/AssistantSpeechPlayer?variant=awaitingAudio&chrome=0', { waitUntil: 'networkidle' });
+        const loading = page.getByTestId('assistant-speech-loading');
+        await expect(loading).toBeVisible();
+        await expect.poll(() => loading.evaluate((element) => getComputedStyle(element).animationName)).toBe('none');
+        await expect(page.getByTestId('assistant-speech-player')).toHaveAttribute('aria-busy', 'true');
+    });
+	// contract-test: direct surface=gui.web assertions=assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.deterministic-chapter-labels,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,assistant-speech.failure.nonblocking-visible-resumable
 	test('matches responsive playing, loading, ready, and paused states', async ({ page }, testInfo) => {
 		const proof = IS_PROOF_CAPTURE
 			? createVideoProofRuntime(PLAYER_PROOF, {
@@ -78,6 +89,7 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 		await verify('assistant-speech.playback.two-second-idle-grace', async () => {
 			await expect(player.getByTestId('assistant-speech-current-chapter')).toHaveText('Optimization');
 			await expect(player.getByTestId('assistant-speech-loading')).toBeVisible();
+			await expect.poll(() => player.getByTestId('assistant-speech-loading').evaluate((element) => getComputedStyle(element).animationName)).not.toBe('none');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-placeholder', 'true');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-segment-id', 'segment-2');
 			await expect(player.getByTestId('assistant-speech-waveform')).toHaveAttribute('data-window', 'segment-1,segment-2,segment-3');
@@ -105,6 +117,19 @@ test.describe('AssistantSpeechPlayer component preview', () => {
 			await expect(player.getByTestId('assistant-speech-close-icon')).toBeVisible();
 		});
 		await proof?.checkpoint('paused');
+        await page.goto(`/dev/preview/AssistantSpeechPlayer?variant=failed&theme=light&chrome=0&width=${width}`, { waitUntil: 'networkidle' });
+        await expect(player.getByTestId('assistant-speech-error')).toBeVisible();
+        await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Retry');
+        await player.getByTestId('assistant-speech-primary-control').click();
+        await expect(player.getByTestId('assistant-speech-error')).toHaveCount(0);
+        await page.goto(`/dev/preview/AssistantSpeechPlayer?variant=autoplayBlocked&theme=light&chrome=0&width=${width}`, { waitUntil: 'networkidle' });
+        await verify('assistant-speech.playback.autoplay-recovery-visible', async () => {
+            await expect(player.getByTestId('assistant-speech-autoplay-recovery')).toBeVisible();
+            await expect(player.getByTestId('assistant-speech-primary-control')).toHaveAccessibleName('Tap to play audio');
+        });
+        await proof?.checkpoint('recovery');
+        await player.getByTestId('assistant-speech-primary-control').click();
+        await expect(player).toHaveAttribute('data-status', 'playing');
 		await proof?.attach();
 	});
 

@@ -181,19 +181,12 @@
     .typing-indicator.status-typing .indicator-primary-action,
     .typing-indicator.status-processing .indicator-status-line,
     .typing-indicator.status-processing .indicator-primary-action {
-        background: linear-gradient(
-            90deg,
-            var(--color-grey-60) 0%,
-            var(--color-grey-60) 40%,
-            var(--color-grey-40) 50%,
-            var(--color-grey-60) 60%,
-            var(--color-grey-60) 100%
-        );
+        background: var(--processing-text-gradient);
         background-size: 200% 100%;
         background-clip: text;
         -webkit-background-clip: text;
         color: transparent;
-        animation: typing-indicator-shimmer 1.5s infinite linear;
+        animation: processing-text-shimmer 1.5s infinite linear;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -205,12 +198,4 @@
         }
     }
 
-    @keyframes typing-indicator-shimmer {
-        0% {
-            background-position: 200% 0;
-        }
-        100% {
-            background-position: -200% 0;
-        }
-    }
 </style>
