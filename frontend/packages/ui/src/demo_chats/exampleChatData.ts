@@ -102,7 +102,6 @@ import { berlinMitteWorkFriendlyRestaurantsChat } from "./data/example_chats/ber
 import { openMeteoWeatherNotebookChat } from "./data/example_chats/open-meteo-weather-notebook";
 import { audioGenerateOpenmatesSuccessChimeChat } from "./data/example_chats/audio-generate-openmates-success-chime";
 import { audioSpeakOpenmatesWelcomeMessageChat } from "./data/example_chats/audio-speak-openmates-welcome-message";
-import { openmatesWorkspaceWelcomeChat } from "./data/example_chats/openmates-workspace-welcome";
 import { plumberMessageEmailPhonePrivacyChat } from "./data/example_chats/plumber-message-email-phone-privacy";
 
 export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
@@ -200,7 +199,6 @@ export const ALL_EXAMPLE_CHATS: ExampleChat[] = [
   openMeteoWeatherNotebookChat,
   audioGenerateOpenmatesSuccessChimeChat,
   audioSpeakOpenmatesWelcomeMessageChat,
-  openmatesWorkspaceWelcomeChat,
   plumberMessageEmailPhonePrivacyChat,
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 

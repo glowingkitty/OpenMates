@@ -64,7 +64,6 @@ type InterestTagDefinition = Omit<
   InterestTag,
   "labelKey" | "defaultOrder" | "dailyInspirations" | "introChats"
 > & {
-  developerIntro?: boolean;
   dailyInspirations?: string[];
 };
 
@@ -84,7 +83,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
     suggestions: ["chat.new_chat_suggestions.professional_email", "chat.new_chat_suggestions.writing_prompts"],
   },
   {
-    id: "software_development", type: "mate", audience: "work", fallbackLabel: "software development", icon: "code", appId: "code", gradientCategory: "software_development", developerIntro: true,
+    id: "software_development", type: "mate", audience: "work", fallbackLabel: "software development", icon: "code", appId: "code", gradientCategory: "software_development",
     related: ["automation_workflows", "websites_online_shops", "data_spreadsheets", "ui_ux_design", "research_analysis", "privacy_personal_data"],
     dailyInspirations: ["sandbox-code-execution", "cli-parity", "rest-api", "webhooks", "learning-mode"],
     exampleChats: ["example-habit-garden-web-application", "example-screenshot-to-html-pricing", "example-beautiful-single-page-html", "example-svelte-runes-docs", "example-rust-vector-database-repos", "example-sqlite-strict-tables-summary", "example-python-squares-code-run", "example-usb-c-3v3-ldo", "example-dashboard-sidebar-svg-icons", "example-open-meteo-weather-notebook", "example-privacy-first-local-ai", "example-memory-code-projects", "example-memory-code-preferred-tech", "example-memory-code-coding-setup", "example-memory-code-want-to"],
@@ -181,13 +180,13 @@ const DEFINITIONS: InterestTagDefinition[] = [
     suggestions: ["chat.new_chat_suggestions.improve_productivity"],
   },
   {
-    id: "websites_online_shops", type: "skill", audience: "work", fallbackLabel: "websites & online shops", icon: "shopping-bag", appId: "code", gradientCategory: "software_development", developerIntro: true,
+    id: "websites_online_shops", type: "skill", audience: "work", fallbackLabel: "websites & online shops", icon: "shopping-bag", appId: "code", gradientCategory: "software_development",
     related: ["software_development", "ui_ux_design", "marketing", "sales", "branding_images"],
     exampleChats: ["example-habit-garden-web-application", "example-beautiful-single-page-html", "example-screenshot-to-html-pricing", "example-privacy-website-hero-background", "example-fediverse-activitypub-social-search"],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.discover_image_generate"],
   },
   {
-    id: "automation_workflows", type: "skill", audience: "work", fallbackLabel: "automation & workflows", icon: "workflow", appId: "tasks", gradientCategory: "software_development", developerIntro: true,
+    id: "automation_workflows", type: "skill", audience: "work", fallbackLabel: "automation & workflows", icon: "workflow", appId: "tasks", gradientCategory: "software_development",
     related: ["project_management", "admin_operations", "software_development", "productivity_organization"],
     exampleChats: ["example-library-book-return-workflow", "example-cancel-test-reminder", "example-upcoming-reminders-list", "example-memory-reminder-defaults", "example-nonprofit-event-planning-use"],
     suggestions: ["chat.new_chat_suggestions.improve_productivity", "chat.new_chat_suggestions.use_openmates_cli_api"],
@@ -217,7 +216,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
     suggestions: ["chat.new_chat_suggestions.improve_productivity"],
   },
   {
-    id: "learning_new_skills", type: "context", audience: "personal", fallbackLabel: "learning new skills", icon: "graduation-cap", appId: "web", gradientCategory: "general_knowledge", developerIntro: true,
+    id: "learning_new_skills", type: "context", audience: "personal", fallbackLabel: "learning new skills", icon: "graduation-cap", appId: "web", gradientCategory: "general_knowledge",
     related: ["research_analysis", "software_development", "productivity_organization", "diy_electronics"],
     exampleChats: ["example-memory-study-learning-goals", "example-memory-code-want-to", "example-svelte-runes-docs", "example-rag-explained-videos", "example-ai-workshops-meetups-berlin", "example-memory-books-to-read", "example-memory-books-currently-reading", "example-memory-books-favorite-books", "example-ted-talk-transcript-summary", "example-sqlite-strict-tables-summary", "example-rust-vector-database-repos", "example-open-meteo-weather-notebook", "example-damped-sine-wave-plot", "example-artemis-ii-mission", "example-gigantic-airplanes", "example-germany-historic-film-industry"],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.learn_spanish", "chat.new_chat_suggestions.quantum_computing"],
@@ -271,7 +270,7 @@ const DEFINITIONS: InterestTagDefinition[] = [
     suggestions: ["chat.new_chat_suggestions.discover_news_search", "chat.new_chat_suggestions.ai_news"],
   },
   {
-    id: "diy_electronics", type: "mate", audience: "personal", fallbackLabel: "DIY & electronics", icon: "wrench", appId: "electronics", gradientCategory: "maker_prototyping", developerIntro: true,
+    id: "diy_electronics", type: "mate", audience: "personal", fallbackLabel: "DIY & electronics", icon: "wrench", appId: "electronics", gradientCategory: "maker_prototyping",
     related: ["software_development", "learning_new_skills", "research_analysis"],
     exampleChats: ["example-usb-c-3v3-ldo", "example-buck-converters-24v-5v", "example-printable-benchy-phone-stand", "example-reference-image-3d-model", "example-right-to-repair-laws", "example-classic-car-reverse-image"],
     suggestions: ["chat.new_chat_suggestions.learn_coding", "chat.new_chat_suggestions.discover_math_calculate"],
@@ -286,13 +285,13 @@ const DEFINITIONS: InterestTagDefinition[] = [
 ];
 
 export const INTEREST_TAGS: InterestTag[] = DEFINITIONS.map((definition, index) => {
-  const { developerIntro, dailyInspirations = [], ...tag } = definition;
+  const { dailyInspirations = [], ...tag } = definition;
   return {
     ...tag,
     labelKey: `chat.interests.${tag.id}`,
     defaultOrder: (index + 1) * 10,
     dailyInspirations: [...dailyInspirations, ...GUEST_PRODUCT_INSPIRATIONS],
-    introChats: developerIntro ? ["demo-who-develops-openmates"] : [],
+    introChats: [],
   };
 });
 
