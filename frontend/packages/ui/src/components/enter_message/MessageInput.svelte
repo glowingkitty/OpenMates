@@ -2573,7 +2573,8 @@
             editor.commands.setContent(`<p>${msgText.replace(/\n/g, '<br>')}</p>`);
             hasContent = true;
             refreshDraftPreviewState(editor);
-            editor.commands.focus('end');
+            // Expand the draft preview before focusing its otherwise hidden editor.
+            focus();
             if (autoSend) {
                 // Short delay to let the editor render the content
                 setTimeout(() => handleSendMessage(), 100);
