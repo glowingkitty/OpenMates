@@ -2,8 +2,8 @@
   frontend/packages/ui/src/components/embeds/EmbedTopBar.svelte
 
   Action button row rendered at the top of every embed fullscreen view.
-  Lives in normal document flow (not absolutely positioned) so the scrollable
-  content area — including the gradient header banner — always starts below it.
+  Overlays the scrollable header and content. Shared overlap detection switches
+  controls to translucent backgrounds and white icons while over the banner.
 
   Layout:
   - Left side: Chat, Share, Copy, Download, Report Issue, PII toggle buttons
@@ -15,6 +15,7 @@
 
 <script lang="ts">
   import { text } from '@repo/ui';
+  import { headerOverlayControls } from '../../actions/headerOverlayControls';
 
   interface Props {
     /** Whether to show the "restore chat" button (ultra-wide side-by-side mode). */
@@ -98,7 +99,7 @@
   }: Props = $props();
 </script>
 
-<div class="embed-top-bar">
+<div class="embed-top-bar" use:headerOverlayControls>
   <!-- Left: action buttons -->
   <div class="top-bar-left">
     <!-- Restore chat (ultra-wide side-by-side mode) -->

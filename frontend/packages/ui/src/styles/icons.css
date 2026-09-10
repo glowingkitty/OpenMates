@@ -1875,3 +1875,15 @@ div.clickable-icon {
 }
 
 
+
+/* Header overlays deliberately use literal white in both themes. Only the
+   background is translucent; masked icons remain fully opaque. */
+[data-header-overlay].new-chat-button-wrapper,
+[data-header-overlay].button-wrapper {
+  background-color: rgb(255 255 255 / 20%) !important;
+}
+
+[data-header-overlay] .clickable-icon.top-button {
+  background-color: #fff !important;
+  color: #fff !important;
+}

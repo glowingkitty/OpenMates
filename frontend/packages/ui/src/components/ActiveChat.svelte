@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
     import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
     import type { Content } from '@tiptap/core';
@@ -13001,6 +13002,7 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
                          On the active chat screen (showWelcome=false): absolutely positioned at top. -->
                     <div
                         class="top-buttons"
+                        use:headerOverlayControls
                         data-testid="chat-top-actions"
                         class:top-buttons-flow={showWelcome}
                         class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
