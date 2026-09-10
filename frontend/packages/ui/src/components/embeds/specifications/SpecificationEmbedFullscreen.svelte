@@ -7,6 +7,7 @@
   Contract: specifications/features/specifications/specification.yml.
 -->
 <script lang="ts">
+  import { resolveIconName } from '../../../utils/iconNameResolver';
   import UnifiedEmbedPreview from '../UnifiedEmbedPreview.svelte';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import type { SpecificationDocument, SpecFlow, SpecCheckPreview } from './SpecificationDocument';
@@ -23,7 +24,7 @@
 </script>
 
 {#snippet icon(name: string)}
-  <span class="spec-icon" style={`--spec-icon: var(--icon-url-${name})`} aria-hidden="true"></span>
+  <span class="spec-icon" style={`--spec-icon: var(--icon-url-${resolveIconName(name)})`} aria-hidden="true"></span>
 {/snippet}
 
 {#snippet flowCards(items: SpecFlow[])}
@@ -46,7 +47,7 @@
   </div>
 {/snippet}
 
-<div class="specification-view">
+<div class="specification-view" style:--spec-cover={selectedCheck ? 'var(--color-app-plans)' : selectedFlow ? 'var(--color-app-design)' : 'var(--color-grey-90)'}>
   {#if selectedCheck}
     <UnifiedEmbedFullscreen appId="plans" skillIconName="task" showShare={false}
       testId="spec-check-fullscreen" closeTestId="spec-check-close"
