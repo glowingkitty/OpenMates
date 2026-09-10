@@ -19,6 +19,8 @@ export interface CalendarDownloadInput {
 }
 
 const DEFAULT_EVENT_DURATION_MS = 60 * 60 * 1000;
+const ALL_DAY_DURATION_MS = 24 * DEFAULT_EVENT_DURATION_MS;
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 function parseCalendarDate(value: string | undefined): Date | null {
   if (!value) return null;
@@ -68,9 +70,12 @@ export function buildCalendarFile(input: CalendarDownloadInput): string | null {
   if (!start) return null;
 
   const parsedEnd = parseCalendarDate(input.end);
+  // A date without a time represents an all-day entry, not midnight UTC.
+  // iCalendar DTEND is exclusive, so a single day ends on the following date.
+  const allDay = DATE_ONLY_PATTERN.test(input.start);
   const end = parsedEnd && parsedEnd.getTime() > start.getTime()
     ? parsedEnd
-    : new Date(start.getTime() + DEFAULT_EVENT_DURATION_MS);
+    : new Date(start.getTime() + (allDay ? ALL_DAY_DURATION_MS : DEFAULT_EVENT_DURATION_MS));
   const now = new Date();
   const uid = `${start.getTime()}-${sanitizeCalendarFilename(input.title)}@openmates`;
 
@@ -83,8 +88,8 @@ export function buildCalendarFile(input: CalendarDownloadInput): string | null {
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${formatUtcDate(now)}`,
-    `DTSTART:${formatUtcDate(start)}`,
-    `DTEND:${formatUtcDate(end)}`,
+    allDay ? `DTSTART;VALUE=DATE:${formatUtcDate(start).slice(0, 8)}` : `DTSTART:${formatUtcDate(start)}`,
+    allDay ? `DTEND;VALUE=DATE:${formatUtcDate(end).slice(0, 8)}` : `DTEND:${formatUtcDate(end)}`,
     `SUMMARY:${escapeIcsText(input.title || 'Calendar event')}`,
   ];
 
