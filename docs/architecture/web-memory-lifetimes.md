@@ -36,3 +36,21 @@ arbitrary navigation delays to meet a memory target. Browser heap and live DOM /
 listener counts after repeated equivalent navigation and garbage collection are
 the useful leak indicators; process RSS alone includes graphics and allocator
 high-water marks. Linux WebKit is not a reproduction of macOS Safari process RSS.
+
+## Svelte runtime retention
+
+The live-account retainer inspection after embed cleanup still found eight removed
+chat-history roots after eight navigation cycles. Their strong-reference path was
+`ActiveChat.currentChat → reactions → child component context → exported
+restoreScrollPosition closure → detached chat-history DOM`. The dev helper on
+`window` was one root into the still-mounted ActiveChat context, not the stale
+subscription itself. Removing that helper would conceal one path without repairing
+the reactive graph.
+
+The workspace pins Svelte 5.56.10, including the upstream fix to avoid reconnecting
+computed values from branch/root effects and the cleanup of the last propagated
+event's target. References: [Svelte #18527](https://github.com/sveltejs/svelte/pull/18527),
+[Svelte #18569](https://github.com/sveltejs/svelte/pull/18569), and the related
+[detached child subscription report #18103](https://github.com/sveltejs/svelte/issues/18103).
+Retainer analysis is performed in process memory; only sanitized counts and
+structural paths are reported, never account contents or saved heap snapshots.
