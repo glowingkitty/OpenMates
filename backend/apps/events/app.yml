@@ -52,6 +52,7 @@ embed_types:
     backend_type: app_skill_use
     has_children: true
     child_type: event
+    child_content_type: event_result
     child_frontend_type: events-event
     groupable: false
     preview_component: events/EventsSearchEmbedPreview.svelte
