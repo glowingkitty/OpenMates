@@ -12,6 +12,22 @@ const PREVIEW = '/dev/preview/embeds/mindmaps/MindMapEmbedFullscreen?chrome=0';
 const SOURCE_MARKER = '"openmatesType"';
 const MAX_ZOOM_CONTROL_HEIGHT = 64;
 
+// contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
+test('reduced motion closes the shared fullscreen without an animated waiting period', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(PREVIEW);
+  const overlay = page.getByTestId('embed-fullscreen-overlay');
+  await expect(overlay.getByTestId('mindmap-fullscreen-canvas')).toBeVisible();
+  // Evaluate at the next painted frame, rather than letting assertion retries
+  // conceal a fixed close delay. The preview intentionally keeps its root mounted.
+  const visibility = await page.getByTestId('embed-minimize').evaluate(async (button: HTMLElement) => {
+    button.click();
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    return getComputedStyle(document.querySelector('[data-testid="embed-fullscreen-overlay"]')!).visibility;
+  });
+  expect(visibility).toBe('hidden');
+});
+
 // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
 test('normal fullscreen renders the map without exposing source JSON', async ({ page }) => {
   await page.goto(PREVIEW);

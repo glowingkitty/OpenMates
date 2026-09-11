@@ -17186,7 +17186,7 @@ def cmd_check_tests(args: argparse.Namespace) -> None:
     if verdicts["none"] > 0:
         print()
         print("  ⚠️  Test-first enforcement: propose E2E tests for uncovered files")
-        print("     before deploying. See testing.md 'Test-First Enforcement'.")
+        print("     before deploying. See testing.md 'Verification workflow'.")
 
     print()
     print("== END TEST COVERAGE CHECK ==")

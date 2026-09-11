@@ -28,7 +28,8 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy, tick, getContext } from 'svelte';
+  import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';
   import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
   import { settingsMenuVisible } from '../Settings.svelte';
@@ -49,6 +50,12 @@
   let isClosing = $state(false);
   let lastDebugEmbedInspectionId = $state<string | null>(null);
   const CHILD_EMBED_LOAD_CONCURRENCY = 4;
+  const CHILD_EMBED_RETRY_LIMIT = 8;
+  const CHILD_EMBED_RETRY_DELAY_MS = 400;
+  const CLOSE_FALLBACK_MS = 1000;
+  const workspace = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
+  let closeFallback: ReturnType<typeof setTimeout> | undefined;
+  let closeCompleted = false;
   
   /**
    * Context passed to the content snippet when child embeds are used
@@ -395,6 +402,15 @@
   let childLoadGeneration = 0;
   let lastChildLoadKey = '';
   let isDestroyed = false;
+  let childRetryTimer: ReturnType<typeof setTimeout> | undefined;
+  let finishChildRetry: (() => void) | undefined;
+
+  function cancelChildRetry() {
+    clearTimeout(childRetryTimer);
+    finishChildRetry?.();
+    finishChildRetry = undefined;
+    childRetryTimer = undefined;
+  }
 
   function parseChildEmbedIds(): string[] {
     if (typeof embedIds === 'string' && embedIds.trim()) {
@@ -411,7 +427,7 @@
   }
 
   function isCurrentChildLoad(generation: number): boolean {
-    return !isDestroyed && generation === childLoadGeneration;
+    return !isDestroyed && !isClosing && generation === childLoadGeneration;
   }
   
   /**
@@ -420,6 +436,7 @@
    */
   async function loadChildEmbeds() {
     const generation = ++childLoadGeneration;
+    cancelChildRetry();
     const embedIdList = parseChildEmbedIds();
     const loadKey = embedIdList.join('|');
     lastChildLoadKey = loadKey;
@@ -514,13 +531,36 @@
       }
     }
 
-    const children: unknown[] = [];
-    for (let start = 0; start < embedIdList.length; start += CHILD_EMBED_LOAD_CONCURRENCY) {
+    // One bounded loader owns search hydration. Publish available cards without
+    // repeating successful work; missing streamed children retry inside the pane.
+    // Keep completion callbacks final-only: consumers can backfill stored metadata.
+    const childrenById = new Map<string, unknown>();
+    const retryLimit = appId === 'web' && skillId === 'search' ? CHILD_EMBED_RETRY_LIMIT : 0;
+    let children: unknown[] = [];
+    for (let attempt = 0; attempt <= retryLimit; attempt++) {
       if (!isCurrentChildLoad(generation)) return;
-      const chunk = embedIdList.slice(start, start + CHILD_EMBED_LOAD_CONCURRENCY);
-      const loadedChunk = await Promise.all(chunk.map(loadOneChildEmbed));
-      if (!isCurrentChildLoad(generation)) return;
-      children.push(...loadedChunk.filter((child) => child !== null));
+      const pendingIds = embedIdList.filter((id) => !childrenById.has(id));
+      if (pendingIds.length === 0) break;
+      for (let start = 0; start < pendingIds.length; start += CHILD_EMBED_LOAD_CONCURRENCY) {
+        if (!isCurrentChildLoad(generation)) return;
+        const chunk = pendingIds.slice(start, start + CHILD_EMBED_LOAD_CONCURRENCY);
+        const loadedChunk = await Promise.all(chunk.map(loadOneChildEmbed));
+        if (!isCurrentChildLoad(generation)) return;
+        loadedChunk.forEach((child, index) => {
+          if (child !== null) childrenById.set(chunk[index], child);
+        });
+        children = embedIdList.filter((id) => childrenById.has(id)).map((id) => childrenById.get(id)!);
+        loadedChildren = children;
+      }
+      if (childrenById.size === embedIdList.length || attempt === retryLimit) break;
+      await new Promise<void>((resolve) => {
+        finishChildRetry = resolve;
+        childRetryTimer = setTimeout(() => {
+          finishChildRetry = undefined;
+          childRetryTimer = undefined;
+          resolve();
+        }, CHILD_EMBED_RETRY_DELAY_MS);
+      });
     }
     
     if (!isCurrentChildLoad(generation)) return;
@@ -605,6 +645,7 @@
     
     try {
       const embedData = await resolveEmbed(currentEmbedId);
+      if (isDestroyed || isClosing) return;
       if (!embedData) {
         console.warn(`[UnifiedEmbedFullscreen] Embed not found in store: ${currentEmbedId}`);
         return;
@@ -627,7 +668,7 @@
       
       // Notify parent component with decoded content and results
       // Results are extracted from the decoded content (embed_ids field)
-      if (decodedContent) {
+      if (decodedContent && !isDestroyed && !isClosing) {
         onEmbedDataUpdated({
           status: embedData.status || 'processing',
           decodedContent: decodedContent,
@@ -660,22 +701,36 @@
     }
   });
   
-  // Handle smooth closing animation
-  // Uses CSS class-based animation for consistent behavior
-  // The animation is controlled by removing the 'animating-in' class
+  function finishClose() {
+    if (closeCompleted || isDestroyed) return;
+    closeCompleted = true;
+    clearTimeout(closeFallback);
+    onClose();
+  }
+
+  function handleCloseTransitionEnd(event: TransitionEvent) {
+    if (event.target === event.currentTarget && event.propertyName === 'transform' && isClosing) {
+      finishClose();
+    }
+  }
+
+  // Split movement is owned by ActiveChat. Overlay movement completes on its
+  // actual transition end, with a cleanup-only fallback for interrupted CSS.
   function handleClose() {
     // Prevent double-close
     if (isClosing) return;
+    const wasVisible = isAnimatingIn;
     isClosing = true;
+    cancelChildRetry();
     
     // Toggle animation state to trigger CSS transition (scale down + fade out)
     isAnimatingIn = false;
     
-    // Wait for animation to complete before calling onClose
-    // Animation duration is 300ms (matches CSS transition)
-    setTimeout(() => {
-      onClose();
-    }, 300);
+    if (!wasVisible || workspace?.isSplitPane || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finishClose();
+    } else {
+      closeFallback = setTimeout(finishClose, CLOSE_FALLBACK_MS);
+    }
   }
   
   /**
@@ -905,7 +960,7 @@
       service.addEventListener('embedUpdated', embedUpdateListener);
       
       // Initial fetch to ensure we have the latest data
-      refetchCurrentEmbed();
+      if (workspace?.resolvedEmbedId !== currentEmbedId) refetchCurrentEmbed();
     }
     
     // Load child embeds if embedIds is provided
@@ -919,8 +974,11 @@
     // hide the gradient header banner that is now part of the scrollable flow.
     //
     // Scale-up from the preview card origin.
-    requestAnimationFrame(() => {
+    if (workspace?.isSplitPane || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      isAnimatingIn = true;
+    } else requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        if (isDestroyed || isClosing) return;
         isAnimatingIn = true;
         if (contentAreaElement && !skipInitialScrollReset) {
           contentAreaElement.scrollTop = 0;
@@ -941,6 +999,8 @@
 
   onDestroy(() => {
     isDestroyed = true;
+    clearTimeout(closeFallback);
+    cancelChildRetry();
     childLoadGeneration += 1;
     window.removeEventListener('globalChatSelected', handleChatSelected);
     
@@ -1304,6 +1364,7 @@
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
   data-testid={testId}
+  ontransitionend={handleCloseTransitionEnd}
 >
   <div class="fullscreen-container">
 
@@ -1427,7 +1488,6 @@
        orbs + content) on the main thread during the transition.
        Without this hint, Safari defers layer promotion until the first
        animation frame, causing the visible stall on iPad. */
-    will-change: transform;
     /* Container queries so child components can detect their available width */
     container-type: inline-size;
     container-name: fullscreen;
@@ -1450,6 +1510,13 @@
     /* Override: when opening, visibility must flip immediately (step-start) */
     transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1),
                 visibility 0ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .unified-embed-fullscreen-overlay,
+    .unified-embed-fullscreen-overlay.animating-in {
+      transition: none;
+    }
   }
 
   /* position: relative so EmbedTopBar (position: absolute) is contained here */

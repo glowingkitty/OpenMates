@@ -132,17 +132,20 @@ All Playwright specs use `getE2EDebugUrl()` which injects `#e2e-debug={runId}-{s
 - **Implementation demonstration evidence:** Eligible Tier 2 specs and user-visible Tier 1 plans use the passing deployed Playwright recording or real PTY command/output as their source. Exact device-scoped WebVTT captions are written after applicable green gates and published as a toggleable player track; never burn captions into video pixels or reduce the clean frame to reserve caption space. Proof-video contracts are tooling-authorized from the spec/test assertions; do not ask the user for a separate pre-render contract approval. Every `*.spec.ts` run or real OpenMates CLI E2E that generates a video must embed its emitted response-media `<video>` HTML in the next assistant progress response, even if the run failed or the proof still needs debugging. Do not run proof-video-specific PII/sensitive-data detection or replacement; review the captured clean frame and approved captions as-is. Never attach the full video to model context. Reconstructed terminal visuals must match a real transcript hash and cannot replace verification evidence.
 - **Test video response metadata:** Whenever an assistant response embeds a video from a test run, include the video's filename or repository-relative artifact path beside the player. If the test covers a UI component, also include a clickable link to that component's exact deployed `https://app.dev.openmates.org/dev/preview/{component-path}` route in the same response. Paths and preview links supplement the required embed; they do not replace it.
 
-## Test-First Enforcement (Mandatory)
+## Verification workflow
 
-Every bug fix and feature MUST follow this test-first workflow. No exceptions unless `--skip-tests` is used at deploy time with an explicit reason.
+Confirmed browser observations, logs, or existing failing checks are sufficient to
+start a bug fix. Do not require a fresh failing automated baseline or a separate
+approval merely to reconfirm an established bug. Use test-first development when
+it resolves uncertainty, rather than as a mandatory waiting gate.
 
 ### Bug Fixes
 
-1. **Check for existing spec:** Run `sessions.py check-tests --session <id>` immediately after reading the issue.
-2. **Spec exists → run it first:** Run `python3 scripts/tests.py run --spec <name>.spec.ts` against the current deployed dev app to confirm the spec reproduces the bug (expect red/failure). If the spec passes, the bug may not be covered — extend the spec or create a targeted one.
-3. **No spec exists → propose a test plan:** Before writing any fix code, propose a minimal E2E test that would reproduce the bug (user flow, assertions, which spec to create or extend). Wait for user confirmation.
-4. **Fix the bug.**
-5. **Verify the fix:** Publish the candidate with sessions.py ci-source, submit the relevant spec through the existing CI coordinator, and inspect its source-bound result. Deploy the scoped verified change through sessions.py deploy.
+1. Preserve the confirmed symptoms and relevant before measurements.
+2. Find related checks with `sessions.py check-tests --session <id>` and extend focused regression coverage where useful.
+3. Implement the fix without waiting for a redundant failing baseline.
+4. Run relevant unit, lint, build and isolated GitHub checks. Use `sessions.py ci-source` and the existing CI coordinator for automated product tests.
+5. Deploy the scoped verified change through `sessions.py deploy`, then repeat the authorized real-browser verification and compare the result with the original evidence.
 
 ### Features
 
