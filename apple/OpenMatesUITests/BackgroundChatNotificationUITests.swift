@@ -93,7 +93,7 @@ final class BackgroundChatNotificationUITests: XCTestCase {
         let springboard = springBoard()
         springboard.staticTexts[notificationTitle].press(forDuration: 1)
         let replyButton = springboard.buttons.matching(
-            NSPredicate(format: "label IN %@", ["Click to respond", "Reply", "Respond"])
+            NSPredicate(format: "label IN %@", ["Click here to respond", "Click to respond", "Reply", "Respond"])
         ).firstMatch
         guard replyButton.waitForExistence(timeout: 3) else {
             if capability == "supported" {

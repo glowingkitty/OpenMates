@@ -109,6 +109,9 @@ evidence:
   - recovery-final-v1 passes all 79 focused unit tests in 2.456 seconds. Notification foreground deduplication, warm notification tap and cold notification tap route to the exact target chat successfully.
   - The notification workflow stops at inline reply-control discovery before text entry; reply delivery and background reply completion are not yet proven. This harness limitation does not invalidate the independent fullscroll-v3 three-traversal and embed interaction pass.
   - Urgent scrolling recovery is authorized for scoped dev integration while the notification reply selector is diagnosed separately; Mac build 67 archive is running from the stable application source.
+  - Full-depth scrolling and notification lifecycle source deployed to dev as 9fbba00f73ca4feef2a029a37d847df294038d90; specification/lint gates pass and no backend runtime restart was performed.
+  - The inline-reply test selector now accepts SpringBoard's observed Click here to respond label. This test-only correction has not been rerun; end-to-end notification reply delivery remains unverified.
+  - User requested stopping after the current dev and TestFlight delivery to conserve usage; further notification validation and development-only component preview work remain deferred.
 handoff:
   current: Deliver the verified full-depth scrolling recovery and build 67, verify installed responsiveness and Mac APNs signing, then finish inline notification reply-control discovery and end-to-end reply delivery validation.
   verification: Preserve passing iPhone/iPad simulator evidence; validate remaining chat-opening fixes with focused regressions and installed TestFlight workflows.
