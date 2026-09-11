@@ -20,7 +20,7 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import mapsMarkerIconSvg from '../../../static/icons/maps.svg?raw';
   import { isDarkThemeActive, watchDarkThemeActive } from '../../utils/themeDetection';
 
@@ -368,12 +368,17 @@
     appliedCenterPanX = targetPanX;
   }
 
+  let mapInitializing = false;
+  let mapDestroyed = false;
+
   async function initLeafletMap() {
-    if (!mapContainer) return;
+    if (!mapContainer || mapInitializing || leafletMap || mapDestroyed) return;
+    mapInitializing = true;
 
     try {
       const L = (await import('leaflet')).default;
       await import('leaflet/dist/leaflet.css');
+      if (mapDestroyed || !mapContainer) return;
       leafletModule = L;
 
       const isDarkMode = isDarkThemeActive();
@@ -421,14 +426,18 @@
 
     } catch (err) {
       console.error('[EmbedLeafletMap] Failed to init Leaflet map:', err);
+    } finally {
+      mapInitializing = false;
     }
   }
 
-  onMount(() => {
-    initLeafletMap();
+  // Node-view mounting can attach the element after the initial lifecycle hook.
+  $effect(() => {
+    if (mapContainer) untrack(() => { void initLeafletMap(); });
   });
 
   onDestroy(() => {
+    mapDestroyed = true;
     if (mapResizeObserver) {
       mapResizeObserver.disconnect();
       mapResizeObserver = null;

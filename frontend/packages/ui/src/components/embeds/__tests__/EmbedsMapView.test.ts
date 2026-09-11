@@ -689,7 +689,9 @@ describe("EmbedsMapView", () => {
     target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-clear-filters"]')?.click();
     await tick();
 
-    target.querySelector<HTMLButtonElement>('[data-testid="embeds-map-view-option-provider-deutsche_bahn"]')?.click();
+    for (const option of target.querySelectorAll<HTMLButtonElement>('[data-testid^="embeds-map-view-option-provider-"]')) {
+      if (option.dataset.testid !== 'embeds-map-view-option-provider-deutsche_bahn') option.click();
+    }
     await tick();
 
     expect(target.querySelector('[data-testid="embeds-map-view-filter-summary"]')?.textContent).toContain("1 of 2 results remain");

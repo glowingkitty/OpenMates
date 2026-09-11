@@ -1,3 +1,5 @@
+import { normalizeEmbedType } from '../data/embedRegistry.generated';
+
 /**
  * embedPreviewRegistry.ts
  *
@@ -889,7 +891,7 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
 
   const appId = (d.app_id as string) || (e.app_id as string) || "";
   const skillId = (d.skill_id as string) || (e.skill_id as string) || "";
-  const type = (e.type as string) || (d.type as string) || "";
+  const type = normalizeEmbedType((e.type as string) || (d.type as string) || "");
 
   if ((type === "icon_result" || type === "design-icon-result") && resolvers.has(type)) {
     return type;

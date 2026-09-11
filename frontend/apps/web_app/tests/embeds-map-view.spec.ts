@@ -282,17 +282,21 @@ test.describe('Embeds map view preview', () => {
 		const qatarCarrier = filterMenu.getByTestId('embeds-map-view-option-carrier-qr');
 		if (proof) {
 			await proof.action('select-route-filter', async () => {
-				await qatarCarrier.click();
+				for (const option of await filterMenu.locator('[data-testid^="embeds-map-view-option-carrier-"]').all()) {
+ if (await option.getAttribute('data-testid') !== 'embeds-map-view-option-carrier-qr') await option.click();
+}
 			});
 		} else {
-			await qatarCarrier.click();
+			for (const option of await filterMenu.locator('[data-testid^="embeds-map-view-option-carrier-"]').all()) {
+ if (await option.getAttribute('data-testid') !== 'embeds-map-view-option-carrier-qr') await option.click();
+}
 		}
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('2 of 5 results remain');
-		await expect(qatarCarrier).toHaveAttribute('aria-pressed', 'true');
+		await expect(qatarCarrier).toHaveAttribute('aria-checked', 'true');
 		if (proof) {
 			await proof.assert('local-route-filter', async () => {
 				await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('2 of 5 results remain');
-				await expect(qatarCarrier).toHaveAttribute('aria-pressed', 'true');
+				await expect(qatarCarrier).toHaveAttribute('aria-checked', 'true');
 			});
 			await proof.checkpoint('local-route-filter');
 		}

@@ -152,3 +152,12 @@ describe('embedPreviewRegistry parent preview metadata', () => {
     expect(resolved?.props).not.toHaveProperty('results');
   });
 });
+
+// contract-test: supporting surface=gui.web assertions=public-example-chats.surface.semantic-parity
+it('normalizes backend child types through the central embed mapping', () => {
+  for (const type of ['event', 'event_result', 'events-event']) {
+    expect(embedPreviewRegistry.canResolve({
+      embedId: 'event-child', embedData: { type }, decodedContent: {},
+    })).toBe(true);
+  }
+});

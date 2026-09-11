@@ -9,6 +9,8 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
+  import { EMBED_METADATA, normalizeEmbedType } from '../../data/embedRegistry.generated';
   import { userProfile } from '../../stores/userProfile';
   import type { Component } from 'svelte';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
@@ -757,7 +759,7 @@
   function countActiveFilters(rangeControls: RangeFilterControl[], optionControls: OptionFilterControl[]): number {
     return Number(activeCategory !== 'all')
       + rangeControls.filter(isRangeFilterActive).length
-      + optionControls.reduce((count, control) => count + (optionFilters[control.key]?.length ? 1 : 0), 0);
+      + optionControls.reduce((count, control) => count + (optionFilters[control.key] !== undefined && optionFilters[control.key].length !== control.options.length ? 1 : 0), 0);
   }
 
   function matchesActiveFilters(entry: MapViewEntry): boolean {
@@ -769,8 +771,8 @@
       if (facetValue == null || facetValue < rangeValue.min || facetValue > rangeValue.max) return false;
     }
     for (const control of optionFilterControls) {
-      const selectedValues = optionFilters[control.key] ?? [];
-      if (selectedValues.length === 0) continue;
+      const selectedValues = optionFilters[control.key];
+      if (selectedValues === undefined) continue;
       const values = optionFacet(entry, control.key);
       if (!selectedValues.some((value) => values.includes(value))) return false;
     }
@@ -791,7 +793,7 @@
   }
 
   function toggleOptionFilter(key: string, value: string): void {
-    const current = optionFilters[key] ?? [];
+    const current = optionFilters[key] ?? optionFilterControls.find((control) => control.key === key)?.options.map((option) => option.value) ?? [];
     const next = current.includes(value)
       ? current.filter((item) => item !== value)
       : [...current, value];
@@ -1646,11 +1648,11 @@
                       <button
                         type="button"
                         data-testid={`embeds-map-view-option-${testIdPart(control.label)}-${testIdPart(option.value)}`}
-                        class:active={(optionFilters[control.key] ?? []).includes(option.value)}
-                        aria-pressed={(optionFilters[control.key] ?? []).includes(option.value)}
+                        role="switch"
+                        aria-checked={optionFilters[control.key] === undefined || optionFilters[control.key].includes(option.value)}
                         onclick={() => toggleOptionFilter(control.key, option.value)}
                       >
-                        {option.label} <span>{option.count}</span>
+                        <span>{option.label}</span><span class="option-switch" aria-hidden="true"></span>
                       </button>
                     {/each}
                   </div>
@@ -1698,14 +1700,22 @@
                 {@const Component = getRenderableComponent(entry.preview.component)}
                 <Component {...entry.preview.props} />
               {:else}
-                <button type="button" class="fallback-card" data-testid="embeds-map-view-fallback-card" onclick={() => openEntry(entry)}>
-                  <span class="category-pill">{entry.category}</span>
-                  <strong>{entry.title}</strong>
-                  <span class="entry-subtitle">{entry.subtitle}</span>
-                  {#if entry.status !== 'ready'}
-                    <em>{entry.status === 'loading' ? 'Resolving...' : 'Unavailable'}</em>
-                  {/if}
-                </button>
+                {@const metadata = EMBED_METADATA[normalizeEmbedType(entry.embedType ?? '')]}
+                <UnifiedEmbedPreview
+                  id={entry.embedId ?? entry.ref}
+                  presentationOnly={true}
+                  appId={metadata?.appId ?? String(entry.decodedContent?.app_id ?? '')}
+                  skillId={metadata?.skillId ?? ''}
+                  skillIconName={metadata?.icon ?? 'search'}
+                  skillName={entry.title}
+                  status="finished"
+                  onFullscreen={() => openEntry(entry)}
+                >
+                  {#snippet details()}
+                    <strong>{entry.title}</strong>
+                    <p>{entry.subtitle}</p>
+                  {/snippet}
+                </UnifiedEmbedPreview>
               {/if}
             </div>
           {/each}
@@ -1971,7 +1981,7 @@
   .results-view-tabs button.active,
   .results-view-tabs button:hover {
     background: linear-gradient(135deg, var(--color-primary-start, #6c63ff), var(--color-primary-end, #8a63ff));
-    color: var(--color-grey-0, #ffffff);
+    color: var(--color-font-button, #ffffff);
   }
 
   .results-view-tabs button:focus-visible {
@@ -2151,14 +2161,29 @@
     color: var(--color-text-on-primary, #ffffff);
   }
 
-  .filter-menu button[aria-pressed='true'] span {
-    color: inherit;
-  }
 
   .option-chips button span {
     color: var(--color-font-secondary, #666666);
     font-size: var(--font-size-tiny, 0.6875rem);
   }
+
+  .option-chips { display: grid; grid-template-columns: 1fr; }
+  .filter-menu .option-chips button {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 0; border-radius: 0; background: transparent;
+    text-align: left; padding: 8px 0;
+  }
+  .option-switch {
+    position: relative; width: 28px; height: 16px; flex: 0 0 28px;
+    border-radius: 999px; background: var(--color-grey-40);
+  }
+  .option-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--color-font-button);
+  }
+  [aria-checked='true'] .option-switch { background: var(--gradient-primary); }
+  [aria-checked='true'] .option-switch::after { transform: translateX(12px); }
 
   .filter-histogram {
     display: grid;
@@ -2271,56 +2296,6 @@
   .map-view-card:focus-visible {
     outline: 2px solid var(--color-primary, #6c63ff);
     outline-offset: 3px;
-  }
-
-  .fallback-card {
-    display: grid;
-    gap: 6px;
-    width: 300px;
-    min-width: 300px;
-    height: 200px;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: 30px;
-    background: var(--color-grey-0, #ffffff);
-    color: var(--color-font-primary, #222222);
-    padding: 16px;
-    text-align: left;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16), 0 2px 6px rgba(0, 0, 0, 0.1);
-    cursor: pointer;
-  }
-
-  .fallback-card strong {
-    display: -webkit-box;
-    overflow: hidden;
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-small, 0.875rem);
-    line-height: 1.28;
-    overflow-wrap: anywhere;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  .fallback-card .entry-subtitle,
-  .fallback-card em {
-    display: -webkit-box;
-    overflow: hidden;
-    color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-xxs, 0.75rem);
-    line-height: 1.3;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-  }
-
-  .category-pill {
-    width: fit-content;
-    border-radius: 999px;
-    padding: 3px 7px;
-    background: var(--color-grey-blue, #e6eaff);
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-tiny, 0.6875rem);
-    line-height: 1.2;
-    text-transform: capitalize;
-    white-space: nowrap;
   }
 
   .show-all-results {
@@ -2723,10 +2698,6 @@
       scroll-snap-stop: always;
     }
 
-    .fallback-card strong {
-      -webkit-line-clamp: 3;
-      line-clamp: 3;
-    }
 
     .map-view-map {
       min-height: 278px;
