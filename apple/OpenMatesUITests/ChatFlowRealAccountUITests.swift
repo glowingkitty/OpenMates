@@ -20,13 +20,64 @@ final class ChatFlowRealAccountUITests: XCTestCase {
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
     func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
+        let markerPrompt = "Reply with one short sentence: Hello from Osaka."
         let credentials = try RealAccountTestCredentials.fromEnvironment()
         RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
-        let app = RealAccountUITestSupport.launchApp()
+        let app = RealAccountUITestSupport.launchApp(
+            disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-start-new-chat", "--ui-test-expose-chat-ids"]
+        )
 
         RealAccountUITestSupport.logIn(app: app, credentials: credentials)
         RealAccountUITestSupport.sendWelcomePrompt(app: app, prompt: markerPrompt)
         RealAccountUITestSupport.assertAssistantResponds(app: app, timeout: assistantResponseTimeout)
+
+        let active = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "chat-view-")).firstMatch
+        XCTAssertTrue(active.exists)
+        let chatId = String(active.identifier.dropFirst("chat-view-".count))
+        XCTAssertFalse(chatId.isEmpty)
+        app.terminate()
+        app.launchArguments.removeAll { ["--ui-test-disable-auth-cache", "--ui-test-open-login", "--ui-test-start-new-chat"].contains($0) }
+        app.launch()
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        openChatsPanel(in: app)
+        let row = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatId)"
+        )).firstMatch
+        // Drafts sort ahead of recent conversations; expand and scroll the
+        // sidebar before asserting that a particular persisted identity is absent.
+        let history = app.scrollViews.matching(identifier: "chat-history-panel").firstMatch
+        for _ in 0..<12 {
+            if row.exists { break }
+            let more = app.buttons["load-more-chats"]
+            if more.exists && history.frame.insetBy(dx: 0, dy: 35).contains(more.frame) {
+                more.tap()
+            } else {
+                history.swipeUp()
+            }
+        }
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "Created chat must survive relaunch")
+        row.tap()
+        let userMessage = RealAccountUITestSupport.accessibilityElement(
+            in: app, identifier: "message-user", labelContaining: markerPrompt)
+        XCTAssertTrue(userMessage.waitForExistence(timeout: 25), "Original user message must survive relaunch")
+        let assistants = app.otherElements.matching(identifier: "message-assistant")
+        XCTAssertTrue(assistants.firstMatch.waitForExistence(timeout: 25), "Assistant response must survive relaunch")
+        let previousCount = assistants.count
+        let editor = try XCTUnwrap(RealAccountUITestSupport.waitForMessageEditor(in: app, timeout: 10))
+        guard RealAccountUITestSupport.focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
+        let followUpPrompt = "Which city did I mention? Reply with only the city name."
+        app.typeText(followUpPrompt)
+        XCTAssertEqual(editor.value as? String, followUpPrompt, "Typing must preserve the complete follow-up")
+        app.buttons["send-button"].tap()
+        let completed = NSPredicate { _, _ in assistants.count > previousCount }
+        expectation(for: completed, evaluatedWith: app)
+        waitForExpectations(timeout: assistantResponseTimeout)
+        let streaming = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "streaming-banner")
+        XCTAssertTrue(streaming.waitForNonExistence(timeout: assistantResponseTimeout), "Follow-up must finish streaming")
+        XCTAssertTrue(assistants.element(boundBy: assistants.count - 1).label.contains("Osaka"),
+                      "Follow-up must use the persisted conversation history")
     }
 
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.surface.semantic-parity
@@ -247,19 +298,12 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func openChatsPanel(in app: XCUIApplication) {
-        let panel = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "chat-history-panel")
-        let rows = chatRows(in: app)
-        if panel.exists && (panel.isHittable || rows.firstMatch.exists) {
-            return
-        }
-
-        let toggle = RealAccountUITestSupport.accessibilityElement(in: app, identifier: "sidebar-toggle")
-        XCTAssertTrue(
-            toggle.waitForExistence(timeout: 10),
-            "Missing sidebar-toggle. Visible UI: \(visibleStateLabels(in: app))"
-        )
-        toggle.tap()
-        XCTAssertTrue(panel.waitForExistence(timeout: 15), "Chat history panel did not open")
+        // SwiftUI propagates the panel identifier onto offscreen children. The
+        // header toggle exists only while closed, so use that actual control.
+        let toggle = app.buttons["sidebar-toggle"]
+        if toggle.exists { toggle.tap() }
+        XCTAssertTrue(chatRows(in: app).firstMatch.waitForExistence(timeout: 15),
+                      "Chat history did not expose account rows after opening")
     }
 
     private func parityCredentials() throws -> RealAccountTestCredentials {
@@ -274,14 +318,10 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func chatRows(in app: XCUIApplication) -> XCUIElementQuery {
-        app.descendants(matching: .any)
-            .matching(NSPredicate(
-                format: "(identifier == %@ AND value == %@) OR identifier BEGINSWITH %@ OR identifier BEGINSWITH %@",
-                "chat-item-wrapper",
-                "user-chat",
-                "welcome-chat-compact-card-",
-                "welcome-chat-card-"
-            ))
+        app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND (value == %@ OR value BEGINSWITH %@)",
+            "chat-item-wrapper", "user-chat", "user-chat:"
+        ))
     }
 
     private func waitForChatRows(_ rows: XCUIElementQuery, timeout: TimeInterval) -> Bool {

@@ -183,6 +183,9 @@ final class AppSessionCoordinator: ObservableObject {
     }
 
     func resetTransientRuntime() {
+        offlineBridgeStorage?.stopSession()
+        offlineBridgeStorage = nil
+        didStartNetworkMonitoring = false
         webSocketManager.disconnect()
         webSocketManager.recoveryCoordinator?.reset()
         chatStore.clearInMemory()

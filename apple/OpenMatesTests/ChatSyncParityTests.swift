@@ -4,10 +4,55 @@
 // otherwise silently drop sub-chat or active-focus metadata during sync.
 
 import XCTest
+import CoreFoundation
 @testable import OpenMates
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
+    func testPersonalStartupSyncSendsRequiredIntegerContextEpoch() throws {
+        let request = WebSocketManager.phasedSyncMessage(clientChatIds: ["known-chat"])
+        let wire = try JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any]
+        let payload = try XCTUnwrap(wire?["payload"] as? [String: Any])
+        let epoch = try XCTUnwrap(payload["context_epoch"] as? NSNumber)
+        XCTAssertNotEqual(CFGetTypeID(epoch), CFBooleanGetTypeID(), "The server rejects boolean epochs")
+        XCTAssertEqual(epoch.intValue, 0)
+        XCTAssertNil(payload["team_id"], "Personal sync must not select a team")
+        XCTAssertEqual(payload["client_chat_ids"] as? [String], ["known-chat"])
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
+    func testOlderMetadataPagePreservesServerOrderAfterTheInitialWindow() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let page = try decoder.decode(ChatMetadataPage.self, from: Data("""
+        {"offset":2,"total_count":3,"has_more":false,"chats":[
+          {"chat_details":{"id":"older","created_at":1770000000}}
+        ]}
+        """.utf8))
+        let initial = try decoder.decode([Chat].self, from: Data("""
+        [{"id":"first","created_at":1770000000},{"id":"second","created_at":1770000000}]
+        """.utf8))
+        let store = ChatStore()
+        store.upsertChats(initial, serverSortOrder: initial.map(\.id))
+        let older = try XCTUnwrap(page.chats?.compactMap(\.chatDetails))
+        store.upsertChats(older, serverSortOrder: older.map(\.id), serverSortOffset: page.offset)
+        XCTAssertEqual(store.sortedChats.map(\.id), ["first", "second", "older"])
+        XCTAssertEqual(page.totalCount, 3)
+        XCTAssertEqual(page.hasMore, false)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=sync.deletion.partial-window-not-authoritative,sync.surface.semantic-parity
+    func testMetadataSyncRetainsExplicitServerTombstonesEvenForAnEmptyWindow() throws {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let payload = try decoder.decode(PhaseBulkSyncPayload.self, from: Data("""
+        {"chats":[],"total_chat_count":150,"deleted_chat_ids":["deleted-while-offline"]}
+        """.utf8))
+        XCTAssertEqual(payload.deletedChatIds, ["deleted-while-offline"], "Metadata decoding must not discard explicit server deletions")
+        XCTAssertEqual(payload.totalChatCount, 150)
+    }
+
     // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
     func testChatDecodesWebSubChatAndFocusFields() throws {
         let json = """

@@ -3470,6 +3470,31 @@ final class ChatSendPipeline {
         }
     }
 
+    // Durable preflight commits history along with the current message. A cache-miss
+    // retry cannot append history to that immutable commitment afterward.
+    func savedChatHistoryPayload(_ messages: [Message], chatId: String, key: SymmetricKey) async throws -> [[String: Any]] {
+        var seen = Set<String>()
+        var history: [[String: Any]] = []
+        for message in messages.sorted(by: { $0.createdAt < $1.createdAt }) {
+            guard message.chatId == chatId, message.role != .system,
+                  message.isStreaming != true, seen.insert(message.id).inserted else { continue }
+            var content = message.content ?? ""
+            if content.isEmpty, let encrypted = message.encryptedContent {
+                content = try await crypto.decryptContent(base64String: encrypted, key: key)
+            }
+            guard !content.isEmpty else { throw ChatSendError.historyUnavailable }
+            var row: [String: Any] = [
+                "message_id": message.id, "chat_id": chatId,
+                "role": message.role.rawValue, "content": content,
+                "sender_name": message.senderName ?? (message.role == .user ? "User" : "Assistant"),
+                "created_at": Self.unixSeconds(from: message.createdAt)
+            ]
+            if let category = message.category ?? message.appId { row["category"] = category }
+            history.append(row)
+        }
+        return history
+    }
+
     func sendUserMessage(
         content: String,
         in chat: Chat,
@@ -3532,6 +3557,11 @@ final class ChatSendPipeline {
             encryptedPIIMappings: encryptedPIIMappings
         )
 
+        let history = existingMessages.isEmpty ? [] : try await savedChatHistoryPayload(
+            existingMessages.filter { $0.id != message.id } + [message],
+            chatId: chat.id, key: keyMaterial.key
+        )
+
         chatStore?.upsertChat(updatedChat)
         chatStore?.appendMessage(message, to: chat.id)
 
@@ -3552,6 +3582,7 @@ final class ChatSendPipeline {
             "message": messagePayload,
             "encrypted_chat_key": keyMaterial.encryptedChatKey
         ]
+        if !history.isEmpty { outboundPayload["message_history"] = history }
         outboundPayload.merge(
             chatContextPayloadFields(
                 for: chat,
@@ -3615,7 +3646,10 @@ final class ChatSendPipeline {
             encryptedUserMessage["encrypted_pii_mappings"] = encryptedPIIMappings
         }
         let encryptedTitle: String?
-        if (chat.titleV ?? 0) == 0 {
+        if Self.shouldIncludeInitialChatMetadata(
+            messagesVersion: chat.messagesV, titleVersion: chat.titleV,
+            existingMessageCount: existingMessages.count
+        ) {
             if let existingEncryptedTitle = chat.encryptedTitle {
                 encryptedTitle = existingEncryptedTitle
             } else {
@@ -3801,6 +3835,14 @@ final class ChatSendPipeline {
             type: "chat_message_added",
             payload: committedPayload
         ))
+    }
+
+    static func shouldIncludeInitialChatMetadata(
+        messagesVersion: Int?, titleVersion: Int?, existingMessageCount: Int
+    ) -> Bool {
+        // Title generation can lag behind a completed conversation. Existing
+        // messages make this an existing chat even while its title version is 0.
+        (messagesVersion ?? 0) == 0 && existingMessageCount == 0 && (titleVersion ?? 0) == 0
     }
 
     func savedChatPreflightPayload(
@@ -4383,6 +4425,7 @@ private enum ChatSendError: LocalizedError {
     case missingMasterKey
     case webSocketUnavailable
     case chatKeyMismatch
+    case historyUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -4390,6 +4433,8 @@ private enum ChatSendError: LocalizedError {
             return "Missing encryption key for this device. Please sign in again."
         case .webSocketUnavailable:
             return "Realtime connection is not ready. Please try again."
+        case .historyUnavailable:
+            return "Chat history could not be decrypted. Please reload this chat before sending."
         case .chatKeyMismatch:
             return "Chat encryption keys are out of sync. Please reload this chat before sending."
         }

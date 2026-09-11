@@ -152,7 +152,8 @@ final class DraftSyncCoordinator {
                   let existing = try await repository.record(chatId: envelope.payload.chatId) else { return }
             try await repository.upsert(existing.withDraftVersion(envelope.payload.draftV))
             chatStore.updateDraftVersion(chatId: envelope.payload.chatId, draftVersion: envelope.payload.draftV)
-            onDraftChanged(envelope.payload.chatId)
+            // Receipt acknowledges our ciphertext; it must not replay an older
+            // autosave snapshot into the actively edited composer.
 
         case "chat_draft_updated":
             let event = try decoder.decode(DraftUpdatedEvent.self, from: raw)
@@ -179,7 +180,9 @@ final class DraftSyncCoordinator {
             guard envelope.payload.success != false else { return }
             try await repository.remove(chatId: envelope.payload.chatId)
             chatStore.updateDraftVersion(chatId: envelope.payload.chatId, draftVersion: 0)
-            onDraftChanged(envelope.payload.chatId)
+            if type == "draft_deleted" {
+                onDraftChanged(envelope.payload.chatId)
+            }
             removeDraftOnlyChatIfNeeded(envelope.payload.chatId)
 
         case "chat_deleted":

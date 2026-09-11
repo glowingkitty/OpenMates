@@ -43,10 +43,10 @@ final class ChatStore: ObservableObject {
         persistIfAllowed { $0.onChatsReceived([chat]) }
     }
 
-    func upsertChats(_ newChats: [Chat], serverSortOrder: [String]? = nil) {
+    func upsertChats(_ newChats: [Chat], serverSortOrder: [String]? = nil, serverSortOffset: Int = 0) {
         if let serverSortOrder {
             for (index, chatId) in serverSortOrder.enumerated() {
-                serverSortOrderByChatId[chatId] = index
+                serverSortOrderByChatId[chatId] = serverSortOffset + index
             }
         }
 
@@ -71,6 +71,7 @@ final class ChatStore: ObservableObject {
     }
 
     func removeChat(_ chatId: String) {
+        serverSortOrderByChatId.removeValue(forKey: chatId)
         chats.removeAll { $0.id == chatId }
         messagesByChat.removeValue(forKey: chatId)
         embedsByChat.removeValue(forKey: chatId)

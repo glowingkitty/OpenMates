@@ -224,16 +224,31 @@ final class WebSocketManager: NSObject, ObservableObject, URLSessionWebSocketDel
         clientSuggestionsCount: Int = 0,
         clientEmbedIds: [String] = []
     ) async throws {
-        try await send(WSOutboundMessage(
+        try await send(Self.phasedSyncMessage(
+            clientChatVersions: clientChatVersions, clientChatIds: clientChatIds,
+            clientSuggestionsCount: clientSuggestionsCount, clientEmbedIds: clientEmbedIds
+        ))
+    }
+
+    static func phasedSyncMessage(
+        clientChatVersions: [String: [String: Int]] = [:],
+        clientChatIds: [String] = [],
+        clientSuggestionsCount: Int = 0,
+        clientEmbedIds: [String] = []
+    ) -> WSOutboundMessage {
+        WSOutboundMessage(
             type: "phased_sync_request",
             payload: [
                 "phase": "all",
+                // Apple currently uses personal scope. The server requires an
+                // explicit epoch even when no team has been selected.
+                "context_epoch": 0,
                 "client_chat_versions": clientChatVersions,
                 "client_chat_ids": clientChatIds,
                 "client_suggestions_count": clientSuggestionsCount,
                 "client_embed_ids": clientEmbedIds
             ]
-        ))
+        )
     }
 
     func requestPhasedSync(syncState: SyncClientState) async throws {

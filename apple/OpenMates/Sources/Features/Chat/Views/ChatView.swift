@@ -442,7 +442,8 @@ struct ChatView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .composerDraftDidChange)) { notification in
-            guard notification.userInfo?["chatId"] as? String == chatId else { return }
+            guard notification.userInfo?["reloadComposer"] as? Bool != false,
+                  notification.userInfo?["chatId"] as? String == chatId else { return }
             Task { await applyInboundDraft() }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -2839,10 +2840,14 @@ struct ChatView: View {
     }
 
     private func applyInboundDraft() async {
+        let revision = composerSession.revision
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
         do {
             let draft = try await DraftService.shared.loadDraft(chatId: chatId)
             let markdown = draft?.canonicalMarkdown ?? ""
-            guard markdown != composerSession.canonicalMarkdown else { return }
+            guard revision == composerSession.revision,
+                  scopeGeneration == OfflineStore.shared.scopeGeneration,
+                  markdown != composerSession.canonicalMarkdown else { return }
             suppressNextDraftSave = true
             composerSession.replaceMarkdown(markdown)
         } catch ComposerDraftError.masterKeyUnavailable {

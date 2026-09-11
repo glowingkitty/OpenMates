@@ -12,6 +12,8 @@ final class ChatKeyManager: ObservableObject {
     static let shared = ChatKeyManager()
 
     /// In-memory map of chatId → raw AES-256 chat key
+    // Invalidates in-flight crypto whenever authentication changes scope.
+    private var generation = UUID()
     private var chatKeys: [String: SymmetricKey] = [:]
     private var encryptedKeyFingerprints: [String: String] = [:]
 
@@ -37,8 +39,11 @@ final class ChatKeyManager: ObservableObject {
         if let existing = chatKeys[chatId] {
             return existing
         }
+        let capturedGeneration = generation
         let key = await CryptoManager.shared.generateChatKey()
-        chatKeys[chatId] = key
+        if capturedGeneration == generation && !Task.isCancelled {
+            chatKeys[chatId] = key
+        }
         return key
     }
 
@@ -61,16 +66,19 @@ final class ChatKeyManager: ObservableObject {
     /// Unwrap and cache chat keys for a batch of chats.
     /// Called at startup after the master key is loaded from Keychain.
     func loadChatKeys(from chats: [(chatId: String, encryptedChatKey: String)], masterKey: SymmetricKey) async {
+        let capturedGeneration = generation
         let crypto = CryptoManager.shared
         let batchSize = 20
 
         for (index, entry) in chats.enumerated() {
+            guard capturedGeneration == generation, !Task.isCancelled else { return }
             let (chatId, encryptedChatKey) = entry
             do {
                 let chatKey = try await crypto.unwrapChatKey(
                     encryptedChatKeyBase64: encryptedChatKey,
                     masterKey: masterKey
                 )
+                guard capturedGeneration == generation, !Task.isCancelled else { return }
                 chatKeys[chatId] = chatKey
                 encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedChatKey)
                 if NativeSyncPerfLog.verboseCrypto {
@@ -84,6 +92,7 @@ final class ChatKeyManager: ObservableObject {
             }
         }
 
+        guard capturedGeneration == generation, !Task.isCancelled else { return }
         isReady = true
         NativeSyncPerfLog.info("phase=chatKeyBulkLoad requested=\(chats.count) cached=\(chatKeys.count)")
     }
@@ -91,12 +100,14 @@ final class ChatKeyManager: ObservableObject {
     /// Unwrap and cache a single chat key (for newly loaded chats).
     @discardableResult
     func loadChatKey(chatId: String, encryptedChatKey: String, masterKey: SymmetricKey) async -> Bool {
+        let capturedGeneration = generation
         let crypto = CryptoManager.shared
         do {
             let chatKey = try await crypto.unwrapChatKey(
                 encryptedChatKeyBase64: encryptedChatKey,
                 masterKey: masterKey
             )
+            guard capturedGeneration == generation, !Task.isCancelled else { return false }
             chatKeys[chatId] = chatKey
             encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedChatKey)
             if NativeSyncPerfLog.verboseCrypto {
@@ -111,7 +122,9 @@ final class ChatKeyManager: ObservableObject {
 
     @discardableResult
     func loadChatKey(chatId: String, wrappers: [ChatKeyWrapperRecord], masterKey: SymmetricKey) async -> Bool {
+        let capturedGeneration = generation
         for wrapper in ChatKeyWrapperRecord.orderedMasterWrappers(wrappers, for: chatId) {
+            guard capturedGeneration == generation, !Task.isCancelled else { return false }
             if !shouldLoadServerKey(chatId: chatId, encryptedChatKey: wrapper.encryptedChatKey) {
                 return true
             }
@@ -120,7 +133,7 @@ final class ChatKeyManager: ObservableObject {
                 encryptedChatKey: wrapper.encryptedChatKey,
                 masterKey: masterKey
             ) {
-                return true
+                return capturedGeneration == generation && !Task.isCancelled
             }
         }
         return false
@@ -178,6 +191,7 @@ final class ChatKeyManager: ObservableObject {
 
     /// Clear all keys (on logout).
     func clearAll() {
+        generation = UUID()
         chatKeys.removeAll()
         encryptedKeyFingerprints.removeAll()
         isReady = false
@@ -223,6 +237,7 @@ struct ChatKeyWrapperRecord: Decodable, Sendable {
 final class EmbedKeyManager {
     static let shared = EmbedKeyManager()
 
+    private var generation = UUID()
     private var entriesByHashedEmbedId: [String: [EmbedKeyRecord]] = [:]
     private var keyCache: [String: SymmetricKey] = [:]
     private var chatIdHashCache: [String: String] = [:]
@@ -251,6 +266,7 @@ final class EmbedKeyManager {
         allEmbeds: [String: EmbedRecord],
         visited: Set<String> = []
     ) async -> SymmetricKey? {
+        let capturedGeneration = generation
         if let cached = keyCache[cacheKey(embedId: embed.id, chatId: chatId)] {
             return cached
         }
@@ -265,10 +281,12 @@ final class EmbedKeyManager {
                allEmbeds: allEmbeds,
                visited: visited.union([embed.id])
            ) {
+            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = parentKey
             return parentKey
         }
 
+        guard capturedGeneration == generation, !Task.isCancelled else { return nil }
         let hashedEmbedId = sha256Hex(embed.id)
         guard let entries = entriesByHashedEmbedId[hashedEmbedId], !entries.isEmpty else {
             if NativeSyncPerfLog.verboseCrypto {
@@ -280,6 +298,7 @@ final class EmbedKeyManager {
         if let masterEntry = entries.first(where: { $0.keyType == "master" }),
            let masterKey = await currentMasterKey(),
            let embedKey = await decryptWrappedKey(masterEntry.encryptedEmbedKey, wrappingKey: masterKey) {
+            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
             if NativeSyncPerfLog.verboseCrypto {
                 print("[EmbedKeyManager] unwrapped master embed=\(embed.id.prefix(8))")
@@ -287,15 +306,18 @@ final class EmbedKeyManager {
             return embedKey
         }
 
+        guard capturedGeneration == generation, !Task.isCancelled else { return nil }
         let hashedChatId = embed.hashedChatId ?? chatIdHash(chatId)
         let chatEntries = entries.filter { entry in
             entry.keyType == "chat" && (entry.hashedChatId == hashedChatId || entry.hashedChatId == nil)
         }
         for entry in chatEntries {
+            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
             guard let chatKey = ChatKeyManager.shared.key(for: chatId),
                   let embedKey = await decryptWrappedKey(entry.encryptedEmbedKey, wrappingKey: chatKey) else {
                 continue
             }
+            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
             if NativeSyncPerfLog.verboseCrypto {
                 print("[EmbedKeyManager] unwrapped chat embed=\(embed.id.prefix(8)) chat=\(chatId.prefix(8))")
@@ -310,6 +332,7 @@ final class EmbedKeyManager {
     }
 
     func clearAll() {
+        generation = UUID()
         entriesByHashedEmbedId.removeAll()
         keyCache.removeAll()
         chatIdHashCache.removeAll()

@@ -75,6 +75,8 @@ struct AuthFlowView: View {
             AuthIconGridBackground()
                 .opacity(0.16)
                 .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
 
             ScrollView {
                 VStack(spacing: .spacing4) {
@@ -173,6 +175,7 @@ struct AuthFlowView: View {
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: .radius3))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(mode == .login ? "auth-login-tab" : "auth-signup-tab")

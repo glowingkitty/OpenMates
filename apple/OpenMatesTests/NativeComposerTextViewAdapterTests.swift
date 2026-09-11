@@ -17,6 +17,7 @@ import AppKit
 
 @MainActor
 final class NativeComposerTextViewAdapterTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
     func testCreatesTextKit2PlatformViewAndSynchronizesContentAndSelection() throws {
         let controller = try makeController()
         let adapter = makeAdapter(controller: controller)
@@ -48,6 +49,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testExposesEmbedAccessibilityInDocumentOrderWithInjectedCustomActions() throws {
         let controller = try makeController()
         let recorder = AccessibilityActionRecorder()
@@ -88,6 +90,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertEqual(recorder.nodeIDs, ["composer:embed:second"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send
     func testEmbedStatusSynchronizationRetainsControllerAndPlatformViewIdentity() throws {
         let controller = try makeController()
         let adapter = makeAdapter(controller: controller)
@@ -110,17 +113,14 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         #endif
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
     func testPlatformEditsAndSelectionChangesSynchronizeBackToController() throws {
         let controller = try makeController()
         let adapter = makeAdapter(controller: controller)
         let textView = adapter.makePlatformView()
 
         #if canImport(UIKit)
-        XCTAssertFalse(adapter.textView(
-            textView,
-            shouldChangeTextIn: NSRange(location: 0, length: 1),
-            replacementText: "Z"
-        ))
+        commitUIKitEdit(adapter, textView: textView, range: NSRange(location: 0, length: 1), replacement: "Z")
         XCTAssertEqual(textView.attributedText.string, "Z\u{FFFC}B\u{FFFC}C")
         textView.selectedRange = NSRange(location: 2, length: 1)
         adapter.textViewDidChangeSelection(textView)
@@ -140,6 +140,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertNil(adapter.lastControllerError)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.layout.responsive-parity
     func testTypedTextRetainsWebTypographyAndSemanticForegroundColor() throws {
         FontRegistration.registerFonts()
         let controller = try makeController()
@@ -147,11 +148,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         let textView = adapter.makePlatformView()
 
         #if canImport(UIKit)
-        XCTAssertFalse(adapter.textView(
-            textView,
-            shouldChangeTextIn: NSRange(location: 0, length: 1),
-            replacementText: "Z"
-        ))
+        commitUIKitEdit(adapter, textView: textView, range: NSRange(location: 0, length: 1), replacement: "Z")
         let attributes = textView.attributedText.attributes(at: 0, effectiveRange: nil)
         let font = try XCTUnwrap(attributes[.font] as? UIFont)
         let foregroundColor = try XCTUnwrap(attributes[.foregroundColor] as? UIColor)
@@ -187,6 +184,52 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
     }
 
     #if canImport(UIKit)
+    // UIKit must commit replacement ranges itself before canonical text is published.
+    // This models keyboard correction followed by continued typing, without a second
+    // adapter mutation of the native storage or selection during shouldChange.
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
+    func testUIKitCommitsCorrectionAndContinuedTypingExactlyOnce() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Reply with one short sentnce")]),
+            selection: NSRange(location: 28, length: 0)
+        )
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        var published: [String] = []
+        adapter.onCanonicalMarkdownChange = { published.append($0) }
+
+        commitUIKitEdit(adapter, textView: textView, range: NSRange(location: 21, length: 7), replacement: "sentence")
+        commitUIKitEdit(adapter, textView: textView, range: textView.selectedRange, replacement: ": Hello from Osaka.")
+
+        let expected = "Reply with one short sentence: Hello from Osaka."
+        XCTAssertEqual(textView.text, expected)
+        XCTAssertEqual(controller.attributedString.string, expected)
+        XCTAssertEqual(published, ["Reply with one short sentence", expected])
+        XCTAssertEqual(textView.selectedRange, NSRange(location: expected.utf16.count, length: 0))
+    }
+
+    private func commitUIKitEdit(
+        _ adapter: NativeComposerTextView,
+        textView: UITextView,
+        range: NSRange,
+        replacement: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let originalText = textView.text
+        let originalSelection = textView.selectedRange
+        XCTAssertTrue(adapter.textView(textView, shouldChangeTextIn: range, replacementText: replacement), file: file, line: line)
+        XCTAssertEqual(textView.text, originalText, "Delegate must leave the native transaction to UIKit", file: file, line: line)
+        XCTAssertEqual(textView.selectedRange, originalSelection, file: file, line: line)
+        // A SwiftUI refresh during the transaction must not pre-apply the edit.
+        adapter.synchronize(textView)
+        XCTAssertEqual(textView.text, originalText, file: file, line: line)
+        textView.textStorage.replaceCharacters(in: range, with: NSAttributedString(string: replacement, attributes: textView.typingAttributes))
+        textView.selectedRange = NSRange(location: range.location + replacement.utf16.count, length: 0)
+        adapter.textViewDidChange(textView)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
     func testEquivalentSynchronizationPreservesAttributedTextWithoutAutoCapitalization() throws {
         let controller = try NativeComposerController(
             document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Hello")]),
@@ -205,6 +248,7 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
         XCTAssertEqual(textView.autocapitalizationType, .none)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context
     func testPIIDecorationsUseWarningBackgroundAndExcludeOnlyTappedIdentity() throws {
         let controller = try NativeComposerController(
             document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "alice@example.com and +49 170 1234567")]),

@@ -13,6 +13,7 @@ import XCTest
 final class NativeComposerDraftEncryptionTests: XCTestCase {
     private let chatId = "synthetic-chat.composer-fixture.invalid"
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testSaveAndUpdatePersistOnlyFormatDCiphertext() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -60,6 +61,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertFalse(String(reflecting: updated).contains(updatedMarkdown))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testLoadDecryptsRepositoryRecordBackToCanonicalDraft() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -85,6 +87,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertEqual(loaded.draftVersion, 1)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
     func testOlderSynchronizedDraftVersionCannotOverwriteNewerCiphertext() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -118,6 +121,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertEqual(retained.draftVersion, 2)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testUnlockedMigrationEncryptsVerifiesThenRemovesLegacyPlaintext() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -144,6 +148,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertNil(remainingLegacyDrafts[chatId])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testMigrationPreservesNewerEncryptedDraftAndLegacyConflict() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -177,6 +182,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertEqual(remainingLegacyDrafts[chatId], legacyMarkdown)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testUnavailableKeyPreservesLegacyDraftAndReturnsTypedError() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -201,6 +207,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testFailedWriteOrVerificationPreservesRecoverableLegacyPlaintext() async throws {
         let fixture = try loadFixture()
         let legacyStore = RecordingLegacyComposerDraftStore(drafts: [
@@ -232,6 +239,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertEqual(remainingLegacyDrafts[chatId], fixture.plaintext.canonicalDraftMarkdown)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testClearAndLogoutDeleteEncryptedRecordsWithoutPlaintextFallback() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository()
@@ -267,6 +275,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.boundaries.session-and-incognito
     func testLogoutRemovesLegacyPlaintextEvenWhenEncryptedRepositoryCleanupFails() async throws {
         let fixture = try loadFixture()
         let repository = RecordingComposerDraftRepository(removeAllError: .syntheticRemoveFailure)
@@ -290,6 +299,7 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         XCTAssertTrue(remainingLegacyDrafts.isEmpty)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testProductionSwiftDataRepositoryPersistsCiphertextOnlyAndSupportsCRUD() async throws {
         let schema = Schema([PersistedComposerDraft.self])
         let configuration = ModelConfiguration(
@@ -334,6 +344,62 @@ final class NativeComposerDraftEncryptionTests: XCTestCase {
         try await repository.removeAll()
         let remainingRecords = try await repository.allRecords()
         XCTAssertTrue(remainingRecords.isEmpty)
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testClearDraftInvalidatesSaveSuspendedForMasterKey() async throws {
+        let repository = RecordingComposerDraftRepository()
+        let gate = SuspendedDraftMasterKey()
+        let service = DraftService(
+            repository: repository,
+            legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKeyProvider: { await gate.waitForKey() }
+        )
+        let pendingSave = Task { @MainActor in
+            try await service.saveDraft(
+                canonicalMarkdown: "Synthetic unsent text", preview: "Synthetic preview",
+                chatId: chatId, revision: 1, draftVersion: 0
+            )
+        }
+        await gate.waitUntilRequested()
+        try await service.clearDraft(chatId: chatId)
+        await gate.release(SymmetricKey(size: .bits256))
+        do {
+            try await pendingSave.value
+            XCTFail("A cleared draft must cancel its earlier pending save")
+        } catch is CancellationError {
+            // Expected: the delayed crypto continuation cannot restore the draft.
+        }
+        let record = await repository.record(chatId: chatId)
+        XCTAssertNil(record)
+        XCTAssertNil(service.draftPreview(chatId: chatId))
+        XCTAssertEqual(service.currentDraft, "")
+    }
+
+    // contract-test: direct surface=gui.apple assertions=drafts.sync.version-authoritative
+    func testLocalSaveAndClearNotifySidebarWithoutReloadingComposer() async throws {
+        let repository = RecordingComposerDraftRepository()
+        let service = makeService(
+            repository: repository, legacyStore: RecordingLegacyComposerDraftStore(),
+            masterKey: SymmetricKey(size: .bits256)
+        )
+        let notification = expectation(description: "Local save and clear publish non-reloading updates")
+        notification.expectedFulfillmentCount = 2
+        let targetId = "local-origin-fixture.invalid"
+        let observer = NotificationCenter.default.addObserver(
+            forName: .composerDraftDidChange, object: nil, queue: nil
+        ) { event in
+            guard event.userInfo?["chatId"] as? String == targetId else { return }
+            XCTAssertEqual(event.userInfo?["reloadComposer"] as? Bool, false)
+            notification.fulfill()
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        try await service.saveDraft(
+            canonicalMarkdown: "Synthetic typing", preview: "Synthetic typing",
+            chatId: targetId, revision: 1, draftVersion: 0
+        )
+        try await service.clearDraft(chatId: targetId)
+        await fulfillment(of: [notification], timeout: 1)
     }
 
     private func makeService(
@@ -465,5 +531,29 @@ private struct DraftFixturePlaintext: Decodable {
     enum CodingKeys: String, CodingKey {
         case canonicalDraftMarkdown = "canonical_draft_markdown"
         case draftPreview = "draft_preview"
+    }
+}
+
+// Explicit suspension makes clear-before-save ordering deterministic without sleeps.
+private actor SuspendedDraftMasterKey {
+    private var keyContinuation: CheckedContinuation<SymmetricKey?, Never>?
+    private var requestContinuation: CheckedContinuation<Void, Never>?
+
+    func waitForKey() async -> SymmetricKey? {
+        await withCheckedContinuation { continuation in
+            keyContinuation = continuation
+            requestContinuation?.resume()
+            requestContinuation = nil
+        }
+    }
+
+    func waitUntilRequested() async {
+        guard keyContinuation == nil else { return }
+        await withCheckedContinuation { requestContinuation = $0 }
+    }
+
+    func release(_ key: SymmetricKey) {
+        keyContinuation?.resume(returning: key)
+        keyContinuation = nil
     }
 }

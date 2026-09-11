@@ -58,6 +58,8 @@ final class DraftService: ObservableObject {
     private let masterKeyProvider: @Sendable () async throws -> SymmetricKey?
     private let crypto: CryptoManager
     private var syncCoordinator: DraftSyncCoordinator?
+    private var draftLifecycleGeneration = UUID()
+    private var draftGenerationByChatId: [String: UUID] = [:]
 
     init(
         repository: any ComposerDraftRepository,
@@ -119,6 +121,17 @@ final class DraftService: ObservableObject {
             return
         }
         let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: true) ?? chatId
+        let lifecycle = draftLifecycleGeneration
+        let draftGeneration = draftGenerationByChatId[resolvedChatId]
+        let scopeGeneration = OfflineStore.shared.scopeGeneration
+        func requireCurrentSave() throws {
+            guard !Task.isCancelled,
+                  lifecycle == draftLifecycleGeneration,
+                  draftGeneration == draftGenerationByChatId[resolvedChatId],
+                  scopeGeneration == OfflineStore.shared.scopeGeneration else {
+                throw CancellationError()
+            }
+        }
         var effectiveDraftVersion = draftVersion
         do {
             if let existing = try await repository.record(chatId: resolvedChatId) {
@@ -133,7 +146,9 @@ final class DraftService: ObservableObject {
         } catch {
             throw ComposerDraftError.verificationFailed
         }
+        try requireCurrentSave()
         let masterKey = try await requireMasterKey()
+        try requireCurrentSave()
         let record = try await encryptedRecord(
             canonicalMarkdown: canonicalMarkdown,
             preview: preview,
@@ -142,15 +157,18 @@ final class DraftService: ObservableObject {
             draftVersion: effectiveDraftVersion,
             masterKey: masterKey
         )
+        try requireCurrentSave()
         do {
             try await repository.upsert(record)
         } catch {
             throw ComposerDraftError.encryptedWriteFailed
         }
+        try requireCurrentSave()
         try await syncCoordinator?.submitLocalUpdate(record, resolvedChatId: resolvedChatId)
+        try requireCurrentSave()
         currentDraft = canonicalMarkdown
         draftPreviews[resolvedChatId] = preview
-        postDraftChange(chatId: resolvedChatId)
+        postDraftChange(chatId: resolvedChatId, reloadComposer: false)
     }
 
     func loadDraft(chatId: String) async throws -> ComposerDraft? {
@@ -253,6 +271,8 @@ final class DraftService: ObservableObject {
 
     func clearDraft(chatId: String) async throws {
         let resolvedChatId = syncCoordinator?.resolveChatId(chatId, hasNonEmptyDraft: false) ?? chatId
+        // Invalidate pending encryption before the first deletion await.
+        draftGenerationByChatId[resolvedChatId] = UUID()
         await legacyStore.removeDraft(chatId: resolvedChatId)
         if let syncCoordinator, resolvedChatId != DraftSyncCoordinator.syntheticNewChatId {
             try await syncCoordinator.submitLocalDelete(chatId: resolvedChatId)
@@ -264,10 +284,12 @@ final class DraftService: ObservableObject {
         }
         currentDraft = ""
         draftPreviews.removeValue(forKey: resolvedChatId)
-        postDraftChange(chatId: resolvedChatId)
+        postDraftChange(chatId: resolvedChatId, reloadComposer: false)
     }
 
     func clearAll() async throws {
+        draftLifecycleGeneration = UUID()
+        draftGenerationByChatId.removeAll()
         await legacyStore.removeAllDrafts()
         try await repository.removeAll()
         syncCoordinator?.resetNewChatDraftId()
@@ -330,11 +352,11 @@ final class DraftService: ObservableObject {
         }
     }
 
-    private func postDraftChange(chatId: String) {
+    private func postDraftChange(chatId: String, reloadComposer: Bool = true) {
         NotificationCenter.default.post(
             name: .composerDraftDidChange,
             object: nil,
-            userInfo: ["chatId": chatId]
+            userInfo: ["chatId": chatId, "reloadComposer": reloadComposer]
         )
     }
 

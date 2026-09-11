@@ -68,17 +68,23 @@ enum RealAccountUITestSupport {
         loginTab.tap()
 
         let emailInput = app.textFields["email-input"]
-        XCTAssertTrue(emailInput.waitForExistence(timeout: 10))
+        let emailVisible = emailInput.waitForExistence(timeout: 10)
+        if !emailVisible {
+            XCTContext.runActivity(named: "Login tab did not expose email entry") { activity in
+                let screenshot = XCTAttachment(screenshot: app.screenshot())
+                screenshot.lifetime = .keepAlways
+                activity.add(screenshot)
+            }
+        }
+        XCTAssertTrue(emailVisible)
         guard focusForTextEntry(emailInput, in: app, identifier: "email-input") else { return }
-        app.typeText(credentials.email)
-
-        let continueButton = app.buttons["continue-button"]
-        XCTAssertTrue(continueButton.waitForExistence(timeout: 10))
-        continueButton.tap()
+        // Submit through the field's onSubmit path. The keyboard can cover the
+        // button until scrolling settles on compact screens.
+        app.typeText(credentials.email + "\n")
 
         let passwordInput = waitForPasswordInput(app: app)
         guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
-        app.typeText(credentials.password)
+        passwordInput.typeText(credentials.password)
 
         submitPasswordAndOtpIfNeeded(app: app, credentials: credentials)
 
@@ -91,8 +97,9 @@ enum RealAccountUITestSupport {
             XCTFail("Expected message editor to appear")
             return
         }
-        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        guard focusForTextEntry(editor, in: app, identifier: "message-editor") else { return }
         app.typeText(prompt)
+        XCTAssertEqual(editor.value as? String, prompt, "Typing must preserve the complete prompt before send")
 
         let send = app.buttons["send-button"]
         XCTAssertTrue(send.waitForExistence(timeout: 5))
@@ -122,7 +129,7 @@ enum RealAccountUITestSupport {
         )
         XCTAssertTrue(assistantMessage.waitForExistence(timeout: timeout))
         RunLoop.current.run(until: Date().addingTimeInterval(streamingAccessibilitySettleInterval))
-        let completionMarker = app.otherElements["assistant-response-feedback"]
+        let completionMarker = accessibilityElement(in: app, identifier: "assistant-response-feedback")
         XCTAssertTrue(
             completionMarker.waitForExistence(timeout: timeout),
             "Assistant response did not finish streaming"
@@ -157,7 +164,7 @@ enum RealAccountUITestSupport {
         let firstChunkLabel = assistantMessage.label
         XCTAssertFalse(firstChunkLabel.isEmpty, "First assistant response chunk was empty")
 
-        let completionMarker = app.otherElements["assistant-response-feedback"]
+        let completionMarker = accessibilityElement(in: app, identifier: "assistant-response-feedback")
         let deadline = Date().addingTimeInterval(timeout)
         var observedLongerContent = false
         while Date() < deadline, !completionMarker.exists {
@@ -335,7 +342,7 @@ enum RealAccountUITestSupport {
         sleep(UInt32(30 - secondsIntoWindow + 2))
     }
 
-    private static func focusForTextEntry(
+    static func focusForTextEntry(
         _ element: XCUIElement,
         in app: XCUIApplication,
         identifier: String

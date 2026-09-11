@@ -9,6 +9,7 @@ import XCTest
 
 @MainActor
 final class DraftSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testFirstNewChatDraftAllocatesOneStableUUIDAndSendsOnlyCiphertext() async throws {
         let repository = DraftSyncRecordingRepository(records: [
             "composer:new-chat": ComposerDraftRecord(
@@ -55,6 +56,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertNil(syntheticRecord, "Synthetic composer IDs must never remain in durable storage")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.persistence.local-first-encrypted
     func testOfflineUpdateAndDeleteQueueOnlyEncryptedProtocolFields() async throws {
         let repository = DraftSyncRecordingRepository()
         let transport = DraftSyncRecordingTransport(isConnected: false)
@@ -84,6 +86,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertFalse(String(reflecting: offline.queuedUpdates).contains("plaintext"))
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testClearingNewChatDraftAfterSendPreservesPersistedChat() async throws {
         let repository = DraftSyncRecordingRepository()
         let transport = DraftSyncRecordingTransport(isConnected: true)
@@ -109,6 +112,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(transport.sent.last?.type, "delete_draft")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
     func testReceiptAndBroadcastPersistAuthoritativeVersionWithoutEcho() async throws {
         let repository = DraftSyncRecordingRepository(records: [
             "chat-1": ComposerDraftRecord(
@@ -136,6 +140,7 @@ final class DraftSyncParityTests: XCTestCase {
         var storedRecord = try await repository.record(chatId: "chat-1")
         var stored = try XCTUnwrap(storedRecord)
         XCTAssertEqual(stored.draftVersion, 2)
+        XCTAssertTrue(changedChatIds.isEmpty, "A local receipt changes version only; it must not reload composer text")
 
         try await coordinator.handleEvent(type: "chat_draft_updated", raw: jsonData([
             "event": "chat_draft_updated",
@@ -153,9 +158,10 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(stored.encryptedPreview, "remote-preview")
         XCTAssertEqual(stored.draftVersion, 3)
         XCTAssertTrue(transport.sent.isEmpty, "Inbound broadcasts must not echo update_draft")
-        XCTAssertEqual(changedChatIds, ["chat-1", "chat-1"])
+        XCTAssertEqual(changedChatIds, ["chat-1"], "A genuine remote content change still refreshes composers")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testPersistedDraftOnlyChatRestoresSyntheticNewChatAlias() {
         let chatStore = ChatStore()
         chatStore.performWithoutPersistence {
@@ -180,6 +186,7 @@ final class DraftSyncParityTests: XCTestCase {
         )
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testInboundDraftOnlyChatBecomesActiveNewChatDraft() async throws {
         let coordinator = DraftSyncCoordinator(
             repository: DraftSyncRecordingRepository(),
@@ -202,6 +209,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(coordinator.activeNewChatDraftId, "remote-draft")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
     func testReconnectRequestsVersionsAndClearsServerDeletedDrafts() async throws {
         let repository = DraftSyncRecordingRepository(records: [
             "chat-1": ComposerDraftRecord(
@@ -231,6 +239,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertNil(deletedDraft)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.draft-only.lifecycle
     func testRemoteDraftDeletionRemovesOnlyEmptyDraftChatShell() async throws {
         let repository = DraftSyncRecordingRepository(records: [
             "draft-only": ComposerDraftRecord(chatId: "draft-only", encryptedMarkdown: "md", encryptedPreview: "preview", revision: 1, draftVersion: 1),
@@ -264,6 +273,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(changedChatIds, ["draft-only", "persisted"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
     func testOnlyAuthoritativeSyncOrExplicitTombstonesCascadeDeletion() async throws {
         let repository = DraftSyncRecordingRepository(records: [
             "keep": ComposerDraftRecord(chatId: "keep", encryptedMarkdown: "md", encryptedPreview: "preview", revision: 1, draftVersion: 1),
@@ -305,6 +315,7 @@ final class DraftSyncParityTests: XCTestCase {
         XCTAssertEqual(Set(offline.cascadedChatIds), ["omitted", "tombstone"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=drafts.sync.version-authoritative
     func testAuthoritativeDraftSyncPreservesOptimisticChatWithSentMessage() async throws {
         let repository = DraftSyncRecordingRepository(records: [
             "optimistic-chat": ComposerDraftRecord(
