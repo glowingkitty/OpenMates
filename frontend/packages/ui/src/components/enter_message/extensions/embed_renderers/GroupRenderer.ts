@@ -1,6 +1,8 @@
 // Generic group renderer - handles any '*-group' embed types
 // Uses the group handler system to render groups dynamically
 
+import EmbedsMapView from "../../../embeds/EmbedsMapView.svelte";
+import { isResultsViewLanguage, parseEmbedsMapViewBlock } from "../../../../message_parsing/embedParsing";
 import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers";
@@ -3587,6 +3589,8 @@ export class GroupRenderer implements EmbedRenderer {
       codeContent = decodedContent?.code || "";
     }
 
+    if (this.renderResultsViewCode(language, codeContent, target)) return;
+
     // Determine status
     const status = (decodedContent?.status ||
       embedData?.status ||
@@ -4181,6 +4185,25 @@ export class GroupRenderer implements EmbedRenderer {
    * Render code embed using Svelte component
    * Uses CodeEmbedPreview for consistent sizing (300x200px desktop, 150x290px mobile)
    */
+  /** Older saved protocol blocks can arrive as code embeds. Never show code chrome. */
+  private renderResultsViewCode(language: string, code: string, target: HTMLElement): boolean {
+    if (!isResultsViewLanguage(language)) return false;
+    const existing = mountedComponents.get(target);
+    if (existing) unmount(existing);
+    disposeEmbedTree(target, false);
+    target.innerHTML = "";
+    const descriptor = parseEmbedsMapViewBlock(code);
+    const component = mount(EmbedsMapView, { target, props: {
+      id: descriptor.id,
+      title: descriptor.title || "Results view",
+      embedRefs: descriptor.mapEmbedRefs || [],
+      sourceRefs: descriptor.mapSourceRefs || [],
+      highlightRefs: descriptor.mapHighlightRefs || [],
+    }});
+    mountedComponents.set(target, component);
+    return true;
+  }
+
   private async renderCodeComponent(
     item: EmbedNodeAttributes,
     embedData: EmbedData | null = null,
@@ -4205,6 +4228,8 @@ export class GroupRenderer implements EmbedRenderer {
       // Real embed - code comes from decodedContent (loaded from EmbedStore)
       codeContent = decodedContent?.code || "";
     }
+
+    if (this.renderResultsViewCode(language, codeContent, content)) return;
 
     if (normalizedLanguage(language) === INTERACTIVE_QUESTION_LANGUAGE) {
       const payload = parseInteractiveQuestionPayloadCandidate(decodedContent?.code) ||

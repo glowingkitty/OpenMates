@@ -7,6 +7,7 @@
 
 import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { userProfile } from "../../../stores/userProfile";
 import EmbedsMapView from "../EmbedsMapView.svelte";
 import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
 import { chatSyncService } from "../../../services/chatSyncService";
@@ -860,5 +861,35 @@ describe("EmbedsMapView", () => {
       requestIdleCallback: originalRequestIdleCallback,
       cancelIdleCallback: originalCancelIdleCallback,
     });
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+describe('invalid results-view audience handling', () => {
+  it.each([false, true])('shows diagnostics only when server admin is %s', async (isAdmin) => {
+    userProfile.update((profile) => ({ ...profile, is_admin: isAdmin }));
+    const pre = document.createElement('pre');
+    const target = document.createElement('div');
+    pre.append(target);
+    document.body.append(pre);
+    const component = mount(EmbedsMapView, { target, props: { id: 'empty-descriptor', title: 'Invalid', embedRefs: [], sourceRefs: [] } });
+    try {
+      await flush(target);
+      expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull();
+      expect(Boolean(target.querySelector('[data-testid="results-view-admin-error"]'))).toBe(isAdmin);
+      expect(target.querySelector('[data-result-view-visible]')?.getAttribute('data-result-view-visible')).toBe(String(isAdmin));
+      expect(pre.classList.contains('results-view-protocol-host')).toBe(true);
+      if (isAdmin) {
+        expect(target.textContent).toContain('no usable embed references');
+        (target.querySelector('[data-testid="results-view-admin-hide"]') as HTMLButtonElement).click();
+        await tick();
+        expect(target.querySelector('[data-testid="results-view-admin-error"]')).toBeNull();
+        expect(target.querySelector('[data-result-view-visible]')?.getAttribute('data-result-view-visible')).toBe('false');
+      }
+    } finally {
+      unmount(component);
+      pre.remove();
+      userProfile.update((profile) => ({ ...profile, is_admin: false }));
+    }
   });
 });

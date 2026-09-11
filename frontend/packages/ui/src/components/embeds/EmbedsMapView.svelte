@@ -9,6 +9,7 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { userProfile } from '../../stores/userProfile';
   import type { Component } from 'svelte';
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
@@ -18,6 +19,20 @@
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
   import { incrementStreamingRenderMetric } from '../../message_parsing/streamingRenderMetrics';
   import type { EmbedNodeAttributes } from '../../message_parsing/types';
+
+  let resolutionMarker: HTMLSpanElement;
+  let diagnosticHidden = $state(false);
+  // Collapse the node view and legacy code-fence shell, not just its contents.
+  onMount(() => {
+    const target = resolutionMarker?.parentElement;
+    const pre = target?.closest('pre');
+    target?.classList.add('results-view-mount');
+    pre?.classList.add('results-view-protocol-host');
+    return () => {
+      target?.classList.remove('results-view-mount');
+      pre?.classList.remove('results-view-protocol-host');
+    };
+  });
 
   const MAX_VISIBLE_ENTRIES = 40;
   const MAX_TRAVEL_LEGS = 8;
@@ -1490,7 +1505,7 @@
   });
 </script>
 
-<span hidden data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
+<span bind:this={resolutionMarker} hidden data-result-view-visible={eligibleEntries.length > 0 || (!isLoading && $userProfile.is_admin === true && !diagnosticHidden) ? "true" : "false"} data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
 {#if eligibleEntries.length > 0}
 <section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
@@ -1820,9 +1835,29 @@
   </div>
   {/if}
 </section>
+{:else if !isLoading && $userProfile.is_admin === true && !diagnosticHidden}
+  <div class="results-view-admin-error" role="alert" data-testid="results-view-admin-error">
+    <strong>Map/calendar view could not be rendered.</strong>
+    {#if embedRefs.length === 0 && sourceRefs.length === 0}
+      The assistant provided no usable embed references.
+    {:else}
+      None of the referenced embeds could be loaded with valid coordinates or a valid date.
+    {/if}
+    <span>This diagnostic is visible only to server admins.</span>
+    <button type="button" data-testid="results-view-admin-hide" onclick={() => { diagnosticHidden = true; }}>Hide</button>
+  </div>
 {/if}
 
 <style>
+  :global(.results-view-mount:not(:has([data-result-view-visible="true"]))) { display: none !important; }
+  :global(pre.results-view-protocol-host:not(:has([data-result-view-visible="true"]))) { display: none !important; }
+  :global(pre.results-view-protocol-host) { background: transparent !important; border: 0 !important; padding: 0 !important; font-size: 0 !important; white-space: normal !important; }
+  :global(pre.results-view-protocol-host > code) { font-size: 0 !important; background: transparent !important; }
+  :global(pre.results-view-protocol-host .embeds-results-view) { font-size: var(--font-size-small, .875rem); }
+  .results-view-admin-error { padding: 12px 16px; border: 1px solid var(--color-error, #d45454); border-radius: 8px; color: var(--color-font-primary); background: var(--color-grey-20); font: 400 .875rem/1.5 sans-serif; }
+  .results-view-admin-error button { margin-top: 8px; padding: 5px 12px; border: 1px solid var(--color-grey-50); border-radius: 6px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+  .results-view-admin-error strong, .results-view-admin-error span { display: block; }
+
   .calendar-date-only button { display: flex; flex-direction: column; width: 100%; min-height: 3.5rem; margin-bottom: .5rem; padding: .4rem; border: 0; border-radius: .5rem; background: var(--color-grey-30); color: var(--color-font-primary); text-align: start; cursor: pointer; }
   .calendar-date-only span { font-size: .75rem; color: var(--color-font-secondary); }
 

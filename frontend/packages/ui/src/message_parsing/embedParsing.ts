@@ -19,7 +19,7 @@ function normalizeFenceLanguage(language?: string): string {
   return (language || "").toLowerCase().trim();
 }
 
-function isResultsViewLanguage(language: string): boolean {
+export function isResultsViewLanguage(language: string): boolean {
   const fenceLanguage = language.trim().split(/\s+/, 1)[0].toLowerCase();
   return fenceLanguage === EMBEDS_MAP_VIEW_LANGUAGE || fenceLanguage === EMBEDS_RESULTS_VIEW_LANGUAGE;
 }
@@ -39,7 +39,7 @@ function normalizeRefList(value: string | undefined): string[] {
   return refs;
 }
 
-function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes | null {
+export function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes {
   const fields = new Map<string, string>();
 
   for (const rawLine of content.split("\n")) {
@@ -59,10 +59,6 @@ function parseEmbedsMapViewBlock(content: string): EmbedNodeAttributes | null {
   const mapEmbedRefs = normalizeRefList(fields.get("embeds"));
   const mapSourceRefs = normalizeRefList(fields.get("sources"));
   const mapHighlightRefs = normalizeRefList(fields.get("highlight"));
-
-  if (mapEmbedRefs.length === 0 && mapSourceRefs.length === 0) {
-    return null;
-  }
 
   const id = deterministicId(
     `${title}:${mapEmbedRefs.join(",")}:${mapSourceRefs.join(",")}:${mapHighlightRefs.join(",")}`,

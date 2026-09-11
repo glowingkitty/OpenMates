@@ -9,6 +9,13 @@ import { parseEmbedNodes } from "../embedParsing";
 import { parse_message } from "../parse_message";
 
 describe("embeds_results_view parsing", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it("keeps empty protocol descriptors out of the code fallback", () => {
+    const [node] = parseEmbedNodes("```Embeds_results_view\ntitle: Invalid view\n```", "read");
+    expect(node).toMatchObject({ type: "embeds-map-view", mapEmbedRefs: [], mapSourceRefs: [] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it("parses curated child refs and preserves order", () => {
     const markdown = `Here are the strongest matches:
 
@@ -30,6 +37,7 @@ embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it("keeps parsing legacy embeds_map_view fences", () => {
     const [mapView] = parseEmbedNodes(
       "```embeds_map_view\ntitle: Legacy map\nembeds: event-one-111111\n```",
@@ -43,6 +51,7 @@ embeds: ai-founders-meetup-7f3a91, llm-hack-night-22b8c0
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it("parses source refs with highlighted child refs", () => {
     const markdown = `\`\`\`embeds_results_view
 title: Munich to Zurich options
@@ -61,6 +70,7 @@ highlight: nightjet-munich-zurich-7abc12, db-ice-basel-9def34
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it("drops unsupported fields and duplicate refs", () => {
     const markdown = `\`\`\`embeds_results_view
 title: Clinics near me
@@ -78,6 +88,7 @@ enrichment: travel.flight_details
     expect(mapView).not.toHaveProperty("enrichment");
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
   it("turns the fenced block into a virtual embed node in unified parsing", () => {
     const doc = parse_message(
       `Intro\n\n\`\`\`embeds_results_view\ntitle: Berlin AI events\nembeds: one-111111\n\`\`\``,

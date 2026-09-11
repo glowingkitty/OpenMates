@@ -57,6 +57,8 @@ test('result views hide invalid sources and render date-only calendar entries', 
     await expect(page.getByTestId('embeds-map-view-resolution')).toHaveAttribute('data-loading', 'false');
   };
   await open(['preview-invalid-entry']);
+  await expect(page.getByTestId('results-view-admin-error')).toHaveCount(0);
+  await expect(page.locator('.results-view-mount')).toBeHidden();
   await expect(page.getByTestId('embeds-map-view')).toHaveCount(0);
   await open([], ['preview-missing-source']);
   await expect(page.getByTestId('embeds-map-view')).toHaveCount(0);
