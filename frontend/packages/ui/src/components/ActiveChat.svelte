@@ -16,7 +16,7 @@
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
-    import { fade, fly, slide } from 'svelte/transition';
+    import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount, onDestroy, untrack, setContext } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
@@ -3602,7 +3602,7 @@
         }
 
         if (selectedTagIds.length === 0) {
-            return [...sharedMetas, ...orderMetasByPreferredIds(communityMetas, GUEST_LANDING_DEFAULT_EXAMPLE_IDS)];
+            return sharedMetas;
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -3686,6 +3686,15 @@
             const requestId = ++nonAuthRecentChatsRequestId;
             loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId, preserveGuestInterestRanking).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
+                // Keep the last visible examples when this slide has no published
+                // examples yet. Preserve fresh shared-chat metadata separately.
+                if (guestTagsConfirmed && !metas.some((meta) => isExampleChat(meta.chat.chat_id))) {
+                    const previousExamples = nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id));
+                    const fallbackExamples = previousExamples.length > 0
+                        ? previousExamples
+                        : orderMetasByPreferredIds(getAllExampleChats().map(buildExampleChatMeta), GUEST_LANDING_DEFAULT_EXAMPLE_IDS);
+                    metas = [...metas, ...fallbackExamples];
+                }
                 nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
                 centerFirstRecentChat();
@@ -4953,7 +4962,6 @@
     let chatSideEl = $state<HTMLElement | null>(null);
     let welcomeContentEl = $state<HTMLElement | null>(null);
     let messageInputContainerEl = $state<HTMLElement | null>(null);
-    let guestInterestTagsTop = $state<number | null>(null);
 
     /**
      * True when the new-chat suggestions would overlap the welcome / resume-chat
@@ -5020,23 +5028,6 @@
     // Used as the minimum clearance we require between the welcome block bottom
     // and the message-input top before we consider the layout "tight".
     const SUGGESTIONS_APPROX_HEIGHT = 150;
-    const GUEST_INTEREST_TAGS_PROMPT_GAP = 10;
-    const GUEST_INTEREST_TAGS_APPROX_HEIGHT = 70;
-
-    function recalculateGuestInterestTagsTop() {
-        if (!chatSideEl || !welcomeContentEl) {
-            guestInterestTagsTop = null;
-            return;
-        }
-
-        const chatRect = chatSideEl.getBoundingClientRect();
-        const welcomeRect = welcomeContentEl.getBoundingClientRect();
-        const desiredTop = welcomeRect.bottom - chatRect.top + GUEST_INTEREST_TAGS_PROMPT_GAP;
-        const inputHeight = Math.max(messageInputHeight + 60, 120);
-        const maxTop = chatRect.height - inputHeight - GUEST_INTEREST_TAGS_APPROX_HEIGHT;
-        guestInterestTagsTop = Math.max(0, Math.min(desiredTop, maxTop));
-    }
-
     /**
      * Re-measure whether suggestions would overlap the welcome content.
      * Called by the ResizeObserver and whenever relevant state changes.
@@ -5052,7 +5043,6 @@
 
         if (!chatSideEl) {
             suggestionsWouldOverlapWelcome = false;
-            guestInterestTagsTop = null;
             return;
         }
 
@@ -5060,7 +5050,6 @@
             return;
         }
 
-        recalculateGuestInterestTagsTop();
 
         const containerRect = chatSideEl.getBoundingClientRect();
         const containerHeight = containerRect.height;
@@ -13205,6 +13194,21 @@
                                 </div>
                             </div>
 
+                        {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
+                            <div
+                                class="guest-interest-tags-overlay"
+                                class:welcome-hiding={hideWelcomeForKeyboard}
+                                inert={hideWelcomeForKeyboard}
+                            >
+                                <GuestInterestTags
+                                    shuffleToken={guestInterestShuffleToken}
+                                    onSelectionChange={handleGuestInterestSelectionChange}
+                                    onContinue={handleGuestInterestContinue}
+                                    onSkip={handleGuestInterestSkip}
+                                />
+                            </div>
+                        {/if}
+
                             <!-- Resume card + recent chats horizontal scroll (authenticated users) -->
                             {#if hasContinueItems}
                                 <div
@@ -13720,22 +13724,7 @@
                             {/if}
                         </div>
 
-                        {#if !$authStore.isAuthenticated && guestInterestSelectorVisible}
-                            <div
-                                class="guest-interest-tags-overlay"
-                                class:welcome-hiding={hideWelcomeForKeyboard}
-                                inert={hideWelcomeForKeyboard}
-                                style:--guest-interest-tags-top={guestInterestTagsTop === null ? undefined : `${guestInterestTagsTop}px`}
-                                transition:slide={{ duration: 320 }}
-                            >
-                                <GuestInterestTags
-                                    shuffleToken={guestInterestShuffleToken}
-                                    onSelectionChange={handleGuestInterestSelectionChange}
-                                    onContinue={handleGuestInterestContinue}
-                                    onSkip={handleGuestInterestSkip}
-                                />
-                            </div>
-                        {/if}
+
                     {/if}
 
                     {#if !showWelcome && $authStore.isAuthenticated && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)}
@@ -14939,19 +14928,10 @@
 	}
 
     .guest-interest-tags-overlay {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: var(--guest-interest-tags-top, calc(50% + 17.5vh + 58px));
-        z-index: var(--z-index-raised);
+        position: relative;
         width: 100%;
-        pointer-events: none;
-    }
-
-    @media (max-width: 730px) {
-        .guest-interest-tags-overlay {
-            top: var(--guest-interest-tags-top, calc(50% + 17.5vh + 48px));
-        }
+        flex-shrink: 0;
+        pointer-events: auto;
     }
 
     .guest-example-link-row {

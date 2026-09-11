@@ -233,6 +233,12 @@ test.describe('Guest interest smart selection', () => {
 		);
 		await expect(page.getByText('What are your interests?')).toBeVisible({ timeout: 5000 });
 		expect(await interestTagsPromptGap(page)).toBeGreaterThanOrEqual(8);
+        const railBox = await page.getByTestId('guest-interest-rail').boundingBox();
+        const skipBox = await page.getByTestId('guest-interest-skip').boundingBox();
+        expect(railBox).not.toBeNull();
+        expect(skipBox).not.toBeNull();
+        expect(skipBox!.y).toBeGreaterThanOrEqual(railBox!.y + railBox!.height);
+
 		await expect(page.getByTestId('interest-tag-plan_trips')).toHaveAttribute('data-app-id', 'travel');
 		await expect(page.getByTestId('guest-interest-continue')).toHaveCount(0);
 		await expect(page.getByTestId('guest-interest-skip')).toBeVisible({ timeout: 5000 });
