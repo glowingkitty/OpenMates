@@ -94,7 +94,7 @@
     "@stripe/stripe-js": "^7.9.0",
     "@sveltejs/adapter-auto": "^6.1.0",
     "@sveltejs/kit": "2.70.2",
-    "@tiptap/core": "3.30.4",
+    "@tiptap/core": "3.30.5",
     "@tiptap/extension-highlight": "3.30.4",
     "@tiptap/extension-link": "3.30.4",
     "@tiptap/extension-mathematics": "3.30.4",
