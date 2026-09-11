@@ -92,6 +92,10 @@
 
 	// --- State ---
 	let isInitialLoad = $state(true);
+	// Match Settings.svelte's overlay breakpoint, including the 1100px boundary.
+	const SETTINGS_OVERLAY_MAX_WIDTH = 1100;
+	let viewportWidth = $state(0);
+	const settingsOverlayOpen = $derived($panelState.isSettingsOpen && viewportWidth > 0 && viewportWidth <= SETTINGS_OVERLAY_MAX_WIDTH);
 	// Developer console — activated via /#console-on hash, toggled off via close button
 	let devConsoleOpen = $state(false);
 	// Height (px) reserved for the dev console at the bottom of the viewport
@@ -3496,7 +3500,7 @@
 	<link rel="canonical" href="https://openmates.org" />
 </svelte:head>
 
-<!-- Removed svelte:window binding for innerWidth -->
+<svelte:window bind:innerWidth={viewportWidth} />
 
 <!-- Accessibility: skip navigation link for keyboard users (WCAG 2.4.1) -->
 <a href="#main-chat" class="skip-link">{$text('navigation.skip_to_content')}</a>
@@ -3533,7 +3537,17 @@
 	>
 		<div class="chat-wrapper" id="main-chat" tabindex="-1">
 			<!-- ActiveChat component - loads welcome chat via JS for PWA -->
-			<ActiveChat bind:this={activeChat} />
+			<div class="chat-interaction-surface" inert={settingsOverlayOpen}>
+				<ActiveChat bind:this={activeChat} />
+			</div>
+			{#if settingsOverlayOpen}
+				<button
+					class="settings-chat-backdrop"
+					data-testid="settings-chat-backdrop"
+					aria-label={$text('common.close')}
+					onclick={() => settingsMenuVisible.set(false)}
+				></button>
+			{/if}
 		</div>
 		<div class="settings-wrapper">
 			<Settings isLoggedIn={$authStore.isAuthenticated} on:chatSelected={handleChatSelected} />
@@ -3784,9 +3798,28 @@
 	}
 
 	.chat-wrapper {
+		position: relative;
 		flex: 1;
 		display: flex;
 		min-width: 0;
+	}
+
+	.chat-interaction-surface {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+	}
+
+	/* Catch pointer input before it reaches chat controls; Settings sits above
+	   this local stacking context and retains its existing close/reset path. */
+	.settings-chat-backdrop {
+		position: absolute;
+		inset: 0;
+		z-index: 1;
+		border: 0;
+		padding: 0;
+		background: transparent;
+		cursor: pointer;
 	}
 
 	/* Smooth transition for main content */

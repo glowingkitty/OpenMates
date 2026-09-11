@@ -3206,19 +3206,6 @@
   }
 
   /* When scrolled to the top, remove the top gradient so the banner edges aren't faded */
-  /* Narrow panes use the full message width. Keep scrolled text below the
-     floating toolbar instead of reclaiming wide gutters around its buttons. */
-  @container chat-history (max-width: 1000px) {
-    .chat-history-container:not(.is-at-top) {
-      --toolbar-clearance: calc(25px + 3 * var(--spacing-4) + var(--spacing-5));
-      mask-image: linear-gradient(to bottom,
-        transparent var(--toolbar-clearance),
-        black calc(var(--toolbar-clearance) + 2 * var(--spacing-5)),
-        black calc(100% - 30px),
-        transparent 100%);
-    }
-  }
-
   .chat-history-container.is-at-top {
     mask-image: linear-gradient(to bottom, 
         rgba(0, 0, 0, 1) 0%, 

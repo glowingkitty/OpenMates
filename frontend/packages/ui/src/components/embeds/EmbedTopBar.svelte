@@ -14,6 +14,8 @@
 -->
 
 <script lang="ts">
+  import { getContext } from 'svelte';
+  import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
   import { tooltip } from '../../actions/tooltip';
   import HeaderActionMenu from '../HeaderActionMenu.svelte';
   import { text } from '@repo/ui';
@@ -99,6 +101,9 @@
     onTogglePII,
     onIncludeOriginalPII,
   }: Props = $props();
+  const chatContext = getContext<EmbedChatContext | undefined>(EMBED_CHAT_CONTEXT);
+  const canRestoreChat = $derived(chatContext?.showChatButton ?? showChatButton);
+  const restoreChatHandler = $derived(chatContext?.onShowChat ?? onShowChat);
   const secondaryActionCount = $derived([
     (showCopy && onCopy),
     (showDownload && onDownload),
@@ -177,13 +182,13 @@
     {/snippet}
     {#snippet restoreChat()}
       <!-- Restore chat (ultra-wide side-by-side mode) -->
-      {#if showChatButton && onShowChat}
+      {#if canRestoreChat && restoreChatHandler}
         <div class="button-wrapper">
           <button
             class="header-action"
             use:tooltip
             data-testid="embed-show-chat-button"
-            onclick={onShowChat}
+            onclick={restoreChatHandler}
             aria-label={$text('chat.show_chat')}
             ><span
               class="clickable-icon icon_chat top-button"

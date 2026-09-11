@@ -837,11 +837,31 @@ test.describe('Landing page onboarding refresh', () => {
 			{ message: 'narrow settings overlay must remain inside the viewport', timeout: 3000 }
 		).toBeLessThanOrEqual(1100);
 
+		const backdrop = page.getByTestId('settings-chat-backdrop');
+		await expect(backdrop).toBeVisible();
+		const activeChat = page.getByTestId('active-chat-container');
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(true);
+		const backdropBox = await backdrop.boundingBox();
+		expect(backdropBox).not.toBeNull();
+		// The exposed left side must target the backdrop, never a chat descendant.
+		const exposedPoint = { x: backdropBox.x + 20, y: backdropBox.y + 100 };
+		await page.mouse.move(exposedPoint.x, exposedPoint.y);
+		await expect.poll(() => backdrop.evaluate((element: HTMLElement) => element.matches(':hover'))).toBe(true);
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => element.querySelectorAll(':hover').length)).toBe(0);
+		await page.mouse.click(exposedPoint.x, exposedPoint.y);
+		await expect(backdrop).toHaveCount(0);
+		await expect(page.getByTestId('settings-menu')).not.toBeVisible();
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(false);
+		await page.getByTestId('profile-container').click();
+		await expect(backdrop).toBeVisible();
+
 		await page.setViewportSize({ width: 1101, height: 800 });
 		await expect.poll(
 			async () => page.getByTestId('settings-menu').evaluate((element: HTMLElement) => getComputedStyle(element).position),
 			{ timeout: 3000 }
 		).not.toBe('fixed');
+		await expect(backdrop).toHaveCount(0);
+		await expect.poll(() => activeChat.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(false);
 		await expect.poll(
 			async () => page.getByTestId('active-chat-container').evaluate((element: HTMLElement) => element.classList.contains('dimmed')),
 			{ timeout: 3000 }

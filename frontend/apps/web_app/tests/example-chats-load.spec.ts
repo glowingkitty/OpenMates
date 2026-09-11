@@ -287,6 +287,39 @@ test.describe('Example chats loading for new users', () => {
 		await expect(page.locator('body')).not.toContainText('"type":"focus_mode_activation"');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+	test('chat edge fade stays shallow and fullscreen results restore the hidden chat', async ({ page }: { page: any }) => {
+		test.setTimeout(60000);
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.goto(getE2EDebugUrl('/#chat-id=example-ai-workshops-meetups-berlin'), { waitUntil: 'domcontentloaded' });
+		const history = page.getByTestId('chat-history-container');
+		await expect(page.getByTestId('example-chat-badge')).toBeVisible({ timeout: 15000 });
+		for (const width of [900, 1440]) {
+			await page.setViewportSize({ width, height: 900 });
+			await history.evaluate((element: HTMLElement) => { element.scrollTop = 150; });
+			await expect.poll(() => history.evaluate((element: HTMLElement) => element.scrollTop)).toBeGreaterThan(0);
+			await expect.poll(() => history.evaluate((element: HTMLElement) => getComputedStyle(element).maskImage)).toMatch(/rgba\(0, 0, 0, 0\) 0%, rgb\(0, 0, 0\) 30px/);
+		}
+
+		const preview = page.locator('[data-testid="embed-preview"][data-app-id="web"][data-skill-id="search"]').first();
+		const parent = await openFullscreen(page, preview);
+		const chatClose = page.getByTestId('chat-close-button');
+		await chatClose.click();
+		await expect(parent.getByTestId('embed-show-chat-button')).toBeVisible();
+		await expect.poll(() => history.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(true);
+		await parent.getByTestId('embed-show-chat-button').click();
+		await expect.poll(() => history.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(false);
+
+		// Drill down to a child result: it must inherit the same restoration control.
+		const child = await openFullscreen(page, parent.getByTestId('search-template-grid').getByTestId('embed-preview').first());
+		await chatClose.click();
+		await expect(child.getByTestId('embed-show-chat-button')).toBeVisible();
+		await child.getByTestId('embed-show-chat-button').click();
+		await expect.poll(() => history.evaluate((element: HTMLElement) => !!element.closest('[inert]'))).toBe(false);
+		await expect(chatClose).toBeVisible();
+		await expect(child).toBeVisible();
+	});
+
 	// contract-test: direct surface=gui.web assertions=public-example-chats.navigation.static-public-link,public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity,chat-share-settings.generated-link-controls,chat-share-settings.shell-navigation
 	test('guest example chat exposes share and chat settings with a static public link', async ({
 		page

@@ -37,3 +37,10 @@ export interface EmbedFullscreenCommonProps {
 	showChatButton?: boolean;
 	onShowChat?: () => void;
 }
+
+/** Workspace-owned restoration state, inherited by nested fullscreen results. */
+export const EMBED_CHAT_CONTEXT = Symbol('embed-chat-context');
+export interface EmbedChatContext {
+	readonly showChatButton: boolean;
+	onShowChat: () => void;
+}

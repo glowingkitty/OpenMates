@@ -17,9 +17,10 @@
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly, slide } from 'svelte/transition';
-    import { createEventDispatcher, tick, onMount, onDestroy, untrack } from 'svelte'; // Added onDestroy
+    import { createEventDispatcher, tick, onMount, onDestroy, untrack, setContext } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
+    import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../types/embedFullscreen';
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
@@ -5285,6 +5286,13 @@ console.debug('[ActiveChat] Loading child website embeds for web search fullscre
     )));
     const showSideBySideFullscreen = $derived(hasSplitChatContext && !forceOverlayMode);
     const showChatButtonInFullscreen = $derived(hasSplitChatContext && forceOverlayMode);
+    // Nested result overlays must restore the same workspace chat even when
+    // their app-specific adapters do not forward the optional toolbar props.
+    setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
+        get showChatButton() { return showChatButtonInFullscreen; },
+        onShowChat: () => handleShowChat(),
+    });
+
 
     const SIDE_BY_SIDE_ANIMATION_DURATION = 400;
     let sideBySideAnimating = $state(false);
