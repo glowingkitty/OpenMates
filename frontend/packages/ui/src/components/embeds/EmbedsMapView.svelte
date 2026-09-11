@@ -3,7 +3,7 @@
 
   Virtual in-chat results view over existing location/schedule-capable embeds.
   It resolves refs from local embed data and never calls provider/app-skill
-  enrichment endpoints. Missing refs stay visible as loading/unavailable rows.
+  enrichment endpoints. Unresolved or ineligible refs remain invisible.
   Spec: docs/specs/embeds-map-view/spec.yml
 -->
 
@@ -13,6 +13,7 @@
   import EmbedLeafletMap, { type MapMarker, type MapPathPoint, type MapRoutePath } from './EmbedLeafletMap.svelte';
   import { decodeToonContent, resolveEmbed, type EmbedData } from '../../services/embedResolver';
   import { embedAvailabilityVersion, embedRefIndexVersion, embedStore } from '../../services/embedStore';
+  import { chatSyncService } from '../../services/chatSyncService';
   import { dispatchEmbedFullscreen } from '../../services/embedFullscreenController';
   import { embedPreviewRegistry } from '../../services/embedPreviewRegistry';
   import { incrementStreamingRenderMetric } from '../../message_parsing/streamingRenderMetrics';
@@ -126,6 +127,7 @@
     dateOrdinal: number;
     startMinutes: number;
     endMinutes?: number;
+    dateOnly: boolean;
   }
 
   interface CalendarWeekDay {
@@ -168,9 +170,12 @@
   let loadGeneration = 0;
 
   const entryCache = new Map<string, { signature: string; entry: MapViewEntry }>();
+  const resolvedSourceIds = new Set<string>();
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
   const sourceChildrenCache = new Map<string, { signature: string; refs: string[] }>();
 
   export function updateDescriptor(attrs: EmbedNodeAttributes): void {
+    resolvedSourceIds.clear();
     id = attrs.id;
     title = attrs.title || 'Results view';
     embedRefs = [...(attrs.mapEmbedRefs || [])];
@@ -180,13 +185,19 @@
   }
 
   const highlightSet = $derived(new Set(highlightRefs));
+  // Unresolved references remain internal so sync can recover them, but they
+  // are never cards or evidence that a map/calendar can be rendered.
+  const eligibleEntries = $derived(entries.filter((entry) => entry.status === 'ready' && (
+    (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 ||
+    calendarEntryFromMapEntry(entry) != null
+  )));
   const categories = $derived.by(() => {
-    const values = Array.from(new Set(entries.filter((entry) => entry.status === 'ready').map((entry) => entry.category)));
+    const values = Array.from(new Set(eligibleEntries.map((entry) => entry.category)));
     return ['all', ...values];
   });
   const categoryFilteredEntries = $derived.by(() => {
-    if (activeCategory === 'all') return entries;
-    return entries.filter((entry) => entry.category === activeCategory || entry.status !== 'ready');
+    if (activeCategory === 'all') return eligibleEntries;
+    return eligibleEntries.filter((entry) => entry.category === activeCategory);
   });
   const rangeFilterControls = $derived(deriveRangeControls(categoryFilteredEntries));
   const optionFilterControls = $derived(deriveOptionControls(categoryFilteredEntries));
@@ -200,16 +211,17 @@
       .slice(0, MAX_VISIBLE_ENTRIES);
   });
   const carouselEntries = $derived.by(() => {
+    const mappable = visibleEntries.filter((entry) => (entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0);
     if (mapSelectionRefs.length > 0) {
       const selectionSet = new Set(mapSelectionRefs);
-      return visibleEntries.filter((entry) => selectionSet.has(entry.ref));
+      return mappable.filter((entry) => selectionSet.has(entry.ref));
     }
     if (mapViewportEntryRefs && mapViewportEntryRefs.length > 0) {
       const viewportSet = new Set(mapViewportEntryRefs);
-      const viewportEntries = visibleEntries.filter((entry) => viewportSet.has(entry.ref));
+      const viewportEntries = mappable.filter((entry) => viewportSet.has(entry.ref));
       if (viewportEntries.length > 0 && viewportEntries.length < visibleEntries.length) return viewportEntries;
     }
-    return visibleEntries;
+    return mappable;
   });
   const isCarouselScoped = $derived(carouselEntries.length < visibleEntries.length || mapSelectionRefs.length > 0);
   const activeGeometryRefs = $derived(mapSelectionRefs.length > 0
@@ -238,9 +250,12 @@
   const firstCalendarWeekStart = $derived(calendarEntries.length > 0 ? weekStartOrdinal(calendarEntries[0].dateOrdinal) : null);
   const activeCalendarWeekStart = $derived(calendarWeekStartOrdinal ?? firstCalendarWeekStart);
   const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
+  const dateOnlyRowCount = $derived(Math.max(0, ...calendarWeekDays.map((day) => day.entries.filter((entry) => entry.dateOnly).length)));
   const calendarTimelineStartMinutes = $derived.by(() => {
     if (calendarEntries.length === 0) return 0;
-    const earliestStart = Math.min(...calendarEntries.map((entry) => entry.startMinutes));
+    const timed = calendarEntries.filter((entry) => !entry.dateOnly);
+    if (timed.length === 0) return 0;
+    const earliestStart = Math.min(...timed.map((entry) => entry.startMinutes));
     return Math.floor(earliestStart / CALENDAR_MINUTES_PER_HOUR) * CALENDAR_MINUTES_PER_HOUR;
   });
   const calendarHourLabels = $derived(Array.from({ length: CALENDAR_VISIBLE_HOURS }, (_, index) => calendarTimelineStartMinutes + (index * CALENDAR_MINUTES_PER_HOUR)));
@@ -520,9 +535,13 @@
 
   function dateOrdinalFromValue(value: unknown): number | undefined {
     if (typeof value !== 'string') return undefined;
-    const match = value.match(/(\d{4})-(\d{2})-(\d{2})/);
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(?=$|[T\s])/);
     if (!match) return undefined;
-    return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / 86400000;
+    const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+    const timestamp = Date.UTC(year, month - 1, day);
+    const date = new Date(timestamp);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return undefined;
+    return timestamp / 86400000;
   }
 
   function durationMinutesFromValue(value: unknown): number | undefined {
@@ -545,6 +564,9 @@
   function dateOrdinalFromContent(content: Record<string, unknown> | null): number | undefined {
     return dateOrdinalFromValue(firstString(
       content?.date,
+      content?.datetime,
+      content?.start_date,
+      content?.scheduled_departure,
       content?.slot_datetime,
       content?.date_start,
       content?.departure,
@@ -777,11 +799,12 @@
   function calendarEntryFromMapEntry(entry: MapViewEntry): CalendarEntry | null {
     if (entry.status !== 'ready') return null;
     const dateOrdinal = numberFacet(entry, 'dateOrdinal');
-    const startMinutes = numberFacet(entry, 'departureMinutes');
-    if (dateOrdinal == null || startMinutes == null) return null;
+    const departureMinutes = numberFacet(entry, 'departureMinutes');
+    if (dateOrdinal == null) return null;
+    const startMinutes = departureMinutes ?? 0;
     const rawEndMinutes = numberFacet(entry, 'arrivalMinutes');
     const endMinutes = rawEndMinutes != null && rawEndMinutes !== startMinutes ? rawEndMinutes : undefined;
-    return { entry, dateOrdinal, startMinutes, endMinutes };
+    return { entry, dateOrdinal, startMinutes, endMinutes, dateOnly: departureMinutes == null };
   }
 
   function weekStartOrdinal(dateOrdinal: number): number {
@@ -827,6 +850,7 @@
   }
 
   function formatCalendarTime(item: CalendarEntry): string {
+    if (item.dateOnly) return dateFromOrdinal(item.dateOrdinal);
     if (item.endMinutes == null) return formatTimeMinutes(item.startMinutes);
     return `${formatTimeMinutes(item.startMinutes)} - ${formatTimeMinutes(item.endMinutes)}`;
   }
@@ -1225,7 +1249,9 @@
       preview: null,
       facets: extractFacets(category, decodedContent),
     } satisfies MapViewEntry;
-    entry.preview = await resolveEntryPreview(entry);
+    if ((entry.lat != null && entry.lon != null) || (entry.route?.length ?? 0) > 0 || calendarEntryFromMapEntry(entry) != null) {
+      entry.preview = await resolveEntryPreview(entry);
+    }
     entryCache.set(ref, { signature, entry });
     return entry;
   }
@@ -1233,6 +1259,7 @@
   async function resolveSourceChildren(sourceRef: string): Promise<string[]> {
     const sourceId = await resolveRefToId(sourceRef);
     if (!sourceId) return [];
+    resolvedSourceIds.add(sourceId);
     const sourceEmbed = await resolveEmbed(sourceId);
     if (!sourceEmbed) return [];
     const signature = contentSignature(sourceId, sourceEmbed);
@@ -1374,7 +1401,15 @@
     mapHydrationObserver.observe(mapShellElement);
   }
 
+  function handleReferencedEmbedUpdate(event: Event): void {
+    const embedId = (event as CustomEvent<{ embed_id?: string }>).detail?.embed_id?.replace(/^embed:/, '');
+    if (!embedId || !(resolvedSourceIds.has(embedId) || entries.some((entry) => entry.embedId === embedId || entry.ref === embedId))) return;
+    if (refreshTimer !== null) return;
+    refreshTimer = setTimeout(() => { refreshTimer = null; void loadEntries(); }, 0);
+  }
+
   onMount(() => {
+    chatSyncService.addEventListener('embedUpdated', handleReferencedEmbedUpdate);
     unsubscribeRefIndex = embedRefIndexVersion.subscribe((version) => {
       if (lastRefIndexVersion === -1) {
         lastRefIndexVersion = version;
@@ -1399,6 +1434,9 @@
   });
 
   onDestroy(() => {
+    loadGeneration += 1;
+    chatSyncService.removeEventListener('embedUpdated', handleReferencedEmbedUpdate);
+    if (refreshTimer !== null) clearTimeout(refreshTimer);
     unsubscribeRefIndex?.();
     unsubscribeRefIndex = null;
     unsubscribeEmbedAvailability?.();
@@ -1450,6 +1488,8 @@
   });
 </script>
 
+<span hidden data-testid="embeds-map-view-resolution" data-loading={isLoading ? 'true' : 'false'}></span>
+{#if eligibleEntries.length > 0}
 <section class="embeds-results-view embeds-map-view" data-testid="embeds-map-view" data-results-view-id={id} data-map-view-id={id} data-loading={isLoading ? 'true' : 'false'} aria-label={title}>
   <header class="map-view-toolbar">
     <span class="entry-count" data-testid="embeds-map-view-count">{visibleEntries.length} shown</span>
@@ -1606,6 +1646,7 @@
     {/if}
   </header>
 
+  {#if visualTabs.length > 0}
   <div class="map-view-body" class:calendar-active={selectedVisualTab === 'calendar'} aria-hidden={filtersOpen}>
     {#if selectedVisualTab === 'map'}
       <div class="map-view-list" data-testid="embeds-map-view-list">
@@ -1676,6 +1717,7 @@
             <div class="calendar-week" data-testid="embeds-results-view-calendar-week">
               <div class="calendar-time-column" aria-hidden="true">
                 <span class="calendar-time-column-spacer"></span>
+                {#if dateOnlyRowCount > 0}<div style={`height: ${dateOnlyRowCount * 4}rem`}></div>{/if}
                 <div class="calendar-time-slots">
                   {#each calendarHourLabels as hour}
                     <span>{formatCalendarHour(hour)}</span>
@@ -1688,8 +1730,17 @@
                     <span>{formatCalendarDayLabel(day.dateOrdinal)}</span>
                     <strong>{formatCalendarDayNumber(day.dateOrdinal)}</strong>
                   </header>
+                  {#if dateOnlyRowCount > 0}
+                    <div class="calendar-date-only" style={`min-height: ${dateOnlyRowCount * 4}rem`}>
+                      {#each day.entries.filter((item) => item.dateOnly) as item}
+                        <button type="button" data-testid="embeds-results-view-calendar-date-only" onclick={() => openEntry(item.entry)}>
+                          <strong>{item.entry.title}</strong><span>{dateFromOrdinal(item.dateOrdinal)}</span>
+                        </button>
+                      {/each}
+                    </div>
+                  {/if}
                   <div class="calendar-items">
-                    {#each day.entries as item, itemIndex}
+                    {#each day.entries.filter((item) => !item.dateOnly) as item, itemIndex}
                       <button
                         type="button"
                         class="calendar-item"
@@ -1761,9 +1812,14 @@
       {/if}
     </div>
   </div>
+  {/if}
 </section>
+{/if}
 
 <style>
+  .calendar-date-only button { display: flex; flex-direction: column; width: 100%; min-height: 3.5rem; margin-bottom: .5rem; padding: .4rem; border: 0; border-radius: .5rem; background: var(--color-grey-30); color: var(--color-font-primary); text-align: start; cursor: pointer; }
+  .calendar-date-only span { font-size: .75rem; color: var(--color-font-secondary); }
+
   .embeds-map-view {
     position: relative;
     container-type: inline-size;

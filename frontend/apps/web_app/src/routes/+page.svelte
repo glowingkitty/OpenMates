@@ -3473,6 +3473,19 @@
 			await activeChat.resetToNewChat();
 		}
 	}
+
+	// Present the split layout before mounting the sidebar list. Cancel both
+	// frames on close/reopen; no hidden chat-list instance is retained.
+	let sidebarContentReady = $state(false);
+	$effect(() => {
+		if (!$panelState.isActivityHistoryOpen) { sidebarContentReady = false; return; }
+		let secondFrame = 0;
+		const firstFrame = requestAnimationFrame(() => {
+			secondFrame = requestAnimationFrame(() => { sidebarContentReady = true; });
+		});
+		return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); };
+	});
+
 </script>
 
 <!-- SEO meta tags - client-side with translations -->
@@ -3509,7 +3522,7 @@
 <NotificationStack />
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
-	{#if $panelState.isActivityHistoryOpen}
+	{#if $panelState.isActivityHistoryOpen && sidebarContentReady}
 		<!-- Sidebar content - transition handled by parent sidebar transform -->
 		<div class="sidebar-content">
 			<Chats on:chatSelected={handleChatSelected} on:chatDeselected={handleChatDeselected} />
@@ -3596,12 +3609,14 @@
 
 		/* Smooth transition for sidebar reveal/hide */
 		transition:
-			transform 0.3s ease,
-			opacity 0.3s ease,
-			visibility 0.3s ease;
+			opacity 0.12s ease-out;
 		transform: translateX(0);
 		opacity: 1;
 		visibility: visible;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.sidebar, .main-content { transition: none !important; }
 	}
 
 	.sidebar.closed {
@@ -3640,10 +3655,9 @@
 		bottom: 0;
 		background-color: var(--color-grey-0);
 		z-index: 11;
-		/* Smooth transitions for width changes (large screens) and slide animations (small screens) */
+		/* Commit desktop geometry once; only the narrow-screen translation animates. */
 		transition:
-			inset-inline-start 0.3s ease,
-			transform 0.3s ease;
+			transform 0.12s ease-out;
 	}
 
 	.main-content:has(:global(.fullscreen-embed-container.overlay-mode)) {
@@ -3699,7 +3713,7 @@
 		padding-inline-end: 20px;
 		/* Only apply gap transition on larger screens */
 		@media (min-width: 1100px) {
-			transition: gap 0.3s ease;
+			transition: none;
 		}
 	}
 
@@ -3825,8 +3839,7 @@
 	/* Smooth transition for main content */
 	.main-content {
 		transition:
-			inset-inline-start 0.3s ease,
-			transform 0.3s ease;
+			transform 0.12s ease-out;
 	}
 
 	.main-content.edge-dragging.menu-closed,

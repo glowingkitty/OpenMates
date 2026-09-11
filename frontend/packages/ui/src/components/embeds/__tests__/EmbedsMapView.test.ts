@@ -9,6 +9,7 @@ import { mount, tick, unmount } from "svelte";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import EmbedsMapView from "../EmbedsMapView.svelte";
 import UnifiedEmbedPreview from "../UnifiedEmbedPreview.svelte";
+import { chatSyncService } from "../../../services/chatSyncService";
 
 const embedResolverMocks = vi.hoisted(() => ({
   resolveEmbed: vi.fn(),
@@ -58,7 +59,7 @@ async function flush(target?: HTMLElement): Promise<void> {
   await tick();
   if (!target) return;
   await vi.waitFor(() => {
-    expect(target.querySelector('[data-testid="embeds-map-view"]')?.getAttribute('data-loading')).toBe('false');
+    expect(target.querySelector('[data-testid="embeds-map-view-resolution"]')?.getAttribute('data-loading')).toBe('false');
   });
 }
 
@@ -238,6 +239,8 @@ describe("EmbedsMapView", () => {
           app_id: "maps",
           skill_id: "place",
           displayName: "Factory Berlin",
+          lat: 52.496,
+          lon: 13.444,
           formattedAddress: "Lohmuehlenstrasse 65, Berlin",
         };
       }
@@ -311,6 +314,46 @@ describe("EmbedsMapView", () => {
       }
       return null;
     });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it('removes the view when its last valid location disappears', async () => {
+    let valid = true;
+    embedResolverMocks.resolveEmbed.mockImplementation(async () => ({ type: 'place', content: valid ? 'valid-location' : 'empty-location' }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async () => valid ? { title: 'A place', lat: 52, lon: 13 } : { title: 'A place' });
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'removed-location', embedRefs: ['entry'], sourceRefs: [], highlightRefs: [] } });
+    await flush(target);
+    expect(target.querySelector('[data-testid="embeds-map-view"]')).not.toBeNull();
+    valid = false;
+    chatSyncService.dispatchEvent(new CustomEvent('embedUpdated', { detail: { embed_id: 'entry' } }));
+    await vi.waitFor(() => expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull());
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it.each([
+    [{ title: 'No location or date' }, false],
+    [{ title: 'Invalid coordinates', lat: 100, lon: 200 }, false],
+    [{ title: 'Invalid date', date: '2026-02-30' }, false],
+    [{ title: 'Date only', date: '2026-09-20' }, true],
+  ])('only renders eligible dated or located entries: %j', async (data, visible) => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ type: 'event', content: 'eligibility-content' });
+    embedResolverMocks.decodeToonContent.mockResolvedValue(data);
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'eligibility', embedRefs: ['entry'], sourceRefs: [], highlightRefs: [] } });
+    await flush(target);
+    expect(Boolean(target.querySelector('[data-testid="embeds-map-view"]'))).toBe(visible);
+    if (visible) {
+      expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain('Date only');
+      expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+      expect(target.querySelector('[data-testid="embeds-results-view-calendar-item"]')).toBeNull();
+    }
+    unmount(component);
+    target.remove();
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
@@ -534,11 +577,15 @@ describe("EmbedsMapView", () => {
 
     await flush(target);
 
-    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(2);
-    expect(target.textContent).toContain("Global AI Livestream");
+    expect(target.querySelectorAll('[data-testid="embeds-map-view-card"]')).toHaveLength(1);
+    expect(target.querySelector('[data-testid="embeds-map-view-list"]')?.textContent).not.toContain("Global AI Livestream");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.getAttribute("data-marker-count")).toBe("1");
     expect(target.querySelector('[data-testid="embeds-map-view-map"]')?.textContent).not.toContain("Referenced embeds do not expose coordinates yet.");
 
+    target.querySelector<HTMLButtonElement>('[data-testid="embeds-results-view-tab-calendar"]')!.click();
+    await tick();
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar"]')?.textContent).toContain('Global AI Livestream');
+    expect(target.querySelectorAll('[data-testid="embeds-results-view-calendar-item"]')).toHaveLength(2);
     unmount(component);
     target.remove();
   });
@@ -763,7 +810,8 @@ describe("EmbedsMapView", () => {
     });
 
     await flush(target);
-    expect(target.textContent).toContain("Waiting for source results");
+    expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull();
+    expect(target.textContent).not.toContain("Waiting for source results");
 
     sourceAvailable = true;
     const emitAvailability = (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;

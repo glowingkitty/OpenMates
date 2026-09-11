@@ -32,6 +32,14 @@ function seedPreviewEmbeds(): void {
 }
 
 seedPreviewEmbeds();
+// Eligibility fixtures contain no remote content or provider requests.
+for (const [embedId, content] of Object.entries({
+  'preview-date-only': { title: 'Date-only event', date: '2026-09-20' },
+  'preview-invalid-entry': { title: 'Invalid entry', date: '2026-02-30', lat: 100, lon: 200 },
+})) {
+  embedStore.registerStaticEmbed({ embedId, type: 'event', appId: 'events', content: JSON.stringify(content) });
+}
+
 
 const previewProps = {
 	id: 'preview-map-view',
