@@ -15,14 +15,14 @@
   const firstText = (...values: unknown[]): string => values.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() ?? '';
   const presentation = $derived.by(() => {
     const content = record(data?.decodedContent), attrs = record(data?.attrs), embed = record(data?.embedData);
-    const app = firstText(content.app_id, attrs.appId, embed.app_id);
-    const skill = firstText(content.skill_id, attrs.skillId, embed.skill_id);
+    const app = firstText(content.app_id, attrs.appId, attrs.app_id, embed.app_id);
+    const skill = firstText(content.skill_id, attrs.skillId, attrs.skill_id, embed.skill_id);
     const type = normalizeEmbedType(firstText(data?.embedType, embed.type));
     const metadata = EMBED_METADATA[app && skill ? `app:${app}:${skill}` : type];
     return {
       appId: metadata?.appId ?? app,
       skillIconName: metadata?.icon ?? '',
-      title: firstText(content.query, content.title, content.name, attrs.title, embed.title),
+      title: firstText(content.query, content.title, content.name, attrs.title, attrs.query, embed.title),
       subtitle: firstText(content.provider, content.source_provider, attrs.provider),
     };
   });
@@ -34,7 +34,9 @@
 </script>
 
 <div class="loading-frame" data-testid="embed-fullscreen-loading" aria-busy={!failed}>
-  <EmbedHeader {...presentation} />
+  {#if presentation.appId}
+    <EmbedHeader {...presentation} staticPresentation />
+  {/if}
   <EmbedTopBar {onClose} showShare={false} />
   <span class="status" role="status">{$text(failed ? 'common.detail_load_error' : 'common.loading')}</span>
   {#if failed}

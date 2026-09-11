@@ -726,7 +726,7 @@
     // Toggle animation state to trigger CSS transition (scale down + fade out)
     isAnimatingIn = false;
     
-    if (!wasVisible || workspace?.isSplitPane || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (!wasVisible || workspace?.isSplitPane || (!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       finishClose();
     } else {
       closeFallback = setTimeout(finishClose, CLOSE_FALLBACK_MS);
@@ -974,7 +974,7 @@
     // hide the gradient header banner that is now part of the scrollable flow.
     //
     // Scale-up from the preview card origin.
-    if (workspace?.isSplitPane || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (workspace?.isSplitPane || (!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       isAnimatingIn = true;
     } else requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -1363,6 +1363,7 @@
 <div
   class="unified-embed-fullscreen-overlay"
   class:animating-in={isAnimatingIn}
+  class:host-presented={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
   data-testid={testId}
   ontransitionend={handleCloseTransitionEnd}
 >
@@ -1396,6 +1397,7 @@
              If a CTA is present it pokes out from the banner's bottom edge
              and the embed content must provide enough top spacing to clear it. -->
         <EmbedHeader
+        staticPresentation={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
           {appId}
           {skillIconName}
           {appIconName}
@@ -1510,6 +1512,13 @@
     /* Override: when opening, visibility must flip immediately (step-start) */
     transition: transform 320ms cubic-bezier(0.32, 0, 0.2, 1),
                 visibility 0ms;
+  }
+
+  /* The host already opened this exact pane while resolving its content. */
+  .unified-embed-fullscreen-overlay.host-presented {
+    transform: none;
+    visibility: visible;
+    transition: none;
   }
 
   @media (prefers-reduced-motion: reduce) {

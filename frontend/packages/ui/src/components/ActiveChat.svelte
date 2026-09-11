@@ -5203,6 +5203,7 @@
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
         get isSplitPane() { return hasSplitChatContext; },
+        get presentedEmbedId() { return embedFullscreenData?.embedId; },
         get resolvedEmbedId() { return embedFullscreenData?.parentResolved ? embedFullscreenData.embedId : null; },
         onShowChat: () => handleShowChat(),
     });

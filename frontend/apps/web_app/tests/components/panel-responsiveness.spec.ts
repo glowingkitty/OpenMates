@@ -45,6 +45,8 @@ test('fullscreen pending frame gives identity without flashing visible Loading t
   await expect(frame.getByTestId('embed-minimize')).toBeVisible();
   await expect(frame.getByRole('status')).toHaveCSS('clip-path', 'inset(50%)');
   await expect(frame.locator('p')).toHaveCount(0);
+  await expect(frame.locator('.orb')).toHaveCount(0);
+  await expect(frame.locator('.header-center')).toHaveCSS('animation-name', 'none');
 });
 
 // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
@@ -63,4 +65,35 @@ test('result views hide invalid sources and render date-only calendar entries', 
   await expect(page.getByTestId('embeds-map-view-map')).toHaveCount(0);
   await expect(page.getByTestId('embeds-results-view-calendar-item')).toHaveCount(0);
   await expect(page.locator('.calendar-time-column, .calendar-items')).toHaveCount(0);
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('unresolved fullscreen identity never renders a generic orb banner', async ({ page }) => {
+  const props = { data: { embedType: 'app-skill-use' }, failed: false };
+  await page.goto(`/dev/preview/embeds/EmbedFullscreenLoading?chrome=0&props=${encodeURIComponent(JSON.stringify(props))}`);
+  const frame = page.getByTestId('embed-fullscreen-loading');
+  await expect(frame).toBeVisible();
+  await expect(frame.locator('.embed-header, .orb')).toHaveCount(0);
+  await expect(frame.getByTestId('embed-minimize')).toBeVisible();
+});
+
+// contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+test('inline links forward their badge identity and mount into the already-open pane', async ({ page }) => {
+  await page.goto('/#chat-id=example-ai-workshops-meetups-berlin');
+  const link = page.getByRole('link', { name: 'Event Details & RSVP', exact: true }).first();
+  await expect(link).toBeVisible();
+  const identity = page.evaluate(() => new Promise<{ appId?: string; title?: string }>((resolve) => {
+    document.addEventListener('embedfullscreen', (event) => {
+      const detail = (event as CustomEvent).detail;
+      resolve({ appId: detail.attrs?.appId, title: detail.attrs?.title });
+    }, { once: true });
+  }));
+  await link.click();
+  expect((await identity).appId).toBe('events');
+  const pane = page.getByTestId('embed-fullscreen-container');
+  const viewer = pane.locator('.unified-embed-fullscreen-overlay.host-presented').first();
+  await expect(viewer).toBeVisible();
+  await expect(viewer).toHaveCSS('transform', 'none');
+  await expect(viewer).toHaveCSS('transition-duration', '0s');
+  await expect(viewer.locator('.orb')).toHaveCount(0);
 });

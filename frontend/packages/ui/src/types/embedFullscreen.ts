@@ -46,5 +46,7 @@ export interface EmbedChatContext {
 	readonly isSplitPane?: boolean;
 	/** Parent already resolved this embed before mounting its fullscreen. */
 	readonly resolvedEmbedId?: string | null;
+	/** This exact viewer replaces an already-visible host frame; skip its entrance. */
+	readonly presentedEmbedId?: string | null;
 	onShowChat: () => void;
 }
