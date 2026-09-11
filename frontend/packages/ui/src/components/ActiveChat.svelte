@@ -1763,6 +1763,15 @@
             (embedFullscreenData?.focusSheetRange ?? null) === (focusSheetRange ?? null) &&
             JSON.stringify(embedFullscreenData?.focusLineRange ?? null) === JSON.stringify(focusLineRange ?? null)) return;
 
+        // Svelte reverses an unfinished outro by reusing its element. Restore
+        // normal layout and hit testing before that retained pane opens again.
+        if (fullscreenPanelEl?.dataset.workspaceExit === 'true') {
+            delete fullscreenPanelEl.dataset.workspaceExit;
+            for (const property of ['position', 'left', 'top', 'width', 'height', 'pointer-events']) {
+                fullscreenPanelEl.style.removeProperty(property);
+            }
+        }
+
         embedFullscreenData = {
             embedId, embedData, decodedContent, embedType, attrs,
             focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange,

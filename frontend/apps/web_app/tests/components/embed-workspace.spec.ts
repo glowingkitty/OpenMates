@@ -76,3 +76,31 @@ test('warm pane movement preserves the chat and does not resize it on every fram
   await expect(panel).toHaveCount(0);
   await originalChat!.dispose();
 });
+
+// contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
+test('reopening during the exit restores an interactive pane', async ({ page }) => {
+  await openSearch(page);
+  const panel = page.getByTestId('embed-fullscreen-container');
+  await expect(panel.getByTestId('search-template-grid')).toBeVisible();
+  await page.waitForTimeout(300);
+  await panel.getByTestId('embed-minimize').evaluate(async (button: HTMLElement) => {
+    button.click();
+    // Reopen after the close has flushed, while its 200 ms outro still owns
+    // the retained element. This exercises Svelte's interrupted-outro reuse.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    document.dispatchEvent(new CustomEvent('embedfullscreen', { detail: {
+      embedType: 'app-skill-use', hasChatContext: true,
+      embedData: { status: 'finished' },
+      decodedContent: {
+        app_id: 'web', skill_id: 'search', query: 'Reopened workspace fixture',
+        results: [{ title: 'Reopened result', url: 'https://example.com', description: 'Fictional search result.' }]
+      }
+    }}));
+  });
+  await expect(panel).toHaveCount(1);
+  await expect(panel).toHaveCSS('pointer-events', 'auto');
+  await expect(panel).toHaveCSS('position', 'relative');
+  await expect(panel.getByTestId('search-template-grid')).toContainText('Reopened result');
+  await panel.getByTestId('embed-minimize').click();
+  await expect(panel).toHaveCount(0);
+});
