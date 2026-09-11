@@ -5,6 +5,37 @@
 import Foundation
 import OSLog
 
+// Shared immutable-format timestamp codec. Sorting hundreds of chat rows can
+// call these accessors thousands of times per redraw; never construct ICU date
+// formatters inside a sort comparator. The bounded cache contains dates only.
+private final class ChatDateCodec: @unchecked Sendable {
+    static let shared = ChatDateCodec()
+    private let lock = NSLock()
+    private let plain = ISO8601DateFormatter()
+    private let fractional = ISO8601DateFormatter()
+    private let dates = NSCache<NSString, NSDate>()
+
+    private init() {
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        dates.countLimit = 4096
+    }
+
+    func parse(_ value: String) -> Date? {
+        if let cached = dates.object(forKey: value as NSString) { return cached as Date }
+        lock.lock()
+        defer { lock.unlock() }
+        guard let parsed = fractional.date(from: value) ?? plain.date(from: value) else { return nil }
+        dates.setObject(parsed as NSDate, forKey: value as NSString)
+        return parsed
+    }
+
+    func string(from date: Date) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return plain.string(from: date)
+    }
+}
+
 enum NativeSyncPerfLog {
     static let logger = Logger(subsystem: "org.openmates.app", category: "NativeSyncPerf")
     static let verboseCrypto = false
@@ -154,7 +185,7 @@ struct Chat: Identifiable, Decodable, Sendable {
             ?? Self.decodeFlexibleDateString(container, .updatedAt)
         createdAt = Self.decodeFlexibleDateString(container, .createdAt)
             ?? Self.decodeFlexibleDateString(container, .updatedAt)
-            ?? ISO8601DateFormatter().string(from: Date())
+            ?? ChatDateCodec.shared.string(from: Date())
         updatedAt = Self.decodeFlexibleDateString(container, .updatedAt)
         isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived)
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned)
@@ -203,10 +234,10 @@ struct Chat: Identifiable, Decodable, Sendable {
             return value
         }
         if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
-            return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: TimeInterval(value)))
+            return ChatDateCodec.shared.string(from: Date(timeIntervalSince1970: TimeInterval(value)))
         }
         if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
-            return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: value))
+            return ChatDateCodec.shared.string(from: Date(timeIntervalSince1970: value))
         }
         return nil
     }
@@ -295,12 +326,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     }
 
     private static func parseDate(_ value: String) -> Date? {
-        let fractionalFormatter = ISO8601DateFormatter()
-        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = fractionalFormatter.date(from: value) {
-            return date
-        }
-        return ISO8601DateFormatter().date(from: value)
+        ChatDateCodec.shared.parse(value)
     }
 }
 
@@ -542,10 +568,10 @@ struct Message: Identifiable, Decodable, Sendable {
             return value
         }
         if let value = try? container.decodeIfPresent(Int.self, forKey: key) {
-            return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: TimeInterval(value)))
+            return ChatDateCodec.shared.string(from: Date(timeIntervalSince1970: TimeInterval(value)))
         }
         if let value = try? container.decodeIfPresent(Double.self, forKey: key) {
-            return ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: value))
+            return ChatDateCodec.shared.string(from: Date(timeIntervalSince1970: value))
         }
         return nil
     }

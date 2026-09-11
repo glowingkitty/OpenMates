@@ -11,6 +11,22 @@ import XCTest
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testInlineMarkdownMakesProgressPastLiteralAndMalformedDelimiters() {
+        let cases = [
+            ("[literal] then [source](embed:source)", "[literal] then source"),
+            ("An unmatched ` marker and [source](embed:source)", "An unmatched ` marker and source"),
+            ("![alt](https://example.com/image.png) and [source](embed:source)", "![alt](https://example.com/image.png) and source"),
+            ("[ [ [", "[ [ ["),
+            ("Unicode 🪐 [plain] and `unfinished", "Unicode 🪐 [plain] and `unfinished")
+        ]
+        for (source, expected) in cases {
+            XCTAssertEqual(InlineMarkdownTokenizer.parse(source).map(\.searchText).joined(), expected)
+        }
+        XCTAssertTrue(InlineMarkdownTokenizer.parse(cases[0].0).contains(
+            .embed(displayText: "source", embedRef: "source", isBold: false)))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testImportedProviderMetadataDecryptsIntoRenderIdentity() async throws {
         let chatId = "chat-imported-provider"

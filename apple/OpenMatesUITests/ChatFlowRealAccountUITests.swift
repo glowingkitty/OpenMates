@@ -18,6 +18,73 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
+    func testExistingEncryptedChatsRestoreUserMessagesAndEmbedPreviews() throws {
+        guard let configured = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_EMBED_CHAT_IDS") else {
+            throw XCTSkip("Configure existing test-account chats containing user messages and embeds")
+        }
+        guard let queries = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_EMBED_CHAT_QUERIES")?.split(separator: "|").map(String.init),
+              queries.count == configured.split(separator: ",").count else {
+            throw XCTSkip("Configure matching chat search titles for the existing embed fixtures")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let reuseAuthentication = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_REUSE_AUTH") == "1"
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: !reuseAuthentication,
+            extraArguments: (reuseAuthentication ? [] : ["--ui-test-open-login"]) + ["--ui-test-start-new-chat", "--ui-test-expose-chat-ids"])
+        if !reuseAuthentication {
+            RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        }
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 35))
+        for (index, chatId) in configured.split(separator: ",").map(String.init).enumerated() {
+            openChatsPanel(in: app, allowingSearch: true)
+            // SwiftUI can propagate the panel identifier over its header
+            // buttons on iOS; retain the actual Search accessibility label.
+            let searchButton = app.buttons.matching(NSPredicate(
+                format: "identifier == %@ OR label == %@", "search-button", "Search"
+            )).firstMatch
+            let existingSearch = app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch
+            if !existingSearch.exists {
+                XCTAssertTrue(searchButton.waitForExistence(timeout: 10))
+                searchButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            let search = app.textFields.matching(NSPredicate(
+                format: "identifier == %@ OR placeholderValue == %@", "search-input", "Search"
+            )).firstMatch
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            if index > 0, let value = search.value as? String, !value.isEmpty {
+                search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+            }
+            search.typeText(queries[index])
+            let result = app.buttons.matching(identifier: "search-chat-item").firstMatch
+            XCTAssertTrue(result.waitForExistence(timeout: 45), "Configured conversation must be searchable")
+            let start = Date()
+            result.tap()
+            XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-view-\(chatId)").firstMatch.waitForExistence(timeout: 20))
+            let user = app.descendants(matching: .any).matching(identifier: "message-user").firstMatch
+            let assistant = app.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch
+            XCTAssertTrue(assistant.waitForExistence(timeout: 20), "Existing assistant message must remain visible")
+            let scrollToTop = app.buttons["scroll-to-top-button"]
+            if scrollToTop.exists { scrollToTop.tap() }
+            XCTAssertTrue(user.waitForExistence(timeout: 20), "Existing user message must remain visible")
+            let elapsed = Date().timeIntervalSince(start)
+            let timing = XCTAttachment(string: "existing-chat-visible-seconds=\(elapsed)")
+            timing.lifetime = .keepAlways
+            add(timing)
+            let preview = app.buttons.matching(identifier: "embed-preview").firstMatch
+            XCTAssertTrue(preview.waitForExistence(timeout: 20), "Hydrated embed preview must be available")
+            preview.tap()
+            let minimize = app.buttons["embed-minimize"]
+            XCTAssertTrue(minimize.waitForExistence(timeout: 10), "Embed preview must open its fullscreen content")
+            let screenshot = XCTAttachment(screenshot: app.screenshot())
+            screenshot.name = "Existing conversation embed content"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+            minimize.tap()
+        }
+    }
+
     // contract-test: direct surface=gui.apple assertions=auth.login.method-convergence,chats.persistence.client-encrypted
     func testPasswordOtpLoginCreatesChatAndReceivesAssistantResponse() throws {
         let markerPrompt = "Reply with one short sentence: Hello from Osaka."
@@ -297,7 +364,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         add(attachment)
     }
 
-    private func openChatsPanel(in app: XCUIApplication) {
+    private func openChatsPanel(in app: XCUIApplication, allowingSearch: Bool = false) {
         // Wait for the actual panel after tapping: during a cold relaunch the
         // startup overlay can still cover the header when sync first completes.
         let toggle = app.buttons["sidebar-toggle"]
@@ -308,6 +375,7 @@ final class ChatFlowRealAccountUITests: XCTestCase {
             toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
             if chatRows(in: app).firstMatch.waitForExistence(timeout: 3) { break }
         }
+        if allowingSearch && app.textFields.matching(NSPredicate(format: "placeholderValue == %@", "Search")).firstMatch.exists { return }
         XCTAssertTrue(chatRows(in: app).firstMatch.waitForExistence(timeout: 15),
                       "Chat history did not expose account rows after opening")
     }

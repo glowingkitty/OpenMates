@@ -1740,7 +1740,8 @@ struct MainAppView: View {
                     activeChatId: selectedChatId,
                     chatStore: chatStore,
                     onSelectResult: handleSearchSelection,
-                    onClose: closeSearch
+                    onClose: closeSearch,
+                    prepareSearchMetadata: prepareSearchMetadata
                 )
             } else {
                 chatPanelTopButtons
@@ -2590,44 +2591,85 @@ struct MainAppView: View {
     }
 
     private func loadMoreChats() {
+        Task { await loadMoreChatMetadata() }
+    }
+
+    private func loadMoreChatMetadata() async {
         guard !isLoadingMore, !serverChatPagesExhausted, isAuthenticated else { return }
         isLoadingMore = true
         let generation = chatPageGeneration
-        Task {
-            defer {
-                if generation == chatPageGeneration { isLoadingMore = false }
+        defer {
+            if generation == chatPageGeneration { isLoadingMore = false }
+        }
+        do {
+            // Startup is a delta (and can include older drafts), not a page.
+            // Walk overlapping metadata pages until an unseen chat is found.
+            var foundNewChat = false
+            repeat {
+                let offset = nextServerChatOffset
+                let response = try await wsManager.sendAndWait(
+                    WSOutboundMessage(type: "load_more_chats", payload: ["offset": offset, "limit": 50, "context_epoch": 0]),
+                    responseType: "load_more_chats_response",
+                    matching: { ($0["offset"] as? Int) == offset }
+                )
+                guard !Task.isCancelled, generation == chatPageGeneration, isAuthenticated else { return }
+                let data = try JSONSerialization.data(withJSONObject: response.fields)
+                let page = try syncDecoder.decode(ChatMetadataPage.self, from: data)
+                guard page.error == nil else {
+                    ToastManager.shared.show(LocalizationManager.shared.text("login.cant_connect_to_server"), type: .error)
+                    return
+                }
+                let items = page.chats ?? []
+                let existingIds = Set(chatStore.chats.map(\.id))
+                foundNewChat = items.compactMap(\.chatDetails).contains { !existingIds.contains($0.id) }
+                nextServerChatOffset = page.offset + items.count
+                serverChatPagesExhausted = page.hasMore == false || items.isEmpty
+                totalChatCount = page.totalCount ?? totalChatCount
+                await upsertSyncedChats(items.compactMap(\.chatDetails), metadataDecryption: .visibleOnly,
+                                        serverSortOffset: page.offset)
+                if page.hasMore != true || items.isEmpty { break }
+            } while !foundNewChat && generation == chatPageGeneration
+        } catch {
+            print("[MainApp] Failed to load more chats: \(error)")
+        }
+    }
+
+    /// Search includes older scoped cached titles, independently of the sidebar's
+    /// display cap. Reuse the existing metadata cursor only when disk is incomplete;
+    /// neither this path nor search hydration requests message content.
+    private func prepareSearchMetadata() async {
+        guard isAuthenticated else { return }
+        let scope = OfflineStore.shared.scopeGeneration
+        let account = authManager.currentUser?.id
+        func isCurrent() -> Bool {
+            !Task.isCancelled && isAuthenticated && showSearch &&
+                scope == OfflineStore.shared.scopeGeneration && account == authManager.currentUser?.id
+        }
+        guard isCurrent() else { return }
+        let cached = OfflineStore.shared.loadChats().filter { isVisibleUserChat($0) }
+        let missing = ChatSearchMetadata.missingCachedChats(cached, loaded: chatStore.chats)
+        chatStore.performWithoutPersistence {
+            chatStore.upsertChats(missing)
+        }
+        while isCurrent() {
+            let encrypted = chatStore.chats.filter {
+                isVisibleUserChat($0) && $0.title == nil && $0.encryptedTitle != nil
             }
-            do {
-                // Startup is a delta (and can include older drafts), not a page.
-                // Walk overlapping metadata pages until an unseen chat is found.
-                var foundNewChat = false
-                repeat {
-                    let offset = nextServerChatOffset
-                    let response = try await wsManager.sendAndWait(
-                        WSOutboundMessage(type: "load_more_chats", payload: ["offset": offset, "limit": 50, "context_epoch": 0]),
-                        responseType: "load_more_chats_response",
-                        matching: { ($0["offset"] as? Int) == offset }
-                    )
-                    guard generation == chatPageGeneration, isAuthenticated else { return }
-                    let data = try JSONSerialization.data(withJSONObject: response.fields)
-                    let page = try syncDecoder.decode(ChatMetadataPage.self, from: data)
-                    guard page.error == nil else {
-                        ToastManager.shared.show(LocalizationManager.shared.text("login.cant_connect_to_server"), type: .error)
-                        return
-                    }
-                    let items = page.chats ?? []
-                    let existingIds = Set(chatStore.chats.map(\.id))
-                    foundNewChat = items.compactMap(\.chatDetails).contains { !existingIds.contains($0.id) }
-                    nextServerChatOffset = page.offset + items.count
-                    serverChatPagesExhausted = page.hasMore == false || items.isEmpty
-                    totalChatCount = page.totalCount ?? totalChatCount
-                    await upsertSyncedChats(items.compactMap(\.chatDetails), metadataDecryption: .visibleOnly,
-                                            serverSortOffset: page.offset)
-                    if page.hasMore != true || items.isEmpty { break }
-                } while !foundNewChat && generation == chatPageGeneration
-            } catch {
-                print("[MainApp] Failed to load more chats: \(error)")
+            for start in stride(from: 0, to: encrypted.count, by: 25) {
+                guard isCurrent() else { return }
+                await decryptAndUpsertChatMetadata(Array(encrypted[start..<min(start + 25, encrypted.count)]), reason: "searchMetadata")
             }
+            guard isCurrent(), !serverChatPagesExhausted,
+                  totalChatCount > chatStore.chats.filter({ publicChatGroup(for: $0.id) == nil }).count else { return }
+            // A sidebar request already in flight owns the same cursor. Wait for
+            // it without starting another request with an ambiguous response ID.
+            if isLoadingMore {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                continue
+            }
+            let previousOffset = nextServerChatOffset
+            await loadMoreChatMetadata()
+            guard isCurrent(), nextServerChatOffset != previousOffset else { return }
         }
     }
 
@@ -3697,6 +3739,12 @@ struct MainAppView: View {
            lastOpened != "/chat/new" {
             ids.insert(lastOpened)
         }
+        // The welcome carousel sorts independently from the sidebar (drafts
+        // first there). Its visible cards also need their encrypted metadata.
+        let resume = WelcomeScreenState.resumeChat(from: chatStore.chats, lastOpened: authManager.currentUser?.lastOpened)
+        if let resume { ids.insert(resume.id) }
+        WelcomeScreenState.recentChats(from: chatStore.chats, excluding: resume?.id)
+            .forEach { ids.insert($0.id) }
         filteredPinnedChats.forEach { ids.insert($0.id) }
         visibleFilteredUnpinnedChats.forEach { ids.insert($0.id) }
         return ids
@@ -4835,6 +4883,8 @@ struct WelcomeChatCardData: Identifiable, Equatable {
     let category: String
     let iconName: String
     let isPinned: Bool
+    var draftPreview: String? = nil
+    var isDraftOnly: Bool = false
 }
 
 @MainActor
@@ -4860,42 +4910,58 @@ enum WelcomeScreenState {
         chatId.hasPrefix("announcements-")
     }
 
-    static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
-        guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new", !isPublicChat(lastOpened) else {
-            return nil
-        }
-        return chats.first {
-            $0.id == lastOpened &&
-            $0.isArchived != true &&
-            !$0.isHiddenFromNormalSurfaces
-        }
+    // Web: ActiveChat.loadRecentChats + chatSortUtils.sortChats, called without
+    // sidebar server ordering. Keep the existing hidden/archive privacy boundary.
+    // Reminder/saved-embed priority items are not yet implemented on Apple.
+    static func isContinuationEligible(_ chat: Chat) -> Bool {
+        chat.isArchived != true && !chat.isHiddenFromNormalSurfaces &&
+        !isPublicChat(chat.id) && !IncognitoChatSession.isIncognitoChatId(chat.id) &&
+        chat.parentId == nil && chat.isSubChat != true
     }
 
-    static func recentChats(from chats: [Chat], excluding resumeChatId: String?) -> [Chat] {
+    static func isDraftOnly(_ chat: Chat) -> Bool {
+        let hasDraft = (chat.draftV ?? 0) > 0
+        let hasMetadata = [chat.title, chat.encryptedTitle, chat.category, chat.encryptedCategory,
+                           chat.icon, chat.encryptedIcon, chat.chatSummary, chat.encryptedChatSummary]
+            .contains { $0?.isEmpty == false }
+        return hasDraft && (chat.messagesV ?? 0) == 0 && (chat.titleV ?? 0) == 0 && !hasMetadata
+    }
+
+    static func resumeChat(from chats: [Chat], lastOpened: String?) -> Chat? {
+        guard let lastOpened, !lastOpened.isEmpty, lastOpened != "/chat/new" else { return nil }
+        return chats.first { $0.id == lastOpened && isContinuationEligible($0) && !isDraftOnly($0) }
+    }
+
+    static func recentChats(from chats: [Chat], excluding resumeChatId: String?, activeChatId: String? = nil) -> [Chat] {
         chats
-            .filter { chat in
-                chat.isArchived != true &&
-                chat.id != resumeChatId &&
-                !chat.isHiddenFromNormalSurfaces &&
-                !isPublicChat(chat.id)
-            }
+            .filter { isContinuationEligible($0) && $0.id != resumeChatId && $0.id != activeChatId }
             .sorted { lhs, rhs in
-                (lhs.lastMessageAt ?? lhs.updatedAt ?? lhs.createdAt) >
-                (rhs.lastMessageAt ?? rhs.updatedAt ?? rhs.createdAt)
+                if (lhs.isPinned == true) != (rhs.isPinned == true) { return lhs.isPinned == true }
+                // Native DraftSyncCoordinator sets draftV to zero on deletion;
+                // positive versions represent a persisted encrypted draft here.
+                if ((lhs.draftV ?? 0) > 0) != ((rhs.draftV ?? 0) > 0) { return (lhs.draftV ?? 0) > 0 }
+                let lhsTime = lhs.lastMessageDate ?? .distantPast
+                let rhsTime = rhs.lastMessageDate ?? .distantPast
+                if lhsTime != rhsTime { return lhsTime > rhsTime }
+                return (lhs.updatedDate ?? .distantPast) > (rhs.updatedDate ?? .distantPast)
             }
             .prefix(recentChatLimit - (resumeChatId == nil ? 0 : 1))
             .map { $0 }
     }
 
-    static func cardData(for chat: Chat) -> WelcomeChatCardData {
+    static func cardData(for chat: Chat, draftPreview: String? = nil) -> WelcomeChatCardData {
         let category = chat.category ?? category(for: chat)
+        let preview = draftPreview?.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let draftOnly = isDraftOnly(chat)
         return WelcomeChatCardData(
             id: chat.id,
-            title: chat.displayTitle,
+            title: draftOnly ? AppStrings.draftBadge : chat.displayTitle,
             summary: chat.chatSummary ?? summary(for: chat.id),
             category: category,
             iconName: chat.icon ?? cardIconName(for: chat),
-            isPinned: chat.isPinned == true && !isPublicChat(chat.id)
+            isPinned: chat.isPinned == true && !isPublicChat(chat.id),
+            draftPreview: preview.map { $0.count > 80 ? String($0.prefix(80)) + "…" : $0 },
+            isDraftOnly: draftOnly
         )
     }
 
@@ -5022,6 +5088,7 @@ struct NewChatWelcomeView: View {
     let onInspirationViewed: (String) -> Void
     let onOpenAuth: () -> Void
     var canSendAnonymously = false
+    @ObservedObject private var welcomeDraftService = DraftService.shared
     @StateObject private var composerSession = NativeComposerSession()
     @State private var suggestions: [NewChatSuggestionsView.ChatSuggestion] = []
     @State private var hiddenSuggestionIds = Set<String>()
@@ -5180,11 +5247,11 @@ struct NewChatWelcomeView: View {
     private var recentChatCards: [WelcomeChatCardData] {
         var cards: [WelcomeChatCardData] = []
         if let resumeChat {
-            cards.append(WelcomeScreenState.cardData(for: resumeChat))
+            cards.append(WelcomeScreenState.cardData(for: resumeChat, draftPreview: welcomeDraftService.draftPreview(chatId: resumeChat.id)))
         }
         cards.append(contentsOf: WelcomeScreenState
             .recentChats(from: chats, excluding: resumeChat?.id)
-            .map { WelcomeScreenState.cardData(for: $0) })
+            .map { WelcomeScreenState.cardData(for: $0, draftPreview: welcomeDraftService.draftPreview(chatId: $0.id)) })
         return cards
     }
 
@@ -5955,7 +6022,13 @@ struct NewChatWelcomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: .spacing8) {
                     ForEach(shownChatCards) { card in
-                        if usesLargeCards {
+                        if card.isDraftOnly {
+                            WelcomeDraftCard(card: card, width: cardWidth) {
+                                onOpenChat(card.id)
+                            } onLongPress: {
+                                onShowChatActions(card.id)
+                            }
+                        } else if usesLargeCards {
                             WelcomeResumeCard(card: card, width: cardWidth, height: 200) {
                                 onOpenChat(card.id)
                             } onLongPress: {
@@ -6859,6 +6932,36 @@ private struct InterestTagChip: View {
         .accessibilityIdentifier("interest-tag-\(tag.rawValue)")
         .help(Text(tag.label))
         .accessibilityLabel(tag.label)
+    }
+}
+
+// Web ActiveChat.svelte .resume-chat-draft-card: neutral label + preview,
+// always compact even in the large continuation carousel; no category gradient.
+private struct WelcomeDraftCard: View {
+    let card: WelcomeChatCardData
+    let width: CGFloat
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: .spacing1) {
+            Text(AppStrings.draftBadge).font(.omP).foregroundStyle(Color.grey60)
+            Text(card.draftPreview ?? "").font(.omP).fontWeight(.medium)
+                .foregroundStyle(Color.fontPrimary).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, .spacing8).padding(.vertical, .spacing5)
+        .frame(width: width, alignment: .leading)
+        .background(Color.grey10)
+        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+        .contentShape(RoundedRectangle(cornerRadius: .radius8))
+        .onLongPressGesture(minimumDuration: 0.6, perform: onLongPress)
+        .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier("welcome-draft-card-\(card.id)")
+        .accessibilityLabel([AppStrings.draftBadge, card.draftPreview ?? ""].joined(separator: ": "))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: Text(AppStrings.openChat), onTap)
     }
 }
 

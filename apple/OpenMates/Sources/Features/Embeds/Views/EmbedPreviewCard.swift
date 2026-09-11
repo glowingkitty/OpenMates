@@ -93,6 +93,7 @@ struct EmbedPreviewCard: View {
             } else {
                 Button(action: onTap) {
                     cardSurface
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(EmbedPreviewButtonStyle())
                 .disabled(embed.status == .processing)

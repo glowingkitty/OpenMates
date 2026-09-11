@@ -9,6 +9,29 @@ import CoreFoundation
 
 @MainActor
 final class ChatSyncParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity
+    func testSearchMetadataExpansionIncludesOlderEncryptedTitlesWithoutReplacingLiveRows() {
+        let live = makeChat(id: "loaded", title: "Current decrypted title")
+        let cachedOld = makeChat(id: "older", title: nil, encryptedTitle: "encrypted-title-fixture")
+        let stale = makeChat(id: "loaded", title: "Old cached title")
+        let privateChat = makeChat(id: "incognito-private", title: "Private")
+        let missing = ChatSearchMetadata.missingCachedChats([stale, cachedOld, cachedOld, privateChat], loaded: [live])
+        XCTAssertEqual(missing.map(\.id), ["older"])
+        XCTAssertEqual(missing.first?.encryptedTitle, "encrypted-title-fixture")
+        XCTAssertNil(missing.first?.title)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testChatSortDatesPreserveFractionsAndTimeZonesAcrossRepeatedReads() throws {
+        let precise = makeChat(id: "fractional", title: "Fixture", lastMessageAt: "2026-03-01T12:00:00.125Z")
+        let offset = makeChat(id: "offset", title: "Fixture", lastMessageAt: "2026-03-01T13:00:00+01:00")
+        let invalid = makeChat(id: "invalid", title: "Fixture", lastMessageAt: "not-a-date")
+        let timestamp = try XCTUnwrap(precise.lastMessageDate)
+        XCTAssertEqual(timestamp.timeIntervalSince(try XCTUnwrap(offset.lastMessageDate)), 0.125, accuracy: 0.001)
+        for _ in 0..<1000 { XCTAssertEqual(precise.lastMessageDate, timestamp) }
+        XCTAssertNil(invalid.lastMessageDate)
+    }
+
     // contract-test: direct surface=gui.apple assertions=sync.surface.semantic-parity
     func testPersonalStartupSyncSendsRequiredIntegerContextEpoch() throws {
         let request = WebSocketManager.phasedSyncMessage(clientChatIds: ["known-chat"])
@@ -165,6 +188,34 @@ final class ChatSyncParityTests: XCTestCase {
         XCTAssertEqual(recent.map(\.id), ["visible-chat"])
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent
+    func testContinuationMatchesPinnedDraftRecentOrderAndSkipsSubChats() {
+        let recent = makeChat(id: "recent", title: "Recent", lastMessageAt: "2026-03-01T00:00:00Z")
+        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 2)
+        let pinned = makeChat(id: "pinned", title: "Pinned", isPinned: true)
+        let child = makeChat(id: "child", title: "Child", parentId: "recent", isSubChat: true)
+        let incognito = makeChat(id: "incognito-private", title: "Private")
+        let chats = [recent, child, incognito, draft, pinned]
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: chats, excluding: nil).map(\.id), ["pinned", "draft", "recent"])
+        XCTAssertNil(WelcomeScreenState.resumeChat(from: chats, lastOpened: "draft"))
+        XCTAssertNil(WelcomeScreenState.resumeChat(from: chats, lastOpened: "child"))
+        XCTAssertEqual(WelcomeScreenState.resumeChat(from: chats, lastOpened: "recent")?.id, "recent")
+        XCTAssertEqual(WelcomeScreenState.recentChats(from: chats, excluding: "recent").map(\.id), ["pinned", "draft"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,drafts.persistence.local-first-encrypted
+    func testContinuationDraftCardUsesPreviewWithoutMisclassifyingUntitledMessages() {
+        let draft = makeChat(id: "draft", title: nil, messagesV: 0, draftV: 1)
+        let existing = makeChat(id: "existing", title: nil, messagesV: 2, draftV: 1)
+        let preview = String(repeating: "a", count: 90)
+        let card = WelcomeScreenState.cardData(for: draft, draftPreview: preview)
+        XCTAssertTrue(card.isDraftOnly)
+        XCTAssertEqual(card.title, AppStrings.draftBadge)
+        XCTAssertEqual(card.draftPreview, String(repeating: "a", count: 80) + "…")
+        XCTAssertFalse(WelcomeScreenState.cardData(for: existing, draftPreview: "Unsent follow-up").isDraftOnly)
+        XCTAssertEqual(WelcomeScreenState.resumeChat(from: [existing], lastOpened: "existing")?.id, "existing")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.local-state.precedence
     func testSpotlightEligibilitySkipsHiddenPublicAndArchivedChats() {
         let privateVisible = makeChat(id: "private-visible", title: "Private but searchable")
@@ -301,7 +352,10 @@ final class ChatSyncParityTests: XCTestCase {
         lastMessageAt: String = "2026-01-01T00:00:00Z",
         isArchived: Bool = false,
         isHidden: Bool? = nil,
-        isHiddenCandidate: Bool? = nil
+        isHiddenCandidate: Bool? = nil,
+        isPinned: Bool = false,
+        draftV: Int? = nil,
+        encryptedTitle: String? = nil
     ) -> Chat {
         Chat(
             id: id,
@@ -310,12 +364,13 @@ final class ChatSyncParityTests: XCTestCase {
             createdAt: "2026-01-01T00:00:00Z",
             updatedAt: "2026-01-01T00:00:00Z",
             isArchived: isArchived,
-            isPinned: false,
+            isPinned: isPinned,
             appId: "ai",
-            encryptedTitle: nil,
+            encryptedTitle: encryptedTitle,
             encryptedChatKey: nil,
             messagesV: messagesV,
             titleV: title == nil ? 0 : 1,
+            draftV: draftV,
             metadataV: metadataV,
             parentId: parentId,
             isSubChat: isSubChat,

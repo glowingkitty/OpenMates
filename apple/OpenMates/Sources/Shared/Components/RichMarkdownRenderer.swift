@@ -1589,7 +1589,7 @@ struct InlineMarkdownText: View {
     }
 }
 
-private enum InlineMarkdownToken: Equatable {
+enum InlineMarkdownToken: Equatable {
     case text(String, isBold: Bool)
     case inlineCode(String)
     case wiki(displayText: String, wikiTitle: String, isBold: Bool)
@@ -1608,7 +1608,7 @@ private enum InlineMarkdownToken: Equatable {
     }
 }
 
-private enum InlineMarkdownTokenizer {
+enum InlineMarkdownTokenizer {
     static func parse(_ source: String) -> [InlineMarkdownToken] {
         var tokens: [InlineMarkdownToken] = []
         var index = source.startIndex
@@ -1654,7 +1654,10 @@ private enum InlineMarkdownTokenizer {
                 continue
             }
 
-            let nextSpecial = nextSpecialIndex(in: source, from: index) ?? source.endIndex
+            // An unrecognised '[' or unmatched backtick is literal text.
+            // Starting the fallback scan at the same character would return
+            // that index again forever and hang the UI thread on stored chats.
+            let nextSpecial = nextSpecialIndex(in: source, from: source.index(after: index)) ?? source.endIndex
             appendText(String(source[index..<nextSpecial]), isBold: isBold, to: &tokens)
             index = nextSpecial
         }

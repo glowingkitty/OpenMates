@@ -421,6 +421,10 @@ struct RealAccountTestCredentials {
         return RealAccountTestCredentials(email: email, password: password, otpKey: otpKey)
     }
 
+    static func configurationValue(for key: String) -> String? {
+        ProcessInfo.processInfo.environment[key] ?? readCredentialFile()[key]
+    }
+
     private static func readCredentialFile() -> [String: String] {
         let sourceFileURL = URL(fileURLWithPath: #filePath)
         let credentialFileURL = sourceFileURL

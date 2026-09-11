@@ -8,6 +8,18 @@
 import Foundation
 import SwiftUI
 
+/// Merge disk metadata without overwriting fresher live/decrypted rows. Privacy
+/// filtering remains mandatory before title decryption or search evaluation.
+enum ChatSearchMetadata {
+    static func missingCachedChats(_ cached: [Chat], loaded: [Chat]) -> [Chat] {
+        var seen = Set(loaded.map(\.id))
+        return cached.filter {
+            !$0.isHiddenFromNormalSurfaces && $0.parentId == nil && $0.isSubChat != true &&
+                !$0.id.hasPrefix("incognito-") && seen.insert($0.id).inserted
+        }
+    }
+}
+
 struct ChatSearchSelection: Equatable {
     let chatId: String
     let messageId: String?
@@ -20,11 +32,14 @@ struct ChatSearchView: View {
     let chatStore: ChatStore
     let onSelectResult: (ChatSearchSelection) -> Void
     let onClose: () -> Void
+    let prepareSearchMetadata: () async -> Void
 
     @State private var query = ""
     @State private var results = ChatSearchResults.empty
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
+    @State private var metadataTask: Task<Void, Never>?
+    @State private var originalContentChatIds: Set<String> = []
     @FocusState private var isFocused: Bool
 
     private let offlineStore = OfflineStore.shared
@@ -45,8 +60,22 @@ struct ChatSearchView: View {
             }
         }
         .background(Color.grey0)
-        .onAppear { isFocused = true }
-        .onDisappear { searchTask?.cancel() }
+        .onAppear {
+            isFocused = true
+            originalContentChatIds = Set(chats.map(\.id))
+            // Only scoped metadata is warmed; opening search never downloads
+            // message history. Re-evaluate the current query as titles arrive.
+            metadataTask = Task { @MainActor in
+                await prepareSearchMetadata()
+                guard !Task.isCancelled else { return }
+                scheduleSearch()
+            }
+        }
+        .onReceive(chatStore.$chats) { _ in scheduleSearch() }
+        .onDisappear {
+            searchTask?.cancel()
+            metadataTask?.cancel()
+        }
     }
 
     private var searchBar: some View {
@@ -260,9 +289,10 @@ struct ChatSearchView: View {
 
         results = ChatSearchEngine.search(
             query: trimmed,
-            chats: chats,
+            chats: chatStore.chats,
             chatStore: chatStore,
-            offlineStore: offlineStore
+            offlineStore: offlineStore,
+            offlineContentChatIds: originalContentChatIds
         )
         isSearching = false
     }
@@ -336,7 +366,8 @@ private enum ChatSearchEngine {
         query: String,
         chats: [Chat],
         chatStore: ChatStore,
-        offlineStore: OfflineStore
+        offlineStore: OfflineStore,
+        offlineContentChatIds: Set<String>
     ) -> ChatSearchResults {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return .empty }
@@ -344,7 +375,7 @@ private enum ChatSearchEngine {
         let results = chats
             .filter { !$0.isHiddenFromNormalSurfaces }
             .compactMap { chat -> ChatSearchResult? in
-                searchChat(chat, query: normalized, chatStore: chatStore, offlineStore: offlineStore)
+                searchChat(chat, query: normalized, chatStore: chatStore, offlineStore: offlineStore, allowOfflineContent: offlineContentChatIds.contains(chat.id))
             }
             .sorted { a, b in
                 if a.titleMatch != b.titleMatch { return a.titleMatch }
@@ -362,13 +393,16 @@ private enum ChatSearchEngine {
         _ chat: Chat,
         query: String,
         chatStore: ChatStore,
-        offlineStore: OfflineStore
+        offlineStore: OfflineStore,
+        allowOfflineContent: Bool
     ) -> ChatSearchResult? {
         let title = chat.displayTitle
         let titleMatch = title.range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) != nil
 
-        let messages = messages(for: chat, chatStore: chatStore, offlineStore: offlineStore)
-        let embeds = embeds(for: chat, chatStore: chatStore, offlineStore: offlineStore)
+        // Metadata expansion must not synchronously scan every older message
+        // archive. Keep existing content search for the initial loaded set only.
+        let messages = allowOfflineContent ? messages(for: chat, chatStore: chatStore, offlineStore: offlineStore) : chatStore.messages(for: chat.id)
+        let embeds = allowOfflineContent ? embeds(for: chat, chatStore: chatStore, offlineStore: offlineStore) : chatStore.embeds(for: chat.id)
         let snippets = messageSnippets(in: messages, embeds: embeds, query: query)
         let metadataSnippets = metadataSnippets(in: chat, query: query)
 

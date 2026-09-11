@@ -512,7 +512,15 @@ final class ChatViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 120_000_000)
             guard !Task.isCancelled, self.chat?.id == chatId, generation == self.loadGeneration else { return }
             let start = NativeSyncPerfLog.now()
-            let relatedSyncedEmbeds = self.relatedEmbeds(referencedIds: referencedIds, from: syncedEmbeds)
+            // Encrypted messages reveal embed references only after first paint.
+            // Re-read the scoped store now so its already-synced records are not
+            // lost by the initial lightweight (pre-decryption) selection.
+            let available = EmbedRecord.dictionaryById(
+                syncedEmbeds, context: "chatViewModel.hydrationSnapshot"
+            ).merging(EmbedRecord.dictionaryById(
+                self.chatStore?.embeds(for: chatId) ?? [], context: "chatViewModel.hydrationCache"
+            )) { _, cached in cached }
+            let relatedSyncedEmbeds = self.relatedEmbeds(referencedIds: referencedIds, from: Array(available.values))
             let decryptedSyncedEmbeds = await self.decryptEmbeds(
                 relatedSyncedEmbeds,
                 chatId: chatId,
@@ -733,6 +741,18 @@ final class ChatViewModel: ObservableObject {
 
         var decryptedEmbeds: [EmbedRecord] = []
         for embed in embeds {
+            // Metadata sync can republish the same ciphertext while a chat is
+            // open. Reuse its decoded payload instead of redoing crypto/parsing.
+            if let existing = existingRecords[embed.id], existing.rawData != nil,
+               embed.encryptedContent != nil,
+               existing.encryptedContent == embed.encryptedContent,
+               existing.encryptedType == embed.encryptedType,
+               existing.status == embed.status,
+               existing.versionNumber == embed.versionNumber {
+                decryptedEmbeds.append(existing)
+                allRecords[existing.id] = existing
+                continue
+            }
             guard embed.rawData == nil || embed.encryptedType != nil else {
                 decryptedEmbeds.append(embed)
                 continue
@@ -1727,36 +1747,35 @@ final class ChatViewModel: ObservableObject {
             return
         }
         do {
-            let data: Data = try await api.request(
-                .get, path: "/v1/chats/\(chatId)/embeds"
-            )
-            let response = try decodeChatEmbedsResponse(data)
-            guard chat?.id == chatId else { return }
-            EmbedKeyManager.shared.store(response.embedKeys, source: "chatEmbeds:\(chatId.prefix(8))")
-            let relatedEmbeds = relatedEmbeds(referencedIds: referencedEmbedIds, from: response.embeds)
+            // Personal encrypted embeds use the same scoped content-batch
+            // protocol as messages. There is no per-chat REST embeds endpoint.
+            guard let wsManager else { throw ChatContentHydrationError.websocketUnavailable }
+            let generation = loadGeneration
+            let scopeGeneration = OfflineStore.shared.scopeGeneration
+            let response = try await wsManager.requestChatContentBatch(chatId: chatId)
+            let batch = try ChatContentBatchPayload.decode(response.fields)
+            guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
+                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
+            EmbedKeyManager.shared.store(batch.embedKeys, source: "chatEmbedContentBatch")
+            OfflineStore.shared.persistEmbedKeys(batch.embedKeys)
+            let fetchedEmbeds = batch.embeds(for: chatId)
+            let relatedEmbeds = relatedEmbeds(referencedIds: referencedEmbedIds, from: fetchedEmbeds)
             let decrypted = await decryptEmbeds(relatedEmbeds, chatId: chatId, existingRecords: embedRecords)
+            guard !Task.isCancelled, chat?.id == chatId, generation == loadGeneration,
+                  scopeGeneration == OfflineStore.shared.scopeGeneration else { return }
             for embed in decrypted {
                 embedRecords[embed.id] = embed
             }
+            chatStore?.upsertEmbeds(fetchedEmbeds, for: chatId)
             EmbedMediaOfflineCache.prefetchEmbeds(decrypted)
             let childLinked = decrypted.filter { $0.parentEmbedId != nil || !$0.childEmbedIds.isEmpty }.count
             let rawCount = decrypted.filter { $0.rawData != nil }.count
             NativeSyncPerfLog.info(
-                "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(response.embeds.count) related=\(relatedEmbeds.count) keys=\(response.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
+                "phase=loadEmbedsFetched chat=\(chatId.prefix(8)) fetched=\(fetchedEmbeds.count) related=\(relatedEmbeds.count) keys=\(batch.embedKeys.count) linked=\(childLinked) decryptedRaw=\(rawCount) totalRecords=\(embedRecords.count)"
             )
         } catch {
             print("[Chat] Failed to load embeds: \(error)")
         }
-    }
-
-    private func decodeChatEmbedsResponse(_ data: Data) throws -> ChatEmbedsResponse {
-        let decoder = JSONDecoder()
-        decoder.keyDecodingStrategy = .convertFromSnakeCase
-        if let object = try? decoder.decode(ChatEmbedsResponse.self, from: data) {
-            return object
-        }
-        let embeds = try decoder.decode([EmbedRecord].self, from: data)
-        return ChatEmbedsResponse(embeds: embeds, embedKeys: [])
     }
 
     func embeds(for message: Message) -> [EmbedRecord] {
@@ -2554,21 +2573,6 @@ private struct TranscribeSkillResponse: Decodable {
     let data: ResponseData
 }
 
-private struct ChatEmbedsResponse: Decodable {
-    let embeds: [EmbedRecord]
-    let embedKeys: [EmbedKeyRecord]
-
-    init(embeds: [EmbedRecord], embedKeys: [EmbedKeyRecord]) {
-        self.embeds = embeds
-        self.embedKeys = embedKeys
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case embeds
-        case embedKeys
-    }
-}
-
 @MainActor
 enum PublicChatContent {
     struct PublicChat {
@@ -2818,6 +2822,8 @@ enum PublicChatContent {
                 records[record.id] = record
             }
 
+            let extractedIds = Set(extracted.refs.map(\.id))
+            let refs = extracted.refs + (original.embedRefs ?? []).filter { !extractedIds.contains($0.id) }
             return Message(
                 id: original.id,
                 chatId: original.chatId,
@@ -2828,8 +2834,17 @@ enum PublicChatContent {
                 updatedAt: original.updatedAt,
                 appId: original.appId,
                 isStreaming: original.isStreaming,
-                embedRefs: extracted.refs.isEmpty ? nil : extracted.refs,
-                modelName: original.modelName
+                embedRefs: refs.isEmpty ? nil : refs,
+                modelName: original.modelName,
+                senderName: original.senderName, category: original.category,
+                encryptedSenderName: original.encryptedSenderName,
+                encryptedCategory: original.encryptedCategory,
+                encryptedModelName: original.encryptedModelName,
+                piiMappings: original.piiMappings, encryptedPIIMappings: original.encryptedPIIMappings,
+                thinkingContent: original.thinkingContent,
+                encryptedThinkingContent: original.encryptedThinkingContent,
+                encryptedThinkingSignature: original.encryptedThinkingSignature,
+                thinkingTokenCount: original.thinkingTokenCount
             )
         }
         return (updatedMessages, records)
