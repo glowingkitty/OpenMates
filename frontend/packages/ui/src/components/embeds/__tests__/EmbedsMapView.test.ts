@@ -488,6 +488,43 @@ describe("EmbedsMapView", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
+  it("preserves calendar durations and times, including overlaps and overnight entries", async () => {
+    const records: Record<string, Record<string, unknown>> = {
+      morning: { title: "Morning workshop", date_start: "2026-09-12T10:00:00+02:00", date_end: "2026-09-12T12:00:00+02:00", venue: { name: "Studio" } },
+      overlap: { title: "Overlapping workshop", date_start: "2026-09-12T11:00:00+02:00", date_end: "2026-09-12T13:00:00+02:00" },
+      evening: { title: "Evening workshop", date_start: "2026-09-12T18:30:00+02:00", date_end: "2026-09-12T22:00:00+02:00" },
+      overnight: { title: "Overnight connection", departure: "2026-09-12T23:00:00+02:00", arrival: "2026-09-13T01:00:00+02:00" },
+    };
+    embedStoreMocks.resolveByRefDeep.mockImplementation(async (ref: string) => ref);
+    embedResolverMocks.resolveEmbed.mockImplementation(async (ref: string) => ({ embed_id: ref, type: 'events-event', status: 'finished', content: ref }));
+    embedResolverMocks.decodeToonContent.mockImplementation(async (ref: string) => records[ref]);
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'calendar-geometry', embedRefs: Object.keys(records) } });
+    await flush(target);
+    const items = Array.from(target.querySelectorAll<HTMLElement>('[data-testid="embeds-results-view-calendar-item"]'));
+    const morning = items.find((item) => item.textContent?.includes('Morning workshop'))!;
+    const overlap = items.find((item) => item.textContent?.includes('Overlapping workshop'))!;
+    const evening = items.find((item) => item.textContent?.includes('Evening workshop'))!;
+    expect(morning.style.getPropertyValue('--calendar-item-height-hours')).toBe('2');
+    expect(overlap.style.getPropertyValue('--calendar-item-top-hours')).toBe('11');
+    expect(morning.style.getPropertyValue('--calendar-item-columns')).toBe('2');
+    expect(overlap.style.getPropertyValue('--calendar-item-column')).toBe('1');
+    expect(evening.style.getPropertyValue('--calendar-item-height-hours')).toBe('3.5');
+    expect(evening.style.getPropertyValue('--calendar-item-columns')).toBe('1');
+    expect(morning.getAttribute('aria-label')).toBe('Morning workshop, 10:00 - 12:00, Studio');
+    expect(morning.textContent).not.toContain('08:00');
+    expect(target.querySelector('[data-testid="embeds-results-view-calendar-week-label"]')?.textContent).toContain('Week 37 2026');
+    expect(target.querySelector<HTMLElement>('.calendar-week')?.style.getPropertyValue('--calendar-timeline-hours')).toBe('24');
+    const overnight = items.filter((item) => item.textContent?.includes('Overnight connection'));
+    expect(overnight).toHaveLength(2);
+    expect(overnight.map((item) => item.style.getPropertyValue('--calendar-item-height-hours'))).toEqual(['1', '1']);
+    expect(overnight.map((item) => item.dataset.startMinutes)).toEqual(['1380', '0']);
+    unmount(component);
+    target.remove();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
   it("switches from the map state to the full weekly calendar state", async () => {
     const target = document.createElement("div");
     document.body.appendChild(target);

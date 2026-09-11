@@ -212,6 +212,19 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
 		await expect(calendarItems).toHaveCount(5);
+        // A timed block must occupy its scheduled duration, not a fixed card height.
+        const eventGeometry = await calendarItems.evaluateAll((elements) => elements.map((element) => {
+            const style = getComputedStyle(element);
+            const start = Number((element as HTMLElement).dataset.startMinutes);
+            const end = Number((element as HTMLElement).dataset.endMinutes);
+            const hourHeight = parseFloat(style.getPropertyValue('--calendar-hour-height'));
+            return { actual: element.getBoundingClientRect().height, expected: (end - start) / 60 * hourHeight };
+        }));
+        for (const geometry of eventGeometry) {
+            expect(geometry.expected).toBeGreaterThan(0);
+            expect(Math.abs(geometry.actual - geometry.expected)).toBeLessThanOrEqual(2);
+        }
+
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
 		await expect(mapView.getByTestId('embeds-results-view-calendar-day')).toHaveCount(7);
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Apr 13');
@@ -267,7 +280,26 @@ test.describe('Embeds map view preview', () => {
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-summary')).toContainText('5 of 5 results remain');
 		await expect(filterMenu.getByTestId('embeds-map-view-filter-controls')).toBeVisible();
 		await expect(filterMenu).toHaveAttribute('data-layout', 'results-panel');
-		await expect(filterMenu).toContainText('route');
+        const filterLayout = await filterMenu.evaluate((panel: HTMLElement) => {
+            const summary = panel.querySelector<HTMLElement>('.filter-menu-summary')!;
+            const controls = panel.querySelector<HTMLElement>('[data-testid="embeds-map-view-filter-controls"]')!;
+            const before = summary.getBoundingClientRect();
+            controls.scrollTop = 100;
+            const after = summary.getBoundingClientRect();
+            controls.scrollTop = 0;
+            return {
+                width: panel.clientWidth,
+                summaryRight: before.right,
+                controlsLeft: controls.getBoundingClientRect().left,
+                summaryMovement: after.top - before.top,
+            };
+        });
+        expect(filterLayout.summaryMovement).toBe(0);
+        if (filterLayout.width > 520) expect(filterLayout.summaryRight).toBeLessThanOrEqual(filterLayout.controlsLeft);
+        const rangeMin = filterMenu.locator('input[type="range"]').first();
+        const rangeMax = filterMenu.locator('input[type="range"]').nth(1);
+        expect((await rangeMin.boundingBox())!.y).toBeCloseTo((await rangeMax.boundingBox())!.y, 0);
+
 		await expect(filterMenu).toContainText('Price');
 		await expect(filterMenu).toContainText('Carrier');
 		if (proof) {

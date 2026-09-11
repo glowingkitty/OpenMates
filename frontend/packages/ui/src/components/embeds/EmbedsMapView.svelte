@@ -9,6 +9,11 @@
 
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import Toggle from '../Toggle.svelte';
+  import ProviderIcon from '../settings/ProviderIcon.svelte';
+  import ResultsRangeFilter from './ResultsRangeFilter.svelte';
+  import ResultsDateRangeFilter from './ResultsDateRangeFilter.svelte';
+  import { getLucideIcon } from '../../utils/categoryUtils';
   import UnifiedEmbedPreview from './UnifiedEmbedPreview.svelte';
   import { EMBED_METADATA, normalizeEmbedType } from '../../data/embedRegistry.generated';
   import { userProfile } from '../../stores/userProfile';
@@ -36,6 +41,14 @@
     };
   });
 
+  const DeleteFilterIcon = getLucideIcon('trash-2');
+  const ProviderFilterIcon = getLucideIcon('messages-square');
+  const DateFilterIcon = getLucideIcon('calendar-days');
+  const TypeFilterIcon = getLucideIcon('layers');
+  function rangeFilterIcon(key: string) {
+    return getLucideIcon(key === 'price' ? 'euro' : key === 'rating' ? 'star' : 'clock-3');
+  }
+
   const MAX_VISIBLE_ENTRIES = 40;
   const MAX_TRAVEL_LEGS = 8;
   const MAX_TRAVEL_SEGMENTS_PER_LEG = 32;
@@ -44,13 +57,10 @@
   const INACTIVE_ROUTE_COLOR = 'var(--color-grey-50)';
   const ROUTE_DASH_ARRAY = '10 10';
   const MAP_HYDRATION_ROOT_MARGIN = '320px';
-  const HISTOGRAM_BUCKETS = 12;
   const CALENDAR_WEEK_DAYS = 7;
   const CALENDAR_VISIBLE_HOURS = 8;
   const CALENDAR_MINUTES_PER_HOUR = 60;
-  const CALENDAR_MIN_EVENT_MINUTES = 38;
   const CALENDAR_DEFAULT_EVENT_MINUTES = 45;
-  const CALENDAR_EVENT_STACK_MINUTES = 45;
 
   interface Props {
     id: string;
@@ -145,6 +155,8 @@
     startMinutes: number;
     endMinutes?: number;
     dateOnly: boolean;
+    column?: number;
+    columnCount?: number;
   }
 
   interface CalendarWeekDay {
@@ -269,15 +281,16 @@
   const calendarWeekDays = $derived<CalendarWeekDay[]>(activeCalendarWeekStart == null ? [] : buildCalendarWeekDays(activeCalendarWeekStart, calendarEntries));
   const dateOnlyRowCount = $derived(Math.max(0, ...calendarWeekDays.map((day) => day.entries.filter((entry) => entry.dateOnly).length)));
   const calendarWeekHasTimedEntries = $derived(calendarWeekDays.some((day) => day.entries.some((entry) => !entry.dateOnly)));
-  const calendarRowTemplate = $derived(['42px', ...(dateOnlyRowCount > 0 ? [`${dateOnlyRowCount * 4}rem`] : []), ...(calendarWeekHasTimedEntries ? ['calc(var(--calendar-hour-height) * 8)'] : [])].join(' '));
-  const calendarTimelineStartMinutes = $derived.by(() => {
-    if (calendarEntries.length === 0) return 0;
-    const timed = calendarEntries.filter((entry) => !entry.dateOnly);
-    if (timed.length === 0) return 0;
-    const earliestStart = Math.min(...timed.map((entry) => entry.startMinutes));
-    return Math.floor(earliestStart / CALENDAR_MINUTES_PER_HOUR) * CALENDAR_MINUTES_PER_HOUR;
-  });
-  const calendarHourLabels = $derived(Array.from({ length: CALENDAR_VISIBLE_HOURS }, (_, index) => calendarTimelineStartMinutes + (index * CALENDAR_MINUTES_PER_HOUR)));
+  const calendarTimedEntries = $derived(calendarWeekDays.flatMap((day) => day.entries.filter((entry) => !entry.dateOnly)));
+  const calendarTimelineStartMinutes = $derived(calendarTimedEntries.length > 0
+    ? Math.floor(Math.min(...calendarTimedEntries.map((entry) => entry.startMinutes)) / CALENDAR_MINUTES_PER_HOUR) * CALENDAR_MINUTES_PER_HOUR
+    : 0);
+  const calendarTimelineHours = $derived(calendarTimedEntries.length > 0
+    ? Math.min(24 - calendarTimelineStartMinutes / CALENDAR_MINUTES_PER_HOUR, Math.max(CALENDAR_VISIBLE_HOURS,
+      Math.ceil((Math.max(...calendarTimedEntries.map(calendarEndMinutes)) - calendarTimelineStartMinutes) / CALENDAR_MINUTES_PER_HOUR)))
+    : CALENDAR_VISIBLE_HOURS);
+  const calendarRowTemplate = $derived(['42px', ...(dateOnlyRowCount > 0 ? [`${dateOnlyRowCount * 4}rem`] : []), ...(calendarWeekHasTimedEntries ? ['calc(var(--calendar-hour-height) * var(--calendar-timeline-hours))'] : [])].join(' '));
+  const calendarHourLabels = $derived(Array.from({ length: calendarTimelineHours + 1 }, (_, index) => calendarTimelineStartMinutes + (index * CALENDAR_MINUTES_PER_HOUR)));
   const mapCenter = $derived.by(() => {
     const points = [
       ...mapMarkers.map((marker) => ({ lat: marker.lat, lon: marker.lon })),
@@ -822,7 +835,13 @@
     if (dateOrdinal == null) return null;
     const startMinutes = departureMinutes ?? 0;
     const rawEndMinutes = numberFacet(entry, 'arrivalMinutes');
-    const endMinutes = rawEndMinutes != null && rawEndMinutes !== startMinutes ? rawEndMinutes : undefined;
+    const endDateOrdinal = dateOrdinalFromValue(firstString(entry.decodedContent?.arrival,
+      entry.decodedContent?.scheduled_arrival, entry.decodedContent?.end_time, entry.decodedContent?.date_end));
+    const endDayOffset = endDateOrdinal != null ? Math.max(0, endDateOrdinal - dateOrdinal) * 1440 : 0;
+    const durationMinutes = numberFacet(entry, 'durationMinutes');
+    const endMinutes = rawEndMinutes != null && (rawEndMinutes !== startMinutes || endDayOffset > 0)
+      ? rawEndMinutes + (endDayOffset || (rawEndMinutes < startMinutes ? 1440 : 0))
+      : durationMinutes != null && durationMinutes > 0 ? startMinutes + durationMinutes : undefined;
     return { entry, dateOrdinal, startMinutes, endMinutes, dateOnly: departureMinutes == null };
   }
 
@@ -833,7 +852,7 @@
 
   function todayOrdinal(): number {
     const now = new Date();
-    return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86400000;
+    return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000;
   }
 
   function buildCalendarWeekDays(weekStart: number, items: CalendarEntry[]): CalendarWeekDay[] {
@@ -842,7 +861,13 @@
       const dateOrdinal = weekStart + index;
       return {
         dateOrdinal,
-        entries: items.filter((item) => item.dateOrdinal === dateOrdinal),
+        entries: layoutCalendarDay(items.flatMap((item) => {
+          if (item.dateOnly) return item.dateOrdinal === dateOrdinal ? [item] : [];
+          const offset = (dateOrdinal - item.dateOrdinal) * 1440;
+          const start = Math.max(0, item.startMinutes - offset);
+          const end = Math.min(1440, calendarEndMinutes(item) - offset);
+          return end > start && start < 1440 ? [{ ...item, dateOrdinal, startMinutes: start, endMinutes: end }] : [];
+        })),
         isToday: dateOrdinal === today,
       };
     });
@@ -878,23 +903,46 @@
     return `${Math.floor(value / CALENDAR_MINUTES_PER_HOUR).toString().padStart(2, '0')}:00`;
   }
 
-  function calendarItemStyle(item: CalendarEntry, dayItemIndex: number): string {
-    const visibleRangeMinutes = CALENDAR_VISIBLE_HOURS * CALENDAR_MINUTES_PER_HOUR;
-    const scheduledTopMinutes = Math.max(0, item.startMinutes - calendarTimelineStartMinutes);
-    const stackedTopMinutes = dayItemIndex * CALENDAR_EVENT_STACK_MINUTES;
-    const topMinutes = Math.min(
-      Math.max(scheduledTopMinutes, stackedTopMinutes),
-      visibleRangeMinutes - CALENDAR_MIN_EVENT_MINUTES,
-    );
-    const rawEndMinutes = item.endMinutes != null && item.endMinutes > item.startMinutes
-      ? item.endMinutes
-      : item.startMinutes + CALENDAR_DEFAULT_EVENT_MINUTES;
-    const heightMinutes = Math.min(
-      Math.max(rawEndMinutes - item.startMinutes, CALENDAR_MIN_EVENT_MINUTES),
-      CALENDAR_EVENT_STACK_MINUTES - 4,
-    );
+  function calendarEndMinutes(item: CalendarEntry): number {
+    return item.endMinutes != null && item.endMinutes > item.startMinutes
+      ? item.endMinutes : item.startMinutes + CALENDAR_DEFAULT_EVENT_MINUTES;
+  }
 
-    return `--calendar-item-top-hours: ${topMinutes / CALENDAR_MINUTES_PER_HOUR}; --calendar-item-height-hours: ${heightMinutes / CALENDAR_MINUTES_PER_HOUR};`;
+  // Overlaps share the day's width; they never move away from their real time.
+  function layoutCalendarDay(items: CalendarEntry[]): CalendarEntry[] {
+    const timed = items.filter((item) => !item.dateOnly).sort((a, b) => a.startMinutes - b.startMinutes);
+    let group: CalendarEntry[] = [];
+    let laneEnds: number[] = [];
+    let groupEnd = -1;
+    const finishGroup = () => { for (const item of group) item.columnCount = laneEnds.length; };
+    for (const item of timed) {
+      if (item.startMinutes >= groupEnd) {
+        finishGroup();
+        group = [];
+        laneEnds = [];
+      }
+      const freeLane = laneEnds.findIndex((end) => end <= item.startMinutes);
+      item.column = freeLane < 0 ? laneEnds.length : freeLane;
+      laneEnds[item.column] = calendarEndMinutes(item);
+      group.push(item);
+      groupEnd = Math.max(...laneEnds);
+    }
+    finishGroup();
+    return [...items.filter((item) => item.dateOnly), ...timed];
+  }
+
+  function calendarItemStyle(item: CalendarEntry): string {
+    const topHours = (item.startMinutes - calendarTimelineStartMinutes) / CALENDAR_MINUTES_PER_HOUR;
+    const heightHours = (calendarEndMinutes(item) - item.startMinutes) / CALENDAR_MINUTES_PER_HOUR;
+    return `--calendar-item-top-hours: ${topHours}; --calendar-item-height-hours: ${heightHours}; --calendar-item-column: ${item.column ?? 0}; --calendar-item-columns: ${item.columnCount ?? 1};`;
+  }
+
+  function calendarLocation(entry: MapViewEntry): string {
+    const content = entry.decodedContent;
+    const venue = getNestedRecord(content, 'venue');
+    const location = getNestedRecord(content, 'location');
+    return firstString(content?.venue_name, venue?.name, location?.name, content?.location_name,
+      content?.formattedAddress, content?.formatted_address, content?.address, venue?.address, location?.address);
   }
 
   function formatCalendarDayLabel(value: number): string {
@@ -955,21 +1003,6 @@
 
   function testIdPart(value: string): string {
     return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
-  }
-
-  function histogramBuckets(control: RangeFilterControl): number[] {
-    const buckets = Array.from({ length: HISTOGRAM_BUCKETS }, () => 0);
-    const span = Math.max(control.max - control.min, 1);
-    for (const value of control.values) {
-      const index = Math.min(HISTOGRAM_BUCKETS - 1, Math.floor(((value - control.min) / span) * HISTOGRAM_BUCKETS));
-      buckets[index] += 1;
-    }
-    return buckets;
-  }
-
-  function histogramBarHeight(control: RangeFilterControl, count: number): number {
-    const max = Math.max(1, ...histogramBuckets(control));
-    return Math.max(12, Math.round((count / max) * 100));
   }
 
   function getCategory(embedType: string | null, content: Record<string, unknown> | null): string {
@@ -1548,101 +1581,57 @@
         </button>
         {#if filtersOpen}
           <div id={`${id}-filter-panel`} class="filter-menu" data-testid="embeds-map-view-filter-menu" data-layout="results-panel" role="region" aria-label="Filter results">
-            <div class="filter-menu-header">
-              <strong>Filters</strong>
-              {#if activeFilterCount > 0}
-                <button type="button" data-testid="embeds-map-view-clear-filters" onclick={clearFilters}>Clear all</button>
-              {/if}
+            <div class="filter-menu-summary">
+              <p class="filter-summary" data-testid="embeds-map-view-filter-summary">
+                {visibleEntries.length} of {eligibleEntries.length}<br class="filter-summary-break" /> results remain
+              </p>
+              <button type="button" class="clear-results-filters" data-testid="embeds-map-view-clear-filters" onclick={clearFilters}>
+                <DeleteFilterIcon size={17} /><span>Clear all filters</span>
+              </button>
             </div>
-            <p class="filter-summary" data-testid="embeds-map-view-filter-summary">
-              {visibleEntries.length} of {categoryFilteredEntries.length} results remain
-            </p>
 
             <div class="filter-controls" data-testid="embeds-map-view-filter-controls">
-              {#if categories.length > 1}
+              {#if categories.length > 2}
                 <div class="filter-section">
-                  <span class="filter-section-title">Type</span>
+                  <span class="filter-section-title"><TypeFilterIcon size={23} />Type</span>
                   <div class="filter-category-options">
                     {#each categories as category}
                       <button
                         type="button"
-                        aria-pressed={category === activeCategory}
-                        class:active={category === activeCategory}
+                        role="switch"
+                        aria-checked={category === activeCategory}
                         onclick={() => {
                           activeCategory = category;
                           clearMapViewportScope();
                         }}
                       >
-                        {category === 'all' ? 'All results' : category}
+                        <span>{category === 'all' ? 'All results' : formatOptionLabel(category)}</span>
+                        <Toggle checked={category === activeCategory} presentationOnly={true} />
                       </button>
                     {/each}
                   </div>
                 </div>
               {/if}
 
-              {#each rangeFilterControls as control}
+              {#each rangeFilterControls.filter((control) => control.type !== 'date') as control}
+                {@const Icon = rangeFilterIcon(control.key)}
                 {@const rangeValue = getRangeValue(control)}
                 <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
-                  <div class="range-label-row">
-                    <span class="filter-section-title">{control.label}</span>
-                    <span>{formatRangeValue(control, rangeValue.min)} - {formatRangeValue(control, rangeValue.max)}</span>
-                  </div>
-                  {#if control.type === 'time'}
-                    <div class="filter-histogram" aria-hidden="true">
-                      {#each histogramBuckets(control) as bucket}
-                        <span style={`height: ${histogramBarHeight(control, bucket)}%;`}></span>
-                      {/each}
-                    </div>
-                  {/if}
-                  <div class="range-inputs">
-                    {#if control.type === 'date'}
-                      <input
-                        data-testid={`embeds-map-view-filter-${control.key}-min`}
-                        aria-label={`${control.label} minimum`}
-                        type="date"
-                        min={dateFromOrdinal(control.min)}
-                        max={dateFromOrdinal(control.max)}
-                        value={dateFromOrdinal(rangeValue.min)}
-                        oninput={(event) => updateRangeFilter(control.key, 'min', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.min)}
-                      />
-                      <input
-                        data-testid={`embeds-map-view-filter-${control.key}-max`}
-                        aria-label={`${control.label} maximum`}
-                        type="date"
-                        min={dateFromOrdinal(control.min)}
-                        max={dateFromOrdinal(control.max)}
-                        value={dateFromOrdinal(rangeValue.max)}
-                        oninput={(event) => updateRangeFilter(control.key, 'max', dateOrdinalFromValue((event.currentTarget as HTMLInputElement).value) ?? control.max)}
-                      />
-                    {:else}
-                      <input
-                        data-testid={`embeds-map-view-filter-${control.key}-min`}
-                        aria-label={`${control.label} minimum`}
-                        type="range"
-                        min={control.min}
-                        max={control.max}
-                        step={control.type === 'time' ? 5 : 1}
-                        value={rangeValue.min}
-                        oninput={(event) => updateRangeFilter(control.key, 'min', Number((event.currentTarget as HTMLInputElement).value))}
-                      />
-                      <input
-                        data-testid={`embeds-map-view-filter-${control.key}-max`}
-                        aria-label={`${control.label} maximum`}
-                        type="range"
-                        min={control.min}
-                        max={control.max}
-                        step={control.type === 'time' ? 5 : 1}
-                        value={rangeValue.max}
-                        oninput={(event) => updateRangeFilter(control.key, 'max', Number((event.currentTarget as HTMLInputElement).value))}
-                      />
-                    {/if}
-                  </div>
+                  <span class="filter-section-title"><Icon size={23} />{control.label}</span>
+                  <ResultsRangeFilter
+                    min={control.min} max={control.max}
+                    lower={rangeValue.min} upper={rangeValue.max}
+                    values={control.values} step={control.type === 'time' ? 5 : 1}
+                    label={control.label} testId={`embeds-map-view-filter-${control.key}`}
+                    formatValue={(value) => formatRangeValue(control, value)}
+                    onChange={(side, value) => updateRangeFilter(control.key, side, value)}
+                  />
                 </div>
               {/each}
 
               {#each optionFilterControls as control}
                 <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
-                  <span class="filter-section-title">{control.label}</span>
+                  <span class="filter-section-title"><ProviderFilterIcon size={23} />{control.label}</span>
                   <div class="option-chips">
                     {#each control.options as option}
                       <button
@@ -1652,10 +1641,26 @@
                         aria-checked={optionFilters[control.key] === undefined || optionFilters[control.key].includes(option.value)}
                         onclick={() => toggleOptionFilter(control.key, option.value)}
                       >
-                        <span>{option.label}</span><span class="option-switch" aria-hidden="true"></span>
+                        {#if control.key === 'providers' || control.key === 'carriers'}
+                          <ProviderIcon name={option.label} size="36px" />
+                        {/if}
+                        <span class="filter-option-label">{option.label}</span>
+                        <Toggle checked={optionFilters[control.key] === undefined || optionFilters[control.key].includes(option.value)} presentationOnly={true} />
                       </button>
                     {/each}
                   </div>
+                </div>
+              {/each}
+              {#each rangeFilterControls.filter((control) => control.type === 'date') as control}
+                {@const rangeValue = getRangeValue(control)}
+                <div class="filter-section" data-testid={`embeds-map-view-filter-${control.key}`}>
+                  <span class="filter-section-title"><DateFilterIcon size={23} />{control.label}</span>
+                  <ResultsDateRangeFilter
+                    min={control.min} max={control.max}
+                    lower={rangeValue.min} upper={rangeValue.max}
+                    label={control.label} testId={`embeds-map-view-filter-${control.key}`}
+                    onChange={(side, value) => updateRangeFilter(control.key, side, value)}
+                  />
                 </div>
               {/each}
             </div>
@@ -1741,7 +1746,7 @@
               </strong>
               <button type="button" aria-label="Next week" onclick={() => moveCalendarWeek(1)}><span aria-hidden="true">&gt;</span></button>
             </header>
-            <div class="calendar-week" class:date-only={!calendarWeekHasTimedEntries} style={`--calendar-row-template: ${calendarRowTemplate}`} data-testid="embeds-results-view-calendar-week">
+            <div class="calendar-week" class:date-only={!calendarWeekHasTimedEntries} style={`--calendar-row-template: ${calendarRowTemplate}; --calendar-timeline-hours: ${calendarTimelineHours}`} data-testid="embeds-results-view-calendar-week">
               {#if calendarWeekHasTimedEntries}
               <div class="calendar-time-column" aria-hidden="true">
                 <span class="calendar-time-column-spacer"></span>
@@ -1755,9 +1760,8 @@
               {/if}
               {#each calendarWeekDays as day}
                 <section class="calendar-day" class:today={day.isToday} data-testid="embeds-results-view-calendar-day">
-                  <header class="calendar-day-header">
-                    <span>{formatCalendarDayLabel(day.dateOrdinal)}</span>
-                    <strong>{formatCalendarDayNumber(day.dateOrdinal)}</strong>
+                  <header class="calendar-day-header" title={formatCalendarDayNumber(day.dateOrdinal)}>
+                    {formatCalendarDayLabel(day.dateOrdinal)} {new Date(day.dateOrdinal * 86400000).getUTCDate()}
                   </header>
                   {#if dateOnlyRowCount > 0}
                     <div class="calendar-date-only" style={`min-height: ${dateOnlyRowCount * 4}rem`}>
@@ -1770,7 +1774,7 @@
                   {/if}
                   {#if calendarWeekHasTimedEntries}
                   <div class="calendar-items">
-                    {#each day.entries.filter((item) => !item.dateOnly) as item, itemIndex}
+                    {#each day.entries.filter((item) => !item.dateOnly) as item}
                       <button
                         type="button"
                         class="calendar-item"
@@ -1778,19 +1782,24 @@
                         class:selected={selectedRef === item.entry.ref}
                         class:hovered={item.entry.ref === hoveredRef}
                         data-testid="embeds-results-view-calendar-item"
+                        data-start-minutes={item.startMinutes}
+                        data-end-minutes={calendarEndMinutes(item)}
                         data-entry-category={item.entry.category}
                         data-selected={selectedRef === item.entry.ref ? 'true' : 'false'}
-                        style={calendarItemStyle(item, itemIndex)}
+                        style={calendarItemStyle(item)}
+                        aria-label={`${item.entry.title}, ${formatCalendarTime(item)}${calendarLocation(item.entry) ? `, ${calendarLocation(item.entry)}` : ""}`}
+                        title={formatCalendarTime(item)}
                         onclick={() => openEntry(item.entry)}
                         onpointerenter={() => (hoveredRef = item.entry.ref)}
                         onpointerleave={() => handleEntryPointerLeave(item.entry.ref)}
                         onfocus={() => (hoveredRef = item.entry.ref)}
                         onblur={() => handleEntryPointerLeave(item.entry.ref)}
                       >
-                        <span class="calendar-time">{formatCalendarTime(item)}</span>
                         <span class="calendar-copy">
                           <strong>{item.entry.title}</strong>
-                          <span>{item.entry.subtitle}</span>
+                          {#if calendarLocation(item.entry)}
+                            <span class="calendar-location"><span class="icon" aria-hidden="true"></span>{calendarLocation(item.entry)}</span>
+                          {/if}
                         </span>
                       </button>
                     {/each}
@@ -2059,168 +2068,113 @@
     top: 23px;
     right: 0;
     display: grid;
-    grid-template-columns: minmax(180px, 0.9fr) minmax(0, 1.5fr);
-    grid-template-rows: auto 1fr;
-    gap: 16px 24px;
+    grid-template-columns: minmax(150px, 1fr) minmax(0, 1.2fr);
+    gap: 24px;
     width: 100%;
     height: 535px;
     overflow: hidden;
     box-sizing: border-box;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
+    border: 0;
     border-radius: 23px;
-    background: var(--color-grey-10, #f9f9f9);
-    box-shadow: none;
-    padding: 32px 18px 18px;
+    background: var(--color-grey-10);
+    padding: 30px 18px 18px;
   }
-
-  .filter-menu-header {
-    grid-column: 1;
-    grid-row: 1;
-    display: grid;
-    align-content: start;
-    justify-items: start;
-    gap: 16px;
-  }
-
-  .filter-menu-header,
-  .range-label-row {
+  .filter-menu-summary {
+    align-self: center;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-
-  .filter-summary {
-    grid-column: 1;
-    grid-row: 2;
-    margin: 0;
-    color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-h3, 1.25rem);
-    font-weight: 700;
-    line-height: 1.4;
-  }
-
-  .filter-controls {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    display: grid;
-    gap: 10px;
-    min-height: 0;
-    overflow-y: scroll;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    padding: 0 4px 18px 0;
-  }
-
-  .filter-menu-header strong,
-  .filter-section-title {
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-xs, 0.8125rem);
-    font-weight: 650;
-  }
-
-  .range-label-row span:last-child {
-    color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-tiny, 0.6875rem);
-    white-space: nowrap;
-  }
-
-  .filter-section {
-    display: grid;
-    gap: 8px;
-  }
-
-  .filter-category-options,
-  .option-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .filter-menu button {
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: 999px;
-    background: var(--color-grey-0, #ffffff);
-    color: var(--color-font-primary, #222222);
-    padding: 7px 10px;
-    font: inherit;
-    font-size: var(--font-size-xxs, 0.75rem);
+    justify-content: center;
+    gap: 14px;
+    min-width: 0;
     text-align: center;
+  }
+  .filter-summary {
+    margin: 0;
+    color: var(--color-font-secondary);
+    font-size: var(--font-size-h3-mobile);
+    font-weight: 650;
+    line-height: 1.35;
+  }
+  .filter-menu .clear-results-filters {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--color-primary-start);
+    font: inherit;
+    font-size: var(--font-size-xs);
     cursor: pointer;
   }
-
-  .filter-menu button:hover {
-    background: var(--color-grey-blue, #e6eaff);
-    color: var(--color-font-primary, #222222);
+  .filter-controls {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    padding: 0 4px 20px 0;
   }
-
-  .filter-menu button.active,
-  .filter-menu button[aria-pressed='true'] {
-    border-color: transparent;
-    background: var(--gradient-primary);
-    color: var(--color-text-on-primary, #ffffff);
+  .filter-section {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    min-width: 0;
+    gap: 12px;
   }
-
-
-  .option-chips button span {
-    color: var(--color-font-secondary, #666666);
-    font-size: var(--font-size-tiny, 0.6875rem);
+  .filter-section-title {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 3px solid var(--color-primary-start);
+    padding: 0 8px 7px;
+    color: var(--color-font-primary);
+    font-size: var(--font-size-p);
+    font-weight: 650;
   }
-
-  .option-chips { display: grid; grid-template-columns: 1fr; }
-  .filter-menu .option-chips button {
-    display: flex; align-items: center; justify-content: space-between;
-    border: 0; border-radius: 0; background: transparent;
-    text-align: left; padding: 8px 0;
-  }
-  .option-switch {
-    position: relative; width: 28px; height: 16px; flex: 0 0 28px;
-    border-radius: 999px; background: var(--color-grey-40);
-  }
-  .option-switch::after {
-    content: ''; position: absolute; top: 2px; left: 2px;
-    width: 12px; height: 12px; border-radius: 50%;
-    background: var(--color-font-button);
-  }
-  [aria-checked='true'] .option-switch { background: var(--gradient-primary); }
-  [aria-checked='true'] .option-switch::after { transform: translateX(12px); }
-
-  .filter-histogram {
-    display: grid;
-    grid-template-columns: repeat(12, 1fr);
-    align-items: end;
-    gap: 3px;
-    height: 34px;
-    padding: 4px 0;
-  }
-
-  .filter-histogram span {
-    display: block;
-    min-height: 4px;
-    border-radius: 999px 999px 2px 2px;
-    background: var(--color-grey-blue, #e6eaff);
-  }
-
-  .range-inputs {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+  .filter-section-title :global(svg) { color: var(--color-primary-start); flex-shrink: 0; }
+  .filter-category-options, .option-chips {
+    display: flex;
+    flex-direction: column;
     gap: 8px;
   }
-
-  .range-inputs input[type='range'] {
-    min-width: 0;
-    accent-color: var(--color-primary, #6c63ff);
-  }
-
-  .range-inputs input[type='date'] {
-    min-width: 0;
-    border: 1px solid var(--color-grey-25, #e8e8e8);
-    border-radius: var(--radius-3, 8px);
-    background: var(--color-grey-0, #ffffff);
-    color: var(--color-font-primary, #222222);
-    padding: 6px;
+  .filter-menu .option-chips button,
+  .filter-menu .filter-category-options button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 42px;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--color-font-primary);
+    box-shadow: none;
     font: inherit;
-    font-size: var(--font-size-xxs, 0.75rem);
+    font-size: var(--font-size-small);
+    font-weight: 550;
+    text-align: left;
+    cursor: pointer;
+  }
+  .filter-option-label, .filter-category-options button > span:first-child { flex: 1; min-width: 0; }
+  .filter-menu button:focus-visible { outline: 2px solid var(--color-primary-start); outline-offset: 3px; }
+  @container (max-width: 520px) {
+    .filter-menu {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 20px;
+      padding: 25px 16px 16px;
+    }
+    .filter-menu-summary { gap: 7px; }
+    .filter-summary { font-size: var(--font-size-small); }
+    .filter-summary-break { display: none; }
   }
 
   .map-view-body {
@@ -2335,26 +2289,20 @@
     max-height: 535px;
     box-sizing: border-box;
     min-width: 0;
-    overflow-x: auto;
-    overflow-y: auto;
-    padding: 14px 14px 18px;
-    background:
-      linear-gradient(180deg, color-mix(in srgb, var(--color-primary, #6c63ff) 8%, transparent), transparent 160px),
-      var(--color-grey-20, #f3f3f3);
+    overflow: auto;
+    padding: 14px 14px 24px;
+    background: var(--color-grey-20);
   }
 
-  .results-view-calendar.date-only {
-    height: auto;
-    min-height: 0;
-  }
+  .results-view-calendar.date-only { height: auto; min-height: 0; }
 
   .calendar-week-toolbar {
     display: grid;
     grid-template-columns: 28px minmax(0, 1fr) 28px;
     align-items: center;
-    gap: 8px;
-    justify-self: start;
-    inline-size: min(100%, calc(100cqw - 28px));
+    gap: 20px;
+    justify-self: center;
+    width: min(100%, 260px);
     min-height: 36px;
     position: sticky;
     left: 0;
@@ -2362,13 +2310,10 @@
   }
 
   .calendar-week-toolbar strong {
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-xxs, 0.75rem);
-    font-weight: 650;
-    min-width: max-content;
-    overflow: hidden;
+    color: var(--color-font-tertiary);
+    font-size: var(--font-size-small);
+    font-weight: 500;
     text-align: center;
-    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
@@ -2376,43 +2321,28 @@
     display: inline-grid;
     width: 28px;
     min-width: 28px;
-    max-width: 28px;
     height: 28px;
     place-items: center;
     border: 0;
-    border-radius: var(--radius-4, 10px);
+    border-radius: var(--radius-4);
     background: transparent;
-    color: var(--color-font-primary, #222222);
+    color: var(--color-font-tertiary);
     padding: 0;
     font: inherit;
-    font-size: var(--font-size-large, 1.125rem);
+    font-size: var(--font-size-h3);
     line-height: 1;
     cursor: pointer;
   }
 
-  .calendar-week-toolbar button:first-child {
-    justify-self: end;
-  }
-
-  .calendar-week-toolbar button:last-child {
-    justify-self: start;
-  }
-
-  .calendar-week-toolbar button:hover {
-    background: var(--color-grey-10, #f9f9f9);
-  }
+  .calendar-week-toolbar button:hover { background: var(--color-grey-10); }
 
   .calendar-week {
     --calendar-hour-height: 46px;
     display: grid;
     grid-template-columns: 44px repeat(7, minmax(0, 1fr));
     gap: 0;
-    justify-self: start;
     min-width: 620px;
-    overflow: hidden;
-    border-radius: var(--radius-6, 14px);
-    background: var(--color-grey-0, #ffffff);
-    box-shadow: var(--shadow-xs, 0 2px 4px rgba(0, 0, 0, 0.1));
+    border-radius: var(--radius-6);
   }
 
   .calendar-week.date-only { grid-template-columns: repeat(7, minmax(0, 1fr)); }
@@ -2422,24 +2352,19 @@
     display: grid;
     grid-template-rows: var(--calendar-row-template);
     min-height: 0;
+    min-width: 0;
   }
 
   .calendar-time-column {
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-tiny, 0.6875rem);
-    font-weight: 650;
-  }
-
-  .calendar-time-column-spacer {
-    border-right: 1px solid var(--color-grey-20, #f3f3f3);
-    border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-xxs);
+    font-weight: 500;
   }
 
   .calendar-time-slots {
+    position: relative;
     display: grid;
-    grid-template-rows: repeat(8, var(--calendar-hour-height));
-    border-right: 1px solid var(--color-grey-20, #f3f3f3);
-    background: var(--color-grey-0, #ffffff);
+    grid-auto-rows: var(--calendar-hour-height);
   }
 
   .calendar-time-slots span {
@@ -2449,117 +2374,80 @@
     transform: translateY(-0.55em);
   }
 
-  .calendar-day {
-    gap: 0;
-    border-left: 1px solid var(--color-grey-20, #f3f3f3);
-    background: var(--color-grey-0, #ffffff);
-    padding: 0;
-  }
-
-  .calendar-day.today {
-    background: var(--color-grey-10, #f9f9f9);
-  }
+  .calendar-day { gap: 0; padding: 0; border-radius: var(--radius-4); }
+  .calendar-day.today { background: var(--color-grey-25); }
 
   .calendar-day-header {
-    display: grid;
+    display: flex;
     align-items: center;
-    align-content: center;
-    gap: 1px;
+    justify-content: center;
     min-height: 42px;
-    border-bottom: 1px solid var(--color-grey-20, #f3f3f3);
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-xxs, 0.75rem);
-    font-weight: 650;
-    text-align: center;
-  }
-
-  .calendar-day-header strong {
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-xxs, 0.75rem);
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    white-space: nowrap;
   }
 
   .calendar-items {
     position: relative;
-    min-height: calc(var(--calendar-hour-height) * 8);
-    overflow: hidden;
-    background:
-      repeating-linear-gradient(
-        to bottom,
-        transparent 0,
-        transparent calc(var(--calendar-hour-height) - 1px),
-        var(--color-grey-20, #f3f3f3) calc(var(--calendar-hour-height) - 1px),
-        var(--color-grey-20, #f3f3f3) var(--calendar-hour-height)
-      );
+    min-height: calc(var(--calendar-hour-height) * var(--calendar-timeline-hours));
   }
 
   .calendar-item {
     position: absolute;
     top: calc(var(--calendar-item-top-hours) * var(--calendar-hour-height));
-    right: 6px;
-    left: 6px;
+    left: calc(100% * var(--calendar-item-column) / var(--calendar-item-columns) + 3px);
+    width: calc(100% / var(--calendar-item-columns) - 6px);
+    min-width: 0;
     display: block;
+    box-sizing: border-box;
     height: calc(var(--calendar-item-height-hours) * var(--calendar-hour-height));
+    min-height: 0;
     overflow: hidden;
     border: 0;
-    border-left: 3px solid var(--color-error, #e74c3c);
-    border-radius: var(--radius-3, 8px);
-    background: color-mix(in srgb, var(--color-error, #e74c3c) 16%, var(--color-grey-0, #ffffff));
-    color: var(--color-font-primary, #222222);
-    padding: 5px 6px;
+    border-left: 3px solid var(--color-error);
+    border-radius: var(--radius-2, 4px);
+    background: color-mix(in srgb, var(--color-error) 16%, var(--color-grey-20));
+    color: var(--color-font-primary);
+    padding: 4px;
     text-align: left;
+    font: inherit;
     box-shadow: none;
     cursor: pointer;
-    transition: border-color var(--duration-fast, 0.15s) ease, transform var(--duration-fast, 0.15s) ease;
   }
 
   .calendar-item.highlighted,
-  .calendar-item.hovered {
-    border-color: var(--color-primary, #6c63ff);
-  }
+  .calendar-item.hovered { border-color: var(--color-primary); }
+  .calendar-item:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
 
-  .calendar-item:hover {
-    transform: translateY(-1px);
-  }
-
-  .calendar-time {
-    display: block;
-    overflow: hidden;
-    border-radius: 0;
-    background: transparent;
-    color: var(--color-font-primary, #222222);
-    padding: 0;
-    font-size: var(--font-size-tiny, 0.6875rem);
-    font-weight: 700;
-    line-height: 1;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .calendar-copy {
-    display: block;
-    min-width: 0;
-  }
+  .calendar-copy { display: flex; flex-direction: column; min-width: 0; max-height: 100%; overflow: hidden; }
 
   .calendar-copy strong {
     display: -webkit-box;
     overflow: hidden;
-    color: var(--color-font-primary, #222222);
-    font-size: var(--font-size-tiny, 0.6875rem);
-    line-height: 1.1;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
+    overflow-wrap: anywhere;
+    color: var(--color-font-primary);
+    font-size: var(--font-size-small);
+    font-weight: 500;
+    line-height: 1.25;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
   }
 
-  .calendar-copy > span:last-child {
-    display: -webkit-box;
+  .calendar-location {
+    display: flex;
+    align-items: center;
+    margin-top: 4px;
     overflow: hidden;
-    color: var(--color-font-secondary, #666666);
-    font-size: 0.625rem;
-    line-height: 1.1;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
+    color: var(--color-font-tertiary);
+    font-size: var(--font-size-xxs);
+    line-height: 1.25;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
+
+  .calendar-location .icon { flex: 0 0 12px; width: 12px; height: 14px; background: var(--color-error); mask: url('@openmates/ui/static/icons/maps.svg') center / contain no-repeat; -webkit-mask: url('@openmates/ui/static/icons/maps.svg') center / contain no-repeat; }
 
   .empty-state,
   .empty-map,
@@ -2611,70 +2499,6 @@
 
     .filter-menu-wrapper {
       position: static;
-    }
-
-    .filter-menu {
-      position: absolute;
-      top: 23px;
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: auto auto minmax(0, 1fr);
-      width: 100%;
-      height: 535px;
-      max-height: none;
-      margin: 0;
-      border-radius: 23px;
-      box-shadow: none;
-      padding: 54px 14px 14px;
-      overscroll-behavior: contain;
-    }
-
-    .filter-menu-header {
-      grid-column: 1;
-      grid-row: 2;
-      display: flex;
-    }
-
-    .filter-summary {
-      grid-column: 1;
-      grid-row: 1;
-      font-size: var(--font-size-small, 0.875rem);
-    }
-
-    .filter-controls {
-      grid-column: 1;
-      grid-row: 3;
-    }
-
-    .filter-menu-header,
-    .range-label-row {
-      align-items: flex-start;
-    }
-
-    .filter-category-options,
-    .option-chips {
-      flex-wrap: nowrap;
-      overflow-x: auto;
-      padding-bottom: 2px;
-      scrollbar-width: none;
-    }
-
-    .filter-category-options::-webkit-scrollbar,
-    .option-chips::-webkit-scrollbar {
-      display: none;
-    }
-
-    .filter-menu button {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-
-    .filter-histogram {
-      height: 22px;
-    }
-
-    .range-inputs {
-      grid-template-columns: 1fr;
-      gap: 4px;
     }
 
     .map-view-list {
