@@ -17,6 +17,7 @@ const leafletMocks = vi.hoisted(() => {
     bindTooltip: ReturnType<typeof vi.fn>;
     eventHandlers: Record<string, () => void>;
     elementSetAttribute: ReturnType<typeof vi.fn>;
+    elementSetProperty: ReturnType<typeof vi.fn>;
   }> = [];
   const mapInstance = {
     fitBounds: vi.fn(),
@@ -53,6 +54,7 @@ const leafletMocks = vi.hoisted(() => {
     }),
     marker: vi.fn(() => {
       const elementSetAttribute = vi.fn();
+      const elementSetProperty = vi.fn();
       const eventHandlers: Record<string, () => void> = {};
       const markerInstance = {
         addTo: vi.fn(() => markerInstance),
@@ -62,9 +64,10 @@ const leafletMocks = vi.hoisted(() => {
           eventHandlers[event] = callback;
           return markerInstance;
         }),
-        getElement: vi.fn(() => ({ setAttribute: elementSetAttribute })),
+        getElement: vi.fn(() => ({ setAttribute: elementSetAttribute, style: { setProperty: elementSetProperty } })),
         eventHandlers,
         elementSetAttribute,
+        elementSetProperty,
       };
       markerInstances.push(markerInstance);
       return markerInstance;
@@ -163,6 +166,7 @@ describe("EmbedLeafletMap theme selection", () => {
             relatedRefs: ["route-one", "route-two"],
             selectionKey: "52.530000:13.410000",
             selected: true,
+            color: "var(--color-app-events-start)",
           },
         ],
         paths: [
@@ -193,9 +197,11 @@ describe("EmbedLeafletMap theme selection", () => {
     }));
     expect(leafletMocks.divIcon).toHaveBeenCalledWith(expect.objectContaining({
       html: mapsMarkerIconSvg
-        .replace('<svg ', '<svg class="marker-icon" aria-hidden="true" ')
+        .replace('<svg ', '<svg class="embed-map-pin" viewBox="0 0 48 48" aria-hidden="true" ')
         .replace('fill="#000"', 'fill="currentColor"'),
     }));
+    expect(leafletMocks.markerInstances[0].elementSetProperty).toHaveBeenCalledWith("--embed-map-pin-color", "var(--color-app-maps-start)");
+    expect(leafletMocks.markerInstances[1].elementSetProperty).toHaveBeenCalledWith("--embed-map-pin-color", "var(--color-app-events-start)");
     expect(leafletMocks.markerInstances[1].bindTooltip).toHaveBeenCalledWith("Mainz Hbf", expect.objectContaining({
       permanent: true,
       direction: "top",

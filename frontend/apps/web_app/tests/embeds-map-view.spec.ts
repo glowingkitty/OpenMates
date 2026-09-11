@@ -167,6 +167,34 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView).toHaveAttribute('aria-label', 'Berlin to Bangkok flight options');
 		await expect(mapPane).toHaveAttribute('data-map-hydrated', 'true', { timeout: 15_000 });
 
+        const markerIcons = mapPane.locator('.leaflet-marker-icon svg.embed-map-pin');
+        await expect(markerIcons.first()).toBeVisible();
+        expect(await mapPane.locator('.leaflet-marker-icon').count()).toBe(await markerIcons.count());
+        const pinAppearance = await markerIcons.evaluateAll((icons) => {
+            const probe = document.createElement('span');
+            probe.style.color = 'var(--color-app-travel-start)';
+            icons[0].parentElement!.appendChild(probe);
+            const expectedColor = getComputedStyle(probe).color;
+            probe.remove();
+            return icons.map((icon) => {
+                const style = getComputedStyle(icon);
+                return { color: style.color, expectedColor, background: style.backgroundImage, mask: style.maskImage };
+            });
+        });
+        for (const pin of pinAppearance) {
+            expect(pin.color).toBe(pin.expectedColor);
+            expect(pin.background).toBe('none');
+            expect(pin.mask).toBe('none');
+        }
+        const attribution = mapPane.locator('.leaflet-control-attribution');
+        const attributionSize = await attribution.evaluate((element) => ({
+            text: parseFloat(getComputedStyle(element).fontSize),
+            link: parseFloat(getComputedStyle(element.querySelector('a')!).fontSize),
+        }));
+        expect(attributionSize.text).toBeLessThanOrEqual(12);
+        expect(attributionSize.link).toBeLessThanOrEqual(12);
+
+
 		const carousel = mapView.getByTestId('embeds-map-view-carousel');
 		await expect(carousel).toBeVisible();
 		const cards = mapView.getByTestId('embeds-map-view-card');

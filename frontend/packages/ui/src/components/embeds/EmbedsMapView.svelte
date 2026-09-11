@@ -337,6 +337,18 @@
     return `${point.lat.toFixed(6)}:${point.lon.toFixed(6)}`;
   }
 
+  function mapEntryColor(entry: MapViewEntry): string {
+    const appId = firstString(
+      entry.preview?.props.appId,
+      EMBED_METADATA[normalizeEmbedType(entry.embedType ?? '')]?.appId,
+      entry.decodedContent?.app_id,
+      entry.embedData?.app_id,
+      'maps',
+    );
+    const safeAppId = /^[a-z][a-z0-9-]*$/.test(appId) ? appId : 'maps';
+    return `var(--color-app-${safeAppId}-start, var(--color-app-maps-start))`;
+  }
+
   function buildMapMarkers(sourceEntries: MapViewEntry[], activeRefs: Set<string>, selectedMarkerKey: string | null): MapMarker[] {
     const markers = new Map<string, {
       point: MapPathPoint;
@@ -344,6 +356,7 @@
       ref: string;
       refs: Set<string>;
       label: string;
+      color: string;
     }>();
 
     const addMarker = (
@@ -355,12 +368,12 @@
       const key = markerCoordinateKey(point);
       const existing = markers.get(key);
       if (!existing) {
-        markers.set(key, { point, role, ref: entry.ref, refs: new Set([entry.ref]), label });
+        markers.set(key, { point, role, ref: entry.ref, refs: new Set([entry.ref]), label, color: mapEntryColor(entry) });
         return;
       }
       existing.refs.add(entry.ref);
       if (role.startsWith('endpoint-') && existing.role === 'stop') {
-        existing.role = 'endpoint';
+        existing.role = role;
         existing.ref = entry.ref;
         existing.label = label;
       }
@@ -390,6 +403,7 @@
         lat: marker.point.lat,
         lon: marker.point.lon,
         label: marker.label,
+        color: marker.color,
         ref: isActive ? relatedRefs.find((ref) => activeRefs.has(ref)) ?? marker.ref : marker.ref,
         relatedRefs,
         selectionKey: key,
@@ -2479,29 +2493,9 @@
     text-align: center;
   }
 
-  :global(.embeds-map-view-marker-active .marker-icon) {
-    filter: drop-shadow(0 0 5px var(--color-primary));
-  }
-
-  :global(.embeds-map-view-marker-endpoint-start .marker-icon) {
-    color: var(--color-app-travel-start, #059db3);
-  }
-
-  :global(.embeds-map-view-marker-endpoint-end .marker-icon) {
-    color: var(--color-app-travel-end, #13daf5);
-  }
-
-  :global(.embeds-map-view-marker-stop .marker-icon),
-  :global(.embeds-map-view-marker-selected .marker-icon) {
-    color: var(--color-error, #e74c3c);
-  }
-
-  :global(.embeds-map-view-marker-location .marker-icon) {
-    color: var(--color-grey-50, #a6a6a6);
-  }
-
-  :global(.embeds-map-view-marker-location.embeds-map-view-marker-selected .marker-icon) {
-    color: var(--color-error, #e74c3c);
+  :global(.embeds-map-view-marker-active .embed-map-pin),
+  :global(.embeds-map-view-marker-selected .embed-map-pin) {
+    filter: drop-shadow(0 0 3px var(--color-primary-start));
   }
 
   @container (max-width: 720px) {

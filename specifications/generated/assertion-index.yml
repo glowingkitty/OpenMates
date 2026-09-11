@@ -27245,7 +27245,7 @@ assertions:
       surface: gui.web
     - &id3096
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 435
+      line: 463
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id3098
@@ -27726,7 +27726,7 @@ assertions:
       surface: gui.web
     - &id3153
       path: frontend/apps/web_app/tests/embeds-map-view.spec.ts
-      line: 435
+      line: 463
       name: uses manual light theme for OpenStreetMap tiles when OS is dark
       surface: gui.web
     - &id3160
@@ -27743,12 +27743,12 @@ assertions:
       surface: gui.web
     - &id3172
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
-      line: 116
+      line: 119
       name: uses manual light theme for tiles when the OS is dark
       surface: gui.web
     - &id3173
       path: frontend/packages/ui/src/components/embeds/__tests__/EmbedLeafletMap.test.ts
-      line: 142
+      line: 145
       name: passes marker and path opacity to Leaflet while fitting geometry once
         on mount
       surface: gui.web
