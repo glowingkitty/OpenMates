@@ -298,10 +298,16 @@ final class ChatFlowRealAccountUITests: XCTestCase {
     }
 
     private func openChatsPanel(in app: XCUIApplication) {
-        // SwiftUI propagates the panel identifier onto offscreen children. The
-        // header toggle exists only while closed, so use that actual control.
+        // Wait for the actual panel after tapping: during a cold relaunch the
+        // startup overlay can still cover the header when sync first completes.
         let toggle = app.buttons["sidebar-toggle"]
-        if toggle.exists { toggle.tap() }
+        let panel = app.scrollViews.matching(identifier: "chat-history-panel").firstMatch
+        for _ in 0..<3 {
+            if panel.exists && app.frame.contains(CGPoint(x: panel.frame.midX, y: panel.frame.midY)) { break }
+            guard toggle.waitForExistence(timeout: 2) else { break }
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            if chatRows(in: app).firstMatch.waitForExistence(timeout: 3) { break }
+        }
         XCTAssertTrue(chatRows(in: app).firstMatch.waitForExistence(timeout: 15),
                       "Chat history did not expose account rows after opening")
     }

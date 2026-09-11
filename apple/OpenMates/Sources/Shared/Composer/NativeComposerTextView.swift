@@ -109,7 +109,7 @@ final class NativeComposerTextView: NSObject {
         textView.accessibilityIdentifier = editorAccessibilityIdentifier
         textView.accessibilityLabel = editorAccessibilityLabel
         textView.accessibilityHint = editorAccessibilityHint
-        textView.accessibilityValue = textView.text
+        // UITextView exposes its current text to accessibility; do not freeze a snapshot.
         if rebuildEmbedAccessibilityElementsIfNeeded() {
             textView.accessibilityElements = embedAccessibilityElements.map { descriptor in
                 let element = UIAccessibilityElement(accessibilityContainer: textView)

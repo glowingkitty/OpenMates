@@ -63,7 +63,9 @@ evidence:
   - Eight native text adapter tests pass after allowing UIKit to commit edits; v11 live exact prompt and relaunch persistence pass.
   - v11 follow-up reproduces missing original-request history after durable preflight; obsolete native history resend is rejected while the web includes history in the committed original request.
   - Signed iPhone simulator chat-core-v14 on 2026-09-11 passes recovery regressions and full password/OTP, exact typing, streamed response, relaunch, exact-chat reopen, and follow-up recalling Osaka from persisted history (146.6 seconds total test session).
+  - Signed iPad Pro simulator chat-ipad-v3 passes nine adapter regressions and the full password/OTP, exact typing, response, relaunch, reopened messages, and context-aware follow-up workflow on 2026-09-11.
+  - iPad video showed complete typed text but stale accessibility value; removed the UIKit value override and verified native accessibility reporting.
   - Web reference session currently stalls before sending phased sync; exact cross-client history proof remains pending.
 handoff:
-  current: iPhone core workflow passes; verify iPad, integrate the scoped candidate, then archive for TestFlight passkey verification.
+  current: iPhone and iPad core workflows pass; archive/upload TestFlight builds and verify real passkey login plus live web comparison.
   verification: Use focused native regressions and live XCUITest; verify passkeys with a TestFlight build.

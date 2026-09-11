@@ -184,6 +184,23 @@ final class NativeComposerTextViewAdapterTests: XCTestCase {
     }
 
     #if canImport(UIKit)
+    // contract-test: supporting surface=gui.apple assertions=message-input.focus.parent-state
+    func testUIKitAccessibilityTracksNativeTextWithoutStaleOverride() throws {
+        let controller = try NativeComposerController(
+            document: ComposerDocumentV1(version: 1, nodes: [.text(id: "text-1", source: "Prefix")]),
+            selection: NSRange(location: 6, length: 0)
+        )
+        let adapter = makeAdapter(controller: controller)
+        let textView = adapter.makePlatformView()
+        let nativeTextView = UITextView(usingTextLayoutManager: true)
+        nativeTextView.text = "Prefix and suffix"
+        // Native storage can finish a keyboard edit before the next adapter refresh.
+        textView.textStorage.append(NSAttributedString(string: " and suffix"))
+        XCTAssertEqual(textView.text, nativeTextView.text)
+        XCTAssertEqual(textView.accessibilityValue, nativeTextView.accessibilityValue,
+                       "Adapter must retain standard UITextView dynamic accessibility")
+    }
+
     // UIKit must commit replacement ranges itself before canonical text is published.
     // This models keyboard correction followed by continued typing, without a second
     // adapter mutation of the native storage or selection during shouldChange.
