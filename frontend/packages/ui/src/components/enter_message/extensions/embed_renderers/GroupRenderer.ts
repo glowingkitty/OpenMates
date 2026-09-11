@@ -118,6 +118,41 @@ import { normalizeNotebookContent, notebookTitle, sourceToText } from "../../../
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
 const scrollIndicatorCleanups = new WeakMap<HTMLElement, () => void>();
+const verticalWheelTargets = new WeakSet<HTMLElement>();
+const WHEEL_LINE_HEIGHT_PX = 16;
+
+/**
+ * Safari can retain vertical wheel input on an overflow-x scroller whose
+ * overflow-y is hidden. Forward only vertical gestures to a scrollable parent.
+ * Horizontal/shift-wheel and pinch zoom retain their native browser behavior.
+ */
+function forwardGroupVerticalWheel(event: WheelEvent): void {
+  if (event.defaultPrevented || event.ctrlKey || event.shiftKey ||
+      Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  const group = event.currentTarget as HTMLElement;
+  const canScroll = (node: HTMLElement) => {
+    const overflow = getComputedStyle(node).overflowY;
+    return (overflow === "auto" || overflow === "scroll") &&
+      node.scrollHeight > node.clientHeight + 1 &&
+      (event.deltaY < 0 ? node.scrollTop > 0 :
+        node.scrollTop + node.clientHeight < node.scrollHeight - 1);
+  };
+  // Respect vertically scrollable cards and the mobile column layout.
+  let node = event.target instanceof HTMLElement ? event.target : null;
+  while (node && group.contains(node)) {
+    if (canScroll(node)) return;
+    node = node.parentElement;
+  }
+  for (node = group.parentElement; node; node = node.parentElement) {
+    if (!canScroll(node)) continue;
+    const unit = event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? node.clientHeight :
+      event.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_HEIGHT_PX : 1;
+    event.preventDefault();
+    node.scrollBy({ top: event.deltaY * unit, behavior: "instant" });
+    return;
+  }
+}
+
 const INDICATOR_VISIBLE_RATIO = 0.12;
 const INDICATOR_VISIBILITY_TOLERANCE_PX = 1;
 const INTERACTIVE_QUESTION_LANGUAGE = "interactive_question";
@@ -1036,6 +1071,10 @@ export class GroupRenderer implements EmbedRenderer {
     groupWrapper: HTMLElement,
     scrollContainer: HTMLElement,
   ): void {
+    if (!verticalWheelTargets.has(scrollContainer)) {
+      scrollContainer.addEventListener("wheel", forwardGroupVerticalWheel, { passive: false });
+      verticalWheelTargets.add(scrollContainer);
+    }
     const explicitItems = Array.from(
       scrollContainer.querySelectorAll<HTMLElement>(".embed-group-item"),
     );
