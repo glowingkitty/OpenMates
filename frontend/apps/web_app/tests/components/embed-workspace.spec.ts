@@ -104,3 +104,31 @@ test('reopening during the exit restores an interactive pane', async ({ page }) 
   await panel.getByTestId('embed-minimize').click();
   await expect(panel).toHaveCount(0);
 });
+
+// contract-test: supporting surface=gui.web assertions=chats.layout.responsive-history
+test('vertical wheel over an embed row scrolls the chat in both directions', async ({ page }) => {
+  await page.goto('/#chat-id=example-ai-workshops-meetups-berlin');
+  const history = page.getByTestId('chat-history-container');
+  const row = page.getByTestId('app-skill-embed-group-scroll').first();
+  await expect(row).toBeVisible({ timeout: 15000 });
+  await expect.poll(() => row.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+
+  await row.hover();
+  const beforeDown = await history.evaluate(el => el.scrollTop);
+  await page.mouse.wheel(0, 100);
+  await expect.poll(() => history.evaluate(el => el.scrollTop)).toBeGreaterThan(beforeDown + 30);
+
+  await row.hover();
+  const beforeUp = await history.evaluate(el => el.scrollTop);
+  expect(beforeUp).toBeGreaterThan(30);
+  await page.mouse.wheel(0, -100);
+  await expect.poll(() => history.evaluate(el => el.scrollTop)).toBeLessThan(beforeUp - 30);
+
+  // A horizontal gesture still moves the embed list, not the conversation.
+  await row.hover();
+  const beforeHorizontal = await history.evaluate(el => el.scrollTop);
+  const beforeLeft = await row.evaluate(el => el.scrollLeft);
+  await page.mouse.wheel(180, 0);
+  await expect.poll(() => row.evaluate(el => el.scrollLeft)).toBeGreaterThan(beforeLeft + 30);
+  expect(await history.evaluate(el => el.scrollTop)).toBeCloseTo(beforeHorizontal, 0);
+});
