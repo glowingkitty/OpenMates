@@ -166,3 +166,23 @@ async def test_get_current_user_repairs_stale_cached_admin_status(monkeypatch):
     directus_service.admin.repair_cached_admin_status.assert_awaited_once_with(
         "admin-user-id", cached_user
     )
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=rest_api assertions=auth.session.lifecycle
+async def test_unified_auth_does_not_turn_temporary_refresh_failure_into_unauthorized(monkeypatch):
+    _stub_auth_dependency_imports(monkeypatch)
+    from backend.core.api.app.routes.auth_routes import auth_dependencies
+
+    monkeypatch.setattr(
+        auth_dependencies, "get_current_user",
+        AsyncMock(side_effect=HTTPException(status_code=503, detail="Session verification temporarily unavailable")),
+    )
+    request = SimpleNamespace(headers={}, state=SimpleNamespace())
+    with pytest.raises(HTTPException) as error:
+        await auth_dependencies.get_current_user_or_api_key(
+            request=request, response=SimpleNamespace(),
+            directus_service=SimpleNamespace(), cache_service=SimpleNamespace(),
+            refresh_token="old-secret",
+        )
+    assert error.value.status_code == 503

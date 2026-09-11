@@ -239,7 +239,8 @@ test.describe('Embeds map view preview', () => {
 		}
 		await expect(mapView.getByTestId('embeds-results-view-pane')).toHaveAttribute('data-active-tab', 'calendar');
 		const calendarItems = mapView.getByTestId('embeds-results-view-calendar-item');
-		await expect(calendarItems).toHaveCount(5);
+		// Five overnight flights render one segment on each occupied day.
+		await expect(calendarItems).toHaveCount(10);
         // A timed block must occupy its scheduled duration, not a fixed card height.
         const eventGeometry = await calendarItems.evaluateAll((elements) => elements.map((element) => {
             const style = getComputedStyle(element);
@@ -258,7 +259,7 @@ test.describe('Embeds map view preview', () => {
 		await expect(mapView.getByTestId('embeds-results-view-calendar-week-label')).toContainText('Apr 13');
 		await expect(mapView.getByRole('button', { name: 'Previous week', exact: true })).toBeDisabled();
 		await expect(mapView.getByRole('button', { name: 'Next week', exact: true })).toBeDisabled();
-		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(5);
+		await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(10);
 		await expect(cards).toHaveCount(0);
 		if (PROOF_DEVICE === 'web-phone') {
 			const calendar = mapView.getByTestId('embeds-results-view-calendar');
@@ -269,7 +270,7 @@ test.describe('Embeds map view preview', () => {
 		if (proof) {
 			await proof.assert('calendar-tab-week', async () => {
 				await expect(mapView.getByTestId('embeds-results-view-calendar-week')).toBeVisible();
-				await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(5);
+				await expect(calendarItems.filter({ hasText: 'Berlin (BER)' })).toHaveCount(10);
 			});
 			await proof.checkpoint('calendar-tab-week');
 		}

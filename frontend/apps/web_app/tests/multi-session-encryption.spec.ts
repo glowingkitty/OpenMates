@@ -320,6 +320,7 @@ async function deleteActiveChat(page: any, logFn: (msg: string) => void): Promis
 
 // ─── Main test ───────────────────────────────────────────────────────────────
 
+// contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,auth.session.isolation
 test('multi-session encryption: two simultaneous sessions can send and read 4 chats without decryption errors', async ({ browser }: { browser: any }) => {
 	test.slow();
 	// 4 chats × ~60s AI response + login + sync time = budget 10 minutes
@@ -377,6 +378,29 @@ test('multi-session encryption: two simultaneous sessions can send and read 4 ch
 		await screenshotB(pageB, 'logged-in');
 
 		logA('Both sessions logged in successfully.');
+
+        // Concurrent checks share browser cookies. They must leave both logical
+        // sessions usable rather than interpreting a competing rotation as logout.
+        const apiOrigin = process.env.PLAYWRIGHT_TEST_API_URL
+            ?? baseURL.replace('://app.', '://api.');
+        for (const sessionPage of [pageA, pageB]) {
+            const checks = await sessionPage.evaluate(async (endpoint: string) => {
+                const check = async () => {
+                    const response = await fetch(endpoint, {
+                        method: 'POST', credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ deviceSignals: {} }),
+                    });
+                    return { ok: response.ok, success: (await response.json()).success };
+                };
+                const overlapping = await Promise.all(Array.from({ length: 4 }, check));
+                return [...overlapping, await check()];
+            }, apiOrigin + '/v1/auth/session');
+            for (const result of checks) {
+                expect(result.ok).toBe(true);
+                expect(result.success).toBe(true);
+            }
+        }
 
 		// Allow both sessions to complete their initial sync (Phase 1/2/3).
 		// Session B needs its WebSocket connection established so it can receive

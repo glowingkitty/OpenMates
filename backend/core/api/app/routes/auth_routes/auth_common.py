@@ -8,6 +8,7 @@ from typing import Tuple, Dict, Any, Optional, TYPE_CHECKING
 
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
+from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
 
 if TYPE_CHECKING:
@@ -187,7 +188,7 @@ async def verify_authenticated_user(
             logger.info("No session data in cache for token - attempting fallback validation with Directus")
             
             # Try to refresh the token with Directus - this validates the refresh token
-            refresh_success, auth_data, refresh_message = await directus_service.refresh_token(refresh_token)
+            refresh_success, auth_data, refresh_message = await refresh_session_token(cache_service, directus_service, refresh_token)
             
             if not refresh_success or not auth_data:
                 logger.info(f"Fallback validation failed: refresh token is invalid or expired ({refresh_message})")
@@ -265,6 +266,11 @@ async def verify_authenticated_user(
             # CRITICAL: Cache with the NEW refresh token, not the old one that Directus just invalidated.
             # The old token from the cookie is dead after rotation.
             cache_success = await cache_service.set_user(user_profile, refresh_token=new_refresh_token, ttl=cache_ttl)
+            if cache_success:
+                await complete_refresh_rotation(
+                    cache_service, old_refresh_token=refresh_token,
+                    new_refresh_token=new_refresh_token, user_id=user_id,
+                )
             
             if not cache_success:
                 logger.warning(f"Failed to rebuild cache for user {user_id[:6]}... but continuing with session validation")
@@ -303,6 +309,8 @@ async def verify_authenticated_user(
         # If we reached here, authentication token is valid, and device (if checked) is known
         return True, user_data, refresh_token, None
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Authentication verification error: {str(e)}", exc_info=True)
         # Return token if available from cookie, even on error
