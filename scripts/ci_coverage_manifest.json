@@ -202,6 +202,7 @@
         "components/specification-fullscreen.spec.ts",
         "components/memory-consent.spec.ts",
         "components/mindmap-fullscreen.spec.ts",
+        "components/embed-workspace.spec.ts",
         "composer-model-routing.spec.ts",
         "design-search-icons.spec.ts",
         "dev-preview.spec.ts",
