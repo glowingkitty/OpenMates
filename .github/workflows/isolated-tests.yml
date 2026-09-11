@@ -173,6 +173,7 @@ jobs:
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
+          CODEX_3D8A_SERPAPI_ONCE: ${{ inputs.mode == 'pytest' && inputs.specs_json == '["travel-provider-once"]' && secrets.CODEX_3D8A_SERPAPI_ONCE || '' }}
         run: python3 ../tooling/scripts/ci_run_tests.py
       - name: Stop runner-private Codex daemon
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
@@ -197,6 +198,7 @@ jobs:
             subject/test-results/ci-cleanup.json
             subject/test-results/ci-selfhost-steps.json
             subject/test-results/ci-spec-*.json
+            subject/test-results/ci-travel-provider-once.json
             subject/test-results/ci-pytest.json
             subject/test-results/ci-unit-*
             subject/test-results/ci-visual-smoke/

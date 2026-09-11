@@ -563,6 +563,12 @@ def main():
             if receipt.get("inference_requested") is not False or receipt.get("status") != "ready":
                 raise RuntimeError("Codex metadata fixture lacks no-inference evidence")
             results.append({"suite": "codex-metadata", "exit_code": result.returncode, "thread_id": receipt["thread_id"], "inference_requested": False})
+        elif mode == "pytest" and json.loads(os.environ.get("CI_SPECS_JSON", "[]")) == ["travel-provider-once"]:
+            # Separately authorized, capped provider diagnostic. Never inject its
+            # credential into the full unit suite or shared development services.
+            subprocess.run([sys.executable, "-m", "pip", "install", "httpx==0.28.1", "pydantic==2.11.3", "airports-py==3.0.0"], check=True)
+            result = subprocess.run([sys.executable, "scripts/ci_travel_provider_once.py"], cwd=ROOT)
+            results = [{"suite": "travel-provider-once", "exit_code": result.returncode}]
         elif mode == "pytest":
             subprocess.run(
                 [
