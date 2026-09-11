@@ -58,7 +58,7 @@ async function flush(target?: HTMLElement): Promise<void> {
   await tick();
   if (!target) return;
   await vi.waitFor(() => {
-    expect(target.querySelector('[data-testid="embeds-map-view"]')?.getAttribute('data-loading')).toBe('false');
+    expect(target.querySelector('[data-testid="embeds-map-view-resolution"]')?.getAttribute('data-loading')).toBe('false');
   });
 }
 
@@ -311,6 +311,29 @@ describe("EmbedsMapView", () => {
       }
       return null;
     });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.rendering.inline-entity-interaction
+  it.each([
+    [{ title: 'No location or date' }, false],
+    [{ title: 'Invalid coordinates', lat: 100, lon: 200 }, false],
+    [{ title: 'Invalid date', date: '2026-02-30' }, false],
+    [{ title: 'Date only', date: '2026-09-20' }, true],
+  ])('only renders eligible dated or located entries: %j', async (data, visible) => {
+    embedResolverMocks.resolveEmbed.mockResolvedValue({ type: 'event', content: 'eligibility-content' });
+    embedResolverMocks.decodeToonContent.mockResolvedValue(data);
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+    const component = mount(EmbedsMapView, { target, props: { id: 'eligibility', embedRefs: ['entry'], sourceRefs: [], highlightRefs: [] } });
+    await flush(target);
+    expect(Boolean(target.querySelector('[data-testid="embeds-map-view"]'))).toBe(visible);
+    if (visible) {
+      expect(target.querySelector('[data-testid="embeds-results-view-calendar-date-only"]')?.textContent).toContain('Date only');
+      expect(target.querySelector('[data-testid="embeds-map-view-map"]')).toBeNull();
+      expect(target.querySelector('[data-testid="embeds-results-view-calendar-item"]')).toBeNull();
+    }
+    unmount(component);
+    target.remove();
   });
 
   // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering,public-example-chats.surface.semantic-parity
@@ -763,7 +786,8 @@ describe("EmbedsMapView", () => {
     });
 
     await flush(target);
-    expect(target.textContent).toContain("Waiting for source results");
+    expect(target.querySelector('[data-testid="embeds-map-view"]')).toBeNull();
+    expect(target.textContent).not.toContain("Waiting for source results");
 
     sourceAvailable = true;
     const emitAvailability = (globalThis as typeof globalThis & { __emitMapViewEmbedAvailability?: (value: number) => void }).__emitMapViewEmbedAvailability;
