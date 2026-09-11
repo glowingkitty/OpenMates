@@ -26553,7 +26553,7 @@ assertions:
       surface: gui.web
     - &id3000
       path: frontend/apps/web_app/tests/components/mindmap-fullscreen.spec.ts
-      line: 51
+      line: 58
       name: invalid fullscreen retains a visible error and copyable original source
       surface: gui.web
     - &id3002

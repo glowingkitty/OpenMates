@@ -39,7 +39,14 @@ test('normal fullscreen renders the map without exposing source JSON', async ({ 
     (button: HTMLElement) => button.parentElement!.getBoundingClientRect().height
   );
   expect(zoomBarHeight).toBeLessThanOrEqual(MAX_ZOOM_CONTROL_HEIGHT);
+  // Narrow fullscreen headers place Download inside the responsive More menu.
+  // Open the same visible control a phone user needs before checking the export.
+  const moreActions = overlay.getByRole('button', { name: 'More', exact: true });
+  if (await moreActions.isVisible()) {
+    await moreActions.click();
+  }
   const download = overlay.getByTestId('embed-download-button');
+  await expect(download).toBeVisible();
   await expect(download).toHaveAttribute('download', /launch-plan.*\.ommindmap$/);
   const exported = await download.evaluate(async (element: HTMLAnchorElement) =>
     (await fetch(element.href)).json());
